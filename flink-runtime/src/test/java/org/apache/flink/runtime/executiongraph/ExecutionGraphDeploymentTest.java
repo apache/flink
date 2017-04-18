@@ -359,7 +359,7 @@ public class ExecutionGraphDeploymentTest {
 			Collections.sort(execList, new Comparator<Execution>() {
 				@Override
 				public int compare(Execution o1, Execution o2) {
-					return o1.getVertex().getSimpleName().compareTo(o2.getVertex().getSimpleName());
+					return o1.getVertex().getTaskNameWithSubtaskIndex().compareTo(o2.getVertex().getTaskNameWithSubtaskIndex());
 				}
 			});
 

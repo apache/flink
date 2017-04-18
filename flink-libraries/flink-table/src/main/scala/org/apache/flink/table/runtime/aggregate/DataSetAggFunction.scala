@@ -38,7 +38,7 @@ import org.apache.flink.util.{Collector, Preconditions}
   */
 class DataSetAggFunction(
     private val aggregates: Array[AggregateFunction[_ <: Any]],
-    private val aggInFields: Array[Int],
+    private val aggInFields: Array[Array[Int]],
     private val aggOutMapping: Array[(Int, Int)],
     private val gkeyOutMapping: Array[(Int, Int)],
     private val groupingSetsMapping: Array[(Int, Int)],
@@ -82,7 +82,7 @@ class DataSetAggFunction(
       // accumulate
       i = 0
       while (i < aggregates.length) {
-        aggregates(i).accumulate(accumulators(i), record.getField(aggInFields(i)))
+        aggregates(i).accumulate(accumulators(i), record.getField(aggInFields(i)(0)))
         i += 1
       }
 

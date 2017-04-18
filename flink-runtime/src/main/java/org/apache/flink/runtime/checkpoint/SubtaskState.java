@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
@@ -39,6 +39,9 @@ public class SubtaskState implements StateObject {
 
 	/**
 	 * Legacy (non-repartitionable) operator state.
+	 *
+	 * @deprecated Non-repartitionable operator state that has been deprecated.
+	 * Can be removed when we remove the APIs for non-repartitionable operator state.
 	 */
 	@Deprecated
 	private final ChainedStateHandle<StreamStateHandle> legacyOperatorState;
@@ -56,12 +59,12 @@ public class SubtaskState implements StateObject {
 	/**
 	 * Snapshot from {@link org.apache.flink.runtime.state.KeyedStateBackend}.
 	 */
-	private final KeyGroupsStateHandle managedKeyedState;
+	private final KeyedStateHandle managedKeyedState;
 
 	/**
 	 * Snapshot written using {@link org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream}.
 	 */
-	private final KeyGroupsStateHandle rawKeyedState;
+	private final KeyedStateHandle rawKeyedState;
 
 	/**
 	 * The state size. This is also part of the deserialized state handle.
@@ -74,8 +77,8 @@ public class SubtaskState implements StateObject {
 			ChainedStateHandle<StreamStateHandle> legacyOperatorState,
 			ChainedStateHandle<OperatorStateHandle> managedOperatorState,
 			ChainedStateHandle<OperatorStateHandle> rawOperatorState,
-			KeyGroupsStateHandle managedKeyedState,
-			KeyGroupsStateHandle rawKeyedState) {
+			KeyedStateHandle managedKeyedState,
+			KeyedStateHandle rawKeyedState) {
 
 		this.legacyOperatorState = checkNotNull(legacyOperatorState, "State");
 		this.managedOperatorState = managedOperatorState;
@@ -101,6 +104,10 @@ public class SubtaskState implements StateObject {
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * @deprecated Non-repartitionable operator state that has been deprecated.
+	 * Can be removed when we remove the APIs for non-repartitionable operator state.
+	 */
 	@Deprecated
 	public ChainedStateHandle<StreamStateHandle> getLegacyOperatorState() {
 		return legacyOperatorState;
@@ -114,11 +121,11 @@ public class SubtaskState implements StateObject {
 		return rawOperatorState;
 	}
 
-	public KeyGroupsStateHandle getManagedKeyedState() {
+	public KeyedStateHandle getManagedKeyedState() {
 		return managedKeyedState;
 	}
 
-	public KeyGroupsStateHandle getRawKeyedState() {
+	public KeyedStateHandle getRawKeyedState() {
 		return rawKeyedState;
 	}
 

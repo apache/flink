@@ -44,7 +44,7 @@ under the License.
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.19.1</version>
 				<configuration>
-					<argLine>-XX:MaxPermSize=128m</argLine>
+					<argLine>-XX:MaxPermSize=128m -Dmvn.forkNumber=${surefire.forkNumber}</argLine>
 					<!-- Enforce single fork execution due to heavy mini cluster use in the tests -->
 					<forkCount>1</forkCount>
 				</configuration>

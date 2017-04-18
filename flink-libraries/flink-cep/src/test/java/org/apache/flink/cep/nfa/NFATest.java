@@ -19,9 +19,9 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.cep.Event;
-import org.apache.flink.cep.pattern.FilterFunctions;
+import org.apache.flink.cep.pattern.conditions.BooleanConditions;
+import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -58,7 +58,7 @@ public class NFATest extends TestLogger {
 
 		startState.addTake(
 			endState,
-			new FilterFunction<Event>() {
+			new SimpleCondition<Event>() {
 				private static final long serialVersionUID = -4869589195918650396L;
 
 				@Override
@@ -68,7 +68,7 @@ public class NFATest extends TestLogger {
 			});
 		endState.addTake(
 			endingState,
-			new FilterFunction<Event>() {
+			new SimpleCondition<Event>() {
 				private static final long serialVersionUID = 2979804163709590673L;
 
 				@Override
@@ -76,7 +76,7 @@ public class NFATest extends TestLogger {
 					return value.getName().equals("end");
 				}
 			});
-		endState.addIgnore(FilterFunctions.<Event>trueFunction());
+		endState.addIgnore(BooleanConditions.<Event>trueFunction());
 
 		nfa.addState(startState);
 		nfa.addState(endState);
@@ -241,7 +241,7 @@ public class NFATest extends TestLogger {
 
 		startState.addTake(
 			endState,
-			new FilterFunction<Event>() {
+			new SimpleCondition<Event>() {
 				private static final long serialVersionUID = -4869589195918650396L;
 
 				@Override
@@ -251,7 +251,7 @@ public class NFATest extends TestLogger {
 			});
 		endState.addTake(
 			endingState,
-			new FilterFunction<Event>() {
+			new SimpleCondition<Event>() {
 				private static final long serialVersionUID = 2979804163709590673L;
 
 				@Override
@@ -259,7 +259,7 @@ public class NFATest extends TestLogger {
 					return value.getName().equals("end");
 				}
 			});
-		endState.addIgnore(FilterFunctions.<Event>trueFunction());
+		endState.addIgnore(BooleanConditions.<Event>trueFunction());
 
 		nfa.addState(startState);
 		nfa.addState(endState);
@@ -268,7 +268,7 @@ public class NFATest extends TestLogger {
 		return nfa;
 	}
 
-	private static class NameFilter implements FilterFunction<Event> {
+	private static class NameFilter extends SimpleCondition<Event> {
 
 		private static final long serialVersionUID = 7472112494752423802L;
 

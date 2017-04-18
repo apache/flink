@@ -18,7 +18,7 @@
 
 package org.apache.flink.cep.nfa;
 
-import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -41,7 +41,7 @@ public class State<T> implements Serializable {
 	private static final long serialVersionUID = 6658700025989097781L;
 
 	private final String name;
-	private final StateType stateType;
+	private StateType stateType;
 	private final Collection<StateTransition<T>> stateTransitions;
 
 	public State(final String name, final StateType stateType) {
@@ -65,30 +65,34 @@ public class State<T> implements Serializable {
 		return stateTransitions;
 	}
 
+	public void makeStart() {
+		this.stateType = StateType.Start;
+	}
+
 	private void addStateTransition(
-		final StateTransitionAction action,
-		final State<T> targetState,
-		final FilterFunction<T> condition) {
+			final StateTransitionAction action,
+			final State<T> targetState,
+			final IterativeCondition<T> condition) {
 		stateTransitions.add(new StateTransition<T>(this, action, targetState, condition));
 	}
 
-	public void addIgnore(final FilterFunction<T> condition) {
+	public void addIgnore(final IterativeCondition<T> condition) {
 		addStateTransition(StateTransitionAction.IGNORE, this, condition);
 	}
 
-	public void addIgnore(final State<T> targetState,final FilterFunction<T> condition) {
+	public void addIgnore(final State<T> targetState,final IterativeCondition<T> condition) {
 		addStateTransition(StateTransitionAction.IGNORE, targetState, condition);
 	}
 
-	public void addTake(final State<T> targetState, final FilterFunction<T> condition) {
+	public void addTake(final State<T> targetState, final IterativeCondition<T> condition) {
 		addStateTransition(StateTransitionAction.TAKE, targetState, condition);
 	}
 
-	public void addProceed(final State<T> targetState, final FilterFunction<T> condition) {
+	public void addProceed(final State<T> targetState, final IterativeCondition<T> condition) {
 		addStateTransition(StateTransitionAction.PROCEED, targetState, condition);
 	}
 
-	public void addTake(final FilterFunction<T> condition) {
+	public void addTake(final IterativeCondition<T> condition) {
 		addStateTransition(StateTransitionAction.TAKE, this, condition);
 	}
 

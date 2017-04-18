@@ -20,10 +20,9 @@ package org.apache.flink.table.plan.rules
 
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
-import org.apache.flink.table.calcite.rules.{FlinkAggregateExpandDistinctAggregatesRule, FlinkAggregateJoinTransposeRule}
+import org.apache.flink.table.plan.rules.common._
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
-import org.apache.flink.table.plan.rules.datastream.{DataStreamCalcRule, DataStreamScanRule, DataStreamUnionRule}
 
 object FlinkRuleSets {
 
@@ -36,7 +35,11 @@ object FlinkRuleSets {
     ReduceExpressionsRule.PROJECT_INSTANCE,
     ReduceExpressionsRule.CALC_INSTANCE,
     ReduceExpressionsRule.JOIN_INSTANCE,
-    ProjectToWindowRule.PROJECT
+    ProjectToWindowRule.PROJECT,
+
+    // Transform window to LogicalWindowAggregate
+    DataSetLogicalWindowAggregateRule.INSTANCE,
+    WindowStartEndPropertiesRule.INSTANCE
   )
 
   /**
@@ -80,9 +83,11 @@ object FlinkRuleSets {
     // remove aggregation if it does not aggregate and input is already distinct
     AggregateRemoveRule.INSTANCE,
     // push aggregate through join
-    FlinkAggregateJoinTransposeRule.EXTENDED,
+    AggregateJoinTransposeRule.EXTENDED,
     // aggregate union rule
     AggregateUnionAggregateRule.INSTANCE,
+    // expand distinct aggregate to normal aggregate with groupby
+    AggregateExpandDistinctAggregatesRule.JOIN,
 
     // remove unnecessary sort rule
     SortRemoveRule.INSTANCE,
@@ -102,9 +107,6 @@ object FlinkRuleSets {
     FilterToCalcRule.INSTANCE,
     ProjectToCalcRule.INSTANCE,
     CalcMergeRule.INSTANCE,
-
-    // distinct aggregate rule for FLINK-3475
-    FlinkAggregateExpandDistinctAggregatesRule.JOIN,
 
     // translate to Flink DataSet nodes
     DataSetWindowAggregateRule.INSTANCE,
@@ -133,7 +135,8 @@ object FlinkRuleSets {
     */
   val DATASTREAM_NORM_RULES: RuleSet = RuleSets.ofList(
     // Transform window to LogicalWindowAggregate
-    LogicalWindowAggregateRule.INSTANCE,
+    DataStreamLogicalWindowAggregateRule.INSTANCE,
+    WindowStartEndPropertiesRule.INSTANCE,
 
     // simplify expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,
@@ -184,6 +187,14 @@ object FlinkRuleSets {
       //  scan optimization
       PushProjectIntoStreamTableSourceScanRule.INSTANCE,
       PushFilterIntoStreamTableSourceScanRule.INSTANCE
+  )
+
+  /**
+    * RuleSet to decorate plans for stream / DataStream execution
+    */
+  val DATASTREAM_DECO_RULES: RuleSet = RuleSets.ofList(
+    // rules
+
   )
 
 }

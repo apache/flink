@@ -26,11 +26,12 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.LocalExecutor;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
 
-public class LocalExecutorITCase {
+public class LocalExecutorITCase extends TestLogger {
 
 	private static final int parallelism = 4;
 

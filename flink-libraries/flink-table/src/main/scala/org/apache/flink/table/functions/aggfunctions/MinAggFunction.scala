@@ -160,6 +160,6 @@ class DecimalMinAggFunction extends MinAggFunction[BigDecimal] {
   * Built-in String Min aggregate function
   */
 class StringMinAggFunction extends MinAggFunction[String] {
-  override def getInitValue = "".toString
+  override def getInitValue = ""
   override def getValueTypeInfo = BasicTypeInfo.STRING_TYPE_INFO
 }

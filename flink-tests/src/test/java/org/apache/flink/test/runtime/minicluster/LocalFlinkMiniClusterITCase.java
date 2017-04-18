@@ -31,6 +31,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import scala.concurrent.ExecutionContext$;
 import scala.concurrent.forkjoin.ForkJoinPool;
@@ -43,7 +44,7 @@ import java.util.Set;
 
 import static org.junit.Assert.fail;
 
-public class LocalFlinkMiniClusterITCase {
+public class LocalFlinkMiniClusterITCase extends TestLogger {
 
 	private static String[] ALLOWED_THREAD_PREFIXES = { };
 

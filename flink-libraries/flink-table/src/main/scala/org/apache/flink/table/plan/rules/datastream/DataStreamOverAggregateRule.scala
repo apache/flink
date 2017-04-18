@@ -23,11 +23,8 @@ import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.logical.LogicalWindow
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.plan.nodes.datastream.DataStreamConvention
 import org.apache.flink.table.plan.nodes.datastream.DataStreamOverAggregate
-
-import scala.collection.JavaConversions._
 
 /**
   * Rule to convert a LogicalWindow into a DataStreamOverAggregate.

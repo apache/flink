@@ -212,3 +212,11 @@ class DecimalMinWithRetractAggFunction extends MinWithRetractAggFunction[BigDeci
   override def getInitValue: BigDecimal = BigDecimal.ZERO
   override def getValueTypeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO
 }
+
+/**
+  * Built-in String Min with retraction aggregate function
+  */
+class StringMinWithRetractAggFunction extends MinWithRetractAggFunction[String] {
+  override def getInitValue: String = ""
+  override def getValueTypeInfo = BasicTypeInfo.STRING_TYPE_INFO
+}

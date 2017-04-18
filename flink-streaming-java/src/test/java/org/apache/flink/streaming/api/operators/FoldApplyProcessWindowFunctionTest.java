@@ -21,20 +21,28 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.util.ListCollector;
+import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.KeyedStateStore;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.FoldApplyProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.FoldApplyProcessWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.FoldApplyWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -45,8 +53,8 @@ import org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProces
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableProcessAllWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableProcessWindowFunction;
 import org.apache.flink.util.Collector;
-import org.junit.Test;
 import org.junit.Assert;
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -139,12 +147,26 @@ public class FoldApplyProcessWindowFunctionTest {
 
 		expected.add(initValue);
 
-		foldWindowFunction.process(0, foldWindowFunction.new Context() {
+		FoldApplyProcessWindowFunction<Integer, TimeWindow, Integer, Integer, Integer>.Context ctx = foldWindowFunction.new Context() {
 			@Override
 			public TimeWindow window() {
 				return new TimeWindow(0, 1);
 			}
-		}, input, new ListCollector<>(result));
+
+			@Override
+			public KeyedStateStore windowState() {
+				return new DummyKeyedStateStore();
+			}
+
+			@Override
+			public KeyedStateStore globalState() {
+				return new DummyKeyedStateStore();
+			}
+		};
+
+		foldWindowFunction.open(new Configuration());
+
+		foldWindowFunction.process(0, ctx, input, new ListCollector<>(result));
 
 		Assert.assertEquals(expected, result);
 	}
@@ -234,14 +256,56 @@ public class FoldApplyProcessWindowFunctionTest {
 
 		expected.add(initValue);
 
-		foldWindowFunction.process(foldWindowFunction.new Context() {
+		FoldApplyProcessAllWindowFunction<TimeWindow, Integer, Integer, Integer>.Context ctx = foldWindowFunction.new Context() {
 			@Override
 			public TimeWindow window() {
 				return new TimeWindow(0, 1);
 			}
-		}, input, new ListCollector<>(result));
+
+			@Override
+			public KeyedStateStore windowState() {
+				return new DummyKeyedStateStore();
+			}
+
+			@Override
+			public KeyedStateStore globalState() {
+				return new DummyKeyedStateStore();
+			}
+		};
+
+		foldWindowFunction.open(new Configuration());
+
+		foldWindowFunction.process(ctx, input, new ListCollector<>(result));
 
 		Assert.assertEquals(expected, result);
+	}
+
+	public static class DummyKeyedStateStore implements KeyedStateStore {
+
+		@Override
+		public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+			return null;
+		}
+
+		@Override
+		public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
+			return null;
+		}
+
+		@Override
+		public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
+			return null;
+		}
+
+		@Override
+		public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
+			return null;
+		}
+
+		@Override
+		public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
+			return null;
+		}
 	}
 
 	public static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {

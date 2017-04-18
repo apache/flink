@@ -37,6 +37,7 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGeneratorItera
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -45,7 +46,7 @@ import org.junit.Test;
 
 import java.util.*;
 
-public abstract class ReOpenableHashTableTestBase {
+public abstract class ReOpenableHashTableTestBase extends TestLogger {
 
 	protected static final int PAGE_SIZE = 8 * 1024;
 	protected static final long MEMORY_SIZE = PAGE_SIZE * 1000; // 100 Pages.

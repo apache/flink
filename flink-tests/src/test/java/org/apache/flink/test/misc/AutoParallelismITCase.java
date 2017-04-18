@@ -31,6 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -43,7 +44,7 @@ import java.util.List;
  * This test verifies that the auto parallelism is properly forwarded to the runtime.
  */
 @SuppressWarnings("serial")
-public class AutoParallelismITCase {
+public class AutoParallelismITCase extends TestLogger {
 
 	private static final int NUM_TM = 2;
 	private static final int SLOTS_PER_TM = 7;

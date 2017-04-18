@@ -20,7 +20,6 @@ package org.apache.flink.cep.nfa.compiler;
 
 import com.google.common.collect.Sets;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -32,6 +31,7 @@ import org.apache.flink.cep.nfa.StateTransition;
 import org.apache.flink.cep.nfa.StateTransitionAction;
 import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,7 +48,7 @@ import static org.junit.Assert.assertTrue;
 
 public class NFACompilerTest extends TestLogger {
 
-	private static final FilterFunction<Event> startFilter = new FilterFunction<Event>() {
+	private static final SimpleCondition<Event> startFilter = new SimpleCondition<Event>() {
 		private static final long serialVersionUID = 3314714776170474221L;
 
 		@Override
@@ -57,7 +57,7 @@ public class NFACompilerTest extends TestLogger {
 		}
 	};
 
-	private static final FilterFunction<Event> endFilter = new FilterFunction<Event>() {
+	private static final SimpleCondition<Event> endFilter = new SimpleCondition<Event>() {
 		private static final long serialVersionUID = 3990995859716364087L;
 
 		@Override
@@ -91,7 +91,7 @@ public class NFACompilerTest extends TestLogger {
 	 * A filter implementation to test invalid pattern specification with
 	 * duplicate pattern names. Check {@link #testNFACompilerUniquePatternName()}.
 	 */
-	private static class TestFilter implements FilterFunction<Event> {
+	private static class TestFilter extends SimpleCondition<Event> {
 
 		private static final long serialVersionUID = -3863103355752267133L;
 

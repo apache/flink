@@ -24,6 +24,10 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 
+/**
+ * @deprecated Deprecated in favour of the generic {@link WindowOperator}. This was an
+ * optimized implementation used for aligned windows.
+ */
 @Internal
 @Deprecated
 public class AggregatingProcessingTimeWindowOperator<KEY, IN> 

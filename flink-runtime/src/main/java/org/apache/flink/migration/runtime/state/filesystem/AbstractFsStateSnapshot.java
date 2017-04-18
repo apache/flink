@@ -40,6 +40,8 @@ import java.io.IOException;
  * @param <K> The type of the key in the snapshot state.
  * @param <N> The type of the namespace in the snapshot state.
  * @param <SV> The type of the state value.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
 @SuppressWarnings("deprecation")

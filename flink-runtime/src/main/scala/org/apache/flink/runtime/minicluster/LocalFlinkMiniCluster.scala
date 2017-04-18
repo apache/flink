@@ -24,7 +24,7 @@ import java.util.concurrent.{Executor, ScheduledExecutorService}
 import akka.actor.{ActorRef, ActorSystem, Props}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.io.FileOutputFormat
-import org.apache.flink.configuration.{ConfigConstants, Configuration, QueryableStateOptions}
+import org.apache.flink.configuration.{ConfigConstants, Configuration, QueryableStateOptions, TaskManagerOptions}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
@@ -350,23 +350,19 @@ class LocalFlinkMiniCluster(
 
   def setMemory(config: Configuration): Unit = {
     // set this only if no memory was pre-configured
-    if (config.getInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1) == -1) {
+    if (config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE) ==
+        TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) {
 
-      val bufferSize: Int = config.getInteger(
-        ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
-        ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE)
+      val bufferSize: Int = config.getInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE)
 
-      val bufferMem: Long = config.getLong(
-        ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
-        ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS) * bufferSize.toLong
+      val bufferMem: Long = config.getInteger(
+        TaskManagerOptions.NETWORK_NUM_BUFFERS).toLong * bufferSize.toLong
 
       val numTaskManager = config.getInteger(
         ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
         ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER)
 
-      val memoryFraction = config.getFloat(
-        ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
-        ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION)
+      val memoryFraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION)
 
       // full memory size
       var memorySize: Long = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag
@@ -379,7 +375,7 @@ class LocalFlinkMiniCluster(
       memorySize -= bufferMem
       memorySize = (memorySize * memoryFraction).toLong
       memorySize >>>= 20 // bytes to megabytes
-      config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize)
+      config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, memorySize)
     }
   }
 

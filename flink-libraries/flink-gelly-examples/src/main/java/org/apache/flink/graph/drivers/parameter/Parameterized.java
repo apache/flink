@@ -39,7 +39,7 @@ public interface Parameterized {
 	 *
 	 * @return command-line documentation string
 	 */
-	String getParameterization();
+	String getUsage();
 
 	/**
 	 * Read parameter values from the command-line arguments.

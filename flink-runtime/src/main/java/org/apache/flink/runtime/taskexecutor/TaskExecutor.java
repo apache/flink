@@ -713,8 +713,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	}
 
 	private void closeResourceManagerConnection(Exception cause) {
-		validateRunsInMainThread();
-
 		if (isConnectedToResourceManager()) {
 			log.info("Close ResourceManager connection {}.", resourceManagerConnection.getResourceManagerId(), cause);
 
@@ -859,8 +857,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	}
 
 	private void closeJobManagerConnection(JobID jobId, Exception cause) {
-		validateRunsInMainThread();
-
 		log.info("Close JobManager connection for job {}.", jobId);
 
 		// 1. fail tasks running under this JobID

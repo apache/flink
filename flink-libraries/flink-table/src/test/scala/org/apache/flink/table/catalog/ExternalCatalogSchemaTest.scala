@@ -25,19 +25,19 @@ import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.validate.SqlMonikerType
-import org.apache.commons.collections.CollectionUtils
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.sources.CsvTableSource
 import org.apache.flink.table.utils.CommonTestData
-import org.junit.{Before, Test}
 import org.junit.Assert._
+import org.junit.{Before, Test}
+
 import scala.collection.JavaConverters._
 
 class ExternalCatalogSchemaTest {
 
   private val schemaName: String = "test"
-  private var externalCatalogSchema: ExternalCatalogSchema = _
+  private var externalCatalogSchema: SchemaPlus = _
   private var calciteCatalogReader: CalciteCatalogReader = _
   private val db = "db1"
   private val tb = "tb1"
@@ -46,7 +46,8 @@ class ExternalCatalogSchemaTest {
   def setUp(): Unit = {
     val rootSchemaPlus: SchemaPlus = CalciteSchema.createRootSchema(true, false).plus()
     val catalog = CommonTestData.getInMemoryTestCatalog
-    externalCatalogSchema = ExternalCatalogSchema.create(rootSchemaPlus, schemaName, catalog)
+    ExternalCatalogSchema.registerCatalog(rootSchemaPlus, schemaName, catalog)
+    externalCatalogSchema = rootSchemaPlus.getSubSchema("schemaName")
     val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
     calciteCatalogReader = new CalciteCatalogReader(
       CalciteSchema.from(rootSchemaPlus),
@@ -62,7 +63,8 @@ class ExternalCatalogSchemaTest {
     val subSchemas = allSchemaObjectNames.asScala
         .filter(_.getType.equals(SqlMonikerType.SCHEMA))
         .map(_.getFullyQualifiedNames.asScala.toList).toSet
-    assertTrue(Set(List(schemaName, "db1"), List(schemaName, "db2")) == subSchemas)
+    assertTrue(Set(List(schemaName), List(schemaName, "db1"),
+      List(schemaName, "db2")) == subSchemas)
   }
 
   @Test

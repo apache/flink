@@ -52,12 +52,13 @@ import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-public class HashTableITCase {
+public class HashTableITCase extends TestLogger {
 
 	private static final AbstractInvokable MEM_OWNER = new DummyInvokable();
 	

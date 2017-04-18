@@ -348,13 +348,28 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		}
 
 		@Override
+		public void setVertexId0(T value) {
+			f0 = value;
+		}
+
+		@Override
 		public T getVertexId1() {
 			return f1;
 		}
 
 		@Override
+		public void setVertexId1(T value) {
+			f1 = value;
+		}
+
+		@Override
 		public T getVertexId2() {
 			return f2;
+		}
+
+		@Override
+		public void setVertexId2(T value) {
+			f2 = value;
 		}
 
 		/**

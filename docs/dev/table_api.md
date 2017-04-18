@@ -326,24 +326,43 @@ val batchTable = batchTableEnvironment.scan("mycsv")
 </div>
 </div>
 
-### Unregister a Table
+Registering external Catalogs
+--------------------------------
 
-A table can be unregistered using the following method. Subsequent SQL queries won't find the unregistered table name anymore.
+An external catalog is defined by the `ExternalCatalog` interface and provides information about databases and tables such as their name, schema, statistics, and access information. An `ExternalCatalog` is registered in a `TableEnvironment` as follows: 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-tableEnvironment.unregisterTable("Customers");
+// works for StreamExecutionEnvironment identically
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+ExternalCatalog customerCatalog = new InMemoryExternalCatalog();
+
+// register the ExternalCatalog customerCatalog
+tableEnv.registerExternalCatalog("Customers", customerCatalog);
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-tableEnvironment.unregisterTable("Customers")
+// works for StreamExecutionEnvironment identically
+val env = ExecutionEnvironment.getExecutionEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+val customerCatalog: ExternalCatalog = new InMemoryExternalCatalog
+
+// register the ExternalCatalog customerCatalog
+tableEnv.registerExternalCatalog("Customers", customerCatalog)
+
 {% endhighlight %}
 </div>
 </div>
 
+Once registered in a `TableEnvironment`, all tables defined in a `ExternalCatalog` can be accessed from Table API or SQL queries by specifying their full path (`catalog`.`database`.`table`).
+
+Currently, Flink provides an `InMemoryExternalCatalog` for demo and testing purposes. However, the `ExternalCatalog` interface can also be used to connect catalogs like HCatalog or Metastore to the Table API.
 
 Table API
 ----------
@@ -1401,7 +1420,158 @@ val result2 = tableEnv.sql(
 
 #### Limitations
 
-The current version of streaming SQL only supports `SELECT`, `FROM`, `WHERE`, and `UNION` clauses. Aggregations or joins are not supported yet.
+Joins, set operations, and non-windowed aggregations are not supported yet.
+
+{% top %}
+
+### Group Windows
+
+Group windows are defined in the `GROUP BY` clause of a SQL query. Just like queries with regular `GROUP BY` clauses, queries with a `GROUP BY` clause that includes a group window function compute a single result row per group. The following group windows functions are supported for SQL on batch and streaming tables.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 30%">Group Window Function</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><code>TUMBLE(time_attr, interval)</code></td>
+      <td>Defines a tumbling time window. A tumbling time window assigns rows to non-overlapping, continuous windows with a fixed duration (<code>interval</code>). For example, a tumbling window of 5 minutes groups rows in 5 minutes intervals. Tumbling windows can be defined on event-time (stream + batch) or processing-time (stream).</td>
+    </tr>
+    <tr>
+      <td><code>HOP(time_attr, interval, interval)</code></td>
+      <td>Defines a hopping time window (called sliding window in the Table API). A hopping time window has a fixed duration (second <code>interval</code> parameter) and hops by a specified hop interval (first <code>interval</code> parameter). If the hop interval is smaller than the window size, hopping windows are overlapping. Thus, rows can be assigned to multiple windows. For example, a hopping window of 15 minutes size and 5 minute hop interval assigns each row to 3 different windows of 15 minute size, which are evaluated in an interval of 5 minutes. Hopping windows can be defined on event-time (stream + batch) or processing-time (stream).</td>
+    </tr>
+    <tr>
+      <td><code>SESSION(time_attr, interval)</code></td>
+      <td>Defines a session time window. Session time windows do not have a fixed duration but their bounds are defined by a time <code>interval</code> of inactivity, i.e., a session window is closed if no event appears for a defined gap period. For example a session window with a 30 minute gap starts when a row is observed after 30 minutes inactivity (otherwise the row would be added to an existing window) and is closed if no row is added within 30 minutes. Session windows can work on event-time (stream + batch) or processing-time (stream).</td>
+    </tr>
+  </tbody>
+</table>
+
+For SQL queries on streaming tables, the `time_attr` argument of the group window function must be one of the `rowtime()` or `proctime()` time-indicators, which distinguish between event or processing time, respectively. For SQL on batch tables, the `time_attr` argument of the group window function must be an attribute of type `TIMESTAMP`. 
+
+#### Selecting Group Window Start and End Timestamps
+
+The start and end timestamps of group windows can be selected with the following auxiliary functions:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Auxiliary Function</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        <code>TUMBLE_START(time_attr, interval)</code><br/>
+        <code>HOP_START(time_attr, interval, interval)</code><br/>
+        <code>SESSION_START(time_attr, interval)</code><br/>
+      </td>
+      <td>Returns the start timestamp of the corresponding tumbling, hopping, and session window.</td>
+    </tr>
+    <tr>
+      <td>
+        <code>TUMBLE_END(time_attr, interval)</code><br/>
+        <code>HOP_END(time_attr, interval, interval)</code><br/>
+        <code>SESSION_END(time_attr, interval)</code><br/>
+      </td>
+      <td>Returns the end timestamp of the corresponding tumbling, hopping, and session window.</td>
+    </tr>
+  </tbody>
+</table>
+
+Note that the auxiliary functions must be called with exactly same arguments as the group window function in the `GROUP BY` clause.
+
+The following examples show how to specify SQL queries with group windows on streaming tables. 
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+// ingest a DataStream from an external source
+DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
+// register the DataStream as table "Orders"
+tableEnv.registerDataStream("Orders", ds, "user, product, amount");
+
+// compute SUM(amount) per day (in event-time)
+Table result1 = tableEnv.sql(
+  "SELECT user, " +
+  "  TUMBLE_START(rowtime(), INTERVAL '1' DAY) as wStart,  " +
+  "  SUM(amount) FROM Orders " + 
+  "GROUP BY TUMBLE(rowtime(), INTERVAL '1' DAY), user");
+
+// compute SUM(amount) per day (in processing-time)
+Table result2 = tableEnv.sql(
+  "SELECT user, SUM(amount) FROM Orders GROUP BY TUMBLE(proctime(), INTERVAL '1' DAY), user");
+
+// compute every hour the SUM(amount) of the last 24 hours in event-time
+Table result3 = tableEnv.sql(
+  "SELECT product, SUM(amount) FROM Orders GROUP BY HOP(rowtime(), INTERVAL '1' HOUR, INTERVAL '1' DAY), product");
+
+// compute SUM(amount) per session with 12 hour inactivity gap (in event-time)
+Table result4 = tableEnv.sql(
+  "SELECT user, " +
+  "  SESSION_START(rowtime(), INTERVAL '12' HOUR) AS sStart, " +
+  "  SESSION_END(rowtime(), INTERVAL '12' HOUR) AS snd, " + 
+  "  SUM(amount) " + 
+  "FROM Orders " + 
+  "GROUP BY SESSION(rowtime(), INTERVAL '12' HOUR), user");
+
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+// read a DataStream from an external source
+val ds: DataStream[(Long, String, Int)] = env.addSource(...)
+// register the DataStream under the name "Orders"
+tableEnv.registerDataStream("Orders", ds, 'user, 'product, 'amount)
+
+// compute SUM(amount) per day (in event-time)
+val result1 = tableEnv.sql(
+    """
+      |SELECT
+      |  user, 
+      |  TUMBLE_START(rowtime(), INTERVAL '1' DAY) as wStart,
+      |  SUM(amount)
+      | FROM Orders
+      | GROUP BY TUMBLE(rowtime(), INTERVAL '1' DAY), user
+    """.stripMargin)
+
+// compute SUM(amount) per day (in processing-time)
+val result2 = tableEnv.sql(
+  "SELECT user, SUM(amount) FROM Orders GROUP BY TUMBLE(proctime(), INTERVAL '1' DAY), user")
+
+// compute every hour the SUM(amount) of the last 24 hours in event-time
+val result3 = tableEnv.sql(
+  "SELECT product, SUM(amount) FROM Orders GROUP BY HOP(rowtime(), INTERVAL '1' HOUR, INTERVAL '1' DAY), product")
+
+// compute SUM(amount) per session with 12 hour inactivity gap (in event-time)
+val result4 = tableEnv.sql(
+    """
+      |SELECT
+      |  user, 
+      |  SESSION_START(rowtime(), INTERVAL '12' HOUR) AS sStart,
+      |  SESSION_END(rowtime(), INTERVAL '12' HOUR) AS sEnd,
+      |  SUM(amount)
+      | FROM Orders
+      | GROUP BY SESSION(rowtime(), INTERVAL '12' HOUR), user
+    """.stripMargin)
+
+{% endhighlight %}
+</div>
+</div>
 
 {% top %}
 
@@ -5074,8 +5244,7 @@ The following operations are not supported yet:
 - Collection functions
 - Aggregate functions like STDDEV_xxx, VAR_xxx, and REGR_xxx
 - Distinct aggregate functions like COUNT DISTINCT
-- Window functions
-- Grouping functions
+- Row windows
 
 
 

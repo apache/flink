@@ -23,49 +23,51 @@ import java.util.{List => JList}
 import org.apache.flink.table.api._
 
 /**
-  * This class is responsible for read table/database from external catalog.
-  * Its main responsibilities is provide tables for calcite catalog, it looks up databases or tables
-  * in the external catalog.
+  * An [[ExternalCatalog]] is the connector between an external database catalog and Flink's
+  * Table API.
+  *
+  * It provides information about databases and tables such as names, schema, statistics, and
+  * access information.
   */
 trait ExternalCatalog {
 
   /**
-    * Gets table from external Catalog
+    * Get a table from the catalog
     *
-    * @param dbName    database name
-    * @param tableName table name
-    * @throws DatabaseNotExistException if database does not exist in the catalog yet
-    * @throws TableNotExistException    if table does not exist in the catalog yet
-    * @return found table
+    * @param dbName    The name of the table's database.
+    * @param tableName The name of the table.
+    * @throws DatabaseNotExistException thrown if the database does not exist in the catalog.
+    * @throws TableNotExistException    thrown if the table does not exist in the catalog.
+    * @return the requested table
     */
   @throws[DatabaseNotExistException]
   @throws[TableNotExistException]
   def getTable(dbName: String, tableName: String): ExternalCatalogTable
 
   /**
-    * Gets the table name lists from current external Catalog
+    * Get a list of all table names of a database in the catalog.
     *
-    * @param dbName database name
-    * @throws DatabaseNotExistException if database does not exist in the catalog yet
-    * @return lists of table name
+    * @param dbName The name of the database.
+    * @throws DatabaseNotExistException thrown if the database does not exist in the catalog
+    * @return The list of table names
     */
   @throws[DatabaseNotExistException]
   def listTables(dbName: String): JList[String]
 
   /**
-    * Gets database from external Catalog
+    * Gets a database from the catalog.
     *
-    * @param dbName database name
-    * @throws DatabaseNotExistException if database does not exist in the catalog yet
-    * @return found database
+    * @param dbName The name of the database.
+    * @throws DatabaseNotExistException thrown if the database does not exist in the catalog
+    * @return The requested database
     */
   @throws[DatabaseNotExistException]
   def getDatabase(dbName: String): ExternalCatalogDatabase
 
   /**
-    * Gets the database name lists from current external Catalog
+    * Gets a list of all databases in the catalog.
     *
-    * @return list of database names
+    * @return The list of database names
     */
   def listDatabases(): JList[String]
 

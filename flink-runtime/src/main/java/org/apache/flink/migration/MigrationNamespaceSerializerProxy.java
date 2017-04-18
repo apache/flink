@@ -30,6 +30,8 @@ import java.io.Serializable;
  * Flink 1.1 savepoint (which did not include the namespace serializer) to Flink 1.2 (which always must include a
  * (non-null) namespace serializer. This is then replaced as soon as the user is re-registering her state again for
  * the first run under Flink 1.2 and provides again the real namespace serializer.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
 @SuppressWarnings("deprecation")

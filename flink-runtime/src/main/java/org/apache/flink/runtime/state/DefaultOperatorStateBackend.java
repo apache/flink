@@ -134,8 +134,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 					"Incompatible assignment mode. Provided: " + mode + ", expected: " +
 							partitionableListState.getAssignmentMode());
 			Preconditions.checkState(
-					partitionableListState.getPartitionStateSerializer().
-							isCompatibleWith(stateDescriptor.getElementSerializer()),
+					stateDescriptor.getElementSerializer().
+							canRestoreFrom(partitionableListState.getPartitionStateSerializer()),
 					"Incompatible type serializers. Provided: " + stateDescriptor.getElementSerializer() +
 							", found: " + partitionableListState.getPartitionStateSerializer());
 		}
@@ -258,7 +258,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 						registeredStates.put(listState.getName(), listState);
 					} else {
-						Preconditions.checkState(listState.getPartitionStateSerializer().isCompatibleWith(
+						Preconditions.checkState(listState.getPartitionStateSerializer().canRestoreFrom(
 								stateMetaInfo.getStateSerializer()), "Incompatible state serializers found: " +
 								listState.getPartitionStateSerializer() + " is not compatible with " +
 								stateMetaInfo.getStateSerializer());

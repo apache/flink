@@ -21,10 +21,10 @@ package org.apache.flink.table.catalog
 import java.util.{HashMap => JHashMap, Map => JMap}
 
 /**
-  * Database definition of the external catalog.
+  * Defines a database in an [[ExternalCatalog]].
   *
-  * @param dbName     database name
-  * @param properties database properties
+  * @param dbName     The name of the database
+  * @param properties The properties of the database
   */
 case class ExternalCatalogDatabase(
     dbName: String,

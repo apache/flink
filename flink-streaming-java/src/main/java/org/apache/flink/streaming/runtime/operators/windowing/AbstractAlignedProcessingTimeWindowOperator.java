@@ -38,6 +38,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * @deprecated Deprecated in favour of the generic {@link WindowOperator}. This was an
+ * optimized implementation used for aligned windows.
+ */
 @Internal
 @Deprecated
 public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, STATE, F extends Function> 

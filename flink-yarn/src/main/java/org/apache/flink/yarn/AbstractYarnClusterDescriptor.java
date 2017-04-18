@@ -173,6 +173,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			if (flinkConfiguration.containsKey(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.key())) {
 				taskManagerMemoryMb = flinkConfiguration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
 			}
+
+			slots = flinkConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
 		} catch (Exception e) {
 			LOG.debug("Config couldn't be loaded from environment variable.");
 		}

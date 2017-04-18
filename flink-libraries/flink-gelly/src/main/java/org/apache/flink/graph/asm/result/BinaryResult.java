@@ -33,9 +33,23 @@ public interface BinaryResult<T> {
 	T getVertexId0();
 
 	/**
+	 * Set the first vertex ID.
+	 *
+	 * @param value new vertex ID
+	 */
+	void setVertexId0(T value);
+
+	/**
 	 * Get the second vertex ID.
 	 *
 	 * @return second vertex ID
 	 */
 	T getVertexId1();
+
+	/**
+	 * Set the second vertex ID.
+	 *
+	 * @param value new vertex ID
+	 */
+	void setVertexId1(T value);
 }

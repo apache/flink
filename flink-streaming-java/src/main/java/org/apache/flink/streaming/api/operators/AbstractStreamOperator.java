@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import java.io.IOException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.flink.annotation.PublicEvolving;
@@ -47,9 +46,9 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyGroupsList;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -70,6 +69,7 @@ import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
@@ -198,7 +198,7 @@ public abstract class AbstractStreamOperator<OUT>
 	@Override
 	public final void initializeState(OperatorStateHandles stateHandles) throws Exception {
 
-		Collection<KeyGroupsStateHandle> keyedStateHandlesRaw = null;
+		Collection<KeyedStateHandle> keyedStateHandlesRaw = null;
 		Collection<OperatorStateHandle> operatorStateHandlesRaw = null;
 		Collection<OperatorStateHandle> operatorStateHandlesBackend = null;
 
@@ -249,6 +249,10 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 	}
 
+	/**
+	 * @deprecated Non-repartitionable operator state that has been deprecated.
+	 * Can be removed when we remove the APIs for non-repartitionable operator state.
+	 */
 	@Deprecated
 	private void restoreStreamCheckpointed(OperatorStateHandles stateHandles) throws Exception {
 		StreamStateHandle state = stateHandles.getLegacyOperatorState();
@@ -436,6 +440,10 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 	}
 
+	/**
+	 * @deprecated Non-repartitionable operator state that has been deprecated.
+	 * Can be removed when we remove the APIs for non-repartitionable operator state.
+	 */
 	@SuppressWarnings("deprecation")
 	@Deprecated
 	@Override
@@ -473,6 +481,7 @@ public abstract class AbstractStreamOperator<OUT>
 			// and then initialize the timer services
 			for (KeyGroupStatePartitionStreamProvider streamProvider : context.getRawKeyedStateInputs()) {
 				int keyGroupIdx = streamProvider.getKeyGroupId();
+
 				checkArgument(localKeyGroupRange.contains(keyGroupIdx),
 					"Key Group " + keyGroupIdx + " does not belong to the local range.");
 
@@ -863,7 +872,7 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 
 		@Override
-		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 			numRecordsOut.inc();
 			output.collect(outputTag, record);
 		}

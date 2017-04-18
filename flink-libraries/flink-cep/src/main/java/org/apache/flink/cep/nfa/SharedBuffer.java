@@ -52,12 +52,14 @@ import java.util.Stack;
  *
  * The implementation is strongly based on the paper "Efficient Pattern Matching over Event Streams".
  *
- * @see <a href="https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf">https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf</a>
+ * @see <a href="https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf">
+ *     https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf</a>
  *
  * @param <K> Type of the keys
  * @param <V> Type of the values
  */
 public class SharedBuffer<K extends Serializable, V> implements Serializable {
+
 	private static final long serialVersionUID = 9213251042562206495L;
 
 	private final TypeSerializer<V> valueSerializer;
@@ -66,20 +68,20 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 	public SharedBuffer(final TypeSerializer<V> valueSerializer) {
 		this.valueSerializer = valueSerializer;
-		pages = new HashMap<>();
+		this.pages = new HashMap<>();
 	}
 
 	/**
 	 * Stores given value (value + timestamp) under the given key. It assigns a preceding element
 	 * relation to the entry which is defined by the previous key, value (value + timestamp).
 	 *
-	 * @param key Key of the current value
-	 * @param value Current value
-	 * @param timestamp Timestamp of the current value (a value requires always a timestamp to make it uniquely referable))
-	 * @param previousKey Key of the value for the previous relation
-	 * @param previousValue Value for the previous relation
+	 * @param key               Key of the current value
+	 * @param value             Current value
+	 * @param timestamp         Timestamp of the current value (a value requires always a timestamp to make it uniquely referable))
+	 * @param previousKey       Key of the value for the previous relation
+	 * @param previousValue     Value for the previous relation
 	 * @param previousTimestamp Timestamp of the value for the previous relation
-	 * @param version Version of the previous relation
+	 * @param version           Version of the previous relation
 	 */
 	public void put(
 			final K key,
@@ -89,14 +91,6 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 			final V previousValue,
 			final long previousTimestamp,
 			final DeweyNumber version) {
-		SharedBufferPage<K, V> page;
-
-		if (!pages.containsKey(key)) {
-			page = new SharedBufferPage<K, V>(key);
-			pages.put(key, page);
-		} else {
-			page = pages.get(key);
-		}
 
 		final SharedBufferEntry<K, V> previousSharedBufferEntry = get(previousKey, previousValue, previousTimestamp);
 
@@ -108,55 +102,41 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 				"relation has been already pruned, even though you expect it to be still there.");
 		}
 
-		page.add(
-			new ValueTimeWrapper<>(value, timestamp),
-			previousSharedBufferEntry,
-			version);
+		put(key, value, timestamp, previousSharedBufferEntry, version);
 	}
 
 	/**
 	 * Stores given value (value + timestamp) under the given key. It assigns no preceding element
 	 * relation to the entry.
 	 *
-	 * @param key Key of the current value
-	 * @param value Current value
+	 * @param key       Key of the current value
+	 * @param value     Current value
 	 * @param timestamp Timestamp of the current value (a value requires always a timestamp to make it uniquely referable))
-	 * @param version Version of the previous relation
+	 * @param version   Version of the previous relation
 	 */
 	public void put(
-		final K key,
-		final V value,
-		final long timestamp,
-		final DeweyNumber version) {
-		SharedBufferPage<K, V> page;
+			final K key,
+			final V value,
+			final long timestamp,
+			final DeweyNumber version) {
 
-		if (!pages.containsKey(key)) {
-			page = new SharedBufferPage<K, V>(key);
-			pages.put(key, page);
-		} else {
-			page = pages.get(key);
-		}
-
-		page.add(
-			new ValueTimeWrapper<>(value, timestamp),
-			null,
-			version);
+		put(key, value, timestamp, null, version);
 	}
 
-	/**
-	 * Checks whether the given key, value, timestamp triple is contained in the shared buffer
-	 *
-	 * @param key Key of the value
-	 * @param value Value
-	 * @param timestamp Timestamp of the value
-	 * @return Whether a value with the given timestamp is registered under the given key
-	 */
-	public boolean contains(
-		final K key,
-		final V value,
-		final long timestamp) {
+	private void put(
+			final K key,
+			final V value,
+			final long timestamp,
+			final SharedBufferEntry<K, V> previousSharedBufferEntry,
+			final DeweyNumber version) {
 
-		return pages.containsKey(key) && pages.get(key).contains(new ValueTimeWrapper<>(value, timestamp));
+		SharedBufferPage<K, V> page = pages.get(key);
+		if (page == null) {
+			page = new SharedBufferPage<>(key);
+			pages.put(key, page);
+		}
+
+		page.add(new ValueTimeWrapper<>(value, timestamp), previousSharedBufferEntry, version);
 	}
 
 	public boolean isEmpty() {
@@ -272,47 +252,29 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 * Increases the reference counter for the given value, key, timestamp entry so that it is not
 	 * accidentally removed.
 	 *
-	 * @param key Key of the value to lock
-	 * @param value Value to lock
+	 * @param key       Key of the value to lock
+	 * @param value     Value to lock
 	 * @param timestamp Timestamp of the value to lock
 	 */
 	public void lock(final K key, final V value, final long timestamp) {
 		SharedBufferEntry<K, V> entry = get(key, value, timestamp);
-
 		if (entry != null) {
 			entry.increaseReferenceCounter();
 		}
 	}
 
 	/**
-	 * Decreases the reference counter for the given value, key, timstamp entry so that it can be
+	 * Decreases the reference counter for the given value, key, timestamp entry so that it can be
 	 * removed once the reference counter reaches 0.
 	 *
-	 * @param key Key of the value to release
-	 * @param value Value to release
+	 * @param key       Key of the value to release
+	 * @param value     Value to release
 	 * @param timestamp Timestamp of the value to release
 	 */
 	public void release(final K key, final V value, final long timestamp) {
 		SharedBufferEntry<K, V> entry = get(key, value, timestamp);
-
-		if (entry != null ) {
-			entry.decreaseReferenceCounter();
-		}
-	}
-
-	/**
-	 * Removes the given value, key, timestamp entry if its reference counter is 0. It will also
-	 * release the next element in its previous relation and apply remove to this element
-	 * recursively.
-	 *
-	 * @param key Key of the value to remove
-	 * @param value Value to remove
-	 * @param timestamp Timestamp of the value to remvoe
-	 */
-	public void remove(final K key, final V value, final long timestamp) {
-		SharedBufferEntry<K, V> entry = get(key, value, timestamp);
-
 		if (entry != null) {
+			entry.decreaseReferenceCounter();
 			internalRemove(entry);
 		}
 	}
@@ -624,10 +586,6 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 			}
 
 			sharedBufferEntry.addEdge(newEdge);
-		}
-
-		public boolean contains(final ValueTimeWrapper<V> valueTime) {
-			return entries.containsKey(valueTime);
 		}
 
 		public SharedBufferEntry<K, V> get(final ValueTimeWrapper<V> valueTime) {

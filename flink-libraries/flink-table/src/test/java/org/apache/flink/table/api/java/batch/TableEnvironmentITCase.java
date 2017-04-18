@@ -146,45 +146,6 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 	}
 
 	@Test(expected = TableException.class)
-	public void testTableUnregister() throws Exception {
-		final String tableName = "MyTable";
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
-
-		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		Table t = tableEnv.fromDataSet(ds);
-		tableEnv.registerTable(tableName, t);
-		tableEnv.unregisterTable(tableName);
-		// Must fail. Table name is not register anymore.
-		tableEnv.scan(tableName).select("f0, f1").filter("f0 > 7");
-	}
-
-	@Test
-	public void testTableRegisterNew() throws Exception {
-		final String tableName = "MyTable";
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
-
-		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		Table t = tableEnv.fromDataSet(ds);
-		tableEnv.registerTable(tableName, t);
-
-		tableEnv.unregisterTable(tableName);
-
-		Table t2 = tableEnv.fromDataSet(ds).filter("f0 > 8");
-		tableEnv.registerTable(tableName, t2);
-
-		Table result = tableEnv.scan(tableName).select("f0, f1").filter("f0 > 7");
-
-		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" +
-				"13,5\n" + "14,5\n" + "15,5\n" +
-				"16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n";
-		compareResultAsText(results, expected);
-	}
-
-	@Test(expected = TableException.class)
 	public void testIllegalName() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());

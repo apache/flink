@@ -188,6 +188,14 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return this.jobVertex.getJobVertex().getName();
 	}
 
+	/**
+	 * Creates a simple name representation in the style 'taskname (x/y)', where
+	 * 'taskname' is the name as returned by {@link #getTaskName()}, 'x' is the parallel
+	 * subtask index as returned by {@link #getParallelSubtaskIndex()}{@code + 1}, and 'y' is the total
+	 * number of tasks, as returned by {@link #getTotalNumberOfParallelSubtasks()}.
+	 *
+	 * @return A simple name representation in the form 'myTask (2/7)'
+	 */
 	@Override
 	public String getTaskNameWithSubtaskIndex() {
 		return this.taskNameWithSubtask;
@@ -503,7 +511,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	public void resetForNewExecution() {
 
-		LOG.debug("Resetting execution vertex {} for new execution.", getSimpleName());
+		LOG.debug("Resetting execution vertex {} for new execution.", getTaskNameWithSubtaskIndex());
 
 		synchronized (priorExecutions) {
 			Execution execution = currentExecution;
@@ -722,21 +730,9 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	//  Utilities
 	// --------------------------------------------------------------------------------------------
 
-	/**
-	 * Creates a simple name representation in the style 'taskname (x/y)', where
-	 * 'taskname' is the name as returned by {@link #getTaskName()}, 'x' is the parallel
-	 * subtask index as returned by {@link #getParallelSubtaskIndex()}{@code + 1}, and 'y' is the total
-	 * number of tasks, as returned by {@link #getTotalNumberOfParallelSubtasks()}.
-	 *
-	 * @return A simple name representation.
-	 */
-	public String getSimpleName() {
-		return taskNameWithSubtask;
-	}
-
 	@Override
 	public String toString() {
-		return getSimpleName();
+		return getTaskNameWithSubtaskIndex();
 	}
 
 	@Override

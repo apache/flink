@@ -22,6 +22,8 @@ import java.util.Properties;
 
 /**
  * THIS CLASS IS DEPRECATED. Use FlinkKafkaConsumer08 instead.
+ *
+ * @deprecated Use {@link FlinkKafkaConsumer08}
  */
 @Deprecated
 public class FlinkKafkaConsumer081<T> extends FlinkKafkaConsumer08<T> {
@@ -30,6 +32,8 @@ public class FlinkKafkaConsumer081<T> extends FlinkKafkaConsumer08<T> {
 
 	/**
 	 * THIS CONSTRUCTOR IS DEPRECATED. Use FlinkKafkaConsumer08 instead.
+	 *
+	 * @deprecated Use {@link FlinkKafkaConsumer08#FlinkKafkaConsumer08(String, DeserializationSchema, Properties)}
 	 */
 	@Deprecated
 	public FlinkKafkaConsumer081(String topic, DeserializationSchema<T> valueDeserializer, Properties props) {

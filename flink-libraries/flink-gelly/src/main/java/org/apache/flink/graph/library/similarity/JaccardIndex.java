@@ -29,8 +29,8 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeTargetDegree;
-import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.asm.result.BinaryResult;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
@@ -472,8 +472,18 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		}
 
 		@Override
+		public void setVertexId0(T value) {
+			f0 = value;
+		}
+
+		@Override
 		public T getVertexId1() {
 			return f1;
+		}
+
+		@Override
+		public void setVertexId1(T value) {
+			f1 = value;
 		}
 
 		/**

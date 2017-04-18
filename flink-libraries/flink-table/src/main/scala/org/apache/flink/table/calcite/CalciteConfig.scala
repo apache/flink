@@ -31,15 +31,36 @@ import scala.collection.JavaConverters._
   * Builder for creating a Calcite configuration.
   */
 class CalciteConfigBuilder {
+
+  /**
+    * Defines the normalization rule set. Normalization rules are dedicated for rewriting
+    * predicated logical plan before volcano optimization.
+    */
   private var replaceNormRules: Boolean = false
   private var normRuleSets: List[RuleSet] = Nil
 
+  /**
+    * Defines the optimization rule set. Optimization rules are used during volcano optimization.
+    */
   private var replaceOptRules: Boolean = false
   private var optRuleSets: List[RuleSet] = Nil
 
+  /**
+    * Defines the decoration rule set. Decoration rules are dedicated for rewriting predicated
+    * logical plan after volcano optimization.
+    */
+  private var replaceDecoRules: Boolean = false
+  private var decoRuleSets: List[RuleSet] = Nil
+
+  /**
+    * Defines the SQL operator tables.
+    */
   private var replaceOperatorTable: Boolean = false
   private var operatorTables: List[SqlOperatorTable] = Nil
 
+  /**
+    * Defines a SQL parser configuration.
+    */
   private var replaceSqlParserConfig: Option[SqlParser.Config] = None
 
   /**
@@ -81,6 +102,32 @@ class CalciteConfigBuilder {
   }
 
   /**
+    * Replaces the built-in decoration rule set with the given rule set.
+    *
+    * The decoration rules are applied after the cost-based optimization phase.
+    * The decoration phase allows to rewrite the optimized plan and is not cost-based.
+    *
+    */
+  def replaceDecoRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(replaceRuleSet)
+    decoRuleSets = List(replaceRuleSet)
+    replaceDecoRules = true
+    this
+  }
+
+  /**
+    * Appends the given decoration rule set to the built-in rule set.
+    *
+    * The decoration rules are applied after the cost-based optimization phase.
+    * The decoration phase allows to rewrite the optimized plan and is not cost-based.
+    */
+  def addDecoRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(addedRuleSet)
+    decoRuleSets = addedRuleSet :: decoRuleSets
+    this
+  }
+
+  /**
     * Replaces the built-in SQL operator table with the given table.
     */
   def replaceSqlOperatorTable(replaceSqlOperatorTable: SqlOperatorTable): CalciteConfigBuilder = {
@@ -113,35 +160,39 @@ class CalciteConfigBuilder {
     val replacesNormRuleSet: Boolean,
     val getOptRuleSet: Option[RuleSet],
     val replacesOptRuleSet: Boolean,
+    val getDecoRuleSet: Option[RuleSet],
+    val replacesDecoRuleSet: Boolean,
     val getSqlOperatorTable: Option[SqlOperatorTable],
     val replacesSqlOperatorTable: Boolean,
     val getSqlParserConfig: Option[SqlParser.Config])
     extends CalciteConfig
 
+
+  /**
+    * Convert the [[RuleSet]] List to [[Option]] type
+    */
+  private def getRuleSet(inputRuleSet: List[RuleSet]): Option[RuleSet] = {
+    inputRuleSet match {
+      case Nil => None
+      case h :: Nil => Some(h)
+      case _ =>
+        // concat rule sets
+        val concatRules =
+          inputRuleSet.foldLeft(Nil: Iterable[RelOptRule])((c, r) => r.asScala ++ c)
+        Some(RuleSets.ofList(concatRules.asJava))
+    }
+  }
+
   /**
     * Builds a new [[CalciteConfig]].
     */
   def build(): CalciteConfig = new CalciteConfigImpl(
-    normRuleSets match {
-      case Nil => None
-      case h :: Nil => Some(h)
-      case _ =>
-        // concat rule sets
-        val concatRules =
-          normRuleSets.foldLeft(Nil: Iterable[RelOptRule])((c, r) => r.asScala ++ c)
-        Some(RuleSets.ofList(concatRules.asJava))
-    },
+    getRuleSet(normRuleSets),
     replaceNormRules,
-    optRuleSets match {
-      case Nil => None
-      case h :: Nil => Some(h)
-      case _ =>
-        // concat rule sets
-        val concatRules =
-          optRuleSets.foldLeft(Nil: Iterable[RelOptRule])((c, r) => r.asScala ++ c)
-        Some(RuleSets.ofList(concatRules.asJava))
-    },
+    getRuleSet(optRuleSets),
     replaceOptRules,
+    getRuleSet(decoRuleSets),
+    replaceDecoRules,
     operatorTables match {
       case Nil => None
       case h :: Nil => Some(h)
@@ -177,6 +228,16 @@ trait CalciteConfig {
     * Returns a custom optimization rule set.
     */
   def getOptRuleSet: Option[RuleSet]
+
+  /**
+    * Returns whether this configuration replaces the built-in decoration rule set.
+    */
+  def replacesDecoRuleSet: Boolean
+
+  /**
+    * Returns a custom decoration rule set.
+    */
+  def getDecoRuleSet: Option[RuleSet]
 
   /**
     * Returns whether this configuration replaces the built-in SQL operator table.
