@@ -600,6 +600,10 @@ You have to configure `jobmanager.archive.fs.dir` in order to archive terminated
 
 - `historyserver.web.ssl.enabled`: Enable HTTPs access to the HistoryServer web frontend. This is applicable only when the global SSL flag security.ssl.enabled is set to true (DEFAULT: `false`).
 
+## Environment
+
+- `env.log.dir`: (Defaults to the `log` directory under Flink's home) Defines the directory where the Flink logs are saved. It has to be an absolute path.
+
 ## Background
 
 ### Configuring the Network Buffers
