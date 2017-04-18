@@ -23,8 +23,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
@@ -996,8 +998,9 @@ public class RescalingITCase extends TestLogger {
 				this.counterPartitions =
 						operatorStateStore.getBroadcastSerializableListState("counter_partitions");
 			} else {
-				this.counterPartitions =
-						context.getOperatorStateStore().getSerializableListState("counter_partitions");
+				this.counterPartitions = context
+						.getOperatorStateStore()
+						.getListState(new ListStateDescriptor<>("counter_partitions", IntSerializer.INSTANCE));
 			}
 
 			if (context.isRestored()) {
