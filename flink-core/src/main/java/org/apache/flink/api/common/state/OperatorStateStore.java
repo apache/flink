@@ -44,6 +44,21 @@ public interface OperatorStateStore {
 	<S> ListState<S> getListState(ListStateDescriptor<S> stateDescriptor) throws Exception;
 
 	/**
+	 * Creates (or restores) a list state. Each state is registered under a unique name.
+	 * The provided serializer is used to de/serialize the state in case of checkpointing (snapshot/restore).
+	 *
+	 * On restore, all items in the list are broadcasted to all parallel operator instances, so that all
+	 * instances will get the union of all state partitions before the restore.
+	 *
+	 * @param stateDescriptor The descriptor for this state, providing a name and serializer.
+	 * @param <S> The generic type of the state
+	 *
+	 * @return A list for all state partitions.
+	 * @throws Exception
+	 */
+	<S> ListState<S> getUnionListState(ListStateDescriptor<S> stateDescriptor) throws Exception;
+
+	/**
 	 * Returns a set with the names of all currently registered states.
 	 * @return set of names for all registered states.
 	 */

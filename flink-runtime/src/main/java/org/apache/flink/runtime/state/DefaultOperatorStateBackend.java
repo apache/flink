@@ -95,12 +95,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		return getListState(stateDescriptor, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
 	}
 
-	@SuppressWarnings("unchecked")
-	public <T extends Serializable> ListState<T> getBroadcastSerializableListState(String stateName) throws Exception {
-		return (ListState<T>) getBroadcastOperatorState(new ListStateDescriptor<>(stateName, javaSerializer));
-	}
-
-	public <S> ListState<S> getBroadcastOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception {
+	@Override
+	public <S> ListState<S> getUnionListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
 		return getListState(stateDescriptor, OperatorStateHandle.Mode.BROADCAST);
 	}
 
