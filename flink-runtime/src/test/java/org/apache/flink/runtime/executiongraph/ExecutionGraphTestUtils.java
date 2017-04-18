@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
@@ -127,6 +128,27 @@ public class ExecutionGraphTestUtils {
 		final long deadline = maxWaitMillis == 0 ? Long.MAX_VALUE : System.nanoTime() + (maxWaitMillis * 1_000_000);
 
 		while (execution.getState() != state && System.nanoTime() < deadline) {
+			try {
+				Thread.sleep(2);
+			} catch (InterruptedException ignored) {}
+		}
+
+		if (System.nanoTime() >= deadline) {
+			throw new TimeoutException();
+		}
+	}
+
+	public static void waitUntilFailoverRegionState(FailoverRegion region, JobStatus status, long maxWaitMillis)
+			throws TimeoutException {
+
+		checkNotNull(region);
+		checkNotNull(status);
+		checkArgument(maxWaitMillis >= 0);
+
+		// this is a poor implementation - we may want to improve it eventually
+		final long deadline = maxWaitMillis == 0 ? Long.MAX_VALUE : System.nanoTime() + (maxWaitMillis * 1_000_000);
+
+		while (region.getState() != status && System.nanoTime() < deadline) {
 			try {
 				Thread.sleep(2);
 			} catch (InterruptedException ignored) {}
@@ -320,21 +342,17 @@ public class ExecutionGraphTestUtils {
 
 		@Override
 		public Object handleMessage(Object message) {
-			Object result = null;
-			if(message instanceof SubmitTask) {
+			if (message instanceof SubmitTask) {
 				SubmitTask submitTask = (SubmitTask) message;
 				lastTDD = submitTask.tasks();
-
-				result = Acknowledge.get();
+				return Acknowledge.get();
 			} else if(message instanceof CancelTask) {
-				CancelTask cancelTask = (CancelTask) message;
-
-				result = Acknowledge.get();
+				return Acknowledge.get();
 			} else if(message instanceof FailIntermediateResultPartitions) {
-				result = new Object();
+				return new Object();
+			} else {
+				return null;
 			}
-
-			return result;
 		}
 	}
 
