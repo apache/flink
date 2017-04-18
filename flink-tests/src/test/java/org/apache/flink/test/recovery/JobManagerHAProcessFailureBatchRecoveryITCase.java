@@ -88,7 +88,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 
 	private final static ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
 
-	private final static FiniteDuration TestTimeOut = new FiniteDuration(5, TimeUnit.MINUTES);
+	private final static FiniteDuration TestTimeOut = new FiniteDuration(10, TimeUnit.MINUTES);
 
 	private static final File FileStateBackendBasePath;
 
