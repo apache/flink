@@ -50,7 +50,7 @@ import static java.util.Objects.requireNonNull;
  *
  * <p>The connected stream can be conceptually viewed as a union stream of an Either type, that
  * holds either the first stream's type or the second stream's type.
- * 
+ *
  * @param <IN1> Type of the first input data steam.
  * @param <IN2> Type of the second input data stream.
  */
@@ -197,7 +197,7 @@ public class ConnectedStreams<IN1, IN2> {
 	 * {@link CoMapFunction#map1} for each element of the first input and
 	 * {@link CoMapFunction#map2} for each element of the second input. Each
 	 * CoMapFunction call returns exactly one element.
-	 * 
+	 *
 	 * @param coMapper The CoMapFunction used to jointly transform the two input DataStreams
 	 * @return The transformed {@link DataStream}
 	 */
@@ -218,7 +218,7 @@ public class ConnectedStreams<IN1, IN2> {
 	 * and {@link CoFlatMapFunction#flatMap2} for each element of the second
 	 * input. Each CoFlatMapFunction call returns any number of elements
 	 * including none.
-	 * 
+	 *
 	 * @param coFlatMapper
 	 *            The CoFlatMapFunction used to jointly transform the two input
 	 *            DataStreams
@@ -323,6 +323,20 @@ public class ConnectedStreams<IN1, IN2> {
 
 			transform.setStateKeySelectors(keyedInput1.getKeySelector(), keyedInput2.getKeySelector());
 			transform.setStateKeyType(keyType1);
+		} else if (inputStream1 instanceof KeyedStream) {
+			KeyedStream<IN1, ?> keyedInput1 = (KeyedStream<IN1, ?>) inputStream1;
+
+			TypeInformation<?> keyType1 = keyedInput1.getKeyType();
+
+			transform.setStateKeySelectors(keyedInput1.getKeySelector(), null);
+			transform.setStateKeyType(keyType1);
+		} else if (inputStream2 instanceof KeyedStream) {
+			KeyedStream<IN2, ?> keyedInput2 = (KeyedStream<IN2, ?>) inputStream2;
+
+			TypeInformation<?> keyType2 = keyedInput2.getKeyType();
+
+			transform.setStateKeySelectors(null, keyedInput2.getKeySelector());
+			transform.setStateKeyType(keyType2);
 		}
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
