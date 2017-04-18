@@ -145,7 +145,7 @@ public class RescalingITCase extends TestLogger {
 	}
 
 	/**
-	 * Tests that a a job with purely keyed state can be restarted from a savepoint
+	 * Tests that a job with purely keyed state can be restarted from a savepoint
 	 * with a different parallelism.
 	 */
 	public void testSavepointRescalingKeyedState(boolean scaleOut, boolean deriveMaxParallelism) throws Exception {
@@ -993,10 +993,9 @@ public class RescalingITCase extends TestLogger {
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 
 			if (broadcast) {
-				//TODO this is temporarily casted to test already functionality that we do not yet expose through public API
-				DefaultOperatorStateBackend operatorStateStore = (DefaultOperatorStateBackend) context.getOperatorStateStore();
-				this.counterPartitions =
-						operatorStateStore.getBroadcastSerializableListState("counter_partitions");
+				this.counterPartitions = context
+						.getOperatorStateStore()
+						.getUnionListState(new ListStateDescriptor<>("counter_partitions", IntSerializer.INSTANCE));
 			} else {
 				this.counterPartitions = context
 						.getOperatorStateStore()

@@ -64,16 +64,12 @@ for one or more Key Groups.
 
 With *Operator State* (or *non-keyed state*), each operator state is
 bound to one parallel operator instance.
-The Kafka source connector is a good motivating example for the use of Operator State
-in Flink. Each parallel instance of this Kafka consumer maintains a map
+The [Kafka Connector](../connectors/kafka.html) is a good motivating example for the use of Operator State
+in Flink. Each parallel instance of the Kafka consumer maintains a map
 of topic partitions and offsets as its Operator State.
 
 The Operator State interfaces support redistributing state among
-parallel operator instances when the parallelism is changed. There can be different schemes for doing this redistribution; the following are currently defined:
-
-  - **List-style redistribution:** Each operator returns a List of state elements. The whole state is logically a concatenation of
-    all lists. On restore/redistribution, the list is evenly divided into as many sublists as there are parallel operators.
-    Each operator gets a sublist, which can be empty, or contain one or more elements.
+parallel operator instances when the parallelism is changed. There can be different schemes for doing this redistribution.
 
 ## Raw and Managed State
 
@@ -233,32 +229,13 @@ val counts: DataStream[(String, Int)] = stream
 
 ## Using Managed Operator State
 
-A stateful function can implement either the more general `CheckpointedFunction`
+To use managed operator state, a stateful function can implement either the more general `CheckpointedFunction`
 interface, or the `ListCheckpointed<T extends Serializable>` interface.
 
-In both cases, the non-keyed state is expected to be a `List` of *serializable* objects, independent from each other,
-thus eligible for redistribution upon rescaling. In other words, these objects are the finest granularity at which
-non-keyed state can be repartitioned. As an example, if with parallelism 1 the checkpointed state of the `BufferingSink`
-contains elements `(test1, 2)` and `(test2, 2)`, when increasing the parallelism to 2, `(test1, 2)` may end up in task 0,
-while `(test2, 2)` will go to task 1.
+#### CheckpointedFunction
 
-##### ListCheckpointed
-
-The `ListCheckpointed` interface requires the implementation of two methods:
-
-{% highlight java %}
-List<T> snapshotState(long checkpointId, long timestamp) throws Exception;
-
-void restoreState(List<T> state) throws Exception;
-{% endhighlight %}
-
-On `snapshotState()` the operator should return a list of objects to checkpoint and
-`restoreState` has to handle such a list upon recovery. If the state is not re-partitionable, you can always
-return a `Collections.singletonList(MY_STATE)` in the `snapshotState()`.
-
-##### CheckpointedFunction
-
-The `CheckpointedFunction` interface also requires the implementation of two methods:
+The `CheckpointedFunction` interface provides access to non-keyed state with different
+redistribution schemes. It requires the implementation of two methods:
 
 {% highlight java %}
 void snapshotState(FunctionSnapshotContext context) throws Exception;
@@ -266,12 +243,30 @@ void snapshotState(FunctionSnapshotContext context) throws Exception;
 void initializeState(FunctionInitializationContext context) throws Exception;
 {% endhighlight %}
 
-Whenever a checkpoint has to be performed `snapshotState()` is called. The counterpart, `initializeState()`, is called every time the user-defined function is initialized, be that when the function is first initialized
-or be that when actually recovering from an earlier checkpoint. Given this, `initializeState()` is not
+Whenever a checkpoint has to be performed, `snapshotState()` is called. The counterpart, `initializeState()`,
+is called every time the user-defined function is initialized, be that when the function is first initialized
+or be that when the function is actually recovering from an earlier checkpoint. Given this, `initializeState()` is not
 only the place where different types of state are initialized, but also where state recovery logic is included.
 
-This is an example of a function that uses `CheckpointedFunction`, a stateful `SinkFunction` that
-uses state to buffer elements before sending them to the outside world:
+Currently, list-style managed operator state is supported. The state
+is expected to be a `List` of *serializable* objects, independent from each other,
+thus eligible for redistribution upon rescaling. In other words, these objects are the finest granularity at which
+non-keyed state can be redistributed. Depending on the state accessing method,
+the following redistribution schemes are defined:
+
+  - **Even-split redistribution:** Each operator returns a List of state elements. The whole state is logically a concatenation of
+    all lists. On restore/redistribution, the list is evenly divided into as many sublists as there are parallel operators.
+    Each operator gets a sublist, which can be empty, or contain one or more elements.
+    As an example, if with parallelism 1 the checkpointed state of an operator
+    contains elements `element1` and `element2`, when increasing the parallelism to 2, `element1` may end up in operator instance 0,
+    while `element2` will go to operator instance 1.
+
+  - **Union redistribution:** Each operator returns a List of state elements. The whole state is logically a concatenation of
+    all lists. On restore/redistribution, each operator gets the complete list of state elements.
+
+Below is an example of a stateful `SinkFunction` that uses `CheckpointedFunction`
+to buffer elements before sending them to the outside world. It demonstrates
+the basic even-split redistribution list state:
 
 {% highlight java %}
 public class BufferingSink
@@ -311,8 +306,13 @@ public class BufferingSink
 
     @Override
     public void initializeState(FunctionInitializationContext context) throws Exception {
-        checkpointedState = context.getOperatorStateStore().
-            getSerializableListState("buffered-elements");
+        ListStateDescriptor<Tuple2<String, Integer>> descriptor =
+            new ListStateDescriptor<>(
+                "buffered-elements",
+                TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}),
+                Tuple2.of(0L, 0L));
+                
+        checkpointedState = context.getOperatorStateStore().getListState(descriptor);
 
         if (context.isRestored()) {
             for (Tuple2<String, Integer> element : checkpointedState.get()) {
@@ -329,12 +329,29 @@ public class BufferingSink
 }
 {% endhighlight %}
 
-
 The `initializeState` method takes as argument a `FunctionInitializationContext`. This is used to initialize
 the non-keyed state "containers". These are a container of type `ListState` where the non-keyed state objects
 are going to be stored upon checkpointing.
 
-`this.checkpointedState = context.getOperatorStateStore().getSerializableListState("buffered-elements");`
+Note how the state is initialized, similar to keyed state,
+with a `StateDescriptor` that contains the state name and information
+about the type of the value that the state holds:
+
+{% highlight java %}
+ListStateDescriptor<Tuple2<String, Integer>> descriptor =
+    new ListStateDescriptor<>(
+        "buffered-elements",
+        TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}),
+        Tuple2.of(0L, 0L));
+
+checkpointedState = context.getOperatorStateStore().getListState(descriptor);
+{% endhighlight %}
+
+The naming convention of the state access methods contain its redistribution
+pattern followed by its state structure. For example, to use list state with the
+union redistribution scheme on restore, access the state by using `getUnionListState(descriptor)`.
+If the method name does not contain the redistribution pattern, *e.g.* `getListState(descriptor)`,
+it simply implies that the basic even-split redistribution scheme will be used.
 
 After initializing the container, we use the `isRestored()` method of the context to check if we are
 recovering after a failure. If this is `true`, *i.e.* we are recovering, the restore logic is applied.
@@ -345,6 +362,22 @@ of all objects included by the previous checkpoint, and is then filled with the 
 
 As a side note, the keyed state can also be initialized in the `initializeState()` method. This can be done
 using the provided `FunctionInitializationContext`.
+
+#### ListCheckpointed
+
+The `ListCheckpointed` interface is a more limited variant of `CheckpointedFunction`,
+which only supports list-style state with even-split redistribution scheme on restore.
+It also requires the implementation of two methods:
+
+{% highlight java %}
+List<T> snapshotState(long checkpointId, long timestamp) throws Exception;
+
+void restoreState(List<T> state) throws Exception;
+{% endhighlight %}
+
+On `snapshotState()` the operator should return a list of objects to checkpoint and
+`restoreState` has to handle such a list upon recovery. If the state is not re-partitionable, you can always
+return a `Collections.singletonList(MY_STATE)` in the `snapshotState()`.
 
 ### Stateful Source Functions
 
