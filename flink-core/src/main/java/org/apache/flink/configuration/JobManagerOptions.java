@@ -57,7 +57,9 @@ public class JobManagerOptions {
 		key("jobmanager.rpc.port")
 		.defaultValue(6123);
 
-	/** JVM heap size (in megabytes) for the JobManager */
+	/**
+	 * JVM heap size (in megabytes) for the JobManager
+	 */
 	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY =
 		key("jobmanager.heap.mb")
 		.defaultValue(1024);
