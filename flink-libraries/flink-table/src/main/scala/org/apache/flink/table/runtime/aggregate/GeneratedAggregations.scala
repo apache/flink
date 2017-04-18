@@ -27,7 +27,9 @@ import org.apache.flink.types.Row
 abstract class GeneratedAggregations extends Function {
 
   /**
-    * Calculate the results from accumulators, and set the results to the output
+    * Sets the results of the aggregations (partial or final) to the output row.
+    * Final results are computed with the aggregation function.
+    * Partial results are the accumulators themselves.
     *
     * @param accumulators the accumulators (saved in a row) which contains the current
     *                     aggregated results
@@ -36,15 +38,22 @@ abstract class GeneratedAggregations extends Function {
   def setAggregationResults(accumulators: Row, output: Row)
 
   /**
-    * Copies forwarded fields from input row to output row.
+    * Copies forwarded fields, such as grouping keys, from input row to output row.
     *
-    * @param input  input values bundled in a row
-    * @param output output results collected in a row
+    * @param input        input values bundled in a row
+    * @param output       output results collected in a row
     */
   def setForwardedFields(input: Row, output: Row)
 
   /**
-    * Accumulate the input values to the accumulators
+    * Sets constant flags (boolean fields) to an output row.
+    *
+    * @param output The output row to which the constant flags are set.
+    */
+  def setConstantFlags(output: Row)
+
+  /**
+    * Accumulates the input values to the accumulators.
     *
     * @param accumulators the accumulators (saved in a row) which contains the current
     *                     aggregated results
@@ -53,7 +62,7 @@ abstract class GeneratedAggregations extends Function {
   def accumulate(accumulators: Row, input: Row)
 
   /**
-    * Retract the input values from the accumulators
+    * Retracts the input values from the accumulators.
     *
     * @param accumulators the accumulators (saved in a row) which contains the current
     *                     aggregated results
@@ -62,7 +71,7 @@ abstract class GeneratedAggregations extends Function {
   def retract(accumulators: Row, input: Row)
 
   /**
-    * Init the accumulators, and save them to a accumulators Row.
+    * Initializes the accumulators and save them to a accumulators row.
     *
     * @return a row of accumulators which contains the aggregated results
     */
@@ -76,7 +85,7 @@ abstract class GeneratedAggregations extends Function {
   def createOutputRow(): Row
 
   /**
-    * Merges two rows of accumulators into one row
+    * Merges two rows of accumulators into one row.
     *
     * @param a First row of accumulators
     * @param b The other row of accumulators
@@ -84,4 +93,11 @@ abstract class GeneratedAggregations extends Function {
     */
   def mergeAccumulatorsPair(a: Row, b: Row): Row
 
+  /**
+    * Resets all the accumulators.
+    *
+    * @param accumulators the accumulators (saved in a row) which contains the current
+    *                     aggregated results
+    */
+  def resetAccumulator(accumulators: Row)
 }
