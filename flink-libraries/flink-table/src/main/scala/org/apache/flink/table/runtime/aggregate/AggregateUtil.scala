@@ -139,6 +139,7 @@ object AggregateUtil {
   private[flink] def createBoundedOverProcessFunction(
     generator: CodeGenerator,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    distinctAggregatesFlags: Array[Boolean],
     inputType: RelDataType,
     precedingOffset: Long,
     isRowsClause: Boolean,
@@ -152,7 +153,14 @@ object AggregateUtil {
 
     val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
     val inputRowType = FlinkTypeFactory.toInternalRowTypeInfo(inputType).asInstanceOf[RowTypeInfo]
-
+    
+    var hasDistinct = false
+    for( i <- 0 to distinctAggregatesFlags.size -1){
+      if(distinctAggregatesFlags(i)){
+        hasDistinct = true
+      }
+    }
+    
     val forwardMapping = (0 until inputType.getFieldCount).map(x => (x, x)).toArray
     val aggMapping = aggregates.indices.map(x => x + inputType.getFieldCount).toArray
     val outputArity = inputType.getFieldCount + aggregates.length
@@ -186,11 +194,21 @@ object AggregateUtil {
       }
     } else {
       if (isRowsClause) {
-        new ProcTimeBoundedRowsOver(
-          genFunction,
-          precedingOffset,
-          aggregationStateType,
-          inputRowType)
+        if (hasDistinct){
+          new ProcTimeBoundedDistinctRowsOver(aggregates,
+            aggFields,
+            distinctAggregatesFlags,
+            precedingOffset,
+            inputType.getFieldCount,
+            aggregationStateType,
+            inputRowType)
+        } else {
+          new ProcTimeBoundedRowsOver(
+            genFunction,
+            precedingOffset,
+            aggregationStateType,
+            inputRowType)
+        }
       } else {
         new ProcTimeBoundedRangeOver(
           genFunction,
