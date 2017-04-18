@@ -820,6 +820,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			numBuckets, this.avgRecordLen);
 		// Assign all bucket size to bloom filter except bucket header length.
 		int byteSize = HASH_BUCKET_SIZE - BUCKET_HEADER_LENGTH;
+		if (avgNumRecordsPerBucket <= 0) return;
 		this.bloomFilter = new BloomFilter(avgNumRecordsPerBucket, byteSize);
 		if (LOG.isDebugEnabled()) {
 			double fpp = BloomFilter.estimateFalsePositiveProbability(avgNumRecordsPerBucket, byteSize << 3);
@@ -1179,7 +1180,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		this.buckets = table;
 		this.numBuckets = numBuckets;
 		
-		if (useBloomFilters) {
+		if (useBloomFilters && this.availableMemory.size() > 0) {
 			initBloomFilter(numBuckets);
 		}
 	}
