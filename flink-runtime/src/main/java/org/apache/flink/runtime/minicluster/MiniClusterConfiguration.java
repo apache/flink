@@ -20,9 +20,8 @@ package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import scala.concurrent.duration.FiniteDuration;
@@ -165,7 +164,7 @@ public class MiniClusterConfiguration {
 		Configuration newConfiguration = new Configuration(config);
 		// set the memory
 		long memory = getOrCalculateManagedMemoryPerTaskManager();
-		newConfiguration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memory);
+		newConfiguration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, memory);
 
 		return newConfiguration;
 	}
@@ -196,29 +195,20 @@ public class MiniClusterConfiguration {
 	private long getOrCalculateManagedMemoryPerTaskManager() {
 		if (managedMemoryPerTaskManager == -1) {
 			// no memory set in the mini cluster configuration
-			final ConfigOption<Integer> memorySizeOption = ConfigOptions
-				.key(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY)
-				.defaultValue(-1);
 
-			int memorySize = config.getInteger(memorySizeOption);
+			long memorySize = config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE);
 
-			if (memorySize == -1) {
+			// we could probably use config.contains() but the previous implementation compared to
+			// the default (-1) thus allowing the user to explicitly specify this as well
+			// -> don't change this behaviour now
+			if (memorySize == TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) {
 				// no memory set in the flink configuration
 				// share the available memory among all running components
-				final ConfigOption<Integer> bufferSizeOption = ConfigOptions
-					.key(ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY)
-					.defaultValue(ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE);
 
-				final ConfigOption<Long> bufferMemoryOption = ConfigOptions
-					.key(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY)
-					.defaultValue((long) ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS);
-
-				final ConfigOption<Float> memoryFractionOption = ConfigOptions
-					.key(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY)
-					.defaultValue(ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
-
-				float memoryFraction = config.getFloat(memoryFractionOption);
-				long networkBuffersMemory = config.getLong(bufferMemoryOption) * config.getInteger(bufferSizeOption);
+				float memoryFraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
+				long networkBuffersMemory =
+					(long) config.getInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS) *
+						(long) config.getInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE);
 
 				long freeMemory = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag();
 

@@ -189,6 +189,8 @@ class RexNodeToExpressionConverter(
 
   override def visitOver(over: RexOver): Option[Expression] = None
 
+  override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): Option[Expression] = None
+
   private def lookupFunction(name: String, operands: Seq[Expression]): Option[Expression] = {
     Try(functionCatalog.lookupFunction(name, operands)) match {
       case Success(expr) => Some(expr)

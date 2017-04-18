@@ -49,6 +49,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -111,6 +112,9 @@ public abstract class StreamExecutionEnvironment {
 	/** The environment of the context (local by default, cluster if invoked through command line) */
 	private static StreamExecutionEnvironmentFactory contextEnvironmentFactory;
 
+	/** The default parallelism used when creating a local environment */
+	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
+
 	// ------------------------------------------------------------------------
 
 	/** The execution configuration for this environment */
@@ -131,22 +135,10 @@ public abstract class StreamExecutionEnvironment {
 	/** The time characteristic used by the data streams */
 	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
-	/** The parallelism to use when no parallelism is set on an operation. */
-	private final int defaultParallelism;
-
 
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
 	// --------------------------------------------------------------------------------------------
-
-
-	public StreamExecutionEnvironment() {
-		this(ConfigConstants.DEFAULT_PARALLELISM);
-	}
-
-	public StreamExecutionEnvironment(int defaultParallelism) {
-		this.defaultParallelism = defaultParallelism;
-	}
 
 	/**
 	 * Gets the config object.
@@ -168,6 +160,9 @@ public abstract class StreamExecutionEnvironment {
 	 * @param parallelism The parallelism
 	 */
 	public StreamExecutionEnvironment setParallelism(int parallelism) {
+		if (parallelism < 1) {
+			throw new IllegalArgumentException("parallelism must be at least one.");
+		}
 		config.setParallelism(parallelism);
 		return this;
 	}
@@ -181,6 +176,11 @@ public abstract class StreamExecutionEnvironment {
 	 * @param maxParallelism Maximum degree of parallelism to be used for the program., with 0 < maxParallelism <= 2^15 - 1
 	 */
 	public StreamExecutionEnvironment setMaxParallelism(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0 &&
+						maxParallelism <= KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
+				"maxParallelism is out of bounds 0 < maxParallelism <= " +
+						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM + ". Found: " + maxParallelism);
+
 		config.setMaxParallelism(maxParallelism);
 		return this;
 	}
@@ -349,6 +349,9 @@ public abstract class StreamExecutionEnvironment {
 	 *            The checkpointing mode, selecting between "exactly once" and "at least once" guaranteed.
 	 * @param force
 	 *            If true checkpointing will be enabled for iterative jobs as well.
+	 *
+	 * @deprecated Use {@link #enableCheckpointing(long, CheckpointingMode)} instead.
+	 * Forcing checkpoints will be removed in the future.
 	 */
 	@Deprecated
 	@SuppressWarnings("deprecation")
@@ -396,6 +399,8 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Returns whether checkpointing is force-enabled.
+	 *
+	 * @deprecated Forcing checkpoints will be removed in future version.
 	 */
 	@Deprecated
 	@SuppressWarnings("deprecation")
@@ -1513,7 +1518,7 @@ public abstract class StreamExecutionEnvironment {
 		if (transformations.size() <= 0) {
 			throw new IllegalStateException("No operators defined in streaming topology. Cannot execute.");
 		}
-		return StreamGraphGenerator.generate(this, transformations, defaultParallelism);
+		return StreamGraphGenerator.generate(this, transformations);
 	}
 
 	/**
@@ -1601,7 +1606,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A local execution environment.
 	 */
 	public static LocalStreamEnvironment createLocalEnvironment() {
-		return new LocalStreamEnvironment();
+		return createLocalEnvironment(defaultLocalParallelism);
 	}
 
 	/**
@@ -1610,12 +1615,14 @@ public abstract class StreamExecutionEnvironment {
 	 * environment was created in. It will use the parallelism specified in the
 	 * parameter.
 	 *
-	 * @param defaultParallelism The default parallelism for the local environment.
-	 * 
+	 * @param parallelism
+	 * 		The parallelism for the local environment.
 	 * @return A local execution environment with the specified parallelism.
 	 */
-	public static LocalStreamEnvironment createLocalEnvironment(int defaultParallelism) {
-		return new LocalStreamEnvironment(defaultParallelism);
+	public static LocalStreamEnvironment createLocalEnvironment(int parallelism) {
+		LocalStreamEnvironment env = new LocalStreamEnvironment();
+		env.setParallelism(parallelism);
+		return env;
 	}
 
 	/**
@@ -1624,13 +1631,16 @@ public abstract class StreamExecutionEnvironment {
 	 * environment was created in. It will use the parallelism specified in the
 	 * parameter.
 	 *
-	 * @param defaultParallelism The parallelism for the local environment.
-	 * @param configuration Pass a custom configuration into the cluster
-	 *
+	 * @param parallelism
+	 * 		The parallelism for the local environment.
+	 * 	@param configuration
+	 * 		Pass a custom configuration into the cluster
 	 * @return A local execution environment with the specified parallelism.
 	 */
-	public static LocalStreamEnvironment createLocalEnvironment(int defaultParallelism, Configuration configuration) {
-		return new LocalStreamEnvironment(configuration, defaultParallelism);
+	public static LocalStreamEnvironment createLocalEnvironment(int parallelism, Configuration configuration) {
+		LocalStreamEnvironment currentEnvironment = new LocalStreamEnvironment(configuration);
+		currentEnvironment.setParallelism(parallelism);
+		return currentEnvironment;
 	}
 
 	/**
@@ -1655,6 +1665,7 @@ public abstract class StreamExecutionEnvironment {
 		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
 
 		LocalStreamEnvironment localEnv = new LocalStreamEnvironment(conf);
+		localEnv.setParallelism(defaultLocalParallelism);
 
 		return localEnv;
 	}
@@ -1738,6 +1749,28 @@ public abstract class StreamExecutionEnvironment {
 			String host, int port, Configuration clientConfig, String... jarFiles)
 	{
 		return new RemoteStreamEnvironment(host, port, clientConfig, jarFiles);
+	}
+
+	/**
+	 * Gets the default parallelism that will be used for the local execution environment created by
+	 * {@link #createLocalEnvironment()}.
+	 *
+	 * @return The default local parallelism
+	 */
+	@PublicEvolving
+	public static int getDefaultLocalParallelism() {
+		return defaultLocalParallelism;
+	}
+
+	/**
+	 * Sets the default parallelism that will be used for the local execution
+	 * environment created by {@link #createLocalEnvironment()}.
+	 *
+	 * @param parallelism The parallelism to use as the default local parallelism.
+	 */
+	@PublicEvolving
+	public static void setDefaultLocalParallelism(int parallelism) {
+		defaultLocalParallelism = parallelism;
 	}
 
 	// --------------------------------------------------------------------------------------------

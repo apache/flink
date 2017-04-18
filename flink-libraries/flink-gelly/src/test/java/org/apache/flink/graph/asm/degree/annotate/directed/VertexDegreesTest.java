@@ -95,7 +95,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 	throws Exception {
-		DataSet<Vertex<LongValue, Degrees>> degrees = directedRMatGraph
+		DataSet<Vertex<LongValue, Degrees>> degrees = directedRMatGraph(10, 16)
 			.run(new VertexDegrees<LongValue, NullValue, NullValue>());
 
 		Checksum checksum = new ChecksumHashCode<Vertex<LongValue, Degrees>>()

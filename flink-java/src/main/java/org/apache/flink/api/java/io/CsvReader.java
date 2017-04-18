@@ -108,6 +108,8 @@ public class CsvReader {
 	 * 
 	 * @param delimiter The delimiter that separates the fields in one row.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 *
+	 * @deprecated Please use {@link #fieldDelimiter(String)}.
 	 */
 	@Deprecated
 	@PublicEvolving

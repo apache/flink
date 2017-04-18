@@ -234,6 +234,7 @@ class Environment(object):
 
                     port = int(sys.stdin.readline().rstrip('\n'))
                     subtask_index = int(sys.stdin.readline().rstrip('\n'))
+                    mmap_size = int(sys.stdin.readline().rstrip('\n'))
                     input_path = sys.stdin.readline().rstrip('\n')
                     output_path = sys.stdin.readline().rstrip('\n')
 
@@ -244,7 +245,7 @@ class Environment(object):
                         if set.id == id:
                             used_set = set
                             operator = set.operator
-                    operator._configure(input_path, output_path, port, self, used_set, subtask_index)
+                    operator._configure(input_path, output_path, mmap_size, port, self, used_set, subtask_index)
                     operator._go()
                     operator._close()
                     sys.stdout.flush()
@@ -252,7 +253,7 @@ class Environment(object):
             except:
                 sys.stdout.flush()
                 sys.stderr.flush()
-                if operator is not None:
+                if operator is not None and operator._connection is not None:
                     operator._connection._socket.send(struct.pack(">i", -2))
                 elif port is not None:
                     socket = SOCKET.socket(family=SOCKET.AF_INET, type=SOCKET.SOCK_STREAM)

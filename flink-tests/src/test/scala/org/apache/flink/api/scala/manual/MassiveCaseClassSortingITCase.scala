@@ -22,12 +22,15 @@ import java.io.File
 import java.util.Random
 import java.io.BufferedWriter
 import java.io.FileWriter
+
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.scala._
 import java.io.BufferedReader
+
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync
 import java.io.FileReader
-import org.apache.flink.util.MutableObjectIterator
+
+import org.apache.flink.util.{MutableObjectIterator, TestLogger}
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -39,7 +42,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 /**
  * This test is wrote as manual test.
  */
-class MassiveCaseClassSortingITCase {
+class MassiveCaseClassSortingITCase extends TestLogger {
   
   val SEED : Long = 347569784659278346L
   

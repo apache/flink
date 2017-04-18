@@ -29,13 +29,14 @@ import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 import org.apache.flink.types.LongValue;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class DegreesWithExceptionITCase {
+public class DegreesWithExceptionITCase extends TestLogger {
 
 	private static final int PARALLELISM = 4;
 

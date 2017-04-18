@@ -46,7 +46,7 @@ class TableSourceITCase(
 
     tEnv.registerTableSource("csvTable", csvTable)
     val results = tEnv.sql(
-      "SELECT id, first, last, score FROM csvTable").collect()
+      "SELECT id, `first`, `last`, score FROM csvTable").collect()
 
     val expected = Seq(
       "1,Mike,Smith,12.3",

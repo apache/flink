@@ -124,6 +124,8 @@ under the License.
 
 		<module name="FileContentsHolder"/>
 
+		<module name="MissingDeprecated"/>
+
 	<!--	<module name="ConstantName" />
 		<module name="LocalFinalVariableName" />
 		<module name="LocalVariableName" />

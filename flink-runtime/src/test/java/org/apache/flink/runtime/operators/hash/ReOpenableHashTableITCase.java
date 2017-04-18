@@ -36,6 +36,7 @@ import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.runtime.operators.testutils.UnionIterator;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -49,7 +50,7 @@ import java.util.Map;
 
 import static org.junit.Assert.fail;
 
-public class ReOpenableHashTableITCase {
+public class ReOpenableHashTableITCase extends TestLogger {
 
 	private static final int PAGE_SIZE = 8 * 1024;
 	private static final long MEMORY_SIZE = PAGE_SIZE * 1000; // 100 Pages.

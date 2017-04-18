@@ -131,7 +131,7 @@ public class FoldApplyProcessWindowFunctionTest {
 
 		transformations.add(new OneInputTransformation<>(source, "test", windowOperator, BasicTypeInfo.INT_TYPE_INFO, 1));
 
-		StreamGraph streamGraph = StreamGraphGenerator.generate(env, transformations, 1 /* default parallelism */);
+		StreamGraph streamGraph = StreamGraphGenerator.generate(env, transformations);
 
 		List<Integer> result = new ArrayList<>();
 		List<Integer> input = new ArrayList<>();
@@ -240,7 +240,7 @@ public class FoldApplyProcessWindowFunctionTest {
 
 		transformations.add(new OneInputTransformation<>(source, "test", windowOperator, BasicTypeInfo.INT_TYPE_INFO, 1));
 
-		StreamGraph streamGraph = StreamGraphGenerator.generate(env, transformations, 1 /* default parallelism */);
+		StreamGraph streamGraph = StreamGraphGenerator.generate(env, transformations);
 
 		List<Integer> result = new ArrayList<>();
 		List<Integer> input = new ArrayList<>();
@@ -309,10 +309,6 @@ public class FoldApplyProcessWindowFunctionTest {
 	}
 
 	public static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
-
-		public DummyStreamExecutionEnvironment() {
-			super(1);
-		}
 
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {

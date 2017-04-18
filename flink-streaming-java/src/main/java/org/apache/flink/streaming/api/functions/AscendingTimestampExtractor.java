@@ -29,6 +29,8 @@ import org.apache.flink.annotation.PublicEvolving;
  * {@link org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor}.
  *
  * @param <T> The type of the elements that this function can extract timestamps from
+ *
+ * @deprecated Extend {@link org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor} instead.
  */
 @PublicEvolving
 @Deprecated

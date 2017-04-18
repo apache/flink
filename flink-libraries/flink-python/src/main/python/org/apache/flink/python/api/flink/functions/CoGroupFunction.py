@@ -25,8 +25,8 @@ class CoGroupFunction(Function.Function):
         self._keys1 = None
         self._keys2 = None
 
-    def _configure(self, input_file, output_file, port, env, info, subtask_index):
-        self._connection = Connection.TwinBufferingTCPMappedFileConnection(input_file, output_file, port)
+    def _configure(self, input_file, output_file, mmap_size, port, env, info, subtask_index):
+        self._connection = Connection.TwinBufferingTCPMappedFileConnection(input_file, output_file, mmap_size, port)
         self._iterator = Iterator.Iterator(self._connection, env, 0)
         self._iterator2 = Iterator.Iterator(self._connection, env, 1)
         self._cgiter = Iterator.CoGroupIterator(self._iterator, self._iterator2, self._keys1, self._keys2)

@@ -21,6 +21,7 @@ package org.apache.flink.table.codegen
 import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.calcite.avatica.util.DateTimeUtils
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
@@ -39,7 +40,7 @@ import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
-import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.runtime.TableFunctionCollector
 import org.apache.flink.table.typeutils.TypeCheckUtils._
@@ -236,6 +237,271 @@ class CodeGenerator(
     */
   def generateExpression(rex: RexNode): GeneratedExpression = {
     rex.accept(this)
+  }
+
+  /**
+    * Generates a [[org.apache.flink.table.runtime.aggregate.GeneratedAggregations]] that can be
+    * passed to a Java compiler.
+    *
+    * @param name        Class name of the function.
+    *                    Does not need to be unique but has to be a valid Java class identifier.
+    * @param generator   The code generator instance
+    * @param inputType   Input row type
+    * @param aggregates  All aggregate functions
+    * @param aggFields   Indexes of the input fields for all aggregate functions
+    * @param aggMapping  The mapping of aggregates to output fields
+    * @param fwdMapping  The mapping of input fields to output fields
+    * @param outputArity The number of fields in the output row.
+    *
+    * @return A GeneratedAggregationsFunction
+    */
+  def generateAggregations(
+     name: String,
+     generator: CodeGenerator,
+     inputType: RelDataType,
+     aggregates: Array[AggregateFunction[_ <: Any]],
+     aggFields: Array[Array[Int]],
+     aggMapping: Array[Int],
+     fwdMapping: Array[(Int, Int)],
+     outputArity: Int)
+  : GeneratedAggregationsFunction = {
+
+    def genSetAggregationResults(
+      accTypes: Array[String],
+      aggs: Array[String],
+      aggMapping: Array[Int]): String = {
+
+      val sig: String =
+        j"""
+            |  public void setAggregationResults(
+            |    org.apache.flink.types.Row accs,
+            |    org.apache.flink.types.Row output)""".stripMargin
+
+      val setAggs: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
+             |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
+             |
+             |    output.setField(
+             |      ${aggMapping(i)},
+             |      baseClass$i.getValue((${accTypes(i)}) accs.getField($i)));""".stripMargin
+      }.mkString("\n")
+
+      j"""$sig {
+         |$setAggs
+         |  }""".stripMargin
+    }
+
+    def genAccumulate(
+     accTypes: Array[String],
+     aggs: Array[String],
+     parameters: Array[String]): String = {
+
+      val sig: String =
+        j"""
+            |  public void accumulate(
+            |    org.apache.flink.types.Row accs,
+            |    org.apache.flink.types.Row input)""".stripMargin
+
+      val accumulate: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    ${aggs(i)}.accumulate(
+             |      ((${accTypes(i)}) accs.getField($i)),
+             |      ${parameters(i)});""".stripMargin
+      }.mkString("\n")
+
+      j"""$sig {
+         |$accumulate
+         |  }""".stripMargin
+    }
+
+    def genRetract(
+      accTypes: Array[String],
+      aggs: Array[String],
+      parameters: Array[String]): String = {
+
+      val sig: String =
+        j"""
+            |  public void retract(
+            |    org.apache.flink.types.Row accs,
+            |    org.apache.flink.types.Row input)""".stripMargin
+
+      val retract: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    ${aggs(i)}.retract(
+             |      ((${accTypes(i)}) accs.getField($i)),
+             |      ${parameters(i)});""".stripMargin
+      }.mkString("\n")
+
+      j"""$sig {
+         |$retract
+         |  }""".stripMargin
+    }
+
+    def genCreateAccumulators(
+        aggs: Array[String]): String = {
+
+      val sig: String =
+        j"""
+           |  public org.apache.flink.types.Row createAccumulators()
+           |    """.stripMargin
+      val init: String =
+        j"""
+           |      org.apache.flink.types.Row accs =
+           |          new org.apache.flink.types.Row(${aggs.length});"""
+          .stripMargin
+      val create: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    accs.setField(
+             |      $i,
+             |      ${aggs(i)}.createAccumulator());"""
+            .stripMargin
+      }.mkString("\n")
+      val ret: String =
+        j"""
+           |      return accs;"""
+          .stripMargin
+
+      j"""$sig {
+         |$init
+         |$create
+         |$ret
+         |  }""".stripMargin
+    }
+
+    def genSetForwardedFields(
+        forwardMapping: Array[(Int, Int)]): String = {
+
+      val sig: String =
+        j"""
+           |  public void setForwardedFields(
+           |    org.apache.flink.types.Row input,
+           |    org.apache.flink.types.Row output)
+           |    """.stripMargin
+      val forward: String = {
+        for (i <- forwardMapping.indices) yield
+          j"""
+             |    output.setField(
+             |      ${forwardMapping(i)._1},
+             |      input.getField(${forwardMapping(i)._2}));"""
+            .stripMargin
+      }.mkString("\n")
+
+      j"""$sig {
+         |$forward
+         |  }""".stripMargin
+    }
+
+    def genCreateOutputRow(outputArity: Int): String = {
+      j"""
+         |  public org.apache.flink.types.Row createOutputRow() {
+         |    return new org.apache.flink.types.Row($outputArity);
+         |  }""".stripMargin
+    }
+
+    def genMergeAccumulatorsPair(
+        accTypes: Array[String],
+        aggs: Array[String]): String = {
+
+      val sig: String =
+        j"""
+           |  public org.apache.flink.types.Row mergeAccumulatorsPair(
+           |    org.apache.flink.types.Row a,
+           |    org.apache.flink.types.Row b)
+           """.stripMargin
+      val merge: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    ${accTypes(i)} aAcc$i = (${accTypes(i)}) a.getField($i);
+             |    ${accTypes(i)} bAcc$i = (${accTypes(i)}) b.getField($i);
+             |    accList$i.set(0, aAcc$i);
+             |    accList$i.set(1, bAcc$i);
+             |    a.setField(
+             |      $i,
+             |      ${aggs(i)}.merge(accList$i));
+             """.stripMargin
+      }.mkString("\n")
+      val ret: String =
+        j"""
+           |      return a;
+           """.stripMargin
+
+      j"""$sig {
+         |$merge
+         |$ret
+         |  }""".stripMargin
+    }
+
+    def genMergeList(accTypes: Array[String]): String = {
+      {
+        for (i <- accTypes.indices) yield
+          j"""
+             |    java.util.ArrayList<${accTypes(i)}> accList$i;
+             """.stripMargin
+      }.mkString("\n")
+    }
+
+    def initMergeList(
+        accTypes: Array[String],
+        aggs: Array[String]): String = {
+      {
+        for (i <- accTypes.indices) yield
+          j"""
+             |    accList$i = new java.util.ArrayList<${accTypes(i)}>(2);
+             |    accList$i.add(${aggs(i)}.createAccumulator());
+             |    accList$i.add(${aggs(i)}.createAccumulator());
+             """.stripMargin
+      }.mkString("\n")
+    }
+
+    // get unique function name
+    val funcName = newName(name)
+    // register UDAGGs
+    val aggs = aggregates.map(a => generator.addReusableFunction(a))
+    // get java types of accumulators
+    val accTypes = aggregates.map { a =>
+      a.getClass.getMethod("createAccumulator").getReturnType.getCanonicalName
+    }
+
+    // get java types of input fields
+    val javaTypes = inputType.getFieldList
+      .map(f => FlinkTypeFactory.toTypeInfo(f.getType))
+      .map(t => t.getTypeClass.getCanonicalName)
+    // get parameter lists for aggregation functions
+    val parameters = aggFields.map {inFields =>
+      val fields = for (f <- inFields) yield s"(${javaTypes(f)}) input.getField($f)"
+      fields.mkString(", ")
+    }
+
+    var funcCode =
+      j"""
+         |public class $funcName
+         |  extends org.apache.flink.table.runtime.aggregate.GeneratedAggregations {
+         |
+         |  ${reuseMemberCode()}
+         |  ${genMergeList(accTypes)}
+         |  public $funcName() throws Exception {
+         |    ${reuseInitCode()}
+         |    ${initMergeList(accTypes, aggs)}
+         |  }
+         |  ${reuseConstructorCode(funcName)}
+         |
+         """.stripMargin
+
+    funcCode += genSetAggregationResults(accTypes, aggs, aggMapping) + "\n"
+    funcCode += genAccumulate(accTypes, aggs, parameters) + "\n"
+    funcCode += genRetract(accTypes, aggs, parameters) + "\n"
+    funcCode += genCreateAccumulators(aggs) + "\n"
+    funcCode += genSetForwardedFields(fwdMapping) + "\n"
+    funcCode += genCreateOutputRow(outputArity) + "\n"
+    funcCode += genMergeAccumulatorsPair(accTypes, aggs) + "\n"
+    funcCode += "}"
+
+    GeneratedAggregationsFunction(funcName, funcCode)
   }
 
   /**
@@ -1129,6 +1395,9 @@ class CodeGenerator(
 
   override def visitSubQuery(subQuery: RexSubQuery): GeneratedExpression =
     throw new CodeGenException("Subqueries are not supported yet.")
+
+  override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression =
+    throw new CodeGenException("Pattern field references are not supported yet.")
 
   // ----------------------------------------------------------------------------------------------
   // generator helping methods

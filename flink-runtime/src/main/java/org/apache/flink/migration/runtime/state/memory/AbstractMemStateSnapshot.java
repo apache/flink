@@ -29,6 +29,9 @@ import org.apache.flink.runtime.util.DataInputDeserializer;
 
 import java.io.IOException;
 
+/**
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
+ */
 @Deprecated
 @SuppressWarnings("deprecation")
 public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> 

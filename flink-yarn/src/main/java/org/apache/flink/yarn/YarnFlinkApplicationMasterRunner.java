@@ -66,7 +66,7 @@ import java.io.ObjectInputStream;
  * It starts actor system and the actors for {@link JobManagerRunner}
  * and {@link YarnResourceManager}.
  *
- * The JobMasnagerRunner start a {@link org.apache.flink.runtime.jobmaster.JobMaster}
+ * The JobManagerRunner start a {@link org.apache.flink.runtime.jobmaster.JobMaster}
  * JobMaster handles Flink job execution, while the YarnResourceManager handles container
  * allocation and failure detection.
  */

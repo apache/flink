@@ -18,18 +18,18 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.sql.ResultSet;
-
 import org.apache.flink.api.java.io.jdbc.split.GenericParameterValuesProvider;
 import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
 import org.apache.flink.api.java.io.jdbc.split.ParameterValuesProvider;
-import org.apache.flink.types.Row;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.types.Row;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.sql.ResultSet;
 
 public class JDBCInputFormatTest extends JDBCTestBase {
 
@@ -116,11 +116,21 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				break;
 			}
 			
-			if(next.getField(0)!=null) { Assert.assertEquals("Field 0 should be int", Integer.class, next.getField(0).getClass());}
-			if(next.getField(1)!=null) { Assert.assertEquals("Field 1 should be String", String.class, next.getField(1).getClass());}
-			if(next.getField(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, next.getField(2).getClass());}
-			if(next.getField(3)!=null) { Assert.assertEquals("Field 3 should be float", Double.class, next.getField(3).getClass());}
-			if(next.getField(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, next.getField(4).getClass());}
+			if (next.getField(0) != null) {
+				Assert.assertEquals("Field 0 should be int", Integer.class, next.getField(0).getClass());
+			}
+			if (next.getField(1) != null) {
+				Assert.assertEquals("Field 1 should be String", String.class, next.getField(1).getClass());
+			}
+			if (next.getField(2) != null) {
+				Assert.assertEquals("Field 2 should be String", String.class, next.getField(2).getClass());
+			}
+			if (next.getField(3) != null) {
+				Assert.assertEquals("Field 3 should be float", Double.class, next.getField(3).getClass());
+			}
+			if (next.getField(4) != null) {
+				Assert.assertEquals("Field 4 should be int", Integer.class, next.getField(4).getClass());
+			}
 
 			for (int x = 0; x < 5; x++) {
 				if(testData[recordCount][x]!=null) {
@@ -162,11 +172,78 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				if (next == null) {
 					break;
 				}
-				if(next.getField(0)!=null) { Assert.assertEquals("Field 0 should be int", Integer.class, next.getField(0).getClass());}
-				if(next.getField(1)!=null) { Assert.assertEquals("Field 1 should be String", String.class, next.getField(1).getClass());}
-				if(next.getField(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, next.getField(2).getClass());}
-				if(next.getField(3)!=null) { Assert.assertEquals("Field 3 should be float", Double.class, next.getField(3).getClass());}
-				if(next.getField(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, next.getField(4).getClass());}
+				if (next.getField(0) != null) {
+					Assert.assertEquals("Field 0 should be int", Integer.class, next.getField(0).getClass());
+				}
+				if (next.getField(1) != null) {
+					Assert.assertEquals("Field 1 should be String", String.class, next.getField(1).getClass());
+				}
+				if (next.getField(2) != null) {
+					Assert.assertEquals("Field 2 should be String", String.class, next.getField(2).getClass());
+				}
+				if (next.getField(3) != null) {
+					Assert.assertEquals("Field 3 should be float", Double.class, next.getField(3).getClass());
+				}
+				if (next.getField(4) != null) {
+					Assert.assertEquals("Field 4 should be int", Integer.class, next.getField(4).getClass());
+				}
+
+				for (int x = 0; x < 5; x++) {
+					if(testData[recordCount][x]!=null) {
+						Assert.assertEquals(testData[recordCount][x], next.getField(x));
+					}
+				}
+				recordCount++;
+			}
+			jdbcInputFormat.close();
+		}
+		jdbcInputFormat.closeInputFormat();
+		Assert.assertEquals(testData.length, recordCount);
+	}
+
+	@Test
+	public void testJDBCInputFormatWithoutParallelismAndNumericColumnSplitting() throws IOException, InstantiationException, IllegalAccessException {
+		final Long min = new Long(JDBCTestBase.testData[0][0] + "");
+		final Long max = new Long(JDBCTestBase.testData[JDBCTestBase.testData.length - 1][0] + "");
+		final long fetchSize = max + 1;//generate a single split
+		ParameterValuesProvider pramProvider = new NumericBetweenParametersProvider(fetchSize, min, max);
+		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+				.setDrivername(DRIVER_CLASS)
+				.setDBUrl(DB_URL)
+				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS_SPLIT_BY_ID)
+				.setRowTypeInfo(rowTypeInfo)
+				.setParametersProvider(pramProvider)
+				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
+				.finish();
+
+		jdbcInputFormat.openInputFormat();
+		InputSplit[] splits = jdbcInputFormat.createInputSplits(1);
+		//assert that a single split was generated
+		Assert.assertEquals(1, splits.length);
+		int recordCount = 0;
+		Row row =  new Row(5);
+		for (int i = 0; i < splits.length; i++) {
+			jdbcInputFormat.open(splits[i]);
+			while (!jdbcInputFormat.reachedEnd()) {
+				Row next = jdbcInputFormat.nextRecord(row);
+				if (next == null) {
+					break;
+				}
+				if (next.getField(0) != null) {
+					Assert.assertEquals("Field 0 should be int", Integer.class, next.getField(0).getClass());
+				}
+				if (next.getField(1) != null) {
+					Assert.assertEquals("Field 1 should be String", String.class, next.getField(1).getClass());
+				}
+				if (next.getField(2) != null) {
+					Assert.assertEquals("Field 2 should be String", String.class, next.getField(2).getClass());
+				}
+				if (next.getField(3) != null) {
+					Assert.assertEquals("Field 3 should be float", Double.class, next.getField(3).getClass());
+				}
+				if (next.getField(4) != null) {
+					Assert.assertEquals("Field 4 should be int", Integer.class, next.getField(4).getClass());
+				}
 
 				for (int x = 0; x < 5; x++) {
 					if(testData[recordCount][x]!=null) {
@@ -208,11 +285,21 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				if (next == null) {
 					break;
 				}
-				if(next.getField(0)!=null) { Assert.assertEquals("Field 0 should be int", Integer.class, next.getField(0).getClass());}
-				if(next.getField(1)!=null) { Assert.assertEquals("Field 1 should be String", String.class, next.getField(1).getClass());}
-				if(next.getField(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, next.getField(2).getClass());}
-				if(next.getField(3)!=null) { Assert.assertEquals("Field 3 should be float", Double.class, next.getField(3).getClass());}
-				if(next.getField(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, next.getField(4).getClass());}
+				if (next.getField(0) != null) {
+					Assert.assertEquals("Field 0 should be int", Integer.class, next.getField(0).getClass());
+				}
+				if (next.getField(1) != null) {
+					Assert.assertEquals("Field 1 should be String", String.class, next.getField(1).getClass());
+				}
+				if (next.getField(2) != null) {
+					Assert.assertEquals("Field 2 should be String", String.class, next.getField(2).getClass());
+				}
+				if (next.getField(3) != null) {
+					Assert.assertEquals("Field 3 should be float", Double.class, next.getField(3).getClass());
+				}
+				if (next.getField(4) != null) {
+					Assert.assertEquals("Field 4 should be int", Integer.class, next.getField(4).getClass());
+				}
 
 				recordCount++;
 			}

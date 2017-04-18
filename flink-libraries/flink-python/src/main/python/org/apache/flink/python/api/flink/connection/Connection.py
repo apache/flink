@@ -23,8 +23,6 @@ import sys
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 
-MAPPED_FILE_SIZE = 1024 * 1024 * 64
-
 SIGNAL_REQUEST_BUFFER = b"\x00\x00\x00\x00"
 SIGNAL_REQUEST_BUFFER_G0 = b"\xFF\xFF\xFF\xFD"
 SIGNAL_REQUEST_BUFFER_G1 = b"\xFF\xFF\xFF\xFC"
@@ -67,15 +65,16 @@ class PureTCPConnection(object):
 
 
 class BufferingTCPMappedFileConnection(object):
-    def __init__(self, input_file, output_file, port):
+    def __init__(self, input_file, output_file, mmap_size, port):
         self._input_file = open(input_file, "rb+")
         self._output_file = open(output_file, "rb+")
+        self._mmap_size = mmap_size
         if hasattr(mmap, 'MAP_SHARED'):
-            self._file_input_buffer = mmap.mmap(self._input_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_READ)
-            self._file_output_buffer = mmap.mmap(self._output_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_WRITE)
+            self._file_input_buffer = mmap.mmap(self._input_file.fileno(), mmap_size, mmap.MAP_SHARED, mmap.ACCESS_READ)
+            self._file_output_buffer = mmap.mmap(self._output_file.fileno(), mmap_size, mmap.MAP_SHARED, mmap.ACCESS_WRITE)
         else:
-            self._file_input_buffer = mmap.mmap(self._input_file.fileno(), MAPPED_FILE_SIZE, None, mmap.ACCESS_READ)
-            self._file_output_buffer = mmap.mmap(self._output_file.fileno(), MAPPED_FILE_SIZE, None, mmap.ACCESS_WRITE)
+            self._file_input_buffer = mmap.mmap(self._input_file.fileno(), mmap_size, None, mmap.ACCESS_READ)
+            self._file_output_buffer = mmap.mmap(self._output_file.fileno(), mmap_size, None, mmap.ACCESS_WRITE)
         self._socket = SOCKET.socket(family=SOCKET.AF_INET, type=SOCKET.SOCK_STREAM)
         self._socket.connect((SOCKET.gethostbyname("localhost"), port))
 
@@ -92,10 +91,10 @@ class BufferingTCPMappedFileConnection(object):
 
     def write(self, msg):
         length = len(msg)
-        if length > MAPPED_FILE_SIZE:
+        if length > self._mmap_size:
             raise Exception("Serialized object does not fit into a single buffer.")
         tmp = self._out_size + length
-        if tmp > MAPPED_FILE_SIZE:
+        if tmp > self._mmap_size:
             self._write_buffer()
             self.write(msg)
         else:
@@ -150,8 +149,8 @@ class BufferingTCPMappedFileConnection(object):
 
 
 class TwinBufferingTCPMappedFileConnection(BufferingTCPMappedFileConnection):
-    def __init__(self, input_file, output_file, port):
-        super(TwinBufferingTCPMappedFileConnection, self).__init__(input_file, output_file, port)
+    def __init__(self, input_file, output_file, mmap_size, port):
+        super(TwinBufferingTCPMappedFileConnection, self).__init__(input_file, output_file, mmap_size, port)
         self._input = [b"", b""]
         self._input_offset = [0, 0]
         self._input_size = [0, 0]

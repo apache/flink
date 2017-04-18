@@ -15,17 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.environment;
+package org.apache.flink.streaming.api;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -36,13 +34,9 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.SplittableIterator;
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import java.net.URL;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -50,13 +44,8 @@ import java.util.NoSuchElementException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 public class StreamExecutionEnvironmentTest {
-
-	@Rule
-	public final ExpectedException exception = ExpectedException.none();
-
 
 	@Test
 	public void fromElementsWithBaseTypeTest1() {
@@ -139,76 +128,6 @@ public class StreamExecutionEnvironmentTest {
 	}
 
 	@Test
-	public void testDefaultParallelismIsDefault() {
-		assertEquals(
-				ExecutionConfig.PARALLELISM_DEFAULT,
-				StreamExecutionEnvironment.createLocalEnvironment().getParallelism());
-
-		assertEquals(
-				ExecutionConfig.PARALLELISM_DEFAULT,
-				StreamExecutionEnvironment.createRemoteEnvironment("dummy", 1234).getParallelism());
-
-		StreamExecutionEnvironment contextEnv = new StreamContextEnvironment(
-				new ContextEnvironment(
-						mock(ClusterClient.class),
-						Collections.<URL>emptyList(),
-						Collections.<URL>emptyList(),
-						this.getClass().getClassLoader(),
-						null));
-
-		assertEquals(
-				ExecutionConfig.PARALLELISM_DEFAULT,
-				contextEnv.getParallelism());
-	}
-
-	@Test
-	public void testMaxParallelismMustBeBiggerEqualParallelism() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		env.setParallelism(10);
-
-		exception.expect(IllegalArgumentException.class);
-		env.setMaxParallelism(5);
-	}
-
-	@Test
-	public void testParallelismMustBeSmallerEqualMaxParallelism() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		env.setParallelism(10);
-		env.setMaxParallelism(20);
-
-		exception.expect(IllegalArgumentException.class);
-		env.setParallelism(30);
-	}
-
-	@Test
-	public void testSetDefaultParallelismNotAllowedWhenMaxParallelismSpecified() {
-		final int defaultParallelism = 20;
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(defaultParallelism);
-
-		env.setParallelism(10);
-		env.setMaxParallelism(15);
-
-		exception.expect(IllegalArgumentException.class);
-		env.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT);
-	}
-
-	@Test
-	public void testSetMaxParallelismNotAllowedWithDefaultParallelism() {
-		final int defaultParallelism = 20;
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(defaultParallelism);
-
-		env.setParallelism(10);
-		env.setMaxParallelism(15);
-
-		exception.expect(IllegalArgumentException.class);
-		env.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT);
-	}
-
-	@Test
 	public void testParallelismBounds() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -259,7 +178,6 @@ public class StreamExecutionEnvironmentTest {
 		Assert.assertEquals(-1, operator.getTransformation().getMaxParallelism());
 
 		// configured value after generating
-		env.setParallelism(21);
 		env.setMaxParallelism(42);
 		env.getStreamGraph().getJobGraph();
 		Assert.assertEquals(42, operator.getTransformation().getMaxParallelism());

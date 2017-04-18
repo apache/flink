@@ -55,7 +55,15 @@ abstract class TableSourceScan(
   }
 
   override def toString: String = {
-    s"Source(from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")}))"
+    val tableName = getTable.getQualifiedName
+    val s = s"table:$tableName, fields:(${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
+
+    val sourceDesc = tableSource.explainSource()
+    if (sourceDesc.nonEmpty) {
+      s"Scan($s, source:$sourceDesc)"
+    } else {
+      s"Scan($s)"
+    }
   }
 
   def copy(traitSet: RelTraitSet, tableSource: TableSource[_]): TableSourceScan
