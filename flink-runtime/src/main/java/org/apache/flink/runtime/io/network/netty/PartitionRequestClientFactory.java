@@ -216,12 +216,12 @@ class PartitionRequestClientFactory {
 						"Connecting to remote task manager + '" + connectionId.getAddress() +
 								"' has failed. This might indicate that the remote task " +
 								"manager has been lost.",
-						connectionId.getAddress(), future.cause()));
+						future.cause(), connectionId.getAddress()));
 			}
 			else {
 				notifyOfError(new LocalTransportException(
 						"Connecting to remote task manager + '" + connectionId.getAddress() +
-								"' has been cancelled.", null));
+								"' has been cancelled."));
 			}
 		}
 	}
