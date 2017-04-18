@@ -339,5 +339,6 @@ class AggregationsITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  case class WC(word: String, frequency: Long)
 }
+
+case class WC(word: String, frequency: Long)

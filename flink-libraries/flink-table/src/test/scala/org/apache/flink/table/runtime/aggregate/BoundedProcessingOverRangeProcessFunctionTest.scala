@@ -159,11 +159,17 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |    return new org.apache.flink.types.Row(7);
         |  }
         |
-        |  //The test won't use this method
+        |/*******  This test does not use the following methods  *******/
         |  public org.apache.flink.types.Row mergeAccumulatorsPair(
         |    org.apache.flink.types.Row a,
         |    org.apache.flink.types.Row b) {
         |    return null;
+        |  }
+        |
+        |  public void resetAccumulator(org.apache.flink.types.Row accs) {
+        |  }
+        |
+        |  public void setConstantFlags(org.apache.flink.types.Row output) {
         |  }
         |}
       """.stripMargin
