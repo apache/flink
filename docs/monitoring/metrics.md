@@ -444,8 +444,7 @@ of your Flink distribution.
 Parameters:
 
 - `apikey` - the Datadog API key
-- `tags.enabled` - (optional) whether or not to send variables in metrics as Datadog tags
-- `tags` - (optional) the global tags that will be applied to metrics when sending to Datadog. Only works when `tags.enabled` is true. Tags should be separated by comma only
+- `tags` - (optional) the global tags that will be applied to metrics when sending to Datadog. Tags should be separated by comma only
 
 Example configuration:
 
@@ -454,9 +453,15 @@ Example configuration:
 metrics.reporters: dghttp
 metrics.reporter.dghttp.class: org.apache.flink.metrics.datadog.DatadogHttpReporter
 metrics.reporter.dghttp.apikey: xxx
-metrics.reporter.dghttp.tags.enabled: true
 metrics.reporter.dghttp.tags: myflinkapp,prod
 
+// <host>, <job_name>, <tm_id>, <subtask_index>, <task_name>, <operator_name> will be sent to Datadog as tags
+metrics.scope.jm: <host>.jobmanager
+metrics.scope.jm.job: <host>.<job_name>.jobmanager.job
+metrics.scope.tm: <host>.<tm_id>.taskmanager
+metrics.scope.tm.job: <host>.<tm_id>.<job_name>.taskmanager.job
+metrics.scope.task: <host>.<tm_id>.<job_name>.<subtask_index>.<task_name>.task
+metrics.scope.operator: <host>.<tm_id>.<job_name>.<subtask_index>.<operator_name>.operator
 
 {% endhighlight %}
 

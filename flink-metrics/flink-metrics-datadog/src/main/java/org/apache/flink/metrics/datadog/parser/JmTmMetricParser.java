@@ -20,6 +20,9 @@ package org.apache.flink.metrics.datadog.parser;
 
 import com.google.common.collect.Lists;
 
+/**
+ * Parse Flink's metrics under scope of JobManager and TaskManager
+ * */
 public class JmTmMetricParser extends AbstractMetricParser implements IMetricParser {
 	@Override
 	public NameAndTags getNameAndTags(String fullName, String keyword) {

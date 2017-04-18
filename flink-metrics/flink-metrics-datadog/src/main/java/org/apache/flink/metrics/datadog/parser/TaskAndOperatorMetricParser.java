@@ -24,6 +24,8 @@ import com.google.common.collect.Lists;
 import java.util.List;
 
 /**
+ * Parse Flink's metrics under scope of Task and Operator
+ *
  * metrics.scope.task:     <host>.<tm_id>.<job_name>.<subtask_index>.<task_name>.task
  * metrics.scope.operator: <host>.<tm_id>.<job_name>.<subtask_index>.<operator_name>.operator
  * */

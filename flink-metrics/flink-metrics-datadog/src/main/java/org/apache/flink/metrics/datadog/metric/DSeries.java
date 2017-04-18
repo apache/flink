@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- *
+ * Json serialization between Flink and Datadog
  **/
 public class DSeries {
 	private List<DMetric> series;

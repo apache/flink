@@ -19,6 +19,7 @@
 package org.apache.flink.metrics.datadog;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricConfig;
@@ -33,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 
@@ -41,8 +43,7 @@ import java.util.Map;
  *
  * Metric Reporter for Datadog
  *
- * When 'metrics.reporter.dghttp.tags.enabled' is set to true,
- * metric scope formats have to be defined as followed:
+ * When used, metric scope formats have to be defined as followed:
  *
  * metrics.scope.jm: <host>.jobmanager
  * metrics.scope.jm.job: <host>.<job_name>.jobmanager.job
@@ -56,12 +57,13 @@ import java.util.Map;
 public class DatadogHttpReporter extends AbstractReporter implements Scheduled {
 	private static final Logger LOG = LoggerFactory.getLogger(DatadogHttpReporter.class);
 
-	public static final String DG_API_KEY = "DG_API_KEY";
 	public static final String API_KEY = "apikey";
+	public static final String TAGS = "tags";
 
 	private static final ObjectMapper MAPPER = new ObjectMapper();
 
 	private DatadogHttpClient client;
+	private List<String> tags;
 
 	private MetricParser metricParser;
 
@@ -70,6 +72,7 @@ public class DatadogHttpReporter extends AbstractReporter implements Scheduled {
 		client = new DatadogHttpClient(config.getString(API_KEY, null));
 		log.info("Configured DatadogHttpReporter");
 
+		tags = getTags(config.getString(TAGS, null));
 		metricParser = new MetricParser(config);
 	}
 
@@ -89,7 +92,6 @@ public class DatadogHttpReporter extends AbstractReporter implements Scheduled {
 				if(entry.getKey().getValue() instanceof Number) {
 					NameAndTags nat = metricParser.getNameAndTags(entry.getValue());
 
-//                    LOG.info(nat.getName() + " " + nat.getTags());
 						request.addGauge(
 							new DGauge(
 								nat.getName(),
@@ -101,7 +103,6 @@ public class DatadogHttpReporter extends AbstractReporter implements Scheduled {
 			for (Map.Entry<Counter, String> entry : counters.entrySet()) {
 				NameAndTags nat = metricParser.getNameAndTags(entry.getValue());
 
-//                LOG.info(nat.getName() + " " + nat.getTags());
 				request.addCounter(
 					new DCounter(
 						nat.getName(),
@@ -121,7 +122,18 @@ public class DatadogHttpReporter extends AbstractReporter implements Scheduled {
 	}
 
 	/**
-	 *
+	 * Get tags from config 'metrics.reporter.dghttp.tags'
+	 * */
+	private List<String> getTags(String str) {
+		if(str != null) {
+			return Lists.newArrayList(str.split(","));
+		} else {
+			return Lists.newArrayList();
+		}
+	}
+
+	/**
+	 * Serialize metrics and send to Datadog
 	 * */
 	private static class DatadogHttpRequest {
 		private final DatadogHttpReporter datadogHttpReporter;

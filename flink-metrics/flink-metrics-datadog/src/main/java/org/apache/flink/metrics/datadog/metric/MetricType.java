@@ -19,7 +19,7 @@
 package org.apache.flink.metrics.datadog.metric;
 
 /**
- * Metric types supported
+ * Metric types supported by Datadog
  * */
 public enum MetricType {
 	gauge, counter

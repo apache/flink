@@ -18,6 +18,9 @@
 
 package org.apache.flink.metrics.datadog.parser;
 
+/**
+ * Parse Flink's metrics to Datadog-readable format
+ * */
 public interface IMetricParser {
 	NameAndTags getNameAndTags(String fullName, String keyword);
 
