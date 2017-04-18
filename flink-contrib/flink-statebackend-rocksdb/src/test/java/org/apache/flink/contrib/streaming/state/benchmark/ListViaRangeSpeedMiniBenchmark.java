@@ -54,9 +54,10 @@ public class ListViaRangeSpeedMiniBenchmark {
 
 		final RocksDB rocksDB = RocksDB.open(options, rocksDir.getAbsolutePath());
 
+		final String key = "key";
+		final String value = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
+		
 		try {
-			final String key = "key";
-			final String value = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
 
 			final byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
 			final byte[] valueBytes = value.getBytes(StandardCharsets.UTF_8);
@@ -84,24 +85,28 @@ public class ListViaRangeSpeedMiniBenchmark {
 			final RocksIterator iterator = rocksDB.newIterator();
 			int pos = 0;
 
-			// seek to start
-			unsafe.putInt(keyTemplate, offset, 0);
-			iterator.seek(keyTemplate);
+			try {
+				// seek to start
+				unsafe.putInt(keyTemplate, offset, 0);
+				iterator.seek(keyTemplate);
 
-			// mark end
-			unsafe.putInt(keyTemplate, offset, -1);
+				// mark end
+				unsafe.putInt(keyTemplate, offset, -1);
 
-			// iterate
-			while (iterator.isValid()) {
-				byte[] currKey = iterator.key();
-				if (samePrefix(keyBytes, currKey)) {
-					byte[] currValue = iterator.value();
-					System.arraycopy(currValue, 0, resultHolder, pos, currValue.length);
-					pos += currValue.length;
-					iterator.next();
-				} else {
-					break;
+				// iterate
+				while (iterator.isValid()) {
+					byte[] currKey = iterator.key();
+					if (samePrefix(keyBytes, currKey)) {
+						byte[] currValue = iterator.value();
+						System.arraycopy(currValue, 0, resultHolder, pos, currValue.length);
+						pos += currValue.length;
+						iterator.next();
+					} else {
+						break;
+					}
 				}
+			}finally {
+				iterator.close();
 			}
 
 			final long endGet = System.nanoTime();
@@ -109,6 +114,9 @@ public class ListViaRangeSpeedMiniBenchmark {
 			System.out.println("end get - duration: " + ((endGet - beginGet) / 1_000_000) + " ms");
 		} finally {
 			rocksDB.close();
+			options.close();
+			write_options.close();
+			FileUtils.deleteDirectory(rocksDir);
 		}
 	}
 

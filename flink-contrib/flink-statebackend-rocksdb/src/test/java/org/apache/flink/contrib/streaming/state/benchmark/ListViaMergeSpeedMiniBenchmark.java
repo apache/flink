@@ -50,10 +50,10 @@ public class ListViaMergeSpeedMiniBenchmark {
 
 		final RocksDB rocksDB = RocksDB.open(options, rocksDir.getAbsolutePath());
 
-		try {
-			final String key = "key";
-			final String value = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
+		final String key = "key";
+		final String value = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
 
+		try {
 			final byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
 			final byte[] valueBytes = value.getBytes(StandardCharsets.UTF_8);
 
@@ -103,6 +103,9 @@ public class ListViaMergeSpeedMiniBenchmark {
 			System.out.println("end get - duration: " + ((endGet3 - beginGet3) / 1_000_000) + " ms");
 		} finally {
 			rocksDB.close();
+			options.close();
+			write_options.close();
+			FileUtils.deleteDirectory(rocksDir);
 		}
 	}
 }
