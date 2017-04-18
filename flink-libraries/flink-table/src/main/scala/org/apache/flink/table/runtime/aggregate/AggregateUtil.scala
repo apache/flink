@@ -71,13 +71,14 @@ object AggregateUtil {
     inputType: RelDataType,
     isRowTimeType: Boolean,
     isPartitioned: Boolean,
-    isRowsClause: Boolean): ProcessFunction[Row, Row] = {
+    isRowsClause: Boolean,
+    consumeRetraction: Boolean): ProcessFunction[Row, Row] = {
 
     val (aggFields, aggregates) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
-        needRetraction = false)
+        consumeRetraction)
 
     val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
 
@@ -135,13 +136,15 @@ object AggregateUtil {
   private[flink] def createGroupAggregateFunction(
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
-      groupings: Array[Int]): ProcessFunction[Row, Row] = {
+      groupings: Array[Int],
+      genereateRetraction: Boolean,
+      consumeRetraction: Boolean): ProcessFunction[Row, Row] = {
 
     val (aggFields, aggregates) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
-        needRetraction = false)
+        consumeRetraction)
 
     val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
 
@@ -149,7 +152,8 @@ object AggregateUtil {
       aggregates,
       aggFields,
       groupings,
-      aggregationStateType)
+      aggregationStateType,
+      genereateRetraction)
   }
 
   /**

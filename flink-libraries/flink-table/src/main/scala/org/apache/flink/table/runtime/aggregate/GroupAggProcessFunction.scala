@@ -19,7 +19,7 @@ package org.apache.flink.table.runtime.aggregate
 
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.types.Row
+import org.apache.flink.types.{Command, Row}
 import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -41,7 +41,8 @@ class GroupAggProcessFunction(
     private val aggregates: Array[AggregateFunction[_]],
     private val aggFields: Array[Array[Int]],
     private val groupings: Array[Int],
-    private val aggregationStateType: RowTypeInfo)
+    private val aggregationStateType: RowTypeInfo,
+    private val generateRetraction: Boolean)
   extends ProcessFunction[Row, Row] {
 
   Preconditions.checkNotNull(aggregates)
@@ -49,6 +50,7 @@ class GroupAggProcessFunction(
   Preconditions.checkArgument(aggregates.length == aggFields.length)
 
   private var output: Row = _
+  private var previous: Row = _
   private var state: ValueState[Row] = _
 
   override def open(config: Configuration) {
@@ -68,11 +70,34 @@ class GroupAggProcessFunction(
     var accumulators = state.value()
 
     if (null == accumulators) {
+      previous = null
       accumulators = new Row(aggregates.length)
       i = 0
       while (i < aggregates.length) {
         accumulators.setField(i, aggregates(i).createAccumulator())
         i += 1
+      }
+    } else {
+      // get previous row
+      if (generateRetraction) {
+        if (null == previous) {
+          previous = new Row(groupings.length + aggregates.length)
+          // previous is used to output retract message, so command of previous will always be
+          // Command.Delete
+          previous.command = Command.Delete
+        }
+        i = 0
+        while (i < groupings.length) {
+          previous.setField(i, input.getField(groupings(i)))
+          i += 1
+        }
+        i = 0
+        while (i < aggregates.length) {
+          val index = groupings.length + i
+          val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
+          previous.setField(index, aggregates(i).getValue(accumulator))
+          i += 1
+        }
       }
     }
 
@@ -84,16 +109,38 @@ class GroupAggProcessFunction(
     }
 
     // Set aggregate result to the final output
-    i = 0
-    while (i < aggregates.length) {
-      val index = groupings.length + i
-      val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-      aggregates(i).accumulate(accumulator, input.getField(aggFields(i)(0)))
-      output.setField(index, aggregates(i).getValue(accumulator))
-      i += 1
+    if (input.command == Command.Delete) {
+      i = 0
+      while (i < aggregates.length) {
+        val index = groupings.length + i
+        val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
+        aggregates(i).retract(accumulator, input.getField(aggFields(i)(0)))
+        output.setField(index, aggregates(i).getValue(accumulator))
+        i += 1
+      }
+    } else {
+      i = 0
+      while (i < aggregates.length) {
+        val index = groupings.length + i
+        val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
+        aggregates(i).accumulate(accumulator, input.getField(aggFields(i)(0)))
+        output.setField(index, aggregates(i).getValue(accumulator))
+        i += 1
+      }
     }
-    state.update(accumulators)
 
+    // if previous is not null, do retraction process
+    if (null != previous) {
+      if (previous.equals(output)) {
+        // ignore same output
+        return
+      } else {
+        // output a retraction message
+        out.collect(previous)
+      }
+    }
+
+    state.update(accumulators)
     out.collect(output)
   }
 

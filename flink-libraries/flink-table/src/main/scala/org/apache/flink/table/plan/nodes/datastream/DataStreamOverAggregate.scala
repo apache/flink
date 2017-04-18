@@ -110,6 +110,8 @@ class DataStreamOverAggregate(
 
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
 
+    val consumeRetraction = DataStreamRetractionRules.isAccRetract(input)
+
     val generator = new CodeGenerator(
       tableEnv.getConfig,
       false,
@@ -129,11 +131,17 @@ class DataStreamOverAggregate(
             generator,
             inputDS,
             isRowTimeType = false,
-            isRowsClause = overWindow.isRows)
+            isRowsClause = overWindow.isRows,
+            consumeRetraction)
         } else if (
           overWindow.lowerBound.isPreceding && !overWindow.lowerBound.isUnbounded &&
             overWindow.upperBound.isCurrentRow) {
           // bounded OVER window
+          if (consumeRetraction) {
+            throw new TableException(
+              "Retraction for bounded over window is not supported yet. Note: Currently, bounded " +
+                "over windows shoud not follow an unbounded groupby.")
+          }
           createBoundedAndCurrentRowOverWindow(
             generator,
             inputDS,
@@ -146,6 +154,11 @@ class DataStreamOverAggregate(
         }
       case _: RowTimeType =>
         // row-time OVER window
+        if (consumeRetraction) {
+          throw new TableException(
+            "Retraction on row-time over window is not supported yet. Note: Currently, row-time " +
+              "over window shoud not follow an unbounded groupby.")
+        }
         if (overWindow.lowerBound.isPreceding &&
           overWindow.lowerBound.isUnbounded && overWindow.upperBound.isCurrentRow) {
           // unbounded OVER window
@@ -153,7 +166,8 @@ class DataStreamOverAggregate(
             generator,
             inputDS,
             isRowTimeType = true,
-            isRowsClause = overWindow.isRows
+            isRowsClause = overWindow.isRows,
+            consumeRetraction
           )
         } else if (overWindow.lowerBound.isPreceding && overWindow.upperBound.isCurrentRow) {
           // bounded OVER window
@@ -179,7 +193,8 @@ class DataStreamOverAggregate(
     generator: CodeGenerator,
     inputDS: DataStream[Row],
     isRowTimeType: Boolean,
-    isRowsClause: Boolean): DataStream[Row] = {
+    isRowsClause: Boolean,
+    consumeRetraction: Boolean): DataStream[Row] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
     val partitionKeys: Array[Int] = overWindow.keys.toArray
@@ -194,7 +209,8 @@ class DataStreamOverAggregate(
       inputType,
       isRowTimeType,
       partitionKeys.nonEmpty,
-      isRowsClause)
+      isRowsClause,
+      consumeRetraction)
 
     val result: DataStream[Row] =
     // partitioned aggregation

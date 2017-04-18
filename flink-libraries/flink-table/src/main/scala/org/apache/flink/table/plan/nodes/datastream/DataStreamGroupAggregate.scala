@@ -110,7 +110,9 @@ class DataStreamGroupAggregate(
     val processFunction = AggregateUtil.createGroupAggregateFunction(
       namedAggregates,
       inputType,
-      groupings)
+      groupings,
+      DataStreamRetractionRules.isAccRetract(this),
+      DataStreamRetractionRules.isAccRetract(getInput))
 
     val result: DataStream[Row] =
     // grouped / keyed aggregation

@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.datastream.{AllWindowedStream, DataStream,
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
-import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions._
@@ -106,6 +106,14 @@ class DataStreamGroupWindowAggregate(
 
     val groupingKeys = grouping.indices.toArray
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
+
+    val consumeRetraction = DataStreamRetractionRules.isAccRetract(input)
+
+    if (consumeRetraction) {
+      throw new TableException(
+        "Retraction on group window is not supported yet. Note: Currently, group window should " +
+          "not follow an unbounded groupby.")
+    }
 
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 

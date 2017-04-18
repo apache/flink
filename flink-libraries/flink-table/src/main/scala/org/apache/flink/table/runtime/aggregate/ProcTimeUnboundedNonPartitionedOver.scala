@@ -23,9 +23,9 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.types.Row
+import org.apache.flink.types.{Command, Row}
 import org.apache.flink.util.Collector
-import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.slf4j.LoggerFactory
 
 /**
@@ -74,12 +74,16 @@ class ProcTimeUnboundedNonPartitionedOver(
     ctx: ProcessFunction[Row, Row]#Context,
     out: Collector[Row]): Unit = {
 
-    function.setForwardedFields(input, output)
+    if (input.command == Command.Delete) {
+      // accumulator do retraction process, so future output will be right
+      function.retract(accumulators, input)
+    } else {
+      function.setForwardedFields(input, output)
+      function.accumulate(accumulators, input)
+      function.setAggregationResults(accumulators, output)
 
-    function.accumulate(accumulators, input)
-    function.setAggregationResults(accumulators, output)
-
-    out.collect(output)
+      out.collect(output)
+    }
   }
 
   override def snapshotState(context: FunctionSnapshotContext): Unit = {

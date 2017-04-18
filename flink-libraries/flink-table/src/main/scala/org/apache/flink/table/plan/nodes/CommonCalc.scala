@@ -23,6 +23,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedFunction}
@@ -52,10 +53,18 @@ trait CommonCalc {
       rowType.getFieldNames,
       expandedExpressions)
 
+    val retractionProcess =
+      if (inputType.isInstanceOf[RowTypeInfo] && returnType.isInstanceOf[RowTypeInfo]) {
+        s"${projection.resultTerm}.command = ${generator.input1Term}.command;"
+      } else {
+        ""
+      }
+
     // only projection
     if (condition == null) {
       s"""
         |${projection.code}
+        |${retractionProcess}
         |${generator.collectorTerm}.collect(${projection.resultTerm});
         |""".stripMargin
     }
@@ -77,6 +86,7 @@ trait CommonCalc {
           |${filterCondition.code}
           |if (${filterCondition.resultTerm}) {
           |  ${projection.code}
+          |  ${retractionProcess}
           |  ${generator.collectorTerm}.collect(${projection.resultTerm});
           |}
           |""".stripMargin

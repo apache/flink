@@ -26,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.types.Command;
 import org.apache.flink.types.Row;
 import org.junit.Test;
 
@@ -43,6 +44,7 @@ public class RowSerializerTest {
 		Row row1 = new Row(2);
 		row1.setField(0, 1);
 		row1.setField(1, "a");
+		row1.command = Command.Delete;
 
 		Row row2 = new Row(2);
 		row2.setField(0, 2);

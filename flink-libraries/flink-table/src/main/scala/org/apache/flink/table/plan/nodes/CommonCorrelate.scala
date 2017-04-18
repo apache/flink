@@ -22,6 +22,7 @@ import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils.primitiveDefaultValue
@@ -135,11 +136,20 @@ trait CommonCorrelate {
       }
       val outerResultExpr = functionGenerator.generateResultExpression(
         input1AccessExprs ++ input2NullExprs, returnType, rowType.getFieldNames.asScala)
+
+      val retractionProcess =
+        if (inputTypeInfo.isInstanceOf[RowTypeInfo] && returnType.isInstanceOf[RowTypeInfo]) {
+          s"${outerResultExpr.resultTerm}.command = ${functionGenerator.input1Term}.command;"
+        } else {
+          ""
+        }
+
       body +=
         s"""
           |boolean hasOutput = $collectorTerm.isCollected();
           |if (!hasOutput) {
           |  ${outerResultExpr.code}
+          |  ${retractionProcess}
           |  ${functionGenerator.collectorTerm}.collect(${outerResultExpr.resultTerm});
           |}
           |""".stripMargin
@@ -182,9 +192,17 @@ trait CommonCorrelate {
       returnType,
       rowType.getFieldNames.asScala)
 
+    val retractionProcess =
+      if (inputTypeInfo.isInstanceOf[RowTypeInfo] && returnType.isInstanceOf[RowTypeInfo]) {
+        s"${crossResultExpr.resultTerm}.command = ${generator.input1Term}.command;"
+      } else {
+        ""
+      }
+
     val collectorCode = if (condition.isEmpty) {
       s"""
         |${crossResultExpr.code}
+        |${retractionProcess}
         |getCollector().collect(${crossResultExpr.resultTerm});
         |""".stripMargin
     } else {
@@ -196,6 +214,7 @@ trait CommonCorrelate {
         |${filterCondition.code}
         |if (${filterCondition.resultTerm}) {
         |  ${crossResultExpr.code}
+        |  ${retractionProcess}
         |  getCollector().collect(${crossResultExpr.resultTerm});
         |}
         |""".stripMargin

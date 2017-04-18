@@ -46,6 +46,9 @@ public class Row implements Serializable{
 	/** The array to store actual values. */
 	private final Object[] fields;
 
+	/** Indicate to add or delete this row */
+	public Command command = Command.Add;
+
 	/**
 	 * Create a new Row instance.
 	 * @param arity The number of fields in the Row

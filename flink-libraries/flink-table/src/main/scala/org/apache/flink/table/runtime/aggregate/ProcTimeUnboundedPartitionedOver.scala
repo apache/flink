@@ -19,12 +19,12 @@ package org.apache.flink.table.runtime.aggregate
 
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.types.Row
+import org.apache.flink.types.{Command, Row}
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.common.state.ValueState
-import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.slf4j.LoggerFactory
 
 /**
@@ -71,14 +71,18 @@ class ProcTimeUnboundedPartitionedOver(
       accumulators = function.createAccumulators()
     }
 
-    function.setForwardedFields(input, output)
+    if (input.command == Command.Delete) {
+      // accumulator do retraction process, so future output will be right
+      function.retract(accumulators, input)
+      state.update(accumulators)
+    } else {
+      function.setForwardedFields(input, output)
+      function.accumulate(accumulators, input)
+      function.setAggregationResults(accumulators, output)
+      state.update(accumulators)
 
-    function.accumulate(accumulators, input)
-    function.setAggregationResults(accumulators, output)
-
-    state.update(accumulators)
-
-    out.collect(output)
+      out.collect(output)
+    }
   }
 
 }
