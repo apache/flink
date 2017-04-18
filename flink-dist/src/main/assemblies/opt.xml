@@ -105,6 +105,13 @@
 		</file>
 
 		<file>
+			<source>../flink-metrics/flink-metrics-datadog/target/flink-metrics-datadog-${project.version}-shaded.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-metrics-datadog-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
 			<source>../flink-shaded-hadoop/flink-shaded-hadoop2/target/flink-shaded-hadoop2-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-shaded-hadoop2-${project.version}.jar</destName>
