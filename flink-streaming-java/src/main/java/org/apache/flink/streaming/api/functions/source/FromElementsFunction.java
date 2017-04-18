@@ -104,7 +104,7 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedF
 		Preconditions.checkState(this.checkpointedState == null,
 			"The " + getClass().getSimpleName() + " has already been initialized.");
 
-		this.checkpointedState = context.getOperatorStateStore().getOperatorState(
+		this.checkpointedState = context.getOperatorStateStore().getListState(
 			new ListStateDescriptor<>(
 				"from-elements-state",
 				IntSerializer.INSTANCE

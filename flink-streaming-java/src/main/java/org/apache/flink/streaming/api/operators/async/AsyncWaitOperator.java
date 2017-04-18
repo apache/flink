@@ -243,7 +243,7 @@ public class AsyncWaitOperator<IN, OUT>
 		super.snapshotState(context);
 
 		ListState<StreamElement> partitionableState =
-			getOperatorStateBackend().getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
+			getOperatorStateBackend().getListState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
 		partitionableState.clear();
 
 		Collection<StreamElementQueueEntry<?>> values = queue.values();
@@ -269,7 +269,7 @@ public class AsyncWaitOperator<IN, OUT>
 	public void initializeState(StateInitializationContext context) throws Exception {
 		recoveredStreamElements = context
 			.getOperatorStateStore()
-			.getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
+			.getListState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
 
 	}
 

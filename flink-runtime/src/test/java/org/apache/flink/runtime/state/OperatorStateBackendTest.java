@@ -80,10 +80,10 @@ public class OperatorStateBackendTest {
 		ListStateDescriptor<File> stateDescriptor = new ListStateDescriptor<>("test", File.class);
 		ListStateDescriptor<String> stateDescriptor2 = new ListStateDescriptor<>("test2", String.class);
 
-		ListState<File> listState = operatorStateBackend.getOperatorState(stateDescriptor);
+		ListState<File> listState = operatorStateBackend.getListState(stateDescriptor);
 		assertNotNull(listState);
 
-		ListState<String> listState2 = operatorStateBackend.getOperatorState(stateDescriptor2);
+		ListState<String> listState2 = operatorStateBackend.getListState(stateDescriptor2);
 		assertNotNull(listState2);
 
 		assertEquals(2, operatorStateBackend.getRegisteredStateNames().size());
@@ -113,7 +113,7 @@ public class OperatorStateBackendTest {
 		ListStateDescriptor<Serializable> stateDescriptor1 = new ListStateDescriptor<>("test1", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor2 = new ListStateDescriptor<>("test2", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor3 = new ListStateDescriptor<>("test3", new JavaSerializer<>());
-		ListState<Serializable> listState1 = operatorStateBackend.getOperatorState(stateDescriptor1);
+		ListState<Serializable> listState1 = operatorStateBackend.getListState(stateDescriptor1);
 		assertNotNull(listState1);
 		assertEquals(1, operatorStateBackend.getRegisteredStateNames().size());
 		Iterator<Serializable> it = listState1.get().iterator();
@@ -126,7 +126,7 @@ public class OperatorStateBackendTest {
 		assertEquals(4711, it.next());
 		assertTrue(!it.hasNext());
 
-		ListState<Serializable> listState2 = operatorStateBackend.getOperatorState(stateDescriptor2);
+		ListState<Serializable> listState2 = operatorStateBackend.getListState(stateDescriptor2);
 		assertNotNull(listState2);
 		assertEquals(2, operatorStateBackend.getRegisteredStateNames().size());
 		assertTrue(!it.hasNext());
@@ -154,7 +154,7 @@ public class OperatorStateBackendTest {
 		assertEquals(123, it.next());
 		assertTrue(!it.hasNext());
 
-		ListState<Serializable> listState1b = operatorStateBackend.getOperatorState(stateDescriptor1);
+		ListState<Serializable> listState1b = operatorStateBackend.getListState(stateDescriptor1);
 		assertNotNull(listState1b);
 		listState1b.add(123);
 		it = listState1b.get().iterator();
@@ -183,7 +183,7 @@ public class OperatorStateBackendTest {
 		}
 
 		try {
-			operatorStateBackend.getOperatorState(stateDescriptor3);
+			operatorStateBackend.getListState(stateDescriptor3);
 			fail("Did not detect changed mode");
 		} catch (IllegalStateException ignored) {
 
@@ -217,8 +217,8 @@ public class OperatorStateBackendTest {
 		ListStateDescriptor<Serializable> stateDescriptor1 = new ListStateDescriptor<>("test1", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor2 = new ListStateDescriptor<>("test2", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor3 = new ListStateDescriptor<>("test3", new JavaSerializer<>());
-		ListState<Serializable> listState1 = operatorStateBackend.getOperatorState(stateDescriptor1);
-		ListState<Serializable> listState2 = operatorStateBackend.getOperatorState(stateDescriptor2);
+		ListState<Serializable> listState1 = operatorStateBackend.getListState(stateDescriptor1);
+		ListState<Serializable> listState2 = operatorStateBackend.getListState(stateDescriptor2);
 		ListState<Serializable> listState3 = operatorStateBackend.getBroadcastOperatorState(stateDescriptor3);
 
 		listState1.add(42);
@@ -251,8 +251,8 @@ public class OperatorStateBackendTest {
 
 			assertEquals(3, operatorStateBackend.getRegisteredStateNames().size());
 
-			listState1 = operatorStateBackend.getOperatorState(stateDescriptor1);
-			listState2 = operatorStateBackend.getOperatorState(stateDescriptor2);
+			listState1 = operatorStateBackend.getListState(stateDescriptor1);
+			listState2 = operatorStateBackend.getListState(stateDescriptor2);
 			listState3 = operatorStateBackend.getBroadcastOperatorState(stateDescriptor3);
 
 			assertEquals(3, operatorStateBackend.getRegisteredStateNames().size());

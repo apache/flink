@@ -91,6 +91,6 @@ class ProcTimeUnboundedNonPartitionedOver(
 
   override def initializeState(context: FunctionInitializationContext): Unit = {
     val accumulatorsDescriptor = new ListStateDescriptor[Row]("overState", aggregationStateType)
-    state = context.getOperatorStateStore.getOperatorState(accumulatorsDescriptor)
+    state = context.getOperatorStateStore.getListState(accumulatorsDescriptor)
   }
 }
