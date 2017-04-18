@@ -16,45 +16,44 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime
+package org.apache.flink.table.runtime.io
 
-import org.apache.flink.api.common.functions.util.FunctionUtils
-import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
+import org.apache.flink.api.common.io.{GenericInputFormat, NonParallelInput}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
+import org.apache.flink.core.io.GenericInputSplit
 import org.apache.flink.table.codegen.Compiler
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
-import org.apache.flink.util.Collector
 import org.slf4j.LoggerFactory
 
-class FlatMapRunner(
+class CRowValuesInputFormat(
     name: String,
     code: String,
-    @transient returnType: TypeInformation[Row])
-  extends RichFlatMapFunction[Row, Row]
-  with ResultTypeQueryable[Row]
-  with Compiler[FlatMapFunction[Row, Row]] {
+    @transient returnType: TypeInformation[CRow])
+  extends GenericInputFormat[CRow]
+  with NonParallelInput
+  with ResultTypeQueryable[CRow]
+  with Compiler[GenericInputFormat[Row]] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
-  private var function: FlatMapFunction[Row, Row] = _
+  private var format: GenericInputFormat[Row] = _
 
-  override def open(parameters: Configuration): Unit = {
-    LOG.debug(s"Compiling FlatMapFunction: $name \n\n Code:\n$code")
+  override def open(split: GenericInputSplit): Unit = {
+    LOG.debug(s"Compiling GenericInputFormat: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
-    LOG.debug("Instantiating FlatMapFunction.")
-    function = clazz.newInstance()
-    FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
-    FunctionUtils.openFunction(function, parameters)
+    LOG.debug("Instantiating GenericInputFormat.")
+    format = clazz.newInstance()
   }
 
-  override def flatMap(in: Row, out: Collector[Row]): Unit =
-    function.flatMap(in, out)
+  override def reachedEnd(): Boolean = format.reachedEnd()
 
-  override def getProducedType: TypeInformation[Row] = returnType
-
-  override def close(): Unit = {
-    FunctionUtils.closeFunction(function)
+  override def nextRecord(reuse: CRow): CRow = {
+    reuse.row = format.nextRecord(reuse.row)
+    reuse.change = true
+    reuse
   }
+
+  override def getProducedType: TypeInformation[CRow] = returnType
 }

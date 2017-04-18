@@ -55,7 +55,7 @@ class DataSetSlideWindowAggReduceGroupFunction(
   Preconditions.checkNotNull(aggregates)
   Preconditions.checkNotNull(groupKeysMapping)
 
-  private var collector: TimeWindowPropertyCollector = _
+  private var collector: RowTimeWindowPropertyCollector = _
   private var output: Row = _
   private val accumulatorStartPos: Int = groupKeysMapping.length
   protected val windowStartPos: Int = accumulatorStartPos + aggregates.length
@@ -66,7 +66,7 @@ class DataSetSlideWindowAggReduceGroupFunction(
 
   override def open(config: Configuration) {
     output = new Row(finalRowArity)
-    collector = new TimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
+    collector = new RowTimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
 
     // init lists with two empty accumulators
     var i = 0

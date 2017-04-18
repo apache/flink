@@ -24,12 +24,15 @@ import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexProgram
-import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.codegen.{CodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.nodes.CommonCalc
+import org.apache.flink.table.runtime.CRowFlatMapRunner
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
 
 /**
@@ -44,7 +47,7 @@ class DataStreamCalc(
     calcProgram: RexProgram,
     ruleDescription: String)
   extends Calc(cluster, traitSet, input, calcProgram)
-  with CommonCalc
+  with CommonCalc[CRow]
   with DataStreamRel {
 
   override def deriveRowType(): RelDataType = rowRelDataType
@@ -75,28 +78,29 @@ class DataStreamCalc(
     estimateRowCount(calcProgram, rowCnt)
   }
 
-  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
+  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[CRow] = {
 
     val config = tableEnv.getConfig
 
     val inputDataStream = getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
+    val inputRowType = inputDataStream.getType.asInstanceOf[CRowTypeInfo].rowType
+    val outputRowType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
-    val generator = new CodeGenerator(config, false, inputDataStream.getType)
+    val generator = new CodeGenerator(config, false, inputRowType)
 
-    val body = functionBody(
+    val genFunction = generateFunction(
       generator,
-      inputDataStream.getType,
+      ruleDescription,
+      inputRowType,
       getRowType,
       calcProgram,
       config)
 
-    val genFunction = generator.generateFunction(
-      ruleDescription,
-      classOf[FlatMapFunction[Row, Row]],
-      body,
-      FlinkTypeFactory.toInternalRowTypeInfo(getRowType))
+    val mapFunc = new CRowFlatMapRunner(
+      genFunction.name,
+      genFunction.code,
+      CRowTypeInfo(outputRowType))
 
-    val mapFunc = calcMapFunction(genFunction)
     inputDataStream.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString))
   }
 }
