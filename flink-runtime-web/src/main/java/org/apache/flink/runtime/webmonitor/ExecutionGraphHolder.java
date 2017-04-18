@@ -61,29 +61,23 @@ public class ExecutionGraphHolder {
 			.build(new CacheLoader<JobID, AccessExecutionGraph>() {
 				@Override
 				public AccessExecutionGraph load(JobID jobID) throws Exception {
-					try {
-						if (jobManagerRef.get() != null) {
-							Future<Object> future = jobManagerRef.get().ask(new JobManagerMessages.RequestJob(jobID), timeout);
-							Object result = Await.result(future, timeout);
+					if (jobManagerRef.get() != null) {
+						Future<Object> future = jobManagerRef.get().ask(new JobManagerMessages.RequestJob(jobID), timeout);
+						Object result = Await.result(future, timeout);
 
-							if (result instanceof JobManagerMessages.JobNotFound) {
-								return null;
-							}
-							else if (result instanceof JobManagerMessages.JobFound) {
-								AccessExecutionGraph eg = ((JobManagerMessages.JobFound) result).executionGraph();
-								return eg;
-							}
-							else {
-								throw new RuntimeException("Unknown response from JobManager / Archive: " + result);
-							}
-						}
-						else {
-							LOG.warn("No connection to the leading JobManager.");
+						if (result instanceof JobManagerMessages.JobNotFound) {
 							return null;
 						}
+						else if (result instanceof JobManagerMessages.JobFound) {
+							AccessExecutionGraph eg = ((JobManagerMessages.JobFound) result).executionGraph();
+							return eg;
+						}
+						else {
+							throw new RuntimeException("Unknown response from JobManager / Archive: " + result);
+						}
 					}
-					catch (Exception e) {
-						throw new RuntimeException("Error requesting execution graph", e);
+					else {
+						throw new RuntimeException("No connection to the leading JobManager.");
 					}
 				}
 			});
