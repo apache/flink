@@ -48,6 +48,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * a set of libraries (typically JAR files) which the job requires to run. The library cache manager
  * caches library files in order to avoid unnecessary retransmission of data. It is based on a singleton
  * programming pattern, so there exists at most one library manager at a time.
+ * <p>
+ * All files registered via {@link #registerJob(JobID, Collection, Collection)} are reference-counted
+ * and are removed by a timer-based cleanup task if their reference counter is zero.
+ * <strong>NOTE:</strong> this does not apply to files that enter the blob service via
+ * {@link #getFile(BlobKey)}!
  */
 public final class BlobLibraryCacheManager extends TimerTask implements LibraryCacheManager {
 
@@ -73,6 +78,12 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Creates the blob library cache manager.
+	 *
+	 * @param blobService blob file retrieval service to use
+	 * @param cleanupInterval cleanup interval in milliseconds
+	 */
 	public BlobLibraryCacheManager(BlobService blobService, long cleanupInterval) {
 		this.blobService = checkNotNull(blobService);
 
@@ -191,6 +202,17 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		}
 	}
 
+	/**
+	 * Returns a file handle to the file identified by the blob key.
+	 * <p>
+	 * <strong>NOTE:</strong> if not already registered during
+	 * {@link #registerJob(JobID, Collection, Collection)}, files that enter the library cache /
+	 * backing blob store using this method will not be reference-counted and garbage-collected!
+	 *
+	 * @param blobKey identifying the requested file
+	 * @return File handle
+	 * @throws IOException if any error occurs when retrieving the file
+	 */
 	@Override
 	public File getFile(BlobKey blobKey) throws IOException {
 		return new File(blobService.getURL(blobKey).getFile());
