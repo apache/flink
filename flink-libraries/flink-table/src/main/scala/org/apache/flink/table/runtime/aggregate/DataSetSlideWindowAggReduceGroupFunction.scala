@@ -47,7 +47,7 @@ class DataSetSlideWindowAggReduceGroupFunction(
   extends RichGroupReduceFunction[Row, Row]
     with Compiler[GeneratedAggregations] {
 
-  private var collector: TimeWindowPropertyCollector = _
+  private var collector: RowTimeWindowPropertyCollector = _
   protected val windowStartPos: Int = keysAndAggregatesArity
 
   private var output: Row = _
@@ -68,7 +68,7 @@ class DataSetSlideWindowAggReduceGroupFunction(
 
     output = function.createOutputRow()
     accumulators = function.createAccumulators()
-    collector = new TimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
+    collector = new RowTimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
   }
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {

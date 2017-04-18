@@ -23,7 +23,7 @@ import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.types.Row
+import org.apache.flink.table.runtime.types.CRow
 
 /**
   * Flink RelNode which matches along with Union.
@@ -58,7 +58,7 @@ class DataStreamUnion(
     s"Union All(union: (${schema.logicalFieldNames.mkString(", ")}))"
   }
 
-  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
+  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[CRow] = {
 
     val leftDataSet = left.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
     val rightDataSet = right.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)

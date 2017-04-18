@@ -22,46 +22,51 @@ import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.plan.nodes.CommonScan
-import org.apache.flink.table.plan.schema.{FlinkTable, RowSchema}
-import org.apache.flink.table.runtime.MapRunner
+import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.types.Row
+import org.apache.flink.table.plan.schema.FlinkTable
+import org.apache.flink.table.runtime.CRowOutputMapRunner
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 import scala.collection.JavaConverters._
 
-trait StreamScan extends CommonScan with DataStreamRel {
+trait StreamScan extends CommonScan[CRow] with DataStreamRel {
 
   protected def convertToInternalRow(
       schema: RowSchema,
       input: DataStream[Any],
       flinkTable: FlinkTable[_],
       config: TableConfig)
-    : DataStream[Row] = {
+    : DataStream[CRow] = {
+
+    val inputType = input.getType
+    val internalType = CRowTypeInfo(schema.physicalTypeInfo)
 
     // conversion
-    if (needsConversion(input.getType, schema.physicalTypeInfo)) {
+    if (needsConversion(input.getType, internalType)) {
 
       val function = generatedConversionFunction(
         config,
         classOf[MapFunction[Any, Row]],
-        input.getType,
+        inputType,
         schema.physicalTypeInfo,
         "DataStreamSourceConversion",
         schema.physicalFieldNames,
         Some(flinkTable.fieldIndexes))
 
-      val runner = new MapRunner[Any, Row](
+      val mapFunc = new CRowOutputMapRunner(
         function.name,
         function.code,
-        function.returnType)
+        internalType)
 
-      val opName = s"from: (${schema.logicalFieldNames.mkString(", ")})"
+      val opName = s"from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
 
       // TODO we need a ProcessFunction here
-      input.map(runner).name(opName)
+      input.map(mapFunc).name(opName).returns(internalType)
     }
     // no conversion necessary, forward
     else {
-      input.asInstanceOf[DataStream[Row]]
+      input.asInstanceOf[DataStream[CRow]]
     }
   }
 }

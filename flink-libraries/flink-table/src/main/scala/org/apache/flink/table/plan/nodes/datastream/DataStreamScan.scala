@@ -24,8 +24,9 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
-import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema}
-import org.apache.flink.types.Row
+import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.flink.table.runtime.types.CRow
 
 /**
   * Flink RelNode which matches along with DataStreamSource.
@@ -53,7 +54,7 @@ class DataStreamScan(
     )
   }
 
-  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
+  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[CRow] = {
     val config = tableEnv.getConfig
     val inputDataStream: DataStream[Any] = dataStreamTable.dataStream
     convertToInternalRow(schema, inputDataStream, dataStreamTable, config)

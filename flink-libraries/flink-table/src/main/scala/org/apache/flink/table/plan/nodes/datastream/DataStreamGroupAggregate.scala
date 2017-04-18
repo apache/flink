@@ -28,8 +28,9 @@ import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.types.Row
+import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 /**
   *
@@ -97,14 +98,17 @@ class DataStreamGroupAggregate(
         inputSchema.logicalType, groupings, getRowType, namedAggregates, Nil))
   }
 
-  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
+  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[CRow] = {
 
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
+
     val physicalNamedAggregates = namedAggregates.map { namedAggregate =>
       new CalcitePair[AggregateCall, String](
         inputSchema.mapAggregateCall(namedAggregate.left),
         namedAggregate.right)
     }
+
+    val outRowType = CRowTypeInfo(schema.physicalTypeInfo)
 
     val generator = new CodeGenerator(
       tableEnv.getConfig,
@@ -129,28 +133,30 @@ class DataStreamGroupAggregate(
       physicalNamedAggregates,
       inputSchema.logicalType,
       inputSchema.physicalFieldTypeInfo,
-      groupings)
+      groupings,
+      DataStreamRetractionRules.isAccRetract(this),
+      DataStreamRetractionRules.isAccRetract(getInput))
 
-    val result: DataStream[Row] =
+    val result: DataStream[CRow] =
     // grouped / keyed aggregation
       if (physicalGrouping.nonEmpty) {
         inputDS
         .keyBy(groupings: _*)
         .process(processFunction)
-        .returns(schema.physicalTypeInfo)
+        .returns(outRowType)
         .name(keyedAggOpName)
-        .asInstanceOf[DataStream[Row]]
+        .asInstanceOf[DataStream[CRow]]
       }
       // global / non-keyed aggregation
       else {
         inputDS
-        .keyBy(new NullByteKeySelector[Row])
+        .keyBy(new NullByteKeySelector[CRow])
         .process(processFunction)
         .setParallelism(1)
         .setMaxParallelism(1)
-        .returns(schema.physicalTypeInfo)
+        .returns(outRowType)
         .name(nonKeyedAggOpName)
-        .asInstanceOf[DataStream[Row]]
+        .asInstanceOf[DataStream[CRow]]
       }
     result
   }

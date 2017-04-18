@@ -18,43 +18,40 @@
 
 package org.apache.flink.table.runtime
 
-import org.apache.flink.api.common.functions.util.FunctionUtils
-import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
+import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
-import org.apache.flink.util.Collector
 import org.slf4j.LoggerFactory
 
-class FlatMapRunner(
+/**
+  * MapRunner with [[CRow]] input.
+  */
+class CRowInputMapRunner[OUT](
     name: String,
     code: String,
-    @transient returnType: TypeInformation[Row])
-  extends RichFlatMapFunction[Row, Row]
-  with ResultTypeQueryable[Row]
-  with Compiler[FlatMapFunction[Row, Row]] {
+    @transient returnType: TypeInformation[OUT])
+  extends RichMapFunction[CRow, OUT]
+  with ResultTypeQueryable[OUT]
+  with Compiler[MapFunction[Row, OUT]] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
-  private var function: FlatMapFunction[Row, Row] = _
+  private var function: MapFunction[Row, OUT] = _
 
   override def open(parameters: Configuration): Unit = {
-    LOG.debug(s"Compiling FlatMapFunction: $name \n\n Code:\n$code")
+    LOG.debug(s"Compiling MapFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
-    LOG.debug("Instantiating FlatMapFunction.")
+    LOG.debug("Instantiating MapFunction.")
     function = clazz.newInstance()
-    FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
-    FunctionUtils.openFunction(function, parameters)
   }
 
-  override def flatMap(in: Row, out: Collector[Row]): Unit =
-    function.flatMap(in, out)
-
-  override def getProducedType: TypeInformation[Row] = returnType
-
-  override def close(): Unit = {
-    FunctionUtils.closeFunction(function)
+  override def map(in: CRow): OUT = {
+    function.map(in.row)
   }
+
+  override def getProducedType: TypeInformation[OUT] = returnType
 }

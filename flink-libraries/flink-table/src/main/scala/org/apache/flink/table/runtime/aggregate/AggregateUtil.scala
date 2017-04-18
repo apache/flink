@@ -44,6 +44,7 @@ import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction => TableAggregateFunction}
 import org.apache.flink.table.plan.logical._
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 import org.apache.flink.types.Row
@@ -79,7 +80,7 @@ object AggregateUtil {
       isRowTimeType: Boolean,
       isPartitioned: Boolean,
       isRowsClause: Boolean)
-    : ProcessFunction[Row, Row] = {
+    : ProcessFunction[CRow, CRow] = {
 
     val (aggFields, aggregates) =
       transformToAggregateFunctions(
@@ -116,13 +117,13 @@ object AggregateUtil {
         new RowTimeUnboundedRowsOver(
           genFunction,
           aggregationStateType,
-          inputTypeInfo)
+          CRowTypeInfo(inputTypeInfo))
       } else {
         // RANGE unbounded over process function
         new RowTimeUnboundedRangeOver(
           genFunction,
           aggregationStateType,
-          inputTypeInfo)
+          CRowTypeInfo(inputTypeInfo))
       }
     } else {
       if (isPartitioned) {
@@ -153,13 +154,16 @@ object AggregateUtil {
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputRowType: RelDataType,
       inputFieldTypes: Seq[TypeInformation[_]],
-      groupings: Array[Int]): ProcessFunction[Row, Row] = {
+      groupings: Array[Int],
+      generateRetraction: Boolean,
+      consumeRetraction: Boolean): ProcessFunction[CRow, CRow] = {
 
     val (aggFields, aggregates) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputRowType,
-        needRetraction = false)
+        consumeRetraction)
+
     val aggMapping = aggregates.indices.map(_ + groupings.length).toArray
 
     val outputArity = groupings.length + aggregates.length
@@ -178,14 +182,16 @@ object AggregateUtil {
       None,
       None,
       outputArity,
-      needRetract = false,
+      consumeRetraction,
       needMerge = false,
       needReset = false
     )
 
     new GroupAggProcessFunction(
       genFunction,
-      aggregationStateType)
+      aggregationStateType,
+      generateRetraction)
+
   }
 
   /**
@@ -198,7 +204,7 @@ object AggregateUtil {
     * @param inputTypeInfo Physical type information of the row.
     * @param inputFieldTypeInfo Physical type information of the row's fields.
     * @param precedingOffset the preceding offset
-    * @param isRowsClause   It is a tag that indicates whether the OVER clause is ROWS clause
+    * @param isRowsClause    It is a tag that indicates whether the OVER clause is ROWS clause
     * @param isRowTimeType   It is a tag that indicates whether the time type is rowTimeType
     * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
     */
@@ -211,7 +217,7 @@ object AggregateUtil {
       precedingOffset: Long,
       isRowsClause: Boolean,
       isRowTimeType: Boolean)
-    : ProcessFunction[Row, Row] = {
+    : ProcessFunction[CRow, CRow] = {
 
     val needRetract = true
     val (aggFields, aggregates) =
@@ -221,6 +227,7 @@ object AggregateUtil {
         needRetract)
 
     val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+    val inputRowType = CRowTypeInfo(inputTypeInfo)
 
     val forwardMapping = (0 until inputType.getFieldCount).toArray
     val aggMapping = aggregates.indices.map(x => x + inputType.getFieldCount).toArray
@@ -248,14 +255,14 @@ object AggregateUtil {
         new RowTimeBoundedRowsOver(
           genFunction,
           aggregationStateType,
-          inputTypeInfo,
+          inputRowType,
           precedingOffset
         )
       } else {
         new RowTimeBoundedRangeOver(
           genFunction,
           aggregationStateType,
-          inputTypeInfo,
+          inputRowType,
           precedingOffset
         )
       }
@@ -265,13 +272,13 @@ object AggregateUtil {
           genFunction,
           precedingOffset,
           aggregationStateType,
-          inputTypeInfo)
+          inputRowType)
       } else {
         new ProcTimeBoundedRangeOver(
           genFunction,
           precedingOffset,
           aggregationStateType,
-          inputTypeInfo)
+          inputRowType)
       }
     }
   }
@@ -932,7 +939,7 @@ object AggregateUtil {
       window: LogicalWindow,
       finalRowArity: Int,
       properties: Seq[NamedWindowProperty])
-    : AllWindowFunction[Row, Row, DataStreamWindow] = {
+    : AllWindowFunction[Row, CRow, DataStreamWindow] = {
 
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
@@ -940,7 +947,7 @@ object AggregateUtil {
         startPos,
         endPos,
         finalRowArity)
-        .asInstanceOf[AllWindowFunction[Row, Row, DataStreamWindow]]
+        .asInstanceOf[AllWindowFunction[Row, CRow, DataStreamWindow]]
     } else {
       new IncrementalAggregateAllWindowFunction(
         finalRowArity)
@@ -955,8 +962,8 @@ object AggregateUtil {
       numGroupingKeys: Int,
       numAggregates: Int,
       finalRowArity: Int,
-      properties: Seq[NamedWindowProperty])
-    : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
+      properties: Seq[NamedWindowProperty]):
+    WindowFunction[Row, CRow, Tuple, DataStreamWindow] = {
 
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
@@ -966,7 +973,7 @@ object AggregateUtil {
         startPos,
         endPos,
         finalRowArity)
-        .asInstanceOf[WindowFunction[Row, Row, Tuple, DataStreamWindow]]
+        .asInstanceOf[WindowFunction[Row, CRow, Tuple, DataStreamWindow]]
     } else {
       new IncrementalAggregateWindowFunction(
         numGroupingKeys,
@@ -981,8 +988,9 @@ object AggregateUtil {
       inputType: RelDataType,
       inputFieldTypeInfo: Seq[TypeInformation[_]],
       outputType: RelDataType,
+      groupingKeys: Array[Int],
       needMerge: Boolean)
-    : (DataStreamAggFunction[Row, Row, Row], RowTypeInfo, RowTypeInfo) = {
+    : (DataStreamAggFunction[CRow, Row, Row], RowTypeInfo, RowTypeInfo) = {
 
     val needRetract = false
     val (aggFields, aggregates) =
@@ -1002,7 +1010,7 @@ object AggregateUtil {
       aggFields,
       aggMapping,
       partialResults = false,
-      Array(), // no fields are forwarded
+      groupingKeys,
       None,
       None,
       outputArity,

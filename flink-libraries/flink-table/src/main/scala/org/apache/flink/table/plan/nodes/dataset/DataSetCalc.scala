@@ -24,7 +24,6 @@ import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex._
-import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.BatchTableEnvironment
@@ -47,7 +46,7 @@ class DataSetCalc(
     calcProgram: RexProgram,
     ruleDescription: String)
   extends Calc(cluster, traitSet, input, calcProgram)
-  with CommonCalc
+  with CommonCalc[Row]
   with DataSetRel {
 
   override def deriveRowType(): RelDataType = rowRelDataType
@@ -88,22 +87,17 @@ class DataSetCalc(
 
     val generator = new CodeGenerator(config, false, inputDS.getType)
 
-    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
-    val body = functionBody(
+    val genFunction = generateFunction(
       generator,
+      ruleDescription,
       new RowSchema(getInput.getRowType),
       new RowSchema(getRowType),
       calcProgram,
       config)
 
-    val genFunction = generator.generateFunction(
-      ruleDescription,
-      classOf[FlatMapFunction[Row, Row]],
-      body,
-      rowTypeInfo)
-
-    val runner = calcMapFunction(genFunction)
+    val runner = new FlatMapRunner(genFunction.name, genFunction.code, returnType)
 
     inputDS.flatMap(runner).name(calcOpName(calcProgram, getExpressionString))
   }

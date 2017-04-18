@@ -82,6 +82,14 @@ object DataStreamRetractionRules {
   }
 
   /**
+    * Checks if a [[RelNode]] is in [[AccMode.AccRetract]] mode.
+    */
+  def isAccRetract(node: RelNode): Boolean = {
+    val accModeTrait = node.getTraitSet.getTrait(AccModeTraitDef.INSTANCE)
+    null != accModeTrait && accModeTrait.getAccMode == AccMode.AccRetract
+  }
+
+  /**
     * Rule that assigns the default retraction information to [[DataStreamRel]] nodes.
     * The default is to not publish updates as retraction messages and [[AccMode.Acc]].
     */
@@ -187,14 +195,6 @@ object DataStreamRetractionRules {
       relNode match {
         case dsr: DataStreamRel => dsr.producesUpdates
       }
-    }
-
-    /**
-      * Checks if a [[RelNode]] is in [[AccMode.AccRetract]] mode.
-      */
-    def isAccRetract(node: RelNode): Boolean = {
-      val accModeTrait = node.getTraitSet.getTrait(AccModeTraitDef.INSTANCE)
-      null != accModeTrait && accModeTrait.getAccMode == AccMode.AccRetract
     }
 
     /**

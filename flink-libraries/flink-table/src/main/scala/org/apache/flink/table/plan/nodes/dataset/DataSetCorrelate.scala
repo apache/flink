@@ -32,6 +32,7 @@ import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.CorrelateFlatMapRunner
 import org.apache.flink.types.Row
 
 /**
@@ -48,7 +49,7 @@ class DataSetCorrelate(
     joinType: SemiJoinType,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, inputNode)
-  with CommonCorrelate
+  with CommonCorrelate[Row]
   with DataSetRel {
 
   override def deriveRowType() = relRowType
@@ -98,21 +99,37 @@ class DataSetCorrelate(
     val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    val pojoFieldMapping = sqlFunction.getPojoFieldMapping
+    val pojoFieldMapping = Some(sqlFunction.getPojoFieldMapping)
     val udtfTypeInfo = sqlFunction.getRowTypeInfo.asInstanceOf[TypeInformation[Any]]
 
-    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
-    val mapFunc = correlateMapFunction(
+    val flatMap = generateFunction(
       config,
       new RowSchema(getInput.getRowType),
       udtfTypeInfo,
       new RowSchema(getRowType),
+      rowType,
       joinType,
       rexCall,
-      condition,
-      Some(pojoFieldMapping),
+      pojoFieldMapping,
       ruleDescription)
+
+    val collector = generateCollector(
+      config,
+      new RowSchema(getInput.getRowType),
+      udtfTypeInfo,
+      new RowSchema(getRowType),
+      rowType,
+      condition,
+      pojoFieldMapping)
+
+    val mapFunc = new CorrelateFlatMapRunner[Row, Row](
+      flatMap.name,
+      flatMap.code,
+      collector.name,
+      collector.code,
+      flatMap.returnType)
 
     inputDS.flatMap(mapFunc).name(correlateOpName(rexCall, sqlFunction, relRowType))
   }

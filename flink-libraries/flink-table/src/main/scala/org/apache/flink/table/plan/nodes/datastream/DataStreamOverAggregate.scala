@@ -20,21 +20,22 @@ package org.apache.flink.table.plan.nodes.datastream
 import java.util.{List => JList}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.api.java.functions.NullByteKeySelector
+import org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.plan.nodes.OverAggregate
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.aggregate._
-import org.apache.flink.types.Row
+import org.apache.flink.api.java.functions.NullByteKeySelector
+import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
+import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 class DataStreamOverAggregate(
     logicWindow: Window,
@@ -87,7 +88,7 @@ class DataStreamOverAggregate(
           namedAggregates))
   }
 
-  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
+  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[CRow] = {
     if (logicWindow.groups.size > 1) {
       throw new TableException(
         "Unsupported use of OVER windows. All aggregates must be computed on the same window.")
@@ -110,6 +111,8 @@ class DataStreamOverAggregate(
 
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
 
+    val consumeRetraction = DataStreamRetractionRules.isAccRetract(input)
+
     val generator = new CodeGenerator(
       tableEnv.getConfig,
       false,
@@ -119,6 +122,12 @@ class DataStreamOverAggregate(
       .getFieldList
       .get(orderKey.getFieldIndex)
       .getType
+
+    if (consumeRetraction) {
+      throw new TableException(
+        "Retraction on Over window aggregation is not supported yet. " +
+          "Note: Over window aggregation should not follow a non-windowed GroupBy aggregation.")
+    }
 
     timeType match {
       case _ if FlinkTypeFactory.isProctimeIndicatorType(timeType)  =>
@@ -138,8 +147,7 @@ class DataStreamOverAggregate(
             generator,
             inputDS,
             isRowTimeType = false,
-            isRowsClause = overWindow.isRows
-          )
+            isRowsClause = overWindow.isRows)
         } else {
           throw new TableException(
             "OVER RANGE FOLLOWING windows are not supported yet.")
@@ -154,16 +162,14 @@ class DataStreamOverAggregate(
             generator,
             inputDS,
             isRowTimeType = true,
-            isRowsClause = overWindow.isRows
-          )
+            isRowsClause = overWindow.isRows)
         } else if (overWindow.lowerBound.isPreceding && overWindow.upperBound.isCurrentRow) {
           // bounded OVER window
           createBoundedAndCurrentRowOverWindow(
             generator,
             inputDS,
             isRowTimeType = true,
-            isRowsClause = overWindow.isRows
-          )
+            isRowsClause = overWindow.isRows)
         } else {
           throw new TableException(
             "OVER RANGE FOLLOWING windows are not supported yet.")
@@ -177,18 +183,23 @@ class DataStreamOverAggregate(
 
   def createUnboundedAndCurrentRowOverWindow(
     generator: CodeGenerator,
-    inputDS: DataStream[Row],
+    inputDS: DataStream[CRow],
     isRowTimeType: Boolean,
-    isRowsClause: Boolean): DataStream[Row] = {
+    isRowsClause: Boolean): DataStream[CRow] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
+
     val partitionKeys: Array[Int] = overWindow.keys.toArray.map(schema.mapIndex)
+
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates.map {
       namedAggregate =>
         new CalcitePair[AggregateCall, String](
           schema.mapAggregateCall(namedAggregate.left),
           namedAggregate.right)
     }
+
+    // get the output types
+    val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
 
     val processFunction = AggregateUtil.createUnboundedOverProcessFunction(
       generator,
@@ -200,30 +211,28 @@ class DataStreamOverAggregate(
       partitionKeys.nonEmpty,
       isRowsClause)
 
-    val result: DataStream[Row] =
+    val result: DataStream[CRow] =
     // partitioned aggregation
       if (partitionKeys.nonEmpty) {
         inputDS
           .keyBy(partitionKeys: _*)
           .process(processFunction)
-          .returns(schema.physicalTypeInfo)
+          .returns(returnTypeInfo)
           .name(aggOpName)
-          .asInstanceOf[DataStream[Row]]
+          .asInstanceOf[DataStream[CRow]]
       }
       // non-partitioned aggregation
       else {
         if (isRowTimeType) {
-          inputDS.keyBy(new NullByteKeySelector[Row])
+          inputDS.keyBy(new NullByteKeySelector[CRow])
             .process(processFunction).setParallelism(1).setMaxParallelism(1)
-            .returns(schema.physicalTypeInfo)
+            .returns(returnTypeInfo)
             .name(aggOpName)
-            .asInstanceOf[DataStream[Row]]
         } else {
           inputDS
             .process(processFunction).setParallelism(1).setMaxParallelism(1)
-            .returns(schema.physicalTypeInfo)
+            .returns(returnTypeInfo)
             .name(aggOpName)
-            .asInstanceOf[DataStream[Row]]
         }
       }
     result
@@ -231,9 +240,9 @@ class DataStreamOverAggregate(
 
   def createBoundedAndCurrentRowOverWindow(
     generator: CodeGenerator,
-    inputDS: DataStream[Row],
+    inputDS: DataStream[CRow],
     isRowTimeType: Boolean,
-    isRowsClause: Boolean): DataStream[Row] = {
+    isRowsClause: Boolean): DataStream[CRow] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
     val partitionKeys: Array[Int] = overWindow.keys.toArray.map(schema.mapIndex)
@@ -245,7 +254,10 @@ class DataStreamOverAggregate(
     }
 
     val precedingOffset =
-      getLowerBoundary(logicWindow, overWindow, input) + (if (isRowsClause) 1 else 0)
+      getLowerBoundary(logicWindow, overWindow, getInput()) + (if (isRowsClause) 1 else 0)
+
+    // get the output types
+    val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
 
     val processFunction = AggregateUtil.createBoundedOverProcessFunction(
       generator,
@@ -257,24 +269,22 @@ class DataStreamOverAggregate(
       isRowsClause,
       isRowTimeType
     )
-    val result: DataStream[Row] =
+    val result: DataStream[CRow] =
     // partitioned aggregation
       if (partitionKeys.nonEmpty) {
         inputDS
           .keyBy(partitionKeys: _*)
           .process(processFunction)
-          .returns(schema.physicalTypeInfo)
+          .returns(returnTypeInfo)
           .name(aggOpName)
-          .asInstanceOf[DataStream[Row]]
       }
       // non-partitioned aggregation
       else {
         inputDS
-          .keyBy(new NullByteKeySelector[Row])
+          .keyBy(new NullByteKeySelector[CRow])
           .process(processFunction).setParallelism(1).setMaxParallelism(1)
-          .returns(schema.physicalTypeInfo)
+          .returns(returnTypeInfo)
           .name(aggOpName)
-          .asInstanceOf[DataStream[Row]]
       }
     result
   }
