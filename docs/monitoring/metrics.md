@@ -436,6 +436,30 @@ metrics.reporter.stsd.port: 8125
 
 {% endhighlight %}
 
+### Datadog (org.apache.flink.metrics.datadog.DatadogHttpReporter)
+
+In order to use this reporter you must copy `/opt/flink-metrics-datadog-{{site.version}}.jar` into the `/lib` folder
+of your Flink distribution.
+
+Parameters:
+
+- `apikey` - the Datadog API key
+- `tags.enabled` - (optional) whether or not to send variables in metrics as Datadog tags
+- `tags` - (optional) the global tags that will be applied to metrics when sending to Datadog. Only works when `tags.enabled` is true. Tags should be separated by comma only
+
+Example configuration:
+
+{% highlight yaml %}
+
+metrics.reporters: dghttp
+metrics.reporter.dghttp.class: org.apache.flink.metrics.datadog.DatadogHttpReporter
+metrics.reporter.dghttp.apikey: xxx
+metrics.reporter.dghttp.tags.enabled: true
+metrics.reporter.dghttp.tags: myflinkapp,prod
+
+
+{% endhighlight %}
+
 ## System metrics
 
 By default Flink gathers several metrics that provide deep insights on the current state.
