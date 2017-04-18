@@ -17,14 +17,15 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.util.{List => JList, ArrayList => JArrayList}
+import java.util.{ArrayList => JArrayList, List => JList}
 
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.ListTypeInfo
+import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
 import org.slf4j.LoggerFactory
@@ -39,15 +40,15 @@ import org.slf4j.LoggerFactory
  */
 class RowTimeBoundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
-    aggregationStateType: TypeInformation[Row],
-    inputRowType: TypeInformation[Row],
+    aggregationStateType: RowTypeInfo,
+    inputRowType: CRowTypeInfo,
     precedingOffset: Long)
-  extends ProcessFunction[Row, Row]
+  extends ProcessFunction[CRow, CRow]
     with Compiler[GeneratedAggregations] {
   Preconditions.checkNotNull(aggregationStateType)
   Preconditions.checkNotNull(precedingOffset)
 
-  private var output: Row = _
+  private var output: CRow = _
 
   // the state which keeps the last triggering timestamp
   private var lastTriggeringTsState: ValueState[Long] = _
@@ -74,7 +75,7 @@ class RowTimeBoundedRangeOver(
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
 
-    output = function.createOutputRow()
+    output = new CRow(function.createOutputRow(), true)
 
     val lastTriggeringTsDescriptor: ValueStateDescriptor[Long] =
       new ValueStateDescriptor[Long]("lastTriggeringTsState", classOf[Long])
@@ -86,7 +87,8 @@ class RowTimeBoundedRangeOver(
 
     val keyTypeInformation: TypeInformation[Long] =
       BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]]
-    val valueTypeInformation: TypeInformation[JList[Row]] = new ListTypeInfo[Row](inputRowType)
+    val valueTypeInformation: TypeInformation[JList[Row]] =
+      new ListTypeInfo[Row](inputRowType.asInstanceOf[CRowTypeInfo].rowType)
 
     val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
       new MapStateDescriptor[Long, JList[Row]](
@@ -98,9 +100,11 @@ class RowTimeBoundedRangeOver(
   }
 
   override def processElement(
-    input: Row,
-    ctx: ProcessFunction[Row, Row]#Context,
-    out: Collector[Row]): Unit = {
+    inputC: CRow,
+    ctx: ProcessFunction[CRow, CRow]#Context,
+    out: Collector[CRow]): Unit = {
+
+    val input = inputC.row
 
     // triggering timestamp for trigger calculation
     val triggeringTs = ctx.timestamp
@@ -125,8 +129,8 @@ class RowTimeBoundedRangeOver(
 
   override def onTimer(
     timestamp: Long,
-    ctx: ProcessFunction[Row, Row]#OnTimerContext,
-    out: Collector[Row]): Unit = {
+    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+    out: Collector[CRow]): Unit = {
     // gets all window data from state for the calculation
     val inputs: JList[Row] = dataState.get(timestamp)
 
@@ -172,13 +176,13 @@ class RowTimeBoundedRangeOver(
       }
 
       // set aggregate in output row
-      function.setAggregationResults(accumulators, output)
+      function.setAggregationResults(accumulators, output.row)
 
       // copy forwarded fields to output row and emit output row
       dataListIndex = 0
       while (dataListIndex < inputs.size()) {
         aggregatesIndex = 0
-        function.setForwardedFields(inputs.get(dataListIndex), output)
+        function.setForwardedFields(inputs.get(dataListIndex), output.row)
         out.collect(output)
         dataListIndex += 1
       }

@@ -27,7 +27,7 @@ import org.apache.flink.types.Row
 /**
   * Common class for batch and stream scans.
   */
-trait CommonScan {
+trait CommonScan[T] {
 
   /**
     * We check if the input type is exactly the same as the internal row type.
@@ -35,11 +35,8 @@ trait CommonScan {
     */
   private[flink] def needsConversion(
       externalTypeInfo: TypeInformation[Any],
-      internalTypeInfo: TypeInformation[Row])
-    : Boolean = {
-
+      internalTypeInfo: TypeInformation[T]): Boolean =
     externalTypeInfo != internalTypeInfo
-  }
 
   private[flink] def generatedConversionFunction[F <: Function](
       config: TableConfig,

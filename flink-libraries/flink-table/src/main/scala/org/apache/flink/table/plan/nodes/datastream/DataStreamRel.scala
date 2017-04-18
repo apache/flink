@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.plan.nodes.FlinkRelNode
-import org.apache.flink.types.Row
+import org.apache.flink.table.runtime.types.CRow
 
 trait DataStreamRel extends FlinkRelNode {
 
@@ -29,9 +29,9 @@ trait DataStreamRel extends FlinkRelNode {
     * Translates the FlinkRelNode into a Flink operator.
     *
     * @param tableEnv The [[StreamTableEnvironment]] of the translated Table.
-    * @return DataStream of type [[Row]]
+    * @return DataStream of type [[CRow]]
     */
-  def translateToPlan(tableEnv: StreamTableEnvironment) : DataStream[Row]
+  def translateToPlan(tableEnv: StreamTableEnvironment) : DataStream[CRow]
 
   /**
     * Whether the [[DataStreamRel]] requires that update and delete changes are sent with retraction

@@ -28,6 +28,7 @@ import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
@@ -37,7 +38,9 @@ import org.apache.flink.table.expressions.{Expression, ProctimeAttribute, Rowtim
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{DataStreamTable, StreamTableSourceTable, TableSourceTable}
+import org.apache.flink.table.plan.schema.{DataStreamTable, StreamTableSourceTable}
+import org.apache.flink.table.runtime.CRowInputMapRunner
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.sinks.{StreamTableSink, TableSink}
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.table.typeutils.TypeCheckUtils
@@ -129,6 +132,52 @@ abstract class StreamTableEnvironment(
         streamSink.emitDataStream(result)
       case _ =>
         throw new TableException("StreamTableSink required to emit streaming Table")
+    }
+  }
+
+
+  /**
+    * Creates a final converter that maps the internal row type to external type.
+    *
+    * @param physicalTypeInfo the input of the sink
+    * @param logicalRowType the logical type with correct field names (esp. for POJO field mapping)
+    * @param requestedTypeInfo the output type of the sink
+    * @param functionName name of the map function. Must not be unique but has to be a
+    *                     valid Java class identifier.
+    */
+  override protected def getConversionMapper[IN, OUT](
+      physicalTypeInfo: TypeInformation[IN],
+      logicalRowType: RelDataType,
+      requestedTypeInfo: TypeInformation[OUT],
+      functionName: String):
+  Option[MapFunction[IN, OUT]] = {
+
+    if (requestedTypeInfo.getTypeClass == classOf[CRow]) {
+      // CRow to CRow, no conversion needed
+      None
+    } else if (requestedTypeInfo.getTypeClass == classOf[Row]) {
+      // CRow to Row, only needs to be unwrapped
+      Some(
+        new MapFunction[CRow, Row] {
+          override def map(value: CRow): Row = value.row
+        }.asInstanceOf[MapFunction[IN, OUT]]
+      )
+    } else {
+      // Some type that is neither CRow nor Row
+
+      val converterFunction = generateRowConverterFunction[OUT](
+        physicalTypeInfo.asInstanceOf[CRowTypeInfo].rowType,
+        logicalRowType,
+        requestedTypeInfo,
+        functionName
+      )
+
+      Some(new CRowInputMapRunner[OUT](
+        converterFunction.name,
+        converterFunction.code,
+        converterFunction.returnType)
+        .asInstanceOf[MapFunction[IN, OUT]])
+
     }
   }
 
@@ -377,10 +426,15 @@ abstract class StreamTableEnvironment(
     logicalPlan match {
       case node: DataStreamRel =>
         val plan = node.translateToPlan(this)
-        val conversion = sinkConversion(plan.getType, logicalType, tpe, "DataStreamSinkConversion")
+        val conversion =
+          getConversionMapper(plan.getType, logicalType, tpe, "DataStreamSinkConversion")
         conversion match {
           case None => plan.asInstanceOf[DataStream[A]] // no conversion necessary
-          case Some(mapFunction) => plan.map(mapFunction).name(s"to: $tpe")
+          case Some(mapFunction: MapFunction[CRow, A]) =>
+            plan.map(mapFunction)
+              .returns(tpe)
+              .name(s"to: ${tpe.getTypeClass.getSimpleName}")
+              .asInstanceOf[DataStream[A]]
         }
 
       case _ =>
@@ -398,9 +452,9 @@ abstract class StreamTableEnvironment(
   def explain(table: Table): String = {
     val ast = table.getRelNode
     val optimizedPlan = optimize(ast)
-    val dataStream = translate[Row](
+    val dataStream = translate[CRow](
       optimizedPlan,
-      ast.getRowType)(new GenericTypeInfo(classOf[Row]))
+      ast.getRowType)(new GenericTypeInfo(classOf[CRow]))
 
     val env = dataStream.getExecutionEnvironment
     val jsonSqlPlan = env.getExecutionPlan

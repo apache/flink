@@ -27,7 +27,8 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
-import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.slf4j.LoggerFactory
 
 /**
@@ -41,15 +42,15 @@ import org.slf4j.LoggerFactory
 class RowTimeBoundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     aggregationStateType: RowTypeInfo,
-    inputRowType: TypeInformation[Row],
+    inputRowType: CRowTypeInfo,
     precedingOffset: Long)
-  extends ProcessFunction[Row, Row]
+  extends ProcessFunction[CRow, CRow]
     with Compiler[GeneratedAggregations] {
 
   Preconditions.checkNotNull(aggregationStateType)
   Preconditions.checkNotNull(precedingOffset)
 
-  private var output: Row = _
+  private var output: CRow = _
 
   // the state which keeps the last triggering timestamp
   private var lastTriggeringTsState: ValueState[Long] = _
@@ -79,7 +80,7 @@ class RowTimeBoundedRowsOver(
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
 
-    output = function.createOutputRow()
+    output = new CRow(function.createOutputRow(), true)
 
     val lastTriggeringTsDescriptor: ValueStateDescriptor[Long] =
       new ValueStateDescriptor[Long]("lastTriggeringTsState", classOf[Long])
@@ -95,7 +96,8 @@ class RowTimeBoundedRowsOver(
 
     val keyTypeInformation: TypeInformation[Long] =
       BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]]
-    val valueTypeInformation: TypeInformation[JList[Row]] = new ListTypeInfo[Row](inputRowType)
+    val valueTypeInformation: TypeInformation[JList[Row]] =
+      new ListTypeInfo[Row](inputRowType.asInstanceOf[CRowTypeInfo].rowType)
 
     val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
       new MapStateDescriptor[Long, JList[Row]](
@@ -107,9 +109,11 @@ class RowTimeBoundedRowsOver(
   }
 
   override def processElement(
-    input: Row,
-    ctx: ProcessFunction[Row, Row]#Context,
-    out: Collector[Row]): Unit = {
+    inputC: CRow,
+    ctx: ProcessFunction[CRow, CRow]#Context,
+    out: Collector[CRow]): Unit = {
+
+    val input = inputC.row
 
     // triggering timestamp for trigger calculation
     val triggeringTs = ctx.timestamp
@@ -134,8 +138,8 @@ class RowTimeBoundedRowsOver(
 
   override def onTimer(
     timestamp: Long,
-    ctx: ProcessFunction[Row, Row]#OnTimerContext,
-    out: Collector[Row]): Unit = {
+    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+    out: Collector[CRow]): Unit = {
 
     // gets all window data from state for the calculation
     val inputs: JList[Row] = dataState.get(timestamp)
@@ -189,7 +193,7 @@ class RowTimeBoundedRowsOver(
         }
 
         // copy forwarded fields to output row
-        function.setForwardedFields(input, output)
+        function.setForwardedFields(input, output.row)
 
         // retract old row from accumulators
         if (null != retractRow) {
@@ -198,7 +202,7 @@ class RowTimeBoundedRowsOver(
 
         // accumulate current row and set aggregate in output row
         function.accumulate(accumulators, input)
-        function.setAggregationResults(accumulators, output)
+        function.setAggregationResults(accumulators, output.row)
         i += 1
 
         out.collect(output)

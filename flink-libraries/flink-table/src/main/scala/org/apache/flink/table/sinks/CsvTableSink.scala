@@ -25,6 +25,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 /**
   * A simple [[TableSink]] to emit data as CSV files.
@@ -133,3 +134,4 @@ class CsvFormatter(fieldDelim: String) extends MapFunction[Row, String] {
     builder.mkString
   }
 }
+

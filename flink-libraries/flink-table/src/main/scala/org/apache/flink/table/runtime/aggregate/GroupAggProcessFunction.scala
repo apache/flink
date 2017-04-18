@@ -26,6 +26,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.slf4j.LoggerFactory
+import org.apache.flink.table.runtime.types.CRow
 
 /**
   * Aggregate Function used for the groupby (without window) aggregate
@@ -35,14 +36,17 @@ import org.slf4j.LoggerFactory
   */
 class GroupAggProcessFunction(
     private val genAggregations: GeneratedAggregationsFunction,
-    private val aggregationStateType: RowTypeInfo)
-  extends ProcessFunction[Row, Row]
+    private val aggregationStateType: RowTypeInfo,
+    private val generateRetraction: Boolean)
+  extends ProcessFunction[CRow, CRow]
     with Compiler[GeneratedAggregations] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
-  private var output: Row = _
+  private var newRow: CRow = _
+  private var prevRow: CRow = _
+  private var firstRow: Boolean = _
   private var state: ValueState[Row] = _
 
   override def open(config: Configuration) {
@@ -54,7 +58,9 @@ class GroupAggProcessFunction(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
-    output = function.createOutputRow()
+
+    newRow = new CRow(function.createOutputRow(), true)
+    prevRow = new CRow(function.createOutputRow(), false)
 
     val stateDescriptor: ValueStateDescriptor[Row] =
       new ValueStateDescriptor[Row]("GroupAggregateState", aggregationStateType)
@@ -62,29 +68,53 @@ class GroupAggProcessFunction(
   }
 
   override def processElement(
-      input: Row,
-      ctx: ProcessFunction[Row, Row]#Context,
-      out: Collector[Row]): Unit = {
+      inputC: CRow,
+      ctx: ProcessFunction[CRow, CRow]#Context,
+      out: Collector[CRow]): Unit = {
+
+    val input = inputC.row
 
     // get accumulators
     var accumulators = state.value()
     if (null == accumulators) {
+      firstRow = true
       accumulators = function.createAccumulators()
+    } else {
+      firstRow = false
     }
 
     // Set group keys value to the final output
-    function.setForwardedFields(input, output)
+    function.setForwardedFields(input, newRow.row)
+    function.setForwardedFields(input, prevRow.row)
 
-    // accumulate new input row
-    function.accumulate(accumulators, input)
+    // Set previous aggregate result to the prevRow
+    function.setAggregationResults(accumulators, prevRow.row)
 
-    // set aggregation results to output
-    function.setAggregationResults(accumulators, output)
+    // update aggregate result and set to the newRow
+    if (inputC.change) {
+      // accumulate input
+      function.accumulate(accumulators, input)
+      function.setAggregationResults(accumulators, newRow.row)
+    } else {
+      // retract input
+      function.retract(accumulators, input)
+      function.setAggregationResults(accumulators, newRow.row)
+    }
 
     // update accumulators
     state.update(accumulators)
 
-    out.collect(output)
-  }
+    // if previousRow is not null, do retraction process
+    if (generateRetraction && !firstRow) {
+      if (prevRow.row.equals(newRow.row)) {
+        // ignore same newRow
+        return
+      } else {
+        // retract previous row
+        out.collect(prevRow)
+      }
+    }
 
+    out.collect(newRow)
+  }
 }
