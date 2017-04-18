@@ -35,8 +35,11 @@ public class FailoverStrategyLoader {
 	/** Config name for the {@link RestartAllStrategy} */
 	public static final String FULL_RESTART_STRATEGY_NAME = "full";
 
-	/** Config name for the strategy that restarts individual tasks */
+	/** Config name for the {@link RestartIndividualStrategy} */
 	public static final String INDIVIDUAL_RESTART_STRATEGY_NAME = "individual";
+
+	/** Config name for the {@link RestartPipelinedRegionStrategy} */
+	public static final String PIPELINED_REGION_RESTART_STRATEGY_NAME = "region";
 
 	// ------------------------------------------------------------------------
 
@@ -58,6 +61,9 @@ public class FailoverStrategyLoader {
 			switch (strategyParam.toLowerCase()) {
 				case FULL_RESTART_STRATEGY_NAME:
 					return new RestartAllStrategy.Factory();
+
+				case PIPELINED_REGION_RESTART_STRATEGY_NAME:
+					return new RestartPipelinedRegionStrategy.Factory();
 
 				case INDIVIDUAL_RESTART_STRATEGY_NAME:
 					return new RestartIndividualStrategy.Factory();
