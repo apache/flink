@@ -229,15 +229,14 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	}
 
 	protected void shutdown(ApplicationStatus status, String msg) {
-		// Need to clear the job state in the HA services before shutdown
-		try {
-			haServices.getRunningJobsRegistry().clearJob(jobGraph.getJobID());
-		}
-		catch (Throwable t) {
-			LOG.warn("Could not clear the job at the high-availability services", t);
-		}
-
 		synchronized (lock) {
+			// Need to clear the job state in the HA services before shutdown
+			try {
+				haServices.getRunningJobsRegistry().clearJob(jobGraph.getJobID());
+			}
+			catch (Throwable t) {
+				LOG.warn("Could not clear the job at the high-availability services", t);
+			}
 			if (jobManagerRunner != null) {
 				try {
 					jobManagerRunner.shutdown();
