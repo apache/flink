@@ -49,6 +49,8 @@ object FlinkRuleSets {
     FilterProjectTransposeRule.INSTANCE,
     // push a projection to the children of a join
     ProjectJoinTransposeRule.INSTANCE,
+    // merge projections
+    ProjectMergeRule.INSTANCE,
     // remove identity project
     ProjectRemoveRule.INSTANCE,
     // reorder sort and projection
