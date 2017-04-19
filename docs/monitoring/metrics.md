@@ -465,9 +465,6 @@ metrics.scope.operator: <host>.<tm_id>.<job_name>.<subtask_index>.<operator_name
 
 {% endhighlight %}
 
-Such metric reporting implementation is a best practice based on our experience working with Datadog. It helps 
-developers to find and filter metrics quickly, better categorize metrics, and visualize them on Datadog dashboards.
-
 ## System metrics
 
 By default Flink gathers several metrics that provide deep insights on the current state.

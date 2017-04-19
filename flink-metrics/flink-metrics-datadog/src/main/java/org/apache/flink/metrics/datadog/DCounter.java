@@ -16,26 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics.datadog.metric;
+package org.apache.flink.metrics.datadog;
 
-import java.util.ArrayList;
+import org.apache.flink.metrics.Counter;
+
 import java.util.List;
 
 /**
- * Json serialization between Flink and Datadog
- **/
-public class DSeries {
-	private List<DMetric> series;
+ * Mapping of counter between Flink and Datadog
+ * */
+public class DCounter extends DMetric {
+	private final Counter counter;
 
-	public DSeries() {
-		series = new ArrayList<>();
+	public DCounter(Counter c, String metricName, List<String> tags) {
+		super(MetricType.counter, metricName, tags);
+		counter = c;
 	}
 
-	public void addMetric(DMetric metric) {
-		series.add(metric);
-	}
-
-	public List<DMetric> getSeries() {
-		return series;
+	@Override
+	Number getMetricValue() {
+		return counter.getCount();
 	}
 }

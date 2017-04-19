@@ -16,10 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics.datadog.parser;
+package org.apache.flink.metrics.datadog;
 
-public abstract class AbstractMetricParser implements IMetricParser {
-	public String getName(String fullName, String keyword) {
-		return fullName.substring(fullName.indexOf(keyword));
+
+import org.apache.flink.metrics.Gauge;
+
+import java.util.List;
+
+/**
+ * Mapping of gauge between Flink and Datadog
+ * */
+public class DGauge extends DMetric {
+	private final Gauge<Number> gauge;
+
+	public DGauge(Gauge<Number> g, String metricName, List<String> tags) {
+		super(MetricType.gauge, metricName, tags);
+		gauge = g;
+	}
+
+	@Override
+	Number getMetricValue() {
+		return gauge.getValue();
 	}
 }

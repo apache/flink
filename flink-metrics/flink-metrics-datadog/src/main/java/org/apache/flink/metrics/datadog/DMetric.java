@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics.datadog.metric;
+package org.apache.flink.metrics.datadog;
 
 import org.apache.flink.metrics.datadog.utils.TimestampUtils;
 
@@ -26,20 +26,14 @@ import java.util.List;
 /**
  * Abstract metric of Datadog
  * */
-public abstract class DMetric<T extends Number> {
-	private final String metric;
-	private final List<List<Number>> points;
+public abstract class DMetric {
+	private final String metric; // Metric name
 	private final MetricType type;
 	private final List<String> tags;
 
-	public DMetric(String metric, T number, MetricType metricType, List<String> tags) {
-		this.metric = metric;
-		this.points = new ArrayList<>();
-		List<Number> point = new ArrayList<>();
-		point.add(TimestampUtils.getUnixEpochTimestamp());
-		point.add(number);
-		this.points.add(point);
+	public DMetric(MetricType metricType, String metric, List<String> tags) {
 		this.type = metricType;
+		this.metric = metric;
 		this.tags = tags;
 	}
 
@@ -56,6 +50,16 @@ public abstract class DMetric<T extends Number> {
 	}
 
 	public List<List<Number>> getPoints() {
+		// One single data point
+		List<Number> point = new ArrayList<>();
+		point.add(TimestampUtils.getUnixEpochTimestamp());
+		point.add(getMetricValue());
+
+		List<List<Number>> points = new ArrayList<>();
+		points.add(point);
+
 		return points;
 	}
+
+	abstract Number getMetricValue();
 }

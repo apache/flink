@@ -18,17 +18,19 @@
 
 package org.apache.flink.metrics.datadog;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
-import org.apache.flink.metrics.datadog.metric.DCounter;
-import org.apache.flink.metrics.datadog.metric.DGauge;
-import org.apache.flink.metrics.datadog.metric.DSeries;
-import org.apache.flink.metrics.datadog.parser.MetricParser;
-import org.apache.flink.metrics.datadog.parser.NameAndTags;
-import org.apache.flink.metrics.reporter.AbstractReporter;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.datadog.utils.SerializationUtils;
+import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,42 +45,78 @@ import java.util.Map;
  *
  * Metric Reporter for Datadog
  *
- * When used, metric scope formats have to be defined as followed:
- *
- * metrics.scope.jm: <host>.jobmanager
- * metrics.scope.jm.job: <host>.<job_name>.jobmanager.job
- * metrics.scope.tm: <host>.<tm_id>.taskmanager
- * metrics.scope.tm.job: <host>.<tm_id>.<job_name>.taskmanager.job
- * metrics.scope.task: <host>.<tm_id>.<job_name>.<subtask_index>.<task_name>.task
- * metrics.scope.operator: <host>.<tm_id>.<job_name>.<subtask_index>.<operator_name>.operator
- *
- * Variables will be separated from metric names, and sent to Datadog as tags
+ * Variables in metrics scope will be sent to Datadog as tags
  * */
-public class DatadogHttpReporter extends AbstractReporter implements Scheduled {
-	private static final Logger LOG = LoggerFactory.getLogger(DatadogHttpReporter.class);
+public class DatadogHttpReporter implements MetricReporter, CharacterFilter, Scheduled {
+	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpReporter.class);
 
-	public static final String API_KEY = "apikey";
-	public static final String TAGS = "tags";
-
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	// Both Flink's Gauge and Meter values are taken as gauge in Datadog
+	private final Map<Gauge, DGauge> gauges = Maps.newConcurrentMap();
+	private final Map<Counter, DCounter> counters = Maps.newConcurrentMap();
+	private final Map<Meter, DMeter> meters = Maps.newConcurrentMap();
 
 	private DatadogHttpClient client;
-	private List<String> tags;
+	private List<String> configTags;
 
-	private MetricParser metricParser;
+	public static final String API_KEY = "apikey";
+	public static final String TAGS = "configTags";
+
+	@Override
+	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
+		final String name = group.getMetricIdentifier(metricName, this);
+
+		List<String> tags = Lists.newArrayList(configTags);
+		tags.addAll(getTagsFromMetricGroup(group));
+
+		synchronized (this) {
+			if (metric instanceof Counter) {
+				Counter c = (Counter) metric;
+				counters.put(c, new DCounter(c, name, tags));
+			} else if (metric instanceof Gauge) {
+				Gauge g = (Gauge) metric;
+				gauges.put(g, new DGauge(g, name, tags));
+			} else if(metric instanceof Meter) {
+				Meter m = (Meter) metric;
+				// Only consider rate
+				meters.put(m, new DMeter(m, name, tags));
+			} else if (metric instanceof Histogram) {
+				LOGGER.warn("Cannot add {} because Datadog HTTP API doesn't support Histogram", metricName);
+			} else {
+				LOGGER.warn("Cannot add unknown metric type {}. This indicates that the reporter " +
+					"does not support this metric type.", metric.getClass().getName());
+			}
+		}
+	}
+
+	@Override
+	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+		synchronized (this) {
+			if (metric instanceof Counter) {
+				counters.remove(metric);
+			} else if (metric instanceof Gauge) {
+				gauges.remove(metric);
+			} else if (metric instanceof Meter) {
+				meters.remove(metric);
+			} else if (metric instanceof Histogram) {
+				// No Histogram and Meter metrics are registered
+			} else {
+				LOGGER.warn("Cannot remove unknown metric type {}. This indicates that the reporter " +
+					"does not support this metric type.", metric.getClass().getName());
+			}
+		}
+	}
 
 	@Override
 	public void open(MetricConfig config) {
 		client = new DatadogHttpClient(config.getString(API_KEY, null));
-		log.info("Configured DatadogHttpReporter");
+		LOGGER.info("Configured DatadogHttpReporter");
 
-		tags = getTags(config.getString(TAGS, null));
-		metricParser = new MetricParser(config);
+		configTags = getTagsFromConfig(config.getString(TAGS, null));
 	}
 
 	@Override
 	public void close() {
-		log.info("Shut down DatadogHttpReporter");
+		LOGGER.info("Shut down DatadogHttpReporter");
 	}
 
 	@Override
@@ -86,33 +124,28 @@ public class DatadogHttpReporter extends AbstractReporter implements Scheduled {
 		try {
 			DatadogHttpRequest request = new DatadogHttpRequest(this);
 
-			for (Map.Entry<Gauge<?>, String> entry : gauges.entrySet()) {
-				// Flink uses Gauge to store values more than numeric, like String, hashmap, etc.
-				// Need to filter out those non-numeric ones
-				if(entry.getKey().getValue() instanceof Number) {
-					NameAndTags nat = metricParser.getNameAndTags(entry.getValue());
-
-						request.addGauge(
-							new DGauge(
-								nat.getName(),
-								(Number) entry.getKey().getValue(),
-								nat.getTags()));
+			for(DGauge g : gauges.values()) {
+				try {
+					// Will throw exception if the Gauge is not of Number type
+					// Flink uses Gauge to store many types other than Number
+					g.getMetricValue();
+					request.addGauge(g);
+				} catch (Exception e) {
+					// ignore if the Gauge is not of Number type
 				}
 			}
 
-			for (Map.Entry<Counter, String> entry : counters.entrySet()) {
-				NameAndTags nat = metricParser.getNameAndTags(entry.getValue());
+			for(DCounter c : counters.values()) {
+				request.addCounter(c);
+			}
 
-				request.addCounter(
-					new DCounter(
-						nat.getName(),
-						entry.getKey().getCount(),
-						nat.getTags()));
+			for(DMeter m : meters.values()) {
+				request.addMeter(m);
 			}
 
 			request.send();
 		} catch (Exception e) {
-			LOG.warn("Failed reporting metrics to Datadog.", e);
+			LOGGER.warn("Failed reporting metrics to Datadog.", e);
 		}
 	}
 
@@ -122,9 +155,9 @@ public class DatadogHttpReporter extends AbstractReporter implements Scheduled {
 	}
 
 	/**
-	 * Get tags from config 'metrics.reporter.dghttp.tags'
+	 * Get config tags from config 'metrics.reporter.dghttp.tags'
 	 * */
-	private List<String> getTags(String str) {
+	private List<String> getTagsFromConfig(String str) {
 		if(str != null) {
 			return Lists.newArrayList(str.split(","));
 		} else {
@@ -133,7 +166,27 @@ public class DatadogHttpReporter extends AbstractReporter implements Scheduled {
 	}
 
 	/**
-	 * Serialize metrics and send to Datadog
+	 * Get tags from MetricGroup#getAllVariables()
+	 * */
+	private List<String> getTagsFromMetricGroup(MetricGroup metricGroup) {
+		List<String> tags = Lists.newArrayList();
+
+		for(Map.Entry<String, String> entry: metricGroup.getAllVariables().entrySet()) {
+			tags.add(Joiner.on(":").join(getVariableName(entry.getKey()), entry.getValue()));
+		}
+
+		return tags;
+	}
+
+	/**
+	 * Given "<xxx>", return "xxx"
+	 * */
+	private String getVariableName(String str) {
+		return str.substring(1, str.length() - 1);
+	}
+
+	/**
+	 * Compact metrics in batch, serialize them, and send to Datadog via HTTP
 	 * */
 	private static class DatadogHttpRequest {
 		private final DatadogHttpReporter datadogHttpReporter;
@@ -152,8 +205,12 @@ public class DatadogHttpReporter extends AbstractReporter implements Scheduled {
 			series.addMetric(counter);
 		}
 
+		public void addMeter(DMeter meter) throws IOException {
+			series.addMetric(meter);
+		}
+
 		public void send() throws Exception {
-			datadogHttpReporter.client.syncPost(MAPPER.writeValueAsString(series));
+			datadogHttpReporter.client.syncPost(SerializationUtils.serialize(series));
 		}
 	}
 }

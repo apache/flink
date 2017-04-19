@@ -16,30 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics.datadog.parser;
-
+package org.apache.flink.metrics.datadog;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class NameAndTags {
-	private String name;
-	private List<String> tags;
+/**
+ * Json serialization between Flink and Datadog
+ **/
+public class DSeries {
+	private List<DMetric> series;
 
-	public NameAndTags(String name) {
-		this(name, new ArrayList<String>());
+	public DSeries() {
+		series = new ArrayList<>();
 	}
 
-	public NameAndTags(String name, List<String> tags) {
-		this.name = name;
-		this.tags = tags;
+	public void addMetric(DMetric metric) {
+		series.add(metric);
 	}
 
-	public String getName() {
-		return name;
-	}
-
-	public List<String> getTags() {
-		return tags;
+	public List<DMetric> getSeries() {
+		return series;
 	}
 }
