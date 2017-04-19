@@ -50,6 +50,19 @@ case class Sum(child: Expression) extends Aggregation {
     TypeCheckUtils.assertNumericExpr(child.resultType, "sum")
 }
 
+case class Sum0(child: Expression) extends Aggregation {
+  override def toString = s"sum0($child)"
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.SUM0, false, null, name, child.toRexNode)
+  }
+
+  override private[flink] def resultType = child.resultType
+
+  override private[flink] def validateInput =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "sum0")
+}
+
 case class Min(child: Expression) extends Aggregation {
   override def toString = s"min($child)"
 
@@ -97,4 +110,56 @@ case class Avg(child: Expression) extends Aggregation {
 
   override private[flink] def validateInput() =
     TypeCheckUtils.assertNumericExpr(child.resultType, "avg")
+}
+
+case class StddevPop(child: Expression) extends Aggregation {
+  override def toString = s"stddev_pop($child)"
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.STDDEV_POP, false, null, name, child.toRexNode)
+  }
+
+  override private[flink] def resultType = child.resultType
+
+  override private[flink] def validateInput =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "stddev_pop")
+}
+
+case class StddevSamp(child: Expression) extends Aggregation {
+  override def toString = s"stddev_samp($child)"
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.STDDEV_SAMP, false, null, name, child.toRexNode)
+  }
+
+  override private[flink] def resultType = child.resultType
+
+  override private[flink] def validateInput =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "stddev_samp")
+}
+
+case class VarPop(child: Expression) extends Aggregation {
+  override def toString = s"var_pop($child)"
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.VAR_POP, false, null, name, child.toRexNode)
+  }
+
+  override private[flink] def resultType = child.resultType
+
+  override private[flink] def validateInput =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "var_pop")
+}
+
+case class VarSamp(child: Expression) extends Aggregation {
+  override def toString = s"var_samp($child)"
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.VAR_SAMP, false, null, name, child.toRexNode)
+  }
+
+  override private[flink] def resultType = child.resultType
+
+  override private[flink] def validateInput =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "var_samp")
 }

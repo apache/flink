@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.java.batch.sql;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
@@ -31,7 +32,10 @@ import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import scala.collection.JavaConversions;
+import scala.collection.mutable.Buffer;
 
+import java.util.Arrays;
 import java.util.List;
 
 @RunWith(Parameterized.class)
@@ -128,7 +132,7 @@ public class SqlITCase extends TableProgramsCollectionTestBase {
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
 
 		tableEnv.registerDataSet("t1", ds1, "a, b, c");
-		tableEnv.registerDataSet("t2",ds2, "d, e, f, g, h");
+		tableEnv.registerDataSet("t2", ds2, "d, e, f, g, h");
 
 		String sqlQuery = "SELECT c, g FROM t1, t2 WHERE b = e";
 		Table result = tableEnv.sql(sqlQuery);
@@ -137,5 +141,48 @@ public class SqlITCase extends TableProgramsCollectionTestBase {
 		List<Row> results = resultSet.collect();
 		String expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n";
 		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testDeviationAggregation() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		tableEnv.registerDataSet("AggTable", ds, "x, y, z");
+
+		Buffer<String> columnForAgg = JavaConversions.asScalaBuffer(Arrays.asList("x, y".split(",")));
+
+		String sqlQuery = getSelectQueryFromTemplate("AVG(?),STDDEV_POP(?),STDDEV_SAMP(?),VAR_POP(?),VAR_SAMP(?)", columnForAgg, "AggTable");
+		Table result = tableEnv.sql(sqlQuery);
+
+		String sqlQuery1 = getSelectQueryFromTemplate("SUM(?)/COUNT(?), " +
+			"SQRT( (SUM(? * ?) - SUM(?) * SUM(?) / COUNT(?)) / COUNT(?)), " +
+			"SQRT( (SUM(? * ?) - SUM(?) * SUM(?) / COUNT(?)) / CASE COUNT(?) WHEN 1 THEN NULL ELSE COUNT(?) - 1 END), " +
+			"(SUM(? * ?) - SUM(?) * SUM(?) / COUNT(?)) / COUNT(?), " +
+			"(SUM(? * ?) - SUM(?) * SUM(?) / COUNT(?)) / CASE COUNT(?) WHEN 1 THEN NULL ELSE COUNT(?) - 1 END", columnForAgg, "AggTable");
+
+		Table expected = tableEnv.sql(sqlQuery1);
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+
+		DataSet<Row> expectedResultSet = tableEnv.toDataSet(expected, Row.class);
+		String expectedResults = expectedResultSet.map(new MapFunction<Row, Object>() {
+			@Override
+			public Object map(Row value) throws Exception {
+				StringBuilder stringBuffer = new StringBuilder();
+
+				int arityCount = value.getArity();
+
+				for (int i = 0; i < arityCount; i++) {
+					Object product = value.getField(i);
+					stringBuffer.append(Double.valueOf(product.toString()).intValue()).append(",");
+				}
+				return stringBuffer.substring(0, stringBuffer.length() - 1);
+			}
+		}).collect().get(0).toString();
+
+		compareResultAsText(results, expectedResults);
 	}
 }

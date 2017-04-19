@@ -295,6 +295,206 @@ class AggregationsITCase(
     TestBaseUtils.compareResultAsText(results3.asJava, expected3)
   }
 
+
+
+  @Test
+  def testSqrtOfAggregatedSet(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val ds = env.fromElements((1.0f, 1), (2.0f, 2)).toTable(tEnv)
+
+    tEnv.registerTable("MyTable", ds)
+
+    val sqlQuery = "SELECT " +
+      "SQRT((SUM(a * a) - SUM(a) * SUM(a) / COUNT(a)) / COUNT(a)) " +
+      "from (select _1 as a from MyTable)"
+
+    val expected = "0.5"
+    val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testStddevPopAggregate(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val ds = env.fromElements(
+      (1: Byte, 1 : Short, 1, 1L, 1F, 1D),
+      (2: Byte, 2 : Short, 2, 2L, 2F, 2D)).toTable(tEnv)
+    tEnv.registerTable("myTable", ds)
+    val columns = Array("_1","_2","_3","_4","_5","_6")
+
+    val sqlQuery = getSelectQueryFromTemplate("STDDEV_POP(?)")(columns,"myTable")
+
+    val actualResult = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    val expectedResult = "0,0,0,0,0.5,0.5"
+    TestBaseUtils.compareOrderedResultAsText(actualResult.asJava, expectedResult)
+  }
+
+  @Test
+  def testStddevPopAggregateWithOtherAggreagteSUM0(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val ds = env.fromElements(
+      (1: Byte, 1 : Short, 1, 1L, 1F, 1D),
+      (2: Byte, 2 : Short, 2, 2L, 2F, 2D)).toTable(tEnv)
+    tEnv.registerTable("myTable", ds)
+    val columns = Array("_1","_2","_3","_4","_5","_6")
+
+    val sqlQuery = getSelectQueryFromTemplate("STDDEV_POP(?), " +
+                                  "$sum0(?), " +
+                                  "avg(?), " +
+                                  "max(?), " +
+                                  "min(?), " +
+                                  "count(?)" ) (columns,"myTable")
+
+    val actualResult = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+
+    val expectedResult =
+        "0,3,1,2,1,2," +
+        "0,3,1,2,1,2," +
+        "0,3,1,2,1,2," +
+        "0,3,1,2,1,2," +
+        "0.5,3.0,1.5,2.0,1.0,2," +
+        "0.5,3.0,1.5,2.0,1.0,2"
+    TestBaseUtils.compareOrderedResultAsText(actualResult.asJava, expectedResult)
+  }
+
+  @Test
+  def testStddevPopAggregateWithOtherAggreagte(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val ds = env.fromElements(
+      (1: Byte, 1 : Short, 1, 1L, 1F, 1D),
+      (2: Byte, 2 : Short, 2, 2L, 2F, 2D)).toTable(tEnv)
+    tEnv.registerTable("myTable", ds)
+    val columns = Array("_1","_2","_3","_4","_5","_6")
+
+    val sqlQuery = getSelectQueryFromTemplate("STDDEV_POP(?), " +
+                                  "sum(?), " +
+                                  "avg(?), " +
+                                  "max(?), " +
+                                  "min(?), " +
+                                  "count(?)" )(columns,"myTable")
+
+    val actualResult = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+
+    val expectedResult =
+      "0,3,1,2,1,2," +
+        "0,3,1,2,1,2," +
+        "0,3,1,2,1,2," +
+        "0,3,1,2,1,2," +
+        "0.5,3.0,1.5,2.0,1.0,2," +
+        "0.5,3.0,1.5,2.0,1.0,2"
+    TestBaseUtils.compareOrderedResultAsText(actualResult.asJava, expectedResult)
+  }
+
+  @Test
+  def testStddevSampAggregate(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val ds1 = env.fromElements(
+      (1: Byte, 1 : Short, 1, 1L, 1F, 1D),
+      (2: Byte, 2 : Short, 2, 2L, 2F, 2D)).toTable(tEnv)
+    tEnv.registerTable("myTable", ds1)
+    val columns = Seq("_1","_2","_3","_4","_5","_6")
+
+    val sqlQuery = getSelectQueryFromTemplate("STDDEV_SAMP(?)")(columns,"myTable")
+    val sqlExpectedQuery = getSelectQueryFromTemplate(
+      "SQRT((SUM(? * ?) - SUM(?) * SUM(?) / COUNT(?)) / " +
+        "CASE " +
+        "COUNT(?) WHEN 1 THEN NULL " +
+        "ELSE COUNT(?) - 1 " +
+        "END)")(columns,"myTable")
+
+    val actualResult = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+      .head
+      .toString
+      .split(",").map(x=>"%.5f".format(x.toFloat))
+
+    val expectedResult = tEnv.sql(sqlExpectedQuery).toDataSet[Row].collect()
+      .head
+      .toString
+      .split(",").map(x=>"%.5f".format(x.toFloat))
+
+    Assert.assertEquals(expectedResult.mkString(","), actualResult.mkString(","))
+  }
+
+  @Test
+  def testVarPopAggregate(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val ds = env.fromElements(
+      (1: Byte, 1 : Short, 1, 1L, 1F, 1D),
+      (2: Byte, 2 : Short, 2, 2L, 2F, 2D)).toTable(tEnv)
+    tEnv.registerTable("myTable", ds)
+    val columns = Seq("_1","_2","_3","_4","_5","_6")
+
+    val sqlQuery = getSelectQueryFromTemplate("var_pop(?)")(columns,"myTable")
+    val sqlExpectedQuery = getSelectQueryFromTemplate(
+      "(SUM(? * ?) - SUM(?) * SUM(?) / COUNT(?)) / COUNT(?)")(columns,"myTable")
+
+    val actualResult = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    val expectedResult = tEnv.sql(sqlExpectedQuery)
+      .toDataSet[Row]
+      .collect().head
+      .toString
+    TestBaseUtils.compareOrderedResultAsText(actualResult.asJava, expectedResult)
+  }
+
+  @Test
+  def testVarSampAggregate(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val ds = env.fromElements(
+      (1: Byte, 1 : Short, 1, 1L, 1F, 1D),
+      (2: Byte, 2 : Short, 2, 2L, 2F, 2D)).toTable(tEnv)
+    tEnv.registerTable("myTable", ds)
+    val columns = Seq("_1","_2","_3","_4","_5","_6")
+
+    val sqlQuery = getSelectQueryFromTemplate("var_samp(?)")(columns,"myTable")
+    val sqlExpectedQuery = getSelectQueryFromTemplate(
+      "(SUM(? * ?) - SUM(?) * SUM(?) / COUNT(?)) / CASE COUNT(?) WHEN 1 THEN NULL " +
+        "ELSE COUNT(?) - 1 END")(columns,"myTable")
+
+    val actualResult = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    val expectedResult = tEnv.sql(sqlExpectedQuery)
+      .toDataSet[Row]
+      .collect().head
+      .toString
+    TestBaseUtils.compareOrderedResultAsText(actualResult.asJava, expectedResult)
+  }
+
+  @Test
+  def testSumNullElements(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = getSelectQueryFromTemplate("$sum0(?)")(
+      Seq("_1","_2","_3","_4","_5","_6"),
+      "(select * from MyTable where _1 = 4)"
+    )
+
+    val ds = env.fromElements(
+      (1: Byte, 2L,1D,1F,1,1:Short ),
+      (2: Byte, 2L,1D,1F,1,1:Short ))
+    tEnv.registerDataSet("MyTable", ds)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = "null,null,null,null,null,null"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
   @Test
   def testTumbleWindowAggregate(): Unit = {
 

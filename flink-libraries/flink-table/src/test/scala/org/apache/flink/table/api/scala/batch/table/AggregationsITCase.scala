@@ -339,4 +339,80 @@ class AggregationsITCase(
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  @Test
+  def testAnalyticAggregation(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+      .select('_1.stddev_pop, '_1.stddev_samp, '_1.var_pop, '_1.var_samp)
+    val results = t.toDataSet[Row].collect()
+    val expected = "6,6,36,38"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testSQLStyleAnalyticAggregation(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+      .select(
+        """stddev_pop(a) as a1, a.stddev_pop as a2,
+          |stddev_samp (a) as b1, a.stddev_samp as b2,
+          |var_pop (a) as c1, a.var_pop as c2,
+          |var_samp (a) as d1, a.var_samp as d2
+        """.stripMargin)
+    val expected = "6,6,6,6,36,36,38,38"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testWorkingAnalyticAggregationDataTypes(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val ds = env.fromElements(
+      (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d),
+      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d)).toTable(tEnv)
+    val res = ds.select('_1.stddev_pop, '_2.stddev_pop, '_3.stddev_pop,
+                        '_4.stddev_pop, '_5.stddev_pop, '_6.stddev_pop,
+                        '_1.stddev_samp, '_2.stddev_samp, '_3.stddev_samp,
+                        '_4.stddev_samp, '_5.stddev_samp, '_6.stddev_samp,
+                        '_1.var_pop, '_2.var_pop, '_3.var_pop,
+                        '_4.var_pop, '_5.var_pop, '_6.var_pop,
+                        '_1.var_samp, '_2.var_samp, '_3.var_samp,
+                        '_4.var_samp, '_5.var_samp, '_6.var_samp)
+    val expected =
+        "0,0,0," +
+        "0,0.5,0.5," +
+        "1,1,1," +
+        "1,0.70710677,0.7071067811865476," +
+        "0,0,0," +
+        "0,0.25,0.25," +
+        "1,1,1," +
+        "1,0.5,0.5"
+    val results = res.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testPojoAnalyticAggregation(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val input = env.fromElements(
+      MyWC("hello", 1),
+      MyWC("hello", 8),
+      MyWC("ciao", 3),
+      MyWC("hola", 1),
+      MyWC("hola", 8))
+    val expr = input.toTable(tEnv)
+    val result = expr
+      .groupBy('word)
+      .select('word, 'frequency.stddev_pop)
+      .toDataSet[MyWC]
+    val mappedResult = result.map(w => (w.word, w.frequency)).collect()
+    val expected = "(hola,3)\n(ciao,0)\n(hello,3)"
+    TestBaseUtils.compareResultAsText(mappedResult.asJava, expected)
+  }
+
 }
