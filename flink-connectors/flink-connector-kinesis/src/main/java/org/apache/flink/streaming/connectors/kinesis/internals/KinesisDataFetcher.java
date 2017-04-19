@@ -149,7 +149,7 @@ public class KinesisDataFetcher<T> {
 	private final KinesisProxyInterface kinesis;
 
 	/** Thread that executed runFetcher() */
-	private Thread mainThread;
+	private volatile Thread mainThread;
 
 	/**
 	 * The current number of shards that are actively read by this fetcher.
@@ -408,7 +408,10 @@ public class KinesisDataFetcher<T> {
 	 */
 	public void shutdownFetcher() {
 		running = false;
-		mainThread.interrupt(); // the main thread may be sleeping for the discovery interval
+
+		if (mainThread != null) {
+			mainThread.interrupt(); // the main thread may be sleeping for the discovery interval
+		}
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Shutting down the shard consumer threads of subtask {} ...", indexOfThisConsumerSubtask);
