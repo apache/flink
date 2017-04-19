@@ -95,5 +95,12 @@
 			<destName>flink-metrics-statsd-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
+
+		<file>
+			<source>../flink-metrics/flink-metrics-datadog/target/flink-metrics-datadog-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-metrics-datadog-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
 	</files>
 </assembly>

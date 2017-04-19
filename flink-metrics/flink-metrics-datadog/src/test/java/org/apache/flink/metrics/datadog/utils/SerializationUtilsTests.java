@@ -19,15 +19,12 @@
 package org.apache.flink.metrics.datadog.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.collect.Lists;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.datadog.DCounter;
 import org.apache.flink.metrics.datadog.DGauge;
 import org.apache.flink.metrics.datadog.DMeter;
-import org.apache.flink.metrics.datadog.utils.SerializationUtils;
-import org.apache.flink.metrics.datadog.utils.TimestampUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,6 +32,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -42,7 +40,7 @@ import static org.junit.Assert.assertEquals;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(TimestampUtils.class)
 public class SerializationUtilsTests {
-	private static List<String> tags = Lists.newArrayList("tag1", "tag2");
+	private static List<String> tags = Arrays.asList("tag1", "tag2");
 
 	private static final long MOCKED_SYSTEM_MILLIS = 123L;
 	@Before

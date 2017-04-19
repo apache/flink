@@ -18,9 +18,6 @@
 
 package org.apache.flink.metrics.datadog;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -36,8 +33,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -51,9 +51,9 @@ public class DatadogHttpReporter implements MetricReporter, CharacterFilter, Sch
 	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpReporter.class);
 
 	// Both Flink's Gauge and Meter values are taken as gauge in Datadog
-	private final Map<Gauge, DGauge> gauges = Maps.newConcurrentMap();
-	private final Map<Counter, DCounter> counters = Maps.newConcurrentMap();
-	private final Map<Meter, DMeter> meters = Maps.newConcurrentMap();
+	private final Map<Gauge, DGauge> gauges = new ConcurrentHashMap<>();
+	private final Map<Counter, DCounter> counters = new ConcurrentHashMap<>();
+	private final Map<Meter, DMeter> meters = new ConcurrentHashMap<>();
 
 	private DatadogHttpClient client;
 	private List<String> configTags;
@@ -65,7 +65,7 @@ public class DatadogHttpReporter implements MetricReporter, CharacterFilter, Sch
 	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
 		final String name = group.getMetricIdentifier(metricName, this);
 
-		List<String> tags = Lists.newArrayList(configTags);
+		List<String> tags = new ArrayList<>(configTags);
 		tags.addAll(getTagsFromMetricGroup(group));
 
 		synchronized (this) {
@@ -159,9 +159,9 @@ public class DatadogHttpReporter implements MetricReporter, CharacterFilter, Sch
 	 * */
 	private List<String> getTagsFromConfig(String str) {
 		if(str != null) {
-			return Lists.newArrayList(str.split(","));
+			return Arrays.asList(str.split(","));
 		} else {
-			return Lists.newArrayList();
+			return new ArrayList();
 		}
 	}
 
@@ -169,10 +169,10 @@ public class DatadogHttpReporter implements MetricReporter, CharacterFilter, Sch
 	 * Get tags from MetricGroup#getAllVariables()
 	 * */
 	private List<String> getTagsFromMetricGroup(MetricGroup metricGroup) {
-		List<String> tags = Lists.newArrayList();
+		List<String> tags = new ArrayList<>();
 
 		for(Map.Entry<String, String> entry: metricGroup.getAllVariables().entrySet()) {
-			tags.add(Joiner.on(":").join(getVariableName(entry.getKey()), entry.getValue()));
+			tags.add(getVariableName(entry.getKey()) + ":" + entry.getValue());
 		}
 
 		return tags;
