@@ -40,18 +40,14 @@ class WindowAggregateTest extends TableTestBase {
 
     val expected =
       unaryNode(
-        "DataSetCalc",
+        "DataSetWindowAggregate",
         unaryNode(
-          "DataSetWindowAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(0),
-            term("select", "ts, a, b")
-          ),
-          term("window", EventTimeTumblingGroupWindow(Some('w$), 'ts, 7200000.millis)),
-          term("select", "SUM(a) AS sumA, COUNT(b) AS cntB")
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "ts, a, b")
         ),
-        term("select", "sumA, cntB")
+        term("window", EventTimeTumblingGroupWindow(Some('w$), 'ts, 7200000.millis)),
+        term("select", "SUM(a) AS sumA, COUNT(b) AS cntB")
       )
 
     util.verifySql(sqlQuery, expected)
@@ -101,19 +97,15 @@ class WindowAggregateTest extends TableTestBase {
 
     val expected =
       unaryNode(
-        "DataSetCalc",
+        "DataSetWindowAggregate",
         unaryNode(
-          "DataSetWindowAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(0),
-            term("select", "ts, a, b")
-          ),
-          term("window",
-            EventTimeSlidingGroupWindow(Some('w$), 'ts, 5400000.millis, 900000.millis)),
-          term("select", "SUM(a) AS sumA, COUNT(b) AS cntB")
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "ts, a, b")
         ),
-        term("select", "sumA, cntB")
+        term("window",
+          EventTimeSlidingGroupWindow(Some('w$), 'ts, 5400000.millis, 900000.millis)),
+        term("select", "SUM(a) AS sumA, COUNT(b) AS cntB")
       )
 
     util.verifySql(sqlQuery, expected)
@@ -162,18 +154,14 @@ class WindowAggregateTest extends TableTestBase {
 
     val expected =
       unaryNode(
-        "DataSetCalc",
+        "DataSetWindowAggregate",
         unaryNode(
-          "DataSetWindowAggregate",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(0),
-            term("select", "ts")
-          ),
-          term("window", EventTimeSessionGroupWindow(Some('w$), 'ts, 1800000.millis)),
-          term("select", "COUNT(*) AS cnt")
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "ts")
         ),
-        term("select", "cnt")
+        term("window", EventTimeSessionGroupWindow(Some('w$), 'ts, 1800000.millis)),
+        term("select", "COUNT(*) AS cnt")
       )
 
     util.verifySql(sqlQuery, expected)
