@@ -18,10 +18,9 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
-import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.blob.BlobService;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,12 +36,6 @@ public class FallbackLibraryCacheManager implements LibraryCacheManager {
 	@Override
 	public ClassLoader getClassLoader(JobID id) {
 		return getClass().getClassLoader();
-	}
-
-	@Override
-	public BlobService getBlobService() {
-		LOG.warn("FallbackLibraryCacheManager does not have a backing blob storage.");
-		return null;
 	}
 
 	@Override

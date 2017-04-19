@@ -206,11 +206,6 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		}
 	}
 
-	@Override
-	public BlobService getBlobService() {
-		return blobService;
-	}
-
 	/**
 	 * Returns a file handle to the file identified by the blob key.
 	 * <p>
