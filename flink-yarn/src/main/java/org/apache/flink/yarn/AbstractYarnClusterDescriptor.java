@@ -24,8 +24,10 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -113,9 +115,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 */
 	private int slots = -1;
 
-	private int jobManagerMemoryMb = 1024;
+	private int jobManagerMemoryMb = JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.defaultValue();
 
-	private int taskManagerMemoryMb = 1024;
+	private int taskManagerMemoryMb = TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.defaultValue();
 
 	private int taskManagerCount = 1;
 
@@ -164,6 +166,13 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				throw new RuntimeException("Unable to locate configuration file in " + confFile);
 			}
 			flinkConfigurationPath = new Path(confFile.getAbsolutePath());
+
+			if (flinkConfiguration.containsKey(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key())) {
+				jobManagerMemoryMb = flinkConfiguration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
+			}
+			if (flinkConfiguration.containsKey(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.key())) {
+				taskManagerMemoryMb = flinkConfiguration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
+			}
 
 			slots = flinkConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
 		} catch (Exception e) {

@@ -113,7 +113,7 @@ public final class ConfigConstants {
 	public static final String EXECUTION_RETRY_DELAY_KEY = "execution-retries.delay";
 	
 	// -------------------------------- Runtime -------------------------------
-	
+
 	/**
 	 * The config parameter defining the network address to connect to
 	 * for communication with the job manager.
