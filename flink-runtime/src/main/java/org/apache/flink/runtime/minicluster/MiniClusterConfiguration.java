@@ -215,7 +215,7 @@ public class MiniClusterConfiguration {
 				long memoryPerComponent = freeMemory / (numTaskManagers + numResourceManagers + numJobManagers);
 
 				// subtract the network buffer memory
-				long networkBuffersMemory = TaskManagerServices.calculateNetworkBuf(memoryPerComponent, config);
+				long networkBuffersMemory = TaskManagerServices.calculateNetworkBufferMemory(memoryPerComponent, config);
 				long memoryMinusNetworkBuffers = memoryPerComponent - networkBuffersMemory;
 
 				// calculate the managed memory size

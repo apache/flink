@@ -18,17 +18,20 @@
 ################################################################################
 
 # Wrapper script to compare the TM heap size calculation of config.sh with Java
-USAGE="Usage: calculateTaskManagerNetworkBuf.sh <memTotal> <netBufFrac> <netBufMin> <netBufMax>"
+USAGE="Usage: calcTMHeapSizeMB.sh <memTotal> <offHeap> <netBufFrac> <netBufMin> <netBufMax> <managedMemMB> <managedMemFrac>"
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
 FLINK_TM_HEAP=$1
-FLINK_TM_NET_BUF_FRACTION=$2
-FLINK_TM_NET_BUF_MIN=$3
-FLINK_TM_NET_BUF_MAX=$4
+FLINK_TM_OFFHEAP=$2
+FLINK_TM_NET_BUF_FRACTION=$3
+FLINK_TM_NET_BUF_MIN=$4
+FLINK_TM_NET_BUF_MAX=$5
+FLINK_TM_MEM_MANAGED_SIZE=$6
+FLINK_TM_MEM_MANAGED_FRACTION=$7
 
-if [[ -z "${FLINK_TM_NET_BUF_MAX}" ]]; then
+if [[ -z "${FLINK_TM_MEM_MANAGED_FRACTION}" ]]; then
   echo "$USAGE"
   exit 1
 fi
@@ -36,4 +39,4 @@ fi
 FLINK_CONF_DIR=${bin}/../../main/resources
 . ${bin}/../../main/flink-bin/bin/config.sh
 
-calculateNetworkBuf
+calculateTaskManagerHeapSizeMB

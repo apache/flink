@@ -430,8 +430,8 @@ useOffHeapMemory() {
 }
 
 HAVE_AWK=
-# same as org.apache.flink.runtime.taskexecutor.TaskManagerServices.calculateNetworkBuf(long totalJavaMemorySize, Configuration config)
-calculateNetworkBuf() {
+# same as org.apache.flink.runtime.taskexecutor.TaskManagerServices.calculateNetworkBufferMemory(long totalJavaMemorySize, Configuration config)
+calculateNetworkBufferMemory() {
     local network_buffers_bytes
     if [ "${FLINK_TM_HEAP}" -le "0" ]; then
         echo "Variable 'FLINK_TM_HEAP' not set (usually read from '${KEY_TASKM_MEM_SIZE}' in ${FLINK_CONF_FILE})."
@@ -492,7 +492,7 @@ calculateTaskManagerHeapSizeMB() {
 
     if useOffHeapMemory; then
 
-        local network_buffers_mb=$(($(calculateNetworkBuf) >> 20)) # bytes to megabytes
+        local network_buffers_mb=$(($(calculateNetworkBufferMemory) >> 20)) # bytes to megabytes
         tm_heap_size_mb=$((tm_heap_size_mb - network_buffers_mb))
 
         if [[ "${FLINK_TM_MEM_MANAGED_SIZE}" -gt "0" ]]; then

@@ -257,7 +257,7 @@ public class TaskManagerServices {
 			}
 			memorySize = configuredMemory << 20; // megabytes to bytes
 		} else {
-			// similar to #calculateNetworkBuf(TaskManagerServicesConfiguration tmConfig)
+			// similar to #calculateNetworkBufferMemory(TaskManagerServicesConfiguration tmConfig)
 			float memoryFraction = taskManagerServicesConfiguration.getMemoryFraction();
 
 			if (memType == MemoryType.HEAP) {
@@ -327,7 +327,7 @@ public class TaskManagerServices {
 
 		NetworkEnvironmentConfiguration networkEnvironmentConfiguration = taskManagerServicesConfiguration.getNetworkConfig();
 
-		final long networkBuf = calculateNetworkBuf(taskManagerServicesConfiguration);
+		final long networkBuf = calculateNetworkBufferMemory(taskManagerServicesConfiguration);
 		int segmentSize = networkEnvironmentConfiguration.networkBufferSize();
 
 		// tolerate offcuts between intended and allocated memory due to segmentation (will be available to the user-space memory)
@@ -411,8 +411,8 @@ public class TaskManagerServices {
 	 * @return memory to use for network buffers (in bytes)
 	 */
 	@SuppressWarnings("deprecation")
-	public static long calculateNetworkBuf(long totalJavaMemorySize, Configuration config) {
-		assert totalJavaMemorySize > 0;
+	public static long calculateNetworkBufferMemory(long totalJavaMemorySize, Configuration config) {
+		Preconditions.checkArgument(totalJavaMemorySize > 0);
 
 		int segmentSize = config.getInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE);
 
@@ -475,7 +475,7 @@ public class TaskManagerServices {
 	 *
 	 * @return memory to use for network buffers (in bytes)
 	 */
-	public static long calculateNetworkBuf(TaskManagerServicesConfiguration tmConfig) {
+	public static long calculateNetworkBufferMemory(TaskManagerServicesConfiguration tmConfig) {
 		final NetworkEnvironmentConfiguration networkConfig = tmConfig.getNetworkConfig();
 
 		final float networkBufFraction = networkConfig.networkBufFraction();
@@ -564,7 +564,7 @@ public class TaskManagerServices {
 	 * @return heap memory to use (in megabytes)
 	 */
 	public static long calculateHeapSizeMB(long totalJavaMemorySizeMB, Configuration config) {
-		assert totalJavaMemorySizeMB > 0;
+		Preconditions.checkArgument(totalJavaMemorySizeMB > 0);
 
 		final long totalJavaMemorySize = totalJavaMemorySizeMB << 20; // megabytes to bytes
 
@@ -576,7 +576,7 @@ public class TaskManagerServices {
 		if (useOffHeap) {
 
 			// subtract the Java memory used for network buffers
-			final long networkBufMB = calculateNetworkBuf(totalJavaMemorySize, config) >> 20; // bytes to megabytes
+			final long networkBufMB = calculateNetworkBufferMemory(totalJavaMemorySize, config) >> 20; // bytes to megabytes
 			final long remainingJavaMemorySizeMB = totalJavaMemorySizeMB - networkBufMB;
 
 			long offHeapSize = config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE);

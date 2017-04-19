@@ -62,12 +62,12 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 
 	@Before
 	public void checkOperatingSystem() {
-		Assume.assumeTrue("This test checks shell scripts not available on Windows.",
+		Assume.assumeTrue("This test checks shell scripts which are not available on Windows.",
 			!OperatingSystem.isWindows());
 	}
 
 	/**
-	 * Tests that {@link TaskManagerServices#calculateNetworkBuf(long, Configuration)} has the same
+	 * Tests that {@link TaskManagerServices#calculateNetworkBufferMemory(long, Configuration)} has the same
 	 * result as the shell script.
 	 */
 	@Test
@@ -177,10 +177,10 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 
 		float frac = Math.max(ran.nextFloat(), Float.MIN_VALUE);
 
-//		long min = Math.max(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue(), ran.nextLong());
+		// note: we are testing with integers only here to avoid overly complicated checks for
+		// overflowing or negative Long values - this should be enough for any practical scenario
+		// though
 		long min = TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue() + ran.nextInt(Integer.MAX_VALUE);
-
-//		long max = Math.max(min, ran.nextLong());
 		long max = ran.nextInt(Integer.MAX_VALUE) + min;
 
 		int javaMemMB = Math.max((int) (max >> 20), ran.nextInt(Integer.MAX_VALUE)) + 1;
@@ -194,7 +194,7 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 			Configuration config = getConfig(javaMemMB, useOffHeap, frac, min, max, managedMemSize, managedMemFrac);
 			long totalJavaMemorySize = ((long) javaMemMB) << 20; // megabytes to bytes
 			final int networkBufMB =
-				(int) (TaskManagerServices.calculateNetworkBuf(totalJavaMemorySize, config) >> 20);
+				(int) (TaskManagerServices.calculateNetworkBufferMemory(totalJavaMemorySize, config) >> 20);
 			// max (exclusive): total - netbuf
 			managedMemSize = Math.min(javaMemMB - networkBufMB - 1, ran.nextInt(Integer.MAX_VALUE));
 		} else {
@@ -220,9 +220,9 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 
 		final long totalJavaMemorySizeMB = config.getLong(KEY_TASKM_MEM_SIZE, 0L);
 
-		long javaNetworkBufMem = TaskManagerServices.calculateNetworkBuf(totalJavaMemorySizeMB << 20, config);
+		long javaNetworkBufMem = TaskManagerServices.calculateNetworkBufferMemory(totalJavaMemorySizeMB << 20, config);
 
-		String[] command = {"src/test/bin/calculateTaskManagerNetworkBuf.sh",
+		String[] command = {"src/test/bin/calcTMNetBufMem.sh",
 			String.valueOf(totalJavaMemorySizeMB),
 			String.valueOf(config.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION)),
 			String.valueOf(config.getLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN)),
@@ -259,7 +259,7 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 
 		long javaHeapSizeMB = TaskManagerServices.calculateHeapSizeMB(totalJavaMemorySizeMB, config);
 
-		String[] command = {"src/test/bin/calculateTaskManagerHeapSizeMB.sh",
+		String[] command = {"src/test/bin/calcTMHeapSizeMB.sh",
 			String.valueOf(totalJavaMemorySizeMB),
 			String.valueOf(config.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP)),
 			String.valueOf(config.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION)),
