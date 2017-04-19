@@ -1791,7 +1791,7 @@ class JobManager(
       libraryCacheManager.unregisterJob(jobID)
     } catch {
       case t: Throwable =>
-        log.error(s"Could not properly unregister job $jobID form the library cache.", t)
+        log.error(s"Could not properly unregister job $jobID from the library cache.", t)
     }
     jobManagerMetricGroup.foreach(_.removeJob(jobID))
 
