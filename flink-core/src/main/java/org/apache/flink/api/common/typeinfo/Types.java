@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils;
+package org.apache.flink.api.common.typeinfo;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -28,9 +27,9 @@ import java.sql.Time;
 import java.sql.Timestamp;
 
 /**
- * This class enumerates all supported types of
- * the BasicTypeInfo, SqlTimeTypeInfo and RowTypeInfo for creation simplifying
+ * This class gives access to the type information of the most most common types.
  */
+@PublicEvolving
 public class Types {
 
 	public static final BasicTypeInfo<String> STRING = BasicTypeInfo.STRING_TYPE_INFO;
@@ -48,25 +47,28 @@ public class Types {
 	public static final SqlTimeTypeInfo<Timestamp> SQL_TIMESTAMP = SqlTimeTypeInfo.TIMESTAMP;
 
 	/**
-	 * Generates RowTypeInfo with default names (f1, f2 ..).
-	 * same as new RowTypeInfo(types)
+	 * Generates a RowTypeInfo with fields of the given types.
+	 * The fields have the default names (f1, f2 ..).
+	 * 
+	 * <p>This method is a shortcut to {@code new RowTypeInfo(types)}.
 	 *
-	 * @param types of Row fields. e.g. ROW(Types.STRING, Types.INT)
+	 * @param types The types of the row fields, e.g., Types.STRING, Types.INT
 	 */
 	public static RowTypeInfo ROW(TypeInformation<?>... types) {
 		return new RowTypeInfo(types);
 	}
 
 	/**
-	 * Generates RowTypeInfo.
-	 * same as new RowTypeInfo(types, names)
-	 *
-	 * e.g. ROW(new String[]{"name", "number"}, Types.STRING, Types.INT)
+	 * Generates a RowTypeInfo with fields of the given types and with given names.
+	 * 
+	 * <p>Example use: {@code ROW_NAMED(new String[]{"name", "number"}, Types.STRING, Types.INT)}.
+	 * 
+	 * <p>This method is identical to {@code new RowTypeInfo(types, names)}.
 	 *
 	 * @param fieldNames array of field names
 	 * @param types array of field types
 	 */
-	public static RowTypeInfo ROW(String[] fieldNames, TypeInformation<?>... types) {
+	public static RowTypeInfo ROW_NAMED(String[] fieldNames, TypeInformation<?>... types) {
 		return new RowTypeInfo(types, fieldNames);
 	}
 }
