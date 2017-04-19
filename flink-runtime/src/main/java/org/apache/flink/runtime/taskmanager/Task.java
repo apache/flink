@@ -508,7 +508,7 @@ public class Task implements Runnable, TaskActions {
 	}
 
 	/**
-	 * The core work method that bootstraps the task and executes it code
+	 * The core work method that bootstraps the task and executes its code
 	 */
 	@Override
 	public void run() {
