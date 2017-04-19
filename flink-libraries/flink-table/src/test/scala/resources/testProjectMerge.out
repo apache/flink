@@ -1,0 +1,156 @@
+== Abstract Syntax Tree ==
+LogicalProject(id=[$0], first=[$1])
+  LogicalProject(id=[$0], first=[$2], id1=[$3], score=[$4], last=[$5])
+    LogicalJoin(condition=[=($1, $2)], joinType=[left])
+      LogicalProject(id=[$0], id0=[CAST($0):VARCHAR(2147483647) CHARACTER SET "ISO-8859-1" COLLATE "ISO-8859-1$en_US$primary"])
+        LogicalProject(id=[$1])
+          LogicalFilter(condition=[>($1, 10)])
+            LogicalTableScan(table=[[table1]])
+      LogicalProject(first=[$0], id=[$1], score=[$2], last=[$3])
+        LogicalTableScan(table=[[table2]])
+
+== Optimized Logical Plan ==
+DataSetCalc(select=[id, first])
+  DataSetJoin(where=[=(id0, first)], join=[id, id0, first], joinType=[LeftOuterJoin])
+    DataSetCalc(select=[id, CAST(id) AS id0], where=[>(id, 10)])
+      BatchTableSourceScan(table=[[table1]], fields=[id])
+    BatchTableSourceScan(table=[[table2]], fields=[first])
+
+== Physical Execution Plan ==
+Stage 4 : Data Source
+	content : collect elements with CollectionInputFormat
+	Partitioning : RANDOM_PARTITIONED
+	Partitioning Order : (none)
+	Uniqueness : not unique
+	Order : (none)
+	Grouping : not grouped
+	Uniqueness : not unique
+	Est. Output Size : 190.00
+	Est. Cardinality : 10.00
+	Network : 0.0
+	Disk I/O : 190.00
+	CPU : 0.0
+	Cumulative Network : 0.0
+	Cumulative Disk I/O : 190.00
+	Cumulative CPU : 0.0
+	Output Size (bytes) : (none)
+	Output Cardinality : (none)
+	Avg. Output Record Size (bytes) : (none)
+	Filter Factor : (none)
+
+	Stage 3 : FlatMap
+		content : where: (>(id, 10)), select: (id, CAST(id) AS id0)
+		ship_strategy : Forward
+		exchange_mode : PIPELINED
+		driver_strategy : FlatMap
+		Partitioning : RANDOM_PARTITIONED
+		Partitioning Order : (none)
+		Uniqueness : not unique
+		Order : (none)
+		Grouping : not grouped
+		Uniqueness : not unique
+		Est. Output Size : (unknown)
+		Est. Cardinality : 50.00
+		Network : 0.0
+		Disk I/O : 0.0
+		CPU : 0.0
+		Cumulative Network : 0.0
+		Cumulative Disk I/O : 190.00
+		Cumulative CPU : 0.0
+		Output Size (bytes) : (none)
+		Output Cardinality : (none)
+		Avg. Output Record Size (bytes) : (none)
+		Filter Factor : (none)
+
+Stage 5 : Data Source
+	content : collect elements with CollectionInputFormat
+	Partitioning : RANDOM_PARTITIONED
+	Partitioning Order : (none)
+	Uniqueness : not unique
+	Order : (none)
+	Grouping : not grouped
+	Uniqueness : not unique
+	Est. Output Size : 190.00
+	Est. Cardinality : 10.00
+	Network : 0.0
+	Disk I/O : 190.00
+	CPU : 0.0
+	Cumulative Network : 0.0
+	Cumulative Disk I/O : 190.00
+	Cumulative CPU : 0.0
+	Output Size (bytes) : (none)
+	Output Cardinality : (none)
+	Avg. Output Record Size (bytes) : (none)
+	Filter Factor : (none)
+
+	Stage 2 : Outer Join
+		content : where: (=(id0, first)), join: (id, id0, first)
+		ship_strategy : Hash Partition on [1]
+		exchange_mode : PIPELINED
+		driver_strategy : LEFT_HYBRIDHASH_BUILD_SECOND
+		Partitioning : RANDOM_PARTITIONED
+		Partitioning Order : (none)
+		Uniqueness : not unique
+		Order : (none)
+		Grouping : not grouped
+		Uniqueness : not unique
+		Est. Output Size : (unknown)
+		Est. Cardinality : 50.00
+		Network : (unknown)
+		Disk I/O : (unknown)
+		CPU : (unknown)
+		Cumulative Network : (unknown)
+		Cumulative Disk I/O : (unknown)
+		Cumulative CPU : (unknown)
+		Output Size (bytes) : (none)
+		Output Cardinality : (none)
+		Avg. Output Record Size (bytes) : (none)
+		Filter Factor : (none)
+
+		Stage 1 : FlatMap
+			content : select: (id, first)
+			ship_strategy : Forward
+			exchange_mode : PIPELINED
+			driver_strategy : FlatMap
+			Partitioning : RANDOM_PARTITIONED
+			Partitioning Order : (none)
+			Uniqueness : not unique
+			Order : (none)
+			Grouping : not grouped
+			Uniqueness : not unique
+			Est. Output Size : (unknown)
+			Est. Cardinality : 250.00
+			Network : 0.0
+			Disk I/O : 0.0
+			CPU : 0.0
+			Cumulative Network : (unknown)
+			Cumulative Disk I/O : (unknown)
+			Cumulative CPU : (unknown)
+			Output Size (bytes) : (none)
+			Output Cardinality : (none)
+			Avg. Output Record Size (bytes) : (none)
+			Filter Factor : (none)
+
+			Stage 0 : Data Sink
+				content : org.apache.flink.api.java.io.DiscardingOutputFormat
+				ship_strategy : Forward
+				exchange_mode : PIPELINED
+				Partitioning : RANDOM_PARTITIONED
+				Partitioning Order : (none)
+				Uniqueness : not unique
+				Order : (none)
+				Grouping : not grouped
+				Uniqueness : not unique
+				Est. Output Size : (unknown)
+				Est. Cardinality : 250.00
+				Network : 0.0
+				Disk I/O : 0.0
+				CPU : 0.0
+				Cumulative Network : (unknown)
+				Cumulative Disk I/O : (unknown)
+				Cumulative CPU : (unknown)
+				Output Size (bytes) : (none)
+				Output Cardinality : (none)
+				Avg. Output Record Size (bytes) : (none)
+				Filter Factor : (none)
+

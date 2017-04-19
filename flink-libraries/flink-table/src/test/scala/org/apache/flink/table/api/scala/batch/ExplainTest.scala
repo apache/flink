@@ -21,6 +21,7 @@ package org.apache.flink.table.api.scala.batch
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.utils.CommonTestData
 import org.apache.flink.test.util.MultipleProgramsTestBase
 import org.junit.Assert.assertEquals
 import org.junit._
@@ -117,6 +118,27 @@ class ExplainTest
     val result = tEnv.explain(table, true).replaceAll("\\r\\n", "\n")
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testUnion1.out").mkString.replaceAll("\\r\\n", "\n")
+    assertEquals(result, source)
+  }
+
+  @Test
+  def testProjectMerge(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    tEnv.registerTableSource("table1", CommonTestData.getCsvTableSource)
+    tEnv.registerTableSource("table2", CommonTestData.getCsvTableSource)
+
+    val sqlQuery = "SELECT a.id, b.first FROM " +
+      "(SELECT id FROM table1 WHERE id > 10) a " +
+      "LEFT OUTER JOIN " +
+      "(SELECT * FROM table2) b " +
+      "ON CAST(a.id AS VARCHAR) = b.first"
+
+    val result = tEnv.explain(tEnv.sql(sqlQuery), extended = true).replaceAll("\\r\\n", "\n")
+    val source = scala.io.Source.fromFile(testFilePath +
+      "../../src/test/scala/resources/testProjectMerge.out").mkString.replaceAll("\\r\\n", "\n")
     assertEquals(result, source)
   }
 }
