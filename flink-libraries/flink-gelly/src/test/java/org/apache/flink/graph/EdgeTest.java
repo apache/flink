@@ -18,48 +18,25 @@
 
 package org.apache.flink.graph;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.NullValue;
+import org.junit.Test;
 
-/**
- * Represents the graph's nodes. It carries an ID and a value.
- * For vertices with no value, use {@link org.apache.flink.types.NullValue} as the value type.
- *
- * @param <K> type of vertex id
- * @param <V> type of vertex value
- */
-public class Vertex<K, V> extends Tuple2<K, V> {
+import static org.junit.Assert.assertEquals;
 
-	private static final long serialVersionUID = 1L;
-
-	public static <K> Vertex<K, NullValue> create(K id) {
-		return new Vertex<>(id, NullValue.getInstance());
+public class EdgeTest {
+	@Test
+	public void testCreateEdgeWithNoValue() {
+		Edge<Integer, NullValue> edge = Edge.create(1, 2);
+		assertEquals(1, (long) edge.getSource());
+		assertEquals(2, (long) edge.getTarget());
+		assertEquals(NullValue.getInstance(), edge.getValue());
 	}
 
-	public static <K, V> Vertex<K, V> create(K id, V value) {
-		return new Vertex<>(id, value);
-	}
-
-	public Vertex(){}
-
-	public Vertex(K id, V value) {
-		this.f0 = id;
-		this.f1 = value;
-	}
-
-	public K getId() {
-		return this.f0;
-	}
-
-	public V getValue() {
-		return this.f1;
-	}
-
-	public void setId(K id) {
-		this.f0 = id;
-	}
-
-	public void setValue(V value) {
-		this.f1 = value;
+	@Test
+	public void testCreateEdgeWithValue() {
+		Edge<Integer, Integer> edge = Edge.create(1, 2, 3);
+		assertEquals(1, (long) edge.getSource());
+		assertEquals(2, (long) edge.getTarget());
+		assertEquals(3, (long) edge.getValue());
 	}
 }

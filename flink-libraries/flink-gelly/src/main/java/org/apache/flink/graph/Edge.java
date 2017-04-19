@@ -19,6 +19,7 @@
 package org.apache.flink.graph;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.types.NullValue;
 
 /**
  * An Edge represents a link between two {@link Vertex vertices},
@@ -31,6 +32,15 @@ import org.apache.flink.api.java.tuple.Tuple3;
 public class Edge<K, V> extends Tuple3<K, K, V> {
 
 	private static final long serialVersionUID = 1L;
+
+
+	public static <K> Edge<K, NullValue> create(K source, K target) {
+		return new Edge<>(source, target, NullValue.getInstance());
+	}
+
+	public static <K, V> Edge<K, V> create(K source, K target, V value) {
+		return new Edge<>(source, target, value);
+	}
 
 	public Edge(){}
 
