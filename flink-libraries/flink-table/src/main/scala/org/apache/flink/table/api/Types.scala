@@ -17,9 +17,9 @@
  */
 package org.apache.flink.table.api
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{Types, TypeInformation}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
-import org.apache.flink.api.java.typeutils.{Types => JTypes}
+import org.apache.flink.api.common.typeinfo.{Types => JTypes}
 
 /**
   * This class enumerates all supported types of the Table API.
@@ -62,6 +62,6 @@ object Types extends JTypes {
   def ROW_NAMED(fields: (String, TypeInformation[_])*) = {
     val names = fields.toList.map(_._1).toArray
     val types = fields.toList.map(_._2)
-    JTypes.ROW(names, types: _*)
+    JTypes.ROW_NAMED(names, types: _*)
   }
 }
