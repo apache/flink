@@ -20,7 +20,7 @@
 /**
  * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
  * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
- * additional information regarding copyright ownership. 
+ * additional information regarding copyright ownership.
  */
 
 package org.apache.flink.core.fs.local;
@@ -43,7 +43,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -194,7 +193,7 @@ public class LocalFileSystem extends FileSystem {
 
 	/**
 	 * Deletes the given file or directory.
-	 * 
+	 *
 	 * @param f
 	 *        the file to be deleted
 	 * @return <code>true</code> if all files were deleted successfully, <code>false</code> otherwise
@@ -221,7 +220,7 @@ public class LocalFileSystem extends FileSystem {
 
 	/**
 	 * Recursively creates the directory specified by the provided path.
-	 * 
+	 *
 	 * @return <code>true</code>if the directories either already existed or have been created successfully,
 	 *         <code>false</code> otherwise
 	 * @throws IOException
@@ -274,30 +273,11 @@ public class LocalFileSystem extends FileSystem {
 		try {
 			Files.move(srcFile.toPath(), dstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 			return true;
-		} catch (UnsupportedOperationException ex) {
-			// if the array contains a copy option that is not supported
-			LOG.error("UnsupportedOperationException while renaming " + src + " to " + dst, ex);
-		} 
-		catch (FileAlreadyExistsException ex) {
-			//if the target file exists but can't be replaced because REPLACE_EXISTING option isn't specified
-			LOG.error("FileAlreadyExistsException while renaming " + src + " to " + dst, ex);
-		} 
-		catch (DirectoryNotEmptyException ex) {
-			//if the REPLACE_EXISTING option is specified but the file cannot be replaced because it is a non-empty directory
-			LOG.error("DirectoryNotEmptyException while renaming " + src + " to " + dst, ex);
-		} 
-		catch (AtomicMoveNotSupportedException ex) {
-			//if the options array contains the ATOMIC_MOVE option but the file cannot be moved as an atomic file system operation
-			LOG.error("AtomicMoveNotSupportedException while renaming " + src + " to " + dst, ex);
-		} 
-		catch (SecurityException ex) {
-			//If security manager is installed and SecurityManager#checkWrite fails on write access to both source and target files
-			LOG.error("SecurityException while renaming " + src + " to " + dst, ex);
-		} catch (IOException ex) {
-			//if any other I/O error occurs
-			throw ex;
 		}
-		return false;
+		catch (FileAlreadyExistsException | DirectoryNotEmptyException | SecurityException ex) {
+			//Catch the errors that are regular "move failed" exceptions and return false
+			return false;
+		}
 	}
 
 	@Override
