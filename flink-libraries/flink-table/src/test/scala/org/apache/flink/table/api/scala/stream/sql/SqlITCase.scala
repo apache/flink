@@ -1310,7 +1310,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a,  " +
-      "  COUNT(DIST(a)) "+
+      "  COUNT(DIST(a)) " +
       "     OVER (ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS countA ," +
       "  SUM(DIST(e)) " +
       "     OVER (ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS sumE " +
@@ -1351,11 +1351,11 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("MyTable", t)
     
     val sqlQuery = "SELECT a,  " +
-      " MIN(DIST(b)) "+
-      "   OVER (PARTITION BY a ORDER BY procTime() "+
+      " MIN(DIST(b)) " +
+      "   OVER (PARTITION BY a ORDER BY procTime() " +
       "         ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS minB ," +
       " SUM(DIST(e)) " +
-      "  OVER (PARTITION BY a ORDER BY procTime() "+ 
+      "  OVER (PARTITION BY a ORDER BY procTime() " + 
       "         ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS sumE " +
       " FROM MyTable"
     

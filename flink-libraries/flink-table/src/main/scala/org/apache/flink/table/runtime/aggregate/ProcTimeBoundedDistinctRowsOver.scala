@@ -90,7 +90,7 @@ class ProcTimeBoundedDistinctRowsOver(
     for(i <- 0 until aggregates.size){
       if(distinctAggsFlag(i)){
         val distinctValDescriptor =  new MapStateDescriptor[Any, Long](
-                                             "distinctValuesBufferMapState"+i,
+                                             "distinctValuesBufferMapState" + i,
                                               classOf[Any],
                                               classOf[Long])
         distinctValueStateList(i)=getRuntimeContext.getMapState(distinctValDescriptor)
