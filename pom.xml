@@ -1251,7 +1251,7 @@ under the License.
 				<plugin>
 					<groupId>org.scalastyle</groupId>
 					<artifactId>scalastyle-maven-plugin</artifactId>
-					<version>0.8.0</version>
+					<version>0.5.0</version>
 					<executions>
 						<execution>
 							<goals>
