@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Abstract metric of Datadog
+ * Abstract metric of Datadog for serialization
  * */
 public abstract class DMetric {
 	private final String metric; // Metric name
