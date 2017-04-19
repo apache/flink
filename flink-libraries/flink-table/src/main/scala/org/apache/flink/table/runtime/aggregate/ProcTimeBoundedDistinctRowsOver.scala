@@ -34,6 +34,7 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo
 import java.util.{List => JList}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.state.ListState
 
 class ProcTimeBoundedDistinctRowsOver(
   private val aggregates: Array[AggregateFunction[_]],
@@ -57,7 +58,7 @@ class ProcTimeBoundedDistinctRowsOver(
   private var output: Row = _
   private var counterState: ValueState[Long] = _
   private var smallestTsState: ValueState[Long] = _
-  private var distinctValueState: MapState[Any, Row] = _
+  private var distinctValueStateList: Array[MapState[Any, Long]] = _
 
   override def open(config: Configuration) {
 
@@ -85,10 +86,16 @@ class ProcTimeBoundedDistinctRowsOver(
     val smallestTimestampDescriptor : ValueStateDescriptor[Long] =
        new ValueStateDescriptor[Long]("smallestTSState", classOf[Long])
     smallestTsState = getRuntimeContext.getState(smallestTimestampDescriptor)
-    
-    val distinctValDescriptor : MapStateDescriptor[Any, Row] =
-      new MapStateDescriptor[Any, Row]("distinctValuesBufferMapState", classOf[Any], classOf[Row])
-    distinctValueState = getRuntimeContext.getMapState(distinctValDescriptor)
+    distinctValueStateList = new Array(aggregates.size)
+    for(i <- 0 until aggregates.size){
+      if(distinctAggsFlag(i)){
+        val distinctValDescriptor =  new MapStateDescriptor[Any, Long](
+                                             "distinctValuesBufferMapState"+i,
+                                              classOf[Any],
+                                              classOf[Long])
+        distinctValueStateList(i)=getRuntimeContext.getMapState(distinctValDescriptor)
+      }
+    }
   }
 
   override def processElement(
@@ -131,28 +138,22 @@ class ProcTimeBoundedDistinctRowsOver(
         val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
         retractVal = retractList.get(0).getField(aggFields(i)(0))
         if(distinctAggsFlag(i)){
-          distinctCounter += 1
-          val counterRow = distinctValueState.get(retractVal)
-          var distinctValCounter: Long = counterRow.getField(i).asInstanceOf[Long]
+          var distinctValCounter: Long = distinctValueStateList(i).get(retractVal)
           // if the value to be retract is the last one added
           // the remove it and retract the value
           if(distinctValCounter == 1L){
             aggregates(i).retract(accumulator, retractVal)
-            removeCounter += 1
+            distinctValueStateList(i).remove(retractVal)
           } // if the are other values in the buffer 
             // decrease the counter and continue
           else {
             distinctValCounter -= 1
-            counterRow.setField(i, distinctValCounter)
-            distinctValueState.put(retractVal,counterRow)
+            distinctValueStateList(i).put(retractVal,distinctValCounter)
           }
         }else {
           aggregates(i).retract(accumulator, retractVal)
         }
         i += 1
-      }
-      if(removeCounter == distinctCounter){
-         distinctValueState.remove(retractVal)
       }
       retractList.remove(0)
       // if reference timestamp list not empty, keep the list
@@ -193,24 +194,15 @@ class ProcTimeBoundedDistinctRowsOver(
       val inputValue = input.getField(aggFields(i)(0))
       // check if distinct aggregation
       if(distinctAggsFlag(i)){
-        var counterRow = distinctValueState.get(inputValue)
         // if first time we see value, set counter and aggregate
-        if(counterRow == null){
-          counterRow = new Row(aggregates.length)
-          counterRow.setField(i, 1L)
-          aggregates(i).accumulate(accumulator, inputValue)
-        }// otherwise, just increment counter
-        else {
-          var distinctValCounter: Long = counterRow.getField(i).asInstanceOf[Long]
+          var distinctValCounter: Long = distinctValueStateList(i).get(inputValue)
           // if counter is 0L first time we aggregate
           // for a seen value but never accumulated
           if(distinctValCounter == 0L){
             aggregates(i).accumulate(accumulator, inputValue)
           }
           distinctValCounter += 1
-          counterRow.setField(i, distinctValCounter)
-        }
-        distinctValueState.put(inputValue, counterRow)
+          distinctValueStateList(i).put(inputValue, distinctValCounter)
       } // otherwise normal aggregation
       else { 
         aggregates(i).accumulate(accumulator, inputValue)

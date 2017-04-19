@@ -1297,7 +1297,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
   
-   @Test
+  @Test
   def testNonPartitionedProcTimeOverDistinctWindow3(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -1310,7 +1310,8 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery = "SELECT a,  " +
-      "  COUNT(e) OVER (ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS maxE ," +
+      "  COUNT(DIST(a)) "+
+      "     OVER (ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS countA ," +
       "  SUM(DIST(e)) " +
       "     OVER (ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS sumE " +
       " FROM MyTable"
@@ -1321,19 +1322,63 @@ class SqlITCase extends StreamingWithStateTestBase {
     val expected = mutable.MutableList(
       "1,1,1",
       "2,2,3",
-      "2,3,3",
-      "3,3,3",
-      "3,3,3",
-      "3,3,5",
-      "4,3,5",
-      "4,3,6",
-      "4,3,3",
-      "4,3,3",
-      "5,3,3",
-      "5,3,6",
-      "5,3,4",
-      "5,3,5",
-      "5,3,5")
+      "2,2,3",
+      "3,2,3",
+      "3,2,3",
+      "3,1,5",
+      "4,2,5",
+      "4,2,6",
+      "4,1,3",
+      "4,1,3",
+      "5,2,3",
+      "5,2,6",
+      "5,1,4",
+      "5,1,5",
+      "5,1,5")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+  
+   @Test
+  def testPartitionedProcTimeOverDistinctWindow3(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+    
+    val sqlQuery = "SELECT a,  " +
+      " MIN(DIST(b)) "+
+      "   OVER (PARTITION BY a ORDER BY procTime() "+
+      "         ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS minB ," +
+      " SUM(DIST(e)) " +
+      "  OVER (PARTITION BY a ORDER BY procTime() "+ 
+      "         ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS sumE " +
+      " FROM MyTable"
+    
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,1,1",
+      "2,2,2",
+      "2,2,3",
+      "3,4,2",
+      "3,4,2",
+      "3,4,5",
+      "4,7,2",
+      "4,7,3",
+      "4,7,3",
+      "4,8,3",
+      "5,11,1",
+      "5,11,4",
+      "5,11,4",
+      "5,12,5",
+      "5,13,5")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }
