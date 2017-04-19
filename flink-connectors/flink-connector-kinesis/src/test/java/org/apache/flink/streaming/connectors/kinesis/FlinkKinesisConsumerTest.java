@@ -848,7 +848,6 @@ public class FlinkKinesisConsumerTest {
 		}
 	}
 
-	@Test
 	/*
 	 * If the original parallelism is 2 and states is:
 	 *   Consumer subtask 1:
@@ -874,6 +873,7 @@ public class FlinkKinesisConsumerTest {
 	 *
 	 *  This test is to guarantee the fetcher will be seeded correctly for such situation.
 	 */
+	@Test
 	@SuppressWarnings("unchecked")
 	public void testFetcherShouldBeCorrectlySeededWithNewDiscoveredKinesisStreamShard() throws Exception {
 		// ----------------------------------------------------------------------
