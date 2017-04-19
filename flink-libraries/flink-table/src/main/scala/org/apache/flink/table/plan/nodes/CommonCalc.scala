@@ -177,7 +177,7 @@ trait CommonCalc {
 
     if (calcProgram.getCondition != null) {
       // we reduce the result card to push filters down
-      (rowCnt * 0.75).min(1.0)
+      (rowCnt * 0.75).max(1.0)
     } else {
       rowCnt
     }
