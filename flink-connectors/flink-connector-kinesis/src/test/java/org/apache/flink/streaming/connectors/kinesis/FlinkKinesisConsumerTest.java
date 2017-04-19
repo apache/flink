@@ -849,7 +849,6 @@ public class FlinkKinesisConsumerTest {
 	}
 
 	@Test
-	@SuppressWarnings("unchecked")
 	/*
 	 * If the original parallelism is 2 and states is:
 	 *   Consumer subtask 1:
@@ -863,7 +862,7 @@ public class FlinkKinesisConsumerTest {
 	 *     stream1, shard2, SequentialNumber(yyy)
 	 *     stream1, shard4, SequentialNumber(zzz)
 	 *  If snapshotState() occur and parallelism is changed to 1:
-	 *    Broadcast state will be:
+	 *    Union state will be:
 	 *     stream1, shard1, SequentialNumber(xxx)
 	 *     stream1, shard2, SequentialNumber(yyy)
 	 *     stream1, shard4, SequentialNumber(zzz)
@@ -875,6 +874,7 @@ public class FlinkKinesisConsumerTest {
 	 *
 	 *  This test is to guarantee the fetcher will be seeded correctly for such situation.
 	 */
+	@SuppressWarnings("unchecked")
 	public void testFetcherShouldBeCorrectlySeededWithNewDiscoveredKinesisStreamShard() throws Exception {
 		// ----------------------------------------------------------------------
 		// setting initial state

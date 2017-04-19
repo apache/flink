@@ -26,7 +26,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -80,39 +79,27 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	//  Consumer properties
 	// ------------------------------------------------------------------------
 
-	/**
-	 * The names of the Kinesis streams that we will be consuming from
-	 */
+	/** The names of the Kinesis streams that we will be consuming from */
 	private final List<String> streams;
 
-	/**
-	 * Properties to parametrize settings such as AWS service region, initial position in stream,
-	 * shard list retrieval behaviours, etc
-	 */
+	/** Properties to parametrize settings such as AWS service region, initial position in stream,
+	 * shard list retrieval behaviours, etc */
 	private final Properties configProps;
 
-	/**
-	 * User supplied deseriliazation schema to convert Kinesis byte messages to Flink objects
-	 */
+	/** User supplied deseriliazation schema to convert Kinesis byte messages to Flink objects */
 	private final KinesisDeserializationSchema<T> deserializer;
 
 	// ------------------------------------------------------------------------
 	//  Runtime state
 	// ------------------------------------------------------------------------
 
-	/**
-	 * Per-task fetcher for Kinesis data records, where each fetcher pulls data from one or more Kinesis shards
-	 */
+	/** Per-task fetcher for Kinesis data records, where each fetcher pulls data from one or more Kinesis shards */
 	private transient KinesisDataFetcher<T> fetcher;
 
-	/**
-	 * The sequence numbers in the last state snapshot of this subtask
-	 */
+	/** The sequence numbers in the last state snapshot of this subtask */
 	private transient HashMap<KinesisStreamShard, SequenceNumber> lastStateSnapshot;
 
-	/**
-	 * The sequence numbers to restore to upon restore from failure
-	 */
+	/** The sequence numbers to restore to upon restore from failure */
 	private transient HashMap<KinesisStreamShard, SequenceNumber> sequenceNumsToRestore;
 
 	private volatile boolean running = true;
@@ -121,7 +108,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	// State for Checkpoint
 	// ------------------------------------------------------------------------
 
-	private transient ListState<Tuple2<KinesisStreamShard, SequenceNumber>> offsetsStateForCheckpoint;
+	private transient ListState<Tuple2<KinesisStreamShard, SequenceNumber>> sequenceNumsStateForCheckpoint;
 
 	// ------------------------------------------------------------------------
 	//  Constructors
@@ -305,7 +292,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 				LOG.debug("Snapshotting state ...");
 			}
 
-			offsetsStateForCheckpoint.clear();
+			sequenceNumsStateForCheckpoint.clear();
 			lastStateSnapshot = fetcher.snapshotState();
 
 			if (LOG.isDebugEnabled()) {
@@ -314,7 +301,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 			}
 
 			for (Map.Entry<KinesisStreamShard, SequenceNumber> entry : lastStateSnapshot.entrySet()) {
-				offsetsStateForCheckpoint.add(Tuple2.of(entry.getKey(), entry.getValue()));
+				sequenceNumsStateForCheckpoint.add(Tuple2.of(entry.getKey(), entry.getValue()));
 			}
 		}
 	}
@@ -326,20 +313,18 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 			TypeInformation.of(SequenceNumber.class)
 		);
 
-		offsetsStateForCheckpoint = context.getOperatorStateStore().getUnionListState(
-			new ListStateDescriptor<>(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, tuple));
+		sequenceNumsStateForCheckpoint = context.getOperatorStateStore().getUnionListState(
+			new ListStateDescriptor<>("Kinesis-Stream-Shard-State", tuple));
 
 		if (context.isRestored()) {
 			if (sequenceNumsToRestore == null) {
 				sequenceNumsToRestore = new HashMap<>();
-				for (Tuple2<KinesisStreamShard, SequenceNumber> kinesisOffset : offsetsStateForCheckpoint.get()) {
+				for (Tuple2<KinesisStreamShard, SequenceNumber> kinesisOffset : sequenceNumsStateForCheckpoint.get()) {
 					sequenceNumsToRestore.put(kinesisOffset.f0, kinesisOffset.f1);
 				}
 
-				LOG.info("Setting restore state in the FlinkKinesisConsumer.");
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Using the following offsets: {}", sequenceNumsToRestore);
-				}
+				LOG.info("Setting restore state in the FlinkKinesisConsumer. Using the following offsets: {}",
+					sequenceNumsToRestore);
 			} else if (sequenceNumsToRestore.isEmpty()) {
 				sequenceNumsToRestore = null;
 			}
@@ -350,15 +335,10 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 
 	@Override
 	public void restoreState(HashMap<KinesisStreamShard, SequenceNumber> restoredState) throws Exception {
-		LOG.info("{} (taskIdx={}) restoring offsets from an older version.",
-			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
+		LOG.info("Subtask {} restoring offsets from an older Flink version: {}",
+			getRuntimeContext().getIndexOfThisSubtask(), sequenceNumsToRestore);
 
 		sequenceNumsToRestore = restoredState.isEmpty() ? null : restoredState;
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("{} (taskIdx={}) restored offsets from an older Flink version: {}",
-				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), sequenceNumsToRestore);
-		}
 	}
 
 	protected KinesisDataFetcher<T> createFetcher(List<String> streams,
