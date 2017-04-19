@@ -23,9 +23,9 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -61,10 +61,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
-import java.io.PrintStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URISyntaxException;
@@ -663,12 +663,11 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		final Map<String, LocalResource> localResources = new HashMap<>(2 + effectiveShipFiles.size());
 		// list of remote paths (after upload)
 		final List<Path> paths = new ArrayList<>(2 + effectiveShipFiles.size());
-		// classpath assembler
-		final StringBuilder classPathBuilder = new StringBuilder();
 		// ship list that enables reuse of resources for task manager containers
 		StringBuilder envShipFileList = new StringBuilder();
 
 		// upload and register ship files
+		final List<String> classPaths = new ArrayList<>();
 		for (File shipFile : effectiveShipFiles) {
 			LocalResource shipResources = Records.newRecord(LocalResource.class);
 
@@ -687,27 +686,30 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 				Files.walkFileTree(shipPath, new SimpleFileVisitor<java.nio.file.Path>() {
 					@Override
-					public FileVisitResult preVisitDirectory(java.nio.file.Path dir, BasicFileAttributes attrs)
+					public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs)
 							throws IOException {
-						super.preVisitDirectory(dir, attrs);
+						java.nio.file.Path relativePath = parentPath.relativize(file);
 
-						java.nio.file.Path relativePath = parentPath.relativize(dir);
-
-						classPathBuilder
-							.append(relativePath)
-							.append(File.separator)
-							.append("*")
-							.append(File.pathSeparator);
+						classPaths.add(relativePath.toString());
 
 						return FileVisitResult.CONTINUE;
 					}
 				});
 			} else {
 				// add files to the classpath
-				classPathBuilder.append(shipFile.getName()).append(File.pathSeparator);
+				classPaths.add(shipFile.getName());
 			}
 
 			envShipFileList.append(remotePath).append(",");
+		}
+
+		// normalize classpath by sorting
+		Collections.sort(classPaths);
+
+		// classpath assembler
+		StringBuilder classPathBuilder = new StringBuilder();
+		for (String classPath : classPaths) {
+			classPathBuilder.append(classPath).append(File.pathSeparator);
 		}
 
 		// Setup jar for ApplicationMaster
