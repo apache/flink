@@ -20,10 +20,11 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.runtime.operators.TestProcessingTimeServiceTest.ReferenceSettingExceptionHandler;
-
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -178,7 +179,16 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			// this should cancel our future
 			timer.quiesceAndAwaitPending();
 
-			assertTrue(scheduledFuture.isCancelled());
+			// it may be that the cancelled status is not immediately visible after the
+			// termination (not necessary a volatile update), so we need to "get()" the cancellation
+			// exception to be on the safe side
+			try {
+				scheduledFuture.get();
+				fail("scheduled future is not cancelled");
+			}
+			catch (CancellationException ignored) {
+				// expected
+			}
 
 			scheduledFuture = timer.scheduleAtFixedRate(new ProcessingTimeCallback() {
 				@Override
