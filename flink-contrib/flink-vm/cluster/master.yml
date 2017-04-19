@@ -1,0 +1,116 @@
+---
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+- name: Setup master VM of Flink cluster
+  hosts: master
+  user: vagrant
+  become: yes
+
+  environment:
+    JAVA_HOME: /usr/lib/jvm/java-7-openjdk-amd64
+
+  vars:
+    user_name: "vagrant"
+
+  pre_tasks:
+    - name: Set hostname
+      hostname: name=master
+
+    - name: Add host entries
+      lineinfile: dest=/etc/hosts line={{ item }}
+      with_items:
+        - 127.0.1.1       master.local       master
+        - 192.168.0.124   slave.local        slave
+
+    - name: Add JAVA_HOME to environment
+      lineinfile: dest=/etc/environment line="export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64"
+
+    # Setup the known hosts file to allow
+    # ssh connections without user intervention
+    - name: Add slave to known hosts
+      become_user: "{{user_name}}"
+      known_hosts:
+        path=~/.ssh/known_hosts
+        name=slave
+        key="slave {{ lookup('file', 'files/ssh/slave/etc/ssh/ssh_host_ecdsa_key.pub') }}"
+
+    - name: Fetch public hostkeys
+      fetch: src=/etc/ssh/{{ item }} dest=files/ssh
+      with_items:
+        - ssh_host_ecdsa_key.pub
+
+    # All addresses of the master have to be added
+    # This is needed for Hadoop
+    - name: Add master to known hosts
+      become_user: "{{user_name}}"
+      known_hosts:
+        path=~/.ssh/known_hosts
+        name={{ item }}
+        key="{{ item }} {{ lookup('file', 'files/ssh/master/etc/ssh/ssh_host_ecdsa_key.pub') }}"
+      with_items:
+        - master
+        - localhost
+        - 0.0.0.0
+        - 127.0.0.1
+        - 192.168.0.123
+
+    # Setup passwordless ssh
+    - name: Copy public ssh key
+      become_user: "{{user_name}}"
+      copy: src=files/ssh/id_rsa.pub dest=~/.ssh
+
+    - name: Copy private ssh key
+      become_user: "{{user_name}}"
+      copy: src=files/ssh/id_rsa dest=~/.ssh mode="0600"
+
+    - name: Add master public key to authorized hosts
+      become_user: "{{user_name}}"
+      shell: cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+
+    - name: Install required packages
+      apt: pkg={{ item }} state=latest update_cache=yes
+      with_items:
+        - openjdk-7-jre-headless
+        - python
+        - python-sklearn
+        - rsync
+
+  roles:
+    - role: apache_flink
+    - role: hadoopfs
+
+  post_tasks:
+    # Configure Flink
+    - name: Add entries to Flink slaves file
+      become_user: "{{user_name}}"
+      lineinfile: dest=~/flink/conf/slaves line="192.168.0.124"
+
+    - name: Copy flink master conf file
+      become_user: "{{user_name}}"
+      copy: src=files/master-flink-conf.yaml dest=~/flink/conf/flink-conf.yaml
+
+    # Flink slave needs the hadoop config
+    - name: Copy hadoop config to slave
+      become_user: "{{user_name}}"
+      shell: rsync -r hadoop/etc/hadoop/ slave:/home/vagrant/hadoop_conf
+
+    - name: Start flink cluster
+      become_user: "{{user_name}}"
+      command: ~/flink/bin/start-cluster.sh
+...

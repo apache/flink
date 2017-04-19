@@ -1,0 +1,42 @@
+---
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+- name: Download flink
+  get_url: url='{{flink_url}}' dest='/tmp/{{flink_archive}}'
+
+- name: Unarchive flink
+  become_user: "{{user_name}}"
+  unarchive: copy=no src='/tmp/{{flink_archive}}' dest='~/'
+
+- name: Link flink
+  become_user: "{{user_name}}"
+  file: src='~/{{flink_name}}' dest='~/flink' state=link
+
+- name: Add flink to path
+  become_user: "{{user_name}}"
+  shell: echo "export PATH=$PATH:~/flink/bin" >> .bash_profile
+
+- name: Copy flink config
+  become_user: "{{user_name}}"
+  copy: src=flink-conf.yaml dest=~/flink/conf
+
+- name: Copy example
+  become_user: "{{user_name}}"
+  copy: src=wc-example.sh dest=~/ mode=u+x
+...

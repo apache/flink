@@ -1,0 +1,60 @@
+---
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+- name: Download Hadoop
+  get_url: url='{{hadoop_url}}' dest='/tmp/{{hadoop_archive}}'
+
+- name: Unarchive Hadoop
+  become_user: "{{user_name}}"
+  unarchive: copy=no src='/tmp/{{hadoop_archive}}' dest='~/'
+
+- name: Link Hadoop
+  become_user: "{{user_name}}"
+  file: src='~/{{hadoop_name}}' dest='~/hadoop' state=link
+
+- name: Clean core-site.xml
+  become_user: "{{user_name}}"
+  lineinfile: dest=~/hadoop/etc/hadoop/core-site.xml line={{ item }} state=absent
+  with_items:
+    - "<configuration>"
+    - "</configuration>"
+
+- name: Customize core-site.xml
+  become_user: "{{user_name}}"
+  lineinfile: dest=~/hadoop/etc/hadoop/core-site.xml line="<configuration><property><name>fs.defaultFS</name><value>hdfs://192.168.0.123:9000</value></property></configuration>"
+
+- name: Clean hdfs-site.xml
+  become_user: "{{user_name}}"
+  lineinfile: dest=~/hadoop/etc/hadoop/hdfs-site.xml line={{ item }} state=absent
+  with_items:
+    - "<configuration>"
+    - "</configuration>"
+
+- name: Customize hdfs-site.xml
+  become_user: "{{user_name}}"
+  lineinfile: dest=~/hadoop/etc/hadoop/hdfs-site.xml line="<configuration><property><name>dfs.replication</name><value>1</value></property></configuration>"
+
+- name: Format name node
+  become_user: "{{user_name}}"
+  command: hadoop/bin/hdfs namenode -format
+
+- name: Start DFS
+  become_user: "{{user_name}}"
+  command: hadoop/sbin/start-dfs.sh
+...
