@@ -54,6 +54,19 @@ public interface LibraryCacheManager {
 	File getFile(BlobKey blobKey) throws IOException;
 
 	/**
+	 * Returns a file handle to the file identified by a job id.
+	 * <p>
+	 * <strong>Note:</strong> these files will be cleaned up when the last job (task execution)
+	 * with the given jobId is removed from this cache manager.
+	 *
+	 * @param jobId   JobID of the requested file
+	 * @param key     String key of the requested file
+	 * @return File handle
+	 * @throws IOException if any error occurs when retrieving the file
+	 */
+	File getFile(JobID jobId, String key) throws IOException;
+
+	/**
 	 * Registers a job with its required jar files and classpaths. The jar files are identified by their blob keys.
 	 *
 	 * @param id job ID

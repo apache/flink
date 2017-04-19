@@ -66,10 +66,10 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	private final Object lockObject = new Object();
 
 	/** Registered entries per job */
-	private final Map<JobID, LibraryCacheEntry> cacheEntries = new HashMap<JobID, LibraryCacheEntry>();
+	private final Map<JobID, LibraryCacheEntry> cacheEntries = new HashMap<>();
 	
-	/** Map to store the number of reference to a specific file */
-	private final Map<BlobKey, Integer> blobKeyReferenceCounters = new HashMap<BlobKey, Integer>();
+	/** Map to store the number of references to a specific file */
+	private final Map<BlobKey, Integer> blobKeyReferenceCounters = new HashMap<>();
 
 	/** The blob service to download libraries */
 	private final BlobService blobService;
@@ -161,11 +161,6 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	@Override
 	public void unregisterJob(JobID id) {
 		unregisterTask(id, JOB_ATTEMPT_ID);
-
-		synchronized (lockObject) {
-			// delete all NAME_ADDRESSABLE BLOBs
-			blobService.deleteAll(id);
-		}
 	}
 	
 	@Override
@@ -182,9 +177,13 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 
 					entry.releaseClassLoader();
 
+					// unregister references to content-addressable blobs
 					for (BlobKey key : entry.getLibraries()) {
 						unregisterReferenceToBlobKey(key);
 					}
+
+					// no job with this jobId anymore -> delete all NAME_ADDRESSABLE BLOBs
+					blobService.deleteAll(jobId);
 				}
 			}
 			// else has already been unregistered
@@ -226,6 +225,11 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	@Override
 	public File getFile(BlobKey blobKey) throws IOException {
 		return new File(blobService.getURL(blobKey).getFile());
+	}
+
+	@Override
+	public File getFile(JobID jobId, String key) throws IOException {
+		return new File(blobService.getURL(jobId, key).getFile());
 	}
 
 	public int getBlobServerPort() {
