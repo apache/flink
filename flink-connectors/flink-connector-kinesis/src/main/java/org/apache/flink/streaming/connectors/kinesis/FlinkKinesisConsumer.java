@@ -120,9 +120,12 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	 * <p>The AWS credentials to be used, AWS region of the Kinesis streams, initial position to start streaming
 	 * from are configured with a {@link Properties} instance.</p>
 	 *
-	 * @param stream       The single AWS Kinesis stream to read from.
-	 * @param deserializer The deserializer used to convert raw bytes of Kinesis records to Java objects (without key).
-	 * @param configProps  The properties used to configure AWS credentials, AWS region, and initial starting position.
+	 * @param stream
+	 *           The single AWS Kinesis stream to read from.
+	 * @param deserializer
+	 *           The deserializer used to convert raw bytes of Kinesis records to Java objects (without key).
+	 * @param configProps
+	 *           The properties used to configure AWS credentials, AWS region, and initial starting position.
 	 */
 	public FlinkKinesisConsumer(String stream, DeserializationSchema<T> deserializer, Properties configProps) {
 		this(stream, new KinesisDeserializationSchemaWrapper<>(deserializer), configProps);
@@ -134,9 +137,12 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	 * <p>The AWS credentials to be used, AWS region of the Kinesis streams, initial position to start streaming
 	 * from are configured with a {@link Properties} instance.</p>
 	 *
-	 * @param stream       The single AWS Kinesis stream to read from.
-	 * @param deserializer The keyed deserializer used to convert raw bytes of Kinesis records to Java objects.
-	 * @param configProps  The properties used to configure AWS credentials, AWS region, and initial starting position.
+	 * @param stream
+	 *           The single AWS Kinesis stream to read from.
+	 * @param deserializer
+	 *           The keyed deserializer used to convert raw bytes of Kinesis records to Java objects.
+	 * @param configProps
+	 *           The properties used to configure AWS credentials, AWS region, and initial starting position.
 	 */
 	public FlinkKinesisConsumer(String stream, KinesisDeserializationSchema<T> deserializer, Properties configProps) {
 		this(Collections.singletonList(stream), deserializer, configProps);
@@ -148,9 +154,12 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	 * <p>The AWS credentials to be used, AWS region of the Kinesis streams, initial position to start streaming
 	 * from are configured with a {@link Properties} instance.</p>
 	 *
-	 * @param streams      The AWS Kinesis streams to read from.
-	 * @param deserializer The keyed deserializer used to convert raw bytes of Kinesis records to Java objects.
-	 * @param configProps  The properties used to configure AWS credentials, AWS region, and initial starting position.
+	 * @param streams
+	 *           The AWS Kinesis streams to read from.
+	 * @param deserializer
+	 *           The keyed deserializer used to convert raw bytes of Kinesis records to Java objects.
+	 * @param configProps
+	 *           The properties used to configure AWS credentials, AWS region, and initial starting position.
 	 */
 	public FlinkKinesisConsumer(List<String> streams, KinesisDeserializationSchema<T> deserializer, Properties configProps) {
 		checkNotNull(streams, "streams can not be null");
