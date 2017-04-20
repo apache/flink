@@ -179,6 +179,14 @@ class DataSetUserDefinedFunctionITCase(
       "Anna#44,44,2,2,44,2\n" +
       "Anna#44,44,2,2,Anna,4"
     TestBaseUtils.compareResultAsText(results3.asJava, expected3)
+
+    val funcDyn1 = new DynamicSchema1
+    val result4 = in.join(funcDyn1("string") as ('col))
+      .select('col)
+      .toDataSet[Row]
+    val results4 = result4.collect()
+    val expected4 = "string\n" + "string\n" + "string\n" + "string\n"
+    TestBaseUtils.compareResultAsText(results4.asJava, expected4)
   }
 
   @Test

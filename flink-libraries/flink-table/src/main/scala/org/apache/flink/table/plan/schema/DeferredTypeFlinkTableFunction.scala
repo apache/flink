@@ -23,7 +23,6 @@ import java.util
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.{TableFunction => FlinkUDTF}
 
@@ -43,9 +42,7 @@ class DeferredTypeFlinkTableFunction(
     val implicitResultType: TypeInformation[_])
   extends FlinkTableFunction(tableFunction, evalMethod) {
 
-  val paramTypeInfos = evalMethod.getParameterTypes.map { paramType =>
-    TypeExtractor.getForClass(paramType)
-  }.toList
+  val paramTypeInfos = evalMethod.getParameterTypes.toList
 
   override def getResultType(arguments: util.List[AnyRef]): TypeInformation[_] = {
     determineResultType(arguments)
