@@ -441,6 +441,8 @@ metrics.reporter.stsd.port: 8125
 In order to use this reporter you must copy `/opt/flink-metrics-datadog-{{site.version}}.jar` into the `/lib` folder
 of your Flink distribution.
 
+Note any variables in Flink metrics, such as `<host>`, `<job_name>`, `<tm_id>`, `<subtask_index>`, `<task_name>`, and `<operator_name>`, will be sent to Datadog as tags
+
 Parameters:
 
 - `apikey` - the Datadog API key
@@ -454,14 +456,6 @@ metrics.reporters: dghttp
 metrics.reporter.dghttp.class: org.apache.flink.metrics.datadog.DatadogHttpReporter
 metrics.reporter.dghttp.apikey: xxx
 metrics.reporter.dghttp.tags: myflinkapp,prod
-
-// <host>, <job_name>, <tm_id>, <subtask_index>, <task_name>, <operator_name> will be sent to Datadog as tags
-metrics.scope.jm: <host>.jobmanager
-metrics.scope.jm.job: <host>.<job_name>.jobmanager.job
-metrics.scope.tm: <host>.<tm_id>.taskmanager
-metrics.scope.tm.job: <host>.<tm_id>.<job_name>.taskmanager.job
-metrics.scope.task: <host>.<tm_id>.<job_name>.<subtask_index>.<task_name>.task
-metrics.scope.operator: <host>.<tm_id>.<job_name>.<subtask_index>.<operator_name>.operator
 
 {% endhighlight %}
 

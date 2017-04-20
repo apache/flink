@@ -18,7 +18,6 @@
 
 package org.apache.flink.metrics.datadog;
 
-import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
@@ -26,13 +25,11 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.datadog.utils.SerializationUtils;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -45,7 +42,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * Variables in metrics scope will be sent to Datadog as tags
  * */
-public class DatadogHttpReporter implements MetricReporter, CharacterFilter, Scheduled {
+public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpReporter.class);
 
 	// Both Flink's Gauge and Meter values are taken as gauge in Datadog
@@ -61,7 +58,7 @@ public class DatadogHttpReporter implements MetricReporter, CharacterFilter, Sch
 
 	@Override
 	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-		final String name = group.getMetricIdentifier(metricName, this);
+		final String name = group.getMetricIdentifier(metricName);
 
 		List<String> tags = new ArrayList<>(configTags);
 		tags.addAll(getTagsFromMetricGroup(group));
@@ -96,7 +93,7 @@ public class DatadogHttpReporter implements MetricReporter, CharacterFilter, Sch
 			} else if (metric instanceof Meter) {
 				meters.remove(metric);
 			} else if (metric instanceof Histogram) {
-				// No Histogram and Meter metrics are registered
+				// No Histogram is registered
 			} else {
 				LOGGER.warn("Cannot remove unknown metric type {}. This indicates that the reporter " +
 					"does not support this metric type.", metric.getClass().getName());
@@ -119,44 +116,39 @@ public class DatadogHttpReporter implements MetricReporter, CharacterFilter, Sch
 
 	@Override
 	public void report() {
+		DatadogHttpRequest request = new DatadogHttpRequest();
+
+		for (DGauge g : gauges.values()) {
+			try {
+				// Will throw exception if the Gauge is not of Number type
+				// Flink uses Gauge to store many types other than Number
+				g.getMetricValue();
+				request.addGauge(g);
+			} catch (Exception e) {
+				// ignore if the Gauge is not of Number type
+			}
+		}
+
+		for (DCounter c : counters.values()) {
+			request.addCounter(c);
+		}
+
+		for (DMeter m : meters.values()) {
+			request.addMeter(m);
+		}
+
 		try {
-			DatadogHttpRequest request = new DatadogHttpRequest(this);
-
-			for(DGauge g : gauges.values()) {
-				try {
-					// Will throw exception if the Gauge is not of Number type
-					// Flink uses Gauge to store many types other than Number
-					g.getMetricValue();
-					request.addGauge(g);
-				} catch (Exception e) {
-					// ignore if the Gauge is not of Number type
-				}
-			}
-
-			for(DCounter c : counters.values()) {
-				request.addCounter(c);
-			}
-
-			for(DMeter m : meters.values()) {
-				request.addMeter(m);
-			}
-
-			request.send();
+			client.send(request);
 		} catch (Exception e) {
 			LOGGER.warn("Failed reporting metrics to Datadog.", e);
 		}
-	}
-
-	@Override
-	public String filterCharacters(String metricName) {
-		return metricName;
 	}
 
 	/**
 	 * Get config tags from config 'metrics.reporter.dghttp.tags'
 	 * */
 	private List<String> getTagsFromConfig(String str) {
-		if(str != null) {
+		if (str != null) {
 			return Arrays.asList(str.split(","));
 		} else {
 			return new ArrayList();
@@ -169,7 +161,7 @@ public class DatadogHttpReporter implements MetricReporter, CharacterFilter, Sch
 	private List<String> getTagsFromMetricGroup(MetricGroup metricGroup) {
 		List<String> tags = new ArrayList<>();
 
-		for(Map.Entry<String, String> entry: metricGroup.getAllVariables().entrySet()) {
+		for (Map.Entry<String, String> entry: metricGroup.getAllVariables().entrySet()) {
 			tags.add(getVariableName(entry.getKey()) + ":" + entry.getValue());
 		}
 
@@ -186,29 +178,27 @@ public class DatadogHttpReporter implements MetricReporter, CharacterFilter, Sch
 	/**
 	 * Compact metrics in batch, serialize them, and send to Datadog via HTTP
 	 * */
-	private static class DatadogHttpRequest {
-		private final DatadogHttpReporter datadogHttpReporter;
+	static class DatadogHttpRequest {
 		private final DSeries series;
 
-		public DatadogHttpRequest(DatadogHttpReporter reporter) throws IOException {
-			datadogHttpReporter = reporter;
+		public DatadogHttpRequest() {
 			series = new DSeries();
 		}
 
-		public void addGauge(DGauge gauge) throws IOException {
+		public void addGauge(DGauge gauge) {
 			series.addMetric(gauge);
 		}
 
-		public void addCounter(DCounter counter) throws IOException {
+		public void addCounter(DCounter counter) {
 			series.addMetric(counter);
 		}
 
-		public void addMeter(DMeter meter) throws IOException {
+		public void addMeter(DMeter meter) {
 			series.addMetric(meter);
 		}
 
-		public void send() throws Exception {
-			datadogHttpReporter.client.syncPost(SerializationUtils.serialize(series));
+		public DSeries getSeries() {
+			return series;
 		}
 	}
 }

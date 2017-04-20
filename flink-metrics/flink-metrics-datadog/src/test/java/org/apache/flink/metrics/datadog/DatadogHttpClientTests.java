@@ -18,11 +18,104 @@
 
 package org.apache.flink.metrics.datadog;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Meter;
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.util.Arrays;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(DMetric.class)
 public class DatadogHttpClientTests {
+	private static List<String> tags = Arrays.asList("tag1", "tag2");
+
+	private static final long MOCKED_SYSTEM_MILLIS = 123L;
+
+	@Before
+	public void mockSystemMillis() {
+		PowerMockito.mockStatic(DMetric.class);
+		PowerMockito.when(DMetric.getUnixEpochTimestamp()).thenReturn(MOCKED_SYSTEM_MILLIS);
+	}
+
 	@Test(expected = IllegalArgumentException.class)
 	public void testValidateApiKey() {
 		new DatadogHttpClient("fake_key");
+	}
+
+	@Test
+	public void serializeGauge() throws JsonProcessingException {
+
+		DGauge g = new DGauge(new Gauge<Number>() {
+			@Override
+			public Number getValue() {
+				return 1;
+			}
+		}, "testCounter", tags);
+
+		assertEquals(
+			"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
+			DatadogHttpClient.serialize(g));
+	}
+
+	@Test
+	public void serializeCounter() throws JsonProcessingException {
+		DCounter c = new DCounter(new Counter() {
+			@Override
+			public void inc() {}
+
+			@Override
+			public void inc(long n) {}
+
+			@Override
+			public void dec() {}
+
+			@Override
+			public void dec(long n) {}
+
+			@Override
+			public long getCount() {
+				return 1;
+			}
+		}, "testCounter", tags);
+
+		assertEquals(
+			"{\"metric\":\"testCounter\",\"type\":\"counter\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
+			DatadogHttpClient.serialize(c));
+	}
+
+	@Test
+	public void serializeMeter() throws JsonProcessingException {
+
+		DMeter m = new DMeter(new Meter() {
+			@Override
+			public void markEvent() {}
+
+			@Override
+			public void markEvent(long n) {}
+
+			@Override
+			public double getRate() {
+				return 1;
+			}
+
+			@Override
+			public long getCount() {
+				return 0;
+			}
+		}, "testMeter", tags);
+
+		assertEquals(
+			"{\"metric\":\"testMeter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1.0]]}",
+			DatadogHttpClient.serialize(m));
 	}
 }

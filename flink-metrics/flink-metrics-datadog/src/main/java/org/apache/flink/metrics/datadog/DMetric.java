@@ -18,8 +18,6 @@
 
 package org.apache.flink.metrics.datadog;
 
-import org.apache.flink.metrics.datadog.utils.TimestampUtils;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +25,8 @@ import java.util.List;
  * Abstract metric of Datadog for serialization
  * */
 public abstract class DMetric {
+	private static final long MILLIS_TO_SEC = 1000L;
+
 	private final String metric; // Metric name
 	private final MetricType type;
 	private final List<String> tags;
@@ -52,7 +52,7 @@ public abstract class DMetric {
 	public List<List<Number>> getPoints() {
 		// One single data point
 		List<Number> point = new ArrayList<>();
-		point.add(TimestampUtils.getUnixEpochTimestamp());
+		point.add(getUnixEpochTimestamp());
 		point.add(getMetricValue());
 
 		List<List<Number>> points = new ArrayList<>();
@@ -62,4 +62,8 @@ public abstract class DMetric {
 	}
 
 	abstract Number getMetricValue();
+
+	public static long getUnixEpochTimestamp() {
+		return (System.currentTimeMillis() / MILLIS_TO_SEC);
+	}
 }
