@@ -56,7 +56,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 	
 	private IT1 solutionSideRecord;
 	
-	protected volatile boolean running;
+	protected volatile boolean cancelled;
 
 	private boolean objectReuseEnabled = false;
 
@@ -65,7 +65,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 	@Override
 	public void setup(TaskContext<CoGroupFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 	}
 	
 	@Override
@@ -172,7 +172,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 
 				IT1 buildSideRecord = solutionSideRecord;
 
-				while (this.running && probeSideInput.nextKey()) {
+				while (!this.cancelled && probeSideInput.nextKey()) {
 					IT2 current = probeSideInput.getCurrent();
 
 					IT1 matchedRecord = prober.getMatchFor(current, buildSideRecord);
@@ -188,7 +188,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 				final JoinHashMap<IT1>.Prober<IT2> prober = join.createProber(this.probeSideComparator, this.pairComparator);
 				final TypeSerializer<IT1> serializer = join.getBuildSerializer();
 
-				while (this.running && probeSideInput.nextKey()) {
+				while (!this.cancelled && probeSideInput.nextKey()) {
 					IT2 current = probeSideInput.getCurrent();
 
 					IT1 buildSideRecord = prober.lookupMatch(current);
@@ -209,7 +209,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 
 				IT1 buildSideRecord;
 
-				while (this.running && probeSideInput.nextKey()) {
+				while (!this.cancelled && probeSideInput.nextKey()) {
 					IT2 current = probeSideInput.getCurrent();
 
 					buildSideRecord = prober.getMatchFor(current);
@@ -225,7 +225,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 				final JoinHashMap<IT1>.Prober<IT2> prober = join.createProber(this.probeSideComparator, this.pairComparator);
 				final TypeSerializer<IT1> serializer = join.getBuildSerializer();
 
-				while (this.running && probeSideInput.nextKey()) {
+				while (!this.cancelled && probeSideInput.nextKey()) {
 					IT2 current = probeSideInput.getCurrent();
 
 					IT1 buildSideRecord = prober.lookupMatch(current);
@@ -254,6 +254,6 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 	}
 }

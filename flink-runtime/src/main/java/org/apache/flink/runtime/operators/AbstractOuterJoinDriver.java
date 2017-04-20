@@ -48,14 +48,14 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 	protected TaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> taskContext;
 	
 	protected volatile JoinTaskIterator<IT1, IT2, OT> outerJoinIterator; // the iterator that does the actual outer join
-	protected volatile boolean running;
+	protected volatile boolean cancelled;
 	
 	// ------------------------------------------------------------------------
 	
 	@Override
 	public void setup(TaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 	}
 	
 	@Override
@@ -157,7 +157,7 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 		final Collector<OT> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		final JoinTaskIterator<IT1, IT2, OT> outerJoinIterator = this.outerJoinIterator;
 		
-		while (this.running && outerJoinIterator.callWithNextKey(joinStub, collector)) ;
+		while (!this.cancelled && outerJoinIterator.callWithNextKey(joinStub, collector)) ;
 	}
 	
 	
@@ -171,7 +171,7 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 	
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 		if (this.outerJoinIterator != null) {
 			this.outerJoinIterator.abort();
 		}

@@ -60,7 +60,7 @@ public class ReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinItera
 
 	private final boolean buildSideOuterJoin;
 	
-	private volatile boolean running = true;
+	private volatile boolean cancelled = false;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -129,7 +129,7 @@ public class ReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinItera
 			if (probeRecord != null && nextBuildSideRecord != null) {
 				matchFunction.join(probeRecord, nextBuildSideRecord, collector);
 
-				while (this.running && ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null)) {
+				while (!this.cancelled && ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null)) {
 					matchFunction.join(probeRecord, nextBuildSideRecord, collector);
 				}
 			} else {
@@ -139,7 +139,7 @@ public class ReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinItera
 
 				if (buildSideOuterJoin && probeRecord == null && nextBuildSideRecord != null) {
 					matchFunction.join(null, nextBuildSideRecord, collector);
-					while (this.running && ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null)) {
+					while (!this.cancelled && ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null)) {
 						matchFunction.join(null, nextBuildSideRecord, collector);
 					}
 				}
@@ -154,7 +154,7 @@ public class ReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinItera
 	
 	@Override
 	public void abort() {
-		this.running = false;
+		this.cancelled = true;
 		this.hashJoin.abort();
 	}
 }

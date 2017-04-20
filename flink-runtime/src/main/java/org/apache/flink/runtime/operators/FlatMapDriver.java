@@ -47,14 +47,14 @@ public class FlatMapDriver<IT, OT> implements Driver<FlatMapFunction<IT, OT>, OT
 
 	private TaskContext<FlatMapFunction<IT, OT>, OT> taskContext;
 	
-	private volatile boolean running;
+	private volatile boolean cancelled;
 
 	private boolean objectReuseEnabled = false;
 
 	@Override
 	public void setup(TaskContext<FlatMapFunction<IT, OT>, OT> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 	}
 
 	@Override
@@ -97,14 +97,14 @@ public class FlatMapDriver<IT, OT> implements Driver<FlatMapFunction<IT, OT>, OT
 			IT record = this.taskContext.<IT>getInputSerializer(0).getSerializer().createInstance();
 
 
-			while (this.running && ((record = input.next(record)) != null)) {
+			while (!this.cancelled && ((record = input.next(record)) != null)) {
 				numRecordsIn.inc();
 				function.flatMap(record, output);
 			}
 		} else {
 			IT record;
 
-			while (this.running && ((record = input.next()) != null)) {
+			while (!this.cancelled && ((record = input.next()) != null)) {
 				numRecordsIn.inc();
 				function.flatMap(record, output);
 			}
@@ -118,6 +118,6 @@ public class FlatMapDriver<IT, OT> implements Driver<FlatMapFunction<IT, OT>, OT
 
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 	}
 }

@@ -56,15 +56,18 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 	protected TaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> taskContext;
 	
 	private volatile JoinTaskIterator<IT1, IT2, OT> joinIterator; // the iterator that does the actual join 
-	
-	protected volatile boolean running;
+
+	/**
+	 * The flag that tags the task as not cancelled. Checked periodically to abort processing.
+	 */
+	protected volatile boolean cancelled;
 
 	// ------------------------------------------------------------------------
 
 	@Override
 	public void setup(TaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 	}
 
 	@Override
@@ -219,7 +222,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 		final Collector<OT> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		final JoinTaskIterator<IT1, IT2, OT> joinIterator = this.joinIterator;
 		
-		while (this.running && joinIterator.callWithNextKey(joinStub, collector));
+		while (!this.cancelled && joinIterator.callWithNextKey(joinStub, collector));
 	}
 
 	@Override
@@ -232,7 +235,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 	
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 		if (this.joinIterator != null) {
 			this.joinIterator.abort();
 		}

@@ -60,7 +60,7 @@ public class ReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIterat
 
 	private final boolean buildSideOuterJoin;
 	
-	private volatile boolean running = true;
+	private volatile boolean cancelled = false;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -131,7 +131,7 @@ public class ReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIterat
 			if (probeRecord != null && nextBuildSideRecord != null) {
 				matchFunction.join(nextBuildSideRecord, probeRecord, collector);
 
-				while (this.running && ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null)) {
+				while (!this.cancelled && ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null)) {
 					matchFunction.join(nextBuildSideRecord, probeRecord, collector);
 				}
 			} else {
@@ -143,7 +143,7 @@ public class ReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIterat
 					// call match on the first pair
 					matchFunction.join(nextBuildSideRecord, null, collector);
 
-					while (this.running && ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null)) {
+					while (!this.cancelled && ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null)) {
 						// call match on the next pair
 						// make sure we restore the value of the probe side record
 						matchFunction.join(nextBuildSideRecord, null, collector);
@@ -160,7 +160,7 @@ public class ReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIterat
 
 	@Override
 	public void abort() {
-		this.running = false;
+		this.cancelled = true;
 		this.hashJoin.abort();
 	}
 }

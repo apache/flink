@@ -354,7 +354,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	
 	protected boolean furtherPartitioning;
 	
-	private boolean running = true;
+	private boolean cancelled = false;
 	
 	private boolean buildSideOuterJoin = false;
 	
@@ -759,7 +759,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	}
 	
 	public void abort() {
-		this.running = false;
+		this.cancelled = true;
 	}
 	
 	public List<MemorySegment> getFreedMemory() {
@@ -799,12 +799,12 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		BT record = this.buildSideSerializer.createInstance();
 
 		// go over the complete input and insert every element into the hash table
-		while (this.running && ((record = input.next(record)) != null)) {
+		while (!this.cancelled && ((record = input.next(record)) != null)) {
 			final int hashCode = hash(buildTypeComparator.hash(record), 0);
 			insertIntoTable(record, hashCode);
 		}
 		
-		if (!this.running) {
+		if (this.cancelled) {
 			return;
 		}
 

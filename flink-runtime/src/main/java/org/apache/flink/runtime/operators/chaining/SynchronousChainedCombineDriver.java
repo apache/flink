@@ -77,7 +77,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 
 	private List<MemorySegment> memory;
 	
-	private volatile boolean running = true;
+	private volatile boolean cancelled = false;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -133,14 +133,14 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 		this.sorter.dispose();
 		this.parent.getEnvironment().getMemoryManager().release(this.memory);
 
-		if (this.running) {
+		if (!this.cancelled) {
 			BatchTask.closeUserCode(this.combiner);
 		}
 	}
 
 	@Override
 	public void cancelTask() {
-		this.running = false;
+		this.cancelled = true;
 		try {
 			this.sorter.dispose();
 		}
@@ -218,7 +218,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 				final Collector<OUT> output = this.outputCollector;
 
 				// run stub implementation
-				while (this.running && keyIter.nextKey()) {
+				while (!this.cancelled && keyIter.nextKey()) {
 					stub.combine(keyIter.getValues(), output);
 				}
 			}
@@ -234,7 +234,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 				final Collector<OUT> output = this.outputCollector;
 
 				// run stub implementation
-				while (this.running && keyIter.nextKey()) {
+				while (!this.cancelled && keyIter.nextKey()) {
 					stub.combine(keyIter.getValues(), output);
 				}
 			}

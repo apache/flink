@@ -53,7 +53,7 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 
 	private TypeComparator<T> comparator;
 	
-	private volatile boolean running;
+	private volatile boolean cancelled;
 
 	private boolean objectReuseEnabled = false;
 
@@ -62,7 +62,7 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 	@Override
 	public void setup(TaskContext<ReduceFunction<T>, T> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 	}
 	
 	@Override
@@ -132,7 +132,7 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 			T value = reuse1;
 
 			// iterate over key groups
-			while (this.running && value != null) {
+			while (!this.cancelled && value != null) {
 				numRecordsIn.inc();
 				comparator.setReference(value);
 
@@ -169,7 +169,7 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 			T value = input.next();
 
 			// iterate over key groups
-			while (this.running && value != null) {
+			while (!this.cancelled && value != null) {
 				numRecordsIn.inc();
 				comparator.setReference(value);
 				T res = value;
@@ -196,6 +196,6 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 	}
 }

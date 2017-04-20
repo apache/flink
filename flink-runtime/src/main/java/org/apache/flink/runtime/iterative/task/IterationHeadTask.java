@@ -299,7 +299,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 
 			DataInputView superstepResult = null;
 
-			while (this.running && !terminationRequested()) {
+			while (!this.cancelled && !terminationRequested()) {
 
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("starting iteration [" + currentIteration() + "]"));

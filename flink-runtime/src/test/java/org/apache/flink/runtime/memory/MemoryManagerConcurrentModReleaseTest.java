@@ -88,7 +88,7 @@ public class MemoryManagerConcurrentModReleaseTest {
 		
 		private final ArrayList<MemorySegment> toModify;
 		
-		private volatile boolean running = true;
+		private volatile boolean cancelled = false;
 
 		
 		private Modifier(ArrayList<MemorySegment> toModify) {
@@ -96,12 +96,12 @@ public class MemoryManagerConcurrentModReleaseTest {
 		}
 
 		public void cancel() {
-			running = false;
+			cancelled = true;
 		}
 
 		@Override
 		public void run() {
-			while (running) {
+			while (!cancelled) {
 				try {
 					MemorySegment seg = toModify.remove(0);
 					toModify.add(seg);

@@ -65,7 +65,7 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 	
 	private boolean firstIsOuter;
 	
-	private volatile boolean running;
+	private volatile boolean cancelled;
 
 	private boolean objectReuseEnabled = false;
 
@@ -75,7 +75,7 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 	@Override
 	public void setup(TaskContext<CrossFunction<T1, T2, OT>, OT> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 	}
 
 
@@ -185,11 +185,11 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 			this.blockIter = null;
 		}
 	}
-	
+
 
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 	}
 
 	private void runBlockedOuterFirst() throws Exception {
@@ -231,7 +231,7 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 			// for all blocks
 			do {
 				// for all values from the spilling side
-				while (this.running && ((val2 = spillVals.next(val2Reuse)) != null)) {
+				while (!this.cancelled && ((val2 = spillVals.next(val2Reuse)) != null)) {
 					// for all values in the block
 					while ((val1 = blockVals.next(val1Reuse)) != null) {
 						collector.collect(crosser.cross(val1, val2));
@@ -239,7 +239,7 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 					blockVals.reset();
 				}
 				spillVals.reset();
-			} while (this.running && blockVals.nextBlock());
+			} while (!this.cancelled && blockVals.nextBlock());
 		} else {
 			T1 val1;
 			T2 val2;
@@ -247,7 +247,7 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 			// for all blocks
 			do {
 				// for all values from the spilling side
-				while (this.running && ((val2 = spillVals.next()) != null)) {
+				while (!this.cancelled && ((val2 = spillVals.next()) != null)) {
 					// for all values in the block
 					while ((val1 = blockVals.next()) != null) {
 						collector.collect(crosser.cross(val1, serializer2.copy(val2)));
@@ -255,7 +255,7 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 					blockVals.reset();
 				}
 				spillVals.reset();
-			} while (this.running && blockVals.nextBlock());
+			} while (!this.cancelled && blockVals.nextBlock());
 
 		}
 	}
@@ -297,15 +297,15 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 			// for all blocks
 			do {
 				// for all values from the spilling side
-				while (this.running && ((val1 = spillVals.next(val1Reuse)) != null)) {
+				while (!this.cancelled && ((val1 = spillVals.next(val1Reuse)) != null)) {
 					// for all values in the block
-					while (this.running && ((val2 = blockVals.next(val2Reuse)) != null)) {
+					while (!this.cancelled && ((val2 = blockVals.next(val2Reuse)) != null)) {
 						collector.collect(crosser.cross(val1, val2));
 					}
 					blockVals.reset();
 				}
 				spillVals.reset();
-			} while (this.running && blockVals.nextBlock());
+			} while (!this.cancelled && blockVals.nextBlock());
 		} else {
 			T1 val1;
 			T2 val2;
@@ -313,15 +313,15 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 			// for all blocks
 			do {
 				// for all values from the spilling side
-				while (this.running && ((val1 = spillVals.next()) != null)) {
+				while (!this.cancelled && ((val1 = spillVals.next()) != null)) {
 					// for all values in the block
-					while (this.running && ((val2 = blockVals.next()) != null)) {
+					while (!this.cancelled && ((val2 = blockVals.next()) != null)) {
 						collector.collect(crosser.cross(serializer1.copy(val1), val2));
 					}
 					blockVals.reset();
 				}
 				spillVals.reset();
-			} while (this.running && blockVals.nextBlock());
+			} while (!this.cancelled && blockVals.nextBlock());
 
 		}
 	}
@@ -356,9 +356,9 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 			T2 val2;
 
 			// for all blocks
-			while (this.running && ((val1 = in1.next(val1Reuse)) != null)) {
+			while (!this.cancelled && ((val1 = in1.next(val1Reuse)) != null)) {
 				// for all values from the spilling side
-				while (this.running && ((val2 = spillVals.next(val2Reuse)) != null)) {
+				while (!this.cancelled && ((val2 = spillVals.next(val2Reuse)) != null)) {
 					collector.collect(crosser.cross(val1, val2));
 				}
 				spillVals.reset();
@@ -368,9 +368,9 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 			T2 val2;
 
 			// for all blocks
-			while (this.running && ((val1 = in1.next()) != null)) {
+			while (!this.cancelled && ((val1 = in1.next()) != null)) {
 				// for all values from the spilling side
-				while (this.running && ((val2 = spillVals.next()) != null)) {
+				while (!this.cancelled && ((val2 = spillVals.next()) != null)) {
 					collector.collect(crosser.cross(serializer1.copy(val1), val2));
 				}
 				spillVals.reset();
@@ -409,9 +409,9 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 			T2 val2;
 
 			// for all blocks
-			while (this.running && (val2 = in2.next(val2Reuse)) != null) {
+			while (!this.cancelled && (val2 = in2.next(val2Reuse)) != null) {
 				// for all values from the spilling side
-				while (this.running && (val1 = spillVals.next(val1Reuse)) != null) {
+				while (!this.cancelled && (val1 = spillVals.next(val1Reuse)) != null) {
 					collector.collect(crosser.cross(val1, val2));
 					//crosser.cross(val1, val2Copy, collector);
 				}
@@ -422,9 +422,9 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 			T2 val2;
 
 			// for all blocks
-			while (this.running && (val2 = in2.next()) != null) {
+			while (!this.cancelled && (val2 = in2.next()) != null) {
 				// for all values from the spilling side
-				while (this.running && (val1 = spillVals.next()) != null) {
+				while (!this.cancelled && (val1 = spillVals.next()) != null) {
 					collector.collect(crosser.cross(val1, serializer2.copy(val2)));
 				}
 				spillVals.reset();

@@ -205,9 +205,9 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	private int[] materializationMemory;
 
 	/**
-	 * The flag that tags the task as still running. Checked periodically to abort processing.
+	 * The flag that tags the task as not cancelled. Checked periodically to abort processing.
 	 */
-	protected volatile boolean running = true;
+	protected volatile boolean cancelled = false;
 
 	/**
 	 * The accumulator map used in the RuntimeContext.
@@ -335,7 +335,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 						(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 			}
 
-			if (!this.running) {
+			if (this.cancelled) {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug(formatLogString("Task cancelled before task code was started."));
 				}
@@ -363,7 +363,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 		}
 
-		if (this.running) {
+		if (!this.cancelled) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(formatLogString("Finished task code."));
 			}
@@ -376,7 +376,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 	@Override
 	public void cancel() throws Exception {
-		this.running = false;
+		this.cancelled = true;
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Cancelling task code"));
@@ -448,7 +448,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	protected void run() throws Exception {
 		// ---------------------------- Now, the actual processing starts ------------------------
 		// check for asynchronous canceling
-		if (!this.running) {
+		if (this.cancelled) {
 			return;
 		}
 
@@ -467,7 +467,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			}
 
 			// check for canceling
-			if (!this.running) {
+			if (this.cancelled) {
 				return;
 			}
 
@@ -490,7 +490,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			this.driver.run();
 
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
-			if (this.running && this.stub != null) {
+			if (!this.cancelled && this.stub != null) {
 				FunctionUtils.closeFunction(this.stub);
 				stubOpen = false;
 			}
@@ -529,7 +529,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				// forward canceling exception
 				throw ex;
 			}
-			else if (this.running) {
+			else if (!this.cancelled) {
 				// throw only if task was not cancelled. in the case of canceling, exceptions are expected 
 				BatchTask.logAndThrowException(ex, this);
 			}

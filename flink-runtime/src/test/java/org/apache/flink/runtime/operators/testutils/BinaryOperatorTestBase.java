@@ -87,7 +87,7 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 	
 	private Driver<S, IN> driver;
 	
-	private volatile boolean running = true;
+	private volatile boolean cancelled = false;
 	
 	private ExecutionConfig executionConfig;
 	
@@ -194,7 +194,7 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 		this.stub = (S) stubClass.newInstance();
 		
 		// regular running logic
-		this.running = true;
+		this.cancelled = false;
 		boolean stubOpen = false;
 		
 		try {
@@ -213,7 +213,7 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 				throw new Exception("The user defined 'open()' method caused an exception: " + t.getMessage(), t);
 			}
 			
-			if (!running) {
+			if (cancelled) {
 				return;
 			}
 			
@@ -221,7 +221,7 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 			driver.run();
 			
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
-			if (this.running) {
+			if (!this.cancelled) {
 				FunctionUtils.closeFunction(this.stub);
 				stubOpen = false;
 			}
@@ -247,7 +247,7 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 			}
 			
 			// drop exception, if the task was canceled
-			if (this.running) {
+			if (!this.cancelled) {
 				throw ex;
 			}
 			
@@ -276,7 +276,7 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 	}
 	
 	public void cancel() throws Exception {
-		this.running = false;
+		this.cancelled = true;
 		
 		// compensate for races, where cancel is called before the driver is set
 		// not that this is an artifact of a bad design of this test base, where the setup

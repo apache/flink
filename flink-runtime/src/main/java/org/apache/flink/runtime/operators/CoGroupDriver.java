@@ -55,7 +55,7 @@ public class CoGroupDriver<IT1, IT2, OT> implements Driver<CoGroupFunction<IT1, 
 	
 	private CoGroupTaskIterator<IT1, IT2> coGroupIterator;				// the iterator that does the actual cogroup
 	
-	private volatile boolean running;
+	private volatile boolean cancelled;
 
 	private boolean objectReuseEnabled = false;
 
@@ -65,7 +65,7 @@ public class CoGroupDriver<IT1, IT2, OT> implements Driver<CoGroupFunction<IT1, 
 	@Override
 	public void setup(TaskContext<CoGroupFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 	}
 	
 
@@ -155,7 +155,7 @@ public class CoGroupDriver<IT1, IT2, OT> implements Driver<CoGroupFunction<IT1, 
 		final Collector<OT> collector = new CountingCollector<>(this.taskContext.getOutputCollector(), numRecordsOut);
 		final CoGroupTaskIterator<IT1, IT2> coGroupIterator = this.coGroupIterator;
 		
-		while (this.running && coGroupIterator.next()) {
+		while (!this.cancelled && coGroupIterator.next()) {
 			coGroupStub.coGroup(coGroupIterator.getValues1(), coGroupIterator.getValues2(), collector);
 		}
 	}
@@ -172,7 +172,7 @@ public class CoGroupDriver<IT1, IT2, OT> implements Driver<CoGroupFunction<IT1, 
 
 	@Override
 	public void cancel() throws Exception {
-		this.running = false;
+		this.cancelled = true;
 		cleanup();
 	}
 }

@@ -89,7 +89,7 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 	
 	private Driver<S, OUT> driver;
 	
-	private volatile boolean running;
+	private volatile boolean cancelled;
 
 	private ExecutionConfig executionConfig;
 	
@@ -187,7 +187,7 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 		this.stub = (S)stubClass.newInstance();
 
 		// regular running logic
-		this.running = true;
+		this.cancelled = false;
 		boolean stubOpen = false;
 
 		try {
@@ -212,7 +212,7 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 			driver.run();
 
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
-			if (this.running) {
+			if (!this.cancelled) {
 				FunctionUtils.closeFunction (this.stub);
 				stubOpen = false;
 			}
@@ -241,7 +241,7 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 			}
 
 			// drop exception, if the task was canceled
-			if (this.running) {
+			if (!this.cancelled) {
 				throw ex;
 			}
 
@@ -269,7 +269,7 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 	}
 	
 	public void cancel() throws Exception {
-		this.running = false;
+		this.cancelled = true;
 		this.driver.cancel();
 	}
 

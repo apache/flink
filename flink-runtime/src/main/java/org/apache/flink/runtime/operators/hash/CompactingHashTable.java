@@ -175,7 +175,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 	private int numBuckets;
 	
 	/** Flag to interrupt closed loops */
-	private boolean running = true;
+	private boolean cancelled = false;
 	
 	/** Flag necessary so a resize is never triggered during a resize since the code paths are interleaved */
 	private boolean isResizing;
@@ -291,7 +291,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 
 	@Override
 	public void abort() {
-		this.running = false;
+		this.cancelled = true;
 		LOG.debug("Cancelling hash table operations.");
 	}
 
@@ -312,7 +312,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 		// go over the complete input and insert every element into the hash table
 		
 		T value;
-		while (this.running && (value = input.next()) != null) {
+		while (!this.cancelled && (value = input.next()) != null) {
 			insertOrReplaceRecord(value);
 		}
 	}

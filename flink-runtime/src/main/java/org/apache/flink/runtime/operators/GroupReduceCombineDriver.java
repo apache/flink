@@ -80,7 +80,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 
 	private long oversizedRecordCount;
 
-	private volatile boolean running = true;
+	private volatile boolean cancelled = false;
 
 	private boolean objectReuseEnabled = false;
 
@@ -89,7 +89,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 	@Override
 	public void setup(TaskContext<GroupCombineFunction<IN, OUT>, OUT> context) {
 		this.taskContext = context;
-		this.running = true;
+		this.cancelled = false;
 	}
 	
 	@Override
@@ -160,7 +160,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 		if (objectReuseEnabled) {
 			IN value = serializer.createInstance();
 	
-			while (running && (value = in.next(value)) != null) {
+			while (!cancelled && (value = in.next(value)) != null) {
 				// try writing to the sorter first
 				if (this.sorter.write(value)) {
 					continue;
@@ -172,7 +172,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 		}
 		else {
 			IN value;
-			while (running && (value = in.next()) != null) {
+			while (!cancelled && (value = in.next()) != null) {
 				// try writing to the sorter first
 				if (this.sorter.write(value)) {
 					continue;
@@ -184,7 +184,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 		}
 
 		// sort, combine, and send the final batch
-		if (running) {
+		if (!cancelled) {
 			sortAndCombine();
 		}
 	}
@@ -203,13 +203,13 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 		if (objectReuseEnabled) {
 			final ReusingKeyGroupedIterator<IN> keyIter =
 					new ReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.serializer, this.groupingComparator);
-			while (this.running && keyIter.nextKey()) {
+			while (!this.cancelled && keyIter.nextKey()) {
 				combiner.combine(keyIter.getValues(), output);
 			}
 		} else {
 			final NonReusingKeyGroupedIterator<IN> keyIter = 
 					new NonReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.groupingComparator);
-			while (this.running && keyIter.nextKey()) {
+			while (!this.cancelled && keyIter.nextKey()) {
 				combiner.combine(keyIter.getValues(), output);
 			}
 		}
@@ -244,7 +244,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 
 	@Override
 	public void cancel() {
-		this.running = false;
+		this.cancelled = true;
 		
 		if (this.sorter != null) {
 			try {

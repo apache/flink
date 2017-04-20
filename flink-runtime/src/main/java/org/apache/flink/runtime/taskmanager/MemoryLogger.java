@@ -55,7 +55,7 @@ public class MemoryLogger extends Thread {
 	
 	private final ActorSystem monitored;
 	
-	private volatile boolean running = true;
+	private volatile boolean cancelled = false;
 	
 	/**
 	 * Creates a new memory logger that logs in the given interval and lives as long as the
@@ -97,7 +97,7 @@ public class MemoryLogger extends Thread {
 	}
 	
 	public void shutdown() {
-		this.running = false;
+		this.cancelled = true;
 		interrupt();
 	}
 	
@@ -106,7 +106,7 @@ public class MemoryLogger extends Thread {
 	@Override
 	public void run() {
 		try {
-			while (running && (monitored == null || !monitored.isTerminated())) {
+			while (!cancelled && (monitored == null || !monitored.isTerminated())) {
 				logger.info(getMemoryUsageStatsAsString(memoryBean));
 				logger.info(getDirectMemoryStatsAsString(directBufferBean));
 				logger.info(getMemoryPoolStatsAsString(poolBeans));
@@ -116,7 +116,7 @@ public class MemoryLogger extends Thread {
 					Thread.sleep(interval);
 				}
 				catch (InterruptedException e) {
-					if (running) {
+					if (!cancelled) {
 						throw e;
 					}
 				}
