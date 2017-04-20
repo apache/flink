@@ -29,9 +29,8 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-    <groupId>org.apache.flink</groupId>
     <artifactId>flink-metrics-datadog</artifactId>
-    <version>1.3-SNAPSHOT</version>
+	<name>flink-metrics-datadog</name>
 
 	<dependencies>
 		<dependency>
@@ -75,6 +74,5 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-
 	</dependencies>
 </project>
