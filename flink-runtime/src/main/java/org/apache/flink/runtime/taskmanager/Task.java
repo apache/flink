@@ -1300,6 +1300,7 @@ public class Task implements Runnable {
 			try {
 				if (watchDogThread != null) {
 					watchDogThread.start();
+					logger.info("Started cancellation watch dog");
 				}
 
 				// the user-defined cancel method may throw errors.
