@@ -20,7 +20,9 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.commons.collections.map.LinkedMap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -53,6 +55,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
@@ -90,6 +93,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	/** Configuration key to define the consumer's partition discovery interval, in milliseconds */
 	public static final String KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS = "flink.partition-discovery.interval-millis";
 
+	/** State name of the consumer's partition offset states */
+	private static final String OFFSETS_STATE_NAME = "topic-partition-offset-states";
+
 	// ------------------------------------------------------------------------
 	//  configuration state, set on the client relevant for all subtasks
 	// ------------------------------------------------------------------------
@@ -113,8 +119,6 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * The assigner is kept in serialized form, to deserialize it into multiple copies */
 	private SerializedValue<AssignerWithPunctuatedWatermarks<T>> punctuatedWatermarkAssigner;
 
-	private transient ListState<Tuple2<KafkaTopicPartition, Long>> offsetsStateForCheckpoint;
-
 	/**
 	 * User-set flag determining whether or not to commit on checkpoints.
 	 * Note: this flag does not represent the final offset commit mode.
@@ -135,7 +139,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	private StartupMode startupMode = StartupMode.GROUP_OFFSETS;
 
 	/** Specific startup offsets; only relevant when startup mode is {@link StartupMode#SPECIFIC_OFFSETS} */
-	protected Map<KafkaTopicPartition, Long> specificStartupOffsets;
+	private Map<KafkaTopicPartition, Long> specificStartupOffsets;
 
 	// ------------------------------------------------------------------------
 	//  runtime state (used individually by each parallel subtask) 
@@ -150,8 +154,25 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	/** The partition discoverer, used to find new partitions */
 	private transient volatile AbstractPartitionDiscoverer partitionDiscoverer;
 
-	/** The offsets to restore to, if the consumer restores state from a checkpoint */
-	private transient volatile HashMap<KafkaTopicPartition, Long> restoredState;
+	/**
+	 * The offsets to restore to, if the consumer restores state from a checkpoint.
+	 *
+	 * <p>This map will be populated either by the legacy {@link #restoreState(HashMap)} method
+	 * or {@link #initializeState(FunctionInitializationContext)}.
+	 *
+	 * <p>Using a sorted map as the ordering is important when using restored state
+	 * to seed the partition discoverer.
+	 */
+	private transient volatile TreeMap<KafkaTopicPartition, Long> restoredState;
+
+	/** Accessor for state in the operator state backend. */
+	private transient ListState<Tuple2<KafkaTopicPartition, Long>> unionOffsetStates;
+
+	/**
+	 * Flag indicating whether the consumer is restored from older state written with Flink 1.1 or 1.2.
+	 * When the current run is restored from older state, partition discovery is disabled.
+	 */
+	private boolean restoredFromOldState;
 
 	/** Reference to the thread that invoked run(). This is used to interrupt partition discovery on shutdown */
 	private transient volatile Thread runThread;
@@ -367,12 +388,17 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 		if (restoredState != null) {
 			for (Map.Entry<KafkaTopicPartition, Long> restoredStateEntry : restoredState.entrySet()) {
-				subscribedPartitionsToStartOffsets.put(restoredStateEntry.getKey(), restoredStateEntry.getValue());
-
-				// we also need to update what partitions the partition discoverer has seen already
-				// TODO   Currently, after a restore, partition discovery will not work correctly
-				// TODO   because the discoverer can not fully recover all globally seen records
-				partitionDiscoverer.checkAndSetDiscoveredPartition(restoredStateEntry.getKey());
+				if (!restoredFromOldState) {
+					// seed the partition discoverer with the union state while filtering out
+					// restored partitions that should not be subscribed by this subtask
+					if (partitionDiscoverer.setAndCheckDiscoveredPartition(restoredStateEntry.getKey())) {
+						subscribedPartitionsToStartOffsets.put(restoredStateEntry.getKey(), restoredStateEntry.getValue());
+					}
+				} else {
+					// when restoring from older 1.1 / 1.2 state, the restored state would not be the union state;
+					// in this case, just use the restored state as the subscribed partitions
+					subscribedPartitionsToStartOffsets.put(restoredStateEntry.getKey(), restoredStateEntry.getValue());
+				}
 			}
 
 			LOG.info("Consumer subtask {} will start reading {} partitions with offsets in restored state: {}",
@@ -487,69 +513,83 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			return;
 		}
 
-		final AtomicReference<Exception> fetcherErrorRef = new AtomicReference<>();
-		Thread fetcherThread = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					// run the fetcher' main work method
-					kafkaFetcher.runFetchLoop();
-				} catch (Exception e) {
-					fetcherErrorRef.set(e);
-				} finally {
-					// calling cancel will also let the partition discovery loop escape
-					cancel();
+		// depending on whether we were restored with the current state version (1.3),
+		// remaining logic branches off into 2 paths:
+		//  1) New state - main fetcher loop executed as separate thread, with this
+		//                 thread running the partition discovery loop
+		//  2) Old state - partition discovery is disabled, simply going into the main fetcher loop
+
+		if (!restoredFromOldState) {
+			final AtomicReference<Exception> fetcherErrorRef = new AtomicReference<>();
+			Thread fetcherThread = new Thread(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						// run the fetcher' main work method
+						kafkaFetcher.runFetchLoop();
+					} catch (Exception e) {
+						fetcherErrorRef.set(e);
+					} finally {
+						// calling cancel will also let the partition discovery loop escape
+						cancel();
+					}
 				}
-			}
-		});
-		fetcherThread.start();
+			});
+			fetcherThread.start();
 
-		// --------------------- partition discovery loop ---------------------
+			// --------------------- partition discovery loop ---------------------
 
-		List<KafkaTopicPartition> discoveredPartitions;
+			List<KafkaTopicPartition> discoveredPartitions;
 
-		// throughout the loop, we always eagerly check if we are still running before
-		// performing the next operation, so that we can escape the loop as soon as possible
-		while (running) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Consumer subtask {} is trying to discover new partitions ...");
-			}
+			// throughout the loop, we always eagerly check if we are still running before
+			// performing the next operation, so that we can escape the loop as soon as possible
 
-			try {
-				discoveredPartitions = partitionDiscoverer.discoverPartitions();
-			} catch (AbstractPartitionDiscoverer.WakeupException | AbstractPartitionDiscoverer.ClosedException e) {
-				// the partition discoverer may have been closed or woken up before or during the discovery;
-				// this would only happen if the consumer was canceled; simply escape the loop
-				break;
-			}
+			while (running) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Consumer subtask {} is trying to discover new partitions ...");
+				}
 
-			// no need to add the discovered partitions if we were closed during the meantime
-			if (running && !discoveredPartitions.isEmpty()) {
-				fetcher.addDiscoveredPartitions(discoveredPartitions);
-			}
-
-			// do not waste any time sleeping if we're not running anymore
-			if (running && discoveryIntervalMillis != 0) {
 				try {
-					Thread.sleep(discoveryIntervalMillis);
-				} catch (InterruptedException iex) {
-					// may be interrupted if the consumer was canceled midway; simply escape the loop
+					discoveredPartitions = partitionDiscoverer.discoverPartitions();
+				} catch (AbstractPartitionDiscoverer.WakeupException | AbstractPartitionDiscoverer.ClosedException e) {
+					// the partition discoverer may have been closed or woken up before or during the discovery;
+					// this would only happen if the consumer was canceled; simply escape the loop
 					break;
 				}
+
+				// no need to add the discovered partitions if we were closed during the meantime
+				if (running && !discoveredPartitions.isEmpty()) {
+					fetcher.addDiscoveredPartitions(discoveredPartitions);
+				}
+
+				// do not waste any time sleeping if we're not running anymore
+				if (running && discoveryIntervalMillis != 0) {
+					try {
+						Thread.sleep(discoveryIntervalMillis);
+					} catch (InterruptedException iex) {
+						// may be interrupted if the consumer was canceled midway; simply escape the loop
+						break;
+					}
+				}
 			}
-		}
 
-		// --------------------------------------------------------------------
+			// --------------------------------------------------------------------
 
-		// make sure that the partition discoverer is properly closed
-		partitionDiscoverer.close();
+			// make sure that the partition discoverer is properly closed
+			partitionDiscoverer.close();
 
-		fetcherThread.join();
+			fetcherThread.join();
 
-		// rethrow any fetcher errors
-		final Exception fetcherError = fetcherErrorRef.get();
-		if (fetcherError != null) {
-			throw new RuntimeException(fetcherError);
+			// rethrow any fetcher errors
+			final Exception fetcherError = fetcherErrorRef.get();
+			if (fetcherError != null) {
+				throw new RuntimeException(fetcherError);
+			}
+		} else {
+			// won't be using the discoverer
+			partitionDiscoverer.close();
+
+			fetcher.runFetchLoop();
 		}
 	}
 
@@ -595,22 +635,30 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	public void initializeState(FunctionInitializationContext context) throws Exception {
 
 		OperatorStateStore stateStore = context.getOperatorStateStore();
-		offsetsStateForCheckpoint = stateStore.getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
 
-		if (context.isRestored()) {
-			if (restoredState == null) {
-				restoredState = new HashMap<>();
-				for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : offsetsStateForCheckpoint.get()) {
-					restoredState.put(kafkaOffset.f0, kafkaOffset.f1);
-				}
+		ListState<Tuple2<KafkaTopicPartition, Long>> oldRoundRobinListState =
+			stateStore.getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
 
-				LOG.info("Setting restore state in the FlinkKafkaConsumer.");
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Using the following offsets: {}", restoredState);
-				}
-			} else if (restoredState.isEmpty()) {
-				restoredState = null;
+		this.unionOffsetStates = stateStore.getUnionListState(new ListStateDescriptor<>(
+				OFFSETS_STATE_NAME,
+				TypeInformation.of(new TypeHint<Tuple2<KafkaTopicPartition, Long>>() {})));
+
+		if (context.isRestored() && !restoredFromOldState) {
+			restoredState = new TreeMap<>(new KafkaTopicPartition.Comparator());
+
+			// migrate from 1.2 state, if there is any
+			for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : oldRoundRobinListState.get()) {
+				restoredFromOldState = true;
+				unionOffsetStates.add(kafkaOffset);
 			}
+			oldRoundRobinListState.clear();
+
+			// populate actual holder for restored state
+			for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : unionOffsetStates.get()) {
+				restoredState.put(kafkaOffset.f0, kafkaOffset.f1);
+			}
+
+			LOG.info("Setting restore state in the FlinkKafkaConsumer: {}", restoredState);
 		} else {
 			LOG.info("No restore state for FlinkKafkaConsumer.");
 		}
@@ -621,15 +669,14 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		if (!running) {
 			LOG.debug("snapshotState() called on closed source");
 		} else {
-
-			offsetsStateForCheckpoint.clear();
+			unionOffsetStates.clear();
 
 			final AbstractFetcher<?, ?> fetcher = this.kafkaFetcher;
 			if (fetcher == null) {
 				// the fetcher has not yet been initialized, which means we need to return the
 				// originally restored offsets or the assigned partitions
 				for (Map.Entry<KafkaTopicPartition, Long> subscribedPartition : subscribedPartitionsToStartOffsets.entrySet()) {
-					offsetsStateForCheckpoint.add(Tuple2.of(subscribedPartition.getKey(), subscribedPartition.getValue()));
+					unionOffsetStates.add(Tuple2.of(subscribedPartition.getKey(), subscribedPartition.getValue()));
 				}
 
 				if (offsetCommitMode == OffsetCommitMode.ON_CHECKPOINTS) {
@@ -647,7 +694,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				}
 
 				for (Map.Entry<KafkaTopicPartition, Long> kafkaTopicPartitionLongEntry : currentOffsets.entrySet()) {
-					offsetsStateForCheckpoint.add(
+					unionOffsetStates.add(
 							Tuple2.of(kafkaTopicPartitionLongEntry.getKey(), kafkaTopicPartitionLongEntry.getValue()));
 				}
 			}
@@ -663,14 +710,16 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 	@Override
 	public void restoreState(HashMap<KafkaTopicPartition, Long> restoredOffsets) {
-		LOG.info("{} (taskIdx={}) restoring offsets from an older version.",
-			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
+		LOG.info("{} (taskIdx={}) restoring offsets from an older version: {}",
+			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), restoredOffsets);
 
-		restoredState = restoredOffsets.isEmpty() ? null : restoredOffsets;
+		restoredFromOldState = true;
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("{} (taskIdx={}) restored offsets from an older Flink version: {}",
-				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), restoredState);
+		if (restoredOffsets.isEmpty()) {
+			restoredState = null;
+		} else {
+			restoredState = new TreeMap<>(new KafkaTopicPartition.Comparator());
+			restoredState.putAll(restoredOffsets);
 		}
 	}
 
@@ -784,7 +833,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	}
 
 	@VisibleForTesting
-	HashMap<KafkaTopicPartition, Long> getRestoredState() {
+	TreeMap<KafkaTopicPartition, Long> getRestoredState() {
 		return restoredState;
 	}
 }

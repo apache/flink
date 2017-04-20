@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -64,7 +62,7 @@ public abstract class AbstractPartitionDiscoverer {
 	/**
 	 * Map of topics to they're largest discovered partition id seen by this subtask.
 	 * This state may be updated whenever {@link AbstractPartitionDiscoverer#discoverPartitions()} or
-	 * {@link AbstractPartitionDiscoverer#checkAndSetDiscoveredPartition(KafkaTopicPartition)} is called.
+	 * {@link AbstractPartitionDiscoverer#setAndCheckDiscoveredPartition(KafkaTopicPartition)} is called.
 	 *
 	 * This is used to remove old partitions from the fetched partition lists. It is sufficient
 	 * to keep track of only the largest partition id because Kafka partition numbers are only
@@ -153,23 +151,13 @@ public abstract class AbstractPartitionDiscoverer {
 				} else {
 					// sort so that we make sure the topicsToLargestDiscoveredPartitionId state is updated
 					// with incremental partition ids of the same topics (otherwise some partition ids may be skipped)
-					Collections.sort(newDiscoveredPartitions, new Comparator<KafkaTopicPartition>() {
-						@Override
-						public int compare(KafkaTopicPartition o1, KafkaTopicPartition o2) {
-							if (!o1.getTopic().equals(o2.getTopic())) {
-								return o1.getTopic().compareTo(o2.getTopic());
-							} else {
-								return Integer.compare(o1.getPartition(), o2.getPartition());
-							}
-						}
-					});
+					KafkaTopicPartition.sort(newDiscoveredPartitions);
 
 					Iterator<KafkaTopicPartition> iter = newDiscoveredPartitions.iterator();
 					KafkaTopicPartition nextPartition;
 					while (iter.hasNext()) {
 						nextPartition = iter.next();
-						if (!checkAndSetDiscoveredPartition(nextPartition) ||
-							!shouldAssignToThisSubtask(nextPartition, indexOfThisSubtask, numParallelSubtasks)) {
+						if (!setAndCheckDiscoveredPartition(nextPartition)) {
 							iter.remove();
 						}
 					}
@@ -192,20 +180,25 @@ public abstract class AbstractPartitionDiscoverer {
 	}
 
 	/**
-	 * Checks whether the given partition has been discovered yet.
-	 * If it hasn't been discovered yet, this method lets the partition discoverer update what
-	 * partitions it has discovered so far.
+	 * Sets a partition as discovered. Partitions are considered as new
+	 * if its partition id is larger than all partition ids previously
+	 * seen for the topic it belongs to. Therefore, for a set of
+	 * discovered partitions, the order that this method is invoked with
+	 * each partition is important.
 	 *
-	 * @param partition the partition to check and set
+	 * If the partition is indeed newly discovered, this method also returns
+	 * whether the new partition should be subscribed by this subtask.
 	 *
-	 * @return {@code true}, if the partition wasn't seen before, {@code false} otherwise
+	 * @param partition the partition to set and check
+	 *
+	 * @return {@code true}, if the partition wasn't seen before and should
+	 *         be subscribed by this subtask; {@code false} otherwise
 	 */
-	public boolean checkAndSetDiscoveredPartition(KafkaTopicPartition partition) {
-		if (!topicsToLargestDiscoveredPartitionId.containsKey(partition.getTopic())
-				|| partition.getPartition() > topicsToLargestDiscoveredPartitionId.get(partition.getTopic())) {
-
+	public boolean setAndCheckDiscoveredPartition(KafkaTopicPartition partition) {
+		if (isUndiscoveredPartition(partition)) {
 			topicsToLargestDiscoveredPartitionId.put(partition.getTopic(), partition.getPartition());
-			return true;
+
+			return shouldAssignToThisSubtask(partition, indexOfThisSubtask, numParallelSubtasks);
 		}
 
 		return false;
@@ -242,15 +235,20 @@ public abstract class AbstractPartitionDiscoverer {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static boolean shouldAssignToThisSubtask(KafkaTopicPartition partition, int indexOfThisSubtask, int numParallelSubtasks) {
-		return Math.abs(partition.hashCode() % numParallelSubtasks) == indexOfThisSubtask;
-	}
-
 	public static final class WakeupException extends Exception {
 		private static final long serialVersionUID = 1L;
 	}
 
 	public static final class ClosedException extends Exception {
 		private static final long serialVersionUID = 1L;
+	}
+
+	private boolean isUndiscoveredPartition(KafkaTopicPartition partition) {
+		return !topicsToLargestDiscoveredPartitionId.containsKey(partition.getTopic())
+			||  partition.getPartition() > topicsToLargestDiscoveredPartitionId.get(partition.getTopic());
+	}
+
+	private static boolean shouldAssignToThisSubtask(KafkaTopicPartition partition, int indexOfThisSubtask, int numParallelSubtasks) {
+		return Math.abs(partition.hashCode() % numParallelSubtasks) == indexOfThisSubtask;
 	}
 }

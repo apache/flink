@@ -129,8 +129,10 @@ public class FlinkKafkaConsumerBaseTest {
 		listState.add(Tuple2.of(new KafkaTopicPartition("def", 7), 987654321L));
 
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
-
-		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
+		// mock old 1.2 state (empty)
+		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(new TestingListState<Serializable>());
+		// mock 1.3 state
+		when(operatorStateStore.getUnionListState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
 
 		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
 
@@ -172,7 +174,10 @@ public class FlinkKafkaConsumerBaseTest {
 
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
 		TestingListState<Serializable> listState = new TestingListState<>();
-		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
+		// mock old 1.2 state (empty)
+		when(operatorStateStore.getSerializableListState(Matchers.any(String.class))).thenReturn(new TestingListState<Serializable>());
+		// mock 1.3 state
+		when(operatorStateStore.getUnionListState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
 
 		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
 
@@ -225,8 +230,10 @@ public class FlinkKafkaConsumerBaseTest {
 		OperatorStateStore backend = mock(OperatorStateStore.class);
 
 		TestingListState<Serializable> listState = new TestingListState<>();
-
-		when(backend.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
+		// mock old 1.2 state (empty)
+		when(backend.getSerializableListState(Matchers.any(String.class))).thenReturn(new TestingListState<Serializable>());
+		// mock 1.3 state
+		when(backend.getUnionListState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
 
 		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
 
@@ -353,8 +360,10 @@ public class FlinkKafkaConsumerBaseTest {
 		OperatorStateStore backend = mock(OperatorStateStore.class);
 
 		TestingListState<Serializable> listState = new TestingListState<>();
-
-		when(backend.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
+		// mock old 1.2 state (empty)
+		when(backend.getSerializableListState(Matchers.any(String.class))).thenReturn(new TestingListState<Serializable>());
+		// mock 1.3 state
+		when(backend.getUnionListState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
 
 		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
 
