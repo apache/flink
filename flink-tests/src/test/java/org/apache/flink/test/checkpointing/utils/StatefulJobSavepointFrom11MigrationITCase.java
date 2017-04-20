@@ -54,7 +54,7 @@ import static org.junit.Assert.assertEquals;
  *
  * <p>The test pipeline contains both "Checkpointed" state and keyed user state.
  */
-public class StatefulUDFSavepointMigrationITCase extends SavepointMigrationTestBase {
+public class StatefulJobSavepointFrom11MigrationITCase extends SavepointMigrationTestBase {
 	private static final int NUM_SOURCE_ELEMENTS = 4;
 	private static final String EXPECTED_ELEMENTS_ACCUMULATOR = "NUM_EXPECTED_ELEMENTS";
 	private static final String SUCCESSFUL_CHECK_ACCUMULATOR = "SUCCESSFUL_CHECKS";
