@@ -22,5 +22,9 @@ package org.apache.flink.metrics.datadog;
  * Metric types supported by Datadog
  * */
 public enum MetricType {
+	/**
+	 * Names of 'gauge' and 'counter' must not be changed
+	 * since they are mapped to json objects in a Datadog-defined format
+	 * */
 	gauge, counter
 }

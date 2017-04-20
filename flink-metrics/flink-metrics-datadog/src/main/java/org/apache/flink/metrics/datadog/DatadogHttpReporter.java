@@ -102,7 +102,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		client = new DatadogHttpClient(config.getString(API_KEY, null));
 		LOGGER.info("Configured DatadogHttpReporter");
 
-		configTags = getTagsFromConfig(config.getString(TAGS, null));
+		configTags = getTagsFromConfig(config.getString(TAGS, ""));
 	}
 
 	@Override
@@ -145,11 +145,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	 * Get config tags from config 'metrics.reporter.dghttp.tags'
 	 * */
 	private List<String> getTagsFromConfig(String str) {
-		if (str != null) {
-			return Arrays.asList(str.split(","));
-		} else {
-			return new ArrayList();
-		}
+		return Arrays.asList(str.split(","));
 	}
 
 	/**

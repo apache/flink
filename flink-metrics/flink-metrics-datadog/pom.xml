@@ -29,7 +29,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-    <artifactId>flink-metrics-datadog</artifactId>
+	<artifactId>flink-metrics-datadog</artifactId>
 	<name>flink-metrics-datadog</name>
 
 	<dependencies>

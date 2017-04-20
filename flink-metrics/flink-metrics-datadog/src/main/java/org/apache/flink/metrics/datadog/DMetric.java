@@ -27,6 +27,10 @@ import java.util.List;
 public abstract class DMetric {
 	private static final long MILLIS_TO_SEC = 1000L;
 
+	/**
+	 * Names of metric/type/tags field and their getters must not be changed
+	 * since they are mapped to json objects in a Datadog-defined format
+	 * */
 	private final String metric; // Metric name
 	private final MetricType type;
 	private final List<String> tags;
