@@ -163,6 +163,16 @@ For convenience, Flink provides the following schemas:
     into an ObjectNode object, from which fields can be accessed using objectNode.get("field").as(Int/String/...)().
     The KeyValue objectNode contains a "key" and "value" field which contain all fields, as well as
     an optional "metadata" field that exposes the offset/partition/topic for this message.
+    
+When encountering a corrupted message that cannot be deserialized for any reason, there
+are two options - either throwing an exception from the `deserialize(...)` method
+which will cause the job to fail and be restarted, or returning `null` to allow
+the Flink Kafka consumer to silently skip the corrupted message. Note that
+due to the consumer's fault tolerance (see below sections for more details),
+failing the job on the corrupted message will let the consumer attempt
+to deserialize the message again. Therefore, if deserialization still fails, the
+consumer will fall into a non-stop restart and fail loop on that corrupted
+message.
 
 ### Kafka Consumers Start Position Configuration
 
@@ -210,7 +220,40 @@ All versions of the Flink Kafka Consumer have the above explicit configuration m
  record. Under these modes, committed offsets in Kafka will be ignored and
  not used as starting positions.
  
-Note that these settings do not affect the start position when the job is
+You can also specify the exact offsets the consumer should start from for each partition:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Map<KafkaTopicPartition, Long> specificStartOffsets = new HashMap<>();
+specificStartOffsets.put(new KafkaTopicPartition("myTopic", 0), 23L);
+specificStartOffsets.put(new KafkaTopicPartition("myTopic", 1), 31L);
+specificStartOffsets.put(new KafkaTopicPartition("myTopic", 2), 43L);
+
+myConsumer.setStartFromSpecificOffsets(specificStartOffsets);
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val specificStartOffsets = new java.util.HashMap[KafkaTopicPartition, java.lang.Long]()
+specificStartOffsets.put(new KafkaTopicPartition("myTopic", 0), 23L)
+specificStartOffsets.put(new KafkaTopicPartition("myTopic", 1), 31L)
+specificStartOffsets.put(new KafkaTopicPartition("myTopic", 2), 43L)
+
+myConsumer.setStartFromSpecificOffsets(specificStartOffsets)
+{% endhighlight %}
+</div>
+</div>
+
+The above example configures the consumer to start from the specified offsets for
+partitions 0, 1, and 2 of topic `myTopic`. The offset values should be the
+next record that the consumer should read for each partition. Note that
+if the consumer needs to read a partition which does not have a specified
+offset within the provided offsets map, it will fallback to the default
+group offsets behaviour (i.e. `setStartFromGroupOffsets()`) for that
+particular partition.
+
+Note that these start position configuration methods do not affect the start position when the job is
 automatically restored from a failure or manually restored using a savepoint.
 On restore, the start position of each Kafka partition is determined by the
 offsets stored in the savepoint or checkpoint
@@ -248,6 +291,34 @@ So if the topology fails due to loss of a TaskManager, there must still be enoug
 Flink on YARN supports automatic restart of lost YARN containers.
 
 If checkpointing is not enabled, the Kafka consumer will periodically commit the offsets to Zookeeper.
+
+### Kafka Consumers Offset Committing Behaviour Configuration
+
+The Flink Kafka Consumer allows configuring the behaviour of how offsets
+are committed back to Kafka brokers (or Zookeeper in 0.8). Note that the
+Flink Kafka Consumer does not rely on the committed offsets for fault
+tolerance guarantees. The committed offsets are only a means to expose
+the consumer's progress for monitoring purposes.
+
+The way to configure offset commit behaviour is different, depending on
+whether or not checkpointing is enabled for the job.
+
+ - *Checkpointing disabled:* if checkpointing is disabled, the Flink Kafka
+ Consumer relies on the automatic periodic offset committing capability
+ of the internally used Kafka clients. Therefore, to disable or enable offset
+ committing, simply set the `enable.auto.commit` (or `auto.commit.enable`
+ for Kafka 0.8) / `auto.commit.interval.ms` keys to appropriate values
+ in the provided `Properties` configuration.
+ 
+ - *Checkpointing enabled:* if checkpointing is enabled, the Flink Kafka
+ Consumer will commit the offsets stored in the checkpointed states when
+ the checkpoints are completed. This ensures that the committed offsets
+ in Kafka brokers is consistent with the offsets in the checkpointed states.
+ Users can choose to disable or enable offset committing by calling the
+ `setCommitOffsetsOnCheckpoints(boolean)` method on the consumer (by default,
+ the behaviour is `true`).
+ Note that in this scenario, the automatic periodic offset committing
+ settings in `Properties` is completely ignored.
 
 ### Kafka Consumers and Timestamp Extraction/Watermark Emission
 

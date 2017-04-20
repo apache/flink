@@ -216,7 +216,7 @@ under the License.
 				</configuration>
 			</plugin>
 
-            <!-- build a har-with-dependencies, to be included in the 'opt' build folder -->
+            <!-- build a jar-with-dependencies, to be included in the 'opt' build folder -->
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>

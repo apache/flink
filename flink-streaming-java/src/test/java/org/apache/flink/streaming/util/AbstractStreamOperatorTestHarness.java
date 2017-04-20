@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
@@ -29,6 +30,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0Serializer;
 import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.migration.util.MigrationInstantiationUtil;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
@@ -39,6 +41,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -54,6 +57,8 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -67,8 +72,10 @@ import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.mockito.Matchers.any;
@@ -84,6 +91,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	final protected StreamOperator<OUT> operator;
 
 	final protected ConcurrentLinkedQueue<Object> outputList;
+
+	final protected Map<OutputTag<?>, ConcurrentLinkedQueue<Object>> sideOutputLists;
 
 	final protected StreamConfig config;
 
@@ -144,6 +153,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 			final Environment environment) throws Exception {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<>();
+		this.sideOutputLists = new HashMap<>();
+
 		Configuration underlyingConfig = environment.getTaskConfiguration();
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
@@ -157,6 +168,22 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		processingTimeService = new TestProcessingTimeService();
 		processingTimeService.setCurrentTime(0);
 
+		StreamStatusMaintainer mockStreamStatusMaintainer = new StreamStatusMaintainer() {
+			StreamStatus currentStreamStatus = StreamStatus.ACTIVE;
+
+			@Override
+			public void toggleStreamStatus(StreamStatus streamStatus) {
+				if (!currentStreamStatus.equals(streamStatus)) {
+					currentStreamStatus = streamStatus;
+				}
+			}
+
+			@Override
+			public StreamStatus getStreamStatus() {
+				return currentStreamStatus;
+			}
+		};
+
 		when(mockTask.getName()).thenReturn("Mock Task");
 		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
 		when(mockTask.getConfiguration()).thenReturn(config);
@@ -165,6 +192,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 		when(mockTask.getUserCodeClassLoader()).thenReturn(this.getClass().getClassLoader());
 		when(mockTask.getCancelables()).thenReturn(this.closableRegistry);
+		when(mockTask.getStreamStatusMaintainer()).thenReturn(mockStreamStatusMaintainer);
 
 		doAnswer(new Answer<Void>() {
 			@Override
@@ -243,6 +271,11 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		return outputList;
 	}
 
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public <X> ConcurrentLinkedQueue<StreamRecord<X>> getSideOutput(OutputTag<X> tag) {
+		return (ConcurrentLinkedQueue) sideOutputLists.get(tag);
+	}
+
 	/**
 	 * Get only the {@link StreamRecord StreamRecords} emitted by the operator.
 	 */
@@ -286,7 +319,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 		StreamStateHandle stateHandle = SavepointV0Serializer.convertOperatorAndFunctionState(state);
 
-		List<KeyGroupsStateHandle> keyGroupStatesList = new ArrayList<>();
+		List<KeyedStateHandle> keyGroupStatesList = new ArrayList<>();
 		if (state.getKvStates() != null) {
 			KeyGroupsStateHandle keyedStateHandle = SavepointV0Serializer.convertKeyedBackendState(
 					state.getKvStates(),
@@ -299,7 +332,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		initializeState(new OperatorStateHandles(0,
 				stateHandle,
 				keyGroupStatesList,
-				Collections.<KeyGroupsStateHandle>emptyList(),
+				Collections.<KeyedStateHandle>emptyList(),
 				Collections.<OperatorStateHandle>emptyList(),
 				Collections.<OperatorStateHandle>emptyList()));
 	}
@@ -319,7 +352,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		}
 
 		if (operatorStateHandles != null) {
-			int numKeyGroups = getEnvironment().getTaskInfo().getNumberOfKeyGroups();
+			int numKeyGroups = getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks();
 			int numSubtasks = getEnvironment().getTaskInfo().getNumberOfParallelSubtasks();
 			int subtaskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
 
@@ -332,16 +365,16 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 			KeyGroupRange localKeyGroupRange =
 					keyGroupPartitions.get(subtaskIndex);
 
-			List<KeyGroupsStateHandle> localManagedKeyGroupState = null;
+			List<KeyedStateHandle> localManagedKeyGroupState = null;
 			if (operatorStateHandles.getManagedKeyedState() != null) {
-				localManagedKeyGroupState = StateAssignmentOperation.getKeyGroupsStateHandles(
+				localManagedKeyGroupState = StateAssignmentOperation.getKeyedStateHandles(
 						operatorStateHandles.getManagedKeyedState(),
 						localKeyGroupRange);
 			}
 
-			List<KeyGroupsStateHandle> localRawKeyGroupState = null;
+			List<KeyedStateHandle> localRawKeyGroupState = null;
 			if (operatorStateHandles.getRawKeyedState() != null) {
-				localRawKeyGroupState = StateAssignmentOperation.getKeyGroupsStateHandles(
+				localRawKeyGroupState = StateAssignmentOperation.getKeyedStateHandles(
 						operatorStateHandles.getRawKeyedState(),
 						localKeyGroupRange);
 			}
@@ -410,15 +443,15 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		List<OperatorStateHandle> mergedManagedOperatorState = new ArrayList<>(handles.length);
 		List<OperatorStateHandle> mergedRawOperatorState = new ArrayList<>(handles.length);
 
-		List<KeyGroupsStateHandle> mergedManagedKeyedState = new ArrayList<>(handles.length);
-		List<KeyGroupsStateHandle> mergedRawKeyedState = new ArrayList<>(handles.length);
+		List<KeyedStateHandle> mergedManagedKeyedState = new ArrayList<>(handles.length);
+		List<KeyedStateHandle> mergedRawKeyedState = new ArrayList<>(handles.length);
 
 		for (OperatorStateHandles handle: handles) {
 
 			Collection<OperatorStateHandle> managedOperatorState = handle.getManagedOperatorState();
 			Collection<OperatorStateHandle> rawOperatorState = handle.getRawOperatorState();
-			Collection<KeyGroupsStateHandle> managedKeyedState = handle.getManagedKeyedState();
-			Collection<KeyGroupsStateHandle> rawKeyedState = handle.getRawKeyedState();
+			Collection<KeyedStateHandle> managedKeyedState = handle.getManagedKeyedState();
+			Collection<KeyedStateHandle> rawKeyedState = handle.getRawKeyedState();
 
 			if (managedOperatorState != null) {
 				mergedManagedOperatorState.addAll(managedOperatorState);
@@ -459,14 +492,19 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	}
 
 	/**
-	 * Calls {@link StreamOperator#snapshotState(long, long)}.
+	 * Calls {@link StreamOperator#snapshotState(long, long, CheckpointOptions)}.
 	 */
 	public OperatorStateHandles snapshot(long checkpointId, long timestamp) throws Exception {
 
-		OperatorSnapshotResult operatorStateResult = operator.snapshotState(checkpointId, timestamp);
+		CheckpointStreamFactory streamFactory = stateBackend.createStreamFactory(new JobID(), "test_op");
 
-		KeyGroupsStateHandle keyedManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateManagedFuture());
-		KeyGroupsStateHandle keyedRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateRawFuture());
+		OperatorSnapshotResult operatorStateResult = operator.snapshotState(
+			checkpointId,
+			timestamp,
+			CheckpointOptions.forFullCheckpoint());
+
+		KeyedStateHandle keyedManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateManagedFuture());
+		KeyedStateHandle keyedRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateRawFuture());
 
 		OperatorStateHandle opManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateManagedFuture());
 		OperatorStateHandle opRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateRawFuture());
@@ -572,9 +610,20 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		}
 	}
 
+	@VisibleForTesting
+	public int numKeysForWatermarkCallback() {
+		if (operator instanceof AbstractStreamOperator) {
+			return ((AbstractStreamOperator) operator).numKeysForWatermarkCallback();
+		} else {
+			throw new UnsupportedOperationException();
+		}
+	}
+
 	private class MockOutput implements Output<StreamRecord<OUT>> {
 
 		private TypeSerializer<OUT> outputSerializer;
+
+		private TypeSerializer sideOutputSerializer;
 
 		MockOutput() {
 			this(null);
@@ -600,10 +649,27 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 				outputSerializer = TypeExtractor.getForObject(element.getValue()).createSerializer(executionConfig);
 			}
 			if (element.hasTimestamp()) {
-				outputList.add(new StreamRecord<>(outputSerializer.copy(element.getValue()),element.getTimestamp()));
+				outputList.add(new StreamRecord<>(outputSerializer.copy(element.getValue()), element.getTimestamp()));
 			} else {
 				outputList.add(new StreamRecord<>(outputSerializer.copy(element.getValue())));
 			}
+		}
+
+		@Override
+		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+			sideOutputSerializer = TypeExtractor.getForObject(record.getValue()).createSerializer(executionConfig);
+
+			ConcurrentLinkedQueue<Object> sideOutputList = sideOutputLists.get(outputTag);
+			if (sideOutputList == null) {
+				sideOutputList = new ConcurrentLinkedQueue<>();
+				sideOutputLists.put(outputTag, sideOutputList);
+			}
+			if (record.hasTimestamp()) {
+				sideOutputList.add(new StreamRecord<>(sideOutputSerializer.copy(record.getValue()), record.getTimestamp()));
+			} else {
+				sideOutputList.add(new StreamRecord<>(sideOutputSerializer.copy(record.getValue())));
+			}
+
 		}
 
 		@Override

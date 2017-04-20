@@ -941,7 +941,6 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-
 	private static class StreamWriterWithConfigCheck<T> extends StringWriter<T> {
 		private String key;
 		private String expect;

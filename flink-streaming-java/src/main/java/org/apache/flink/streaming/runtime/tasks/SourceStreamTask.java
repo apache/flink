@@ -53,11 +53,13 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	@Override
 	protected void run() throws Exception {
-		headOperator.run(getCheckpointLock());
+		headOperator.run(getCheckpointLock(), getStreamStatusMaintainer());
 	}
 	
 	@Override
 	protected void cancelTask() throws Exception {
-		headOperator.cancel();
+		if (headOperator != null) {
+			headOperator.cancel();
+		}
 	}
 }

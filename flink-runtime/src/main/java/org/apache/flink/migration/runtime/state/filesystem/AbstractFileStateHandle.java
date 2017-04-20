@@ -30,8 +30,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base class for state that is stored in a file.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public abstract class AbstractFileStateHandle extends AbstractCloseableHandle implements StateObject {
 
 	private static final long serialVersionUID = 350284443258002355L;

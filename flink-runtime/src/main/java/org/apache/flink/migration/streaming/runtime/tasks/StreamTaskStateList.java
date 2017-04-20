@@ -25,8 +25,12 @@ import org.apache.flink.migration.runtime.state.StateHandle;
 import java.io.IOException;
 import java.util.HashMap;
 
+/**
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
+ */
 @Deprecated
 @Internal
+@SuppressWarnings("deprecation")
 public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 
 	private static final long serialVersionUID = 1L;

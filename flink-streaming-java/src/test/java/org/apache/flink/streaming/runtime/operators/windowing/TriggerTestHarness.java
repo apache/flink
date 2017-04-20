@@ -82,7 +82,7 @@ public class TriggerTestHarness<T, W extends Window> {
 				new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
 		this.stateBackend = stateBackend;
 
-		this.stateBackend.setCurrentKey(0);
+		this.stateBackend.setCurrentKey(KEY);
 
 		this.internalTimerService = new TestInternalTimerService<>(new KeyContext() {
 			@Override
@@ -215,20 +215,33 @@ public class TriggerTestHarness<T, W extends Window> {
 		Collection<Tuple2<W, TriggerResult>> result = new ArrayList<>();
 
 		for (TestInternalTimerService.Timer<Integer, W> timer : firedTimers) {
-			TestTriggerContext<Integer, W> triggerContext = new TestTriggerContext<>(
-					KEY,
-					timer.getNamespace(),
-					internalTimerService,
-					stateBackend,
-					windowSerializer);
-
-			TriggerResult triggerResult =
-					trigger.onEventTime(timer.getTimestamp(), timer.getNamespace(), triggerContext);
-
+			TriggerResult triggerResult = invokeOnEventTime(timer);
 			result.add(new Tuple2<>(timer.getNamespace(), triggerResult));
 		}
 
 		return result;
+	}
+
+	private TriggerResult invokeOnEventTime(TestInternalTimerService.Timer<Integer, W> timer) throws Exception {
+		TestTriggerContext<Integer, W> triggerContext = new TestTriggerContext<>(
+				KEY,
+				timer.getNamespace(),
+				internalTimerService,
+				stateBackend,
+				windowSerializer);
+
+		return trigger.onEventTime(timer.getTimestamp(), timer.getNamespace(), triggerContext);
+	}
+
+	/**
+	 * Manually invoke {@link Trigger#onEventTime(long, Window, Trigger.TriggerContext)} with
+	 * the given parameters.
+	 */
+	public TriggerResult invokeOnEventTime(long timestamp, W window) throws Exception {
+		TestInternalTimerService.Timer<Integer, W> timer =
+				new TestInternalTimerService.Timer<>(timestamp, KEY, window);
+
+		return invokeOnEventTime(timer);
 	}
 
 	/**

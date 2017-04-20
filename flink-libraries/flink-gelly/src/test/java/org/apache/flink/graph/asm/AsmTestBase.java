@@ -54,11 +54,6 @@ public class AsmTestBase {
 
 	protected Graph<LongValue, NullValue, NullValue> emptyGraph;
 
-	// RMat graph
-	protected Graph<LongValue, NullValue, NullValue> directedRMatGraph;
-
-	protected Graph<LongValue, NullValue, NullValue> undirectedRMatGraph;
-
 	@Before
 	public void setup()
 			throws Exception {
@@ -66,7 +61,7 @@ public class AsmTestBase {
 		env.getConfig().enableObjectReuse();
 
 		// the "fish" graph
-		Object[][] edges = new Object[][] {
+		Object[][] edges = new Object[][]{
 			new Object[]{0, 1},
 			new Object[]{0, 2},
 			new Object[]{2, 1},
@@ -93,26 +88,59 @@ public class AsmTestBase {
 		// empty graph
 		emptyGraph = new EmptyGraph(env, emptyGraphVertexCount)
 			.generate();
+	}
 
-		// RMat graph
-		long rmatVertexCount = 1L << 10;
-		long rmatEdgeCount = 16 * rmatVertexCount;
+	/**
+	 * Generate a directed RMat graph. Tests are usually run on a graph with
+	 * scale=10 and edgeFactor=16 but algorithms generating very large DataSets
+	 * require smaller input graphs.
+	 *
+	 * The examples program can write this graph as a CSV file for verifying
+	 * algorithm results with external libraries:
+	 *
+	 * ./bin/flink run examples/flink-gelly-examples_*.jar --algorithm EdgeList \
+	 *     --input RMatGraph --type long --simplify directed --scale $SCALE --edge_factor $EDGE_FACTOR \
+	 *     --output csv --filename directedRMatGraph.csv
+	 *
+	 * @param scale vertices are generated in the range [0, 2<sup>scale</sup>)
+	 * @param edgeFactor the edge count is {@code edgeFactor} * 2<sup>scale</sup>
+	 * @return directed RMat graph
+	 * @throws Exception on error
+	 */
+	protected Graph<LongValue, NullValue, NullValue> directedRMatGraph(int scale, int edgeFactor)
+			throws Exception {
+		long vertexCount = 1L << scale;
+		long edgeCount = edgeFactor * vertexCount;
 
-		Graph<LongValue, NullValue, NullValue> rmatGraph = new RMatGraph<>(env, new JDKRandomGeneratorFactory(), rmatVertexCount, rmatEdgeCount)
-			.generate();
-
-		/*
-			./bin/flink run -c org.apache.flink.graph.drivers.Graph500 flink-gelly-examples_2.10-1.2-SNAPSHOT.jar \
-				--directed true --simplify true --scale 10 --edge_factor 16 --output csv --filename directedRMatGraph.csv
-		 */
-		directedRMatGraph = rmatGraph
+		return new RMatGraph<>(env, new JDKRandomGeneratorFactory(), vertexCount, edgeCount)
+			.generate()
 			.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>());
+	}
 
-		/*
-			./bin/flink run -c org.apache.flink.graph.drivers.Graph500 flink-gelly-examples_2.10-1.2-SNAPSHOT.jar \
-				--directed false --simplify true --scale 10 --edge_factor 16 --output csv --filename undirectedRMatGraph.csv
-		 */
-		undirectedRMatGraph = rmatGraph
+	/**
+	 * Generate an undirected RMat graph. Tests are usually run on a graph with
+	 * scale=10 and edgeFactor=16 but algorithms generating very large DataSets
+	 * require smaller input graphs.
+	 *
+	 * The examples program can write this graph as a CSV file for verifying
+	 * algorithm results with external libraries:
+	 *
+	 * ./bin/flink run examples/flink-gelly-examples_*.jar --algorithm EdgeList \
+	 *     --input RMatGraph --type long --simplify undirected --scale $SCALE --edge_factor $EDGE_FACTOR \
+	 *     --output csv --filename undirectedRMatGraph.csv
+	 *
+	 * @param scale vertices are generated in the range [0, 2<sup>scale</sup>)
+	 * @param edgeFactor the edge count is {@code edgeFactor} * 2<sup>scale</sup>
+	 * @return undirected RMat graph
+	 * @throws Exception on error
+	 */
+	protected Graph<LongValue, NullValue, NullValue> undirectedRMatGraph(int scale, int edgeFactor)
+			throws Exception {
+		long vertexCount = 1L << scale;
+		long edgeCount = edgeFactor * vertexCount;
+
+		return new RMatGraph<>(env, new JDKRandomGeneratorFactory(), vertexCount, edgeCount)
+			.generate()
 			.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false));
 	}
 }

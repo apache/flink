@@ -32,6 +32,8 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -268,6 +270,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 			new StreamNode(null, 1, null, null, null, null, null),
 			0,
 			Collections.<String>emptyList(),
+			null,
 			null
 		)));
 
@@ -279,6 +282,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 			new StreamNode(null, 2, null, null, null, null, null),
 			0,
 			Collections.<String>emptyList(),
+			null,
 			null
 		)));
 
@@ -288,7 +292,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 			new StreamNode(null, 3, null, null, null, null, null),
 			0,
 			Collections.<String>emptyList(),
-			new BroadcastPartitioner<Object>()));
+			new BroadcastPartitioner<Object>(),
+			null));
 
 		tailOperatorConfig.setStreamOperator(tailOperator);
 		tailOperatorConfig.setTypeSerializerIn1(StringSerializer.INSTANCE);
@@ -407,7 +412,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 0, 0);
 
 		// These elements should be buffered until we receive barriers from
 		// all inputs
@@ -426,14 +431,14 @@ public class OneInputStreamTaskTest extends TestLogger {
 		// we should not yet see the barrier, only the two elements from non-blocked input
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 0, 1);
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 1, 0);
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 1, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 0, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 1, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 1, 1);
 
 		testHarness.waitForInputProcessing();
 
 		// now we should see the barrier and after that the buffered elements
-		expectedOutput.add(new CheckpointBarrier(0, 0));
+		expectedOutput.add(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()));
 		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
 		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
 
@@ -466,7 +471,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 0, 0);
 
 		// These elements should be buffered until we receive barriers from
 		// all inputs
@@ -487,15 +492,15 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		// Now give a later barrier to all inputs, this should unblock the first channel,
 		// thereby allowing the two blocked elements through
-		testHarness.processEvent(new CheckpointBarrier(1, 1), 0, 0);
-		testHarness.processEvent(new CheckpointBarrier(1, 1), 0, 1);
-		testHarness.processEvent(new CheckpointBarrier(1, 1), 1, 0);
-		testHarness.processEvent(new CheckpointBarrier(1, 1), 1, 1);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forFullCheckpoint()), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forFullCheckpoint()), 0, 1);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forFullCheckpoint()), 1, 0);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forFullCheckpoint()), 1, 1);
 
 		expectedOutput.add(new CancelCheckpointMarker(0));
 		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
 		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
-		expectedOutput.add(new CheckpointBarrier(1, 1));
+		expectedOutput.add(new CheckpointBarrier(1, 1, CheckpointOptions.forFullCheckpoint()));
 
 		testHarness.waitForInputProcessing();
 
@@ -503,9 +508,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 
 		// Then give the earlier barrier, these should be ignored
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 0, 1);
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 1, 0);
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 1, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 0, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 1, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 1, 1);
 
 		testHarness.waitForInputProcessing();
 
@@ -556,7 +561,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointTimestamp);
 
-		while(!streamTask.triggerCheckpoint(checkpointMetaData));
+		while(!streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forFullCheckpoint()));
 
 		// since no state was set, there shouldn't be restore calls
 		assertEquals(0, TestingStreamOperator.numberRestoreCalls);
@@ -639,6 +644,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 				),
 				0,
 				Collections.<String>emptyList(),
+				null,
 				null
 			);
 
@@ -679,10 +685,11 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		@Override
 		public void acknowledgeCheckpoint(
-				CheckpointMetaData checkpointMetaData,
+				long checkpointId,
+				CheckpointMetrics checkpointMetrics,
 				SubtaskState checkpointStateHandles) {
 
-			this.checkpointId = checkpointMetaData.getCheckpointId();
+			this.checkpointId = checkpointId;
 			this.checkpointStateHandles = checkpointStateHandles;
 			checkpointLatch.trigger();
 		}
@@ -714,7 +721,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		public void open() throws Exception {
 			super.open();
 
-			ListState<Integer> partitionableState = getOperatorStateBackend().getOperatorState(TEST_DESCRIPTOR);
+			ListState<Integer> partitionableState = getOperatorStateBackend().getListState(TEST_DESCRIPTOR);
 
 			if (numberSnapshotCalls == 0) {
 				for (Integer v : partitionableState.get()) {
@@ -735,7 +742,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		@Override
 		public void snapshotState(StateSnapshotContext context) throws Exception {
 			ListState<Integer> partitionableState =
-					getOperatorStateBackend().getOperatorState(TEST_DESCRIPTOR);
+					getOperatorStateBackend().getListState(TEST_DESCRIPTOR);
 			partitionableState.clear();
 
 			partitionableState.add(42);

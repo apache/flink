@@ -85,7 +85,8 @@ object ScalarSqlFunction {
               s"Expected: ${signaturesToString(scalarFunction)}")
         }
         val resultType = getResultType(scalarFunction, foundSignature.get)
-        typeFactory.createTypeFromTypeInfo(resultType)
+        val t = typeFactory.createTypeFromTypeInfo(resultType)
+        typeFactory.createTypeWithNullability(t, nullable = true)
       }
     }
   }
@@ -112,9 +113,15 @@ object ScalarSqlFunction {
           .getParameterTypes(foundSignature)
           .map(typeFactory.createTypeFromTypeInfo)
 
-        inferredTypes.zipWithIndex.foreach {
-          case (inferredType, i) =>
-            operandTypes(i) = inferredType
+        for (i <- operandTypes.indices) {
+          if (i < inferredTypes.length - 1) {
+            operandTypes(i) = inferredTypes(i)
+          } else if (null != inferredTypes.last.getComponentType) {
+            // last argument is a collection, the array type
+            operandTypes(i) = inferredTypes.last.getComponentType
+          } else {
+            operandTypes(i) = inferredTypes.last
+          }
         }
       }
     }
@@ -136,8 +143,18 @@ object ScalarSqlFunction {
       }
 
       override def getOperandCountRange: SqlOperandCountRange = {
-        val signatureLengths = signatures.map(_.length)
-        SqlOperandCountRanges.between(signatureLengths.min, signatureLengths.max)
+        var min = 255
+        var max = -1
+        signatures.foreach( sig => {
+          var len = sig.length
+          if (len > 0 && sig(sig.length - 1).isArray) {
+            max = 254  // according to JVM spec 4.3.3
+            len = sig.length - 1
+          }
+          max = Math.max(len, max)
+          min = Math.min(len, min)
+        })
+        SqlOperandCountRanges.between(min, max)
       }
 
       override def checkOperandTypes(

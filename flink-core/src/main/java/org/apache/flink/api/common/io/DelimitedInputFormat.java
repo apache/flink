@@ -89,7 +89,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	private static int MAX_SAMPLE_LEN;
 
 	/**
-	 * @Deprecated Please use {@code loadConfigParameters(Configuration config}
+	 * @deprecated Please use {@code loadConfigParameters(Configuration config}
 	 */
 	@Deprecated
 	protected static void loadGlobalConfigParams() {

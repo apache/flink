@@ -21,44 +21,20 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.heap.InternalKeyContext;
 
 /**
  * A keyed state backend provides methods for managing keyed state.
  *
  * @param <K> The key by which state is keyed.
  */
-public interface KeyedStateBackend<K> {
+public interface KeyedStateBackend<K> extends InternalKeyContext<K> {
 
 	/**
 	 * Sets the current key that is used for partitioned state.
 	 * @param newKey The new current key.
 	 */
 	void setCurrentKey(K newKey);
-
-	/**
-	 * Used by states to access the current key.
-	 */
-	K getCurrentKey();
-
-	/**
-	 * Returns the key-group to which the current key belongs.
-	 */
-	int getCurrentKeyGroupIndex();
-
-	/**
-	 * Returns the number of key-groups aka max parallelism.
-	 */
-	int getNumberOfKeyGroups();
-
-	/**
-	 * Returns the key groups for this backend.
-	 */
-	KeyGroupsList getKeyGroupRange();
-
-	/**
-	 * {@link TypeSerializer} for the state backend key type.
-	 */
-	TypeSerializer<K> getKeySerializer();
 
 	/**
 	 * Creates or retrieves a keyed state backed by this state backend.

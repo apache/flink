@@ -124,6 +124,10 @@ public class HighAvailabilityOptions {
 			.defaultValue(3)
 			.withDeprecatedKeys("recovery.zookeeper.client.max-retry-attempts");
 
+	public static final ConfigOption<String> ZOOKEEPER_RUNNING_JOB_REGISTRY_PATH = 
+			key("high-availability.zookeeper.path.running-registry")
+			.defaultValue("/running_job_registry/");
+
 	// ------------------------------------------------------------------------
 
 	/** Not intended to be instantiated */

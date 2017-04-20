@@ -97,10 +97,14 @@ public class ZookeeperHaServices implements HighAvailabilityServices {
 	/** The runtime configuration */
 	private final Configuration configuration;
 
+	/** The zookeeper based running jobs registry */
+	private final RunningJobsRegistry runningJobsRegistry;
+
 	public ZookeeperHaServices(CuratorFramework client, Executor executor, Configuration configuration) {
 		this.client = checkNotNull(client);
 		this.executor = checkNotNull(executor);
 		this.configuration = checkNotNull(configuration);
+		this.runningJobsRegistry = new ZookeeperRegistry(client, configuration);
 	}
 
 	// ------------------------------------------------------------------------
@@ -149,12 +153,26 @@ public class ZookeeperHaServices implements HighAvailabilityServices {
 
 	@Override
 	public RunningJobsRegistry getRunningJobsRegistry() {
-		throw new UnsupportedOperationException("not yet implemented");
+		return runningJobsRegistry;
 	}
 
 	@Override
 	public BlobStore createBlobStore() throws IOException {
-		final String storagePath = configuration.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
+		return createBlobStore(configuration);
+	}
+
+	/**
+	 * Creates the BLOB store in which BLOBs are stored in a highly-available
+	 * fashion.
+	 *
+	 * @param configuration configuration to extract the storage path from
+	 * @return Blob store
+	 * @throws IOException if the blob store could not be created
+	 */
+	public static BlobStore createBlobStore(
+		final Configuration configuration) throws IOException {
+		String storagePath = configuration.getValue(
+			HighAvailabilityOptions.HA_STORAGE_PATH);
 		if (isNullOrWhitespaceOnly(storagePath)) {
 			throw new IllegalConfigurationException("Configuration is missing the mandatory parameter: " +
 					HighAvailabilityOptions.HA_STORAGE_PATH);
@@ -175,6 +193,10 @@ public class ZookeeperHaServices implements HighAvailabilityServices {
 			throw new IOException("Could not create FileSystem for highly available storage (" +
 					HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
 		}
+
+		final String clusterId =
+			configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
+		storagePath += "/" + clusterId;
 
 		return new FileSystemBlobStore(fileSystem, storagePath);
 	}

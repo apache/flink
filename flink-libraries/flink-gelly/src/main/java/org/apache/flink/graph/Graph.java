@@ -529,7 +529,13 @@ public class Graph<K, VV, EV> {
 
 		TypeInformation<K> keyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
 
-		TypeInformation<NV> valueType = TypeExtractor.createTypeInfo(MapFunction.class, mapper.getClass(), 1, vertices.getType(), null);
+		TypeInformation<NV> valueType;
+
+		if (mapper instanceof ResultTypeQueryable) {
+			valueType = ((ResultTypeQueryable) mapper).getProducedType();
+		} else {
+			valueType = TypeExtractor.createTypeInfo(MapFunction.class, mapper.getClass(), 1, vertices.getType(), null);
+		}
 
 		TypeInformation<Vertex<K, NV>> returnType = (TypeInformation<Vertex<K, NV>>) new TupleTypeInfo(
 				Vertex.class, keyType, valueType);
@@ -573,7 +579,13 @@ public class Graph<K, VV, EV> {
 
 		TypeInformation<K> keyType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(0);
 
-		TypeInformation<NV> valueType = TypeExtractor.createTypeInfo(MapFunction.class, mapper.getClass(), 1, edges.getType(), null);
+		TypeInformation<NV> valueType;
+
+		if (mapper instanceof ResultTypeQueryable) {
+			valueType = ((ResultTypeQueryable) mapper).getProducedType();
+		} else {
+			valueType = TypeExtractor.createTypeInfo(MapFunction.class, mapper.getClass(), 1, edges.getType(), null);
+		}
 
 		TypeInformation<Edge<K, NV>> returnType = (TypeInformation<Edge<K, NV>>) new TupleTypeInfo(
 				Edge.class, keyType, keyType, valueType);
@@ -1126,7 +1138,7 @@ public class Graph<K, VV, EV> {
 		}
 	}
 
-	private static final class ProjectVertexWithEdgeValueMap<K, EV>	implements MapFunction<
+	private static final class ProjectVertexWithEdgeValueMap<K, EV> implements MapFunction<
 		Edge<K, EV>, Tuple2<K, EV>> {
 
 		private int fieldPosition;
@@ -1217,7 +1229,7 @@ public class Graph<K, VV, EV> {
 			this.function = fun;
 		}
 
-		public void coGroup(Iterable<Vertex<K, VV>> vertex, 	final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges,
+		public void coGroup(Iterable<Vertex<K, VV>> vertex, final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges,
 				Collector<T> out) throws Exception {
 
 			final Iterator<Edge<K, EV>> edgesIterator = new Iterator<Edge<K, EV>>() {
@@ -2149,12 +2161,12 @@ public class Graph<K, VV, EV> {
 
 		public void coGroup(Iterable<Vertex<K, VV>> vertex, Iterable<Tuple2<Edge<K, EV>, Vertex<K, VV>>> neighbors,
 				Collector<T> out) throws Exception {
-			function.iterateNeighbors(vertex.iterator().next(), 	neighbors, out);
+			function.iterateNeighbors(vertex.iterator().next(), neighbors, out);
 		}
 
 		@Override
 		public TypeInformation<T> getProducedType() {
-			return TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class, 	function.getClass(), 3, null, null);
+			return TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class, function.getClass(), 3, null, null);
 		}
 	}
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.SelectTransformation;
+import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.SplitTransformation;
@@ -82,7 +83,7 @@ public class StreamGraphGenerator {
 	public static final int UPPER_BOUND_MAX_PARALLELISM = KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
 
 	// The StreamGraph that is being built, this is initialized at the beginning.
-	private StreamGraph streamGraph;
+	private final StreamGraph streamGraph;
 
 	private final StreamExecutionEnvironment env;
 
@@ -163,7 +164,7 @@ public class StreamGraphGenerator {
 
 		Collection<Integer> transformedIds;
 		if (transform instanceof OneInputTransformation<?, ?>) {
-			transformedIds = transformOnInputTransform((OneInputTransformation<?, ?>) transform);
+			transformedIds = transformOneInputTransform((OneInputTransformation<?, ?>) transform);
 		} else if (transform instanceof TwoInputTransformation<?, ?, ?>) {
 			transformedIds = transformTwoInputTransform((TwoInputTransformation<?, ?, ?>) transform);
 		} else if (transform instanceof SourceTransformation<?>) {
@@ -182,6 +183,8 @@ public class StreamGraphGenerator {
 			transformedIds = transformCoFeedback((CoFeedbackTransformation<?>) transform);
 		} else if (transform instanceof PartitionTransformation<?>) {
 			transformedIds = transformPartition((PartitionTransformation<?>) transform);
+		} else if (transform instanceof SideOutputTransformation<?>) {
+			transformedIds = transformSideOutput((SideOutputTransformation<?>) transform);
 		} else {
 			throw new IllegalStateException("Unknown transformation: " + transform);
 		}
@@ -200,6 +203,10 @@ public class StreamGraphGenerator {
 		}
 		if (transform.getUserProvidedNodeHash() != null) {
 			streamGraph.setTransformationUserHash(transform.getId(), transform.getUserProvidedNodeHash());
+		}
+
+		if (transform.getMinResources() != null && transform.getPreferredResources() != null) {
+			streamGraph.setResources(transform.getId(), transform.getMinResources(), transform.getPreferredResources());
 		}
 
 		return transformedIds;
@@ -296,6 +303,35 @@ public class StreamGraphGenerator {
 	}
 
 	/**
+	 * Transforms a {@code SideOutputTransformation}.
+	 *
+	 * <p>
+	 * For this we create a virtual node in the {@code StreamGraph} that holds the side-output
+	 * {@link org.apache.flink.util.OutputTag}.
+	 *
+	 * @see org.apache.flink.streaming.api.graph.StreamGraphGenerator
+	 */
+	private <T> Collection<Integer> transformSideOutput(SideOutputTransformation<T> sideOutput) {
+		StreamTransformation<?> input = sideOutput.getInput();
+		Collection<Integer> resultIds = transform(input);
+
+
+		// the recursive transform might have already transformed this
+		if (alreadyTransformed.containsKey(sideOutput)) {
+			return alreadyTransformed.get(sideOutput);
+		}
+
+		List<Integer> virtualResultIds = new ArrayList<>();
+
+		for (int inputId : resultIds) {
+			int virtualId = StreamTransformation.getNewNodeId();
+			streamGraph.addVirtualSideOutputNode(inputId, virtualId, sideOutput.getOutputTag());
+			virtualResultIds.add(virtualId);
+		}
+		return virtualResultIds;
+	}
+
+	/**
 	 * Transforms a {@code FeedbackTransformation}.
 	 *
 	 * <p>
@@ -331,7 +367,9 @@ public class StreamGraphGenerator {
 			getNewIterationNodeId(),
 			iterate.getWaitTime(),
 			iterate.getParallelism(),
-			iterate.getMaxParallelism());
+			iterate.getMaxParallelism(),
+			iterate.getMinResources(),
+			iterate.getPreferredResources()	);
 
 		StreamNode itSource = itSourceAndSink.f0;
 		StreamNode itSink = itSourceAndSink.f1;
@@ -396,7 +434,9 @@ public class StreamGraphGenerator {
 				getNewIterationNodeId(),
 				coIterate.getWaitTime(),
 				coIterate.getParallelism(),
-				coIterate.getMaxParallelism());
+				coIterate.getMaxParallelism(),
+				coIterate.getMinResources(),
+				coIterate.getPreferredResources());
 
 		StreamNode itSource = itSourceAndSink.f0;
 		StreamNode itSink = itSourceAndSink.f1;
@@ -492,10 +532,10 @@ public class StreamGraphGenerator {
 	 * Transforms a {@code OneInputTransformation}.
 	 *
 	 * <p>
-	 * This recusively transforms the inputs, creates a new {@code StreamNode} in the graph and
+	 * This recursively transforms the inputs, creates a new {@code StreamNode} in the graph and
 	 * wired the inputs to this new node.
 	 */
-	private <IN, OUT> Collection<Integer> transformOnInputTransform(OneInputTransformation<IN, OUT> transform) {
+	private <IN, OUT> Collection<Integer> transformOneInputTransform(OneInputTransformation<IN, OUT> transform) {
 
 		Collection<Integer> inputIds = transform(transform.getInput());
 

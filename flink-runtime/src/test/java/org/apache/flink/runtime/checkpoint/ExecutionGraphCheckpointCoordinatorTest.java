@@ -18,14 +18,10 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import akka.actor.ActorSystem;
-import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -34,9 +30,10 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
-import org.junit.AfterClass;
+
 import org.junit.Test;
 import org.mockito.Matchers;
 
@@ -48,13 +45,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 public class ExecutionGraphCheckpointCoordinatorTest {
-
-	private static ActorSystem system = AkkaUtils.createLocalActorSystem(new Configuration());
-
-	@AfterClass
-	public static void teardown() {
-		JavaTestKit.shutdownActorSystem(system);
-	}
 
 	/**
 	 * Tests that a shut down checkpoint coordinator calls shutdown on
@@ -103,10 +93,10 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			new NoRestartStrategy(),
 			Collections.<BlobKey>emptyList(),
 			Collections.<URL>emptyList(),
-			ClassLoader.getSystemClassLoader(),
-			new UnregisteredMetricsGroup());
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			ClassLoader.getSystemClassLoader());
 
-		executionGraph.enableSnapshotCheckpointing(
+		executionGraph.enableCheckpointing(
 				100,
 				100,
 				100,
@@ -117,6 +107,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 				Collections.<ExecutionJobVertex>emptyList(),
 				counter,
 				store,
+				null,
 				null,
 				CheckpointStatsTrackerTest.createTestTracker());
 

@@ -23,12 +23,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -64,7 +66,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
 	// when we restore we keep the state here so that we can call restore
 	// when the operator requests the keyed state backend
-	private List<KeyGroupsStateHandle> restoredKeyedState = null;
+	private List<KeyedStateHandle> restoredKeyedState = null;
 
 	public KeyedOneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
@@ -143,9 +145,11 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		}
 
 		if (keyedStateBackend != null) {
-			RunnableFuture<KeyGroupsStateHandle> keyedSnapshotRunnable = keyedStateBackend.snapshot(checkpointId,
+			RunnableFuture<KeyedStateHandle> keyedSnapshotRunnable = keyedStateBackend.snapshot(
+					checkpointId,
 					timestamp,
-					streamFactory);
+					streamFactory,
+					CheckpointOptions.forFullCheckpoint());
 			if(!keyedSnapshotRunnable.isDone()) {
 				Thread runner = new Thread(keyedSnapshotRunnable);
 				runner.start();
@@ -174,14 +178,14 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 			byte keyedStatePresent = (byte) inStream.read();
 			if (keyedStatePresent == 1) {
 				ObjectInputStream ois = new ObjectInputStream(inStream);
-				this.restoredKeyedState = Collections.singletonList((KeyGroupsStateHandle) ois.readObject());
+				this.restoredKeyedState = Collections.singletonList((KeyedStateHandle) ois.readObject());
 			}
 		}
 	}
 
 
-	private static boolean hasMigrationHandles(Collection<KeyGroupsStateHandle> allKeyGroupsHandles) {
-		for (KeyGroupsStateHandle handle : allKeyGroupsHandles) {
+	private static boolean hasMigrationHandles(Collection<KeyedStateHandle> allKeyGroupsHandles) {
+		for (KeyedStateHandle handle : allKeyGroupsHandles) {
 			if (handle instanceof Migration) {
 				return true;
 			}
@@ -208,7 +212,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	@Override
 	public void initializeState(OperatorStateHandles operatorStateHandles) throws Exception {
 		if (operatorStateHandles != null) {
-			int numKeyGroups = getEnvironment().getTaskInfo().getNumberOfKeyGroups();
+			int numKeyGroups = getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks();
 			int numSubtasks = getEnvironment().getTaskInfo().getNumberOfParallelSubtasks();
 			int subtaskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
 
@@ -222,17 +226,17 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 					keyGroupPartitions.get(subtaskIndex);
 
 			restoredKeyedState = null;
-			Collection<KeyGroupsStateHandle> managedKeyedState = operatorStateHandles.getManagedKeyedState();
+			Collection<KeyedStateHandle> managedKeyedState = operatorStateHandles.getManagedKeyedState();
 			if (managedKeyedState != null) {
 
 				// if we have migration handles, don't reshuffle state and preserve
 				// the migration tag
 				if (hasMigrationHandles(managedKeyedState)) {
-					List<KeyGroupsStateHandle> result = new ArrayList<>(managedKeyedState.size());
+					List<KeyedStateHandle> result = new ArrayList<>(managedKeyedState.size());
 					result.addAll(managedKeyedState);
 					restoredKeyedState = result;
 				} else {
-					restoredKeyedState = StateAssignmentOperation.getKeyGroupsStateHandles(
+					restoredKeyedState = StateAssignmentOperation.getKeyedStateHandles(
 							managedKeyedState,
 							localKeyGroupRange);
 				}

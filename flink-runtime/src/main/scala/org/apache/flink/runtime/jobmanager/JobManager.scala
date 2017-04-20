@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import java.io.{File, IOException}
+import java.io.IOException
 import java.net._
 import java.util.UUID
 import java.util.concurrent.{TimeUnit, Future => _, TimeoutException => _, _}
@@ -30,7 +30,7 @@ import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration._
-import org.apache.flink.core.fs.FileSystem
+import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup
 import org.apache.flink.metrics.{Gauge, MetricGroup}
@@ -44,13 +44,13 @@ import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.concurrent.{AcceptFunction, BiFunction, Executors => FlinkExecutors}
+import org.apache.flink.runtime.concurrent.{AcceptFunction, ApplyFunction, BiFunction, Executors => FlinkExecutors}
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.executiongraph._
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceID, InstanceManager}
-import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
+import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus}
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway
@@ -77,7 +77,7 @@ import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
-import org.apache.flink.runtime.{FlinkActor, JobException, LeaderSessionMessageFilter, LogMessages}
+import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util.{ConfigurationUtil, InstantiationUtil, NetUtils}
 import org.jboss.netty.channel.ChannelException
 
@@ -611,7 +611,7 @@ class JobManager(
                 new BiFunction[CompletedCheckpoint, Throwable, Void] {
                   override def apply(success: CompletedCheckpoint, cause: Throwable): Void = {
                     if (success != null) {
-                      val path = success.getExternalPath()
+                      val path = success.getExternalPointer()
                       log.info(s"Savepoint stored in $path. Now cancelling $jobId.")
                       executionGraph.cancel()
                       senderRef ! decorateMessage(CancellationSuccess(jobId, path))
@@ -787,11 +787,11 @@ class JobManager(
                 new BiFunction[CompletedCheckpoint, Throwable, Void] {
                   override def apply(success: CompletedCheckpoint, cause: Throwable): Void = {
                     if (success != null) {
-                      if (success.getExternalPath != null) {
+                      if (success.getExternalPointer != null) {
                         senderRef ! TriggerSavepointSuccess(
                           jobId,
                           success.getCheckpointID,
-                          success.getExternalPath,
+                          success.getExternalPointer,
                           success.getTimestamp
                         )
                       } else {
@@ -837,7 +837,7 @@ class JobManager(
           savepoint.dispose()
 
           // Remove the header file
-          SavepointStore.removeSavepoint(savepointPath)
+          SavepointStore.removeSavepointFile(savepointPath)
 
           senderRef ! DisposeSavepointSuccess
         } catch {
@@ -1094,9 +1094,17 @@ class JobManager(
 
       val originalSender = new AkkaActorGateway(sender(), leaderSessionID.orNull)
 
-      stackTraceFuture.thenAccept(new AcceptFunction[StackTrace] {
+      val sendingFuture = stackTraceFuture.thenAccept(new AcceptFunction[StackTrace] {
         override def accept(value: StackTrace): Unit = {
           originalSender.tell(value)
+        }
+      })
+
+      sendingFuture.exceptionally(new ApplyFunction[Throwable, Void] {
+        override def apply(value: Throwable): Void = {
+          log.info("Could not send requested stack trace.", value)
+
+          return null
         }
       })
 
@@ -1242,7 +1250,7 @@ class JobManager(
               "Cannot set up the user code libraries: " + t.getMessage, t)
         }
 
-        var userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
+        val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
         if (userCodeLoader == null) {
           throw new JobSubmissionException(jobId,
             "The user code class loader could not be initialized.")
@@ -1292,6 +1300,7 @@ class JobManager(
           flinkConfiguration,
           futureExecutor,
           ioExecutor,
+          scheduler,
           userCodeLoader,
           checkpointRecoveryFactory,
           Time.of(timeout.length, timeout.unit),
@@ -1410,7 +1419,7 @@ class JobManager(
             // the job.
             log.info(s"Scheduling job $jobId ($jobName).")
 
-            executionGraph.scheduleForExecution(scheduler)
+            executionGraph.scheduleForExecution()
           } else {
             // Remove the job graph. Otherwise it will be lingering around and possibly removed from
             // ZooKeeper by this JM.
@@ -1784,7 +1793,7 @@ class JobManager(
       case t: Throwable =>
         log.error(s"Could not properly unregister job $jobID form the library cache.", t)
     }
-    jobManagerMetricGroup.map(_.removeJob(jobID))
+    jobManagerMetricGroup.foreach(_.removeJob(jobID))
 
     futureOption
   }
@@ -2401,10 +2410,6 @@ object JobManager {
       }
     }
 
-    if (new File(configDir).isDirectory) {
-      configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, configDir + "/..")
-    }
-
     if (cliOptions.getWebUIPort() >= 0) {
       configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, cliOptions.getWebUIPort())
     }
@@ -2475,6 +2480,7 @@ object JobManager {
     RestartStrategyFactory,
     FiniteDuration, // timeout
     Int, // number of archived jobs
+    Option[Path], // archive path
     LeaderElectionService,
     SubmittedJobGraphStore,
     CheckpointRecoveryFactory,
@@ -2493,6 +2499,22 @@ object JobManager {
     val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
       ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT)
 
+    val archiveDir = configuration.getString(JobManagerOptions.ARCHIVE_DIR)
+
+    val archivePath = if (archiveDir != null) {
+      try {
+        Option.apply(
+          WebMonitorUtils.validateAndNormalizeUri(new Path(archiveDir).toUri))
+      } catch {
+        case e: Exception =>
+          LOG.warn(s"Failed to validate specified archive directory in '$archiveDir'. " +
+            "Jobs will not be archived for the HistoryServer.", e)
+          Option.empty
+      }
+    } else {
+      LOG.debug("No archive directory was configured. Jobs will not be archived.")
+      Option.empty
+    }
 
     var blobServer: BlobServer = null
     var instanceManager: InstanceManager = null
@@ -2579,6 +2601,7 @@ object JobManager {
       restartStrategy,
       timeout,
       archiveCount,
+      archivePath,
       leaderElectionService,
       submittedJobGraphs,
       checkpointRecoveryFactory,
@@ -2651,6 +2674,7 @@ object JobManager {
     restartStrategy,
     timeout,
     archiveCount,
+    archivePath,
     leaderElectionService,
     submittedJobGraphs,
     checkpointRecoveryFactory,
@@ -2661,7 +2685,7 @@ object JobManager {
       ioExecutor,
       None)
 
-    val archiveProps = getArchiveProps(archiveClass, archiveCount)
+    val archiveProps = getArchiveProps(archiveClass, archiveCount, archivePath)
 
     // start the archiver with the given name, or without (avoid name conflicts)
     val archive: ActorRef = archiveActorName match {
@@ -2700,8 +2724,11 @@ object JobManager {
     (jobManager, archive)
   }
 
-  def getArchiveProps(archiveClass: Class[_ <: MemoryArchivist], archiveCount: Int): Props = {
-    Props(archiveClass, archiveCount)
+  def getArchiveProps(
+      archiveClass: Class[_ <: MemoryArchivist],
+      archiveCount: Int,
+      archivePath: Option[Path]): Props = {
+    Props(archiveClass, archiveCount, archivePath)
   }
 
   def getJobManagerProps(

@@ -26,6 +26,7 @@ import akka.util.Timeout;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -389,8 +390,8 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				Configuration cfg = new Configuration();
 				cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 				cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
-				cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
-				cfg.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 100);
+				cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+				cfg.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
 				cfg.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
 

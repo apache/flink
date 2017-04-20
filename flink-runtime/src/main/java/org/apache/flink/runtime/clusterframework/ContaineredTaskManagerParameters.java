@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -142,19 +143,14 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 
 		// (2) split the Java memory between heap and off-heap
 
-		final boolean useOffHeap = config.getBoolean(
-			ConfigConstants.TASK_MANAGER_MEMORY_OFF_HEAP_KEY, false);
+		final boolean useOffHeap = config.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP);
 
 		final long heapSizeMB;
 		if (useOffHeap) {
-			long offHeapSize = config.getLong(
-				ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
+			long offHeapSize = config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE);
 
 			if (offHeapSize <= 0) {
-				double fraction = config.getFloat(
-					ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
-					ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
-
+				double fraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
 
 				offHeapSize = (long) (fraction * javaMemorySizeMB);
 			}

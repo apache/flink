@@ -56,8 +56,6 @@ public class KvStateLocationTest {
 			start = end + 1;
 		}
 
-		System.out.println(keyGroupRanges);
-
 		String registrationName = "asdasdasdasd";
 
 		KvStateLocation location = new KvStateLocation(jobId, jobVertexId, numKeyGroups, registrationName);

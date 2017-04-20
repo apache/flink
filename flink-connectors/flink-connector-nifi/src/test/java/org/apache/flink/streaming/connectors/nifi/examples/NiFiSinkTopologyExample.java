@@ -17,6 +17,7 @@
 package org.apache.flink.streaming.connectors.nifi.examples;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.nifi.NiFiDataPacket;
@@ -45,7 +46,8 @@ public class NiFiSinkTopologyExample {
 				.addSink(new NiFiSink<>(clientConfig, new NiFiDataPacketBuilder<String>() {
 					@Override
 					public NiFiDataPacket createNiFiDataPacket(String s, RuntimeContext ctx) {
-						return new StandardNiFiDataPacket(s.getBytes(), new HashMap<String,String>());
+						return new StandardNiFiDataPacket(s.getBytes(ConfigConstants.DEFAULT_CHARSET),
+							new HashMap<String,String>());
 					}
 				}));
 

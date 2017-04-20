@@ -24,6 +24,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
@@ -58,6 +59,14 @@ public class OutputFormatSinkFunction<IN> extends RichSinkFunction<IN> implement
 		int indexInSubtaskGroup = context.getIndexOfThisSubtask();
 		int currentNumberOfSubtasks = context.getNumberOfParallelSubtasks();
 		format.open(indexInSubtaskGroup, currentNumberOfSubtasks);
+	}
+
+	@Override
+	public void setRuntimeContext(RuntimeContext context) {
+		super.setRuntimeContext(context);
+		if (format instanceof RichOutputFormat) {
+			((RichOutputFormat) format).setRuntimeContext(context);
+		}
 	}
 
 	@Override

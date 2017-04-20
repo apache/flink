@@ -127,6 +127,10 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		runStartFromGroupOffsets();
 	}
 
+	@Test(timeout = 60000)
+	public void testStartFromSpecificOffsets() throws Exception {
+		runStartFromSpecificOffsets();
+	}
 
 	// --- offset committing ---
 

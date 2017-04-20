@@ -41,8 +41,13 @@ public final class InternalSingleValueWindowFunction<IN, OUT, KEY, W extends Win
 	}
 
 	@Override
-	public void apply(KEY key, W window, IN input, Collector<OUT> out) throws Exception {
+	public void process(KEY key, W window, InternalWindowContext context, IN input, Collector<OUT> out) throws Exception {
 		wrappedFunction.apply(key, window, Collections.singletonList(input), out);
+	}
+
+	@Override
+	public void clear(W window, InternalWindowContext context) throws Exception {
+
 	}
 
 	@Override

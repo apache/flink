@@ -76,7 +76,7 @@ public class TableSourceITCase extends TableProgramsCollectionTestBase {
 		tableEnv.registerTableSource("persons", csvTable);
 
 		Table result = tableEnv
-			.sql("SELECT last, FLOOR(id), score * 2 FROM persons WHERE score < 20");
+			.sql("SELECT `last`, FLOOR(id), score * 2 FROM persons WHERE score < 20");
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();

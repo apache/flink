@@ -41,6 +41,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.messages.*;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -208,7 +209,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 					TestingMesosFlinkResourceManager.class,
 					config, mesosConfig, workerStore, retrievalService, tmParams, containerSpecification, artifactResolver, LOG));
 			resourceManagerInstance = resourceManagerRef.underlyingActor();
-			resourceManager = new AkkaActorGateway(resourceManagerRef, null);
+			resourceManager = new AkkaActorGateway(resourceManagerRef, HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 			verify(schedulerDriver).start();
 			resourceManagerInstance.connectionMonitor.expectMsgClass(ConnectionMonitor.Start.class);

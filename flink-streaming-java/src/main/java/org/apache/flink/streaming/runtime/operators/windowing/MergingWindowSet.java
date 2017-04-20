@@ -42,7 +42,7 @@ import java.util.Map;
  *
  * <p>A new window can be added to the set of in-flight windows using
  * {@link #addWindow(Window, MergeFunction)}. This might merge other windows and the caller
- * must react accordingly in the {@link MergeFunction#merge(Object, Collection, Object, Collection)
+ * must react accordingly in the {@link MergeFunction#merge(Object, Collection, Object, Collection)}
  * and adjust the outside view of windows and state.
  *
  * <p>Windows can be removed from the set of windows using {@link #retireWindow(Window)}.

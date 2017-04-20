@@ -137,4 +137,9 @@ public abstract class KafkaTableSource implements StreamTableSource<Row> {
 	protected DeserializationSchema<Row> getDeserializationSchema() {
 		return deserializationSchema;
 	}
+
+	@Override
+	public String explainSource() {
+		return "";
+	}
 }

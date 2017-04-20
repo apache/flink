@@ -501,12 +501,13 @@ class TaskManager(
         val taskExecutionId = message.getTaskExecutionId
         val checkpointId = message.getCheckpointId
         val timestamp = message.getTimestamp
+        val checkpointOptions = message.getCheckpointOptions
 
         log.debug(s"Receiver TriggerCheckpoint $checkpointId@$timestamp for $taskExecutionId.")
 
         val task = runningTasks.get(taskExecutionId)
         if (task != null) {
-          task.triggerCheckpointBarrier(checkpointId, timestamp)
+          task.triggerCheckpointBarrier(checkpointId, timestamp, checkpointOptions)
         } else {
           log.debug(s"TaskManager received a checkpoint request for unknown task $taskExecutionId.")
         }
@@ -1433,7 +1434,10 @@ class TaskManager(
     this.jobManagerAkkaURL = Option(newJobManagerAkkaURL)
     this.leaderSessionID = Option(leaderSessionID)
 
-    triggerTaskManagerRegistration()
+    if (this.leaderSessionID.isDefined) {
+      // only trigger the registration if we have obtained a valid leader id (!= null)
+      triggerTaskManagerRegistration()
+    }
   }
 
   /** Starts the TaskManager's registration process to connect to the JobManager.

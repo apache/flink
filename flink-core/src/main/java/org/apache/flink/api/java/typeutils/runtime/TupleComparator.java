@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -26,7 +27,7 @@ import org.apache.flink.types.KeyFieldOutOfBoundsException;
 import org.apache.flink.types.NullFieldException;
 import org.apache.flink.types.NullKeyFieldException;
 
-
+@Internal
 public final class TupleComparator<T extends Tuple> extends TupleComparatorBase<T> {
 
 	private static final long serialVersionUID = 1L;

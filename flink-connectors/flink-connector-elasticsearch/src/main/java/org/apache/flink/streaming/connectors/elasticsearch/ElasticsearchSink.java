@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.index.IndexRequest;
@@ -105,7 +106,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 */
 	public ElasticsearchSink(Map<String, String> userConfig, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
-		super(new Elasticsearch1ApiCallBridge(), userConfig, elasticsearchSinkFunction);
+		this(userConfig, elasticsearchSinkFunction, new NoOpFailureHandler());
 	}
 
 	/**
@@ -116,6 +117,38 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 */
 	public ElasticsearchSink(Map<String, String> userConfig, List<TransportAddress> transportAddresses, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
-		super(new Elasticsearch1ApiCallBridge(transportAddresses), userConfig, elasticsearchSinkFunction);
+		this(userConfig, transportAddresses, elasticsearchSinkFunction, new NoOpFailureHandler());
+	}
+
+	/**
+	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using an embedded {@link Node}.
+	 *
+	 * @param userConfig The map of user settings that are used when constructing the embedded {@link Node} and {@link BulkProcessor}
+	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
+	 * @param failureHandler This is used to handle failed {@link ActionRequest}
+	 */
+	public ElasticsearchSink(
+		Map<String, String> userConfig,
+		ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
+		ActionRequestFailureHandler failureHandler) {
+
+		super(new Elasticsearch1ApiCallBridge(), userConfig, elasticsearchSinkFunction, failureHandler);
+	}
+
+	/**
+	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link TransportClient}.
+	 *
+	 * @param userConfig The map of user settings that are used when constructing the {@link TransportClient} and {@link BulkProcessor}
+	 * @param transportAddresses The addresses of Elasticsearch nodes to which to connect using a {@link TransportClient}
+	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
+	 * @param failureHandler This is used to handle failed {@link ActionRequest}
+	 */
+	public ElasticsearchSink(
+		Map<String, String> userConfig,
+		List<TransportAddress> transportAddresses,
+		ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
+		ActionRequestFailureHandler failureHandler) {
+
+		super(new Elasticsearch1ApiCallBridge(transportAddresses), userConfig, elasticsearchSinkFunction, failureHandler);
 	}
 }

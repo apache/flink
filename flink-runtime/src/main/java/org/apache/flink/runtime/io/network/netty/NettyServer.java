@@ -140,6 +140,7 @@ class NettyServer {
 			public void initChannel(SocketChannel channel) throws Exception {
 				if (serverSSLContext != null) {
 					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
+					config.setSSLVerAndCipherSuites(sslEngine);
 					sslEngine.setUseClientMode(false);
 					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}

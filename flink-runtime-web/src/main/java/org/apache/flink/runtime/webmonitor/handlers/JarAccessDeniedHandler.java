@@ -28,6 +28,17 @@ public class JarAccessDeniedHandler extends AbstractJsonRequestHandler {
 			"available for this cluster. To enable it, set the configuration key ' jobmanager.web.submit.enable.'\"}";
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{
+			JarListHandler.JAR_LIST_REST_PATH,
+			JarPlanHandler.JAR_PLAN_REST_PATH,
+			JarRunHandler.JAR_RUN_REST_PATH,
+			JarUploadHandler.JAR_UPLOAD_REST_PATH,
+			JarDeleteHandler.JAR_DELETE_REST_PATH
+		};
+	}
+
+	@Override
 	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		return ERROR_MESSAGE;
 	}

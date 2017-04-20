@@ -155,6 +155,12 @@ under the License.
 					-->
 					<forkCount>1</forkCount>
 					<reuseForks>false</reuseForks>
+
+					<environmentVariables>
+						<!-- Make sure external hadoop environment will not affect maven building -->
+						<HADOOP_HOME />
+						<HADOOP_CONF_DIR />
+					</environmentVariables>
 				</configuration>
 			</plugin>
 		</plugins>

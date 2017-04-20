@@ -33,12 +33,15 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
@@ -48,6 +51,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceManager;
@@ -164,14 +168,14 @@ public class JobManagerHARecoveryTest {
 			CheckpointIDCounter checkpointCounter = new StandaloneCheckpointIDCounter();
 			CheckpointRecoveryFactory checkpointStateFactory = new MyCheckpointRecoveryFactory(checkpointStore, checkpointCounter);
 			TestingLeaderElectionService myLeaderElectionService = new TestingLeaderElectionService();
-			TestingLeaderRetrievalService myLeaderRetrievalService = new TestingLeaderRetrievalService();
+			TestingLeaderRetrievalService myLeaderRetrievalService = new TestingLeaderRetrievalService(
+				"localhost",
+				HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 			InstanceManager instanceManager = new InstanceManager();
 			instanceManager.addInstanceListener(scheduler);
 
-			archive = system.actorOf(Props.create(
-					MemoryArchivist.class,
-					10), "archive");
+			archive = system.actorOf(JobManager.getArchiveProps(MemoryArchivist.class, 10, Option.<Path>empty()));
 
 			Props jobManagerProps = Props.create(
 				TestingJobManager.class,
@@ -190,7 +194,7 @@ public class JobManagerHARecoveryTest {
 				jobRecoveryTimeout,
 				Option.apply(null));
 
-			jobManager = system.actorOf(jobManagerProps, "jobmanager");
+			jobManager = system.actorOf(jobManagerProps);
 			ActorGateway gateway = new AkkaActorGateway(jobManager, leaderSessionID);
 
 			taskManager = TaskManager.startTaskManagerComponentsAndActor(
@@ -225,6 +229,7 @@ public class JobManagerHARecoveryTest {
 					0,
 					1,
 					ExternalizedCheckpointSettings.none(),
+					null,
 					true));
 
 			BlockingStatefulInvokable.initializeStaticHelpers(slots);
@@ -360,7 +365,7 @@ public class JobManagerHARecoveryTest {
 				Option.<MetricRegistry>apply(null),
 				recoveredJobs).withDispatcher(CallingThreadDispatcher.Id());
 
-			jobManager = system.actorOf(jobManagerProps, "jobmanager");
+			jobManager = system.actorOf(jobManagerProps);
 
 			Future<Object> started = Patterns.ask(jobManager, new Identify(42), deadline.timeLeft().toMillis());
 
@@ -483,6 +488,15 @@ public class JobManagerHARecoveryTest {
 			return checkpoints.size();
 		}
 
+		@Override
+		public int getMaxNumberOfRetainedCheckpoints() {
+			return 1;
+		}
+
+		@Override
+		public boolean requiresExternalizedCheckpoints() {
+			return false;
+		}
 	}
 
 	static class MyCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
@@ -504,7 +518,7 @@ public class JobManagerHARecoveryTest {
 		}
 
 		@Override
-		public CompletedCheckpointStore createCheckpointStore(JobID jobId, ClassLoader userClassLoader) throws Exception {
+		public CompletedCheckpointStore createCheckpointStore(JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader) throws Exception {
 			return store;
 		}
 
@@ -602,7 +616,7 @@ public class JobManagerHARecoveryTest {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData) throws Exception {
+		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception {
 			ByteStreamStateHandle byteStreamStateHandle = new TestByteStreamStateHandleDeepCompare(
 					String.valueOf(UUID.randomUUID()),
 					InstantiationUtil.serializeObject(checkpointMetaData.getCheckpointId()));
@@ -613,13 +627,14 @@ public class JobManagerHARecoveryTest {
 					new SubtaskState(chainedStateHandle, null, null, null, null);
 
 			getEnvironment().acknowledgeCheckpoint(
-					new CheckpointMetaData(checkpointMetaData.getCheckpointId(), -1, 0L, 0L, 0L, 0L),
+					checkpointMetaData.getCheckpointId(),
+					new CheckpointMetrics(0L, 0L, 0L, 0L),
 					checkpointStateHandles);
 			return true;
 		}
 
 		@Override
-		public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData) throws Exception {
+		public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws Exception {
 			throw new UnsupportedOperationException("should not be called!");
 		}
 

@@ -54,7 +54,6 @@ public class DegreesITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple2<Long, LongValue>> data = graph.outDegrees();
 		List<Tuple2<Long, LongValue>> result = data.collect();
 
-
 		expectedResult = "1,2\n" +
 			"2,1\n" +
 			"3,2\n" +
@@ -73,7 +72,6 @@ public class DegreesITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 			TestGraphUtils.getLongLongEdgeDataWithZeroDegree(env), env);
-
 
 		DataSet<Tuple2<Long, LongValue>> data = graph.outDegrees();
 		List<Tuple2<Long, LongValue>> result = data.collect();

@@ -382,7 +382,7 @@ public class StatsDReporterTest extends TestLogger {
 
 					socket.receive(packet);
 
-					String line = new String(packet.getData(), 0, packet.getLength());
+					String line = new String(packet.getData(), 0, packet.getLength(), ConfigConstants.DEFAULT_CHARSET);
 
 					lines.put(line, obj);
 

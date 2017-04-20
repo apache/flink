@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.io;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -28,6 +29,7 @@ import java.io.IOException;
  * versions. Concrete subclasses should typically override the {@link #write(DataOutputView)} and
  * {@link #read(DataInputView)}, thereby calling super to ensure version checking.
  */
+@PublicEvolving
 public abstract class VersionedIOReadableWritable implements IOReadableWritable, Versioned {
 
 	@Override

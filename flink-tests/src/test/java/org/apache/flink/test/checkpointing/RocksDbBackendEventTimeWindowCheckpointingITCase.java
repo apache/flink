@@ -23,4 +23,24 @@ public class RocksDbBackendEventTimeWindowCheckpointingITCase extends AbstractEv
 	public RocksDbBackendEventTimeWindowCheckpointingITCase() {
 		super(StateBackendEnum.ROCKSDB_FULLY_ASYNC);
 	}
+
+	@Override
+	protected int numElementsPerKey() {
+		return 3000;
+	}
+
+	@Override
+	protected int windowSize() {
+		return 1000;
+	}
+
+	@Override
+	protected int windowSlide() {
+		return 100;
+	}
+
+	@Override
+	protected int numKeys() {
+		return 100;
+	}
 }

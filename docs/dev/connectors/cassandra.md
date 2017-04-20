@@ -100,12 +100,11 @@ CassandraSink.addSink(input)
 CassandraSink.addSink(input)
   .setQuery("INSERT INTO example.values (id, counter) values (?, ?);")
   .setClusterBuilder(new ClusterBuilder() {
-    @Override
-    public Cluster buildCluster(Cluster.Builder builder) {
-      return builder.addContactPoint("127.0.0.1").build();
+    override def buildCluster(builder: Cluster.Builder): Cluster = {
+      builder.addContactPoint("127.0.0.1").build()
     }
   })
-  .build();
+  .build()
 {% endhighlight %}
 </div>
 </div>

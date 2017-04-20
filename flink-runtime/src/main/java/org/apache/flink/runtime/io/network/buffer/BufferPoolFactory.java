@@ -29,9 +29,14 @@ public interface BufferPoolFactory {
 	 * Tries to create a buffer pool, which is guaranteed to provide at least the number of required
 	 * buffers.
 	 *
-	 * <p> The buffer pool is either of dynamic size or fixed.
+	 * <p> The buffer pool is of dynamic size with at least <tt>numRequiredBuffers</tt> buffers.
+	 *
+	 * @param numRequiredBuffers
+	 * 		minimum number of network buffers in this pool
+	 * @param maxUsedBuffers
+	 * 		maximum number of network buffers this pool offers
 	 */
-	BufferPool createBufferPool(int numRequiredBuffers, boolean isFixedSize) throws IOException;
+	BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers) throws IOException;
 
 	/**
 	 * Destroy callback for updating factory book keeping.

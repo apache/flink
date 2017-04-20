@@ -39,9 +39,57 @@ public class TaskManagerOptions {
 			key("taskmanager.jvm-exit-on-oom")
 			.defaultValue(false);
 
+	/** JVM heap size (in megabytes) for the TaskManagers */
+	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY =
+			key("taskmanager.heap.mb")
+			.defaultValue(1024);
+		   
+	/** Size of memory buffers used by the network stack and the memory manager (in bytes). */
+	public static final ConfigOption<Integer> MEMORY_SEGMENT_SIZE =
+			key("taskmanager.memory.segment-size")
+			.defaultValue(32768);
+
+	/**
+	 * Amount of memory to be allocated by the task manager's memory manager (in megabytes). If not
+	 * set, a relative fraction will be allocated, as defined by {@link #MANAGED_MEMORY_FRACTION}.
+	 */
+	public static final ConfigOption<Long> MANAGED_MEMORY_SIZE =
+			key("taskmanager.memory.size")
+			.defaultValue(-1L);
+
+	/**
+	 * Fraction of free memory allocated by the memory manager if {@link #MANAGED_MEMORY_SIZE} is
+	 * not set.
+	 */
+	public static final ConfigOption<Float> MANAGED_MEMORY_FRACTION =
+			key("taskmanager.memory.fraction")
+			.defaultValue(0.7f);
+
+	/**
+	 * Memory allocation method (JVM heap or off-heap), used for managed memory of the TaskManager
+	 * as well as the network buffers.
+	 **/
+	public static final ConfigOption<Boolean> MEMORY_OFF_HEAP =
+			key("taskmanager.memory.off-heap")
+			.defaultValue(false);
+
+	/** Whether TaskManager managed memory should be pre-allocated when the TaskManager is starting. */
+	public static final ConfigOption<Boolean> MANAGED_MEMORY_PRE_ALLOCATE =
+			key("taskmanager.memory.preallocate")
+			.defaultValue(false);
+
 	// ------------------------------------------------------------------------
 	//  Network Options
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Number of buffers used in the network stack. This defines the number of possible tasks and
+	 * shuffles.
+	 */
+	public static final ConfigOption<Integer> NETWORK_NUM_BUFFERS =
+			key("taskmanager.network.numberOfBuffers")
+			.defaultValue(2048);
+
 
 	/** Minimum backoff for partition requests of input channels. */
 	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_INITIAL =
@@ -52,6 +100,20 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_MAX =
 			key("taskmanager.net.request-backoff.max")
 			.defaultValue(10000);
+
+	/**
+	 * Number of network buffers to use for each outgoing/ingoing channel (subpartition/input channel).
+	 *
+	 * Reasoning: 1 buffer for in-flight data in the subpartition + 1 buffer for parallel serialization
+	 */
+	public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
+		key("taskmanager.net.memory.buffers-per-channel")
+			.defaultValue(2);
+
+	/** Number of extra network buffers to use for each outgoing/ingoing gate (result partition/input gate). */
+	public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
+		key("taskmanager.net.memory.extra-buffers-per-gate")
+			.defaultValue(8);
 
 	// ------------------------------------------------------------------------
 	//  Task Options

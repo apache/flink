@@ -21,10 +21,13 @@ package org.apache.flink.yarn;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -112,9 +115,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 */
 	private int slots = -1;
 
-	private int jobManagerMemoryMb = 1024;
+	private int jobManagerMemoryMb = JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.defaultValue();
 
-	private int taskManagerMemoryMb = 1024;
+	private int taskManagerMemoryMb = TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.defaultValue();
 
 	private int taskManagerCount = 1;
 
@@ -163,8 +166,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				throw new RuntimeException("Unable to locate configuration file in " + confFile);
 			}
 			flinkConfigurationPath = new Path(confFile.getAbsolutePath());
+
+			slots = flinkConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+
+			jobManagerMemoryMb = flinkConfiguration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
+			taskManagerMemoryMb = flinkConfiguration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
+
 		} catch (Exception e) {
-			LOG.debug("Config couldn't be loaded from environment variable.");
+			LOG.debug("Config couldn't be loaded from environment variable.", e);
 		}
 	}
 
@@ -413,10 +422,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				// for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
 				// so we check only in ticket cache scenario.
 				boolean useTicketCache = flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
+
 				UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
-				if (useTicketCache && !loginUser.hasKerberosCredentials()) {
-					LOG.error("Hadoop security is enabled but the login user does not have Kerberos credentials");
-					throw new RuntimeException("Hadoop security is enabled but the login user " +
+				if (loginUser.getAuthenticationMethod() == UserGroupInformation.AuthenticationMethod.KERBEROS
+						&& useTicketCache && !loginUser.hasKerberosCredentials()) {
+					LOG.error("Hadoop security with Kerberos is enabled but the login user does not have Kerberos credentials");
+					throw new RuntimeException("Hadoop security with Kerberos is enabled but the login user " +
 							"does not have Kerberos credentials");
 				}
 			}
@@ -720,8 +731,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		paths.add(remotePathConf);
 		classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
 
-		// write job graph to tmp file and add it to local resource 
-		// TODO: server use user main method to generate job graph 
+		// write job graph to tmp file and add it to local resource
+		// TODO: server use user main method to generate job graph
 		if (jobGraph != null) {
 			try {
 				File fp = File.createTempFile(appId.toString(), null);
@@ -1232,8 +1243,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// ------------------ Prepare Application Master Container  ------------------------------
 
 		// respect custom JVM options in the YAML file
-		String javaOpts =
-			flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
+		String javaOpts = flinkConfiguration.getString(CoreOptions.FLINK_JVM_OPTIONS);
+		if (flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS).length() > 0) {
+			javaOpts += " " + flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS);
+		}
 		//applicable only for YarnMiniCluster secure test run
 		//krb5.conf file will be available as local resource in JM/TM container
 		if (hasKrb5) {

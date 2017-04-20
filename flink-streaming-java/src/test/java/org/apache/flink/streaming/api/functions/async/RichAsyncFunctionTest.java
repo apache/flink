@@ -27,6 +27,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.metrics.MetricGroup;
@@ -165,7 +166,6 @@ public class RichAsyncFunctionTest {
 		} catch (UnsupportedOperationException e) {
 			// expected
 		}
-
 		try {
 			runtimeContext.getFoldingState(new FoldingStateDescriptor<>("foobar", 0, new FoldFunction<Integer, Integer>() {
 				@Override
@@ -173,6 +173,12 @@ public class RichAsyncFunctionTest {
 					return accumulator;
 				}
 			}, Integer.class));
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
+		try {
+			runtimeContext.getMapState(new MapStateDescriptor<>("foobar", Integer.class, String.class));
 		} catch (UnsupportedOperationException e) {
 			// expected
 		}

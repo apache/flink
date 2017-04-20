@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.TaskStateHandles;
 
 /**
@@ -41,24 +43,27 @@ public interface StatefulTask {
 	 * 
 	 * <p>This method is called for tasks that start the checkpoints by injecting the initial barriers,
 	 * i.e., the source tasks. In contrast, checkpoints on downstream operators, which are the result of
-	 * receiving checkpoint barriers, invoke the {@link #triggerCheckpointOnBarrier(CheckpointMetaData)}
+	 * receiving checkpoint barriers, invoke the {@link #triggerCheckpointOnBarrier(CheckpointMetaData, CheckpointMetrics)}
 	 * method.
 	 *
 	 * @param checkpointMetaData Meta data for about this checkpoint
+	 * @param checkpointOptions Options for performing this checkpoint
 	 *
 	 * @return {@code false} if the checkpoint can not be carried out, {@code true} otherwise
 	 */
-	boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData) throws Exception;
+	boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception;
 
 	/**
 	 * This method is called when a checkpoint is triggered as a result of receiving checkpoint
 	 * barriers on all input streams.
 	 * 
 	 * @param checkpointMetaData Meta data for about this checkpoint
+	 * @param checkpointOptions Options for performing this checkpoint
+	 * @param checkpointMetrics Metrics about this checkpoint
 	 * 
 	 * @throws Exception Exceptions thrown as the result of triggering a checkpoint are forwarded.
 	 */
-	void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData) throws Exception;
+	void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws Exception;
 
 	/**
 	 * Aborts a checkpoint as the result of receiving possibly some checkpoint barriers,

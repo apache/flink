@@ -34,7 +34,7 @@ import java.io.Serializable;
  */
 @Public
 public interface KeySelector<IN, KEY> extends Function, Serializable {
-	
+
 	/**
 	 * User-defined function that extracts the key from an arbitrary object.
 	 * 

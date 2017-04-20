@@ -64,7 +64,11 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
 		checkpoints.add(checkpoint);
 		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
-			checkpoints.remove().subsume();
+			try {
+				checkpoints.remove().subsume();
+			} catch (Exception e) {
+				LOG.warn("Fail to subsume the old checkpoint.", e);
+			}
 		}
 	}
 
@@ -84,6 +88,11 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	}
 
 	@Override
+	public int getMaxNumberOfRetainedCheckpoints() {
+		return maxNumberOfCheckpointsToRetain;
+	}
+
+	@Override
 	public void shutdown(JobStatus jobStatus) throws Exception {
 		try {
 			LOG.info("Shutting down");
@@ -96,4 +105,8 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 		}
 	}
 
+	@Override
+	public boolean requiresExternalizedCheckpoints() {
+		return false;
+	}
 }

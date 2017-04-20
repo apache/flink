@@ -72,16 +72,21 @@ public class TaskManagerJobMetricGroup extends JobMetricGroup<TaskManagerMetricG
 
 		synchronized (this) {
 			if (!isClosed()) {
-				TaskMetricGroup task = new TaskMetricGroup(
-					registry,
-					this,
-					jobVertexId,
-					executionAttemptID,
-					taskName,
-					subtaskIndex,
-					attemptNumber);
-				tasks.put(executionAttemptID, task);
-				return task;
+				TaskMetricGroup prior = tasks.get(executionAttemptID);
+				if (prior != null) {
+					return prior;
+				} else {
+					TaskMetricGroup task = new TaskMetricGroup(
+						registry,
+						this,
+						jobVertexId,
+						executionAttemptID,
+						taskName,
+						subtaskIndex,
+						attemptNumber);
+					tasks.put(executionAttemptID, task);
+					return task;
+				}
 			} else {
 				return null;
 			}

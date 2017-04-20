@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobStore;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -99,11 +101,15 @@ public class JobManagerRunnerMockTest {
 		when(haServices.createBlobStore()).thenReturn(blobStore);
 		when(haServices.getRunningJobsRegistry()).thenReturn(runningJobsRegistry);
 
+		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class);
+
 		runner = PowerMockito.spy(new JobManagerRunner(
+			ResourceID.generate(),
 			new JobGraph("test", new JobVertex("vertex")),
 			mock(Configuration.class),
 			mockRpc,
 			haServices,
+			heartbeatServices,
 			JobManagerServices.fromConfiguration(new Configuration(), haServices),
 			new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration()),
 			jobCompletion,

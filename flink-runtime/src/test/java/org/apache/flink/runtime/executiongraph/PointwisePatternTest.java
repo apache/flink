@@ -25,7 +25,9 @@ import static org.junit.Assert.fail;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 
@@ -61,7 +63,7 @@ public class PointwisePatternTest {
 		v1.setInvokableClass(AbstractInvokable.class);
 		v2.setInvokableClass(AbstractInvokable.class);
 	
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
@@ -73,7 +75,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -107,7 +110,7 @@ public class PointwisePatternTest {
 		v1.setInvokableClass(AbstractInvokable.class);
 		v2.setInvokableClass(AbstractInvokable.class);
 	
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
@@ -119,7 +122,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -154,7 +158,7 @@ public class PointwisePatternTest {
 		v1.setInvokableClass(AbstractInvokable.class);
 		v2.setInvokableClass(AbstractInvokable.class);
 	
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
@@ -166,7 +170,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -202,7 +207,7 @@ public class PointwisePatternTest {
 		v1.setInvokableClass(AbstractInvokable.class);
 		v2.setInvokableClass(AbstractInvokable.class);
 	
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
@@ -214,7 +219,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -248,7 +254,7 @@ public class PointwisePatternTest {
 		v1.setInvokableClass(AbstractInvokable.class);
 		v2.setInvokableClass(AbstractInvokable.class);
 	
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
@@ -260,7 +266,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -314,7 +321,7 @@ public class PointwisePatternTest {
 		v1.setInvokableClass(AbstractInvokable.class);
 		v2.setInvokableClass(AbstractInvokable.class);
 	
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
@@ -326,7 +333,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -348,9 +356,9 @@ public class PointwisePatternTest {
 			
 			timesUsed[inEdges[0].getSource().getPartitionNumber()]++;
 		}
-		
-		for (int i = 0; i < timesUsed.length; i++) {
-			assertTrue(timesUsed[i] >= factor && timesUsed[i] <= factor + delta);
+
+		for (int used : timesUsed) {
+			assertTrue(used >= factor && used <= factor + delta);
 		}
 	}
 	
@@ -371,7 +379,7 @@ public class PointwisePatternTest {
 		v1.setInvokableClass(AbstractInvokable.class);
 		v2.setInvokableClass(AbstractInvokable.class);
 	
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
@@ -383,7 +391,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -406,9 +415,9 @@ public class PointwisePatternTest {
 				timesUsed[ee.getSource().getPartitionNumber()]++;
 			}
 		}
-		
-		for (int i = 0; i < timesUsed.length; i++) {
-			assertEquals(1, timesUsed[i]);
+
+		for (int used : timesUsed) {
+			assertEquals(1, used);
 		}
 	}
 }

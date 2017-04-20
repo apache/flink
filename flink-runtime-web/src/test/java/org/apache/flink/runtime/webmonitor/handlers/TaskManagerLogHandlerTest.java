@@ -24,6 +24,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.router.Routed;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -44,6 +45,7 @@ import org.mockito.stubbing.Answer;
 import scala.Option;
 import scala.collection.JavaConverters;
 import scala.concurrent.ExecutionContext$;
+import scala.concurrent.ExecutionContextExecutor;
 import scala.concurrent.Future$;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -60,6 +62,33 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 public class TaskManagerLogHandlerTest {
+	@Test
+	public void testGetPaths() {
+		TaskManagerLogHandler handlerLog = new TaskManagerLogHandler(
+			mock(JobManagerRetriever.class),
+			mock(ExecutionContextExecutor.class),
+			Future$.MODULE$.successful("/jm/address"),
+			AkkaUtils.getDefaultClientTimeout(),
+			TaskManagerLogHandler.FileMode.LOG,
+			new Configuration(),
+			false);
+		String[] pathsLog = handlerLog.getPaths();
+		Assert.assertEquals(1, pathsLog.length);
+		Assert.assertEquals("/taskmanagers/:taskmanagerid/log", pathsLog[0]);
+
+		TaskManagerLogHandler handlerOut = new TaskManagerLogHandler(
+			mock(JobManagerRetriever.class),
+			mock(ExecutionContextExecutor.class),
+			Future$.MODULE$.successful("/jm/address"),
+			AkkaUtils.getDefaultClientTimeout(),
+			TaskManagerLogHandler.FileMode.STDOUT,
+			new Configuration(),
+			false);
+		String[] pathsOut = handlerOut.getPaths();
+		Assert.assertEquals(1, pathsOut.length);
+		Assert.assertEquals("/taskmanagers/:taskmanagerid/stdout", pathsOut[0]);
+	}
+
 	@Test
 	public void testLogFetchingFailure() throws Exception {
 		// ========= setup TaskManager =================================================================================
@@ -111,7 +140,7 @@ public class TaskManagerLogHandlerTest {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
 				ByteBuf data = invocationOnMock.getArgumentAt(0, ByteBuf.class);
-				exception.set(new String(data.array()));
+				exception.set(new String(data.array(), ConfigConstants.DEFAULT_CHARSET));
 				return null;
 			}
 		});

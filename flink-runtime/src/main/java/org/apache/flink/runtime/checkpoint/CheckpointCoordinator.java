@@ -21,6 +21,8 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
+import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -36,6 +38,8 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.TaskStateHandles;
+
+import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,9 +50,10 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -82,6 +87,12 @@ public class CheckpointCoordinator {
 	/** The job whose checkpoint this coordinator coordinates */
 	private final JobID job;
 
+	/** Default checkpoint properties **/
+	private final CheckpointProperties checkpointProperties;
+
+	/** The executor used for asynchronous calls, like potentially blocking I/O */
+	private final Executor executor;
+	
 	/** Tasks who need to be sent a message when a checkpoint is started */
 	private final ExecutionVertex[] tasksToTrigger;
 
@@ -98,7 +109,9 @@ public class CheckpointCoordinator {
 	 * accessing this don't block the job manager actor and run asynchronously. */
 	private final CompletedCheckpointStore completedCheckpointStore;
 
-	/** Default directory for persistent checkpoints; <code>null</code> if none configured. */
+	/** Default directory for persistent checkpoints; <code>null</code> if none configured.
+	 * THIS WILL BE REPLACED BY PROPER STATE-BACKEND METADATA WRITING */
+	@Nullable
 	private final String checkpointDirectory;
 
 	/** A list of recent checkpoint IDs, to identify late messages (vs invalid ones) */
@@ -123,7 +136,7 @@ public class CheckpointCoordinator {
 	private final int maxConcurrentCheckpointAttempts;
 
 	/** The timer that handles the checkpoint timeouts and triggers periodic checkpoints */
-	private final Timer timer;
+	private final ScheduledThreadPoolExecutor timer;
 
 	/** Actor that receives status updates from the execution graph this coordinator works for */
 	private JobStatusListener jobStatusListener;
@@ -131,7 +144,8 @@ public class CheckpointCoordinator {
 	/** The number of consecutive failed trigger attempts */
 	private final AtomicInteger numUnsuccessfulCheckpointsTriggers = new AtomicInteger(0);
 
-	private ScheduledTrigger currentPeriodicTrigger;
+	/** A handle to the current periodic trigger, to cancel it when necessary */
+	private ScheduledFuture<?> currentPeriodicTrigger;
 
 	/** The timestamp (via {@link System#nanoTime()}) when the last checkpoint completed */
 	private long lastCheckpointCompletionNanos;
@@ -151,11 +165,6 @@ public class CheckpointCoordinator {
 	@Nullable
 	private CheckpointStatsTracker statsTracker;
 
-	/** Default checkpoint properties **/
-	private final CheckpointProperties checkpointProperties;
-
-	private final Executor executor;
-
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
@@ -170,7 +179,7 @@ public class CheckpointCoordinator {
 			ExecutionVertex[] tasksToCommitTo,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
-			String checkpointDirectory,
+			@Nullable String checkpointDirectory,
 			Executor executor) {
 
 		// sanity checks
@@ -208,9 +217,17 @@ public class CheckpointCoordinator {
 		this.checkpointIdCounter = checkNotNull(checkpointIDCounter);
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
 		this.checkpointDirectory = checkpointDirectory;
+		this.executor = checkNotNull(executor);
+
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 
-		this.timer = new Timer("Checkpoint Timer", true);
+		this.timer = new ScheduledThreadPoolExecutor(1,
+				new DispatcherThreadFactory(Thread.currentThread().getThreadGroup(), "Checkpoint Timer"));
+
+		// make sure the timer internally cleans up and does not hold onto stale scheduled tasks
+		this.timer.setRemoveOnCancelPolicy(true);
+		this.timer.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
+		this.timer.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
 
 		if (externalizeSettings.externalizeCheckpoints()) {
 			LOG.info("Persisting periodic checkpoints externally at {}.", checkpointDirectory);
@@ -226,8 +243,6 @@ public class CheckpointCoordinator {
 		} catch (Throwable t) {
 			throw new RuntimeException("Failed to start checkpoint ID counter: " + t.getMessage(), t);
 		}
-
-		this.executor = checkNotNull(executor);
 	}
 
 	/**
@@ -259,7 +274,7 @@ public class CheckpointCoordinator {
 				triggerRequestQueued = false;
 
 				// shut down the thread that handles the timeouts and pending triggers
-				timer.cancel();
+				timer.shutdownNow();
 
 				// clear and discard all pending checkpoints
 				for (PendingCheckpoint pending : pendingCheckpoints.values()) {
@@ -296,15 +311,42 @@ public class CheckpointCoordinator {
 		checkNotNull(targetDirectory, "Savepoint target directory");
 
 		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
-		CheckpointTriggerResult result = triggerCheckpoint(timestamp, props, targetDirectory, false);
 
-		if (result.isSuccess()) {
-			return result.getPendingCheckpoint().getCompletionFuture();
+		// Create the unique savepoint directory
+		final String savepointDirectory = SavepointStore
+			.createSavepointDirectory(targetDirectory, job);
+
+		CheckpointTriggerResult triggerResult = triggerCheckpoint(
+			timestamp,
+			props,
+			savepointDirectory,
+			false);
+
+		Future<CompletedCheckpoint> result;
+
+		if (triggerResult.isSuccess()) {
+			result = triggerResult.getPendingCheckpoint().getCompletionFuture();
+		} else {
+			Throwable cause = new Exception("Failed to trigger savepoint: " + triggerResult.getFailureReason().message());
+			result = FlinkCompletableFuture.completedExceptionally(cause);
 		}
-		else {
-			Throwable cause = new Exception("Failed to trigger savepoint: " + result.getFailureReason().message());
-			return FlinkCompletableFuture.completedExceptionally(cause);
-		}
+
+		// Make sure to remove the created base directory on Exceptions
+		result.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
+			@Override
+			public Void apply(Throwable value) {
+				try {
+					SavepointStore.deleteSavepointDirectory(savepointDirectory);
+				} catch (Throwable t) {
+					LOG.warn("Failed to delete savepoint directory " + savepointDirectory
+						+ " after failed savepoint.", t);
+				}
+
+				return null;
+			}
+		}, executor);
+
+		return result;
 	}
 
 	/**
@@ -359,7 +401,7 @@ public class CheckpointCoordinator {
 				if (pendingCheckpoints.size() >= maxConcurrentCheckpointAttempts) {
 					triggerRequestQueued = true;
 					if (currentPeriodicTrigger != null) {
-						currentPeriodicTrigger.cancel();
+						currentPeriodicTrigger.cancel(false);
 						currentPeriodicTrigger = null;
 					}
 					return new CheckpointTriggerResult(CheckpointDeclineReason.TOO_MANY_CONCURRENT_CHECKPOINTS);
@@ -371,13 +413,14 @@ public class CheckpointCoordinator {
 
 				if (durationTillNextMillis > 0) {
 					if (currentPeriodicTrigger != null) {
-						currentPeriodicTrigger.cancel();
+						currentPeriodicTrigger.cancel(false);
 						currentPeriodicTrigger = null;
 					}
-					ScheduledTrigger trigger = new ScheduledTrigger();
 					// Reassign the new trigger to the currentPeriodicTrigger
-					currentPeriodicTrigger = trigger;
-					timer.scheduleAtFixedRate(trigger, durationTillNextMillis, baseInterval);
+					currentPeriodicTrigger = timer.scheduleAtFixedRate(
+							new ScheduledTrigger(),
+							durationTillNextMillis, baseInterval, TimeUnit.MILLISECONDS);
+
 					return new CheckpointTriggerResult(CheckpointDeclineReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
 				}
 			}
@@ -392,7 +435,7 @@ public class CheckpointCoordinator {
 				executions[i] = ee;
 			} else {
 				LOG.info("Checkpoint triggering task {} is not being executed at the moment. Aborting checkpoint.",
-						tasksToTrigger[i].getSimpleName());
+						tasksToTrigger[i].getTaskNameWithSubtaskIndex());
 				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
 			}
 		}
@@ -407,7 +450,7 @@ public class CheckpointCoordinator {
 				ackTasks.put(ee.getAttemptId(), ev);
 			} else {
 				LOG.info("Checkpoint acknowledging task {} is not being executed at the moment. Aborting checkpoint.",
-						ev.getSimpleName());
+						ev.getTaskNameWithSubtaskIndex());
 				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
 			}
 		}
@@ -450,7 +493,7 @@ public class CheckpointCoordinator {
 			}
 
 			// schedule the timer that will clean up the expired checkpoints
-			TimerTask canceller = new TimerTask() {
+			final Runnable canceller = new Runnable() {
 				@Override
 				public void run() {
 					synchronized (lock) {
@@ -486,7 +529,7 @@ public class CheckpointCoordinator {
 						if (pendingCheckpoints.size() >= maxConcurrentCheckpointAttempts) {
 							triggerRequestQueued = true;
 							if (currentPeriodicTrigger != null) {
-								currentPeriodicTrigger.cancel();
+								currentPeriodicTrigger.cancel(false);
 								currentPeriodicTrigger = null;
 							}
 							return new CheckpointTriggerResult(CheckpointDeclineReason.TOO_MANY_CONCURRENT_CHECKPOINTS);
@@ -498,14 +541,15 @@ public class CheckpointCoordinator {
 
 						if (durationTillNextMillis > 0) {
 							if (currentPeriodicTrigger != null) {
-								currentPeriodicTrigger.cancel();
+								currentPeriodicTrigger.cancel(false);
 								currentPeriodicTrigger = null;
 							}
 
-							ScheduledTrigger trigger = new ScheduledTrigger();
 							// Reassign the new trigger to the currentPeriodicTrigger
-							currentPeriodicTrigger = trigger;
-							timer.scheduleAtFixedRate(trigger, durationTillNextMillis, baseInterval);
+							currentPeriodicTrigger = timer.scheduleAtFixedRate(
+									new ScheduledTrigger(),
+									durationTillNextMillis, baseInterval, TimeUnit.MILLISECONDS);
+
 							return new CheckpointTriggerResult(CheckpointDeclineReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
 						}
 					}
@@ -513,13 +557,28 @@ public class CheckpointCoordinator {
 					LOG.info("Triggering checkpoint " + checkpointID + " @ " + timestamp);
 
 					pendingCheckpoints.put(checkpointID, checkpoint);
-					timer.schedule(canceller, checkpointTimeout);
+
+					ScheduledFuture<?> cancellerHandle = timer.schedule(
+							canceller,
+							checkpointTimeout, TimeUnit.MILLISECONDS);
+
+					if (!checkpoint.setCancellerHandle(cancellerHandle)) {
+						// checkpoint is already disposed!
+						cancellerHandle.cancel(false);
+					}
 				}
 				// end of lock scope
 
+				CheckpointOptions checkpointOptions;
+				if (!props.isSavepoint()) {
+					checkpointOptions = CheckpointOptions.forFullCheckpoint();
+				} else {
+					checkpointOptions = CheckpointOptions.forSavepoint(targetDirectory);
+				}
+
 				// send the messages to the tasks that trigger their checkpoint
 				for (Execution execution: executions) {
-					execution.triggerCheckpoint(checkpointID, timestamp);
+					execution.triggerCheckpoint(checkpointID, timestamp, checkpointOptions);
 				}
 
 				numUnsuccessfulCheckpointsTriggers.set(0);
@@ -623,7 +682,7 @@ public class CheckpointCoordinator {
 	 * @return Flag indicating whether the ack'd checkpoint was associated
 	 * with a pending checkpoint.
 	 *
-	 * @throws Exception If the checkpoint cannot be added to the completed checkpoint store.
+	 * @throws CheckpointException If the checkpoint cannot be added to the completed checkpoint store.
 	 */
 	public boolean receiveAcknowledgeMessage(AcknowledgeCheckpoint message) throws CheckpointException {
 		if (shutdown || message == null) {
@@ -648,7 +707,7 @@ public class CheckpointCoordinator {
 
 			if (checkpoint != null && !checkpoint.isDiscarded()) {
 
-				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState(), message.getCheckpointMetaData())) {
+				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState(), message.getCheckpointMetrics())) {
 					case SUCCESS:
 						LOG.debug("Received acknowledge message for checkpoint {} from task {} of job {}.",
 							checkpointId, message.getTaskExecutionId(), message.getJob());
@@ -722,13 +781,19 @@ public class CheckpointCoordinator {
 		CompletedCheckpoint completedCheckpoint = null;
 
 		try {
-			completedCheckpoint = pendingCheckpoint.finalizeCheckpoint();
+			// externalize the checkpoint if required
+			if (pendingCheckpoint.getProps().externalizeCheckpoint()) {
+				completedCheckpoint = pendingCheckpoint.finalizeCheckpointExternalized();
+			} else {
+				completedCheckpoint = pendingCheckpoint.finalizeCheckpointNonExternalized();
+			}
 
 			completedCheckpointStore.addCheckpoint(completedCheckpoint);
 
 			rememberRecentCheckpointId(checkpointId);
 			dropSubsumedCheckpoints(checkpointId);
-		} catch (Exception exception) {
+		}
+		catch (Exception exception) {
 			// abort the current pending checkpoint if it has not been discarded yet
 			if (!pendingCheckpoint.isDiscarded()) {
 				pendingCheckpoint.abortError(exception);
@@ -743,8 +808,8 @@ public class CheckpointCoordinator {
 					public void run() {
 						try {
 							cc.discard();
-						} catch (Exception nestedException) {
-							LOG.warn("Could not properly discard completed checkpoint {}.", cc.getCheckpointID(), nestedException);
+						} catch (Throwable t) {
+							LOG.warn("Could not properly discard completed checkpoint {}.", cc.getCheckpointID(), t);
 						}
 					}
 				});
@@ -756,7 +821,7 @@ public class CheckpointCoordinator {
 
 			triggerQueuedRequests();
 		}
-		
+
 		// record the time when this was completed, to calculate
 		// the 'min delay between checkpoints'
 		lastCheckpointCompletionNanos = System.nanoTime();
@@ -772,11 +837,12 @@ public class CheckpointCoordinator {
 				builder.append(", ");
 			}
 			// Remove last two chars ", "
-			builder.delete(builder.length() - 2, builder.length());
+			builder.setLength(builder.length() - 2);
 
 			LOG.debug(builder.toString());
 		}
 
+		// send the "notify complete" call to all vertices
 		final long timestamp = completedCheckpoint.getTimestamp();
 
 		for (ExecutionVertex ev : tasksToCommitTo) {
@@ -819,18 +885,23 @@ public class CheckpointCoordinator {
 
 			// trigger the checkpoint from the trigger timer, to finish the work of this thread before
 			// starting with the next checkpoint
-			ScheduledTrigger trigger = new ScheduledTrigger();
 			if (periodicScheduling) {
 				if (currentPeriodicTrigger != null) {
-					currentPeriodicTrigger.cancel();
+					currentPeriodicTrigger.cancel(false);
 				}
-				currentPeriodicTrigger = trigger;
-				timer.scheduleAtFixedRate(trigger, 0L, baseInterval);
+				currentPeriodicTrigger = timer.scheduleAtFixedRate(
+						new ScheduledTrigger(),
+						0L, baseInterval, TimeUnit.MILLISECONDS);
 			}
 			else {
-				timer.schedule(trigger, 0L);
+				timer.execute(new ScheduledTrigger());
 			}
 		}
+	}
+
+	@VisibleForTesting
+	int getNumScheduledTasks() {
+		return timer.getQueue().size();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -898,7 +969,7 @@ public class CheckpointCoordinator {
 					latest.getCheckpointID(),
 					latest.getProperties(),
 					restoreTimestamp,
-					latest.getExternalPath());
+					latest.getExternalPointer());
 
 				statsTracker.reportRestoredCheckpoint(restored);
 			}
@@ -959,8 +1030,9 @@ public class CheckpointCoordinator {
 			stopCheckpointScheduler();
 
 			periodicScheduling = true;
-			currentPeriodicTrigger = new ScheduledTrigger();
-			timer.scheduleAtFixedRate(currentPeriodicTrigger, baseInterval, baseInterval);
+			currentPeriodicTrigger = timer.scheduleAtFixedRate(
+					new ScheduledTrigger(), 
+					baseInterval, baseInterval, TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -970,7 +1042,7 @@ public class CheckpointCoordinator {
 			periodicScheduling = false;
 
 			if (currentPeriodicTrigger != null) {
-				currentPeriodicTrigger.cancel();
+				currentPeriodicTrigger.cancel(false);
 				currentPeriodicTrigger = null;
 			}
 
@@ -1003,7 +1075,7 @@ public class CheckpointCoordinator {
 
 	// ------------------------------------------------------------------------
 
-	private class ScheduledTrigger extends TimerTask {
+	private final class ScheduledTrigger implements Runnable {
 
 		@Override
 		public void run() {
@@ -1030,7 +1102,7 @@ public class CheckpointCoordinator {
 			final ExecutionAttemptID executionAttemptID,
 			final long checkpointId,
 			final StateObject stateObject) {
-		
+
 		if (stateObject != null) {
 			executor.execute(new Runnable() {
 				@Override

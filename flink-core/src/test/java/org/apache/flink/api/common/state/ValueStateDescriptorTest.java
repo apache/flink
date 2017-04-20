@@ -113,7 +113,7 @@ public class ValueStateDescriptorTest {
 		}
 		data[199000] = '\0';
 
-		String defaultValue = new String(data);
+		String defaultValue = new String(data, ConfigConstants.DEFAULT_CHARSET);
 
 		ValueStateDescriptor<String> descr =
 				new ValueStateDescriptor<String>("testName", serializer, defaultValue);

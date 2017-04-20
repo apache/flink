@@ -30,8 +30,11 @@ import java.io.Serializable;
  *
  * The key group state handle is kept in serialized form because it can contain user code classes
  * which might not be available on the JobManager.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public class KeyGroupState implements Serializable {
 	private static final long serialVersionUID = -5926696455438467634L;
 

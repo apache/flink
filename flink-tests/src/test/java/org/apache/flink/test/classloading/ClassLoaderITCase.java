@@ -23,6 +23,7 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -97,7 +98,7 @@ public class ClassLoaderITCase extends TestLogger {
 		parallelism = 4;
 
 		// we need to use the "filesystem" state backend to ensure FLINK-2543 is not happening again.
-		config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
+		config.setString(CoreOptions.STATE_BACKEND, "filesystem");
 		config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
 				FOLDER.newFolder().getAbsoluteFile().toURI().toString());
 

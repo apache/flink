@@ -17,12 +17,14 @@
  */
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Row;
 
 import java.io.IOException;
 
+@Internal
 public class NullMaskUtils {
 
 	public static void writeNullMask(int len, Row value, DataOutputView target) throws IOException {

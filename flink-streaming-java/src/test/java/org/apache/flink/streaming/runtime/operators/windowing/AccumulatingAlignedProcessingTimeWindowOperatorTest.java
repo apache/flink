@@ -28,8 +28,8 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -1074,7 +1074,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	private static StreamTask<?, ?> createMockTask() {
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.STATE_BACKEND, "jobmanager");
+		configuration.setString(CoreOptions.STATE_BACKEND, "jobmanager");
 
 		StreamTask<?, ?> task = mock(StreamTask.class);
 		when(task.getAccumulatorMap()).thenReturn(new HashMap<String, Accumulator<?, ?>>());

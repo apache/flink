@@ -44,10 +44,11 @@ public interface CheckpointRecoveryFactory {
 	 * Creates a {@link CompletedCheckpointStore} instance for a job.
 	 *
 	 * @param jobId           Job ID to recover checkpoints for
+	 * @param maxNumberOfCheckpointsToRetain Maximum number of checkpoints to retain
 	 * @param userClassLoader User code class loader of the job
 	 * @return {@link CompletedCheckpointStore} instance for the job
 	 */
-	CompletedCheckpointStore createCheckpointStore(JobID jobId, ClassLoader userClassLoader)
+	CompletedCheckpointStore createCheckpointStore(JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
 			throws Exception;
 
 	/**

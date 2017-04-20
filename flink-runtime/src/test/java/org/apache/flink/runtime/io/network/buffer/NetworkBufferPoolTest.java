@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.network.buffer;
 import org.apache.flink.core.memory.MemoryType;
 import org.junit.Test;
 
+import java.util.ArrayList;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -47,7 +49,7 @@ public class NetworkBufferPoolTest {
 			assertTrue(globalPool.isDestroyed());
 
 			try {
-				globalPool.createBufferPool(2, true);
+				globalPool.createBufferPool(2, 2);
 				fail("Should throw an IllegalStateException");
 			}
 			catch (IllegalStateException e) {
@@ -55,7 +57,15 @@ public class NetworkBufferPoolTest {
 			}
 
 			try {
-				globalPool.createBufferPool(2, false);
+				globalPool.createBufferPool(2, 10);
+				fail("Should throw an IllegalStateException");
+			}
+			catch (IllegalStateException e) {
+				// yippie!
+			}
+
+			try {
+				globalPool.createBufferPool(2, Integer.MAX_VALUE);
 				fail("Should throw an IllegalStateException");
 			}
 			catch (IllegalStateException e) {
@@ -68,37 +78,41 @@ public class NetworkBufferPoolTest {
 		}
 
 	}
+
 	@Test
 	public void testDestroyAll() {
 		try {
 			NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, MemoryType.HEAP);
 
-			BufferPool fixedPool = globalPool.createBufferPool(2, true);
-			BufferPool nonFixedPool = globalPool.createBufferPool(5, false);
+			BufferPool fixedPool = globalPool.createBufferPool(2, 2);
+			BufferPool boundedPool = globalPool.createBufferPool(0, 1);
+			BufferPool nonFixedPool = globalPool.createBufferPool(5, Integer.MAX_VALUE);
 
 			assertEquals(2, fixedPool.getNumberOfRequiredMemorySegments());
+			assertEquals(0, boundedPool.getNumberOfRequiredMemorySegments());
 			assertEquals(5, nonFixedPool.getNumberOfRequiredMemorySegments());
 
-			Buffer[] buffers = {
-					fixedPool.requestBuffer(),
-					fixedPool.requestBuffer(),
+			// actually, the buffer pool sizes may be different due to rounding and based on the internal order of
+			// the buffer pools - the total number of retrievable buffers should be equal to the number of buffers
+			// in the NetworkBufferPool though
 
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer()
-			};
-
-			for (Buffer b : buffers) {
-				assertNotNull(b);
-				assertNotNull(b.getMemorySegment());
+			ArrayList<Buffer> buffers = new ArrayList<>(globalPool.getTotalNumberOfMemorySegments());
+			collectBuffers:
+			for (int i = 0; i < 10; ++i) {
+				for (BufferPool bp : new BufferPool[] { fixedPool, boundedPool, nonFixedPool }) {
+					Buffer buffer = bp.requestBuffer();
+					if (buffer != null) {
+						assertNotNull(buffer.getMemorySegment());
+						buffers.add(buffer);
+						continue collectBuffers;
+					}
+				}
 			}
 
+			assertEquals(globalPool.getTotalNumberOfMemorySegments(), buffers.size());
+
 			assertNull(fixedPool.requestBuffer());
+			assertNull(boundedPool.requestBuffer());
 			assertNull(nonFixedPool.requestBuffer());
 
 			// destroy all allocated ones
@@ -107,6 +121,7 @@ public class NetworkBufferPoolTest {
 			// check the destroyed status
 			assertFalse(globalPool.isDestroyed());
 			assertTrue(fixedPool.isDestroyed());
+			assertTrue(boundedPool.isDestroyed());
 			assertTrue(nonFixedPool.isDestroyed());
 
 			assertEquals(0, globalPool.getNumberOfRegisteredBufferPools());
@@ -126,6 +141,14 @@ public class NetworkBufferPoolTest {
 				fail("Should fail with an IllegalStateException");
 			}
 			catch (IllegalStateException e) {
+				// yippie!
+			}
+
+			try {
+				boundedPool.requestBuffer();
+				fail("Should fail with an IllegalStateException");
+			}
+			catch (IllegalStateException e) {
 				// that's the way we like it, aha, aha
 			}
 
@@ -138,7 +161,7 @@ public class NetworkBufferPoolTest {
 			}
 
 			// can create a new pool now
-			assertNotNull(globalPool.createBufferPool(10, false));
+			assertNotNull(globalPool.createBufferPool(10, Integer.MAX_VALUE));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

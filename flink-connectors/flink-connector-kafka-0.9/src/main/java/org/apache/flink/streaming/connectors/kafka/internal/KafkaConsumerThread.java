@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -69,7 +69,7 @@ public class KafkaConsumerThread extends Thread {
 	private final Properties kafkaProperties;
 
 	/** The partitions that this consumer reads from */ 
-	private final KafkaTopicPartitionState<TopicPartition>[] subscribedPartitions;
+	private final KafkaTopicPartitionState<TopicPartition>[] subscribedPartitionStates;
 
 	/** We get this from the outside to publish metrics. **/
 	private final MetricGroup kafkaMetricGroup;
@@ -79,12 +79,6 @@ public class KafkaConsumerThread extends Thread {
 
 	/** The maximum number of milliseconds to wait for a fetch batch */
 	private final long pollTimeout;
-
-	/** The configured startup mode (relevant only if we're restored from checkpoint / savepoint) */
-	private final StartupMode startupMode;
-
-	/** Flag whether or not we're restored from checkpoint / savepoint */
-	private final boolean isRestored;
 
 	/** Flag whether to add Kafka's metrics to the Flink metrics */
 	private final boolean useMetrics;
@@ -103,13 +97,11 @@ public class KafkaConsumerThread extends Thread {
 			Logger log,
 			Handover handover,
 			Properties kafkaProperties,
-			KafkaTopicPartitionState<TopicPartition>[] subscribedPartitions,
+			KafkaTopicPartitionState<TopicPartition>[] subscribedPartitionStates,
 			MetricGroup kafkaMetricGroup,
 			KafkaConsumerCallBridge consumerCallBridge,
 			String threadName,
 			long pollTimeout,
-			StartupMode startupMode,
-			boolean isRestored,
 			boolean useMetrics) {
 
 		super(threadName);
@@ -120,21 +112,8 @@ public class KafkaConsumerThread extends Thread {
 		this.kafkaProperties = checkNotNull(kafkaProperties);
 		this.kafkaMetricGroup = checkNotNull(kafkaMetricGroup);
 		this.consumerCallBridge = checkNotNull(consumerCallBridge);
-		this.startupMode = checkNotNull(startupMode);
 
-		this.subscribedPartitions = checkNotNull(subscribedPartitions);
-		this.isRestored = isRestored;
-
-		// if we are restoring from a checkpoint / savepoint, all
-		// subscribed partitions' state should have defined offsets
-		if (isRestored) {
-			for (KafkaTopicPartitionState<TopicPartition> subscribedPartition : subscribedPartitions) {
-				if (!subscribedPartition.isOffsetDefined()) {
-					throw new IllegalArgumentException("Restoring from a checkpoint / savepoint, but found a " +
-						"partition state " + subscribedPartition + " that does not have a defined offset.");
-				}
-			}
-		}
+		this.subscribedPartitionStates = checkNotNull(subscribedPartitionStates);
 
 		this.pollTimeout = pollTimeout;
 		this.useMetrics = useMetrics;
@@ -173,7 +152,7 @@ public class KafkaConsumerThread extends Thread {
 			final OffsetCommitCallback offsetCommitCallback = new CommitCallback();
 
 			// tell the consumer which partitions to work with
-			consumerCallBridge.assignPartitions(consumer, convertKafkaPartitions(subscribedPartitions));
+			consumerCallBridge.assignPartitions(consumer, convertKafkaPartitions(subscribedPartitionStates));
 
 			// register Kafka's very own metrics in Flink's metric reporters
 			if (useMetrics) {
@@ -195,39 +174,23 @@ public class KafkaConsumerThread extends Thread {
 				return;
 			}
 
-			if (isRestored) {
-				for (KafkaTopicPartitionState<TopicPartition> partition : subscribedPartitions) {
-					log.info("Partition {} has restored initial offsets {} from checkpoint / savepoint; seeking the consumer " +
-						"to position {}", partition.getKafkaPartitionHandle(), partition.getOffset(), partition.getOffset() + 1);
-
-					consumer.seek(partition.getKafkaPartitionHandle(), partition.getOffset() + 1);
-				}
-			} else {
-				List<TopicPartition> partitionList = convertKafkaPartitions(subscribedPartitions);
-
-				// fetch offsets from Kafka, depending on the configured startup mode
-				switch (startupMode) {
-					case EARLIEST:
-						log.info("Setting starting point as earliest offset for partitions {}", partitionList);
-
-						consumerCallBridge.seekPartitionsToBeginning(consumer, partitionList);
-						break;
-					case LATEST:
-						log.info("Setting starting point as latest offset for partitions {}", partitionList);
-
-						consumerCallBridge.seekPartitionsToEnd(consumer, partitionList);
-						break;
-					default:
-					case GROUP_OFFSETS:
-						log.info("Using group offsets in Kafka of group.id {} as starting point for partitions {}",
-							kafkaProperties.getProperty("group.id"), partitionList);
-				}
-
-				// on startup, all partition states will not have defined offsets;
-				// set the initial states with the offsets fetched from Kafka
-				for (KafkaTopicPartitionState<TopicPartition> partition : subscribedPartitions) {
-					// the fetched offset represents the next record to process, so we need to subtract it by 1
+			// offsets in the state may still be placeholder sentinel values if we are starting fresh, or the
+			// checkpoint / savepoint state we were restored with had not completely been replaced with actual offset
+			// values yet; replace those with actual offsets, according to what the sentinel value represent.
+			for (KafkaTopicPartitionState<TopicPartition> partition : subscribedPartitionStates) {
+				if (partition.getOffset() == KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET) {
+					consumerCallBridge.seekPartitionToBeginning(consumer, partition.getKafkaPartitionHandle());
 					partition.setOffset(consumer.position(partition.getKafkaPartitionHandle()) - 1);
+				} else if (partition.getOffset() == KafkaTopicPartitionStateSentinel.LATEST_OFFSET) {
+					consumerCallBridge.seekPartitionToEnd(consumer, partition.getKafkaPartitionHandle());
+					partition.setOffset(consumer.position(partition.getKafkaPartitionHandle()) - 1);
+				} else if (partition.getOffset() == KafkaTopicPartitionStateSentinel.GROUP_OFFSET) {
+					// the KafkaConsumer by default will automatically seek the consumer position
+					// to the committed group offset, so we do not need to do it.
+
+					partition.setOffset(consumer.position(partition.getKafkaPartitionHandle()) - 1);
+				} else {
+					consumer.seek(partition.getKafkaPartitionHandle(), partition.getOffset() + 1);
 				}
 			}
 

@@ -347,7 +347,8 @@ public class InputGateFairnessTest {
 				TaskActions taskActions,
 				TaskIOMetricGroup metrics) {
 
-			super(owningTaskName, jobId, consumedResultId, consumedSubpartitionIndex,
+			super(owningTaskName, jobId, consumedResultId, ResultPartitionType.PIPELINED,
+				consumedSubpartitionIndex,
 					numberOfInputChannels, taskActions, metrics);
 
 			try {

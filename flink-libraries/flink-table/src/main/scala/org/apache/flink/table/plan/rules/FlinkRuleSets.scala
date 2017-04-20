@@ -20,28 +20,15 @@ package org.apache.flink.table.plan.rules
 
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
-import org.apache.flink.table.calcite.rules.FlinkAggregateJoinTransposeRule
+import org.apache.flink.table.plan.rules.common._
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
-import org.apache.flink.table.plan.rules.datastream.{DataStreamCalcRule, DataStreamScanRule, DataStreamUnionRule}
+import org.apache.flink.table.plan.rules.logical._
+import org.apache.flink.table.plan.nodes.logical._
 
 object FlinkRuleSets {
 
-  /**
-    * RuleSet to normalize plans for batch / DataSet execution
-    */
-  val DATASET_NORM_RULES: RuleSet = RuleSets.ofList(
-    // simplify expressions rules
-    ReduceExpressionsRule.FILTER_INSTANCE,
-    ReduceExpressionsRule.PROJECT_INSTANCE,
-    ReduceExpressionsRule.CALC_INSTANCE,
-    ReduceExpressionsRule.JOIN_INSTANCE
-  )
-
-  /**
-    * RuleSet to optimize plans for batch / DataSet execution
-    */
-  val DATASET_OPT_RULES: RuleSet = RuleSets.ofList(
+  val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList(
 
     // convert a logical table scan to a relational expression
     TableScanRule.INSTANCE,
@@ -79,9 +66,11 @@ object FlinkRuleSets {
     // remove aggregation if it does not aggregate and input is already distinct
     AggregateRemoveRule.INSTANCE,
     // push aggregate through join
-    FlinkAggregateJoinTransposeRule.EXTENDED,
+    AggregateJoinTransposeRule.EXTENDED,
     // aggregate union rule
     AggregateUnionAggregateRule.INSTANCE,
+    // expand distinct aggregate to normal aggregate with groupby
+    AggregateExpandDistinctAggregatesRule.JOIN,
 
     // remove unnecessary sort rule
     SortRemoveRule.INSTANCE,
@@ -102,10 +91,53 @@ object FlinkRuleSets {
     ProjectToCalcRule.INSTANCE,
     CalcMergeRule.INSTANCE,
 
+    // scan optimization
+    PushProjectIntoTableSourceScanRule.INSTANCE,
+    PushFilterIntoTableSourceScanRule.INSTANCE,
+
+    // translate to flink logical rel nodes
+    FlinkLogicalAggregate.CONVERTER,
+    FlinkLogicalWindowAggregate.CONVERTER,
+    FlinkLogicalOverWindow.CONVERTER,
+    FlinkLogicalCalc.CONVERTER,
+    FlinkLogicalCorrelate.CONVERTER,
+    FlinkLogicalIntersect.CONVERTER,
+    FlinkLogicalJoin.CONVERTER,
+    FlinkLogicalMinus.CONVERTER,
+    FlinkLogicalSort.CONVERTER,
+    FlinkLogicalUnion.CONVERTER,
+    FlinkLogicalValues.CONVERTER,
+    FlinkLogicalTableSourceScan.CONVERTER,
+    FlinkLogicalTableFunctionScan.CONVERTER,
+    FlinkLogicalNativeTableScan.CONVERTER
+  )
+
+
+  /**
+    * RuleSet to normalize plans for batch / DataSet execution
+    */
+  val DATASET_NORM_RULES: RuleSet = RuleSets.ofList(
+    // simplify expressions rules
+    ReduceExpressionsRule.FILTER_INSTANCE,
+    ReduceExpressionsRule.PROJECT_INSTANCE,
+    ReduceExpressionsRule.CALC_INSTANCE,
+    ReduceExpressionsRule.JOIN_INSTANCE,
+    ProjectToWindowRule.PROJECT,
+
+    // Transform window to LogicalWindowAggregate
+    DataSetLogicalWindowAggregateRule.INSTANCE,
+    WindowStartEndPropertiesRule.INSTANCE
+  )
+
+  /**
+    * RuleSet to optimize plans for batch / DataSet execution
+    */
+  val DATASET_OPT_RULES: RuleSet = RuleSets.ofList(
     // translate to Flink DataSet nodes
     DataSetWindowAggregateRule.INSTANCE,
     DataSetAggregateRule.INSTANCE,
     DataSetAggregateWithNullValuesRule.INSTANCE,
+    DataSetDistinctRule.INSTANCE,
     DataSetCalcRule.INSTANCE,
     DataSetJoinRule.INSTANCE,
     DataSetSingleRowJoinRule.INSTANCE,
@@ -116,9 +148,7 @@ object FlinkRuleSets {
     DataSetSortRule.INSTANCE,
     DataSetValuesRule.INSTANCE,
     DataSetCorrelateRule.INSTANCE,
-    BatchTableSourceScanRule.INSTANCE,
-    // project pushdown optimization
-    PushProjectIntoBatchTableSourceScanRule.INSTANCE
+    BatchTableSourceScanRule.INSTANCE
   )
 
   /**
@@ -126,52 +156,36 @@ object FlinkRuleSets {
     */
   val DATASTREAM_NORM_RULES: RuleSet = RuleSets.ofList(
     // Transform window to LogicalWindowAggregate
-    LogicalWindowAggregateRule.INSTANCE,
+    DataStreamLogicalWindowAggregateRule.INSTANCE,
+    WindowStartEndPropertiesRule.INSTANCE,
 
     // simplify expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,
     ReduceExpressionsRule.PROJECT_INSTANCE,
-    ReduceExpressionsRule.CALC_INSTANCE
+    ReduceExpressionsRule.CALC_INSTANCE,
+    ProjectToWindowRule.PROJECT
   )
 
   /**
-  * RuleSet to optimize plans for stream / DataStream execution
-  */
+    * RuleSet to optimize plans for stream / DataStream execution
+    */
   val DATASTREAM_OPT_RULES: RuleSet = RuleSets.ofList(
+    // translate to DataStream nodes
+    DataStreamOverAggregateRule.INSTANCE,
+    DataStreamAggregateRule.INSTANCE,
+    DataStreamCalcRule.INSTANCE,
+    DataStreamScanRule.INSTANCE,
+    DataStreamUnionRule.INSTANCE,
+    DataStreamValuesRule.INSTANCE,
+    DataStreamCorrelateRule.INSTANCE,
+    StreamTableSourceScanRule.INSTANCE
+  )
 
-      // convert a logical table scan to a relational expression
-      TableScanRule.INSTANCE,
-      EnumerableToLogicalTableScan.INSTANCE,
-
-      // calc rules
-      FilterToCalcRule.INSTANCE,
-      ProjectToCalcRule.INSTANCE,
-      FilterCalcMergeRule.INSTANCE,
-      ProjectCalcMergeRule.INSTANCE,
-      CalcMergeRule.INSTANCE,
-
-      // prune empty results rules
-      PruneEmptyRules.FILTER_INSTANCE,
-      PruneEmptyRules.PROJECT_INSTANCE,
-      PruneEmptyRules.UNION_INSTANCE,
-
-      // push and merge projection rules
-      ProjectFilterTransposeRule.INSTANCE,
-      FilterProjectTransposeRule.INSTANCE,
-      ProjectRemoveRule.INSTANCE,
-
-      // merge and push unions rules
-      UnionEliminatorRule.INSTANCE,
-
-      // translate to DataStream nodes
-      DataStreamAggregateRule.INSTANCE,
-      DataStreamCalcRule.INSTANCE,
-      DataStreamScanRule.INSTANCE,
-      DataStreamUnionRule.INSTANCE,
-      DataStreamValuesRule.INSTANCE,
-      DataStreamCorrelateRule.INSTANCE,
-      StreamTableSourceScanRule.INSTANCE,
-      PushProjectIntoStreamTableSourceScanRule.INSTANCE
+  /**
+    * RuleSet to decorate plans for stream / DataStream execution
+    */
+  val DATASTREAM_DECO_RULES: RuleSet = RuleSets.ofList(
+    // rules
   )
 
 }

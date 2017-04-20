@@ -73,6 +73,8 @@ import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -120,6 +122,12 @@ public class WindowedStream<T, K, W extends Window> {
 	/** The user-specified allowed lateness. */
 	private long allowedLateness = 0L;
 
+	/**
+	 * Side output {@code OutputTag} for late data. If no tag is set late data will simply be
+	 * dropped.
+ 	 */
+	private OutputTag<T> lateDataOutputTag;
+
 	@PublicEvolving
 	public WindowedStream(KeyedStream<T, K> input,
 			WindowAssigner<? super T, W> windowAssigner) {
@@ -158,6 +166,23 @@ public class WindowedStream<T, K, W extends Window> {
 		checkArgument(millis >= 0, "The allowed lateness cannot be negative.");
 
 		this.allowedLateness = millis;
+		return this;
+	}
+
+	/**
+	 * Send late arriving data to the side output identified by the given {@link OutputTag}. Data
+	 * is considered late after the watermark has passed the end of the window plus the allowed
+	 * lateness set using {@link #allowedLateness(Time)}.
+	 *
+	 * <p>You can get the stream of late data using
+	 * {@link SingleOutputStreamOperator#getSideOutput(OutputTag)} on the
+	 * {@link SingleOutputStreamOperator} resulting from the windowed operation
+	 * with the same {@link OutputTag}.
+	 */
+	@PublicEvolving
+	public WindowedStream<T, K, W> sideOutputLateData(OutputTag<T> outputTag) {
+		Preconditions.checkNotNull(outputTag, "Side output tag must not be null.");
+		this.lateDataOutputTag = input.getExecutionEnvironment().clean(outputTag);
 		return this;
 	}
 
@@ -344,7 +369,8 @@ public class WindowedStream<T, K, W extends Window> {
 					new InternalIterableWindowFunction<>(new ReduceApplyWindowFunction<>(reduceFunction, function)),
 					trigger,
 					evictor,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 
 		} else {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
@@ -362,6 +388,7 @@ public class WindowedStream<T, K, W extends Window> {
 					new InternalSingleValueWindowFunction<>(function),
 					trigger,
 					allowedLateness,
+					lateDataOutputTag,
 					legacyWindowOpType);
 		}
 
@@ -437,7 +464,8 @@ public class WindowedStream<T, K, W extends Window> {
 							new InternalIterableProcessWindowFunction<>(new ReduceApplyProcessWindowFunction<>(reduceFunction, function)),
 							trigger,
 							evictor,
-							allowedLateness);
+							allowedLateness,
+							lateDataOutputTag);
 
 		} else {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
@@ -454,7 +482,8 @@ public class WindowedStream<T, K, W extends Window> {
 							stateDesc,
 							new InternalSingleValueProcessWindowFunction<>(function),
 							trigger,
-							allowedLateness);
+							allowedLateness,
+							lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -589,7 +618,8 @@ public class WindowedStream<T, K, W extends Window> {
 				new InternalIterableWindowFunction<>(new FoldApplyWindowFunction<>(initialValue, foldFunction, function, foldAccumulatorType)),
 				trigger,
 				evictor,
-				allowedLateness);
+				allowedLateness,
+				lateDataOutputTag);
 
 		} else {
 			FoldingStateDescriptor<T, ACC> stateDesc = new FoldingStateDescriptor<>("window-contents",
@@ -604,7 +634,8 @@ public class WindowedStream<T, K, W extends Window> {
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(function),
 				trigger,
-				allowedLateness);
+				allowedLateness,
+				lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -697,7 +728,8 @@ public class WindowedStream<T, K, W extends Window> {
 							new InternalIterableProcessWindowFunction<>(new FoldApplyProcessWindowFunction<>(initialValue, foldFunction, windowFunction, foldResultType)),
 							trigger,
 							evictor,
-							allowedLateness);
+							allowedLateness,
+							lateDataOutputTag);
 
 		} else {
 			FoldingStateDescriptor<T, ACC> stateDesc = new FoldingStateDescriptor<>("window-contents",
@@ -715,7 +747,8 @@ public class WindowedStream<T, K, W extends Window> {
 							stateDesc,
 							new InternalSingleValueProcessWindowFunction<>(windowFunction),
 							trigger,
-							allowedLateness);
+							allowedLateness,
+							lateDataOutputTag);
 		}
 
 		return input.transform(opName, windowResultType, operator);
@@ -737,6 +770,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            AggregateFunction's result type
 	 */
+	@PublicEvolving
 	public <ACC, R> SingleOutputStreamOperator<R> aggregate(AggregateFunction<T, ACC, R> function) {
 		checkNotNull(function, "function");
 
@@ -765,6 +799,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            AggregateFunction's result type
 	 */
+	@PublicEvolving
 	public <ACC, R> SingleOutputStreamOperator<R> aggregate(
 			AggregateFunction<T, ACC, R> function,
 			TypeInformation<ACC> accumulatorType,
@@ -800,6 +835,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            WindowFunction's result type
 	 */
+	@PublicEvolving
 	public <ACC, V, R> SingleOutputStreamOperator<R> aggregate(
 			AggregateFunction<T, ACC, V> aggFunction,
 			WindowFunction<V, R, K, W> windowFunction) {
@@ -839,6 +875,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            WindowFunction's result type
 	 */
+	@PublicEvolving
 	public <ACC, V, R> SingleOutputStreamOperator<R> aggregate(
 			AggregateFunction<T, ACC, V> aggregateFunction,
 			WindowFunction<V, R, K, W> windowFunction,
@@ -886,7 +923,8 @@ public class WindowedStream<T, K, W extends Window> {
 					new InternalIterableWindowFunction<>(new AggregateApplyWindowFunction<>(aggregateFunction, windowFunction)),
 					trigger,
 					evictor,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 
 		} else {
 			AggregatingStateDescriptor<T, ACC, V> stateDesc = new AggregatingStateDescriptor<>("window-contents",
@@ -901,7 +939,8 @@ public class WindowedStream<T, K, W extends Window> {
 					stateDesc,
 					new InternalSingleValueWindowFunction<>(windowFunction),
 					trigger,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -1013,7 +1052,8 @@ public class WindowedStream<T, K, W extends Window> {
 					new InternalAggregateProcessWindowFunction<>(aggregateFunction, windowFunction),
 					trigger,
 					evictor,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 
 		} else {
 			AggregatingStateDescriptor<T, ACC, V> stateDesc = new AggregatingStateDescriptor<>("window-contents",
@@ -1028,7 +1068,8 @@ public class WindowedStream<T, K, W extends Window> {
 					stateDesc,
 					new InternalSingleValueProcessWindowFunction<>(windowFunction),
 					trigger,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -1150,7 +1191,8 @@ public class WindowedStream<T, K, W extends Window> {
 					function,
 					trigger,
 					evictor,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 
 		} else {
 			ListStateDescriptor<T> stateDesc = new ListStateDescriptor<>("window-contents",
@@ -1167,6 +1209,7 @@ public class WindowedStream<T, K, W extends Window> {
 					function,
 					trigger,
 					allowedLateness,
+					lateDataOutputTag,
 					legacyWindowOpType);
 		}
 
@@ -1248,7 +1291,8 @@ public class WindowedStream<T, K, W extends Window> {
 					new InternalIterableWindowFunction<>(new ReduceApplyWindowFunction<>(reduceFunction, function)),
 					trigger,
 					evictor,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 
 		} else {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
@@ -1265,7 +1309,8 @@ public class WindowedStream<T, K, W extends Window> {
 					stateDesc,
 					new InternalSingleValueWindowFunction<>(function),
 					trigger,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator);
@@ -1284,7 +1329,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
 	 *
-	 * @deprecated Use {@link #fold(R, FoldFunction, WindowFunction)} instead.
+	 * @deprecated Use {@link #fold(Object, FoldFunction, WindowFunction)} instead.
 	 */
 	@Deprecated
 	public <R> SingleOutputStreamOperator<R> apply(R initialValue, FoldFunction<T, R> foldFunction, WindowFunction<R, R, K, W> function) {
@@ -1309,7 +1354,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
 	 *
-	 * @deprecated Use {@link #fold(R, FoldFunction, WindowFunction, TypeInformation, TypeInformation)} instead.
+	 * @deprecated Use {@link #fold(Object, FoldFunction, WindowFunction, TypeInformation, TypeInformation)} instead.
 	 */
 	@Deprecated
 	public <R> SingleOutputStreamOperator<R> apply(R initialValue, FoldFunction<T, R> foldFunction, WindowFunction<R, R, K, W> function, TypeInformation<R> resultType) {
@@ -1350,7 +1395,8 @@ public class WindowedStream<T, K, W extends Window> {
 				new InternalIterableWindowFunction<>(new FoldApplyWindowFunction<>(initialValue, foldFunction, function, resultType)),
 				trigger,
 				evictor,
-				allowedLateness);
+				allowedLateness,
+				lateDataOutputTag);
 
 		} else {
 			FoldingStateDescriptor<T, R> stateDesc = new FoldingStateDescriptor<>("window-contents",
@@ -1365,7 +1411,8 @@ public class WindowedStream<T, K, W extends Window> {
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(function),
 				trigger,
-				allowedLateness);
+				allowedLateness,
+				lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator);

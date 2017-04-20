@@ -36,6 +36,8 @@ import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -118,6 +120,11 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 		}
 
 		@Override
+		public int getMaxNumberOfParallelSubtasks() {
+			return runtimeContext.getMaxNumberOfParallelSubtasks();
+		}
+
+		@Override
 		public int getIndexOfThisSubtask() {
 			return runtimeContext.getIndexOfThisSubtask();
 		}
@@ -168,6 +175,11 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 
 		@Override
 		public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
+			throw new UnsupportedOperationException("State is not supported in rich async functions.");
+		}
+
+		@Override
+		public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
 			throw new UnsupportedOperationException("State is not supported in rich async functions.");
 		}
 

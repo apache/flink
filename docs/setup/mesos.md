@@ -34,7 +34,7 @@ set up by the application master. The most sophisticated component of the Mesos
 implementation is the application master. The application master currently hosts
 the following components:
 
-### Mesos Scheduler 
+### Mesos Scheduler
 
 The scheduler is responsible for registering the framework with Mesos,
 requesting resources, and launching worker nodes. The scheduler continuously
@@ -57,7 +57,7 @@ The artifact server is responsible for providing resources to the worker
 nodes. The resources can be anything from the Flink binaries to shared secrets
 or configuration files. For instance, in non-containered environments, the
 artifact server will provide the Flink binaries. What files will be served
-depends on the configuration overlay used. 
+depends on the configuration overlay used.
 
 ### Flink's JobManager and Web Interface
 
@@ -87,30 +87,13 @@ If you don't have a running DC/OS cluster, please follow the
 [instructions on how to install DC/OS on the official website](https://dcos.io/install/).
 
 Once you have a DC/OS cluster, you may install Flink through the DC/OS
-Universe. In the search prompt, just search for Flink. 
+Universe. In the search prompt, just search for Flink. Alternatively, you can use the DC/OS CLI:
 
-**Note**: At the time of this writing, Flink was not yet available in the
-Universe. Please use the following workaround in the meantime:
+    dcos package install flink
 
-1. [Install the DC/OS CLI](https://dcos.io/docs/1.8/usage/cli/install/)
+Further information can be found in the
+[DC/OS examples documentation](https://github.com/dcos/examples/tree/master/1.8/flink).
 
-2. Add the Development Universe
-
-    `./dcos marathon app add https://raw.githubusercontent.com/mesosphere/dcos-flink-service/Makman2/quickstart/universe-server.json`
-    
-3. Add the local Universe repository:
-
-   `./dcos package repo add --index=0 dev-universe http://universe.marathon.mesos:8085/repo`
-
-4. Install Flink through the Universe page or using the `dcos` command:
-   
-   `./dcos package install flink`
-
-In order to execute a Flink job on a DC/OS hosted Flink cluster, you first have to find out the address of the launched JobManager.
-The JobManager address can be found out by opening the Flink service, going to *Job Manager* and then using the address specified under `jobmanager.rpc.address` and `jobmanager.rpc.port`.
-Now you can use this address to submit a job to your cluster via
-
-    FLINK_HOME/bin/flink run -m address:port flink-job.jar
 
 ## Mesos without DC/OS
 
@@ -167,7 +150,7 @@ A more convenient and easier to maintain approach is to use Docker containers to
 This is controlled via the following configuration entries:
 
     mesos.resourcemanager.tasks.container.type: mesos _or_ docker
-    
+
 If set to 'docker', specify the image name:
 
     mesos.resourcemanager.tasks.container.image.name: image_name
@@ -181,7 +164,7 @@ which manage the Flink processes in a Mesos cluster:
 1. `mesos-appmaster.sh`
    This starts the Mesos application master which will register the Mesos scheduler.
    It is also responsible for starting up the worker nodes.
-   
+
 2. `mesos-taskmanager.sh`
    The entry point for the Mesos worker processes.
    You don't need to explicitly execute this script.
@@ -241,14 +224,14 @@ When running Flink with Marathon, the whole Flink cluster including the job mana
 
 `mesos.maximum-failed-tasks`: The maximum number of failed workers before the cluster fails (**DEFAULT**: Number of initial workers).
 May be set to -1 to disable this feature.
-    
+
 `mesos.master`: The Mesos master URL. The value should be in one of the following forms:
 
 * `host:port`
 * `zk://host1:port1,host2:port2,.../path`
 * `zk://username:password@host1:port1,host2:port2,.../path`
 * `file:///path/to/file`
-     
+
 `mesos.failover-timeout`: The failover timeout in seconds for the Mesos scheduler, after which running tasks are automatically shut down (**DEFAULT:** 600).
 
 `mesos.resourcemanager.artifactserver.port`:The config parameter defining the Mesos artifact server port to use. Setting the port to 0 will let the OS choose an available port.

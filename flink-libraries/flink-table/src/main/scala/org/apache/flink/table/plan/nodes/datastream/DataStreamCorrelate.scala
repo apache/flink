@@ -19,7 +19,6 @@ package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
@@ -28,6 +27,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.types.Row
 
 /**
@@ -37,7 +37,7 @@ class DataStreamCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputNode: RelNode,
-    scan: LogicalTableFunctionScan,
+    scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
     relRowType: RelDataType,
     joinRowType: RelDataType,
@@ -86,7 +86,7 @@ class DataStreamCorrelate(
     // we do not need to specify input type
     val inputDS = inputNode.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
 
-    val funcRel = scan.asInstanceOf[LogicalTableFunctionScan]
+    val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     val pojoFieldMapping = sqlFunction.getPojoFieldMapping

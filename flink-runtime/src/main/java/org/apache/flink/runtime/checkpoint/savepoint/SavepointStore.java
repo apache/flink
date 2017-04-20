@@ -18,16 +18,24 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
-import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -35,7 +43,7 @@ import java.io.IOException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A file system based savepoint store.
+ * Utilities for storing and loading savepoint meta data files.
  *
  * <p>Stored savepoints have the following format:
  * <pre>
@@ -52,53 +60,136 @@ public class SavepointStore {
 	/** Magic number for sanity checks against stored savepoints. */
 	public static final int MAGIC_NUMBER = 0x4960672d;
 
-	/** Prefix for savepoint files. */
-	private static final String prefix = "savepoint-";
+	private static final String SAVEPOINT_METADATA_FILE = "_metadata";
 
 	/**
-	 * Stores the savepoint.
-	 *
-	 * @param targetDirectory Target directory to store savepoint in
-	 * @param savepoint Savepoint to be stored
-	 * @param <T>       Savepoint type
-	 * @return Path of stored savepoint
-	 * @throws Exception Failures during store are forwarded
+	 * Metadata file for an externalized checkpoint, random suffix added
+	 * during store, because the parent directory is not unique.
 	 */
-	public static <T extends Savepoint> String storeSavepoint(
-			String targetDirectory,
-			T savepoint) throws IOException {
+	static final String EXTERNALIZED_CHECKPOINT_METADATA_FILE = "checkpoint_metadata-";
 
-		checkNotNull(targetDirectory, "Target directory");
-		checkNotNull(savepoint, "Savepoint");
+	/**
+	 * Creates a savepoint directory.
+	 *
+	 * @param baseDirectory Base target directory for the savepoint
+	 * @param jobId Optional JobID the savepoint belongs to
+	 * @return The created savepoint directory
+	 * @throws IOException FileSystem operation failures are forwarded
+	 */
+	public static String createSavepointDirectory(@Nonnull String baseDirectory, @Nullable JobID jobId) throws IOException {
+		final Path basePath = new Path(baseDirectory);
+		final FileSystem fs = basePath.getFileSystem();
+
+		final String prefix;
+		if (jobId == null) {
+			prefix = "savepoint-";
+		} else {
+			prefix = String.format("savepoint-%s-", jobId.toString().substring(0, 6));
+		}
 
 		Exception latestException = null;
-		Path path = null;
-		FSDataOutputStream fdos = null;
-
-		FileSystem fs = null;
 
 		// Try to create a FS output stream
 		for (int attempt = 0; attempt < 10; attempt++) {
-			path = new Path(targetDirectory, FileUtils.getRandomFilename(prefix));
-
-			if (fs == null) {
-				fs = FileSystem.get(path.toUri());
-			}
+			Path path = new Path(basePath, FileUtils.getRandomFilename(prefix));
 
 			try {
-				fdos = fs.create(path, false);
-				break;
+				if (fs.mkdirs(path)) {
+					return path.toString();
+				}
 			} catch (Exception e) {
 				latestException = e;
 			}
 		}
 
-		if (fdos == null) {
-			throw new IOException("Failed to create file output stream at " + path, latestException);
-		}
+		throw new IOException("Failed to create savepoint directory at " + baseDirectory, latestException);
+	}
+
+	/**
+	 * Deletes a savepoint directory.
+	 *
+	 * @param savepointDirectory Recursively deletes the given directory
+	 * @throws IOException FileSystem operation failures are forwarded
+	 */
+	public static void deleteSavepointDirectory(@Nonnull String savepointDirectory) throws IOException {
+		Path path = new Path(savepointDirectory);
+		FileSystem fs = FileSystem.get(path.toUri());
+		fs.delete(path, true);
+	}
+
+	/**
+	 * Stores the savepoint metadata file.
+	 *
+	 * @param <T>       Savepoint type
+	 * @param directory Target directory to store savepoint in
+	 * @param savepoint Savepoint to be stored
+	 * @return Path of stored savepoint
+	 * @throws IOException Failures during store are forwarded
+	 */
+	public static <T extends Savepoint> String storeSavepoint(String directory, T savepoint) throws IOException {
+		// write and create the file handle
+		FileStateHandle metadataFileHandle = storeSavepointToHandle(directory,
+			SAVEPOINT_METADATA_FILE, savepoint);
+
+		// we return the savepoint directory path here!
+		// The directory path also works to resume from and is more elegant than the direct
+		// metadata file pointer
+		return metadataFileHandle.getFilePath().getParent().toString();
+	}
+
+	/**
+	 * Stores the savepoint metadata file to a state handle.
+	 *
+	 * @param directory Target directory to store savepoint in
+	 * @param savepoint Savepoint to be stored
+	 *
+	 * @return State handle to the checkpoint metadata
+	 * @throws IOException Failures during store are forwarded
+	 */
+	public static <T extends Savepoint> FileStateHandle storeSavepointToHandle(String directory, T savepoint) throws IOException {
+		return storeSavepointToHandle(directory, SAVEPOINT_METADATA_FILE, savepoint);
+	}
+
+	/**
+	 * Stores the externalized checkpoint metadata file to a state handle.
+	 *
+	 * @param directory Target directory to store savepoint in
+	 * @param savepoint Savepoint to be stored
+	 *
+	 * @return State handle to the checkpoint metadata
+	 * @throws IOException Failures during store are forwarded
+	 */
+	public static <T extends Savepoint> FileStateHandle storeExternalizedCheckpointToHandle(String directory, T savepoint) throws IOException {
+		String fileName = FileUtils.getRandomFilename(EXTERNALIZED_CHECKPOINT_METADATA_FILE);
+		return storeSavepointToHandle(directory, fileName, savepoint);
+	}
+
+	/**
+	 * Stores the savepoint metadata file to a state handle.
+	 *
+	 * @param directory Target directory to store savepoint in
+	 * @param savepoint Savepoint to be stored
+	 *
+	 * @return State handle to the checkpoint metadata
+	 * @throws IOException Failures during store are forwarded
+	 */
+	static <T extends Savepoint> FileStateHandle storeSavepointToHandle(
+			String directory,
+			String filename,
+			T savepoint) throws IOException {
+
+		checkNotNull(directory, "Target directory");
+		checkNotNull(savepoint, "Savepoint");
+
+		final Path basePath = new Path(directory);
+		final Path metadataFilePath = new Path(basePath, filename);
+
+		final FileSystem fs = FileSystem.get(basePath.toUri());
 
 		boolean success = false;
-		try (DataOutputStream dos = new DataOutputStream(fdos)) {
+		try (FSDataOutputStream fdos = fs.create(metadataFilePath, WriteMode.NO_OVERWRITE);
+				DataOutputStream dos = new DataOutputStream(fdos))
+		{
 			// Write header
 			dos.writeInt(MAGIC_NUMBER);
 			dos.writeInt(savepoint.getVersion());
@@ -106,53 +197,113 @@ public class SavepointStore {
 			// Write savepoint
 			SavepointSerializer<T> serializer = SavepointSerializers.getSerializer(savepoint);
 			serializer.serialize(savepoint, dos);
+
+			// construct result handle
+			FileStateHandle handle = new FileStateHandle(metadataFilePath, dos.size());
+
+			// all good!
 			success = true;
-		} finally {
-			if (!success && fs.exists(path)) {
-				if (!fs.delete(path, true)) {
-					LOG.warn("Failed to delete file {} after failed write.", path);
+			return handle;
+		}
+		finally {
+			if (!success && fs.exists(metadataFilePath)) {
+				if (!fs.delete(metadataFilePath, true)) {
+					LOG.warn("Failed to delete file {} after failed metadata write.", metadataFilePath);
 				}
 			}
 		}
-
-		return path.toString();
 	}
 
 	/**
 	 * Loads the savepoint at the specified path.
 	 *
-	 * @param path Path of savepoint to load
+	 * @param savepointFileOrDirectory Path to the parent savepoint directory or the meta data file.
+	 * @param classLoader The class loader used to resolve serialized classes from legacy savepoint formats.
 	 * @return The loaded savepoint
-	 * @throws Exception Failures during load are forwared
+	 * 
+	 * @throws IOException Failures during load are forwarded
 	 */
-	public static Savepoint loadSavepoint(String path, ClassLoader userClassLoader) throws IOException {
-		Preconditions.checkNotNull(path, "Path");
+	public static Savepoint loadSavepoint(String savepointFileOrDirectory, ClassLoader classLoader) throws IOException {
+		return loadSavepointWithHandle(savepointFileOrDirectory, classLoader).f0;
+	}
 
-		try (DataInputStream dis = new DataInputViewStreamWrapper(createFsInputStream(new Path(path)))) {
+	/**
+	 * Loads the savepoint at the specified path. This methods returns the savepoint, as well as the
+	 * handle to the metadata.
+	 *
+	 * @param savepointFileOrDirectory Path to the parent savepoint directory or the meta data file.
+	 * @param classLoader The class loader used to resolve serialized classes from legacy savepoint formats.
+	 * @return The loaded savepoint
+	 *
+	 * @throws IOException Failures during load are forwarded
+	 */
+	public static Tuple2<Savepoint, StreamStateHandle> loadSavepointWithHandle(
+			String savepointFileOrDirectory,
+			ClassLoader classLoader) throws IOException {
+		
+		checkNotNull(savepointFileOrDirectory, "savepointFileOrDirectory");
+		checkNotNull(classLoader, "classLoader");
+
+		Path path = new Path(savepointFileOrDirectory);
+
+		LOG.info("Loading savepoint from {}", path);
+
+		FileSystem fs = FileSystem.get(path.toUri());
+
+		FileStatus status = fs.getFileStatus(path);
+
+		// If this is a directory, we need to find the meta data file
+		if (status.isDir()) {
+			Path candidatePath = new Path(path, SAVEPOINT_METADATA_FILE);
+			if (fs.exists(candidatePath)) {
+				path = candidatePath;
+				LOG.info("Using savepoint file in {}", path);
+			} else {
+				throw new IOException("Cannot find meta data file in directory " + path
+						+ ". Please try to load the savepoint directly from the meta data file "
+						+ "instead of the directory.");
+			}
+		}
+
+		// load the savepoint
+		final Savepoint savepoint;
+		try (DataInputStream dis = new DataInputViewStreamWrapper(fs.open(path))) {
 			int magicNumber = dis.readInt();
 
 			if (magicNumber == MAGIC_NUMBER) {
 				int version = dis.readInt();
 
 				SavepointSerializer<?> serializer = SavepointSerializers.getSerializer(version);
-				return serializer.deserialize(dis, userClassLoader);
+				savepoint = serializer.deserialize(dis, classLoader);
 			} else {
-				throw new RuntimeException("Unexpected magic number. This is most likely " +
-						"caused by trying to load a Flink 1.0 savepoint. You cannot load a " +
-						"savepoint triggered by Flink 1.0 with this version of Flink. If it is " +
-						"_not_ a Flink 1.0 savepoint, this error indicates that the specified " +
-						"file is not a proper savepoint or the file has been corrupted.");
+				throw new RuntimeException("Unexpected magic number. This can have multiple reasons: " +
+						"(1) You are trying to load a Flink 1.0 savepoint, which is not supported by this " +
+						"version of Flink. (2) The file you were pointing to is not a savepoint at all. " +
+						"(3) The savepoint file has been corrupted.");
 			}
 		}
+
+		// construct the stream handle to the metadata file
+		// we get the size best-effort
+		long size = 0;
+		try {
+			size = fs.getFileStatus(path).getLen();
+		}
+		catch (Exception ignored) {
+			// we don't know the size, but we don't want to fail the savepoint loading for that
+		}
+		StreamStateHandle metadataHandle = new FileStateHandle(path, size);
+
+		return new Tuple2<>(savepoint, metadataHandle);
 	}
 
 	/**
 	 * Removes the savepoint meta data w/o loading and disposing it.
 	 *
 	 * @param path Path of savepoint to remove
-	 * @throws Exception Failures during disposal are forwarded
+	 * @throws IOException Failures during disposal are forwarded
 	 */
-	public static void removeSavepoint(String path) throws IOException {
+	public static void removeSavepointFile(String path) throws IOException {
 		Preconditions.checkNotNull(path, "Path");
 
 		try {
@@ -170,16 +321,6 @@ public class SavepointStore {
 			}
 		} catch (Throwable t) {
 			throw new IOException("Failed to dispose savepoint " + path + ".", t);
-		}
-	}
-
-	private static FSDataInputStream createFsInputStream(Path path) throws IOException {
-		FileSystem fs = FileSystem.get(path.toUri());
-
-		if (fs.exists(path)) {
-			return fs.open(path);
-		} else {
-			throw new IllegalArgumentException("Invalid path '" + path.toUri() + "'.");
 		}
 	}
 

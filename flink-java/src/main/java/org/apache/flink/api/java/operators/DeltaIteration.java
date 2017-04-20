@@ -28,6 +28,7 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -62,9 +63,12 @@ public class DeltaIteration<ST, WT> {
 	private String name;
 	
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+
+	private ResourceSpec minResources = ResourceSpec.DEFAULT;
+
+	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
 	
 	private boolean solutionSetUnManaged;
-
 
 	public DeltaIteration(ExecutionEnvironment context, TypeInformation<ST> type, DataSet<ST> solutionSet, DataSet<WT> workset, Keys<ST> keys, int maxIterations) {
 		initialSolutionSet = solutionSet;
@@ -192,7 +196,71 @@ public class DeltaIteration<ST, WT> {
 	public int getParallelism() {
 		return parallelism;
 	}
-	
+
+	//	---------------------------------------------------------------------------
+	//	 Fine-grained resource profiles are an incomplete work-in-progress feature
+	//	 The setters are hence private at this point.
+	//	---------------------------------------------------------------------------
+
+	/**
+	 * Sets the minimum and preferred resources for the iteration. This overrides the default resources.
+	 * The lower and upper resource limits will be considered in dynamic resource resize feature for future plan.
+	 *
+	 * @param minResources The minimum resources for the iteration.
+	 * @param preferredResources The preferred resources for the iteration.
+	 * @return The iteration with set minimum and preferred resources.
+	 */
+	private DeltaIteration<ST, WT> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
+		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
+		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
+				"The values in resources must be not less than 0 and the preferred resources must be greater than the min resources.");
+
+		this.minResources = minResources;
+		this.preferredResources = preferredResources;
+
+		return this;
+	}
+
+	/**
+	 * Sets the resources for the iteration, and the minimum and preferred resources are the same by default.
+	 *	The lower and upper resource limits will be considered in dynamic resource resize feature for future plan.
+	 *
+	 * @param resources The resources for the iteration.
+	 * @return The iteration with set minimum and preferred resources.
+	 */
+	private DeltaIteration<ST, WT> setResources(ResourceSpec resources) {
+		Preconditions.checkNotNull(resources, "The resources must be not null.");
+		Preconditions.checkArgument(resources.isValid(), "The values in resources must be not less than 0.");
+
+		this.minResources = resources;
+		this.preferredResources = resources;
+
+		return this;
+	}
+
+	/**
+	 * Gets the minimum resources from this iteration. If no minimum resources have been set,
+	 * it returns the default empty resource.
+	 *
+	 * @return The minimum resources of the iteration.
+	 */
+	@PublicEvolving
+	public ResourceSpec getMinResources() {
+		return this.minResources;
+	}
+
+	/**
+	 * Gets the preferred resources from this iteration. If no preferred resources have been set,
+	 * it returns the default empty resource.
+	 *
+	 * @return The preferred resources of the iteration.
+	 */
+	@PublicEvolving
+	public ResourceSpec getPreferredResources() {
+		return this.preferredResources;
+	}
+
 	/**
 	 * Registers an {@link Aggregator} for the iteration. Aggregators can be used to maintain simple statistics during the
 	 * iteration, such as number of elements processed. The aggregators compute global aggregates: After each iteration step,

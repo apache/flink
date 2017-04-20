@@ -64,8 +64,8 @@ public class JsonGeneratorTest {
 			join2.connectNewDataSetAsInput(join1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 			join2.connectNewDataSetAsInput(source3, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 			
-			sink1.connectNewDataSetAsInput(join2, DistributionPattern.POINTWISE);
-			sink2.connectNewDataSetAsInput(join1, DistributionPattern.ALL_TO_ALL);
+			sink1.connectNewDataSetAsInput(join2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+			sink2.connectNewDataSetAsInput(join1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
 			JobGraph jg = new JobGraph("my job", source1, source2, source3,
 					intermediate1, intermediate2, join1, join2, sink1, sink2);

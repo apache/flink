@@ -20,13 +20,10 @@ package org.apache.flink.streaming.connectors.kafka.testutils;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -45,8 +42,6 @@ import org.apache.flink.streaming.util.serialization.TypeInformationSerializatio
 import java.util.Collection;
 import java.util.Properties;
 import java.util.Random;
-
-import static org.mockito.Mockito.mock;
 
 @SuppressWarnings("serial")
 public class DataGenerators {

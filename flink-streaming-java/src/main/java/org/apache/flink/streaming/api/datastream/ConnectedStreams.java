@@ -28,11 +28,11 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
-import org.apache.flink.streaming.api.functions.co.RichCoProcessFunction;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.operators.co.CoProcessOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
-import org.apache.flink.streaming.api.operators.co.CoProcessOperator;
+import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 
 import static java.util.Objects.requireNonNull;
@@ -243,10 +243,6 @@ public class ConnectedStreams<IN1, IN2> {
 	 * function can also query the time and set timers. When reacting to the firing of set timers
 	 * the function can directly emit elements and/or register yet more timers.
 	 *
-	 * <p>A {@link RichCoProcessFunction}
-	 * can be used to gain access to features provided by the
-	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 *
 	 * @param coProcessFunction The {@link CoProcessFunction} that is called for each element
 	 *                      in the stream.
 	 *
@@ -274,10 +270,6 @@ public class ConnectedStreams<IN1, IN2> {
 	 * this function can also query the time and set timers. When reacting to the firing of set
 	 * timers the function can directly emit elements and/or register yet more timers.
 	 *
-	 * <p>A {@link RichCoProcessFunction}
-	 * can be used to gain access to features provided by the
-	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 *
 	 * @param coProcessFunction The {@link CoProcessFunction} that is called for each element
 	 *                      in the stream.
 	 *
@@ -290,13 +282,13 @@ public class ConnectedStreams<IN1, IN2> {
 			CoProcessFunction<IN1, IN2, R> coProcessFunction,
 			TypeInformation<R> outputType) {
 
-		if (!(inputStream1 instanceof KeyedStream) || !(inputStream2 instanceof KeyedStream)) {
-			throw new UnsupportedOperationException("A CoProcessFunction can only be applied" +
-					"when both input streams are keyed.");
-		}
+		TwoInputStreamOperator<IN1, IN2, R> operator;
 
-		CoProcessOperator<Object, IN1, IN2, R> operator = new CoProcessOperator<>(
-				inputStream1.clean(coProcessFunction));
+		if ((inputStream1 instanceof KeyedStream) && (inputStream2 instanceof KeyedStream)) {
+			operator = new KeyedCoProcessOperator<>(inputStream1.clean(coProcessFunction));
+		} else {
+			operator = new CoProcessOperator<>(inputStream1.clean(coProcessFunction));
+		}
 
 		return transform("Co-Process", outputType, operator);
 	}

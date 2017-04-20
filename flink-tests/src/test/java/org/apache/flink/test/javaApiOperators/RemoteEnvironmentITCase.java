@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -41,7 +42,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
-public class RemoteEnvironmentITCase {
+public class RemoteEnvironmentITCase extends TestLogger {
 
 	private static final int TM_SLOTS = 4;
 

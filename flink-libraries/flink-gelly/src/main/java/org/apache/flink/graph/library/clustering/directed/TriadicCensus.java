@@ -27,6 +27,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.clustering.directed.TriadicCensus.Result;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.util.Preconditions;
@@ -40,7 +41,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 /**
  * A triad is formed by three connected or unconnected vertices in a graph.
  * The triadic census counts the occurrences of each type of triad.
- * <br/>
+ * <p>
  * http://vlado.fmf.uni-lj.si/pub/networks/doc/triads/triads.pdf
  *
  * @param <K> graph ID type
@@ -321,7 +322,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	/**
 	 * Wraps triadic census metrics.
 	 */
-	public static class Result {
+	public static class Result
+	implements PrintableResult {
 		private final BigInteger[] counts;
 
 		public Result(BigInteger... counts) {
@@ -518,7 +520,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		@Override
-		public String toString() {
+		public String toPrintableString() {
 			NumberFormat nf = NumberFormat.getInstance();
 
 			return "003: " + nf.format(getCount003())

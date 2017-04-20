@@ -28,10 +28,6 @@ package org.apache.flink.streaming.connectors.kafka.internals;
  * @param <KPH> The type of the Kafka partition descriptor, which varies across Kafka versions.
  */
 public class KafkaTopicPartitionState<KPH> {
-
-	/** Magic number to define an unset offset. Negative offsets are not used by Kafka (invalid),
-	 * and we pick a number that is probably (hopefully) not used by Kafka as a magic number for anything else. */
-	public static final long OFFSET_NOT_SET = -915623761776L;
 	
 	// ------------------------------------------------------------------------
 
@@ -52,8 +48,8 @@ public class KafkaTopicPartitionState<KPH> {
 	public KafkaTopicPartitionState(KafkaTopicPartition partition, KPH kafkaPartitionHandle) {
 		this.partition = partition;
 		this.kafkaPartitionHandle = kafkaPartitionHandle;
-		this.offset = OFFSET_NOT_SET;
-		this.committedOffset = OFFSET_NOT_SET;
+		this.offset = KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
+		this.committedOffset = KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
 	}
 
 	// ------------------------------------------------------------------------
@@ -96,7 +92,7 @@ public class KafkaTopicPartitionState<KPH> {
 	}
 
 	public final boolean isOffsetDefined() {
-		return offset != OFFSET_NOT_SET;
+		return offset != KafkaTopicPartitionStateSentinel.OFFSET_NOT_SET;
 	}
 
 	public final void setCommittedOffset(long offset) {

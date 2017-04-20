@@ -45,7 +45,11 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 	// ------------------------------------------------------------------------
 	
 	public DataInputDeserializer() {}
-	
+
+	public DataInputDeserializer(byte[] buffer) {
+		setBuffer(buffer, 0, buffer.length);
+	}
+
 	public DataInputDeserializer(byte[] buffer, int start, int len) {
 		setBuffer(buffer, start, len);
 	}

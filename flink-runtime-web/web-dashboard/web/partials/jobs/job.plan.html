@@ -20,7 +20,7 @@ limitations under the License.
 <split>
   <div id="canvas" class="split">
     <div class="canvas-wrapper">
-      <div job-plan="job-plan" plan="plan" jobid="{{jobid}}" set-node="changeNode(nodeid)" class="main-canvas"></div>
+      <div job-plan="job-plan" plan="plan" watermarks="watermarks" jobid="{{jobid}}" set-node="changeNode(nodeid)" class="main-canvas"></div>
     </div>
   </div>
   <div id="job-panel" class="split">
@@ -30,6 +30,7 @@ limitations under the License.
           <li ui-sref-active="active"><a ui-sref=".subtasks({nodeid: nodeid})">Subtasks</a></li>
           <li ui-sref-active="active"><a ui-sref=".taskmanagers({nodeid: nodeid})">TaskManagers</a></li>
           <li ui-sref-active="active"><a ui-sref=".metrics({nodeid: nodeid})">Metrics</a></li>
+          <li ui-sref-active="active"><a ui-sref=".watermarks({nodeid: nodeid})">Watermarks</a></li>
           <li ui-sref-active="active"><a ui-sref=".accumulators({nodeid: nodeid})">Accumulators</a></li>
           <li ui-sref-active="active"><a ui-sref=".checkpoints({nodeid: nodeid})">Checkpoints</a></li>
           <li ng-if="job.state == 'RUNNING'" ui-sref-active="active"><a ui-sref=".backpressure({nodeid: nodeid})">Back Pressure</a></li>

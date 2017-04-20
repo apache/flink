@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +50,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class CombiningUnilateralSortMergerITCase {
+public class CombiningUnilateralSortMergerITCase extends TestLogger {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(CombiningUnilateralSortMergerITCase.class);
 

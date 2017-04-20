@@ -96,6 +96,8 @@ KEY_TASKM_MEM_MANAGED_FRACTION="taskmanager.memory.fraction"
 KEY_TASKM_OFFHEAP="taskmanager.memory.off-heap"
 KEY_TASKM_MEM_PRE_ALLOCATE="taskmanager.memory.preallocate"
 
+KEY_TASKM_COMPUTE_NUMA="taskmanager.compute.numa"
+
 KEY_ENV_PID_DIR="env.pid.dir"
 KEY_ENV_LOG_DIR="env.log.dir"
 KEY_ENV_LOG_MAX="env.log.max"
@@ -217,6 +219,17 @@ if [ -z "${FLINK_TM_MEM_PRE_ALLOCATE}" ]; then
     FLINK_TM_MEM_PRE_ALLOCATE=$(readFromConfig ${KEY_TASKM_MEM_PRE_ALLOCATE} "false" "${YAML_CONF}")
 fi
 
+# Verify that NUMA tooling is available
+command -v numactl >/dev/null 2>&1
+if [[ $? -ne 0 ]]; then
+    FLINK_TM_COMPUTE_NUMA="false"
+else
+    # Define FLINK_TM_COMPUTE_NUMA if it is not already set
+    if [ -z "${FLINK_TM_COMPUTE_NUMA}" ]; then
+        FLINK_TM_COMPUTE_NUMA=$(readFromConfig ${KEY_TASKM_COMPUTE_NUMA} "false" "${YAML_CONF}")
+    fi
+fi
+
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
     MAX_LOG_FILE_NUMBER=$(readFromConfig ${KEY_ENV_LOG_MAX} ${DEFAULT_ENV_LOG_MAX} "${YAML_CONF}")
 fi
@@ -271,8 +284,6 @@ if [ -z "${HIGH_AVAILABILITY}" ]; then
         else
             HIGH_AVAILABILITY=${DEPRECATED_HA}
         fi
-     else
-         HIGH_AVAILABILITY="none"
      fi
 fi
 
@@ -299,11 +310,24 @@ fi
 INTERNAL_HADOOP_CLASSPATHS="${HADOOP_CLASSPATH}:${HADOOP_CONF_DIR}:${YARN_CONF_DIR}"
 
 if [ -n "${HBASE_CONF_DIR}" ]; then
-    # Setup the HBase classpath.
-    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`hbase classpath`"
+    # Look for hbase command in HBASE_HOME or search PATH.
+    if [ -n "${HBASE_HOME}" ]; then
+        HBASE_PATH="${HBASE_HOME}/bin"
+        HBASE_COMMAND=`command -v "${HBASE_PATH}/hbase"`
+    else
+        HBASE_PATH=$PATH
+        HBASE_COMMAND=`command -v hbase`
+    fi
 
-    # We add the HBASE_CONF_DIR last to ensure the right config directory is used.
-    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:${HBASE_CONF_DIR}"
+    # Whether the hbase command was found.
+    if [[ $? -eq 0 ]]; then
+        # Setup the HBase classpath. We add the HBASE_CONF_DIR last to ensure the right config directory is used.
+        INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`${HBASE_COMMAND} classpath`:${HBASE_CONF_DIR}"
+    else
+        echo "HBASE_CONF_DIR=${HBASE_CONF_DIR} is set but 'hbase' command was not found in ${HBASE_PATH} so classpath could not be updated."
+    fi
+
+    unset HBASE_COMMAND HBASE_PATH
 fi
 
 # Auxilliary function which extracts the name of host from a line which

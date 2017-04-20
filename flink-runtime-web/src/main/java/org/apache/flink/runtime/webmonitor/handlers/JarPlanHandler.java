@@ -32,8 +32,15 @@ import java.util.Map;
  */
 public class JarPlanHandler extends JarActionHandler {
 
+	static final String JAR_PLAN_REST_PATH = "/jars/:jarid/plan";
+
 	public JarPlanHandler(File jarDirectory) {
 		super(jarDirectory);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JAR_PLAN_REST_PATH};
 	}
 
 	@Override

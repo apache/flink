@@ -18,22 +18,19 @@
 
 package org.apache.flink.table.calcite
 
-import java.util.Collections
-
-import org.apache.calcite.plan.volcano.VolcanoPlanner
 import java.lang.Iterable
+import java.util.Collections
 
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
+import org.apache.calcite.plan.volcano.VolcanoPlanner
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
 import org.apache.calcite.tools.{FrameworkConfig, RelBuilder}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.expressions.WindowProperty
-import org.apache.flink.table.plan.cost.FlinkDefaultRelMetadataProvider
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 
@@ -84,12 +81,7 @@ object FlinkRelBuilder {
     val planner = new VolcanoPlanner(config.getCostFactory, Contexts.empty())
     planner.setExecutor(config.getExecutor)
     planner.addRelTraitDef(ConventionTraitDef.INSTANCE)
-    val cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory))
-    cluster.setMetadataProvider(FlinkDefaultRelMetadataProvider.INSTANCE)
-    // just set metadataProvider is not enough, see
-    // https://www.mail-archive.com/dev@calcite.apache.org/msg00930.html
-    RelMetadataQuery.THREAD_PROVIDERS.set(
-      JaninoRelMetadataProvider.of(cluster.getMetadataProvider))
+    val cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory))
     val calciteSchema = CalciteSchema.from(config.getDefaultSchema)
     val relOptSchema = new CalciteCatalogReader(
       calciteSchema,

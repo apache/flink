@@ -23,7 +23,11 @@ import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
 
+/**
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
+ */
 @Deprecated
+@SuppressWarnings("deprecation")
 public class FsFoldingState<K, N, T, ACC> {
 	public static class Snapshot<K, N, T, ACC> extends AbstractFsStateSnapshot<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>> {
 		private static final long serialVersionUID = 1L;

@@ -18,13 +18,15 @@
 
 package org.apache.flink.table.api.scala.batch.sql
 
+import java.sql.Timestamp
+
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.types.Row
-import org.apache.flink.table.api.{TableEnvironment, TableException}
+import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
 import org.junit.runner.RunWith
@@ -92,36 +94,13 @@ class AggregationsITCase(
   }
 
   @Test
-  def testWorkingAggregationDataTypes(): Unit = {
+  def testAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val sqlQuery =
-      "SELECT avg(_1), avg(_2), avg(_3), avg(_4), avg(_5), avg(_6), count(_7), " +
-      "  sum(CAST(_6 AS DECIMAL))" +
-      "FROM MyTable"
-
-    val ds = env.fromElements(
-      (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
-      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao"))
-    tEnv.registerDataSet("MyTable", ds)
-
-    val result = tEnv.sql(sqlQuery)
-
-    val expected = "1,1,1,1,1.5,1.5,2,3.0"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testTableWorkingAggregationDataTypes(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val sqlQuery = "SELECT avg(a), avg(b), avg(c), avg(d), avg(e), avg(f), count(g)" +
-      "FROM MyTable"
+    val sqlQuery = "SELECT avg(a), avg(b), avg(c), avg(d), avg(e), avg(f), count(g), " +
+      "min(g), min('Ciao'), max(g), max('Ciao'), sum(CAST(f AS DECIMAL)) FROM MyTable"
 
     val ds = env.fromElements(
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
@@ -130,7 +109,7 @@ class AggregationsITCase(
 
     val result = tEnv.sql(sqlQuery)
 
-    val expected = "1,1,1,1,1.5,1.5,2"
+    val expected = "1,1,1,1,1.5,1.5,2,Ciao,Ciao,Hello,Ciao,3.0"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -213,7 +192,7 @@ class AggregationsITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testDistinctAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -221,14 +200,17 @@ class AggregationsITCase(
 
     val sqlQuery = "SELECT sum(_1) as a, count(distinct _3) as b FROM MyTable"
 
-    val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds)
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("MyTable", ds)
 
-    // must fail. distinct aggregates are not supported
-    tEnv.sql(sqlQuery).toDataSet[Row]
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = "231,21"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testGroupedDistinctAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -236,11 +218,15 @@ class AggregationsITCase(
 
     val sqlQuery = "SELECT _2, avg(distinct _1) as a, count(_3) as b FROM MyTable GROUP BY _2"
 
-    val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds)
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("MyTable", ds)
 
-    // must fail. distinct aggregates are not supported
-    tEnv.sql(sqlQuery).toDataSet[Row]
+    val result = tEnv.sql(sqlQuery)
+
+    val expected =
+      "6,18,6\n5,13,5\n4,8,4\n3,5,3\n2,2,2\n1,1,1"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -307,5 +293,93 @@ class AggregationsITCase(
       "Empty result is expected for grouped set, but actual: " + results)
     TestBaseUtils.compareResultAsText(results2.asJava, expected2)
     TestBaseUtils.compareResultAsText(results3.asJava, expected3)
+  }
+
+  @Test
+  def testTumbleWindowAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery =
+      "SELECT b, SUM(a), COUNT(*)" +
+        "FROM T " +
+        "GROUP BY b, TUMBLE(ts, INTERVAL '3' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .map(x => (x._1, x._2, x._3, new Timestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "1,1,1",
+      "2,2,1", "2,3,1",
+      "3,9,2", "3,6,1",
+      "4,15,2", "4,19,2",
+      "5,11,1", "5,39,3", "5,15,1",
+      "6,33,2", "6,57,3", "6,21,1"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testHopWindowAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    env.setParallelism(1)
+
+    val sqlQuery =
+      "SELECT b, SUM(a), COUNT(*)" +
+        "FROM T " +
+        "GROUP BY b, HOP(ts, INTERVAL '2' SECOND, INTERVAL '4' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .map(x => (x._1, x._2, x._3, new Timestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "1,1,1","1,1,1",
+      "2,5,2","2,5,2",
+      "3,9,2", "3,15,3", "3,6,1",
+      "4,7,1", "4,24,3", "4,27,3", "4,10,1",
+      "5,11,1", "5,36,3", "5,54,4", "5,29,2",
+      "6,33,2", "6,70,4", "6,78,4", "6,41,2"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testSessionWindowAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    env.setParallelism(1)
+
+    val sqlQuery =
+      "SELECT MIN(a), MAX(a), SUM(a), COUNT(*)" +
+        "FROM T " +
+        "GROUP BY SESSION(ts, INTERVAL '4' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .filter(x => (x._2 % 2) == 0)
+      .map(x => (x._1, x._2, x._3, new Timestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val result = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    val expected = Seq(
+      "2,10,39,6",
+      "16,21,111,6"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
 }

@@ -17,7 +17,7 @@
  */
 
 
-/**
+/*
  * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
  * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -30,11 +30,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.local.LocalFileSystem;
-import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
-import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -59,7 +55,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * machine-local file system). Other file system types are accessed by an implementation that bridges
  * to the suite of file systems supported by Hadoop (such as for example HDFS).
  * 
- * <h2>Data Persistence</h2>
+ * <h2>Scope and Purpose</h2>
+ * 
+ * The purpose of this abstraction is used to expose a common and well defined interface for
+ * access to files. This abstraction is used both by Flink's fault tolerance mechanism (storing
+ * state and recovery data) and by reusable built-in connectors (file sources / sinks).
+ * 
+ * <p>The purpose of this abstraction is <b>not</b> to give user programs an abstraction with
+ * extreme flexibility and control across all possible file systems. That mission would be a folly,
+ * as the differences in characteristics of even the most common file systems are already quite
+ * large. It is expected that user programs that need specialized functionality of certain file systems
+ * in their functions, operations, sources, or sinks instantiate the specialized file system adapters
+ * directly.
+ * 
+ * <h2>Data Persistence Contract</h2>
  * 
  * The FileSystem's {@link FSDataOutputStream output streams} are used to persistently store data,
  * both for results of streaming applications and for fault tolerance and recovery. It is therefore
@@ -152,6 +161,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * in between read or write operations, because there are no guarantees about the visibility of
  * operations across threads (many operations do not create memory fences).
  * 
+ * <h2>Streams Safety Net</h2>
+ * 
+ * When application code obtains a FileSystem (via {@link FileSystem#get(URI)} or via
+ * {@link Path#getFileSystem()}), the FileSystem instantiates a safety net for that FileSystem.
+ * The safety net ensures that all streams created from the FileSystem are closed when the
+ * application task finishes (or is canceled or failed). That way, the task's threads do not
+ * leak connections.
+ * 
+ * <p>Internal runtime code can explicitly obtain a FileSystem that does not use the safety
+ * net via {@link FileSystem#getUnguardedFileSystem(URI)}.
+ * 
  * @see FSDataInputStream
  * @see FSDataOutputStream
  */
@@ -164,17 +184,17 @@ public abstract class FileSystem {
 	 */
 	public enum WriteMode {
 
-		/** Creates the target file if it does not exist. Does not overwrite existing files and directories. */
+		/** Creates the target file only if no file exists at that path already.
+		 * Does not overwrite existing files and directories. */
 		NO_OVERWRITE,
 
-		/** Creates a new target file regardless of any existing files or directories. Existing files and
-		 * directories will be removed/overwritten. */
+		/** Creates a new target file regardless of any existing files or directories.
+		 * Existing files and directories will be deleted (recursively) automatically before
+		 * creating the new file. */
 		OVERWRITE
 	}
 
 	// ------------------------------------------------------------------------
-
-	private static final ThreadLocal<SafetyNetCloseableRegistry> REGISTRIES = new ThreadLocal<>();
 
 	private static final String HADOOP_WRAPPER_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.hdfs.HadoopFileSystem";
 
@@ -182,48 +202,11 @@ public abstract class FileSystem {
 
 	private static final String HADOOP_WRAPPER_SCHEME = "hdwrapper";
 
-	private static final Logger LOG = LoggerFactory.getLogger(FileSystem.class);
-
 	/** This lock guards the methods {@link #initOutPathLocalFS(Path, WriteMode, boolean)} and
 	 * {@link #initOutPathDistFS(Path, WriteMode, boolean)} which are otherwise susceptible to races */
 	private static final ReentrantLock OUTPUT_DIRECTORY_INIT_LOCK = new ReentrantLock(true);
 
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Create a SafetyNetCloseableRegistry for a Task. This method should be called at the beginning of the task's
-	 * main thread.
-	 */
-	@Internal
-	public static void createAndSetFileSystemCloseableRegistryForThread() {
-		SafetyNetCloseableRegistry oldRegistry = REGISTRIES.get();
-		Preconditions.checkState(null == oldRegistry,
-				"Found old CloseableRegistry " + oldRegistry +
-						". This indicates a leak of the InheritableThreadLocal through a ThreadPool!");
-
-		SafetyNetCloseableRegistry newRegistry = new SafetyNetCloseableRegistry();
-		REGISTRIES.set(newRegistry);
-		LOG.info("Created new CloseableRegistry " + newRegistry + " for {}", Thread.currentThread().getName());
-	}
-
-	/**
-	 * Create a SafetyNetCloseableRegistry for a Task. This method should be called at the end of the task's
-	 * main thread or when the task should be canceled.
-	 */
-	@Internal
-	public static void closeAndDisposeFileSystemCloseableRegistryForThread() {
-		SafetyNetCloseableRegistry registry = REGISTRIES.get();
-		if (null != registry) {
-			LOG.info("Ensuring all FileSystem streams are closed for {}", Thread.currentThread().getName());
-			REGISTRIES.remove();
-			IOUtils.closeQuietly(registry);
-		}
-	}
-
-	private static FileSystem wrapWithSafetyNetWhenActivated(FileSystem fs) {
-		SafetyNetCloseableRegistry reg = REGISTRIES.get();
-		return reg != null ? new SafetyNetWrapperFileSystem(fs, reg) : fs;
-	}
 
 	/** Object used to protect calls to specific methods.*/
 	private static final Object SYNCHRONIZATION_OBJECT = new Object();
@@ -403,7 +386,7 @@ public abstract class FileSystem {
 	 *         thrown if a reference to the file system instance could not be obtained
 	 */
 	public static FileSystem get(URI uri) throws IOException {
-		return wrapWithSafetyNetWhenActivated(getUnguardedFileSystem(uri));
+		return FileSystemSafetyNet.wrapWithSafetyNetWhenActivated(getUnguardedFileSystem(uri));
 	}
 
 	/**
@@ -555,7 +538,6 @@ public abstract class FileSystem {
 	 *        source file
 	 */
 	public boolean exists(final Path f) throws IOException {
-
 		try {
 			return (getFileStatus(f) != null);
 		} catch (FileNotFoundException e) {
@@ -590,6 +572,11 @@ public abstract class FileSystem {
 
 	/**
 	 * Opens an FSDataOutputStream at the indicated Path.
+	 * 
+	 * <p>This method is deprecated, because most of its parameters are ignored by most file systems.
+	 * To control for example the replication factor and block size in the Hadoop Distributed File system,
+	 * make sure that the respective Hadoop configuration file is either linked from the Flink configuration,
+	 * or in the classpath of either Flink or the user code.
 	 *
 	 * @param f
 	 *        the file name to open
@@ -602,8 +589,15 @@ public abstract class FileSystem {
 	 *        required block replication for the file.
 	 * @param blockSize
 	 *        the size of the file blocks
-	 * @throws IOException
+	 * 
+	 * @throws IOException Thrown, if the stream could not be opened because of an I/O, or because
+	 *                     a file already exists at that path and the write mode indicates to not
+	 *                     overwrite the file.
+	 * 
+	 * @deprecated Deprecated because not well supported across types of file systems.
+	 *             Control the behavior of specific file systems via configurations instead. 
 	 */
+	@Deprecated
 	public abstract FSDataOutputStream create(Path f, boolean overwrite, int bufferSize, short replication,
 			long blockSize) throws IOException;
 
@@ -615,9 +609,34 @@ public abstract class FileSystem {
 	 * @param overwrite
 	 *        if a file with this name already exists, then if true,
 	 *        the file will be overwritten, and if false an error will be thrown.
-	 * @throws IOException
+	 * 
+	 * @throws IOException Thrown, if the stream could not be opened because of an I/O, or because
+	 *                     a file already exists at that path and the write mode indicates to not
+	 *                     overwrite the file.
+	 * 
+	 * @deprecated Use {@link #create(Path, WriteMode)} instead.
 	 */
-	public abstract FSDataOutputStream create(Path f, boolean overwrite) throws IOException;
+	@Deprecated
+	public FSDataOutputStream create(Path f, boolean overwrite) throws IOException {
+		return create(f, overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE);
+	}
+
+	/**
+	 * Opens an FSDataOutputStream to a new file at the given path.
+	 * 
+	 * <p>If the file already exists, the behavior depends on the given {@code WriteMode}.
+	 * If the mode is set to {@link WriteMode#NO_OVERWRITE}, then this method fails with an
+	 * exception.
+	 *
+	 * @param f The file path to write to
+	 * @param overwriteMode The action to take if a file or directory already exists at the given path.
+	 * @return The stream to the new file at the target path.
+	 * 
+	 * @throws IOException Thrown, if the stream could not be opened because of an I/O, or because
+	 *                     a file already exists at that path and the write mode indicates to not
+	 *                     overwrite the file.
+	 */
+	public abstract FSDataOutputStream create(Path f, WriteMode overwriteMode) throws IOException;
 
 	/**
 	 * Renames the file/directory src to dst.
@@ -632,7 +651,9 @@ public abstract class FileSystem {
 	public abstract boolean rename(Path src, Path dst) throws IOException;
 
 	/**
-	 * Returns true if this is a distributed file system, false otherwise.
+	 * Returns true if this is a distributed file system. A distributed file system here means
+	 * that the file system is shared among all Flink processes that participate in a cluster or
+	 * job and that all these processes can see the same files.
 	 *
 	 * @return True, if this is a distributed file system, false otherwise.
 	 */
@@ -909,9 +930,8 @@ public abstract class FileSystem {
 
 	/**
 	 * An identifier of a file system, via its scheme and its authority.
-	 * This class needs to stay public, because it is detected as part of the public API.
 	 */
-	public static class FSKey {
+	private static final class FSKey {
 
 		/** The scheme of the file system. */
 		private final String scheme;

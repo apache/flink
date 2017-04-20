@@ -47,14 +47,6 @@ public class IntermediateDataSet implements java.io.Serializable {
 	private final ResultPartitionType resultType;
 	
 	// --------------------------------------------------------------------------------------------
-	
-	public IntermediateDataSet(JobVertex producer) {
-		this(new IntermediateDataSetID(), producer);
-	}
-	
-	public IntermediateDataSet(IntermediateDataSetID id, JobVertex producer) {
-		this(id, ResultPartitionType.PIPELINED, producer);
-	}
 
 	public IntermediateDataSet(IntermediateDataSetID id, ResultPartitionType resultType, JobVertex producer) {
 		this.id = checkNotNull(id);

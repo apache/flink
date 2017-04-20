@@ -40,6 +40,7 @@ public class BlobServerRangeTest extends TestLogger {
 		Configuration conf = new Configuration();
 		conf.setString(ConfigConstants.BLOB_SERVER_PORT, "0");
 		BlobServer srv = new BlobServer(conf);
+		srv.shutdown();
 	}
 
 	/**

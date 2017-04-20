@@ -18,25 +18,35 @@
 
 package org.apache.flink.table.expressions.utils
 
+import java.util
+import java.util.concurrent.Future
+
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.{Programs, RelBuilder}
-import org.apache.flink.api.common.functions.{Function, MapFunction}
+import org.apache.flink.api.common.TaskInfo
+import org.apache.flink.api.common.accumulators.Accumulator
+import org.apache.flink.api.common.functions._
+import org.apache.flink.api.common.functions.util.RuntimeUDFContext
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet => JDataSet}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.types.Row
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.core.fs.Path
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.codegen.{CodeGenerator, Compiler, GeneratedFunction}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.plan.nodes.dataset.{DataSetCalc, DataSetConvention}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetCalc
 import org.apache.flink.table.plan.rules.FlinkRuleSets
+import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.{After, Before}
 import org.mockito.Mockito._
@@ -57,7 +67,8 @@ abstract class ExpressionTestBase {
     context._2.getFrameworkConfig,
     context._2.getPlanner,
     context._2.getTypeFactory)
-  private val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
+  private val logicalOptProgram = Programs.ofRules(FlinkRuleSets.LOGICAL_OPT_RULES)
+  private val dataSetOptProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
 
   private def hepPlanner = {
     val builder = new HepProgramBuilder
@@ -69,7 +80,8 @@ abstract class ExpressionTestBase {
     new HepPlanner(builder.build, context._2.getFrameworkConfig.getContext)
   }
 
-  private def prepareContext(typeInfo: TypeInformation[Any]): (RelBuilder, TableEnvironment) = {
+  private def prepareContext(typeInfo: TypeInformation[Any])
+    : (RelBuilder, TableEnvironment, ExecutionEnvironment) = {
     // create DataSetTable
     val dataSetMock = mock(classOf[DataSet[Any]])
     val jDataSetMock = mock(classOf[JDataSet[Any]])
@@ -85,7 +97,7 @@ abstract class ExpressionTestBase {
     val relBuilder = tEnv.getRelBuilder
     relBuilder.scan(tableName)
 
-    (relBuilder, tEnv)
+    (relBuilder, tEnv, env)
   }
 
   def testData: Any
@@ -130,7 +142,29 @@ abstract class ExpressionTestBase {
     // compile and evaluate
     val clazz = new TestCompiler[MapFunction[Any, Row], Row]().compile(genFunc)
     val mapper = clazz.newInstance()
+
+    val isRichFunction = mapper.isInstanceOf[RichFunction]
+
+    // call setRuntimeContext method and open method for RichFunction
+    if (isRichFunction) {
+      val richMapper = mapper.asInstanceOf[RichMapFunction[_, _]]
+      val t = new RuntimeUDFContext(
+        new TaskInfo("ExpressionTest", 1, 0, 1, 1),
+        null,
+        context._3.getConfig,
+        new util.HashMap[String, Future[Path]](),
+        new util.HashMap[String, Accumulator[_, _]](),
+        null)
+      richMapper.setRuntimeContext(t)
+      richMapper.open(new Configuration())
+    }
+
     val result = mapper.map(testData)
+
+    // call close method for RichFunction
+    if (isRichFunction) {
+      mapper.asInstanceOf[RichMapFunction[_, _]].close()
+    }
 
     // compare
     testExprs
@@ -162,14 +196,20 @@ abstract class ExpressionTestBase {
       decorPlan
     }
 
-    // create DataSetCalc
-    val flinkOutputProps = converted.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
-    val dataSetCalc = optProgram.run(context._2.getPlanner, normalizedPlan, flinkOutputProps)
+    // convert to logical plan
+    val logicalProps = converted.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val logicalCalc = logicalOptProgram.run(context._2.getPlanner, normalizedPlan, logicalProps,
+      ImmutableList.of(), ImmutableList.of())
+
+    // convert to dataset plan
+    val physicalProps = converted.getTraitSet.replace(FlinkConventions.DATASET).simplify()
+    val dataSetCalc = dataSetOptProgram.run(context._2.getPlanner, logicalCalc, physicalProps,
+      ImmutableList.of(), ImmutableList.of())
 
     // extract RexNode
     val calcProgram = dataSetCalc
      .asInstanceOf[DataSetCalc]
-     .calcProgram
+     .getProgram
     val expanded = calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
 
     testExprs += ((expanded, expected))
@@ -186,13 +226,21 @@ abstract class ExpressionTestBase {
 
     // create DataSetCalc
     val decorPlan = RelDecorrelator.decorrelateQuery(converted)
-    val flinkOutputProps = converted.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
-    val dataSetCalc = optProgram.run(context._2.getPlanner, decorPlan, flinkOutputProps)
+
+    // convert to logical plan
+    val flinkLogicalProps = converted.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val logicalCalc = logicalOptProgram.run(context._2.getPlanner, decorPlan, flinkLogicalProps,
+      ImmutableList.of(), ImmutableList.of())
+
+    // convert to dataset plan
+    val flinkPhysicalProps = converted.getTraitSet.replace(FlinkConventions.DATASET).simplify()
+    val dataSetCalc = dataSetOptProgram.run(context._2.getPlanner, logicalCalc, flinkPhysicalProps,
+      ImmutableList.of(), ImmutableList.of())
 
     // extract RexNode
     val calcProgram = dataSetCalc
      .asInstanceOf[DataSetCalc]
-     .calcProgram
+     .getProgram
     val expanded = calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
 
     testExprs += ((expanded, expected))

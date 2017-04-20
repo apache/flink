@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -48,6 +49,7 @@ import java.util.Properties;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
 /**
  * A class containing a special Kafka broker which has a log retention of only 250 ms.
  * This way, we can make sure our consumer is properly handling cases where we run into out of offset
@@ -97,7 +99,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		// start also a re-usable Flink mini cluster
 		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
-		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
+		flinkConfig.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
 		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
 
 		flink = new LocalFlinkMiniCluster(flinkConfig, false);

@@ -39,6 +39,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandler {
 
+	private static final String JOB_VERTEX_BACKPRESSURE_REST_PATH = "/jobs/:jobid/vertices/:vertexid/backpressure";
+
 	/** Back pressure stats tracker. */
 	private final BackPressureStatsTracker backPressureStatsTracker;
 
@@ -54,6 +56,11 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 		this.backPressureStatsTracker = checkNotNull(backPressureStatsTracker, "Stats tracker");
 		checkArgument(refreshInterval >= 0, "Negative timeout");
 		this.refreshInterval = refreshInterval;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_VERTEX_BACKPRESSURE_REST_PATH};
 	}
 
 	@Override

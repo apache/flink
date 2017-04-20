@@ -21,7 +21,9 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.functions.NullByteKeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -31,7 +33,9 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.OutputTag;
 
 import java.util.Map;
 
@@ -44,7 +48,7 @@ public class CEPOperatorUtils {
 	 * @return Data stream containing fully matched event sequences stored in a {@link Map}. The
 	 * events are indexed by their associated names of the pattern.
 	 */
-	public static <K, T> DataStream<Map<String, T>> createPatternStream(DataStream<T> inputStream, Pattern<T, ?> pattern) {
+	public static <K, T> SingleOutputStreamOperator<Map<String, T>> createPatternStream(DataStream<T> inputStream, Pattern<T, ?> pattern, OutputTag<T> lateDataOutputTag) {
 		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 
 		// check whether we use processing time
@@ -53,7 +57,7 @@ public class CEPOperatorUtils {
 		// compile our pattern into a NFAFactory to instantiate NFAs later on
 		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, false);
 
-		final DataStream<Map<String, T>> patternStream;
+		final SingleOutputStreamOperator<Map<String, T>> patternStream;
 
 		if (inputStream instanceof KeyedStream) {
 			// We have to use the KeyedCEPPatternOperator which can deal with keyed input streams
@@ -70,15 +74,25 @@ public class CEPOperatorUtils {
 					isProcessingTime,
 					keySelector,
 					keySerializer,
-					nfaFactory));
+					nfaFactory,
+					lateDataOutputTag,
+					true));
 		} else {
-			patternStream = inputStream.transform(
+
+			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
+			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
+
+			patternStream = inputStream.keyBy(keySelector).transform(
 				"CEPPatternOperator",
 				(TypeInformation<Map<String, T>>) (TypeInformation<?>) TypeExtractor.getForClass(Map.class),
-				new CEPPatternOperator<>(
+				new KeyedCEPPatternOperator<>(
 					inputSerializer,
 					isProcessingTime,
-					nfaFactory
+					keySelector,
+					keySerializer,
+					nfaFactory,
+					lateDataOutputTag,
+					false
 				)).forceNonParallel();
 		}
 
@@ -94,7 +108,8 @@ public class CEPOperatorUtils {
 	 * @return Data stream containing fully matched and partially matched event sequences wrapped in
 	 * a {@link Either} instance.
 	 */
-	public static <K, T> DataStream<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> createTimeoutPatternStream(DataStream<T> inputStream, Pattern<T, ?> pattern) {
+	public static <K, T> SingleOutputStreamOperator<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> createTimeoutPatternStream(
+			DataStream<T> inputStream, Pattern<T, ?> pattern, OutputTag<T> lateDataOutputTag) {
 
 		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 
@@ -104,7 +119,7 @@ public class CEPOperatorUtils {
 		// compile our pattern into a NFAFactory to instantiate NFAs later on
 		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, true);
 
-		final DataStream<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream;
+		final SingleOutputStreamOperator<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream;
 
 		final TypeInformation<Map<String, T>> rightTypeInfo = (TypeInformation<Map<String, T>>) (TypeInformation<?>)  TypeExtractor.getForClass(Map.class);
 		final TypeInformation<Tuple2<Map<String, T>, Long>> leftTypeInfo = new TupleTypeInfo<>(rightTypeInfo, BasicTypeInfo.LONG_TYPE_INFO);
@@ -120,20 +135,30 @@ public class CEPOperatorUtils {
 			patternStream = keyedStream.transform(
 				"TimeoutKeyedCEPPatternOperator",
 				eitherTypeInformation,
-				new TimeoutKeyedCEPPatternOperator<T, K>(
+				new TimeoutKeyedCEPPatternOperator<>(
 					inputSerializer,
 					isProcessingTime,
 					keySelector,
 					keySerializer,
-					nfaFactory));
+					nfaFactory,
+					lateDataOutputTag,
+					true));
 		} else {
-			patternStream = inputStream.transform(
+
+			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
+			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
+
+			patternStream = inputStream.keyBy(keySelector).transform(
 				"TimeoutCEPPatternOperator",
 				eitherTypeInformation,
-				new TimeoutCEPPatternOperator<>(
+				new TimeoutKeyedCEPPatternOperator<>(
 					inputSerializer,
 					isProcessingTime,
-					nfaFactory
+					keySelector,
+					keySerializer,
+					nfaFactory,
+					lateDataOutputTag,
+					false
 				)).forceNonParallel();
 		}
 

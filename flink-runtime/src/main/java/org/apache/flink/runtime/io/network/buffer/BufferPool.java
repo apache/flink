@@ -50,6 +50,13 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
 	int getNumberOfRequiredMemorySegments();
 
 	/**
+	 * Returns the maximum number of memory segments this buffer pool should use
+	 *
+	 * @return maximum number of memory segments to use or <tt>-1</tt> if unlimited
+	 */
+	int getMaxNumberOfMemorySegments();
+
+	/**
 	 * Returns the current size of this buffer pool.
 	 *
 	 * <p> The size of the buffer pool can change dynamically at runtime.
@@ -59,7 +66,7 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
 	/**
 	 * Sets the current size of this buffer pool.
 	 *
-	 * <p> The size needs to be greater or equals to the guaranteed number of memory segments.
+	 * <p> The size needs to be greater or equal to the guaranteed number of memory segments.
 	 */
 	void setNumBuffers(int numBuffers) throws IOException;
 
@@ -72,5 +79,4 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
 	 * Returns the number of used buffers of this buffer pool.
 	 */
 	int bestEffortGetNumOfUsedBuffers();
-
 }

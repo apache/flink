@@ -35,10 +35,6 @@ public class TestingLeaderRetrievalService implements LeaderRetrievalService {
 
 	private volatile LeaderRetrievalListener listener;
 
-	public TestingLeaderRetrievalService() {
-		this(null, null);
-	}
-
 	public TestingLeaderRetrievalService(String leaderAddress, UUID leaderSessionID) {
 		this.leaderAddress = leaderAddress;
 		this.leaderSessionID = leaderSessionID;
@@ -48,7 +44,7 @@ public class TestingLeaderRetrievalService implements LeaderRetrievalService {
 	public void start(LeaderRetrievalListener listener) throws Exception {
 		this.listener = Preconditions.checkNotNull(listener);
 
-		if (leaderAddress != null) {
+		if (leaderSessionID != null && leaderAddress != null) {
 			listener.notifyLeaderAddress(leaderAddress, leaderSessionID);
 		}
 	}

@@ -511,7 +511,7 @@ case class Join(
 }
 
 case class CatalogNode(
-    tableName: String,
+    tablePath: Array[String],
     rowType: RelDataType) extends LeafNode {
 
   val output: Seq[Attribute] = rowType.getFieldList.asScala.map { field =>
@@ -519,7 +519,7 @@ case class CatalogNode(
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    relBuilder.scan(tableName)
+    relBuilder.scan(tablePath.toIterable.asJava)
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = this
@@ -694,7 +694,7 @@ case class LogicalTableFunctionCall(
     val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames, evalMethod)
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val sqlFunction = TableSqlFunction(
-      tableFunction.toString,
+      tableFunction.functionIdentifier,
       tableFunction,
       resultType,
       typeFactory,

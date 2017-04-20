@@ -188,7 +188,7 @@ trait CommonCorrelate {
         |getCollector().collect(${crossResultExpr.resultTerm});
         |""".stripMargin
     } else {
-      val filterGenerator = new CodeGenerator(config, false, udtfTypeInfo)
+      val filterGenerator = new CodeGenerator(config, false, udtfTypeInfo, None, pojoFieldMapping)
       filterGenerator.input1Term = filterGenerator.input2Term
       val filterCondition = filterGenerator.generateExpression(condition.get)
       s"""

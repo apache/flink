@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -156,6 +157,24 @@ public class StateDescriptorPassingTest {
 					@Override
 					public void process(String s, Context ctx,
 							Iterable<File> input, Collector<String> out) {}
+				});
+
+		validateListStateDescriptorConfigured(result);
+	}
+
+	@Test
+	public void testProcessAllWindowState() throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
+		env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+
+		DataStream<File> src = env.fromElements(new File("/"));
+
+		SingleOutputStreamOperator<?> result = src
+				.timeWindowAll(Time.milliseconds(1000))
+				.process(new ProcessAllWindowFunction<File, String, TimeWindow>() {
+					@Override
+					public void process(Context ctx, Iterable<File> input, Collector<String> out) {}
 				});
 
 		validateListStateDescriptorConfigured(result);

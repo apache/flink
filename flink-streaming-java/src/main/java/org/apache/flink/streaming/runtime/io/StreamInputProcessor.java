@@ -49,7 +49,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -95,7 +95,7 @@ public class StreamInputProcessor<IN> {
 	 */
 	private int currentChannel = -1;
 
-	private final OperatorChain<?, OneInputStreamOperator<IN, ?>> operatorChain;
+	private final StreamStatusMaintainer streamStatusMaintainer;
 	
 	private final OneInputStreamOperator<IN, ?> streamOperator;
 
@@ -115,7 +115,7 @@ public class StreamInputProcessor<IN> {
 			Object lock,
 			IOManager ioManager,
 			Configuration taskManagerConfig,
-			OperatorChain<?, OneInputStreamOperator<IN, ?>> operatorChain,
+			StreamStatusMaintainer streamStatusMaintainer,
 			OneInputStreamOperator<IN, ?> streamOperator) throws IOException {
 
 		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
@@ -157,7 +157,7 @@ public class StreamInputProcessor<IN> {
 
 		this.lastEmittedWatermark = Long.MIN_VALUE;
 
-		this.operatorChain = checkNotNull(operatorChain);
+		this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
 		this.streamOperator = checkNotNull(streamOperator);
 
 		this.statusWatermarkValve = new StatusWatermarkValve(
@@ -297,7 +297,7 @@ public class StreamInputProcessor<IN> {
 		public void handleStreamStatus(StreamStatus streamStatus) {
 			try {
 				synchronized (lock) {
-					operatorChain.setStreamStatus(streamStatus);
+					streamStatusMaintainer.toggleStreamStatus(streamStatus);
 				}
 			} catch (Exception e) {
 				throw new RuntimeException("Exception occurred while processing valve output stream status: ", e);

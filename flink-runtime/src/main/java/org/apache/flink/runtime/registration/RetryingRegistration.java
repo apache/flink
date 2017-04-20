@@ -182,7 +182,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 			Future<Gateway> resourceManagerFuture = rpcService.connect(targetAddress, targetType);
 	
 			// upon success, start the registration attempts
-			resourceManagerFuture.thenAcceptAsync(new AcceptFunction<Gateway>() {
+			Future<Void> resourceManagerAcceptFuture = resourceManagerFuture.thenAcceptAsync(new AcceptFunction<Gateway>() {
 				@Override
 				public void accept(Gateway result) {
 					log.info("Resolved {} address, beginning registration", targetName);
@@ -191,7 +191,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 			}, rpcService.getExecutor());
 
 			// upon failure, retry, unless this is cancelled
-			resourceManagerFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
+			resourceManagerAcceptFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
 				@Override
 				public Void apply(Throwable failure) {
 					if (!isCanceled()) {
@@ -225,7 +225,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 			Future<RegistrationResponse> registrationFuture = invokeRegistration(gateway, leaderId, timeoutMillis);
 	
 			// if the registration was successful, let the TaskExecutor know
-			registrationFuture.thenAcceptAsync(new AcceptFunction<RegistrationResponse>() {
+			Future<Void> registrationAcceptFuture = registrationFuture.thenAcceptAsync(new AcceptFunction<RegistrationResponse>() {
 				@Override
 				public void accept(RegistrationResponse result) {
 					if (!isCanceled()) {
@@ -251,7 +251,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 			}, rpcService.getExecutor());
 	
 			// upon failure, retry
-			registrationFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
+			registrationAcceptFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
 				@Override
 				public Void apply(Throwable failure) {
 					if (!isCanceled()) {

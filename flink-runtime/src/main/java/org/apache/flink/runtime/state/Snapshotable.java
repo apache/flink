@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+
 import java.util.Collection;
 import java.util.concurrent.RunnableFuture;
 
 /**
- * Interface for operations that can perform snapshots of their state.
+ * Interface for operators that can perform snapshots of their state.
  *
  * @param <S> Generic type of the state object that is created as handle to snapshots.
  */
@@ -37,12 +39,14 @@ public interface Snapshotable<S extends StateObject> {
 	 * @param checkpointId  The ID of the checkpoint.
 	 * @param timestamp     The timestamp of the checkpoint.
 	 * @param streamFactory The factory that we can use for writing our state to streams.
+	 * @param checkpointOptions Options for how to perform this checkpoint.
 	 * @return A runnable future that will yield a {@link StateObject}.
 	 */
 	RunnableFuture<S> snapshot(
 			long checkpointId,
 			long timestamp,
-			CheckpointStreamFactory streamFactory) throws Exception;
+			CheckpointStreamFactory streamFactory,
+			CheckpointOptions checkpointOptions) throws Exception;
 
 	/**
 	 * Restores state that was previously snapshotted from the provided parameters. Typically the parameters are state
