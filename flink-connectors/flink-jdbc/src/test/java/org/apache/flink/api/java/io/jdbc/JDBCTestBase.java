@@ -24,10 +24,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 
 /**
@@ -43,32 +41,44 @@ public class JDBCTestBase {
 	public static final String SELECT_ALL_NEWBOOKS = "select * from " + OUTPUT_TABLE;
 	public static final String SELECT_EMPTY = "select * from books WHERE QTY < 0";
 	public static final String INSERT_TEMPLATE = "insert into %s (id, title, author, price, qty) values (?,?,?,?,?)";
-	public static final String SELECT_ALL_BOOKS_SPLIT_BY_ID = JDBCTestBase.SELECT_ALL_BOOKS + " WHERE id BETWEEN ? AND ?";
-	public static final String SELECT_ALL_BOOKS_SPLIT_BY_AUTHOR = JDBCTestBase.SELECT_ALL_BOOKS + " WHERE author = ?";
+	public static final String SELECT_ALL_BOOKS_SPLIT_BY_ID = SELECT_ALL_BOOKS + " WHERE id BETWEEN ? AND ?";
+	public static final String SELECT_ALL_BOOKS_SPLIT_BY_AUTHOR = SELECT_ALL_BOOKS + " WHERE author = ?";
 	
-	protected static Connection conn;
+	public static final TestEntry[] TEST_DATA = {
+			new TestEntry(1001, ("Java public for dummies"), ("Tan Ah Teck"), 11.11, 11),
+			new TestEntry(1002, ("More Java for dummies"), ("Tan Ah Teck"), 22.22, 22),
+			new TestEntry(1003, ("More Java for more dummies"), ("Mohammad Ali"), 33.33, 33),
+			new TestEntry(1004, ("A Cup of Java"), ("Kumar"), 44.44, 44),
+			new TestEntry(1005, ("A Teaspoon of Java"), ("Kevin Jones"), 55.55, 55),
+			new TestEntry(1006, ("A Teaspoon of Java 1.4"), ("Kevin Jones"), 66.66, 66),
+			new TestEntry(1007, ("A Teaspoon of Java 1.5"), ("Kevin Jones"), 77.77, 77),
+			new TestEntry(1008, ("A Teaspoon of Java 1.6"), ("Kevin Jones"), 88.88, 88),
+			new TestEntry(1009, ("A Teaspoon of Java 1.7"), ("Kevin Jones"), 99.99, 99),
+			new TestEntry(1010, ("A Teaspoon of Java 1.8"), ("Kevin Jones"), null, 1010)
+	};
 
-	public static final Object[][] testData = {
-			{1001, ("Java public for dummies"), ("Tan Ah Teck"), 11.11, 11},
-			{1002, ("More Java for dummies"), ("Tan Ah Teck"), 22.22, 22},
-			{1003, ("More Java for more dummies"), ("Mohammad Ali"), 33.33, 33},
-			{1004, ("A Cup of Java"), ("Kumar"), 44.44, 44},
-			{1005, ("A Teaspoon of Java"), ("Kevin Jones"), 55.55, 55},
-			{1006, ("A Teaspoon of Java 1.4"), ("Kevin Jones"), 66.66, 66},
-			{1007, ("A Teaspoon of Java 1.5"), ("Kevin Jones"), 77.77, 77},
-			{1008, ("A Teaspoon of Java 1.6"), ("Kevin Jones"), 88.88, 88},
-			{1009, ("A Teaspoon of Java 1.7"), ("Kevin Jones"), 99.99, 99},
-			{1010, ("A Teaspoon of Java 1.8"), ("Kevin Jones"), null, 1010}};
+	protected static class TestEntry {
+		protected final Integer id;
+		protected final String title;
+		protected final String author;
+		protected final Double price;
+		protected final Integer qty;
+		
+		private TestEntry(Integer id, String title, String author, Double price, Integer qty) {
+			this.id = id;
+			this.title = title;
+			this.author = author;
+			this.price = price;
+			this.qty = qty;
+		}
+	}
 
-	public static final TypeInformation<?>[] fieldTypes = new TypeInformation<?>[] {
+	public static final RowTypeInfo rowTypeInfo = new RowTypeInfo(
 		BasicTypeInfo.INT_TYPE_INFO,
 		BasicTypeInfo.STRING_TYPE_INFO,
 		BasicTypeInfo.STRING_TYPE_INFO,
 		BasicTypeInfo.DOUBLE_TYPE_INFO,
-		BasicTypeInfo.INT_TYPE_INFO
-	};
-	
-	public static final RowTypeInfo rowTypeInfo = new RowTypeInfo(fieldTypes);
+		BasicTypeInfo.INT_TYPE_INFO);
 
 	public static String getCreateQuery(String tableName) {
 		StringBuilder sqlQueryBuilder = new StringBuilder("CREATE TABLE ");
@@ -84,14 +94,14 @@ public class JDBCTestBase {
 	
 	public static String getInsertQuery() {
 		StringBuilder sqlQueryBuilder = new StringBuilder("INSERT INTO books (id, title, author, price, qty) VALUES ");
-		for (int i = 0; i < JDBCTestBase.testData.length; i++) {
+		for (int i = 0; i < TEST_DATA.length; i++) {
 			sqlQueryBuilder.append("(")
-			.append(JDBCTestBase.testData[i][0]).append(",'")
-			.append(JDBCTestBase.testData[i][1]).append("','")
-			.append(JDBCTestBase.testData[i][2]).append("',")
-			.append(JDBCTestBase.testData[i][3]).append(",")
-			.append(JDBCTestBase.testData[i][4]).append(")");
-			if (i < JDBCTestBase.testData.length - 1) {
+			.append(TEST_DATA[i].id).append(",'")
+			.append(TEST_DATA[i].title).append("','")
+			.append(TEST_DATA[i].author).append("',")
+			.append(TEST_DATA[i].price).append(",")
+			.append(TEST_DATA[i].qty).append(")");
+			if (i < TEST_DATA.length - 1) {
 				sqlQueryBuilder.append(",");
 			}
 		}
@@ -105,79 +115,39 @@ public class JDBCTestBase {
 		}
 	};
 
-	public static void prepareTestDb() throws Exception {
-		System.setProperty("derby.stream.error.field", JDBCTestBase.class.getCanonicalName() + ".DEV_NULL");
-		Class.forName(DRIVER_CLASS);
-		Connection conn = DriverManager.getConnection(DB_URL + ";create=true");
-
-		//create input table
-		Statement stat = conn.createStatement();
-		stat.executeUpdate(getCreateQuery(INPUT_TABLE));
-		stat.close();
-
-		//create output table
-		stat = conn.createStatement();
-		stat.executeUpdate(getCreateQuery(OUTPUT_TABLE));
-		stat.close();
-
-		//prepare input data
-		stat = conn.createStatement();
-		stat.execute(JDBCTestBase.getInsertQuery());
-		stat.close();
-
-		conn.close();
-	}
-
 	@BeforeClass
-	public static void setUpClass() throws SQLException {
-		try {
-			System.setProperty("derby.stream.error.field", JDBCTestBase.class.getCanonicalName() + ".DEV_NULL");
-			prepareDerbyDatabase();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-			Assert.fail();
+	public static void prepareDerbyDatabase() throws Exception {
+		System.setProperty("derby.stream.error.field", JDBCTestBase.class.getCanonicalName() + ".DEV_NULL");
+
+		Class.forName(DRIVER_CLASS);
+		try (Connection conn = DriverManager.getConnection(DB_URL + ";create=true")) {
+			createTable(conn, JDBCTestBase.INPUT_TABLE);
+			createTable(conn, OUTPUT_TABLE);
+			insertDataIntoInputTable(conn);
 		}
 	}
-
-	private static void prepareDerbyDatabase() throws ClassNotFoundException, SQLException {
-		Class.forName(DRIVER_CLASS);
-		conn = DriverManager.getConnection(DB_URL + ";create=true");
-		createTable(INPUT_TABLE);
-		createTable(OUTPUT_TABLE);
-		insertDataIntoInputTable();
-		conn.close();
-	}
 	
-	private static void createTable(String tableName) throws SQLException {
+	private static void createTable(Connection conn, String tableName) throws SQLException {
 		Statement stat = conn.createStatement();
 		stat.executeUpdate(getCreateQuery(tableName));
 		stat.close();
 	}
 	
-	private static void insertDataIntoInputTable() throws SQLException {
+	private static void insertDataIntoInputTable(Connection conn) throws SQLException {
 		Statement stat = conn.createStatement();
-		stat.execute(JDBCTestBase.getInsertQuery());
+		stat.execute(getInsertQuery());
 		stat.close();
 	}
 
 	@AfterClass
-	public static void tearDownClass() {
-		cleanUpDerbyDatabases();
-	}
+	public static void cleanUpDerbyDatabases() throws Exception {
+		Class.forName(DRIVER_CLASS);
+		try (
+			Connection conn = DriverManager.getConnection(DB_URL + ";create=true");
+			Statement stat = conn.createStatement()) {
 
-	private static void cleanUpDerbyDatabases() {
-		try {
-			Class.forName(DRIVER_CLASS);
-			conn = DriverManager.getConnection(DB_URL + ";create=true");
-			Statement stat = conn.createStatement();
-			stat.executeUpdate("DROP TABLE "+INPUT_TABLE);
-			stat.executeUpdate("DROP TABLE "+OUTPUT_TABLE);
-			stat.close();
-			conn.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail();
+			stat.executeUpdate("DROP TABLE " + INPUT_TABLE);
+			stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE);	
 		}
 	}
-
 }

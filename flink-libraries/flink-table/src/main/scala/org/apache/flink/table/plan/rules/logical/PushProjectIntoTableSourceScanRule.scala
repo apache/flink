@@ -16,22 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.rules.common
+package org.apache.flink.table.plan.rules.logical
 
-import org.apache.calcite.plan.RelOptRuleCall
-import org.apache.calcite.rel.core.Calc
+import org.apache.calcite.plan.RelOptRule.{none, operand}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.plan.nodes.TableSourceScan
 import org.apache.flink.table.plan.util.{RexProgramExtractor, RexProgramRewriter}
+import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.sources.{NestedFieldsProjectableTableSource, ProjectableTableSource}
 
-trait PushProjectIntoTableSourceScanRuleBase {
+class PushProjectIntoTableSourceScanRule extends RelOptRule(
+  operand(classOf[FlinkLogicalCalc],
+    operand(classOf[FlinkLogicalTableSourceScan], none)),
+  "PushProjectIntoTableSourceScanRule") {
 
-  private[flink] def pushProjectIntoScan(
-      call: RelOptRuleCall,
-      calc: Calc,
-      scan: TableSourceScan): Unit = {
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val scan: FlinkLogicalTableSourceScan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
+    scan.tableSource match {
+      case _: ProjectableTableSource[_] => true
+      case _ => false
+    }
+  }
 
+  override def onMatch(call: RelOptRuleCall) {
+    val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
+    val scan: FlinkLogicalTableSourceScan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
     val usedFields = RexProgramExtractor.extractRefInputFields(calc.getProgram)
 
     // if no fields can be projected, we keep the original plan.
@@ -63,4 +72,8 @@ trait PushProjectIntoTableSourceScanRuleBase {
       }
     }
   }
+}
+
+object PushProjectIntoTableSourceScanRule {
+  val INSTANCE: RelOptRule = new PushProjectIntoTableSourceScanRule
 }

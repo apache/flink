@@ -39,6 +39,11 @@ public class TaskManagerOptions {
 			key("taskmanager.jvm-exit-on-oom")
 			.defaultValue(false);
 
+	/** JVM heap size (in megabytes) for the TaskManagers */
+	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY =
+			key("taskmanager.heap.mb")
+			.defaultValue(1024);
+		   
 	/** Size of memory buffers used by the network stack and the memory manager (in bytes). */
 	public static final ConfigOption<Integer> MEMORY_SEGMENT_SIZE =
 			key("taskmanager.memory.segment-size")

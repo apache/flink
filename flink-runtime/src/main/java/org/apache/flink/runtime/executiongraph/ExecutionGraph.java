@@ -55,7 +55,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
@@ -419,8 +419,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		return restartStrategy;
 	}
 
-	@Override
-	public JobSnapshottingSettings getJobSnapshottingSettings() {
+	public JobCheckpointingSettings getJobCheckpointingSettings() {
 		if (checkpointStatsTracker != null) {
 			return checkpointStatsTracker.getSnapshottingSettings();
 		} else {
@@ -1477,7 +1476,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			serializedUserAccumulators,
 			getArchivedExecutionConfig(),
 			isStoppable(),
-			getJobSnapshottingSettings(),
+			getJobCheckpointingSettings(),
 			getCheckpointStatsSnapshot());
 	}
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.graph.drivers;
 
 import org.apache.commons.lang3.text.StrBuilder;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.drivers.output.CSV;
 import org.apache.flink.graph.drivers.output.Print;
@@ -30,8 +31,8 @@ import org.apache.flink.graph.library.link_analysis.PageRank.Result;
  * @see org.apache.flink.graph.library.link_analysis.PageRank
  */
 public class PageRank<K, VV, EV>
-extends SimpleDriver<Result<K>>
-implements Driver<K, VV, EV>, CSV, Print {
+extends SimpleDriver<K, VV, EV, Result<K>>
+implements CSV, Print {
 
 	private static final int DEFAULT_ITERATIONS = 10;
 
@@ -64,8 +65,8 @@ implements Driver<K, VV, EV>, CSV, Print {
 	}
 
 	@Override
-	public void plan(Graph<K, VV, EV> graph) throws Exception {
-		result = graph
+	protected DataSet<Result<K>> simplePlan(Graph<K, VV, EV> graph) throws Exception {
+		return graph
 			.run(new org.apache.flink.graph.library.link_analysis.PageRank<K, VV, EV>(
 				dampingFactor.getValue(),
 				iterationConvergence.getValue().iterations,

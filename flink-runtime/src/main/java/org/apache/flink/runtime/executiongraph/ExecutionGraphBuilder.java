@@ -42,7 +42,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.DynamicCodeLoadingException;
@@ -159,7 +159,7 @@ public class ExecutionGraphBuilder {
 		}
 
 		// configure the state checkpointing
-		JobSnapshottingSettings snapshotSettings = jobGraph.getSnapshotSettings();
+		JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
 		if (snapshotSettings != null) {
 			List<ExecutionJobVertex> triggerVertices = 
 					idToVertex(snapshotSettings.getVerticesToTrigger(), executionGraph);

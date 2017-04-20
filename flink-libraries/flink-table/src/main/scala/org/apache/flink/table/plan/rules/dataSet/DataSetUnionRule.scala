@@ -18,20 +18,20 @@
 
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{RelOptRuleCall, Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalUnion
 import org.apache.calcite.rel.rules.UnionToDistinctRule
-import org.apache.flink.table.plan.nodes.dataset.{DataSetConvention, DataSetUnion}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetUnion
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalUnion
 
 class DataSetUnionRule
   extends ConverterRule(
-      classOf[LogicalUnion],
-      Convention.NONE,
-      DataSetConvention.INSTANCE,
-      "DataSetUnionRule")
-  {
+    classOf[FlinkLogicalUnion],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
+    "DataSetUnionRule") {
 
   /**
    * Only translate UNION ALL.
@@ -39,16 +39,15 @@ class DataSetUnionRule
    * an Aggregate on top of a UNION ALL by [[UnionToDistinctRule]]
    */
   override def matches(call: RelOptRuleCall): Boolean = {
-    val union: LogicalUnion = call.rel(0).asInstanceOf[LogicalUnion]
+    val union: FlinkLogicalUnion = call.rel(0).asInstanceOf[FlinkLogicalUnion]
     union.all
   }
 
   def convert(rel: RelNode): RelNode = {
-
-    val union: LogicalUnion = rel.asInstanceOf[LogicalUnion]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val convLeft: RelNode = RelOptRule.convert(union.getInput(0), DataSetConvention.INSTANCE)
-    val convRight: RelNode = RelOptRule.convert(union.getInput(1), DataSetConvention.INSTANCE)
+    val union: FlinkLogicalUnion = rel.asInstanceOf[FlinkLogicalUnion]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
+    val convLeft: RelNode = RelOptRule.convert(union.getInput(0), FlinkConventions.DATASET)
+    val convRight: RelNode = RelOptRule.convert(union.getInput(1), FlinkConventions.DATASET)
 
     new DataSetUnion(
       rel.getCluster,

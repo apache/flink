@@ -17,16 +17,16 @@
  */
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan._
-
-import scala.collection.JavaConversions._
 import com.google.common.collect.ImmutableList
+import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalUnion, LogicalValues}
 import org.apache.calcite.rex.RexLiteral
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetAggregate
+import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalUnion, FlinkLogicalValues}
+
+import scala.collection.JavaConversions._
 
 /**
   * Rule for insert [[org.apache.flink.types.Row]] with null records into a [[DataSetAggregate]].
@@ -34,13 +34,13 @@ import org.apache.flink.table.plan.nodes.dataset.{DataSetAggregate, DataSetConve
   */
 class DataSetAggregateWithNullValuesRule
   extends ConverterRule(
-    classOf[LogicalAggregate],
-    Convention.NONE,
-    DataSetConvention.INSTANCE,
+    classOf[FlinkLogicalAggregate],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
     "DataSetAggregateWithNullValuesRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val agg: LogicalAggregate = call.rel(0).asInstanceOf[LogicalAggregate]
+    val agg: FlinkLogicalAggregate = call.rel(0).asInstanceOf[FlinkLogicalAggregate]
 
     // group sets shouldn't attach a null row
     // we need to apply other rules. i.e. DataSetAggregateRule
@@ -55,8 +55,8 @@ class DataSetAggregateWithNullValuesRule
   }
 
   override def convert(rel: RelNode): RelNode = {
-    val agg: LogicalAggregate = rel.asInstanceOf[LogicalAggregate]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
+    val agg: FlinkLogicalAggregate = rel.asInstanceOf[FlinkLogicalAggregate]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
     val cluster: RelOptCluster = rel.getCluster
 
     val fieldTypes = agg.getInput.getRowType.getFieldList.map(_.getType)
@@ -68,13 +68,13 @@ class DataSetAggregateWithNullValuesRule
               makeLiteral(null, fieldType, false).asInstanceOf[RexLiteral]
           }))
 
-    val logicalValues = LogicalValues.create(cluster, agg.getInput.getRowType, nullLiterals)
-    val logicalUnion = LogicalUnion.create(List(logicalValues, agg.getInput), true)
+    val logicalValues = FlinkLogicalValues.create(cluster, agg.getInput.getRowType, nullLiterals)
+    val logicalUnion = FlinkLogicalUnion.create(List(logicalValues, agg.getInput), all = true)
 
     new DataSetAggregate(
       cluster,
       traitSet,
-      RelOptRule.convert(logicalUnion, DataSetConvention.INSTANCE),
+      RelOptRule.convert(logicalUnion, FlinkConventions.DATASET),
       agg.getNamedAggCalls,
       rel.getRowType,
       agg.getInput.getRowType,

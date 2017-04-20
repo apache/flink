@@ -40,10 +40,16 @@ class CalciteConfigBuilder {
   private var normRuleSets: List[RuleSet] = Nil
 
   /**
-    * Defines the optimization rule set. Optimization rules are used during volcano optimization.
+    * Defines the logical optimization rule set.
     */
-  private var replaceOptRules: Boolean = false
-  private var optRuleSets: List[RuleSet] = Nil
+  private var replaceLogicalOptRules: Boolean = false
+  private var logicalOptRuleSets: List[RuleSet] = Nil
+
+  /**
+    * Defines the physical optimization rule set.
+    */
+  private var replacePhysicalOptRules: Boolean = false
+  private var physicalOptRuleSets: List[RuleSet] = Nil
 
   /**
     * Defines the decoration rule set. Decoration rules are dedicated for rewriting predicated
@@ -85,19 +91,38 @@ class CalciteConfigBuilder {
   /**
     * Replaces the built-in optimization rule set with the given rule set.
     */
-  def replaceOptRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
+  def replaceLogicalOptRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
     Preconditions.checkNotNull(replaceRuleSet)
-    optRuleSets = List(replaceRuleSet)
-    replaceOptRules = true
+    logicalOptRuleSets = List(replaceRuleSet)
+    replaceLogicalOptRules = true
     this
   }
 
   /**
     * Appends the given optimization rule set to the built-in rule set.
     */
-  def addOptRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
+  def addLogicalOptRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
     Preconditions.checkNotNull(addedRuleSet)
-    optRuleSets = addedRuleSet :: optRuleSets
+    logicalOptRuleSets = addedRuleSet :: logicalOptRuleSets
+    this
+  }
+
+  /**
+    * Replaces the built-in optimization rule set with the given rule set.
+    */
+  def replacePhysicalOptRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(replaceRuleSet)
+    physicalOptRuleSets = List(replaceRuleSet)
+    replacePhysicalOptRules = true
+    this
+  }
+
+  /**
+    * Appends the given optimization rule set to the built-in rule set.
+    */
+  def addPhysicalOptRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(addedRuleSet)
+    physicalOptRuleSets = addedRuleSet :: physicalOptRuleSets
     this
   }
 
@@ -156,15 +181,17 @@ class CalciteConfigBuilder {
   }
 
   private class CalciteConfigImpl(
-    val getNormRuleSet: Option[RuleSet],
-    val replacesNormRuleSet: Boolean,
-    val getOptRuleSet: Option[RuleSet],
-    val replacesOptRuleSet: Boolean,
-    val getDecoRuleSet: Option[RuleSet],
-    val replacesDecoRuleSet: Boolean,
-    val getSqlOperatorTable: Option[SqlOperatorTable],
-    val replacesSqlOperatorTable: Boolean,
-    val getSqlParserConfig: Option[SqlParser.Config])
+      val getNormRuleSet: Option[RuleSet],
+      val replacesNormRuleSet: Boolean,
+      val getLogicalOptRuleSet: Option[RuleSet],
+      val replacesLogicalOptRuleSet: Boolean,
+      val getPhysicalOptRuleSet: Option[RuleSet],
+      val replacesPhysicalOptRuleSet: Boolean,
+      val getDecoRuleSet: Option[RuleSet],
+      val replacesDecoRuleSet: Boolean,
+      val getSqlOperatorTable: Option[SqlOperatorTable],
+      val replacesSqlOperatorTable: Boolean,
+      val getSqlParserConfig: Option[SqlParser.Config])
     extends CalciteConfig
 
 
@@ -189,8 +216,10 @@ class CalciteConfigBuilder {
   def build(): CalciteConfig = new CalciteConfigImpl(
     getRuleSet(normRuleSets),
     replaceNormRules,
-    getRuleSet(optRuleSets),
-    replaceOptRules,
+    getRuleSet(logicalOptRuleSets),
+    replaceLogicalOptRules,
+    getRuleSet(physicalOptRuleSets),
+    replacePhysicalOptRules,
     getRuleSet(decoRuleSets),
     replaceDecoRules,
     operatorTables match {
@@ -220,14 +249,24 @@ trait CalciteConfig {
   def getNormRuleSet: Option[RuleSet]
 
   /**
-    * Returns whether this configuration replaces the built-in optimization rule set.
+    * Returns whether this configuration replaces the built-in logical optimization rule set.
     */
-  def replacesOptRuleSet: Boolean
+  def replacesLogicalOptRuleSet: Boolean
 
   /**
-    * Returns a custom optimization rule set.
+    * Returns a custom logical optimization rule set.
     */
-  def getOptRuleSet: Option[RuleSet]
+  def getLogicalOptRuleSet: Option[RuleSet]
+
+  /**
+    * Returns whether this configuration replaces the built-in physical optimization rule set.
+    */
+  def replacesPhysicalOptRuleSet: Boolean
+
+  /**
+    * Returns a custom physical optimization rule set.
+    */
+  def getPhysicalOptRuleSet: Option[RuleSet]
 
   /**
     * Returns whether this configuration replaces the built-in decoration rule set.
@@ -257,7 +296,7 @@ trait CalciteConfig {
 
 object CalciteConfig {
 
-  val DEFAULT = createBuilder().build()
+  val DEFAULT: CalciteConfig = createBuilder().build()
 
   /**
     * Creates a new builder for constructing a [[CalciteConfig]].

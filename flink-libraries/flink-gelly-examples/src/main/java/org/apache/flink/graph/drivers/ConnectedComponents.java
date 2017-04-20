@@ -78,12 +78,9 @@ implements Driver<K, VV, EV>, CSV, Hash, Print {
 
 	@Override
 	public void print(String executionName) throws Exception {
-		Collect<Vertex<K, K>> collector = new Collect<>();
+		List<Vertex<K, K>> results = new Collect<Vertex<K, K>>().run(components).execute(executionName);
 
-		// Refactored due to openjdk7 compile error: https://travis-ci.org/greghogan/flink/builds/200487761
-		List<Vertex<K, K>> records = collector.run(components).execute(executionName);
-
-		for (Vertex<K, K> result : records) {
+		for (Vertex<K, K> result : results) {
 			System.out.println(result);
 		}
 	}

@@ -28,7 +28,7 @@ import org.apache.flink.table.sources.TableSource
 
 import scala.collection.JavaConverters._
 
-abstract class TableSourceScan(
+abstract class PhysicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
@@ -66,6 +66,6 @@ abstract class TableSourceScan(
     }
   }
 
-  def copy(traitSet: RelTraitSet, tableSource: TableSource[_]): TableSourceScan
+  def copy(traitSet: RelTraitSet, tableSource: TableSource[_]): PhysicalTableSourceScan
 
 }

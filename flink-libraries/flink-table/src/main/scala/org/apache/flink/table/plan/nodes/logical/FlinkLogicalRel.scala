@@ -16,32 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.nodes.datastream
+package org.apache.flink.table.plan.nodes.logical
 
-import org.apache.calcite.plan._
+import org.apache.flink.table.plan.nodes.FlinkRelNode
 
-class DataStreamConvention extends Convention {
-
-  override def toString: String = getName
-
-  override def useAbstractConvertersForConversion(
-    fromTraits: RelTraitSet,
-    toTraits: RelTraitSet): Boolean = false
-
-  override def canConvertConvention(toConvention: Convention): Boolean = false
-
-  def getInterface: Class[_] = classOf[DataStreamRel]
-
-  def getName: String = "DATASTREAM"
-
-  def getTraitDef: RelTraitDef[_ <: RelTrait] = ConventionTraitDef.INSTANCE
-
-  def satisfies(`trait`: RelTrait): Boolean = this eq `trait`
-
-  def register(planner: RelOptPlanner): Unit = { }
-}
-
-object DataStreamConvention {
-
-  val INSTANCE = new DataStreamConvention
+trait FlinkLogicalRel extends FlinkRelNode {
 }

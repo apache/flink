@@ -32,7 +32,8 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.plan.nodes.datastream.{DataStreamConvention, DataStreamRel}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.datastream.DataStreamRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{DataStreamTable, TableSourceTable}
 import org.apache.flink.table.sinks.{StreamTableSink, TableSink}
@@ -240,7 +241,7 @@ abstract class StreamTableEnvironment(
   /**
     * Returns the built-in optimization rules that are defined by the environment.
     */
-  protected def getBuiltInOptRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_OPT_RULES
+  protected def getBuiltInPhysicalOptRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_OPT_RULES
 
   /**
     * Returns the built-in decoration rules that are defined by the environment.
@@ -267,21 +268,31 @@ abstract class StreamTableEnvironment(
     }
 
     // 3. optimize the logical Flink plan
-    val optRuleSet = getOptRuleSet
-    val flinkOutputProps = relNode.getTraitSet.replace(DataStreamConvention.INSTANCE).simplify()
-    val optimizedPlan = if (optRuleSet.iterator().hasNext) {
-      runVolcanoPlanner(optRuleSet, normalizedPlan, flinkOutputProps)
+    val logicalOptRuleSet = getLogicalOptRuleSet
+    val logicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val logicalPlan = if (logicalOptRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(logicalOptRuleSet, normalizedPlan, logicalOutputProps)
     } else {
       normalizedPlan
     }
 
-    // 4. decorate the optimized plan
+    // 4. optimize the physical Flink plan
+    val physicalOptRuleSet = getPhysicalOptRuleSet
+    val physicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.DATASTREAM).simplify()
+    val physicalPlan = if (physicalOptRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(physicalOptRuleSet, logicalPlan, physicalOutputProps)
+    } else {
+      logicalPlan
+    }
+
+    // 5. decorate the optimized plan
     val decoRuleSet = getDecoRuleSet
     val decoratedPlan = if (decoRuleSet.iterator().hasNext) {
-      runHepPlanner(HepMatchOrder.BOTTOM_UP, decoRuleSet, optimizedPlan, optimizedPlan.getTraitSet)
+      runHepPlanner(HepMatchOrder.BOTTOM_UP, decoRuleSet, physicalPlan, physicalPlan.getTraitSet)
     } else {
-      optimizedPlan
+      physicalPlan
     }
+
     decoratedPlan
   }
 

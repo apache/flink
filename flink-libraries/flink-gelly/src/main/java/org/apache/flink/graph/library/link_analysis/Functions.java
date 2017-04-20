@@ -25,13 +25,15 @@ import org.apache.flink.types.DoubleValue;
 
 class Functions {
 
+	private Functions() {}
+
 	/**
 	 * Sum vertices' scores.
 	 *
 	 * @param <T> ID type
 	 */
 	@ForwardedFields("0")
-	static class SumScore<T>
+	protected static final class SumScore<T>
 		implements ReduceFunction<Tuple2<T, DoubleValue>> {
 		@Override
 		public Tuple2<T, DoubleValue> reduce(Tuple2<T, DoubleValue> left, Tuple2<T, DoubleValue> right)

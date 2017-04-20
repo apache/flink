@@ -23,10 +23,10 @@ import akka.actor.ActorSystem;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
-
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -121,7 +121,7 @@ public class AsyncCallsTest extends TestLogger {
 		final AtomicBoolean concurrentAccess = new AtomicBoolean(false);
 		final OneShotLatch latch = new OneShotLatch();
 
-		final long delay = 200;
+		final long delay = 100;
 
 		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService, lock);
 		testEndpoint.start();
@@ -161,7 +161,7 @@ public class AsyncCallsTest extends TestLogger {
 		assertFalse("Rpc Endpoint had concurrent access", testEndpoint.hasConcurrentAccess());
 		assertFalse("Rpc Endpoint had concurrent access", concurrentAccess.get());
 
-		assertTrue("call was not properly delayed", ((stop - start) / 1000000) >= delay);
+		assertTrue("call was not properly delayed", ((stop - start) / 1_000_000) >= delay);
 	}
 
 	// ------------------------------------------------------------------------

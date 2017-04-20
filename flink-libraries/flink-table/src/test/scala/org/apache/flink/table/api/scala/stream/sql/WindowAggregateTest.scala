@@ -516,7 +516,7 @@ class WindowAggregateTest extends TableTestBase {
       )
     streamUtil.verifySql(sql, expected)
   }
-  
+
   @Test
   def testBoundPartitionedProcTimeWindowWithRowRange() = {
     val sql = "SELECT " +

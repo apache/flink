@@ -18,24 +18,24 @@
 
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.{LogicalJoin, LogicalSort}
-import org.apache.flink.table.plan.nodes.dataset.{DataSetConvention, DataSetSort}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetSort
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalSort
 
 class DataSetSortRule
   extends ConverterRule(
-    classOf[LogicalSort],
-    Convention.NONE,
-    DataSetConvention.INSTANCE,
+    classOf[FlinkLogicalSort],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
     "DataSetSortRule") {
 
   override def convert(rel: RelNode): RelNode = {
-
-    val sort: LogicalSort = rel.asInstanceOf[LogicalSort]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val convInput: RelNode = RelOptRule.convert(sort.getInput, DataSetConvention.INSTANCE)
+    val sort: FlinkLogicalSort = rel.asInstanceOf[FlinkLogicalSort]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
+    val convInput: RelNode = RelOptRule.convert(sort.getInput, FlinkConventions.DATASET)
 
     new DataSetSort(
       rel.getCluster,

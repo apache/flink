@@ -18,27 +18,26 @@
 
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalMinus
-import org.apache.calcite.rel.rules.UnionToDistinctRule
-import org.apache.flink.table.plan.nodes.dataset.{DataSetConvention, DataSetMinus}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetMinus
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalMinus
 
 class DataSetMinusRule
   extends ConverterRule(
-    classOf[LogicalMinus],
-    Convention.NONE,
-    DataSetConvention.INSTANCE,
-    "DataSetMinusRule")
-{
+    classOf[FlinkLogicalMinus],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
+    "DataSetMinusRule") {
 
   def convert(rel: RelNode): RelNode = {
 
-    val minus: LogicalMinus = rel.asInstanceOf[LogicalMinus]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val convLeft: RelNode = RelOptRule.convert(minus.getInput(0), DataSetConvention.INSTANCE)
-    val convRight: RelNode = RelOptRule.convert(minus.getInput(1), DataSetConvention.INSTANCE)
+    val minus: FlinkLogicalMinus = rel.asInstanceOf[FlinkLogicalMinus]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
+    val convLeft: RelNode = RelOptRule.convert(minus.getInput(0), FlinkConventions.DATASET)
+    val convRight: RelNode = RelOptRule.convert(minus.getInput(1), FlinkConventions.DATASET)
 
     new DataSetMinus(
       rel.getCluster,

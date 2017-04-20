@@ -16,29 +16,50 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.rules.common
+package org.apache.flink.table.plan.rules.logical
 
 import java.util
 
-import org.apache.calcite.plan.RelOptRuleCall
-import org.apache.calcite.rel.core.Calc
+import org.apache.calcite.plan.RelOptRule.{none, operand}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.plan.nodes.TableSourceScan
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.plan.util.RexProgramExtractor
+import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.sources.FilterableTableSource
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.util.Preconditions
 
 import scala.collection.JavaConverters._
 
-trait PushFilterIntoTableSourceScanRuleBase {
+class PushFilterIntoTableSourceScanRule extends RelOptRule(
+  operand(classOf[FlinkLogicalCalc],
+    operand(classOf[FlinkLogicalTableSourceScan], none)),
+  "PushFilterIntoTableSourceScanRule") {
 
-  private[flink] def pushFilterIntoScan(
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
+    val scan: FlinkLogicalTableSourceScan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
+    scan.tableSource match {
+      case source: FilterableTableSource[_] =>
+        calc.getProgram.getCondition != null && !source.isFilterPushedDown
+      case _ => false
+    }
+  }
+
+  override def onMatch(call: RelOptRuleCall): Unit = {
+    val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
+    val scan: FlinkLogicalTableSourceScan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
+    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    val filterableSource = scan.tableSource.asInstanceOf[FilterableTableSource[_]]
+    pushFilterIntoScan(call, calc, scan, tableSourceTable, filterableSource, description)
+  }
+
+  private def pushFilterIntoScan(
       call: RelOptRuleCall,
-      calc: Calc,
-      scan: TableSourceScan,
+      calc: FlinkLogicalCalc,
+      scan: FlinkLogicalTableSourceScan,
       tableSourceTable: TableSourceTable[_],
       filterableSource: FilterableTableSource[_],
       description: String): Unit = {
@@ -101,4 +122,8 @@ trait PushFilterIntoTableSourceScanRuleBase {
       call.transformTo(newScan)
     }
   }
+}
+
+object PushFilterIntoTableSourceScanRule {
+  val INSTANCE: RelOptRule = new PushFilterIntoTableSourceScanRule
 }

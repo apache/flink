@@ -48,7 +48,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.JobManagerHARecoveryTest.BlockingStatefulInvokable;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
@@ -821,7 +821,7 @@ public class JobManagerTest extends TestLogger {
 
 			JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
 
-			JobSnapshottingSettings snapshottingSettings = new JobSnapshottingSettings(
+			JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
@@ -947,7 +947,7 @@ public class JobManagerTest extends TestLogger {
 
 			JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
 
-			JobSnapshottingSettings snapshottingSettings = new JobSnapshottingSettings(
+			JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
 				Collections.singletonList(sourceVertex.getID()),
 				Collections.singletonList(sourceVertex.getID()),
 				Collections.singletonList(sourceVertex.getID()),
@@ -1053,7 +1053,7 @@ public class JobManagerTest extends TestLogger {
 
 			JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
 
-			JobSnapshottingSettings snapshottingSettings = new JobSnapshottingSettings(
+			JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
@@ -1156,7 +1156,7 @@ public class JobManagerTest extends TestLogger {
 
 			JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
 
-			JobSnapshottingSettings snapshottingSettings = new JobSnapshottingSettings(
+			JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
@@ -1203,7 +1203,7 @@ public class JobManagerTest extends TestLogger {
 
 			JobGraph newJobGraph = new JobGraph("NewTestingJob", newSourceVertex);
 
-			JobSnapshottingSettings newSnapshottingSettings = new JobSnapshottingSettings(
+			JobCheckpointingSettings newSnapshottingSettings = new JobCheckpointingSettings(
 					Collections.singletonList(newSourceVertex.getID()),
 					Collections.singletonList(newSourceVertex.getID()),
 					Collections.singletonList(newSourceVertex.getID()),

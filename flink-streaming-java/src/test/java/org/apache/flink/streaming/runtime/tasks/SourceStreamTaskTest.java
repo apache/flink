@@ -168,8 +168,10 @@ public class SourceStreamTaskTest {
 				// simulate some work
 				try {
 					Thread.sleep(readDelay);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+				}
+				catch (InterruptedException e) {
+					// ignore and reset interruption state
+					Thread.currentThread().interrupt();
 				}
 
 				synchronized (lockObject) {

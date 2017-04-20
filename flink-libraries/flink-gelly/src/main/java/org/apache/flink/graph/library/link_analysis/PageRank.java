@@ -45,6 +45,7 @@ import org.apache.flink.graph.asm.result.UnaryResult;
 import org.apache.flink.graph.library.link_analysis.Functions.SumScore;
 import org.apache.flink.graph.library.link_analysis.PageRank.Result;
 import org.apache.flink.graph.utils.GraphUtils;
+import org.apache.flink.graph.utils.GraphUtils.IdentityMapper;
 import org.apache.flink.graph.utils.Murmur3_32;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.types.DoubleValue;
@@ -174,6 +175,10 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		DataSet<Vertex<K, Degrees>> vertexDegree = input
 			.run(new VertexDegrees<K, VV, EV>()
 				.setParallelism(parallelism));
+
+		// prevent Exception "The dam has been closed." in TempBarrier
+		// for a simplified Graph as in PageRankITCase (see FLINK-5623)
+		vertexDegree = vertexDegree.map(new IdentityMapper<Vertex<K, Degrees>>());
 
 		// vertex count
 		DataSet<LongValue> vertexCount = GraphUtils.count(vertexDegree);

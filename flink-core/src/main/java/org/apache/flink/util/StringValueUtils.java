@@ -20,16 +20,19 @@ package org.apache.flink.util;
 
 import java.io.Serializable;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.StringValue;
 
 /**
- * Utility class for efficient string operations on strings. All methods in this class are
- * written to be optimized for efficiency and work only on strings whose characters are
- * representable in a single <tt>char</tt>, ie. strings without surrogate characters.
+ * Utility class for efficient operations on {@link StringValue}.
+ * 
+ * <p>All methods in this class are written to be optimized for efficiency and work directly
+ * on the StringValues char arrays, avoiding copies. For simplicity and efficiency, the methods
+ * only apply to strings whose characters are representable in a single <tt>char</tt>,
+ * ie. strings without surrogate characters.
  */
-@Internal
-public final class SimpleStringUtils {
+@PublicEvolving
+public final class StringValueUtils {
 	
 	/**
 	 * Converts the given <code>StringValue</code> into a lower case variant.
@@ -132,5 +135,5 @@ public final class SimpleStringUtils {
 	/**
 	 * Private constructor to prevent instantiation, as this is a utility method encapsulating class.
 	 */
-	private SimpleStringUtils() {}
+	private StringValueUtils() {}
 }
