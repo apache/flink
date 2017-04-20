@@ -40,7 +40,7 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	/** Configuration to start the testing cluster with */
 	protected final Configuration config;
 	
-	private final List<File> tempFiles;
+	protected final List<File> tempFiles;
 	
 	private final FiniteDuration timeout;
 
@@ -143,7 +143,7 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 		return f;
 	}
 
-	private void deleteAllTempFiles() throws IOException {
+	protected void deleteAllTempFiles() throws IOException {
 		for (File f : this.tempFiles) {
 			if (f.exists()) {
 				deleteRecursively(f);
