@@ -18,6 +18,9 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
+import com.netflix.fenzo.ConstraintEvaluator;
+import com.netflix.fenzo.functions.Func1;
+import com.netflix.fenzo.plugins.HostAttrValueConstraint;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -63,7 +66,12 @@ public class MesosTaskManagerParameters {
 
 	public static final ConfigOption<String> MESOS_RM_CONTAINER_VOLUMES =
 		key("mesos.resourcemanager.tasks.container.volumes")
+		.noDefaultValue();
+	
+	public static final ConfigOption<String> MESOS_CONSTRAINTS_HARD_HOSTATTR =
+		key("mesos.constraints.hard.hostattribute")
 			.noDefaultValue();
+
 	/**
 	 * Value for {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE} setting. Tells to use the Mesos containerizer.
 	 */
@@ -82,19 +90,23 @@ public class MesosTaskManagerParameters {
 	private final ContaineredTaskManagerParameters containeredParameters;
 
 	private final List<Protos.Volume> containerVolumes;
+	
+	private final List<ConstraintEvaluator> constraints;
 
 	public MesosTaskManagerParameters(
 			double cpus,
 			ContainerType containerType,
 			Option<String> containerImageName,
 			ContaineredTaskManagerParameters containeredParameters,
-			List<Protos.Volume> containerVolumes) {
+			List<Protos.Volume> containerVolumes,
+			List<ConstraintEvaluator> constraints) {
 
 		this.cpus = cpus;
 		this.containerType = Preconditions.checkNotNull(containerType);
 		this.containerImageName = Preconditions.checkNotNull(containerImageName);
 		this.containeredParameters = Preconditions.checkNotNull(containeredParameters);
 		this.containerVolumes = Preconditions.checkNotNull(containerVolumes);
+		this.constraints = Preconditions.checkNotNull(constraints);
 	}
 
 
@@ -135,6 +147,13 @@ public class MesosTaskManagerParameters {
 		return containerVolumes;
 	}
 
+	/**
+	 * Get the placement constraints
+	 */
+	public List<ConstraintEvaluator> constraints() {
+		return constraints;
+	}
+
 	@Override
 	public String toString() {
 		return "MesosTaskManagerParameters{" +
@@ -143,6 +162,7 @@ public class MesosTaskManagerParameters {
 			", containerImageName=" + containerImageName +
 			", containeredParameters=" + containeredParameters +
 			", containerVolumes=" + containerVolumes +
+			", constraints=" + constraints +
 			'}';
 	}
 
@@ -152,6 +172,7 @@ public class MesosTaskManagerParameters {
      */
 	public static MesosTaskManagerParameters create(Configuration flinkConfig) {
 
+		List<ConstraintEvaluator> constraints = parseConstraints(flinkConfig.getString(MESOS_CONSTRAINTS_HARD_HOSTATTR));
 		// parse the common parameters
 		ContaineredTaskManagerParameters containeredParameters = ContaineredTaskManagerParameters.create(
 			flinkConfig,
@@ -191,10 +212,42 @@ public class MesosTaskManagerParameters {
 			cpus,
 			containerType,
 			Option.apply(imageName),
-			containeredParameters,
-			containerVolumes);
+			containeredParameters,			
+			containerVolumes,
+			constraints);
 	}
 
+	private static List<ConstraintEvaluator> parseConstraints(String mesosConstraints) {
+
+		if (mesosConstraints == null || mesosConstraints.isEmpty()) {
+			return Collections.emptyList();
+		} else {
+			List<ConstraintEvaluator> constraints = new ArrayList<>();
+
+			for (String constraint : mesosConstraints.split(",")) {
+				if (constraint.isEmpty()) {
+					continue;
+				}
+				final String[] constraintList = constraint.split(":");
+				if (constraintList.length != 2) {
+					continue;
+				}
+				addHostAttrValueConstraint(constraints, constraintList[0], constraintList[1]);
+			}
+
+			return constraints;
+		}
+	}
+
+	private static void addHostAttrValueConstraint(List<ConstraintEvaluator> constraints, String constraintKey, final String constraintValue) {
+		constraints.add(new HostAttrValueConstraint(constraintKey, new Func1<String, String>() {
+			@Override
+			public String call(String s) {
+				return constraintValue;
+			}
+		}));
+	}
+	
 	/**
 	 * Used to build volume specs for mesos. This allows for mounting additional volumes into a container
 	 *
