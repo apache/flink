@@ -18,6 +18,9 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
+import com.netflix.fenzo.ConstraintEvaluator;
+import com.netflix.fenzo.functions.Func1;
+import com.netflix.fenzo.plugins.HostAttrValueConstraint;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
 import org.apache.mesos.Protos;
@@ -26,6 +29,7 @@ import scala.Option;
 
 import java.util.List;
 
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.*;
 
 public class MesosTaskManagerParametersTest extends TestLogger {
@@ -73,5 +77,66 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 		assertEquals("/host/path", params.containerVolumes().get(0).getHostPath());
 		assertEquals(Protos.Volume.Mode.RO, params.containerVolumes().get(0).getMode());
 	}
+	
+	@Test
+    public void givenTwoConstraintsInConfigShouldBeParsed() throws Exception {
+
+        MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(withHardHostAttrConstraintConfiguration("cluster:foo,az:eu-west-1"));
+        assertThat(mesosTaskManagerParameters.constraints().size(), is(2));
+        ConstraintEvaluator firstConstraintEvaluator = new HostAttrValueConstraint("cluster", new Func1<String, String>() {
+            @Override
+            public String call(String s) {
+                return "foo";
+            }
+        });
+        ConstraintEvaluator secondConstraintEvaluator = new HostAttrValueConstraint("az", new Func1<String, String>() {
+            @Override
+            public String call(String s) {
+                return "foo";
+            }
+        });
+        assertThat(mesosTaskManagerParameters.constraints().get(0).getName(), is(firstConstraintEvaluator.getName()));
+        assertThat(mesosTaskManagerParameters.constraints().get(1).getName(), is(secondConstraintEvaluator.getName()));
+
+    }
+
+    @Test
+    public void givenOneConstraintInConfigShouldBeParsed() throws Exception {
+
+        MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(withHardHostAttrConstraintConfiguration("cluster:foo"));
+        assertThat(mesosTaskManagerParameters.constraints().size(), is(1));
+        ConstraintEvaluator firstConstraintEvaluator = new HostAttrValueConstraint("cluster", new Func1<String, String>() {
+            @Override
+            public String call(String s) {
+                return "foo";
+            }
+        });
+        assertThat(mesosTaskManagerParameters.constraints().get(0).getName(), is(firstConstraintEvaluator.getName()));
+    }
+
+    @Test
+    public void givenEmptyConstraintInConfigShouldBeParsed() throws Exception {
+
+        MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(withHardHostAttrConstraintConfiguration(""));
+        assertThat(mesosTaskManagerParameters.constraints().size(), is(0));
+    }
+
+    @Test
+    public void givenInvalidConstraintInConfigShouldBeParsed() throws Exception {
+
+        MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(withHardHostAttrConstraintConfiguration(",:,"));
+        assertThat(mesosTaskManagerParameters.constraints().size(), is(0));
+    }
+
+
+    private static Configuration withHardHostAttrConstraintConfiguration(final String configuration) {
+        return new Configuration() {
+            private static final long serialVersionUID = -3249384117909445760L;
+
+            {
+                setString(MesosTaskManagerParameters.MESOS_CONSTRAINTS_HARD_HOSTATTR, configuration);
+            }
+        };
+    }
 
 }
