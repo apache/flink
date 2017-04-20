@@ -21,7 +21,6 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
-import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.Iterator;
 
@@ -43,9 +42,8 @@ public class PythonSingleInputStreamer<IN, OUT> extends PythonStreamer<PythonSin
 	 *
 	 * @param iterator input stream
 	 * @param c        collector
-	 * @throws IOException
 	 */
-	public final void streamBufferWithoutGroups(Iterator<IN> iterator, Collector<OUT> c) throws IOException {
+	public final void streamBufferWithoutGroups(Iterator<IN> iterator, Collector<OUT> c) {
 		SingleElementPushBackIterator<IN> i = new SingleElementPushBackIterator<>(iterator);
 		try {
 			int size;
@@ -86,7 +84,7 @@ public class PythonSingleInputStreamer<IN, OUT> extends PythonStreamer<PythonSin
 		} catch (SocketTimeoutException ignored) {
 			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg.get());
 		} catch (Exception e) {
-			throw new RuntimeException("Critical failure. " + msg.get(), e);
+			throw new RuntimeException("Critical failure for task " + function.getRuntimeContext().getTaskName() + ". " + msg.get(), e);
 		}
 	}
 }
