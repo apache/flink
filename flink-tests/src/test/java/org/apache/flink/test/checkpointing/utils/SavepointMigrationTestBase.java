@@ -18,6 +18,8 @@
 
 package org.apache.flink.test.checkpointing.utils;
 
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 import java.io.File;
 import java.net.URI;
 import java.net.URL;
@@ -25,13 +27,16 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.client.JobListeningContext;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
@@ -48,6 +53,7 @@ import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import static junit.framework.Assert.fail;
@@ -103,7 +109,8 @@ public class SavepointMigrationTestBase extends TestBaseUtils {
 		stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
 	}
 
-	protected void executeAndSavepoint(
+	@SafeVarargs
+	protected final void executeAndSavepoint(
 			StreamExecutionEnvironment env,
 			String savepointPath,
 			Tuple2<String, Integer>... expectedAccumulators) throws Exception {
@@ -194,11 +201,8 @@ public class SavepointMigrationTestBase extends TestBaseUtils {
 			String savepointPath,
 			Tuple2<String, Integer>... expectedAccumulators) throws Exception {
 
-		int parallelism = env.getParallelism();
-
 		// Retrieve the job manager
-
-		ActorGateway jobManager = Await.result(cluster.leaderGateway().future(), DEADLINE.timeLeft());
+		Await.result(cluster.leaderGateway().future(), DEADLINE.timeLeft());
 
 		// Submit the job
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
@@ -208,11 +212,38 @@ public class SavepointMigrationTestBase extends TestBaseUtils {
 		JobSubmissionResult jobSubmissionResult = cluster.submitJobDetached(jobGraph);
 
 		StandaloneClusterClient clusterClient = new StandaloneClusterClient(cluster.configuration());
+		JobListeningContext jobListeningContext = clusterClient.connectToJob(jobSubmissionResult.getJobID());
 
 		boolean done = false;
 		while (DEADLINE.hasTimeLeft()) {
+
+			// try and get a job result, this will fail if the job already failed. Use this
+			// to get out of this loop
+			JobID jobId = jobSubmissionResult.getJobID();
+			FiniteDuration timeout = FiniteDuration.apply(5, TimeUnit.SECONDS);
+
+			try {
+
+				Future<Object> future = clusterClient
+						.getJobManagerGateway()
+						.ask(JobManagerMessages.getRequestJobStatus(jobSubmissionResult.getJobID()), timeout);
+
+				Object result = Await.result(future, timeout);
+
+				if (result instanceof JobManagerMessages.CurrentJobStatus) {
+					if (((JobManagerMessages.CurrentJobStatus) result).status() == JobStatus.FAILED) {
+						Object jobResult = Await.result(
+								jobListeningContext.getJobResultFuture(),
+								Duration.apply(5, TimeUnit.SECONDS));
+						fail("Job failed: " + jobResult);
+					}
+				}
+			} catch (Exception e) {
+				fail("Could not connect to job: " + e);
+			}
+
 			Thread.sleep(100);
-			Map<String, Object> accumulators = clusterClient.getAccumulators(jobSubmissionResult.getJobID());
+			Map<String, Object> accumulators = clusterClient.getAccumulators(jobId);
 
 			boolean allDone = true;
 			for (Tuple2<String, Integer> acc : expectedAccumulators) {
@@ -226,6 +257,7 @@ public class SavepointMigrationTestBase extends TestBaseUtils {
 					break;
 				}
 			}
+
 			if (allDone) {
 				done = true;
 				break;
