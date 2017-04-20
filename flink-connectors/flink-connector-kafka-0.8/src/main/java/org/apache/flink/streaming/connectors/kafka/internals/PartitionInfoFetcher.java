@@ -18,31 +18,37 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08;
-
 import java.util.List;
 import java.util.Properties;
 
 class PartitionInfoFetcher extends Thread {
 
 	private final List<String> topics;
-	private final Properties properties;
+	private final Kafka08PartitionDiscoverer partitionDiscoverer;
 
 	private volatile List<KafkaTopicPartitionLeader> result;
 	private volatile Throwable error;
 
 	PartitionInfoFetcher(List<String> topics, Properties properties) {
+		// we're only using partial functionality of the partition discoverer; the subtask id arguments doesn't matter
+		this.partitionDiscoverer = new Kafka08PartitionDiscoverer(new KafkaTopicsDescriptor(topics, null), 0, 1, properties);
 		this.topics = topics;
-		this.properties = properties;
 	}
 
 	@Override
 	public void run() {
 		try {
-			result = FlinkKafkaConsumer08.getPartitionsForTopic(topics, properties);
+			partitionDiscoverer.open();
+			result = partitionDiscoverer.getPartitionLeadersForTopics(topics);
 		}
 		catch (Throwable t) {
 			this.error = t;
+		} finally {
+			try {
+				partitionDiscoverer.close();
+			} catch (Exception e) {
+				throw new RuntimeException("Error while closing partition discoverer.", e);
+			}
 		}
 	}
 
@@ -57,9 +63,11 @@ class PartitionInfoFetcher extends Thread {
 		if (error != null) {
 			throw new Exception("Failed to fetch partitions for topics " + topics.toString(), error);
 		}
+
 		if (result != null) {
 			return result;
 		}
+
 		throw new Exception("Partition fetching failed");
 	}
 }
