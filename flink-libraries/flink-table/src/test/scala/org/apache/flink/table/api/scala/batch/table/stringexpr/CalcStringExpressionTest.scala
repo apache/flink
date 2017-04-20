@@ -357,8 +357,8 @@ class CalcStringExpressionTest {
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
 
     val t1 = t.select('a, 'b, 'c, 'd, 'e, BigDecimal("11.2"), BigDecimal("11.2").bigDecimal,
-        "1984-07-12".cast(Types.DATE), "14:34:24".cast(Types.TIME),
-        "1984-07-12 14:34:24".cast(Types.TIMESTAMP))
+        "1984-07-12".cast(Types.SQL_DATE), "14:34:24".cast(Types.SQL_TIME),
+        "1984-07-12 14:34:24".cast(Types.SQL_TIMESTAMP))
     val t2 = t.select("a, b, c, d, e, 11.2, 11.2," +
       "'1984-07-12'.toDate, '14:34:24'.toTime," +
       "'1984-07-12 14:34:24'.toTimestamp")
