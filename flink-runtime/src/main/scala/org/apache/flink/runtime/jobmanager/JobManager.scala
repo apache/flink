@@ -178,6 +178,8 @@ class JobManager(
   /** The resource manager actor responsible for allocating and managing task manager resources. */
   var currentResourceManager: Option[ActorRef] = None
 
+  var currentRMConnID: UUID = null
+
   val taskManagerMap = mutable.Map[ActorRef, InstanceID]()
 
   /**
@@ -337,6 +339,7 @@ class JobManager(
 
       // ditch current resource manager (if any)
       currentResourceManager = Option(msg.resourceManager())
+      currentRMConnID = UUID.randomUUID()
 
       val taskManagerResources = instanceManager.getAllRegisteredInstances.asScala.map(
         instance => instance.getTaskManagerID).toList.asJava
@@ -361,7 +364,7 @@ class JobManager(
       }
 
       currentResourceManager match {
-        case Some(rm) if rm.equals(msg.resourceManager()) =>
+        case Some(rm) if rm.equals(msg.resourceManager()) && currentRMConnID.equals(msg.connID()) =>
           // we should ditch the current resource manager
           log.debug(s"Disconnecting resource manager $rm and forcing a reconnect.")
           currentResourceManager = None
@@ -396,7 +399,7 @@ class JobManager(
                 case _ =>
                   log.warn("Failure while asking ResourceManager for RegisterResource. Retrying", t)
               }
-              self ! decorateMessage(new ReconnectResourceManager(rm))
+              self ! decorateMessage(new ReconnectResourceManager(rm, currentRMConnID))
           }(context.dispatcher)
 
         case None =>
