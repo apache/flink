@@ -89,4 +89,9 @@ public class DatadogHttpClient{
 	public static String serialize(Object obj) throws JsonProcessingException {
 		return MAPPER.writeValueAsString(obj);
 	}
+
+	public void close() {
+		client.dispatcher().executorService().shutdown();
+		client.connectionPool().evictAll();
+	}
 }

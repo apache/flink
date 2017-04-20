@@ -107,6 +107,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 	@Override
 	public void close() {
+		client.close();
 		LOGGER.info("Shut down DatadogHttpReporter");
 	}
 
