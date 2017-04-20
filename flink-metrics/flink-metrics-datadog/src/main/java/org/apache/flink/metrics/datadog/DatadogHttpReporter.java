@@ -63,41 +63,37 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		List<String> tags = new ArrayList<>(configTags);
 		tags.addAll(getTagsFromMetricGroup(group));
 
-		synchronized (this) {
-			if (metric instanceof Counter) {
-				Counter c = (Counter) metric;
-				counters.put(c, new DCounter(c, name, tags));
-			} else if (metric instanceof Gauge) {
-				Gauge g = (Gauge) metric;
-				gauges.put(g, new DGauge(g, name, tags));
-			} else if(metric instanceof Meter) {
-				Meter m = (Meter) metric;
-				// Only consider rate
-				meters.put(m, new DMeter(m, name, tags));
-			} else if (metric instanceof Histogram) {
-				LOGGER.warn("Cannot add {} because Datadog HTTP API doesn't support Histogram", metricName);
-			} else {
-				LOGGER.warn("Cannot add unknown metric type {}. This indicates that the reporter " +
-					"does not support this metric type.", metric.getClass().getName());
-			}
+		if (metric instanceof Counter) {
+			Counter c = (Counter) metric;
+			counters.put(c, new DCounter(c, name, tags));
+		} else if (metric instanceof Gauge) {
+			Gauge g = (Gauge) metric;
+			gauges.put(g, new DGauge(g, name, tags));
+		} else if(metric instanceof Meter) {
+			Meter m = (Meter) metric;
+			// Only consider rate
+			meters.put(m, new DMeter(m, name, tags));
+		} else if (metric instanceof Histogram) {
+			LOGGER.warn("Cannot add {} because Datadog HTTP API doesn't support Histogram", metricName);
+		} else {
+			LOGGER.warn("Cannot add unknown metric type {}. This indicates that the reporter " +
+				"does not support this metric type.", metric.getClass().getName());
 		}
 	}
 
 	@Override
 	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
-		synchronized (this) {
-			if (metric instanceof Counter) {
-				counters.remove(metric);
-			} else if (metric instanceof Gauge) {
-				gauges.remove(metric);
-			} else if (metric instanceof Meter) {
-				meters.remove(metric);
-			} else if (metric instanceof Histogram) {
-				// No Histogram is registered
-			} else {
-				LOGGER.warn("Cannot remove unknown metric type {}. This indicates that the reporter " +
-					"does not support this metric type.", metric.getClass().getName());
-			}
+		if (metric instanceof Counter) {
+			counters.remove(metric);
+		} else if (metric instanceof Gauge) {
+			gauges.remove(metric);
+		} else if (metric instanceof Meter) {
+			meters.remove(metric);
+		} else if (metric instanceof Histogram) {
+			// No Histogram is registered
+		} else {
+			LOGGER.warn("Cannot remove unknown metric type {}. This indicates that the reporter " +
+				"does not support this metric type.", metric.getClass().getName());
 		}
 	}
 
