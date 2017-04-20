@@ -61,7 +61,7 @@ public class AbstractFetcherTest {
 			mock(TestProcessingTimeService.class),
 			0);
 
-		final KafkaTopicPartitionState<Object> partitionStateHolder = fetcher.subscribedPartitionStates()[0];
+		final KafkaTopicPartitionState<Object> partitionStateHolder = fetcher.subscribedPartitionStates().get(0);
 
 		fetcher.emitRecord(1L, partitionStateHolder, 1L);
 		fetcher.emitRecord(2L, partitionStateHolder, 2L);
@@ -92,7 +92,7 @@ public class AbstractFetcherTest {
 			processingTimeProvider,
 			0);
 
-		final KafkaTopicPartitionState<Object> partitionStateHolder = fetcher.subscribedPartitionStates()[0];
+		final KafkaTopicPartitionState<Object> partitionStateHolder = fetcher.subscribedPartitionStates().get(0);
 
 		// elements generate a watermark if the timestamp is a multiple of three
 		fetcher.emitRecord(1L, partitionStateHolder, 1L);
@@ -133,7 +133,7 @@ public class AbstractFetcherTest {
 			processingTimeProvider,
 			10);
 
-		final KafkaTopicPartitionState<Object> partitionStateHolder = fetcher.subscribedPartitionStates()[0];
+		final KafkaTopicPartitionState<Object> partitionStateHolder = fetcher.subscribedPartitionStates().get(0);
 
 		// elements generate a watermark if the timestamp is a multiple of three
 		fetcher.emitRecord(1L, partitionStateHolder, 1L);
@@ -186,9 +186,9 @@ public class AbstractFetcherTest {
 				processingTimeProvider,
 				0);
 
-		final KafkaTopicPartitionState<Object> part1 = fetcher.subscribedPartitionStates()[0];
-		final KafkaTopicPartitionState<Object> part2 = fetcher.subscribedPartitionStates()[1];
-		final KafkaTopicPartitionState<Object> part3 = fetcher.subscribedPartitionStates()[2];
+		final KafkaTopicPartitionState<Object> part1 = fetcher.subscribedPartitionStates().get(0);
+		final KafkaTopicPartitionState<Object> part2 = fetcher.subscribedPartitionStates().get(1);
+		final KafkaTopicPartitionState<Object> part3 = fetcher.subscribedPartitionStates().get(2);
 
 		// elements generate a watermark if the timestamp is a multiple of three
 		
@@ -260,9 +260,9 @@ public class AbstractFetcherTest {
 				processingTimeService,
 				10);
 
-		final KafkaTopicPartitionState<Object> part1 = fetcher.subscribedPartitionStates()[0];
-		final KafkaTopicPartitionState<Object> part2 = fetcher.subscribedPartitionStates()[1];
-		final KafkaTopicPartitionState<Object> part3 = fetcher.subscribedPartitionStates()[2];
+		final KafkaTopicPartitionState<Object> part1 = fetcher.subscribedPartitionStates().get(0);
+		final KafkaTopicPartitionState<Object> part2 = fetcher.subscribedPartitionStates().get(1);
+		final KafkaTopicPartitionState<Object> part3 = fetcher.subscribedPartitionStates().get(2);
 
 		// elements generate a watermark if the timestamp is a multiple of three
 

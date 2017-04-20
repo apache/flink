@@ -24,8 +24,10 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
+import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
@@ -41,6 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for checking whether {@link FlinkKafkaConsumerBase} can restore from snapshots that were
@@ -183,7 +186,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
 		@SuppressWarnings("unchecked")
 		DummyFlinkKafkaConsumer(List<KafkaTopicPartition> partitions) {
-			super(Arrays.asList("dummy-topic"), (KeyedDeserializationSchema< T >) mock(KeyedDeserializationSchema.class));
+			super(Arrays.asList("dummy-topic"), null, (KeyedDeserializationSchema< T >) mock(KeyedDeserializationSchema.class), 0);
 			this.partitions = partitions;
 		}
 
@@ -199,8 +202,19 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		}
 
 		@Override
-		protected List<KafkaTopicPartition> getKafkaPartitions(List<String> topics) {
-			return partitions;
+		protected AbstractPartitionDiscoverer createPartitionDiscoverer(
+				KafkaTopicsDescriptor topicsDescriptor,
+				int indexOfThisSubtask,
+				int numParallelSubtasks) {
+			AbstractPartitionDiscoverer mockPartitionDiscoverer = mock(AbstractPartitionDiscoverer.class);
+
+			try {
+				when(mockPartitionDiscoverer.discoverPartitions()).thenReturn(partitions);
+			} catch (Exception e) {
+				// ignore
+			}
+
+			return mockPartitionDiscoverer;
 		}
 
 		@Override
