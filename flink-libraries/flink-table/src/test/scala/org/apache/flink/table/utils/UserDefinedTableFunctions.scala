@@ -198,8 +198,8 @@ class DynamicSchema1 extends TableFunction[Row] {
       case "double" => new RowTypeInfo(BasicTypeInfo.DOUBLE_TYPE_INFO)
       case "boolean" => new RowTypeInfo(BasicTypeInfo.BOOLEAN_TYPE_INFO)
       case "timestamp" => new RowTypeInfo(SqlTimeTypeInfo.TIMESTAMP)
+      case _ => new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO)
     }
-    new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO)
   }
 }
 

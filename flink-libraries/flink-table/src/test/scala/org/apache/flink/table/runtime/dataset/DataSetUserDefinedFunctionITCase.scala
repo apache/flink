@@ -181,12 +181,44 @@ class DataSetUserDefinedFunctionITCase(
     TestBaseUtils.compareResultAsText(results3.asJava, expected3)
 
     val funcDyn1 = new DynamicSchema1
-    val result4 = in.join(funcDyn1("string") as ('col))
+
+    val result4 = in.join(funcDyn1("string") as 'col)
       .select('col)
       .toDataSet[Row]
     val results4 = result4.collect()
     val expected4 = "string\n" + "string\n" + "string\n" + "string\n"
     TestBaseUtils.compareResultAsText(results4.asJava, expected4)
+
+    val result5 = in.join(funcDyn1("int") as 'col)
+      .select('col)
+      .toDataSet[Row]
+    val results5 = result5.collect()
+    val expected5 = "4\n4\n4\n4"
+    TestBaseUtils.compareResultAsText(results5.asJava, expected5)
+
+    val result6 = in.join(funcDyn1("double") as 'col)
+      .select('col)
+      .toDataSet[Row]
+    val results6 = result6.collect()
+    val expected6 = "3.25\n3.25\n3.25\n3.25"
+    TestBaseUtils.compareResultAsText(results6.asJava, expected6)
+
+    val result7 = in.join(funcDyn1("boolean") as 'col)
+      .select('col)
+      .toDataSet[Row]
+    val results7 = result7.collect()
+    val expected7 = "true\ntrue\ntrue\ntrue"
+    TestBaseUtils.compareResultAsText(results7.asJava, expected7)
+
+    val result8 = in.join(funcDyn1("timestamp") as 'col)
+      .select('col)
+      .toDataSet[Row]
+    val results8 = result8.collect()
+    val expected8 = "1970-01-01 08:00:00.325\n" +
+      "1970-01-01 08:00:00.325\n" +
+      "1970-01-01 08:00:00.325\n" +
+      "1970-01-01 08:00:00.325\n"
+    TestBaseUtils.compareResultAsText(results8.asJava, expected8)
   }
 
   @Test
