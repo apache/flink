@@ -77,30 +77,27 @@ class DataSetSlideWindowAggReduceGroupFunction(
     function.resetAccumulator(accumulators)
 
     val iterator = records.iterator()
+    var record: Row = null
     while (iterator.hasNext) {
-      val record = iterator.next()
+      record = iterator.next()
+      function.mergeAccumulatorsPair(accumulators, record)
+    }
 
-      function.mergeAccumulatorsPairWithKeyOffset(accumulators, record)
+    // set group keys value to final output
+    function.setForwardedFields(record, null, output)
 
-      // check if this record is the last record
-      if (!iterator.hasNext) {
-        // set group keys value to final output
-        function.setKeyToOutput(record, output)
+    // get final aggregate value and set to output
+    function.setAggregationResults(accumulators, output)
 
-        // get final aggregate value and set to output
-        function.setAggregationResultsWithKeyOffset(accumulators, output)
+    // adds TimeWindow properties to output then emit output
+    if (finalRowWindowStartPos.isDefined || finalRowWindowEndPos.isDefined) {
+      collector.wrappedCollector = out
+      collector.windowStart = record.getField(windowStartPos).asInstanceOf[Long]
+      collector.windowEnd = collector.windowStart + windowSize
 
-        // adds TimeWindow properties to output then emit output
-        if (finalRowWindowStartPos.isDefined || finalRowWindowEndPos.isDefined) {
-          collector.wrappedCollector = out
-          collector.windowStart = record.getField(windowStartPos).asInstanceOf[Long]
-          collector.windowEnd = collector.windowStart + windowSize
-
-          collector.collect(output)
-        } else {
-          out.collect(output)
-        }
-      }
+      collector.collect(output)
+    } else {
+      out.collect(output)
     }
   }
 }

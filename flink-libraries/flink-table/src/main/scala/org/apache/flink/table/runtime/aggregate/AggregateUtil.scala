@@ -35,7 +35,7 @@ import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWin
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.codegen.{AggCodeGenCtrlParams, CodeGenerator}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
@@ -93,9 +93,10 @@ object AggregateUtil {
       aggregates,
       aggFields,
       aggMapping,
-      forwardMapping,
       outputArity,
-      Array()
+      Array(),
+      AggCodeGenCtrlParams(false, false, false),
+      forwardMapping
     )
 
     if (isRowTimeType) {
@@ -165,9 +166,10 @@ object AggregateUtil {
       aggregates,
       aggFields,
       aggMapping,
-      forwardMapping,
       outputArity,
-      Array()
+      Array(),
+      AggCodeGenCtrlParams(false, false, false),
+      forwardMapping
     )
 
     if (isRowTimeType) {
@@ -285,9 +287,9 @@ object AggregateUtil {
       aggregates,
       aggFieldIndexes,
       aggMapping,
-      Array(),
       outputArity,
-      groupings
+      groupings,
+      AggCodeGenCtrlParams(false, false, true)
     )
 
     new DataSetWindowAggMapFunction(
@@ -346,21 +348,20 @@ object AggregateUtil {
 
     val keysAndAggregatesArity = groupings.length + namedAggregates.length
 
-    val genFunction = generator.generateAggregations(
-      "DataSetAggregatePrepareMapHelper",
-      generator,
-      inputType,
-      aggregates,
-      aggFieldIndexes,
-      aggregates.indices.toArray,
-      Array(),
-      keysAndAggregatesArity + 1,
-      groupings
-    )
-
     window match {
       case EventTimeSlidingGroupWindow(_, _, size, slide) if isTimeInterval(size.resultType) =>
         // sliding time-window for partial aggregations
+        val genFunction = generator.generateAggregations(
+          "DataSetAggregatePrepareMapHelper",
+          generator,
+          inputType,
+          aggregates,
+          aggFieldIndexes,
+          aggregates.indices.toArray,
+          keysAndAggregatesArity + 1,
+          groupings,
+          AggCodeGenCtrlParams(false, true, false)
+        )
         new DataSetSlideTimeWindowAggReduceGroupFunction(
           genFunction,
           keysAndAggregatesArity,
@@ -454,24 +455,10 @@ object AggregateUtil {
       aggregates,
       aggFieldIndexes,
       aggMapping,
-      Array(),
       outputType.getFieldCount,
-      groupings.indices.toArray
+      groupings.indices.toArray,
+      AggCodeGenCtrlParams(true, true, false)
     )
-
-    // the mapping relation between field index of intermediate aggregate Row and output Row.
-    val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
-
-    // the mapping relation between aggregate function index in list and its corresponding
-    // field index in output Row.
-    val aggOffsetMapping = getAggregateMapping(namedAggregates, outputType)
-
-    if (groupingOffsetMapping.length != groupings.length ||
-      aggOffsetMapping.length != namedAggregates.length) {
-      throw new TableException(
-        "Could not find output field in input data type " +
-          "or aggregate functions.")
-    }
 
     val keysAndAggregatesArity = groupings.length + namedAggregates.length
 
@@ -582,18 +569,6 @@ object AggregateUtil {
 
     val aggMapping = aggregates.indices.toArray
 
-    val genFunction = generator.generateAggregations(
-      "GroupingWindowAggregateHelper",
-      generator,
-      inputType,
-      aggregates,
-      aggFieldIndexes,
-      aggMapping,
-      Array(),
-      0,
-      groupings.indices.toArray
-    )
-
     val keysAndAggregatesArity = groupings.length + namedAggregates.length
 
     window match {
@@ -604,6 +579,18 @@ object AggregateUtil {
             aggregates,
             inputType,
             Option(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
+
+        val genFunction = generator.generateAggregations(
+          "GroupingWindowAggregateHelper",
+          generator,
+          inputType,
+          aggregates,
+          aggFieldIndexes,
+          aggMapping,
+          0,
+          groupings.indices.toArray,
+          AggCodeGenCtrlParams(false, true, false)
+        )
 
         new DataSetSessionWindowAggregatePreProcessor(
           genFunction,
@@ -648,18 +635,6 @@ object AggregateUtil {
 
     val aggMapping = aggregates.indices.toArray
 
-    val genFunction = generator.generateAggregations(
-      "GroupingWindowAggregateHelper",
-      generator,
-      inputType,
-      aggregates,
-      aggFieldIndexes,
-      aggMapping,
-      Array(),
-      0,
-      groupings.indices.toArray
-    )
-
     val keysAndAggregatesArity = groupings.length + namedAggregates.length
 
     window match {
@@ -671,6 +646,18 @@ object AggregateUtil {
             aggregates,
             inputType,
             Option(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
+
+        val genFunction = generator.generateAggregations(
+          "GroupingWindowAggregateHelper",
+          generator,
+          inputType,
+          aggregates,
+          aggFieldIndexes,
+          aggMapping,
+          0,
+          groupings.indices.toArray,
+          AggCodeGenCtrlParams(false, true, false)
+        )
 
         new DataSetSessionWindowAggregatePreProcessor(
           genFunction,
@@ -737,9 +724,9 @@ object AggregateUtil {
         aggregates,
         aggInFields,
         aggregates.indices.toArray,
-        Array(),
         groupings.length + aggregates.length,
-        groupings
+        groupings,
+        AggCodeGenCtrlParams(false, false, false)
       )
 
       val genFinalAggFunction = generator.generateAggregations(
@@ -749,9 +736,11 @@ object AggregateUtil {
         aggregates,
         aggInFields,
         aggOutFields,
-        Array(),
         outputType.getFieldCount,
-        groupings
+        groupings,
+        AggCodeGenCtrlParams(false, true, false),
+        Array(),
+        gkeyOutFields
       )
 
       (
@@ -773,10 +762,14 @@ object AggregateUtil {
         aggregates,
         aggInFields,
         aggMapping,
-        Array(),
         outputType.getFieldCount,
-        groupings
+        groupings,
+        AggCodeGenCtrlParams(false, false, false),
+        Array(),
+        Array(),
+        gkeyOutMapping
       )
+
       (
         None,
         None,
@@ -862,16 +855,10 @@ object AggregateUtil {
       aggregates,
       aggFields,
       aggMapping,
-      Array(),
       outputArity,
-      Array())
-
-    val aggregateMapping = getAggregateMapping(namedAggregates, outputType)
-
-    if (aggregateMapping.length != namedAggregates.length) {
-      throw new TableException(
-        "Could not find output field in input data type or aggregate functions.")
-    }
+      Array(),
+      AggCodeGenCtrlParams(false, false, false)
+    )
 
     val aggResultTypes = namedAggregates.map(a => FlinkTypeFactory.toTypeInfo(a.left.getType))
 
@@ -1262,62 +1249,6 @@ object AggregateUtil {
     val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(aggregates)
 
     new RowTypeInfo(aggTypes: _*)
-  }
-
-  // Find the mapping between the index of aggregate list and aggregated value index in output Row.
-  private def getAggregateMapping(
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    outputType: RelDataType): Array[(Int, Int)] = {
-
-    // the mapping relation between aggregate function index in list and its corresponding
-    // field index in output Row.
-    var aggOffsetMapping = ArrayBuffer[(Int, Int)]()
-
-    outputType.getFieldList.zipWithIndex.foreach {
-      case (outputFieldType, outputIndex) =>
-        namedAggregates.zipWithIndex.foreach {
-          case (namedAggCall, aggregateIndex) =>
-            if (namedAggCall.getValue.equals(outputFieldType.getName) &&
-              namedAggCall.getKey.getType.equals(outputFieldType.getType)) {
-              aggOffsetMapping += ((outputIndex, aggregateIndex))
-            }
-        }
-    }
-
-    aggOffsetMapping.toArray
-  }
-
-  // Find the mapping between the index of group key in intermediate aggregate Row and its index
-  // in output Row.
-  private def getGroupKeysMapping(
-    inputDatType: RelDataType,
-    outputType: RelDataType,
-    groupKeys: Array[Int]): Array[(Int, Int)] = {
-
-    // the mapping relation between field index of intermediate aggregate Row and output Row.
-    var groupingOffsetMapping = ArrayBuffer[(Int, Int)]()
-
-    outputType.getFieldList.zipWithIndex.foreach {
-      case (outputFieldType, outputIndex) =>
-        inputDatType.getFieldList.zipWithIndex.foreach {
-          // find the field index in input data type.
-          case (inputFieldType, inputIndex) =>
-            if (outputFieldType.getName.equals(inputFieldType.getName) &&
-              outputFieldType.getType.equals(inputFieldType.getType)) {
-              // as aggregated field in output data type would not have a matched field in
-              // input data, so if inputIndex is not -1, it must be a group key. Then we can
-              // find the field index in buffer data by the group keys index mapping between
-              // input data and buffer data.
-              for (i <- groupKeys.indices) {
-                if (inputIndex == groupKeys(i)) {
-                  groupingOffsetMapping += ((outputIndex, i))
-                }
-              }
-            }
-        }
-    }
-
-    groupingOffsetMapping.toArray
   }
 
   private def getTimeFieldPosition(

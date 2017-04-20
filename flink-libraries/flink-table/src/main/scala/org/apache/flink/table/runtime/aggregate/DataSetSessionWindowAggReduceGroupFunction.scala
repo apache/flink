@@ -116,13 +116,14 @@ class DataSetSessionWindowAggReduceGroupFunction(
           // reset accumulator
           function.resetAccumulator(accumulators)
         } else {
-          function.setKeyToOutput(record, output)
+          // set keys to output
+          function.setForwardedFields(record, null, output)
         }
 
         windowStart = record.getField(intermediateRowWindowStartPos).asInstanceOf[Long]
       }
 
-      function.mergeAccumulatorsPairWithKeyOffset(accumulators, record)
+      function.mergeAccumulatorsPair(accumulators, record)
 
       windowEnd = if (isInputCombined) {
         // partial aggregate is supported
@@ -151,7 +152,7 @@ class DataSetSessionWindowAggReduceGroupFunction(
       windowEnd: Long): Unit = {
 
     // set value for the final output
-    function.setAggregationResultsWithKeyOffset(accumulators, output)
+    function.setAggregationResults(accumulators, output)
 
     // adds TimeWindow properties to output then emit output
     if (finalRowWindowStartPos.isDefined || finalRowWindowEndPos.isDefined) {

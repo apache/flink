@@ -55,39 +55,29 @@ class DataSetPreAggFunction(genAggregations: GeneratedAggregationsFunction)
     function = clazz.newInstance()
 
     output = function.createOutputRow()
+    accumulators = function.createAccumulators()
   }
 
   override def combine(values: Iterable[Row], out: Collector[Row]): Unit = {
-    preaggregate(values, out)
+    // reset accumulators
+    function.resetAccumulator(accumulators)
+
+    val iterator = values.iterator()
+
+    var record: Row = null
+    while (iterator.hasNext) {
+      record = iterator.next()
+      // accumulate
+      function.accumulate(accumulators, record)
+    }
+
+    // set group keys and accumulators to output
+    function.setForwardedFields(record, accumulators, output)
+
+    out.collect(output)
   }
 
   override def mapPartition(values: Iterable[Row], out: Collector[Row]): Unit = {
-    preaggregate(values, out)
+    combine(values, out)
   }
-
-  def preaggregate(records: Iterable[Row], out: Collector[Row]): Unit = {
-
-    // create accumulators
-    accumulators = function.createAccumulators()
-
-    val iterator = records.iterator()
-
-    while (iterator.hasNext) {
-      val record = iterator.next()
-
-      // accumulate
-      function.accumulate(accumulators, record)
-
-      // check if this record is the last record
-      if (!iterator.hasNext) {
-        // set group keys value to output
-        function.setKeyToOutput(record, output)
-
-        function.copyAccumulatorsToBuffer(accumulators, output)
-
-        out.collect(output)
-      }
-    }
-  }
-
 }

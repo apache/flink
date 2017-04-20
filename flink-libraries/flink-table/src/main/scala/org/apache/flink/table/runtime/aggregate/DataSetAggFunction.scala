@@ -63,6 +63,7 @@ class DataSetAggFunction(
     function = clazz.newInstance()
 
     output = function.createOutputRow()
+    accumulators = function.createAccumulators()
 
     if (!groupingSetsMapping.isEmpty) {
       intermediateGKeys = Some(gkeyOutMapping.map(_._1))
@@ -71,43 +72,35 @@ class DataSetAggFunction(
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
-    // create accumulators
-    accumulators = function.createAccumulators()
+    // reset accumulators
+    function.resetAccumulator(accumulators)
 
     val iterator = records.iterator()
 
+    var record: Row = null
     while (iterator.hasNext) {
-      val record = iterator.next()
-      var i = 0
+      record = iterator.next()
 
       // accumulate
       function.accumulate(accumulators, record)
+    }
 
-      // check if this record is the last record
-      if (!iterator.hasNext) {
-        // set group keys value to final output
-        i = 0
-        while (i < gkeyOutMapping.length) {
-          val (out, in) = gkeyOutMapping(i)
-          output.setField(out, record.getField(in))
-          i += 1
-        }
+    // set group keys value to final output
+    function.setForwardedFields(record, null, output)
 
-        // set agg results to output
-        function.setAggregationResults(accumulators, output)
+    // set agg results to output
+    function.setAggregationResults(accumulators, output)
 
-        // set grouping set flags to output
-        if (intermediateGKeys.isDefined) {
-          i = 0
-          while (i < groupingSetsMapping.length) {
-            val (in, out) = groupingSetsMapping(i)
-            output.setField(out, !intermediateGKeys.get.contains(in))
-            i += 1
-          }
-        }
-
-        out.collect(output)
+    // set grouping set flags to output
+    if (intermediateGKeys.isDefined) {
+      var i = 0
+      while (i < groupingSetsMapping.length) {
+        val (in, out) = groupingSetsMapping(i)
+        output.setField(out, !intermediateGKeys.get.contains(in))
+        i += 1
       }
     }
+
+    out.collect(output)
   }
 }

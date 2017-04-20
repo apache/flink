@@ -74,13 +74,13 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
       val record = iterator.next()
       count += 1
 
-      accumulators = function.mergeAccumulatorsPairWithKeyOffset(accumulators, record)
+      function.mergeAccumulatorsPair(accumulators, record)
 
       if (windowSize == count) {
         // set group keys value to final output.
-        function.setKeyToOutput(record, output)
+        function.setForwardedFields(record, null, output)
 
-        function.setAggregationResultsWithKeyOffset(accumulators, output)
+        function.setAggregationResults(accumulators, output)
         // emit the output
         out.collect(output)
         count = 0

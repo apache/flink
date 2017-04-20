@@ -78,37 +78,28 @@ class DataSetFinalAggFunction(
     // reset first accumulator
     function.resetAccumulator(accumulators)
 
-    var i = 0
+    var record: Row = null
     while (iterator.hasNext) {
-      val record = iterator.next()
+      record = iterator.next()
+      function.mergeAccumulatorsPair(accumulators, record)
+    }
 
-      // accumulate
-      function.mergeAccumulatorsPairWithKeyOffset(accumulators, record)
+    // set group keys value to final output
+    function.setForwardedFields(record, null, output)
 
-      // check if this record is the last record
-      if (!iterator.hasNext) {
-        // set group keys value to final output
-        i = 0
-        while (i < gkeyOutFields.length) {
-          output.setField(gkeyOutFields(i), record.getField(i))
-          i += 1
-        }
+    // get final aggregate value and set to output.
+    function.setAggregationResults(accumulators, output)
 
-        // get final aggregate value and set to output.
-        function.setAggregationResults(accumulators, output)
-
-        // set grouping set flags to output
-        if (intermediateGKeys.isDefined) {
-          i = 0
-          while (i < groupingSetsMapping.length) {
-            val (in, out) = groupingSetsMapping(i)
-            output.setField(out, !intermediateGKeys.get.contains(in))
-            i += 1
-          }
-        }
-
-        out.collect(output)
+    // set grouping set flags to output
+    if (intermediateGKeys.isDefined) {
+      var i = 0
+      while (i < groupingSetsMapping.length) {
+        val (in, out) = groupingSetsMapping(i)
+        output.setField(out, !intermediateGKeys.get.contains(in))
+        i += 1
       }
     }
+
+    out.collect(output)
   }
 }

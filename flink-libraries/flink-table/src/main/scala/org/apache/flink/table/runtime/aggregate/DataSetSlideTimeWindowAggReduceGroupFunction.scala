@@ -85,35 +85,28 @@ class DataSetSlideTimeWindowAggReduceGroupFunction(
 
     val iterator = records.iterator()
 
+    var record: Row = null
     while (iterator.hasNext) {
-      val record = iterator.next()
+      record = iterator.next()
+      function.mergeAccumulatorsPair(accumulators, record)
+    }
 
-      // accumulate
-      function.mergeAccumulatorsPairWithKeyOffset(accumulators, record)
+    val windowStart = record.getField(timeFieldPos).asInstanceOf[Long]
 
-      // trigger tumbling evaluation
-      if (!iterator.hasNext) {
-        val windowStart = record.getField(timeFieldPos).asInstanceOf[Long]
+    // adopted from SlidingEventTimeWindows.assignWindows
+    var start: Long = TimeWindow.getWindowStartWithOffset(windowStart, 0, windowSlide)
 
-        // adopted from SlidingEventTimeWindows.assignWindows
-        var start: Long = TimeWindow.getWindowStartWithOffset(windowStart, 0, windowSlide)
+    // skip preparing output if it is not necessary
+    if (start > windowStart - windowSize) {
 
-        // skip preparing output if it is not necessary
-        if (start > windowStart - windowSize) {
+      // set group keys and partial accumulated result
+      function.setForwardedFields(record, accumulators, intermediateRow)
 
-          // set group keys
-          function.setKeyToOutput(record, intermediateRow)
-
-          // set accumulators
-          function.copyAccumulatorsToBuffer(accumulators, intermediateRow)
-
-          // adopted from SlidingEventTimeWindows.assignWindows
-          while (start > windowStart - windowSize) {
-            intermediateRow.setField(intermediateWindowStartPos, start)
-            out.collect(intermediateRow)
-            start -= windowSlide
-          }
-        }
+      // adopted from SlidingEventTimeWindows.assignWindows
+      while (start > windowStart - windowSize) {
+        intermediateRow.setField(intermediateWindowStartPos, start)
+        out.collect(intermediateRow)
+        start -= windowSlide
       }
     }
   }
@@ -124,30 +117,17 @@ class DataSetSlideTimeWindowAggReduceGroupFunction(
     function.resetAccumulator(accumulators)
 
     val iterator = records.iterator()
-
+    var record: Row = null
     while (iterator.hasNext) {
-      val record = iterator.next()
-
-      function.mergeAccumulatorsPairWithKeyOffset(accumulators, record)
-
-      // check if this record is the last record
-      if (!iterator.hasNext) {
-
-        // set group keys
-        function.setKeyToOutput(record, intermediateRow)
-
-        // set accumulators
-        function.copyAccumulatorsToBuffer(accumulators, intermediateRow)
-
-        intermediateRow.setField(timeFieldPos, record.getField(timeFieldPos))
-
-        return intermediateRow
-      }
+      record = iterator.next()
+      function.mergeAccumulatorsPair(accumulators, record)
     }
+    // set group keys and partial accumulated result
+    function.setForwardedFields(record, accumulators, intermediateRow)
 
-    // this code path should never be reached as we return before the loop finishes
-    // we need this to prevent a compiler error
-    throw new IllegalArgumentException("Group is empty. This should never happen.")
+    intermediateRow.setField(timeFieldPos, record.getField(timeFieldPos))
+
+    intermediateRow
   }
 
   override def getProducedType: TypeInformation[Row] = {

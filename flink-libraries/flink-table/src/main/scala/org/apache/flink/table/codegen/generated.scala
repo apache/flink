@@ -68,6 +68,21 @@ case class GeneratedAggregationsFunction(
     code: String)
 
 /**
+  * Describes the helper flags for the code-gen of aggregate functions
+  *
+  * @param setResultsWithKeyOffset flag to indicate if the results in output row has an offset
+  * @param mergeWithKeyOffset      flag to indicate if the accumulators (for merge) in
+  *                                accumulator row has an offset
+  * @param accumulateWithKeyOffset flag to indicate if the accumulators (for accumulate) in
+  *                                accumulator row has an offset
+  */
+case class AggCodeGenCtrlParams(
+    setResultsWithKeyOffset: Boolean,
+    mergeWithKeyOffset: Boolean,
+    accumulateWithKeyOffset: Boolean
+)
+
+/**
   * Describes a generated [[InputFormat]].
   *
   * @param name class name of the generated input function.

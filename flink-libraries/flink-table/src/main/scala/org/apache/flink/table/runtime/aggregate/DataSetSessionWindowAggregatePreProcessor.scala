@@ -79,32 +79,6 @@ class DataSetSessionWindowAggregatePreProcessor(
     *
     */
   override def combine(records: Iterable[Row], out: Collector[Row]): Unit = {
-    preProcessing(records, out)
-  }
-
-  /**
-    * Divide window based on the rowtime
-    * (current'rowtime - previous’rowtime > gap), and then merge data (within a unified window)
-    * into an aggregate buffer.
-    *
-    * @param records  Intermediate aggregate Rows.
-    * @return Pre partition intermediate aggregate Row.
-    *
-    */
-  override def mapPartition(records: Iterable[Row], out: Collector[Row]): Unit = {
-    preProcessing(records, out)
-  }
-
-  /**
-    * Intermediate aggregate Rows, divide window based on the rowtime
-    * (current'rowtime - previous’rowtime > gap), and then merge data (within a unified window)
-    * into an aggregate buffer.
-    *
-    * @param records Intermediate aggregate Rows.
-    * @return PreProcessing intermediate aggregate Row.
-    *
-    */
-  private def preProcessing(records: Iterable[Row], out: Collector[Row]): Unit = {
 
     var windowStart: java.lang.Long = null
     var windowEnd: java.lang.Long = null
@@ -130,19 +104,32 @@ class DataSetSessionWindowAggregatePreProcessor(
           function.resetAccumulator(accumulators)
         } else {
           // set group keys to aggregateBuffer.
-          function.setKeyToOutput(record, aggregateBuffer)
+          function.setForwardedFields(record, null, aggregateBuffer)
         }
 
         windowStart = record.getField(rowTimeFieldPos).asInstanceOf[Long]
       }
 
-      function.mergeAccumulatorsPairWithKeyOffset(accumulators, record)
+      function.mergeAccumulatorsPair(accumulators, record)
 
       // the current rowtime is the last rowtime of the next calculation.
       windowEnd = currentRowTime + gap
     }
     // emit the merged data of the current window.
     doCollect(out, windowStart, windowEnd)
+  }
+
+  /**
+    * Divide window based on the rowtime
+    * (current'rowtime - previous’rowtime > gap), and then merge data (within a unified window)
+    * into an aggregate buffer.
+    *
+    * @param records  Intermediate aggregate Rows.
+    * @return Pre partition intermediate aggregate Row.
+    *
+    */
+  override def mapPartition(records: Iterable[Row], out: Collector[Row]): Unit = {
+    combine(records, out)
   }
 
   /**
@@ -159,7 +146,7 @@ class DataSetSessionWindowAggregatePreProcessor(
       windowStart: Long,
       windowEnd: Long): Unit = {
 
-    function.copyAccumulatorsToBuffer(accumulators, aggregateBuffer)
+    function.setForwardedFields(null, accumulators, aggregateBuffer)
 
     // intermediate Row WindowStartPos is rowtime pos.
     aggregateBuffer.setField(rowTimeFieldPos, windowStart)

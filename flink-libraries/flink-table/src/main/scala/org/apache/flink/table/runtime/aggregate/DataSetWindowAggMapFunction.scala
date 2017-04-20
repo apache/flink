@@ -61,16 +61,16 @@ class DataSetWindowAggMapFunction(
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
 
-    output = function.createOutputRow()
+    output = function.createAccumulators()
   }
 
   override def map(input: Row): Row = {
 
-    function.createAccumulatorsAndSetToOutput(output)
+    function.resetAccumulator(output)
 
-    function.accumulateWithKeyOffset(output, input)
+    function.accumulate(output, input)
 
-    function.setKeyToOutput(input, output)
+    function.setForwardedFields(input, null, output)
 
     val timeField = input.getField(timeFieldPos)
     val rowtime = getTimestamp(timeField)

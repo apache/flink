@@ -58,27 +58,16 @@ class DataSetSlideWindowAggReduceCombineFunction(
     function.resetAccumulator(accumulators)
 
     val iterator = records.iterator()
+    var record: Row = null
     while (iterator.hasNext) {
-      val record = iterator.next()
-
-      function.mergeAccumulatorsPairWithKeyOffset(accumulators, record)
-
-      // check if this record is the last record
-      if (!iterator.hasNext) {
-        // set group keys
-        function.setKeyToOutput(record, intermediateRow)
-
-        // set the partial accumulated result
-        function.copyAccumulatorsToBuffer(accumulators, intermediateRow)
-
-        intermediateRow.setField(windowStartPos, record.getField(windowStartPos))
-
-        return intermediateRow
-      }
+      record = iterator.next()
+      function.mergeAccumulatorsPair(accumulators, record)
     }
+    // set group keys and partial accumulated result
+    function.setForwardedFields(record, accumulators, intermediateRow)
 
-    // this code path should never be reached as we return before the loop finishes
-    // we need this to prevent a compiler error
-    throw new IllegalArgumentException("Group is empty. This should never happen.")
+    intermediateRow.setField(windowStartPos, record.getField(windowStartPos))
+
+    intermediateRow
   }
 }

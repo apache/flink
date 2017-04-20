@@ -63,6 +63,7 @@ class AggregateAggFunction(genAggregations: GeneratedAggregationsFunction)
       initFunction
     }
     function.mergeAccumulatorsPair(aAccumulatorRow, bAccumulatorRow)
+    aAccumulatorRow
   }
 
   def initFunction(): Unit = {

@@ -36,29 +36,14 @@ abstract class GeneratedAggregations extends Function {
   def setAggregationResults(accumulators: Row, output: Row)
 
   /**
-    * Calculates the results from accumulators, and set the results to the output (with key offset)
+    * Copies forwarded fields from input row (and sometimes also accumulators row) to output row.
     *
+    * @param input        input values bundled in a row
     * @param accumulators the accumulators (saved in a row) which contains the current
     *                     aggregated results
     * @param output       output results collected in a row
     */
-  def setAggregationResultsWithKeyOffset(accumulators: Row, output: Row)
-
-  /**
-    * Copies forwarded fields from input row to output row.
-    *
-    * @param input  input values bundled in a row
-    * @param output output results collected in a row
-    */
-  def setForwardedFields(input: Row, output: Row)
-
-  /**
-    * Copies the grouping keys from input row to output row.
-    *
-    * @param input  input row which contains the grouping keys
-    * @param output output row where the keys will be copied to
-    */
-  def setKeyToOutput(input: Row, output: Row)
+  def setForwardedFields(input: Row, accumulators: Row, output: Row)
 
   /**
     * Accumulate the input values to the accumulators
@@ -68,15 +53,6 @@ abstract class GeneratedAggregations extends Function {
     * @param input        input values bundled in a row
     */
   def accumulate(accumulators: Row, input: Row)
-
-  /**
-    * Accumulates the input values (with key offset) to the accumulators
-    *
-    * @param accumulators the accumulators (saved in a row) which contains the current
-    *                     aggregated results
-    * @param input        input values bundled in a row
-    */
-  def accumulateWithKeyOffset(accumulators: Row, input: Row)
 
   /**
     * Retract the input values from the accumulators
@@ -95,13 +71,6 @@ abstract class GeneratedAggregations extends Function {
   def createAccumulators(): Row
 
   /**
-    * Creates the accumulators, and set them to the output Row.
-    *
-    * @param output output row where the accumulators will be created and copied to
-    */
-  def createAccumulatorsAndSetToOutput(output: Row)
-
-  /**
     * Creates an output row object with the correct arity.
     *
     * @return an output row object with the correct arity.
@@ -111,20 +80,10 @@ abstract class GeneratedAggregations extends Function {
   /**
     * Merges two rows of accumulators into one row
     *
-    * @param a First row of accumulators
-    * @param b The other row of accumulators
-    * @return A row with the merged accumulators of both input rows.
+    * @param a first row of accumulators, merged result will be saved to this row
+    * @param b the other row of accumulators
     */
-  def mergeAccumulatorsPair(a: Row, b: Row): Row
-
-  /**
-    * Merges two rows of accumulators into one row
-    *
-    * @param a one input row
-    * @param b The other row where the first accumulator starts with a key offset
-    * @return A row with the merged accumulators of both input rows.
-    */
-  def mergeAccumulatorsPairWithKeyOffset(a: Row, b: Row): Row
+  def mergeAccumulatorsPair(a: Row, b: Row)
 
   /**
     * Resets all the accumulators in a row
@@ -133,13 +92,4 @@ abstract class GeneratedAggregations extends Function {
     *                     aggregated results
     */
   def resetAccumulator(accumulators: Row)
-
-  /**
-    * Copies the accumulators to the buffer row.
-    *
-    * @param accumulators the accumulators (saved in a row) which contains the current
-    *                     aggregated results
-    * @param buffer       a buffer which saves the intermediate results
-    */
-  def copyAccumulatorsToBuffer(accumulators: Row, buffer: Row)
 }

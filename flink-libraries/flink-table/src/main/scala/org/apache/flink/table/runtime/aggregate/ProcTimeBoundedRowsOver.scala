@@ -154,7 +154,7 @@ class ProcTimeBoundedRowsOver(
     }
 
     // copy forwarded fields in output row
-    function.setForwardedFields(input, output)
+    function.setForwardedFields(input, null, output)
 
     // accumulate current row and set aggregate in output row
     function.accumulate(accumulators, input)

@@ -72,26 +72,25 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
-    var last: Row = null
+    var record: Row = null
     val iterator = records.iterator()
 
     // reset accumulator
     function.resetAccumulator(accumulators)
 
     while (iterator.hasNext) {
-      val record = iterator.next()
-      function.mergeAccumulatorsPairWithKeyOffset(accumulators, record)
-      last = record
+      record = iterator.next()
+      function.mergeAccumulatorsPair(accumulators, record)
     }
 
     // set group keys value to final output.
-    function.setKeyToOutput(last, output)
+    function.setForwardedFields(record, null, output)
 
     // get final aggregate value and set to output.
-    function.setAggregationResultsWithKeyOffset(accumulators, output)
+    function.setAggregationResults(accumulators, output)
 
     // get window start timestamp
-    val startTs: Long = last.getField(keysAndAggregatesArity).asInstanceOf[Long]
+    val startTs: Long = record.getField(keysAndAggregatesArity).asInstanceOf[Long]
 
     // set collector and window
     collector.wrappedCollector = out

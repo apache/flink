@@ -166,7 +166,7 @@ class ProcTimeBoundedRangeOver(
       val input = currentElements.get(iElemenets)
 
       // set the fields of the last event to carry on with the aggregates
-      function.setForwardedFields(input, output)
+      function.setForwardedFields(input, null, output)
 
       // add the accumulators values to result
       function.setAggregationResults(accumulators, output)
