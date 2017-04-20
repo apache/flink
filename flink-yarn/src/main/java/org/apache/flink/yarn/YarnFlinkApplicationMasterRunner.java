@@ -97,13 +97,12 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	private RpcService commonRpcService;
 
 	@GuardedBy("lock")
-	private ResourceManager resourceManager;
-
-	@GuardedBy("lock")
 	private JobManagerRunner jobManagerRunner;
 
 	@GuardedBy("lock")
 	private JobGraph jobGraph;
+
+	private volatile ResourceManager resourceManager;
 
 	// ------------------------------------------------------------------------
 	//  Program entry point
