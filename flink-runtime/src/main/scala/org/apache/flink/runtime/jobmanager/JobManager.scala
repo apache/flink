@@ -356,7 +356,12 @@ class JobManager(
         msg.resourceManager() ! decorateMessage(new TriggerRegistrationAtJobManager(self))
         // try again after some delay
         context.system.scheduler.scheduleOnce(2 seconds) {
-          self ! decorateMessage(msg)
+          currentResourceManager match {
+            case None =>
+              self ! decorateMessage (msg)
+            case Some(rm) =>
+              log.info("Do not trigger Flink Resource Manager registration as it has done.")
+          }
         }(context.dispatcher)
       }
 
