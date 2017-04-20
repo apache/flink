@@ -43,9 +43,11 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardCopyOption;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -266,16 +268,19 @@ public class LocalFileSystem extends FileSystem {
 	public boolean rename(final Path src, final Path dst) throws IOException {
 		final File srcFile = pathToFile(src);
 		final File dstFile = pathToFile(dst);
-		//Files.move fails if the destination directory doesn't exist
-		if(dstFile.getParentFile()!= null && !dstFile.getParentFile().exists()){
-			dstFile.getParentFile().mkdirs();
-		}
+
+		final File dstParent = dstFile.getParentFile();
+
+		// Files.move fails if the destination directory doesn't exist
+		//noinspection ResultOfMethodCallIgnored -- we don't care if the directory existed or was created
+		dstParent.mkdirs();
+
 		try {
 			Files.move(srcFile.toPath(), dstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 			return true;
 		}
-		catch (FileAlreadyExistsException | DirectoryNotEmptyException | SecurityException ex) {
-			//Catch the errors that are regular "move failed" exceptions and return false
+		catch (NoSuchFileException | AccessDeniedException | DirectoryNotEmptyException | SecurityException ex) {
+			// catch the errors that are regular "move failed" exceptions and return false
 			return false;
 		}
 	}
