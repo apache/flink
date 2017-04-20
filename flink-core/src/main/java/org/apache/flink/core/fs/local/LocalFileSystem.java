@@ -20,7 +20,7 @@
 /**
  * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
  * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
- * additional information regarding copyright ownership. 
+ * additional information regarding copyright ownership.
  */
 
 package org.apache.flink.core.fs.local;
@@ -43,7 +43,10 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -190,7 +193,7 @@ public class LocalFileSystem extends FileSystem {
 
 	/**
 	 * Deletes the given file or directory.
-	 * 
+	 *
 	 * @param f
 	 *        the file to be deleted
 	 * @return <code>true</code> if all files were deleted successfully, <code>false</code> otherwise
@@ -217,12 +220,13 @@ public class LocalFileSystem extends FileSystem {
 
 	/**
 	 * Recursively creates the directory specified by the provided path.
-	 * 
+	 *
 	 * @return <code>true</code>if the directories either already existed or have been created successfully,
 	 *         <code>false</code> otherwise
 	 * @throws IOException
 	 *         thrown if an error occurred while creating the directory/directories
 	 */
+	@Override
 	public boolean mkdirs(final Path f) throws IOException {
 		final File p2f = pathToFile(f);
 
@@ -262,8 +266,18 @@ public class LocalFileSystem extends FileSystem {
 	public boolean rename(final Path src, final Path dst) throws IOException {
 		final File srcFile = pathToFile(src);
 		final File dstFile = pathToFile(dst);
-
-		return srcFile.renameTo(dstFile);
+		//Files.move fails if the destination directory doesn't exist
+		if(dstFile.getParentFile()!= null && !dstFile.getParentFile().exists()){
+			dstFile.getParentFile().mkdirs();
+		}
+		try {
+			Files.move(srcFile.toPath(), dstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			return true;
+		}
+		catch (FileAlreadyExistsException | DirectoryNotEmptyException | SecurityException ex) {
+			//Catch the errors that are regular "move failed" exceptions and return false
+			return false;
+		}
 	}
 
 	@Override
