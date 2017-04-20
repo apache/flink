@@ -27,8 +27,8 @@ under the License.
 
 ## Overview of Custom Logging with Apache Flink
 
-The standalone JobManager, TaskManager, HistoryServer, and ZooKeeper daemons by write `stdout` and `stderr` to files
-with a `.out` filename suffix and write internal logging to files with a `.log` suffix. Java options configured by the
+Each standalone JobManager, TaskManager, HistoryServer, and ZooKeeper daemon redirects `stdout` and `stderr` to a file
+with a `.out` filename suffix and writes internal logging to a file with a `.log` suffix. Java options configured by the
 user in `env.java.opts`, `env.java.opts.jobmanager`, and `env.java.opts.taskmanager` can likewise define log files with
 use of the script variable `LOG_PREFIX` and by enclosing the options in double quotes for late evaluation. Log files
 using `LOG_PREFIX` are rotated along with the default `.out` and `.log` files.
