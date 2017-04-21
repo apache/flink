@@ -132,6 +132,7 @@ class DynamicSchema extends TableFunction[Row] {
   override def getResultType(
       arguments: java.util.List[AnyRef],
       typeInfos: java.util.List[Class[_]]): TypeInformation[Row] = {
+    assert(typeInfos.get(1).isInstanceOf[Class[Integer]])
     val column = arguments.get(1).asInstanceOf[Int]
     val basicTypeInfos = Array.fill[TypeInformation[_]](column)(BasicTypeInfo.INT_TYPE_INFO)
     basicTypeInfos(0) = BasicTypeInfo.STRING_TYPE_INFO
@@ -163,6 +164,7 @@ class DynamicSchema0 extends TableFunction[Row] {
   override def getResultType(
       arguments: java.util.List[AnyRef],
       typeInfos: java.util.List[Class[_]]): TypeInformation[Row] = {
+    assert(typeInfos.get(1).isInstanceOf[Class[String]])
     val columnStr = arguments.get(1).asInstanceOf[String]
     val columns = columnStr.split(",")
 
@@ -191,6 +193,7 @@ class DynamicSchema1 extends TableFunction[Row] {
   override def getResultType(
       arguments: java.util.List[AnyRef],
       typeInfos: java.util.List[Class[_]]): TypeInformation[Row] = {
+    assert(typeInfos.get(0).isInstanceOf[Class[String]])
     val columnStr = arguments.get(0).asInstanceOf[String]
     columnStr match {
       case "string" => new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO)
@@ -225,38 +228,55 @@ class DynamicSchemaWithRexNodes extends TableFunction[Row] {
       arguments: util.List[AnyRef],
       typeInfos: util.List[Class[_]]): TypeInformation[Row] = {
     // Test for the transformRexNodes()
+    assert(typeInfos.get(0).isInstanceOf[Class[String]])
     val str = arguments.get(0).asInstanceOf[String]
     if (null != str) {
       throw new RuntimeException("The first column should be null")
     }
+
+    assert(typeInfos.get(1).isInstanceOf[Class[Int]])
     val i = arguments.get(1).asInstanceOf[Int]
     if (i <= 0) {
       throw new RuntimeException("The arguments should be greater than zero")
     }
+
+    assert(typeInfos.get(2).isInstanceOf[Class[Int]])
     val si = arguments.get(2).asInstanceOf[Int]
     if (si <= 0) {
       throw new RuntimeException("The arguments should be greater than zero")
     }
+
+    assert(typeInfos.get(3).isInstanceOf[Class[Int]])
     val bi = arguments.get(3).asInstanceOf[Int]
     if (bi <= 0) {
       throw new RuntimeException("The arguments should be greater than zero")
     }
+
+    assert(typeInfos.get(4).isInstanceOf[Class[Double]])
     val float = arguments.get(4).asInstanceOf[Double]
     if (float <= 0) {
       throw new RuntimeException("The arguments should be greater than zero")
     }
+
+    assert(typeInfos.get(5).isInstanceOf[Class[Double]])
     val real = arguments.get(5).asInstanceOf[Double]
     if (real <= 0) {
       throw new RuntimeException("The arguments should be greater than zero")
     }
+
+    assert(typeInfos.get(6).isInstanceOf[Class[Double]])
     val d = arguments.get(6).asInstanceOf[Double]
     if (d <= 0) {
       throw new RuntimeException("The arguments should be greater than zero")
     }
+
+    assert(typeInfos.get(7).isInstanceOf[Class[Boolean]])
     val b = arguments.get(7).asInstanceOf[Boolean]
     if (!b) {
       throw new RuntimeException("The arguments should be true")
     }
+
+    assert(typeInfos.get(8).isInstanceOf[Class[Timestamp]])
     val ts = arguments.get(8).asInstanceOf[Timestamp]
     if (ts.getTime <= 0) {
       throw new RuntimeException("The arguments should be greater than zero")

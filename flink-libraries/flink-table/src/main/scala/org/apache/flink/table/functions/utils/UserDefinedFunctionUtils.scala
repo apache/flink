@@ -382,7 +382,7 @@ object UserDefinedFunctionUtils {
       params: Expression*): TableFunctionCall = {
     val arguments = transformLiteralExpressions(params: _*)
     val classes = params.map { param =>
-      if (param.valid) param.resultType.getClass else AnyRef.getClass
+      if (param.valid) param.resultType.getTypeClass else AnyRef.getClass
     }
     val userDefinedResultType = tableFunction.getResultType(arguments, classes)
     val resultType = {
