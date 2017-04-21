@@ -284,7 +284,7 @@ public class NFACompiler {
 			if (currentPattern instanceof FollowedByPattern) {
 				State<T> ignoreState = createNormalState();
 				ignoreState.addTake(lastSink, currentFilterFunction);
-				ignoreState.addIgnore(BooleanConditions.<T>trueFunction());
+				ignoreState.addIgnore(trueFunction);
 				singletonState.addIgnore(ignoreState, trueFunction);
 			}
 			return singletonState;
@@ -333,7 +333,7 @@ public class NFACompiler {
 				} else {
 					ignoreState = singletonState;
 				}
-				singletonState.addIgnore(ignoreState, trueFunction);
+				singletonState.addIgnore(ignoreState, getIgnoreCondition(currentPattern));
 			}
 			return singletonState;
 		}

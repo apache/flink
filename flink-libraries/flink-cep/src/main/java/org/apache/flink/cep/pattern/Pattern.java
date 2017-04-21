@@ -218,7 +218,7 @@ public class Pattern<T, F extends T> {
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> optional() {
-		quantifier.makeOptional();
+		quantifier.optional();
 		return this;
 	}
 
@@ -258,8 +258,8 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
-	 * Applicable only to {@link Quantifier#ONE_OR_MORE()} patterns, this option
-	 * allows more flexibility to the matching events.
+	 * Applicable only to {@link Quantifier#ONE_OR_MORE()} and {@link Quantifier#TIMES()} patterns,
+	 * this option allows more flexibility to the matching events.
 	 *
 	 * <p>If {@code allowCombinations()} is not applied for a
 	 * pattern {@code A.oneOrMore().followedBy(B)} and a sequence of events
@@ -271,7 +271,7 @@ public class Pattern<T, F extends T> {
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> allowCombinations() {
-		quantifier.allowAllCombinations();
+		quantifier.combinations();
 		return this;
 	}
 
@@ -310,7 +310,7 @@ public class Pattern<T, F extends T> {
 	 * @return pattern with continuity changed to strict
 	 */
 	public Pattern<T, F> consecutive() {
-		quantifier.makeConsecutive();
+		quantifier.consecutive();
 		return this;
 	}
 
