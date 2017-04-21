@@ -35,6 +35,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
@@ -45,6 +46,7 @@ import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.google.common.collect.ImmutableList;
 import org.apache.cassandra.service.CassandraDaemon;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -53,20 +55,21 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.UUID;
-
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 
 import static org.junit.Assert.assertTrue;
 
@@ -83,11 +86,15 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 	private static EmbeddedCassandraService cassandra;
 
+	private static String HOST = "127.0.0.1";
+
+	private static int PORT = 9042;
+
 	private static ClusterBuilder builder = new ClusterBuilder() {
 		@Override
 		protected Cluster buildCluster(Cluster.Builder builder) {
 			return builder
-				.addContactPoint("127.0.0.1")
+				.addContactPoint(HOST)
 				.withQueryOptions(new QueryOptions().setConsistencyLevel(ConsistencyLevel.ONE).setSerialConsistencyLevel(ConsistencyLevel.LOCAL_SERIAL))
 				.withoutJMXReporting()
 				.withoutMetrics().build();
@@ -108,10 +115,16 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	private int tableID;
 
 	private static final ArrayList<Tuple3<String, Integer, Integer>> collection = new ArrayList<>(20);
+	private static final ArrayList<org.apache.flink.types.Row> rowCollection = new ArrayList<>(20);
+
+	private static final String[] FIELD_NAME = new String[] {"id, counter, batch_id"};
+	private static final TypeInformation[] FIELD_TYPES = new TypeInformation[] {BasicTypeInfo.STRING_TYPE_INFO,
+	BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO};
 
 	static {
 		for (int i = 0; i < 20; i++) {
 			collection.add(new Tuple3<>(UUID.randomUUID().toString(), i, 0));
+			rowCollection.add(org.apache.flink.types.Row.of(UUID.randomUUID().toString(), i, 0));
 		}
 	}
 
@@ -380,6 +393,20 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	}
 
 	@Test
+	public void testCassandraRowAtLeastOnceSink() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+
+		DataStreamSource<org.apache.flink.types.Row> source = env.fromCollection(rowCollection);
+		source.addSink(new CassandraRowSink(INSERT_DATA_QUERY, builder));
+
+		env.execute();
+
+		ResultSet rs = session.execute(SELECT_DATA_QUERY);
+		Assert.assertEquals(20, rs.all().size());
+	}
+
+	@Test
 	public void testCassandraPojoAtLeastOnceSink() throws Exception {
 		session.execute(CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, "test"));
 
@@ -394,6 +421,21 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		sink.close();
 
 		ResultSet rs = session.execute(SELECT_DATA_QUERY.replace(TABLE_NAME_VARIABLE, "test"));
+		Assert.assertEquals(20, rs.all().size());
+	}
+
+	@Test
+	public void testCassandraTableSink() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+
+		DataStreamSource<org.apache.flink.types.Row> source = env.fromCollection(rowCollection);
+		CassandraTableSink cassandraTableSink = new CassandraTableSink(ImmutableList.of(new InetSocketAddress(HOST, PORT)), INSERT_DATA_QUERY, FIELD_NAME, FIELD_TYPES, new Properties());
+
+		cassandraTableSink.emitDataStream(source);
+
+		env.execute();
+		ResultSet rs = session.execute(SELECT_DATA_QUERY);
 		Assert.assertEquals(20, rs.all().size());
 	}
 
