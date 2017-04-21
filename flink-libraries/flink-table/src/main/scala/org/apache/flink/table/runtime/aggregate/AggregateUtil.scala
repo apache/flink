@@ -48,6 +48,9 @@ import org.apache.flink.types.Row
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
+import java.util.ArrayList
+import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.codegen.GeneratedAggregationsFunction
 
 object AggregateUtil {
 
@@ -145,37 +148,82 @@ object AggregateUtil {
     isRowsClause: Boolean,
     isRowTimeType: Boolean): ProcessFunction[Row, Row] = {
 
-    val (aggFields, aggregates) =
+    val (allAggFields, allAggregates) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
         needRetraction = true)
 
-    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+   
     val inputRowType = FlinkTypeFactory.toInternalRowTypeInfo(inputType).asInstanceOf[RowTypeInfo]
-    
-    var hasDistinct = false
-    for( i <- 0 to distinctAggregatesFlags.size -1){
+    // create distinction between distinct and regular aggregations
+    val distinctAggregatesList = new ArrayList[AggregateFunction[_ <: Any]]()
+    val distinctAggFieldsList = new ArrayList[Array[Int]]()
+    val aggregatesList = new ArrayList[AggregateFunction[_ <: Any]]()
+    val aggFieldsList = new ArrayList[Array[Int]]()
+    var distCounter = 0
+    for(i <- 0 until allAggregates.size){
       if(distinctAggregatesFlags(i)){
-        hasDistinct = true
+        distinctAggregatesList.add(allAggregates(i))
+        distinctAggFieldsList.add(allAggFields(i))
+        distCounter += 1
+      }else {
+        aggregatesList.add(allAggregates(i))
+        aggFieldsList.add(allAggFields(i))
       }
+    } 
+    
+    val aggregates = new Array[AggregateFunction[_ <: Any]](aggregatesList.size)
+ 		val aggField = new Array[Array[Int]](aggregatesList.size) 
+    for(i <- 0 until aggregatesList.size){ 
+      aggregates(i) = aggregatesList.get(i)
+      aggField(i) = aggFieldsList.get(i)
     }
     
+    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+    // generate functions for regular aggregation
     val forwardMapping = (0 until inputType.getFieldCount).map(x => (x, x)).toArray
     val aggMapping = aggregates.indices.map(x => x + inputType.getFieldCount).toArray
     val outputArity = inputType.getFieldCount + aggregates.length
 
     val genFunction = generator.generateAggregations(
-      "BoundedOverAggregateHelper",
+      "BoundedOverRegularAggregateHelper",
       generator,
       inputType,
       aggregates,
-      aggFields,
+      aggField,
       aggMapping,
       forwardMapping,
       outputArity
     )
 
+    val genDistinctFunction = new Array[GeneratedAggregationsFunction](distCounter)
+    val distinctAggFields = new Array[Array[Int]](distCounter) 
+    for(i <- 0 until distCounter){ 
+      distinctAggFields(i) = distinctAggFieldsList.get(i)
+    }
+    val distinctAggregationStateTypes = new Array[RowTypeInfo](distCounter)
+    for(i <- 0 until distCounter){
+    	val distinctAggregates: Array[AggregateFunction[_]] = Array(distinctAggregatesList(i)) 
+    	val distinctAggField: Array[Array[Int]] = Array(distinctAggFieldsList(i))
+    	val limit = outputArity + i
+    	val distinctForwardMapping = (0 until limit).map(x => (x, x)).toArray
+      val distAggMapping = distinctAggregates.indices.map(x => x + limit).toArray
+      val distinctOutputArity = limit + i + distinctAggregates.length
+    	
+    	distinctAggregationStateTypes(i) = createAccumulatorRowType(distinctAggregates)
+    	
+      genDistinctFunction(i) = generator.generateAggregations(
+        "BoundedOverDistinctAggregateHelper"+i,
+        generator,
+        inputType,
+        distinctAggregates,
+        distinctAggField,
+        distAggMapping,
+        distinctForwardMapping,
+        distinctOutputArity)
+    }
+    
     if (isRowTimeType) {
       if (isRowsClause) {
         new RowTimeBoundedRowsOver(
@@ -194,21 +242,14 @@ object AggregateUtil {
       }
     } else {
       if (isRowsClause) {
-        if (hasDistinct){
-          new ProcTimeBoundedDistinctRowsOver(aggregates,
-            aggFields,
-            distinctAggregatesFlags,
-            precedingOffset,
-            inputType.getFieldCount,
-            aggregationStateType,
-            inputRowType)
-        } else {
           new ProcTimeBoundedRowsOver(
             genFunction,
+            genDistinctFunction,
+            distinctAggFields,
             precedingOffset,
             aggregationStateType,
+            distinctAggregationStateTypes,
             inputRowType)
-        }
       } else {
         new ProcTimeBoundedRangeOver(
           genFunction,
