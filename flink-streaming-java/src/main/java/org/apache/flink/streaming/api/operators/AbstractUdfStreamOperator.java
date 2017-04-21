@@ -154,12 +154,14 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 
 	@Override
 	public void restoreState(FSDataInputStream in) throws Exception {
+		boolean haveReadUdfStateFlag = false;
 		if (userFunction instanceof Checkpointed ||
-				(userFunction instanceof CheckpointedRestoring && in instanceof Migration)) {
+				(userFunction instanceof CheckpointedRestoring)) {
 			@SuppressWarnings("unchecked")
 			CheckpointedRestoring<Serializable> chkFunction = (CheckpointedRestoring<Serializable>) userFunction;
 
 			int hasUdfState = in.read();
+			haveReadUdfStateFlag = true;
 
 			if (hasUdfState == 1) {
 				Serializable functionState = InstantiationUtil.deserializeObject(in, getUserCodeClassloader());
@@ -171,7 +173,9 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 					}
 				}
 			}
-		} else if (in instanceof Migration) {
+		}
+
+		if (in instanceof Migration && !haveReadUdfStateFlag) {
 			// absorb the introduced byte from the migration stream without too much further consequences
 			int hasUdfState = in.read();
 			if (hasUdfState == 1) {
