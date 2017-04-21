@@ -165,6 +165,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * needs to be initialized to true, so that early cancel() before invoke() behaves correctly */
 	private volatile boolean isRunning;
 
+	/** Flag to mark that the task was initialized. */
+	private volatile boolean initialized;
+
 	/** Flag to mark this task as canceled */
 	private volatile boolean canceled;
 
@@ -230,6 +233,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			// task specific initialization
 			init();
+			initialized = true;
 
 			// save the work of reloading state, etc, if the task is already canceled
 			if (canceled) {
@@ -320,7 +324,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			// we must! perform this cleanup
 			try {
-				cleanup();
+				if (initialized) {
+					cleanup();
+				} else {
+					LOG.warn("Task was interrupted before it was initialized");
+				}
 			}
 			catch (Throwable t) {
 				// catch and log the exception to not replace the original exception
