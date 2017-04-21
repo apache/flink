@@ -21,7 +21,6 @@ package org.apache.flink.mesos.runtime.clusterframework;
 import com.netflix.fenzo.ConstraintEvaluator;
 import com.netflix.fenzo.functions.Func1;
 import com.netflix.fenzo.plugins.HostAttrValueConstraint;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
