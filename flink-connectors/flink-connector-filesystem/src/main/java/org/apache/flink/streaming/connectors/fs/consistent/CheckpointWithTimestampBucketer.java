@@ -61,6 +61,6 @@ public class CheckpointWithTimestampBucketer implements EventuallyConsistentBuck
 	@Override
 	public Path getEventualConsistencyPath(Path basePath, long checkpointId, long timestamp) {
 		String newDateTimeString = dateFormatter.format(new Date(timestamp));
-		return new Path(basePath + "/" + newDateTimeString + "/" + checkpointId);
+		return new Path(basePath, "/" + newDateTimeString + "/" + checkpointId);
 	}
 }

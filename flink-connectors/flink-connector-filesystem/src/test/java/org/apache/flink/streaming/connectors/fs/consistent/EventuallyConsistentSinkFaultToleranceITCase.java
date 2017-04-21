@@ -289,12 +289,4 @@ public class EventuallyConsistentSinkFaultToleranceITCase extends StreamFaultTol
 			this.index = state.get(0);
 		}
 	}
-
-	static class FineGrainedBucketer implements EventuallyConsistentBucketer {
-		@Override
-		// We need a very fine grained bucketer because this test checkpoints every 20 ms
-		public Path getEventualConsistencyPath(Path basePath, long checkpointId, long timestamp) {
-			return new Path(basePath, Long.toString(checkpointId) + "/" + Long.toString(timestamp));
-		}
-	}
 }
