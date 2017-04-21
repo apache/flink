@@ -35,19 +35,26 @@ import java.util.{List => JList}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
 import org.slf4j.LoggerFactory
+import org.apache.flink.table.functions.Accumulator
 
 /**
   * Process Function for ROW clause processing-time bounded OVER window
   *
-  * @param genAggregations      Generated aggregate helper function
-  * @param precedingOffset      preceding offset
-  * @param aggregatesTypeInfo   row type info of aggregation
-  * @param inputType            row type info of input row
+  * @param genAggregations              Generated aggregate helper function
+  * @param genDistinctAggregations      Generated aggregate helper function for distinct
+  * @param distictAggField              The fields to be aggregated as distinct
+  * @param precedingOffset              preceding offset
+  * @param aggregatesTypeInfo           row type info of aggregation
+  * @param distinctAggregationType      the types for distinct aggregations
+  * @param inputType                    row type info of input row
   */
 class ProcTimeBoundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
+    genDistinctAggregations: Array[GeneratedAggregationsFunction],
+    distinctAggField: Array[Array[Int]],
     precedingOffset: Long,
     aggregatesTypeInfo: RowTypeInfo,
+    distinctAggregationType: Array[RowTypeInfo],
     inputType: TypeInformation[Row])
   extends ProcessFunction[Row, Row]
     with Compiler[GeneratedAggregations] {
@@ -55,13 +62,16 @@ class ProcTimeBoundedRowsOver(
   Preconditions.checkArgument(precedingOffset > 0)
 
   private var accumulatorState: ValueState[Row] = _
+  private var distinctAccumulatorsState: Array[ValueState[Row]] = _
   private var rowMapState: MapState[Long, JList[Row]] = _
   private var output: Row = _
   private var counterState: ValueState[Long] = _
   private var smallestTsState: ValueState[Long] = _
+  private var distinctValueStateList: Array[MapState[Any, Long]] = _
 
   val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
+  private var distFunction: Array[GeneratedAggregations] = _
 
   override def open(config: Configuration) {
     LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
@@ -72,8 +82,32 @@ class ProcTimeBoundedRowsOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    
+    // initialize distint functions and state
+    distFunction = new Array[GeneratedAggregations](genDistinctAggregations.size)
+    distinctAccumulatorsState = new Array(genDistinctAggregations.size)
+    distinctValueStateList = new Array(genDistinctAggregations.size)
+    for(i <- 0 until genDistinctAggregations.size){
+      val distClazz = compile(
+        getRuntimeContext.getUserCodeClassLoader,
+        genDistinctAggregations(i).name,
+        genDistinctAggregations(i).code)
+      LOG.debug("Instantiating DistinctAggregateHelper-"+i+".")
+      distFunction(i) = distClazz.newInstance()
+      
+      val distinctValDescriptor = new MapStateDescriptor[Any, Long](
+                                         "distinctValuesBufferMapState" + i,
+                                         classOf[Any],
+                                         classOf[Long])
+      distinctValueStateList(i) = getRuntimeContext.getMapState(distinctValDescriptor)
+      
+      val distinctAggregationStateDescriptor: ValueStateDescriptor[Row] =
+        new ValueStateDescriptor[Row]("distinctAggregationState" + i, distinctAggregationType(i))
+      distinctAccumulatorsState(i) = getRuntimeContext.getState(distinctAggregationStateDescriptor)
+    }
+    
+    output = new Row(function.createOutputRow().getArity + distFunction.size)
 
-    output = function.createOutputRow()
     // We keep the elements received in a Map state keyed
     // by the ingestion time in the operator.
     // we also keep counter of processed elements
@@ -89,7 +123,8 @@ class ProcTimeBoundedRowsOver(
     val aggregationStateDescriptor: ValueStateDescriptor[Row] =
       new ValueStateDescriptor[Row]("aggregationState", aggregatesTypeInfo)
     accumulatorState = getRuntimeContext.getState(aggregationStateDescriptor)
-
+    
+    
     val processedCountDescriptor : ValueStateDescriptor[Long] =
        new ValueStateDescriptor[Long]("processedCountState", classOf[Long])
     counterState = getRuntimeContext.getState(processedCountDescriptor)
@@ -97,6 +132,7 @@ class ProcTimeBoundedRowsOver(
     val smallestTimestampDescriptor : ValueStateDescriptor[Long] =
        new ValueStateDescriptor[Long]("smallestTSState", classOf[Long])
     smallestTsState = getRuntimeContext.getState(smallestTimestampDescriptor)
+   
   }
 
   override def processElement(
@@ -111,7 +147,14 @@ class ProcTimeBoundedRowsOver(
     if (accumulators == null) {
       accumulators = function.createAccumulators()
     }
-
+    
+    val distinctAccumulators = new Array[Row](distFunction.size)
+    for(i <- 0 until distFunction.size){
+      distinctAccumulators(i) = distinctAccumulatorsState(i).value
+      if (distinctAccumulators(i) == null) {
+        distinctAccumulators(i) = distFunction(i).createAccumulators()
+      }
+    }
     // get smallest timestamp
     var smallestTs = smallestTsState.value
     if (smallestTs == 0L) {
@@ -129,6 +172,27 @@ class ProcTimeBoundedRowsOver(
       val retractRow = retractList.get(0)
       function.retract(accumulators, retractRow)
       retractList.remove(0)
+      
+      // check if distinct value should be retracted
+      for(i <- 0 until distFunction.size){
+        val retractVal = retractRow.getField(distinctAggField(i)(0))
+
+        var distinctValCounter: Long = distinctValueStateList(i).get(retractVal)
+        // if the value to be retract is the last one added
+        // the remove it and retract the value
+        if (distinctValCounter == 1L) {
+          distFunction(i).retract(distinctAccumulators(i), retractRow)
+          distinctValueStateList(i).remove(retractVal)
+          distinctAccumulatorsState(i).update(distinctAccumulators(i))
+        } // else if the are other values in the buffer 
+          // decrease the counter and continue
+        else {
+          distinctValCounter -= 1
+          distinctValueStateList(i).put(retractVal, distinctValCounter)
+        }
+      }
+      
+      
 
       // if reference timestamp list not empty, keep the list
       if (!retractList.isEmpty) {
@@ -159,6 +223,22 @@ class ProcTimeBoundedRowsOver(
     // accumulate current row and set aggregate in output row
     function.accumulate(accumulators, input)
     function.setAggregationResults(accumulators, output)
+    
+    for(i <- 0 until distFunction.size){
+      val inputValue = input.getField(distinctAggField(i)(0))
+      var distinctValCounter: Long = distinctValueStateList(i).get(inputValue)
+      // if counter is 0L, it is the first time we aggregate
+      // for this value and have therefore to accumulated
+      if (distinctValCounter == 0L) {
+        distFunction(i).accumulate(distinctAccumulators(i), input)
+        // we update the state just when it is updated for the specific accumulator
+        distinctAccumulatorsState(i).update(distinctAccumulators(i))
+      }
+      distinctValCounter += 1
+      distinctValueStateList(i).put(inputValue, distinctValCounter)
+      // set output result of each distint aggregation
+      distFunction(i).setAggregationResults(distinctAccumulators(i), output)
+    }
 
     // update map state, accumulator state, counter and timestamp
     val currentTimeState = rowMapState.get(currentTime)

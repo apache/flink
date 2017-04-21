@@ -37,6 +37,8 @@ import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.functions.{ProcTimeType, RowTimeType}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
+import java.util.HashMap
+import java.util.Map
 
 class DataStreamOverAggregate(
     logicWindow: Window,
@@ -91,6 +93,22 @@ class DataStreamOverAggregate(
 
     val overWindow: org.apache.calcite.rel.core.Window.Group = logicWindow.groups.get(0)
 
+    val distinctVarMap: Map[String,Boolean] = new HashMap[String, Boolean]
+    if (input.isInstanceOf[DataStreamCalc]) {
+      val dsCalc = input.asInstanceOf[DataStreamCalc]
+      val iter = dsCalc
+                 .selectionToString(dsCalc.getProgram, dsCalc.getExpressionString)
+                 .split(",")
+                 .iterator
+      while (iter.hasNext) {
+        val exp = iter.next
+        if(exp.contains("DIST")){
+          val varName = exp.substring(exp.indexOf("$"))
+           distinctVarMap.put(varName,true)
+        }
+      }
+    }
+    
     val orderKeys = overWindow.orderKeys.getFieldCollations
 
     if (orderKeys.size() != 1) {
@@ -133,6 +151,7 @@ class DataStreamOverAggregate(
           createBoundedAndCurrentRowOverWindow(
             generator,
             inputDS,
+            distinctVarMap,
             isRowTimeType = false,
             isRowsClause = overWindow.isRows
           )
@@ -156,6 +175,7 @@ class DataStreamOverAggregate(
           createBoundedAndCurrentRowOverWindow(
             generator,
             inputDS,
+            distinctVarMap,
             isRowTimeType = true,
             isRowsClause = overWindow.isRows
             )
@@ -224,6 +244,7 @@ class DataStreamOverAggregate(
   def createBoundedAndCurrentRowOverWindow(
     generator: CodeGenerator,
     inputDS: DataStream[Row],
+    distinctVarMap : Map[String,Boolean],
     isRowTimeType: Boolean,
     isRowsClause: Boolean): DataStream[Row] = {
 
@@ -231,6 +252,13 @@ class DataStreamOverAggregate(
     val partitionKeys: Array[Int] = overWindow.keys.toArray
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
 
+    val aggregateCalls = overWindow.getAggregateCalls(logicWindow)
+    val distinctAggFlags: Array[Boolean] =  new Array[Boolean](aggregateCalls.size)
+    for (i <- 0 until aggregateCalls.size()){
+      val aggParamName = "$" + namedAggregates(i).getKey.getArgList.get(0)
+      distinctAggFlags(i) = distinctVarMap.get(aggParamName)
+    }
+    
     val precedingOffset =
       getLowerBoundary(logicWindow, overWindow, getInput()) + (if (isRowsClause) 1 else 0)
 
@@ -240,6 +268,7 @@ class DataStreamOverAggregate(
     val processFunction = AggregateUtil.createBoundedOverProcessFunction(
       generator,
       namedAggregates,
+      distinctAggFlags,
       inputType,
       precedingOffset,
       isRowsClause,
