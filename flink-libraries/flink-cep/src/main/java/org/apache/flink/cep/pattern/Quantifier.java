@@ -37,27 +37,27 @@ public class Quantifier {
 	}
 
 	public static Quantifier TIMES() {
-		return new Quantifier(QuantifierProperty.TIMES);
+		return new Quantifier(QuantifierProperty.TIMES, QuantifierProperty.EAGER);
 	}
 
 	public boolean hasProperty(QuantifierProperty property) {
 		return properties.contains(property);
 	}
 
-	public void allowAllCombinations() {
-		if (!hasProperty(Quantifier.QuantifierProperty.EAGER)) {
+	public void combinations() {
+		if (!hasProperty(QuantifierProperty.SINGLE) && !hasProperty(Quantifier.QuantifierProperty.EAGER)) {
 			throw new MalformedPatternException("Combinations already allowed!");
 		}
 
-		if (hasProperty(Quantifier.QuantifierProperty.LOOPING)) {
+		if (hasProperty(Quantifier.QuantifierProperty.LOOPING) || hasProperty(Quantifier.QuantifierProperty.TIMES)) {
 			properties.remove(Quantifier.QuantifierProperty.EAGER);
 		} else {
 			throw new MalformedPatternException("Combinations not applicable to " + this + "!");
 		}
 	}
 
-	public void makeConsecutive() {
-		if (hasProperty(Quantifier.QuantifierProperty.CONSECUTIVE)) {
+	public void consecutive() {
+		if (!hasProperty(QuantifierProperty.SINGLE) && hasProperty(Quantifier.QuantifierProperty.CONSECUTIVE)) {
 			throw new MalformedPatternException("Strict continuity already applied!");
 		}
 
@@ -68,7 +68,7 @@ public class Quantifier {
 		}
 	}
 
-	public void makeOptional() {
+	public void optional() {
 		if (hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
 			throw new MalformedPatternException("Optional already applied!");
 		}

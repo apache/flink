@@ -253,8 +253,8 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   }
 
   /**
-    * Applicable only to [[Quantifier.ONE_OR_MORE()]] patterns, this option
-    * allows more flexibility to the matching events.
+    * Applicable only to [[Quantifier.ONE_OR_MORE()]] and [[Quantifier.TIMES()]] patterns,
+    * this option allows more flexibility to the matching events.
     *
     * If {{{allowCombinations()}}} is not applied for a
     * pattern {{{A.oneOrMore().followedBy(B)}}} and a sequence of events
