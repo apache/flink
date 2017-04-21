@@ -69,7 +69,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		} else if (metric instanceof Gauge) {
 			Gauge g = (Gauge) metric;
 			gauges.put(g, new DGauge(g, name, tags));
-		} else if(metric instanceof Meter) {
+		} else if (metric instanceof Meter) {
 			Meter m = (Meter) metric;
 			// Only consider rate
 			meters.put(m, new DMeter(m, name, tags));
@@ -115,14 +115,16 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	public void report() {
 		DatadogHttpRequest request = new DatadogHttpRequest();
 
-		for (DGauge g : gauges.values()) {
+		for d(Map.Entry<Gauge, DGauge> entry : gauges.entrySet()) {
+			DGauge g = entry.getValue();
 			try {
 				// Will throw exception if the Gauge is not of Number type
 				// Flink uses Gauge to store many types other than Number
 				g.getMetricValue();
 				request.addGauge(g);
 			} catch (Exception e) {
-				// ignore if the Gauge is not of Number type
+				// Remove that Gauge if it's not of Number type
+				gauges.remove(entry.getKey());
 			}
 		}
 

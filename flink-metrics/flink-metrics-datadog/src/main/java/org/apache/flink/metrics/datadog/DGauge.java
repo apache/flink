@@ -34,6 +34,10 @@ public class DGauge extends DMetric {
 		gauge = g;
 	}
 
+	/**
+	 * Visibility of this method must not be changed
+	 * since we deliberately not map it to json object in a Datadog-defined format
+	 * */
 	@Override
 	Number getMetricValue() {
 		return gauge.getValue();

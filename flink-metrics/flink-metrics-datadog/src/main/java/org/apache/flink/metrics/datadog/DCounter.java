@@ -33,6 +33,10 @@ public class DCounter extends DMetric {
 		counter = c;
 	}
 
+	/**
+	 * Visibility of this method must not be changed
+	 * since we deliberately not map it to json object in a Datadog-defined format
+	 * */
 	@Override
 	Number getMetricValue() {
 		return counter.getCount();

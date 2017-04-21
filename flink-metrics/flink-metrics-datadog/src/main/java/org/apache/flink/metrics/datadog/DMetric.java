@@ -65,6 +65,10 @@ public abstract class DMetric {
 		return points;
 	}
 
+	/**
+	 * Visibility of this method must not be changed
+	 * since we deliberately not map it to json object in a Datadog-defined format
+	 * */
 	abstract Number getMetricValue();
 
 	public static long getUnixEpochTimestamp() {

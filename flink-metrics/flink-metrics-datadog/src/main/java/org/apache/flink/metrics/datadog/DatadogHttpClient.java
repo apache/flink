@@ -45,10 +45,10 @@ public class DatadogHttpClient{
 	private final String apiKey;
 
 	public DatadogHttpClient(String dgApiKey) {
-		if(dgApiKey == null || dgApiKey.isEmpty()) {
-			throw new IllegalArgumentException(
-				"Invalid API key:" + dgApiKey);
+		if (dgApiKey == null || dgApiKey.isEmpty()) {
+			throw new IllegalArgumentException("Invalid API key:" + dgApiKey);
 		}
+
 		apiKey = dgApiKey;
 		client = new OkHttpClient.Builder()
 			.connectTimeout(TIMEOUT, TimeUnit.SECONDS)
