@@ -106,6 +106,9 @@ public class ListViaRangeSpeedMiniBenchmark {
 
 		final long endGet = System.nanoTime();
 
+		// WriteOptions and RocksDB ultimately extends AbstractNativeReference, so we need to close resource as well.
+		write_options.close();
+		rocksDB.close();
 		System.out.println("end get - duration: " + ((endGet - beginGet) / 1_000_000) + " ms");
 
 		// WriteOptions and RocksDB ultimately extends AbstractNativeReference, so we need to close resource as well.
