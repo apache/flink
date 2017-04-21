@@ -37,9 +37,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.TaskStateHandles;
-
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -110,9 +108,6 @@ public class CheckpointCoordinator {
 	/** Completed checkpoints. Implementations can be blocking. Make sure calls to methods
 	 * accessing this don't block the job manager actor and run asynchronously. */
 	private final CompletedCheckpointStore completedCheckpointStore;
-	
-	/** Registry for shared states */
-	private final SharedStateRegistry sharedStateRegistry;
 
 	/** Default directory for persistent checkpoints; <code>null</code> if none configured.
 	 * THIS WILL BE REPLACED BY PROPER STATE-BACKEND METADATA WRITING */
@@ -223,7 +218,6 @@ public class CheckpointCoordinator {
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
 		this.checkpointDirectory = checkpointDirectory;
 		this.executor = checkNotNull(executor);
-		this.sharedStateRegistry = new SharedStateRegistry();
 
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 
@@ -288,7 +282,7 @@ public class CheckpointCoordinator {
 				}
 				pendingCheckpoints.clear();
 
-				completedCheckpointStore.shutdown(jobStatus, sharedStateRegistry);
+				completedCheckpointStore.shutdown(jobStatus);
 				checkpointIdCounter.shutdown(jobStatus);
 			}
 		}
@@ -732,7 +726,7 @@ public class CheckpointCoordinator {
 								"the state handle to avoid lingering state.", message.getCheckpointId(),
 							message.getTaskExecutionId(), message.getJob());
 
-						discardState(message.getJob(), message.getTaskExecutionId(), message.getCheckpointId(), message.getSubtaskState());
+						discardSubtaskState(message.getJob(), message.getTaskExecutionId(), message.getCheckpointId(), message.getSubtaskState());
 
 						break;
 					case DISCARDED:
@@ -741,7 +735,7 @@ public class CheckpointCoordinator {
 								"state handle tp avoid lingering state.",
 							message.getCheckpointId(), message.getTaskExecutionId(), message.getJob());
 
-						discardState(message.getJob(), message.getTaskExecutionId(), message.getCheckpointId(), message.getSubtaskState());
+						discardSubtaskState(message.getJob(), message.getTaskExecutionId(), message.getCheckpointId(), message.getSubtaskState());
 				}
 
 				return true;
@@ -767,7 +761,7 @@ public class CheckpointCoordinator {
 				}
 
 				// try to discard the state so that we don't have lingering state lying around
-				discardState(message.getJob(), message.getTaskExecutionId(), message.getCheckpointId(), message.getSubtaskState());
+				discardSubtaskState(message.getJob(), message.getTaskExecutionId(), message.getCheckpointId(), message.getSubtaskState());
 
 				return wasPendingCheckpoint;
 			}
@@ -805,16 +799,16 @@ public class CheckpointCoordinator {
 	
 			// the pending checkpoint must be discarded after the finalization
 			Preconditions.checkState(pendingCheckpoint.isDiscarded() && completedCheckpoint != null);
-	
+
 			try {
-				completedCheckpointStore.addCheckpoint(completedCheckpoint, sharedStateRegistry);
+				completedCheckpointStore.addCheckpoint(completedCheckpoint);
 			} catch (Exception exception) {
 				// we failed to store the completed checkpoint. Let's clean up
 				executor.execute(new Runnable() {
 					@Override
 					public void run() {
 						try {
-							completedCheckpoint.discardOnFail();
+							completedCheckpoint.discardOnFailedStoring();
 						} catch (Throwable t) {
 							LOG.warn("Could not properly discard completed checkpoint {}.", completedCheckpoint.getCheckpointID(), t);
 						}
@@ -953,7 +947,7 @@ public class CheckpointCoordinator {
 			}
 
 			// Recover the checkpoints
-			completedCheckpointStore.recover(sharedStateRegistry);
+			completedCheckpointStore.recover();
 
 			// restore from the latest checkpoint
 			CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint();
@@ -1017,7 +1011,7 @@ public class CheckpointCoordinator {
 		CompletedCheckpoint savepoint = SavepointLoader.loadAndValidateSavepoint(
 				job, tasks, savepointPath, userClassLoader, allowNonRestored);
 
-		completedCheckpointStore.addCheckpoint(savepoint, sharedStateRegistry);
+		completedCheckpointStore.addCheckpoint(savepoint);
 		
 		// Reset the checkpoint ID counter
 		long nextCheckpointId = savepoint.getCheckpointID() + 1;
@@ -1057,10 +1051,11 @@ public class CheckpointCoordinator {
 	public CompletedCheckpointStore getCheckpointStore() {
 		return completedCheckpointStore;
 	}
-	
-	public SharedStateRegistry getSharedStateRegistry() {
-		return sharedStateRegistry;
-	}
+
+//	@VisibleForTesting
+//	SharedStateRegistry getSharedStateRegistry() {
+//		return sharedStateRegistry;
+//	}
 
 	public CheckpointIDCounter getCheckpointIdCounter() {
 		return checkpointIdCounter;
@@ -1151,7 +1146,7 @@ public class CheckpointCoordinator {
 	 * @param checkpointId of the state object
 	 * @param subtaskState to discard asynchronously
 	 */
-	private void discardState(
+	private void discardSubtaskState(
 			final JobID jobId,
 			final ExecutionAttemptID executionAttemptID,
 			final long checkpointId,
@@ -1161,12 +1156,6 @@ public class CheckpointCoordinator {
 			executor.execute(new Runnable() {
 				@Override
 				public void run() {
-					try {
-						subtaskState.discardSharedStatesOnFail();
-					} catch (Throwable t1) {
-						LOG.warn("Could not properly discard shared states of checkpoint {} " +
-							"belonging to task {} of job {}.", checkpointId, executionAttemptID, jobId, t1);
-					}
 
 					try {
 						subtaskState.discardState();

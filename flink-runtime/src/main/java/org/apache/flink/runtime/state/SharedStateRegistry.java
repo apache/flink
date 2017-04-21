@@ -18,13 +18,10 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,73 +30,78 @@ import java.util.Map;
  * {@link org.apache.flink.runtime.checkpoint.CheckpointCoordinator} to 
  * maintain the reference count of {@link SharedStateHandle}s which are shared
  * among different checkpoints.
+ *
  */
-public class SharedStateRegistry implements Serializable {
+public class SharedStateRegistry {
 
-	private static Logger LOG = LoggerFactory.getLogger(SharedStateRegistry.class);
+	private static final Logger LOG = LoggerFactory.getLogger(SharedStateRegistry.class);
 
-	private static final long serialVersionUID = -8357254413007773970L;
+	/** All registered state objects by an artificial key */
+	private final Map<String, SharedStateRegistry.SharedStateEntry> registeredStates;
 
-	/** All registered state objects */
-	private final Map<String, SharedStateEntry> registeredStates = new HashMap<>();
+	public SharedStateRegistry() {
+		this.registeredStates = new HashMap<>();
+	}
 
 	/**
-	 * Register the state in the registry
+	 * Register a reference to the given shared state in the registry. This increases the reference
+	 * count for the this shared state by one. Returns the reference count after the update.
 	 *
-	 * @param state The state to register
-	 * @param isNew True if the shared state is newly created
+	 * @param state the shared state for which we register a reference.
+	 * @return the updated reference count for the given shared state.
 	 */
-	public void register(SharedStateHandle state, boolean isNew) {
+	public int register(SharedStateHandle state) {
 		if (state == null) {
-			return;
+			return 0;
 		}
 
 		synchronized (registeredStates) {
-			SharedStateEntry entry = registeredStates.get(state.getKey());
+			SharedStateRegistry.SharedStateEntry entry =
+				registeredStates.get(state.getRegistrationKey());
 
-			if (isNew) {
-				Preconditions.checkState(entry == null,
-					"The state cannot be created more than once.");
-
-				registeredStates.put(state.getKey(), new SharedStateEntry(state));
+			if (entry == null) {
+				SharedStateRegistry.SharedStateEntry stateEntry =
+					new SharedStateRegistry.SharedStateEntry(state);
+				registeredStates.put(state.getRegistrationKey(), stateEntry);
+				return 1;
 			} else {
-				Preconditions.checkState(entry != null,
-					"The state cannot be referenced if it has not been created yet.");
-
 				entry.increaseReferenceCount();
+				return entry.getReferenceCount();
 			}
 		}
 	}
 
 	/**
-	 * Unregister the state in the registry
+	 * Unregister one reference to the given shared state in the registry. This decreases the
+	 * reference count by one. Once the count reaches zero, the shared state is deleted.
 	 *
-	 * @param state The state to unregister
+	 * @param state the shared state for which we unregister a reference.
+	 * @return the reference count for the shared state after the update.
 	 */
-	public void unregister(SharedStateHandle state) {
+	public int unregister(SharedStateHandle state) {
 		if (state == null) {
-			return;
+			return 0;
 		}
 
 		synchronized (registeredStates) {
-			SharedStateEntry entry = registeredStates.get(state.getKey());
+			SharedStateRegistry.SharedStateEntry entry = registeredStates.get(state.getRegistrationKey());
 
-			if (entry == null) {
-				throw new IllegalStateException("Cannot unregister an unexisted state.");
-			}
+			Preconditions.checkState(entry != null, "Cannot unregister a state that is not registered.");
 
 			entry.decreaseReferenceCount();
 
-			// Remove the state from the registry when it's not referenced any more.
-			if (entry.getReferenceCount() == 0) {
-				registeredStates.remove(state.getKey());
+			final int newReferenceCount = entry.getReferenceCount();
 
+			// Remove the state from the registry when it's not referenced any more.
+			if (newReferenceCount <= 0) {
+				registeredStates.remove(state.getRegistrationKey());
 				try {
 					entry.getState().discardState();
 				} catch (Exception e) {
-					LOG.warn("Cannot properly discard the state " + entry.getState() + ".", e);
+					LOG.warn("Cannot properly discard the state {}.", entry.getState(), e);
 				}
 			}
+			return newReferenceCount;
 		}
 	}
 
@@ -108,7 +110,7 @@ public class SharedStateRegistry implements Serializable {
 	 *
 	 * @param stateHandles The shared states to register.
 	 */
-	public void registerAll(Collection<? extends CompositeStateHandle> stateHandles) {
+	public void registerAll(Iterable<? extends CompositeStateHandle> stateHandles) {
 		if (stateHandles == null) {
 			return;
 		}
@@ -127,7 +129,7 @@ public class SharedStateRegistry implements Serializable {
 	 *
 	 * @param stateHandles The shared states to unregister.
 	 */
-	public void unregisterAll(Collection<? extends CompositeStateHandle> stateHandles) {
+	public void unregisterAll(Iterable<? extends CompositeStateHandle> stateHandles) {
 		if (stateHandles == null) {
 			return;
 		}
@@ -140,6 +142,7 @@ public class SharedStateRegistry implements Serializable {
 	}
 
 	private static class SharedStateEntry {
+
 		/** The shared object */
 		private final SharedStateHandle state;
 
@@ -168,10 +171,13 @@ public class SharedStateRegistry implements Serializable {
 		}
 	}
 
-
-	@VisibleForTesting
 	public int getReferenceCount(SharedStateHandle state) {
-		SharedStateEntry entry = registeredStates.get(state.getKey());
+		if (state == null) {
+			return 0;
+		}
+
+		SharedStateRegistry.SharedStateEntry entry =
+			registeredStates.get(state.getRegistrationKey());
 
 		return entry == null ? 0 : entry.getReferenceCount();
 	}

@@ -30,7 +30,6 @@ import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -255,7 +254,7 @@ public class CheckpointStateRestoreTest {
 		}
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(new JobID(), 0, 1, 2, new HashMap<>(checkpointTaskStates));
 
-		coord.getCheckpointStore().addCheckpoint(checkpoint, coord.getSharedStateRegistry());
+		coord.getCheckpointStore().addCheckpoint(checkpoint);
 
 		coord.restoreLatestCheckpointedState(tasks, true, false);
 		coord.restoreLatestCheckpointedState(tasks, true, true);
@@ -273,7 +272,7 @@ public class CheckpointStateRestoreTest {
 
 		checkpoint = new CompletedCheckpoint(new JobID(), 1, 2, 3, new HashMap<>(checkpointTaskStates));
 
-		coord.getCheckpointStore().addCheckpoint(checkpoint, coord.getSharedStateRegistry());
+		coord.getCheckpointStore().addCheckpoint(checkpoint);
 
 		// (i) Allow non restored state (should succeed)
 		coord.restoreLatestCheckpointedState(tasks, true, true);

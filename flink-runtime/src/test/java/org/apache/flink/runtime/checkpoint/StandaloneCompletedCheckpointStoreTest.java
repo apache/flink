@@ -30,6 +30,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.powermock.api.mockito.PowerMockito.doReturn;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -40,7 +41,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointStoreTest {
 
 	@Override
-	protected CompletedCheckpointStore createCompletedCheckpoints(
+	protected AbstractCompletedCheckpointStore createCompletedCheckpoints(
 			int maxNumberOfCheckpointsToRetain) throws Exception {
 
 		return new StandaloneCompletedCheckpointStore(maxNumberOfCheckpointsToRetain);
@@ -51,16 +52,15 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	 */
 	@Test
 	public void testShutdownDiscardsCheckpoints() throws Exception {
-		CompletedCheckpointStore store = createCompletedCheckpoints(1);
-		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+		AbstractCompletedCheckpointStore store = createCompletedCheckpoints(1);
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
 		Collection<TaskState> taskStates = checkpoint.getTaskStates().values();
 
-		store.addCheckpoint(checkpoint, sharedStateRegistry);
+		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
-		verifyCheckpointRegistered(taskStates, sharedStateRegistry);
+		verifyCheckpointRegistered(taskStates, store.sharedStateRegistry);
 
-		store.shutdown(JobStatus.FINISHED, sharedStateRegistry);
+		store.shutdown(JobStatus.FINISHED);
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertTrue(checkpoint.isDiscarded());
 		verifyCheckpointDiscarded(taskStates);
@@ -72,16 +72,15 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	 */
 	@Test
 	public void testSuspendDiscardsCheckpoints() throws Exception {
-		CompletedCheckpointStore store = createCompletedCheckpoints(1);
-		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+		AbstractCompletedCheckpointStore store = createCompletedCheckpoints(1);
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
 		Collection<TaskState> taskStates = checkpoint.getTaskStates().values();
 
-		store.addCheckpoint(checkpoint, sharedStateRegistry);
+		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
-		verifyCheckpointRegistered(taskStates, sharedStateRegistry);
+		verifyCheckpointRegistered(taskStates, store.sharedStateRegistry);
 
-		store.shutdown(JobStatus.SUSPENDED, sharedStateRegistry);
+		store.shutdown(JobStatus.SUSPENDED);
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertTrue(checkpoint.isDiscarded());
 		verifyCheckpointDiscarded(taskStates);
@@ -96,16 +95,15 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 		
 		final int numCheckpointsToRetain = 1;
 		CompletedCheckpointStore store = createCompletedCheckpoints(numCheckpointsToRetain);
-		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		
 		for (long i = 0; i <= numCheckpointsToRetain; ++i) {
 			CompletedCheckpoint checkpointToAdd = mock(CompletedCheckpoint.class);
 			doReturn(i).when(checkpointToAdd).getCheckpointID();
 			doReturn(Collections.emptyMap()).when(checkpointToAdd).getTaskStates();
-			doThrow(new IOException()).when(checkpointToAdd).discardOnSubsume(sharedStateRegistry);
+			doThrow(new IOException()).when(checkpointToAdd).discardOnSubsume(any(SharedStateRegistry.class));
 			
 			try {
-				store.addCheckpoint(checkpointToAdd, sharedStateRegistry);
+				store.addCheckpoint(checkpointToAdd);
 				
 				// The checkpoint should be in the store if we successfully add it into the store.
 				List<CompletedCheckpoint> addedCheckpoints = store.getAllCheckpoints();

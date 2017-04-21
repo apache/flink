@@ -20,14 +20,12 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats.DiscardCallback;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
-
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,7 +105,7 @@ public class CompletedCheckpoint implements Serializable {
 
 	/** Optional stats tracker callback for discard. */
 	@Nullable
-	private transient volatile DiscardCallback discardCallback;
+	private transient volatile CompletedCheckpointStats.DiscardCallback discardCallback;
 
 	// ------------------------------------------------------------------------
 
@@ -151,7 +149,7 @@ public class CompletedCheckpoint implements Serializable {
 		checkArgument((externalPointer == null) == (externalizedMetadata == null),
 				"external pointer without externalized metadata must be both null or both non-null");
 
-		checkArgument(!props.externalizeCheckpoint() || externalPointer != null, 
+		checkArgument(!props.externalizeCheckpoint() || externalPointer != null,
 			"Checkpoint properties require externalized checkpoint, but checkpoint is not externalized");
 
 		this.job = checkNotNull(job);
@@ -186,15 +184,14 @@ public class CompletedCheckpoint implements Serializable {
 		return props;
 	}
 
-	public void discardOnFail() throws Exception {
-		discard(null, true);
+	public void discardOnFailedStoring() throws Exception {
+		new UnstoredDiscardStategy().discard();
 	}
 
 	public boolean discardOnSubsume(SharedStateRegistry sharedStateRegistry) throws Exception {
-		Preconditions.checkNotNull(sharedStateRegistry, "The registry cannot be null.");
 
 		if (props.discardOnSubsumed()) {
-			discard(sharedStateRegistry, false);
+			new StoredDiscardStrategy(sharedStateRegistry).discard();
 			return true;
 		}
 
@@ -202,14 +199,13 @@ public class CompletedCheckpoint implements Serializable {
 	}
 
 	public boolean discardOnShutdown(JobStatus jobStatus, SharedStateRegistry sharedStateRegistry) throws Exception {
-		Preconditions.checkNotNull(sharedStateRegistry, "The registry cannot be null.");
 
 		if (jobStatus == JobStatus.FINISHED && props.discardOnJobFinished() ||
 				jobStatus == JobStatus.CANCELED && props.discardOnJobCancelled() ||
 				jobStatus == JobStatus.FAILED && props.discardOnJobFailed() ||
 				jobStatus == JobStatus.SUSPENDED && props.discardOnJobSuspended()) {
 
-			discard(sharedStateRegistry, false);
+			new StoredDiscardStrategy(sharedStateRegistry).discard();
 			return true;
 		} else {
 			if (externalPointer != null) {
@@ -218,53 +214,6 @@ public class CompletedCheckpoint implements Serializable {
 			}
 
 			return false;
-		}
-	}
-
-	private void discard(SharedStateRegistry sharedStateRegistry, boolean failed) throws Exception {
-		Preconditions.checkState(failed || (sharedStateRegistry != null),
-			"The registry must not be null if the complete checkpoint does not fail.");
-
-		try {
-			// collect exceptions and continue cleanup
-			Exception exception = null;
-
-			// drop the metadata, if we have some
-			if (externalizedMetadata != null) {
-				try {
-					externalizedMetadata.discardState();
-				} catch (Exception e) {
-					exception = e;
-				}
-			}
-
-			// In the cases where the completed checkpoint fails, the shared
-			// states have not been registered to the registry. It's the state
-			// handles' responsibility to discard their shared states.
-			if (!failed) {
-				unregisterSharedStates(sharedStateRegistry);
-			} else {
-				discardSharedStatesOnFail();
-			}
-
-			// discard private state objects
-			try {
-				StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			if (exception != null) {
-				throw exception;
-			}
-		} finally {
-			taskStates.clear();
-
-			// to be null-pointer safe, copy reference to stack
-			DiscardCallback discardCallback = this.discardCallback;
-			if (discardCallback != null) {
-				discardCallback.notifyDiscardedCheckpoint();
-			}
 		}
 	}
 
@@ -319,30 +268,108 @@ public class CompletedCheckpoint implements Serializable {
 		sharedStateRegistry.registerAll(taskStates.values());
 	}
 
-	/**
-	 * Unregister all shared states from the given registry. This is method is
-	 * called when the completed checkpoint is subsumed or the job terminates.
-	 *
-	 * @param sharedStateRegistry The registry where shared states are registered
-	 */
-	private void unregisterSharedStates(SharedStateRegistry sharedStateRegistry) {
-		sharedStateRegistry.unregisterAll(taskStates.values());
-	}
-
-	/**
-	 * Discard all shared states created in the checkpoint. This method is called
-	 * when the completed checkpoint fails to be added into the store.
-	 */
-	private void discardSharedStatesOnFail() throws Exception {
-		for (TaskState taskState : taskStates.values()) {
-			taskState.discardSharedStatesOnFail();
-		}
-	}
-
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
 		return String.format("Checkpoint %d @ %d for %s", checkpointID, timestamp, job);
+	}
+
+	/**
+	 * Base class for the discarding strategies of {@link CompletedCheckpoint}.
+	 */
+	private abstract class DiscardStrategy {
+
+		protected Exception storedException;
+
+		public DiscardStrategy() {
+			this.storedException = null;
+		}
+
+		public void discard() throws Exception {
+
+			try {
+				// collect exceptions and continue cleanup
+				storedException = null;
+
+				doDiscardExternalizedMetaData();
+				doDiscardSharedState();
+				doDiscardPrivateState();
+				doReportStoredExceptions();
+			} finally {
+				clearTaskStatesAndNotifyDiscardCompleted();
+			}
+		}
+
+		protected void doDiscardExternalizedMetaData() {
+			// drop the metadata, if we have some
+			if (externalizedMetadata != null) {
+				try {
+					externalizedMetadata.discardState();
+				} catch (Exception e) {
+					storedException = e;
+				}
+			}
+		}
+
+		protected void doDiscardPrivateState() {
+			// discard private state objects
+			try {
+				StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
+			} catch (Exception e) {
+				storedException = ExceptionUtils.firstOrSuppressed(e, storedException);
+			}
+		}
+
+		protected abstract void doDiscardSharedState();
+
+		protected void doReportStoredExceptions() throws Exception {
+			if (storedException != null) {
+				throw storedException;
+			}
+		}
+
+		protected void clearTaskStatesAndNotifyDiscardCompleted() {
+			taskStates.clear();
+			// to be null-pointer safe, copy reference to stack
+			CompletedCheckpointStats.DiscardCallback discardCallback =
+				CompletedCheckpoint.this.discardCallback;
+
+			if (discardCallback != null) {
+				discardCallback.notifyDiscardedCheckpoint();
+			}
+		}
+	}
+
+	/**
+	 * Discard all shared states created in the checkpoint. This strategy is applied
+	 * when the completed checkpoint fails to be added into the store.
+	 */
+	private class UnstoredDiscardStategy extends CompletedCheckpoint.DiscardStrategy {
+
+		@Override
+		protected void doDiscardSharedState() {
+			// nothing to do because we did not register any shared state yet. unregistered, new
+			// shared state is then still considered private state and deleted as part of
+			// doDiscardPrivateState().
+		}
+	}
+
+	/**
+	 * Unregister all shared states from the given registry. This is strategy is
+	 * applied when the completed checkpoint is subsumed or the job terminates.
+	 */
+	private class StoredDiscardStrategy extends CompletedCheckpoint.DiscardStrategy {
+
+		SharedStateRegistry sharedStateRegistry;
+
+		public StoredDiscardStrategy(SharedStateRegistry sharedStateRegistry) {
+			this.sharedStateRegistry = Preconditions.checkNotNull(sharedStateRegistry);
+		}
+
+		@Override
+		protected void doDiscardSharedState() {
+			sharedStateRegistry.unregisterAll(taskStates.values());
+		}
 	}
 }

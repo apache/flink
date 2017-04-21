@@ -35,5 +35,5 @@ public interface SharedStateHandle extends StateObject {
 	/**
 	 * Return the identifier of the shared state.
 	 */
-	String getKey();
+	String getRegistrationKey();
 }

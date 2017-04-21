@@ -161,11 +161,6 @@ public class SubtaskState implements CompositeStateHandle {
 	}
 
 	@Override
-	public void discardSharedStatesOnFail() {
-		// No shared states
-	}
-
-	@Override
 	public long getStateSize() {
 		return stateSize;
 	}

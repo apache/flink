@@ -18,12 +18,9 @@
 
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.runtime.checkpoint.AbstractCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.runtime.state.StateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +32,7 @@ import java.util.List;
  * A checkpoint store, which supports shutdown and suspend. You can use this to test HA
  * as long as the factory always returns the same store instance.
  */
-public class RecoverableCompletedCheckpointStore implements CompletedCheckpointStore {
+public class RecoverableCompletedCheckpointStore extends AbstractCompletedCheckpointStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RecoverableCompletedCheckpointStore.class);
 
@@ -44,7 +41,7 @@ public class RecoverableCompletedCheckpointStore implements CompletedCheckpointS
 	private final ArrayDeque<CompletedCheckpoint> suspended = new ArrayDeque<>(2);
 
 	@Override
-	public void recover(SharedStateRegistry sharedStateRegistry) throws Exception {
+	public void recover() throws Exception {
 		checkpoints.addAll(suspended);
 		suspended.clear();
 
@@ -54,7 +51,7 @@ public class RecoverableCompletedCheckpointStore implements CompletedCheckpointS
 	}
 
 	@Override
-	public void addCheckpoint(CompletedCheckpoint checkpoint, SharedStateRegistry sharedStateRegistry) throws Exception {
+	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
 		checkpoints.addLast(checkpoint);
 
 		checkpoint.registerSharedStates(sharedStateRegistry);
@@ -71,7 +68,7 @@ public class RecoverableCompletedCheckpointStore implements CompletedCheckpointS
 	}
 
 	@Override
-	public void shutdown(JobStatus jobStatus, SharedStateRegistry sharedStateRegistry) throws Exception {
+	public void shutdown(JobStatus jobStatus) throws Exception {
 		if (jobStatus.isGloballyTerminalState()) {
 			checkpoints.clear();
 			suspended.clear();
