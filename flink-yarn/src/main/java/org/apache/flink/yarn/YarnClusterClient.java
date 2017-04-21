@@ -71,7 +71,6 @@ public class YarnClusterClient extends ClusterClient {
 
 	private YarnClient yarnClient;
 
-	private Thread clientShutdownHook = new ClientShutdownHook();
 	private PollingThread pollingRunner;
 	private final Configuration hadoopConfig;
 	// (HDFS) location of the files required to run on YARN. Needed here to delete them on shutdown.
@@ -129,7 +128,6 @@ public class YarnClusterClient extends ClusterClient {
 		this.pollingRunner.setDaemon(true);
 		this.pollingRunner.start();
 
-		Runtime.getRuntime().addShutdownHook(clientShutdownHook);
 	}
 
 	/**
@@ -146,12 +144,6 @@ public class YarnClusterClient extends ClusterClient {
 		}
 
 		LOG.info("Disconnecting YarnClusterClient from ApplicationMaster");
-
-		try {
-			Runtime.getRuntime().removeShutdownHook(clientShutdownHook);
-		} catch (IllegalStateException e) {
-			// we are already in the shutdown hook
-		}
 
 		try {
 			pollingRunner.stopRunner();
@@ -354,12 +346,6 @@ public class YarnClusterClient extends ClusterClient {
 
 		if (!isConnected) {
 			throw new IllegalStateException("The cluster has been not been connected to the ApplicationMaster.");
-		}
-
-		try {
-			Runtime.getRuntime().removeShutdownHook(clientShutdownHook);
-		} catch (IllegalStateException e) {
-			// we are already in the shutdown hook
 		}
 
 		LOG.info("Sending shutdown request to the Application Master");
