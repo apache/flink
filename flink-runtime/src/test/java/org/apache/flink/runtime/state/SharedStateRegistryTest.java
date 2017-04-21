@@ -34,50 +34,20 @@ public class SharedStateRegistryTest {
 
 		// register one state
 		TestSharedState firstState = new TestSharedState("first");
-		sharedStateRegistry.register(firstState, true);
-		assertEquals(1, sharedStateRegistry.getReferenceCount(firstState));
+		assertEquals(1, sharedStateRegistry.register(firstState));
 
 		// register another state
 		TestSharedState secondState = new TestSharedState("second");
-		sharedStateRegistry.register(secondState, true);
-		assertEquals(1, sharedStateRegistry.getReferenceCount(secondState));
+		assertEquals(1, sharedStateRegistry.register(secondState));
 
 		// register the first state again
-		sharedStateRegistry.register(firstState, false);
-		assertEquals(2, sharedStateRegistry.getReferenceCount(firstState));
+		assertEquals(2, sharedStateRegistry.register(firstState));
 
 		// unregister the second state
-		sharedStateRegistry.unregister(secondState);
-		assertEquals(0, sharedStateRegistry.getReferenceCount(secondState));
+		assertEquals(0, sharedStateRegistry.unregister(secondState));
 
 		// unregister the first state
-		sharedStateRegistry.unregister(firstState);
-		assertEquals(1, sharedStateRegistry.getReferenceCount(firstState));
-	}
-
-	/**
-	 * Validate that registering a handle referencing uncreated state will throw exception
-	 */
-	@Test(expected = IllegalStateException.class)
-	public void testRegisterWithUncreatedReference() {
-		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-
-		// register one state
-		TestSharedState state = new TestSharedState("state");
-		sharedStateRegistry.register(state, false);
-	}
-
-	/**
-	 * Validate that registering duplicate creation of the same state will throw exception
-	 */
-	@Test(expected = IllegalStateException.class)
-	public void testRegisterWithDuplicateState() {
-		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-
-		// register one state
-		TestSharedState state = new TestSharedState("state");
-		sharedStateRegistry.register(state, true);
-		sharedStateRegistry.register(state, true);
+		assertEquals(1, sharedStateRegistry.unregister(firstState));
 	}
 
 	/**
@@ -100,7 +70,7 @@ public class SharedStateRegistryTest {
 		}
 
 		@Override
-		public String getKey() {
+		public String getRegistrationKey() {
 			return key;
 		}
 

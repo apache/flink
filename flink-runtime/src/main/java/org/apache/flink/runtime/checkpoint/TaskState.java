@@ -144,13 +144,6 @@ public class TaskState implements CompositeStateHandle {
 	}
 
 	@Override
-	public void discardSharedStatesOnFail() {
-		for (SubtaskState subtaskState : subtaskStates.values()) {
-			subtaskState.discardSharedStatesOnFail();
-		}
-	}
-
-	@Override
 	public long getStateSize() {
 		long result = 0L;
 

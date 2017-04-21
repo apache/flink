@@ -68,7 +68,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * checkpoints is consistent. Currently, after recovery we start out with only a single
  * checkpoint to circumvent those situations.
  */
-public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointStore {
+public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpointStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperCompletedCheckpointStore.class);
 
@@ -141,7 +141,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	 * that the history of checkpoints is consistent.
 	 */
 	@Override
-	public void recover(SharedStateRegistry sharedStateRegistry) throws Exception {
+	public void recover() throws Exception {
 		LOG.info("Recovering checkpoints from ZooKeeper.");
 
 		// Clear local handles in order to prevent duplicates on
@@ -192,7 +192,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	 * @param checkpoint Completed checkpoint to add.
 	 */
 	@Override
-	public void addCheckpoint(final CompletedCheckpoint checkpoint, final SharedStateRegistry sharedStateRegistry) throws Exception {
+	public void addCheckpoint(final CompletedCheckpoint checkpoint) throws Exception {
 		checkNotNull(checkpoint, "Checkpoint");
 		
 		final String path = checkpointIdToPath(checkpoint.getCheckpointID());
@@ -281,7 +281,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	}
 
 	@Override
-	public void shutdown(JobStatus jobStatus, SharedStateRegistry sharedStateRegistry) throws Exception {
+	public void shutdown(JobStatus jobStatus) throws Exception {
 		if (jobStatus.isGloballyTerminalState()) {
 			LOG.info("Shutting down");
 

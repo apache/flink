@@ -27,7 +27,6 @@ import org.apache.curator.utils.EnsurePath;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
-import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.TestLogger;
@@ -160,9 +159,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 			stateSotrage,
 			Executors.directExecutor());
 
-		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-
-		zooKeeperCompletedCheckpointStore.recover(sharedStateRegistry);
+		zooKeeperCompletedCheckpointStore.recover();
 
 		CompletedCheckpoint latestCompletedCheckpoint = zooKeeperCompletedCheckpointStore.getLatestCheckpoint();
 
@@ -227,16 +224,13 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 			stateSotrage,
 			Executors.directExecutor());
 
-		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-		
-		
 		for (long i = 0; i <= numCheckpointsToRetain; ++i) {
 			CompletedCheckpoint checkpointToAdd = mock(CompletedCheckpoint.class);
 			doReturn(i).when(checkpointToAdd).getCheckpointID();
 			doReturn(Collections.emptyMap()).when(checkpointToAdd).getTaskStates();
 			
 			try {
-				zooKeeperCompletedCheckpointStore.addCheckpoint(checkpointToAdd, sharedStateRegistry);
+				zooKeeperCompletedCheckpointStore.addCheckpoint(checkpointToAdd);
 				
 				// The checkpoint should be in the store if we successfully add it into the store.
 				List<CompletedCheckpoint> addedCheckpoints = zooKeeperCompletedCheckpointStore.getAllCheckpoints();

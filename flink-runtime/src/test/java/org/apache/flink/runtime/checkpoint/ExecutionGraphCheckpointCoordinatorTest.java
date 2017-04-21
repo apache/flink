@@ -31,17 +31,14 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
-import org.mockito.Matchers;
 
 import java.net.URL;
 import java.util.Collections;
 
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -62,7 +59,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 		graph.fail(new Exception("Test Exception"));
 
 		verify(counter, times(1)).shutdown(JobStatus.FAILED);
-		verify(store, times(1)).shutdown(eq(JobStatus.FAILED), any(SharedStateRegistry.class));
+		verify(store, times(1)).shutdown(eq(JobStatus.FAILED));
 	}
 
 	/**
@@ -79,7 +76,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 
 		// No shutdown
 		verify(counter, times(1)).shutdown(eq(JobStatus.SUSPENDED));
-		verify(store, times(1)).shutdown(eq(JobStatus.SUSPENDED), any(SharedStateRegistry.class));
+		verify(store, times(1)).shutdown(eq(JobStatus.SUSPENDED));
 	}
 
 	private ExecutionGraph createExecutionGraphAndEnableCheckpointing(

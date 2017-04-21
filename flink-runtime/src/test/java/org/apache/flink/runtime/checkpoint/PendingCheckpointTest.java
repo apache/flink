@@ -207,7 +207,6 @@ public class PendingCheckpointTest {
 		// execute asynchronous discard operation
 		executor.runQueuedCommands();
 		verify(state, times(1)).discardState();
-		verify(state, times(1)).discardSharedStatesOnFail();
 
 		// Abort error
 		Mockito.reset(state);
@@ -219,7 +218,6 @@ public class PendingCheckpointTest {
 		// execute asynchronous discard operation
 		executor.runQueuedCommands();
 		verify(state, times(1)).discardState();
-		verify(state, times(1)).discardSharedStatesOnFail();
 
 		// Abort expired
 		Mockito.reset(state);
@@ -231,7 +229,6 @@ public class PendingCheckpointTest {
 		// execute asynchronous discard operation
 		executor.runQueuedCommands();
 		verify(state, times(1)).discardState();
-		verify(state, times(1)).discardSharedStatesOnFail();
 
 		// Abort subsumed
 		Mockito.reset(state);
@@ -243,7 +240,6 @@ public class PendingCheckpointTest {
 		// execute asynchronous discard operation
 		executor.runQueuedCommands();
 		verify(state, times(1)).discardState();
-		verify(state, times(1)).discardSharedStatesOnFail();
 	}
 
 	/**

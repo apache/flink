@@ -28,16 +28,24 @@ package org.apache.flink.runtime.state;
  * received by the {@link org.apache.flink.runtime.checkpoint.CheckpointCoordinator}
  * and will be discarded when the checkpoint is discarded.
  * 
- * <p>The {@link SharedStateRegistry} is responsible for the discarding of the
- * shared states. The composite state handle should only delete those private
- * states in the {@link StateObject#discardState()} method.
+ * <p>The {@link SharedStateRegistry} is responsible for the discarding of registered
+ * shared states. Before their first registration through
+ * {@link #registerSharedStates(SharedStateRegistry)}, newly created shared state is still owned by
+ * this handle and considered as private state until it is registered for the first time. Registration
+ * transfers ownership to the {@link SharedStateRegistry}.
+ * The composite state handle should only delete all private states in the
+ * {@link StateObject#discardState()} method.
  */
 public interface CompositeStateHandle extends StateObject {
 
 	/**
-	 * Register both created and referenced shared states in the given
+	 * Register both newly created and already referenced shared states in the given
 	 * {@link SharedStateRegistry}. This method is called when the checkpoint
 	 * successfully completes or is recovered from failures.
+	 * <p>
+	 * After this is completed, newly created shared state is considered as published is no longer
+	 * owned by this handle. This means that it should no longer be deleted as part of calls to
+	 * {@link #discardState()}.
 	 *
 	 * @param stateRegistry The registry where shared states are registered.
 	 */
@@ -51,10 +59,4 @@ public interface CompositeStateHandle extends StateObject {
 	 * @param stateRegistry The registry where shared states are registered.
 	 */
 	void unregisterSharedStates(SharedStateRegistry stateRegistry);
-
-	/**
-	 * Discard all shared states created in this checkpoint. This method is
-	 * called when the checkpoint fails to complete.
-	 */
-	void discardSharedStatesOnFail() throws Exception;
 }

@@ -88,7 +88,6 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -880,8 +879,6 @@ public class CheckpointCoordinatorTest {
 			assertEquals(1, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// validate that all received subtask states in the first checkpoint have been discarded
-			verify(subtaskState1_1, times(1)).discardSharedStatesOnFail();
-			verify(subtaskState1_2, times(1)).discardSharedStatesOnFail();
 			verify(subtaskState1_1, times(1)).discardState();
 			verify(subtaskState1_2, times(1)).discardState();
 
@@ -907,7 +904,6 @@ public class CheckpointCoordinatorTest {
 			// send the last remaining ack for the first checkpoint. This should not do anything
 			SubtaskState subtaskState1_3 = mock(SubtaskState.class);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID3, checkpointId1, new CheckpointMetrics(), subtaskState1_3));
-			verify(subtaskState1_3, times(1)).discardSharedStatesOnFail();
 			verify(subtaskState1_3, times(1)).discardState();
 
 			coord.shutdown(JobStatus.FINISHED);
@@ -993,7 +989,6 @@ public class CheckpointCoordinatorTest {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// validate that the received states have been discarded
-			verify(subtaskState, times(1)).discardSharedStatesOnFail();
 			verify(subtaskState, times(1)).discardState();
 
 			// no confirm message must have been sent
@@ -1117,7 +1112,6 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, triggerAttemptId, checkpointId, new CheckpointMetrics(), triggerSubtaskState));
 
 		// verify that the subtask state has registered its shared states at the registry
-		verify(triggerSubtaskState, never()).discardSharedStatesOnFail();
 		verify(triggerSubtaskState, never()).discardState();
 
 		SubtaskState unknownSubtaskState = mock(SubtaskState.class);
@@ -1126,7 +1120,6 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, new ExecutionAttemptID(), checkpointId, new CheckpointMetrics(), unknownSubtaskState));
 
 		// we should discard acknowledge messages from an unknown vertex belonging to our job
-		verify(unknownSubtaskState, times(1)).discardSharedStatesOnFail();
 		verify(unknownSubtaskState, times(1)).discardState();
 
 		SubtaskState differentJobSubtaskState = mock(SubtaskState.class);
@@ -1135,7 +1128,6 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(new JobID(), new ExecutionAttemptID(), checkpointId, new CheckpointMetrics(), differentJobSubtaskState));
 
 		// we should not interfere with different jobs
-		verify(differentJobSubtaskState, never()).discardSharedStatesOnFail();
 		verify(differentJobSubtaskState, never()).discardState();
 
 		// duplicate acknowledge message for the trigger vertex
@@ -1143,7 +1135,6 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, triggerAttemptId, checkpointId, new CheckpointMetrics(), triggerSubtaskState));
 
 		// duplicate acknowledge messages for a known vertex should not trigger discarding the state
-		verify(triggerSubtaskState, never()).discardSharedStatesOnFail();
 		verify(triggerSubtaskState, never()).discardState();
 
 		// let the checkpoint fail at the first ack vertex
@@ -1153,7 +1144,6 @@ public class CheckpointCoordinatorTest {
 		assertTrue(pendingCheckpoint.isDiscarded());
 
 		// check that we've cleaned up the already acknowledged state
-		verify(triggerSubtaskState, times(1)).discardSharedStatesOnFail();
 		verify(triggerSubtaskState, times(1)).discardState();
 
 		SubtaskState ackSubtaskState = mock(SubtaskState.class);
@@ -1162,7 +1152,6 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, ackAttemptId2, checkpointId, new CheckpointMetrics(), ackSubtaskState));
 
 		// check that we also cleaned up this state
-		verify(ackSubtaskState, times(1)).discardSharedStatesOnFail();
 		verify(ackSubtaskState, times(1)).discardState();
 
 		// receive an acknowledge message from an unknown job
@@ -1170,7 +1159,6 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(new JobID(), new ExecutionAttemptID(), checkpointId, new CheckpointMetrics(), differentJobSubtaskState));
 
 		// we should not interfere with different jobs
-		verify(differentJobSubtaskState, never()).discardSharedStatesOnFail();
 		verify(differentJobSubtaskState, never()).discardState();
 
 		SubtaskState unknownSubtaskState2 = mock(SubtaskState.class);
@@ -1179,7 +1167,6 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, new ExecutionAttemptID(), checkpointId, new CheckpointMetrics(), unknownSubtaskState2));
 
 		// we should discard acknowledge messages from an unknown vertex belonging to our job
-		verify(unknownSubtaskState2, times(1)).discardSharedStatesOnFail();
 		verify(unknownSubtaskState2, times(1)).discardState();
 	}
 
@@ -2013,14 +2000,13 @@ public class CheckpointCoordinatorTest {
 		assertEquals(1, completedCheckpoints.size());
 
 		// shutdown the store
-		SharedStateRegistry sharedStateRegistry = coord.getSharedStateRegistry();
-		store.shutdown(JobStatus.SUSPENDED, sharedStateRegistry);
+		store.shutdown(JobStatus.SUSPENDED);
 
 		// All shared states should be unregistered once the store is shut down
 		for (CompletedCheckpoint completedCheckpoint : completedCheckpoints) {
 			for (TaskState taskState : completedCheckpoint.getTaskStates().values()) {
 				for (SubtaskState subtaskState : taskState.getStates()) {
-					verify(subtaskState, times(1)).unregisterSharedStates(sharedStateRegistry);
+					verify(subtaskState, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
 				}
 			}
 		}
@@ -2037,7 +2023,7 @@ public class CheckpointCoordinatorTest {
 		for (CompletedCheckpoint completedCheckpoint : completedCheckpoints) {
 			for (TaskState taskState : completedCheckpoint.getTaskStates().values()) {
 				for (SubtaskState subtaskState : taskState.getStates()) {
-					verify(subtaskState, times(2)).registerSharedStates(sharedStateRegistry);
+					verify(subtaskState, times(2)).registerSharedStates(any(SharedStateRegistry.class));
 				}
 			}
 		}
@@ -3150,8 +3136,7 @@ public class CheckpointCoordinatorTest {
 			Executors.directExecutor());
 
 		store.addCheckpoint(
-			new CompletedCheckpoint(new JobID(), 0, 0, 0, Collections.<JobVertexID, TaskState>emptyMap()),
-			coord.getSharedStateRegistry());
+			new CompletedCheckpoint(new JobID(), 0, 0, 0, Collections.<JobVertexID, TaskState>emptyMap()));
 
 		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
 		coord.setCheckpointStatsTracker(tracker);

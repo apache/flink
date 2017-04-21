@@ -506,16 +506,8 @@ public class PendingCheckpoint {
 						@Override
 						public void run() {
 
-							// discard the shared states that are created in the checkpoint
-							for (TaskState taskState : taskStates.values()) {
-								try {
-									taskState.discardSharedStatesOnFail();
-								} catch (Throwable t) {
-									LOG.warn("Could not properly dispose unreferenced shared states.");
-								}
-							}
-
-							// discard the private states
+							// discard the private states.
+							// unregistered shared states are still considered private at this point.
 							try {
 								StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
 							} catch (Throwable t) {
