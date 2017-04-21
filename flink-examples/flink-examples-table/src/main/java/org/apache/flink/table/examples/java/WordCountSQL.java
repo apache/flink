@@ -17,11 +17,11 @@
  */
 package org.apache.flink.table.examples.java;
 
-import org.apache.flink.table.api.Table;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.java.BatchTableEnvironment;
 
 /**
  * Simple example that shows how the Batch SQL API is used in Java.
