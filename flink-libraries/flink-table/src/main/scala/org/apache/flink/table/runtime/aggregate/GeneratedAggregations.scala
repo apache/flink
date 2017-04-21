@@ -27,7 +27,7 @@ import org.apache.flink.types.Row
 abstract class GeneratedAggregations extends Function {
 
   /**
-    * Calculate the results from accumulators, and set the results to the output
+    * Calculates the results from accumulators, and set the results to the output
     *
     * @param accumulators the accumulators (saved in a row) which contains the current
     *                     aggregated results
@@ -36,12 +36,14 @@ abstract class GeneratedAggregations extends Function {
   def setAggregationResults(accumulators: Row, output: Row)
 
   /**
-    * Copies forwarded fields from input row to output row.
+    * Copies forwarded fields from input row (and sometimes also accumulators row) to output row.
     *
-    * @param input  input values bundled in a row
-    * @param output output results collected in a row
+    * @param input        input values bundled in a row
+    * @param accumulators the accumulators (saved in a row) which contains the current
+    *                     aggregated results
+    * @param output       output results collected in a row
     */
-  def setForwardedFields(input: Row, output: Row)
+  def setForwardedFields(input: Row, accumulators: Row, output: Row)
 
   /**
     * Accumulate the input values to the accumulators
@@ -78,10 +80,16 @@ abstract class GeneratedAggregations extends Function {
   /**
     * Merges two rows of accumulators into one row
     *
-    * @param a First row of accumulators
-    * @param b The other row of accumulators
-    * @return A row with the merged accumulators of both input rows.
+    * @param a first row of accumulators, merged result will be saved to this row
+    * @param b the other row of accumulators
     */
-  def mergeAccumulatorsPair(a: Row, b: Row): Row
+  def mergeAccumulatorsPair(a: Row, b: Row)
 
+  /**
+    * Resets all the accumulators in a row
+    *
+    * @param accumulators the accumulators (saved in a row) which contains the current
+    *                     aggregated results
+    */
+  def resetAccumulator(accumulators: Row)
 }

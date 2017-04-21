@@ -178,7 +178,7 @@ class RowTimeBoundedRangeOver(
       dataListIndex = 0
       while (dataListIndex < inputs.size()) {
         aggregatesIndex = 0
-        function.setForwardedFields(inputs.get(dataListIndex), output)
+        function.setForwardedFields(inputs.get(dataListIndex), null, output)
         out.collect(output)
         dataListIndex += 1
       }

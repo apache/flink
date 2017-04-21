@@ -189,7 +189,7 @@ class RowTimeBoundedRowsOver(
         }
 
         // copy forwarded fields to output row
-        function.setForwardedFields(input, output)
+        function.setForwardedFields(input, null, output)
 
         // retract old row from accumulators
         if (null != retractRow) {
