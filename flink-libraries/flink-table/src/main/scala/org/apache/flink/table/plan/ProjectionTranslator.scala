@@ -19,8 +19,9 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{OverWindow, TableEnvironment}
+import org.apache.flink.table.api.{OverWindow, StreamTableEnvironment, TableEnvironment}
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions.{ProcTime, RowTime}
 import org.apache.flink.table.plan.logical.{LogicalNode, Project}
 
 import scala.collection.mutable
@@ -221,17 +222,48 @@ object ProjectionTranslator {
     projectList
   }
 
-  def translateOverWindows(
+  def resolveOverWindows(
       exprs: Seq[Expression],
-      overWindows: Array[OverWindow]): Seq[Expression] = {
+      overWindows: Array[OverWindow],
+      tEnv: TableEnvironment): Seq[Expression] = {
+
+    def resolveOverWindow(unresolvedCall: UnresolvedOverCall): Expression = {
+
+      val overWindow = overWindows.find(_.alias.equals(unresolvedCall.alias))
+      if (overWindow.isDefined) {
+        if (tEnv.isInstanceOf[StreamTableEnvironment]) {
+          val timeIndicator = overWindow.get.orderBy match {
+            case u: UnresolvedFieldReference if u.name.toLowerCase == "rowtime" =>
+              RowTime()
+            case u: UnresolvedFieldReference if u.name.toLowerCase == "proctime" =>
+              ProcTime()
+            case e: Expression => e
+          }
+          OverCall(
+            unresolvedCall.agg,
+            overWindow.get.partitionBy,
+            timeIndicator,
+            overWindow.get.preceding,
+            overWindow.get.following)
+        } else {
+          OverCall(
+            unresolvedCall.agg,
+            overWindow.get.partitionBy,
+            overWindow.get.orderBy,
+            overWindow.get.preceding,
+            overWindow.get.following)
+        }
+      } else {
+        unresolvedCall
+      }
+    }
+
     val projectList = new ListBuffer[Expression]
     exprs.foreach {
-      case Alias(OverCall(agg, alias, _), name, _) =>
-        val overWindow = overWindows.find(_.alias.equals(alias)).get
-        projectList += Alias(OverCall(agg, alias, overWindow), name)
-      case OverCall(agg, alias, _) =>
-        val overWindow = overWindows.find(_.alias.equals(alias)).get
-        projectList += OverCall(agg, alias, overWindow)
+      case Alias(u: UnresolvedOverCall, name, _) =>
+        projectList += Alias(resolveOverWindow(u), name)
+      case u: UnresolvedOverCall =>
+        projectList += resolveOverWindow(u)
       case e: Expression => projectList += e
     }
     projectList

@@ -18,20 +18,87 @@
 package org.apache.flink.table.api.scala.stream.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
+import org.apache.flink.table.api.scala.stream.table.OverWindowTest.Pojo
 
 class OverWindowTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
   val table = streamUtil.addTable[(Int, String, Long)]("MyTable", 'a, 'b, 'c)
 
+  @Test(expected = classOf[ValidationException])
+  def testInvalidWindowAlias(): Unit = {
+    val result = table
+      .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows as 'w)
+      .select('c, 'b.count over 'x)
+    streamUtil.tEnv.optimize(result.getRelNode)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testOrderBy(): Unit = {
+    val result = table
+      .window(Over partitionBy 'c orderBy 'abc preceding 2.rows as 'w)
+      .select('c, 'b.count over 'w)
+    streamUtil.tEnv.optimize(result.getRelNode)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testPrecedingAndFollowingUsingIsLiteral(): Unit = {
+    val result = table
+      .window(Over partitionBy 'c orderBy 'rowtime preceding 2 following "xx" as 'w)
+      .select('c, 'b.count over 'w)
+    streamUtil.tEnv.optimize(result.getRelNode)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testPrecedingAndFollowingUsingSameType(): Unit = {
+    val result = table
+      .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_RANGE as 'w)
+      .select('c, 'b.count over 'w)
+    streamUtil.tEnv.optimize(result.getRelNode)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testPartitionByWithUnresolved(): Unit = {
+    val result = table
+      .window(Over partitionBy 'a + 'b orderBy 'rowtime preceding 2.rows as 'w)
+      .select('c, 'b.count over 'w)
+    streamUtil.tEnv.optimize(result.getRelNode)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testPartitionByWithNotKeyType(): Unit = {
+    val table2 = streamUtil.addTable[(Int, String, Either[Long, String])]("MyTable2", 'a, 'b, 'c)
+
+    val result = table2
+      .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows as 'w)
+      .select('c, 'b.count over 'w)
+    streamUtil.tEnv.optimize(result.getRelNode)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testPrecedingValue(): Unit = {
+    val result = table
+      .window(Over orderBy 'rowtime preceding -1.rows as 'w)
+      .select('c, 'b.count over 'w)
+    streamUtil.tEnv.optimize(result.getRelNode)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testFollowingValue(): Unit = {
+    val result = table
+      .window(Over orderBy 'rowtime preceding 1.rows following -2.rows as 'w)
+      .select('c, 'b.count over 'w)
+    streamUtil.tEnv.optimize(result.getRelNode)
+  }
+
   @Test
   def testProcTimeBoundedPartitionedRowsOver() = {
     val result = table
-      .window(
-        Over partitionBy 'c orderBy 'proctime preceding 2.rows following CURRENT_ROW as 'w)
+      .window(Over partitionBy 'c orderBy 'proctime preceding 2.rows following CURRENT_ROW as 'w)
       .select('c, 'b.count over 'w)
 
     val expected =
@@ -523,4 +590,8 @@ class OverWindowTest extends TableTestBase {
     streamUtil.verifyTable(result, expected)
   }
 
+}
+
+object OverWindowTest{
+  case class Pojo(id:Long, name:String)
 }

@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.stream.table.OverWindowITCase.{RowTimeSourceFunction}
+import org.apache.flink.table.api.scala.stream.table.OverWindowITCase.RowTimeSourceFunction
 import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -60,7 +60,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val windowedTable = table
       .window(
-        Over partitionBy 'c orderBy 'procTime preceding UNBOUNDED_ROW as 'w)
+        Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
       .select('c, 'b.count over 'w as 'mycount)
       .select('c, 'mycount)
 

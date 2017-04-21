@@ -22,12 +22,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical.Minus
-import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Literal, Ordering, TableFunctionCall, UnresolvedAlias}
+import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Ordering, TableFunctionCall, UnresolvedAlias}
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.sinks.TableSink
 
 import _root_.scala.collection.JavaConverters._
+import _root_.scala.annotation.varargs
 
 /**
   * A Table is the core component of the Table API.
@@ -834,6 +835,7 @@ class Table(
     *                    computed.
     * @return An OverWindowedTable to specify the aggregations.
     */
+  @varargs
   def window(overWindows: OverWindow*): OverWindowedTable = {
 
     if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
@@ -975,7 +977,7 @@ class OverWindowedTable(
       table.logicalPlan,
       table.tableEnv)
 
-    val expandedOverFields = translateOverWindows(expandedFields, overWindows)
+    val expandedOverFields = resolveOverWindows(expandedFields, overWindows, table.tableEnv)
 
     new Table(
       table.tableEnv,

@@ -18,29 +18,54 @@
 
 package org.apache.flink.table.api
 
-import org.apache.flink.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical._
-import org.apache.flink.table.typeutils.RowIntervalTypeInfo
+import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 import org.apache.flink.table.api.scala.{CURRENT_RANGE, CURRENT_ROW}
 
 /**
   * Over window is similar to the traditional OVER SQL.
   */
 case class OverWindow(
-    alias: Expression,
-    partitionBy: Seq[Expression],
-    orderBy: Expression,
-    preceding: Expression,
-    following: Expression)
+    private[flink] val alias: Expression,
+    private[flink] val partitionBy: Seq[Expression],
+    private[flink] val orderBy: Expression,
+    private[flink] val preceding: Expression,
+    private[flink] val following: Expression)
+
+case class CurrentRow() extends Expression {
+  override private[flink] def resultType = RowIntervalTypeInfo.INTERVAL_ROWS
+  override private[flink] def children = Seq()
+  override def toString = "CURRENT ROW"
+}
+
+case class CurrentRange() extends Expression {
+  override private[flink] def resultType = TimeIntervalTypeInfo.INTERVAL_MILLIS
+  override private[flink] def children = Seq()
+  override def toString = "CURRENT RANGE"
+}
+
+case class UnboundedRow() extends Expression {
+  override private[flink] def resultType = RowIntervalTypeInfo.INTERVAL_ROWS
+  override private[flink] def children = Seq()
+  override def toString = "UNBOUNDED ROW"
+}
+
+case class UnboundedRange() extends Expression {
+  override private[flink] def resultType = TimeIntervalTypeInfo.INTERVAL_MILLIS
+  override private[flink] def children = Seq()
+  override def toString = "UNBOUNDED RANGE"
+}
 
 /**
   * An over window predefined  specification.
   */
-class OverWindowPredefined {
-  private[flink] var partitionBy: Seq[Expression] = Seq[Expression]()
-  private[flink] var orderBy: Expression = _
+class OverWindowPredefined(
+    private val partitionBy: Seq[Expression],
+    private val orderBy: Expression) {
+
   private[flink] var preceding: Expression = _
-  private[flink] var following: Expression = null
+  private[flink] var following: Expression = _
 
   /**
     * Assigns an alias for this window that the following `select()` clause can refer to.
@@ -58,8 +83,7 @@ class OverWindowPredefined {
     */
   def as(alias: Expression): OverWindow = {
 
-    // we want return the complete OverWindow,
-    // so we check the Optional members (`following` and `pratitionBy`) value here
+    // set following to CURRENT_ROW / CURRENT_RANGE if not defined
     if (null == following) {
       if (preceding.resultType.isInstanceOf[RowIntervalTypeInfo]) {
         following = CURRENT_ROW
@@ -71,54 +95,9 @@ class OverWindowPredefined {
   }
 
   /**
-    * Partitions the elements on some partition keys.
+    * Set the preceding offset (based on time or row-count intervals) for over window.
     *
-    * @param partitionBy
-    * @return this over window
-    */
-  def partitionBy(partitionBy: String): OverWindowPredefined = {
-    this.partitionBy(ExpressionParser.parseExpression(partitionBy))
-  }
-
-  /**
-    * Partitions the elements on some partition keys.
-    *
-    * @param partitionBy
-    * @return this over window
-    */
-  def partitionBy(partitionBy: Expression*): OverWindowPredefined = {
-    this.partitionBy = partitionBy
-    this
-  }
-
-
-  /**
-    * Specifies the time mode.
-    *
-    * @param orderBy For streaming tables call [[orderBy 'rowtime or orderBy 'proctime]]
-    *                to specify time mode.
-    * @return this over window
-    */
-  def orderBy(orderBy: String): OverWindowPredefined = {
-    this.orderBy(ExpressionParser.parseExpression(orderBy))
-  }
-
-  /**
-    * Specifies the time mode.
-    *
-    * @param orderBy For streaming tables call [[orderBy 'rowtime or orderBy 'proctime]]
-    *                to specify time mode.
-    * @return this over window
-    */
-  def orderBy(orderBy: Expression): OverWindowPredefined = {
-    this.orderBy = orderBy
-    this
-  }
-
-  /**
-    * Set the preceding offset (based on time or row-count intervals) for over window
-    *
-    * @param preceding forward offset that relative to the current row
+    * @param preceding preceding offset relative to the current row.
     * @return this over window
     */
   def preceding(preceding: String): OverWindowPredefined = {
@@ -126,9 +105,9 @@ class OverWindowPredefined {
   }
 
   /**
-    * Set the preceding offset (based on time or row-count intervals) for over window
+    * Set the preceding offset (based on time or row-count intervals) for over window.
     *
-    * @param preceding forward offset that relative to the current row
+    * @param preceding preceding offset relative to the current row.
     * @return this over window
     */
   def preceding(preceding: Expression): OverWindowPredefined = {
@@ -137,9 +116,9 @@ class OverWindowPredefined {
   }
 
   /**
-    * Set the following offset (based on time or row-count intervals) for over window
+    * Set the following offset (based on time or row-count intervals) for over window.
     *
-    * @param following subsequent offset that relative to the current row
+    * @param following following offset that relative to the current row.
     * @return this over window
     */
   def following(following: String): OverWindowPredefined = {
@@ -147,9 +126,9 @@ class OverWindowPredefined {
   }
 
   /**
-    * Set the following offset (based on time or row-count intervals) for over window
+    * Set the following offset (based on time or row-count intervals) for over window.
     *
-    * @param following subsequent offset that relative to the current row
+    * @param following following offset that relative to the current row.
     * @return this over window
     */
   def following(following: Expression): OverWindowPredefined = {
