@@ -26,7 +26,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, PrimitiveArrayTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
@@ -119,6 +119,9 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
     case pa: PrimitiveArrayTypeInfo[_] =>
       new ArrayRelDataType(pa, createTypeFromTypeInfo(pa.getComponentType), false)
+
+    case ba: BasicArrayTypeInfo[_, _] =>
+      new ArrayRelDataType(ba, createTypeFromTypeInfo(ba.getComponentInfo), true)
 
     case oa: ObjectArrayTypeInfo[_, _] =>
       new ArrayRelDataType(oa, createTypeFromTypeInfo(oa.getComponentInfo), true)

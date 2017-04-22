@@ -103,6 +103,7 @@ object FlinkRuleSets {
     FlinkLogicalOverWindow.CONVERTER,
     FlinkLogicalCalc.CONVERTER,
     FlinkLogicalCorrelate.CONVERTER,
+    FlinkLogicalUncollect.CONVERTER,
     FlinkLogicalIntersect.CONVERTER,
     FlinkLogicalJoin.CONVERTER,
     FlinkLogicalMinus.CONVERTER,
@@ -180,6 +181,7 @@ object FlinkRuleSets {
     DataStreamUnionRule.INSTANCE,
     DataStreamValuesRule.INSTANCE,
     DataStreamCorrelateRule.INSTANCE,
+    DataStreamCorrelateUnnestRule.INSTANCE,
     StreamTableSourceScanRule.INSTANCE
   )
 

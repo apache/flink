@@ -65,7 +65,9 @@ object TypeCheckUtils {
   def isInteger(dataType: TypeInformation[_]): Boolean = dataType == INT_TYPE_INFO
 
   def isArray(dataType: TypeInformation[_]): Boolean = dataType match {
-    case _: ObjectArrayTypeInfo[_, _] | _: PrimitiveArrayTypeInfo[_] => true
+    case _: ObjectArrayTypeInfo[_, _]
+         | _: PrimitiveArrayTypeInfo[_]
+         | _: BasicArrayTypeInfo[_, _] => true
     case _ => false
   }
 
