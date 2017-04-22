@@ -36,7 +36,7 @@ import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
 import org.apache.calcite.tools._
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{AtomicType, BasicArrayTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
@@ -844,6 +844,7 @@ object TableEnvironment {
 
     val fieldNames: Array[String] = inputType match {
       case t: CompositeType[_] => t.getFieldNames
+      case bati: BasicArrayTypeInfo[_, _] => Array("array0")
       case a: AtomicType[_] => Array("f0")
       case tpe =>
         throw new TableException(s"Currently only CompositeType and AtomicType are supported. " +

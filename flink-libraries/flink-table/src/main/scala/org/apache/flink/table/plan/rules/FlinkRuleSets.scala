@@ -182,6 +182,7 @@ object FlinkRuleSets {
       DataStreamUnionRule.INSTANCE,
       DataStreamValuesRule.INSTANCE,
       DataStreamCorrelateRule.INSTANCE,
+      DataStreamCorrelateUnnestRule.INSTANCE,
       StreamTableSourceScanRule.INSTANCE,
 
       //  scan optimization

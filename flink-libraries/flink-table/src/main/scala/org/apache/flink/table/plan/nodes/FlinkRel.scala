@@ -64,7 +64,8 @@ trait FlinkRel {
         val referenceExpr = getExpressionString(fa.getReferenceExpr, inFields, localExprsTable)
         val field = fa.getField.getName
         s"$referenceExpr.$field"
-
+      case cv: RexCorrelVariable =>
+        cv.toString
       case _ =>
         throw new IllegalArgumentException(s"Unknown expression type '${expr.getClass}': $expr")
     }

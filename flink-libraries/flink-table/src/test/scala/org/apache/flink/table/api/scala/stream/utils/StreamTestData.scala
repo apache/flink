@@ -33,6 +33,24 @@ object StreamTestData {
     env.fromCollection(data)
   }
 
+  def getSmall2TupleDataStreamWithTupleArray(env: StreamExecutionEnvironment): DataStream[(Int, Array[Tuple2[Int, String]])] = {
+    val data = new mutable.MutableList[(Int, Array[Tuple2[Int, String]])]
+    data.+=((1, Array((12, "45.6"), (12, "45.612"))))
+    data.+=((2, Array((13, "41.6"), (14, "45.2136"))))
+    data.+=((3, Array((18, "42.6"))))
+
+    env.fromCollection(data)
+  }
+
+  def getSmall3TupleDataStreamWithPrimitiveArray(env: StreamExecutionEnvironment): DataStream[(Int, Array[Short])] = {
+    val data = new mutable.MutableList[(Int, Array[Short])]
+    data.+=((1, Array(12, 45)))
+    data.+=((2, Array(41, 5)))
+    data.+=((3, Array(18, 42)))
+
+    env.fromCollection(data)
+  }
+
   def get3TupleDataStream(env: StreamExecutionEnvironment): DataStream[(Int, Long, String)] = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Hi"))

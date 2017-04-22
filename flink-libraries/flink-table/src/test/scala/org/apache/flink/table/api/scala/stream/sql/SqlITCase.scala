@@ -68,6 +68,55 @@ class SqlITCase extends StreamingWithStateTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
+  @Test
+  def testUnnestPrimitiveArrayFromTable(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val sqlQuery = "SELECT a, b, s FROM MyTable as mt, UNNEST(mt.b) as T(s)"
+
+    val t = StreamTestData.getSmall3TupleDataStreamWithPrimitiveArray(env).toTable(tEnv).as('a, 'b)
+    tEnv.registerTable("MyTable", t)
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,[12, 45],12",
+      "1,[12, 45],45",
+      "2,[41, 5],41",
+      "2,[41, 5],5",
+      "3,[18, 42],18",
+      "3,[18, 42],42"
+    )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testUnnestObjectArrayFromTableWithFilter(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val sqlQuery = "SELECT a, b, s, t FROM MyTable as mt, UNNEST(mt.b) as T(s, t) where s > 13"
+
+    val t = StreamTestData.getSmall2TupleDataStreamWithTupleArray(env).toTable(tEnv).as('a, 'b)
+    tEnv.registerTable("MyTable", t)
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "2,[(13,41.6), (14,45.2136)],14,45.2136",
+      "3,[(18,42.6)],18,42.6")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
   /** test filtering with registered table **/
   @Test
   def testSimpleFilter(): Unit = {
@@ -1155,4 +1204,5 @@ object SqlITCase {
 
     override def cancel(): Unit = ???
   }
+
 }
