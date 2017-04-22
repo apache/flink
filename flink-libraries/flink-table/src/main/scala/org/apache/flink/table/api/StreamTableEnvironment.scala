@@ -35,9 +35,9 @@ import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamConvention, DataStreamRel}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{DataStreamTable, TableSourceTable}
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sinks.{StreamTableSink, TableSink}
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
-import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConverters._
 
@@ -321,12 +321,13 @@ abstract class StreamTableEnvironment(
     TableEnvironment.validateType(tpe)
 
     logicalPlan match {
-      case node: DataStreamRel =>
+      case node: DataStreamRel[CRow] =>
         val plan = node.translateToPlan(this)
         val conversion = sinkConversion(plan.getType, logicalType, tpe, "DataStreamSinkConversion")
         conversion match {
           case None => plan.asInstanceOf[DataStream[A]] // no conversion necessary
-          case Some(mapFunction) => plan.map(mapFunction).name(s"to: $tpe")
+          case Some(mapFunction) =>
+            plan.map(mapFunction).name(s"to: $tpe").asInstanceOf[DataStream[A]]
         }
 
       case _ =>
@@ -344,9 +345,9 @@ abstract class StreamTableEnvironment(
   def explain(table: Table): String = {
     val ast = table.getRelNode
     val optimizedPlan = optimize(ast)
-    val dataStream = translate[Row](
+    val dataStream = translate[CRow](
       optimizedPlan,
-      ast.getRowType)(new GenericTypeInfo(classOf[Row]))
+      ast.getRowType)(new GenericTypeInfo(classOf[CRow]))
 
     val env = dataStream.getExecutionEnvironment
     val jsonSqlPlan = env.getExecutionPlan

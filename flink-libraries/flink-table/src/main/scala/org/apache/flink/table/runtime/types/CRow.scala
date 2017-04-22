@@ -16,14 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.types;
+package org.apache.flink.table.runtime.types
 
-import java.io.Serializable;
+import org.apache.flink.types.Row
 
 /**
- * A Command is used in a {@link Row} to distinguish delete or add.
- * Delete indicate a retracion row and Add means a nomal row.
- */
-public enum Command implements Serializable {
-	Delete, Add
+  * Wrapper for a [[Row]] to add retraction information.
+  *
+  * If [[change]] is true, the [[CRow]] is an accumulate message, if it is false it is a
+  * retraction message.
+  *
+  * @param row The wrapped [[Row]].
+  * @param change true for an accumulate message, false for a retraction message.
+  */
+class CRow(var row: Row, var change: Boolean) {
+
+  override def toString: String = s"${if(change) "+" else "-"}$row"
+
+  override def equals(other: scala.Any): Boolean = {
+    val otherCRow = other.asInstanceOf[CRow]
+    row.equals(otherCRow.row) && change == otherCRow.change
+  }
+}
+
+class XRow(arity: Int, var change: Boolean) extends Row(arity) {
+
+  def this(arity: Int) {
+    this(arity, true)
+  }
+
 }

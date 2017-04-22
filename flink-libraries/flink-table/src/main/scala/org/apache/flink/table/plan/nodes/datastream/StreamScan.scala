@@ -23,30 +23,32 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.CommonScan
 import org.apache.flink.table.plan.schema.FlinkTable
-import org.apache.flink.types.Row
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
-trait StreamScan extends CommonScan with DataStreamRel {
+trait StreamScan extends CommonScan with DataStreamRel[CRow] {
 
   protected def convertToInternalRow(
       input: DataStream[Any],
       flinkTable: FlinkTable[_],
       config: TableConfig)
-    : DataStream[Row] = {
+    : DataStream[CRow] = {
 
     val inputType = input.getType
 
-    val internalType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
+    val physicalInternalType = FlinkTypeFactory
+      .toInternalRowTypeInfo(getRowType, classOf[CRow])
+      .asInstanceOf[CRowTypeInfo]
 
     // conversion
-    if (needsConversion(inputType, internalType)) {
+    if (needsConversion(inputType, physicalInternalType)) {
 
       val mapFunc = getConversionMapper(
         config,
         inputType,
-        internalType,
+        physicalInternalType,
         "DataStreamSourceConversion",
         getRowType.getFieldNames,
         Some(flinkTable.fieldIndexes))
@@ -57,7 +59,7 @@ trait StreamScan extends CommonScan with DataStreamRel {
     }
     // no conversion necessary, forward
     else {
-      input.asInstanceOf[DataStream[Row]]
+      input.asInstanceOf[DataStream[CRow]]
     }
   }
 }

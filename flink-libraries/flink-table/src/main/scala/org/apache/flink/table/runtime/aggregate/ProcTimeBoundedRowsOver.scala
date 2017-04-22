@@ -33,7 +33,8 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo
 import java.util.{List => JList}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.runtime.types.CRow
 import org.slf4j.LoggerFactory
 
 /**
@@ -48,15 +49,15 @@ class ProcTimeBoundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     precedingOffset: Long,
     aggregatesTypeInfo: RowTypeInfo,
-    inputType: TypeInformation[Row])
-  extends ProcessFunction[Row, Row]
+    inputType: TypeInformation[CRow])
+  extends ProcessFunction[CRow, CRow]
     with Compiler[GeneratedAggregations] {
 
   Preconditions.checkArgument(precedingOffset > 0)
 
   private var accumulatorState: ValueState[Row] = _
-  private var rowMapState: MapState[Long, JList[Row]] = _
-  private var output: Row = _
+  private var rowMapState: MapState[Long, JList[CRow]] = _
+  private var output: CRow = _
   private var counterState: ValueState[Long] = _
   private var smallestTsState: ValueState[Long] = _
 
@@ -78,11 +79,11 @@ class ProcTimeBoundedRowsOver(
     // by the ingestion time in the operator.
     // we also keep counter of processed elements
     // and timestamp of oldest element
-    val rowListTypeInfo: TypeInformation[JList[Row]] =
-      new ListTypeInfo[Row](inputType).asInstanceOf[TypeInformation[JList[Row]]]
+    val rowListTypeInfo: TypeInformation[JList[CRow]] =
+      new ListTypeInfo[CRow](inputType).asInstanceOf[TypeInformation[JList[CRow]]]
 
-    val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
-      new MapStateDescriptor[Long, JList[Row]]("windowBufferMapState",
+    val mapStateDescriptor: MapStateDescriptor[Long, JList[CRow]] =
+      new MapStateDescriptor[Long, JList[CRow]]("windowBufferMapState",
         BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]], rowListTypeInfo)
     rowMapState = getRuntimeContext.getMapState(mapStateDescriptor)
 
@@ -100,9 +101,9 @@ class ProcTimeBoundedRowsOver(
   }
 
   override def processElement(
-    input: Row,
-    ctx: ProcessFunction[Row, Row]#Context,
-    out: Collector[Row]): Unit = {
+    input: CRow,
+    ctx: ProcessFunction[CRow, CRow]#Context,
+    out: Collector[CRow]): Unit = {
 
     val currentTime = ctx.timerService.currentProcessingTime
 
@@ -166,7 +167,7 @@ class ProcTimeBoundedRowsOver(
       currentTimeState.add(input)
       rowMapState.put(currentTime, currentTimeState)
     } else { // add new input
-      val newList = new util.ArrayList[Row]
+      val newList = new util.ArrayList[CRow]
       newList.add(input)
       rowMapState.put(currentTime, newList)
     }

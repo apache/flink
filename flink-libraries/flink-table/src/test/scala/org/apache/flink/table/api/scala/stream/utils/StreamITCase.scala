@@ -44,7 +44,7 @@ object StreamITCase {
   final class StringSink extends RichSinkFunction[Row]() {
     def invoke(value: Row) {
       testResults.synchronized {
-        testResults += value.toString 
+        testResults += value.toString
       }
     }
   }

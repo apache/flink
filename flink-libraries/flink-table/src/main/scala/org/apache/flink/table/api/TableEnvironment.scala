@@ -56,6 +56,7 @@ import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.schema.RelTable
 import org.apache.flink.table.runtime.MapRunner
+import org.apache.flink.table.runtime.types.CRowTypeInfo
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.validate.FunctionCatalog
@@ -627,24 +628,26 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param functionName name of the map function. Must not be unique but has to be a
     *                     valid Java class identifier.
     */
-  protected def sinkConversion[T](
-      physicalRowTypeInfo: TypeInformation[Row],
+  protected def sinkConversion[T, P](
+      physicalRowTypeInfo: TypeInformation[P],
       logicalRowType: RelDataType,
       requestedTypeInfo: TypeInformation[T],
       functionName: String)
-    : Option[MapFunction[Row, T]] = {
+    : Option[MapFunction[P, T]] = {
 
     // validate that at least the field types of physical and logical type match
     // we do that here to make sure that plan translation was correct
-    val logicalRowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(logicalRowType)
-    if (physicalRowTypeInfo != logicalRowTypeInfo) {
+    val internalRowTypeInfo = FlinkTypeFactory
+      .toInternalRowTypeInfo(logicalRowType, physicalRowTypeInfo.getTypeClass)
+
+    if (physicalRowTypeInfo != internalRowTypeInfo) {
       throw TableException("The field types of physical and logical row types do not match." +
         "This is a bug and should not happen. Please file an issue.")
     }
 
     // requested type is a generic Row, no conversion needed
     if (requestedTypeInfo.isInstanceOf[GenericTypeInfo[_]] &&
-          requestedTypeInfo.getTypeClass == classOf[Row]) {
+          requestedTypeInfo.getTypeClass == physicalRowTypeInfo.getTypeClass) {
       return None
     }
 
@@ -655,11 +658,22 @@ abstract class TableEnvironment(val config: TableConfig) {
     // field names
     val logicalFieldNames = logicalRowType.getFieldNames.asScala
 
+
+    val finalRequestTypeInfo =
+      if (requestedTypeInfo.isInstanceOf[GenericTypeInfo[Row]]) {
+        // if the request type is Row, we can't get the arity
+        // so make request type directly from physical row type
+        physicalRowTypeInfo.asInstanceOf[CRowTypeInfo].rowType
+      } else {
+        requestedTypeInfo
+      }
+
     // validate requested type
-    if (requestedTypeInfo.getArity != logicalFieldTypes.length) {
+    if (finalRequestTypeInfo.getArity != logicalFieldTypes.length) {
       throw new TableException("Arity of result does not match requested type.")
     }
-    requestedTypeInfo match {
+
+    finalRequestTypeInfo match {
 
       // POJO type requested
       case pt: PojoTypeInfo[_] =>
@@ -669,10 +683,10 @@ abstract class TableEnvironment(val config: TableConfig) {
             if (pojoIdx < 0) {
               throw new TableException(s"POJO does not define field name: $fName")
             }
-            val requestedTypeInfo = pt.getTypeAt(pojoIdx)
-            if (fType != requestedTypeInfo) {
+            val finalRequestTypeInfo = pt.getTypeAt(pojoIdx)
+            if (fType != finalRequestTypeInfo) {
               throw new TableException(s"Result field does not match requested type. " +
-                s"requested: $requestedTypeInfo; Actual: $fType")
+                s"requested: $finalRequestTypeInfo; Actual: $fType")
             }
         }
 
@@ -680,15 +694,16 @@ abstract class TableEnvironment(val config: TableConfig) {
       case tt: TupleTypeInfoBase[_] =>
         logicalFieldTypes.zipWithIndex foreach {
           case (fieldTypeInfo, i) =>
-            val requestedTypeInfo = tt.getTypeAt(i)
-            if (fieldTypeInfo != requestedTypeInfo) {
+            val finalRequestTypeInfo = tt.getTypeAt(i)
+            if (fieldTypeInfo != finalRequestTypeInfo) {
               throw new TableException(s"Result field does not match requested type. " +
-                s"Requested: $requestedTypeInfo; Actual: $fieldTypeInfo")
+                s"Requested: $finalRequestTypeInfo; Actual: $fieldTypeInfo")
             }
         }
 
+
       // Atomic type requested
-      case at: AtomicType[_] =>
+      case at: AtomicType[_] if at.getTypeClass != classOf[Row] =>
         if (logicalFieldTypes.size != 1) {
           throw new TableException(s"Requested result type is an atomic type but " +
             s"result has more or less than a single field.")
@@ -700,7 +715,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         }
 
       case _ =>
-        throw new TableException(s"Unsupported result type: $requestedTypeInfo")
+        throw new TableException(s"Unsupported result type: $finalRequestTypeInfo")
     }
 
     // code generate MapFunction
@@ -712,7 +727,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       None)
 
     val conversion = generator.generateConverterResultExpression(
-      requestedTypeInfo,
+      finalRequestTypeInfo,
       logicalFieldNames)
 
     val body =
@@ -723,11 +738,11 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     val genFunction = generator.generateFunction(
       functionName,
-      classOf[MapFunction[Row, T]],
+      classOf[MapFunction[P, T]],
       body,
       requestedTypeInfo)
 
-    val mapFunction = new MapRunner[Row, T](
+    val mapFunction = new MapRunner[P, T](
       genFunction.name,
       genFunction.code,
       genFunction.returnType)

@@ -30,7 +30,7 @@ import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.plan.nodes.CommonCalc
-import org.apache.flink.types.Row
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 /**
   * Flink RelNode which matches along with FlatMapOperator.
@@ -45,7 +45,7 @@ class DataStreamCalc(
     ruleDescription: String)
   extends Calc(cluster, traitSet, input, calcProgram)
   with CommonCalc
-  with DataStreamRel {
+  with DataStreamRel[CRow] {
 
   override def deriveRowType(): RelDataType = rowRelDataType
 
@@ -75,11 +75,11 @@ class DataStreamCalc(
     estimateRowCount(calcProgram, rowCnt)
   }
 
-  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
+  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[CRow] = {
 
     val config = tableEnv.getConfig
 
-    val inputDataStream = getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
+    val inputDataStream = getInput.asInstanceOf[DataStreamRel[CRow]].translateToPlan(tableEnv)
 
     val generator = new CodeGenerator(config, false, inputDataStream.getType)
 
@@ -92,11 +92,13 @@ class DataStreamCalc(
 
     val genFunction = generator.generateFunction(
       ruleDescription,
-      classOf[FlatMapFunction[Row, Row]],
+      classOf[FlatMapFunction[CRow, CRow]],
       body,
-      FlinkTypeFactory.toInternalRowTypeInfo(getRowType))
+      FlinkTypeFactory
+        .toInternalRowTypeInfo(getRowType, inputDataStream.getType.getTypeClass)
+        .asInstanceOf[CRowTypeInfo])
 
-    val mapFunc = calcMapFunction(genFunction)
+    val mapFunc = calcMapFunction[CRow](genFunction)
     inputDataStream.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString))
   }
 }

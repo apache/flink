@@ -18,14 +18,13 @@
 package org.apache.flink.table.runtime.aggregate
 
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.types.{Command, Row}
 import org.apache.flink.util.Collector
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.slf4j.LoggerFactory
 
 /**
@@ -36,14 +35,14 @@ import org.slf4j.LoggerFactory
   */
 class ProcTimeUnboundedNonPartitionedOver(
     genAggregations: GeneratedAggregationsFunction,
-    aggregationStateType: RowTypeInfo)
-  extends ProcessFunction[Row, Row]
+    aggregationStateType: CRowTypeInfo)
+  extends ProcessFunction[CRow, CRow]
     with CheckpointedFunction
     with Compiler[GeneratedAggregations] {
 
-  private var accumulators: Row = _
-  private var output: Row = _
-  private var state: ListState[Row] = _
+  private var accumulators: CRow = _
+  private var output: CRow = _
+  private var state: ListState[CRow] = _
   val LOG = LoggerFactory.getLogger(this.getClass)
 
   private var function: GeneratedAggregations = _
@@ -64,26 +63,22 @@ class ProcTimeUnboundedNonPartitionedOver(
       if (it.hasNext) {
         accumulators = it.next()
       } else {
-        accumulators = function.createAccumulators()
+        accumulators = new CRow(function.createAccumulators(), true)
       }
     }
   }
 
   override def processElement(
-    input: Row,
-    ctx: ProcessFunction[Row, Row]#Context,
-    out: Collector[Row]): Unit = {
+      input: CRow,
+      ctx: ProcessFunction[CRow, CRow]#Context,
+      out: Collector[CRow]): Unit = {
 
-    if (input.command == Command.Delete) {
-      // accumulator do retraction process, so future output will be right
-      function.retract(accumulators, input)
-    } else {
-      function.setForwardedFields(input, output)
-      function.accumulate(accumulators, input)
-      function.setAggregationResults(accumulators, output)
+    function.setForwardedFields(input, output)
 
-      out.collect(output)
-    }
+    function.accumulate(accumulators.row, input)
+    function.setAggregationResults(accumulators.row, output)
+
+    out.collect(output)
   }
 
   override def snapshotState(context: FunctionSnapshotContext): Unit = {
@@ -94,7 +89,7 @@ class ProcTimeUnboundedNonPartitionedOver(
   }
 
   override def initializeState(context: FunctionInitializationContext): Unit = {
-    val accumulatorsDescriptor = new ListStateDescriptor[Row]("overState", aggregationStateType)
+    val accumulatorsDescriptor = new ListStateDescriptor[CRow]("overState", aggregationStateType)
     state = context.getOperatorStateStore.getOperatorState(accumulatorsDescriptor)
   }
 }

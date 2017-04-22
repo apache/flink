@@ -55,7 +55,7 @@ class DataSetSlideWindowAggReduceGroupFunction(
   Preconditions.checkNotNull(aggregates)
   Preconditions.checkNotNull(groupKeysMapping)
 
-  private var collector: TimeWindowPropertyCollector = _
+  private var collector: TimeWindowPropertyCollector[Row] = _
   private var output: Row = _
   private val accumulatorStartPos: Int = groupKeysMapping.length
   protected val windowStartPos: Int = accumulatorStartPos + aggregates.length

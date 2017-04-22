@@ -31,7 +31,8 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo
 import java.util.{ArrayList, List => JList}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.runtime.types.CRow
 import org.slf4j.LoggerFactory
 
 /**
@@ -47,12 +48,12 @@ class ProcTimeBoundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
     precedingTimeBoundary: Long,
     aggregatesTypeInfo: RowTypeInfo,
-    inputType: TypeInformation[Row])
-  extends ProcessFunction[Row, Row]
+    inputType: TypeInformation[CRow])
+  extends ProcessFunction[CRow, CRow]
     with Compiler[GeneratedAggregations] {
-  private var output: Row = _
+  private var output: CRow = _
   private var accumulatorState: ValueState[Row] = _
-  private var rowMapState: MapState[Long, JList[Row]] = _
+  private var rowMapState: MapState[Long, JList[CRow]] = _
 
   val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
@@ -69,10 +70,10 @@ class ProcTimeBoundedRangeOver(
     output = function.createOutputRow()
 
     // We keep the elements received in a MapState indexed based on their ingestion time
-    val rowListTypeInfo: TypeInformation[JList[Row]] =
-      new ListTypeInfo[Row](inputType).asInstanceOf[TypeInformation[JList[Row]]]
-    val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
-      new MapStateDescriptor[Long, JList[Row]]("rowmapstate",
+    val rowListTypeInfo: TypeInformation[JList[CRow]] =
+      new ListTypeInfo[CRow](inputType).asInstanceOf[TypeInformation[JList[CRow]]]
+    val mapStateDescriptor: MapStateDescriptor[Long, JList[CRow]] =
+      new MapStateDescriptor[Long, JList[CRow]]("rowmapstate",
         BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]], rowListTypeInfo)
     rowMapState = getRuntimeContext.getMapState(mapStateDescriptor)
 
@@ -82,9 +83,9 @@ class ProcTimeBoundedRangeOver(
   }
 
   override def processElement(
-    input: Row,
-    ctx: ProcessFunction[Row, Row]#Context,
-    out: Collector[Row]): Unit = {
+    input: CRow,
+    ctx: ProcessFunction[CRow, CRow]#Context,
+    out: Collector[CRow]): Unit = {
 
     val currentTime = ctx.timerService.currentProcessingTime
     // buffer the event incoming event
@@ -93,7 +94,7 @@ class ProcTimeBoundedRangeOver(
     var rowList = rowMapState.get(currentTime)
     // null value means that this si the first event received for this timestamp
     if (rowList == null) {
-      rowList = new ArrayList[Row]()
+      rowList = new ArrayList[CRow]()
       // register timer to process event once the current millisecond passed
       ctx.timerService.registerProcessingTimeTimer(currentTime + 1)
     }
@@ -104,8 +105,8 @@ class ProcTimeBoundedRangeOver(
 
   override def onTimer(
     timestamp: Long,
-    ctx: ProcessFunction[Row, Row]#OnTimerContext,
-    out: Collector[Row]): Unit = {
+    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+    out: Collector[CRow]): Unit = {
 
     // we consider the original timestamp of events that have registered this time trigger 1 ms ago
     val currentTime = timestamp - 1

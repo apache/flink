@@ -19,10 +19,8 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.EnumSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.types.Command;
 import org.apache.flink.types.Row;
 
 import java.io.IOException;
@@ -42,7 +40,6 @@ public class RowSerializer extends TypeSerializer<Row> {
 	private static final long serialVersionUID = 1L;
 	private final boolean[] nullMask;
 	private final TypeSerializer<Object>[] fieldSerializers;
-	private final EnumSerializer commandSerializer = new EnumSerializer(Command.class);
 
 	public RowSerializer(TypeSerializer<?>[] fieldSerializers) {
 		this.fieldSerializers = (TypeSerializer<Object>[]) checkNotNull(fieldSerializers);
@@ -97,7 +94,6 @@ public class RowSerializer extends TypeSerializer<Row> {
 				result.setField(i, null);
 			}
 		}
-		result.command = from.command;
 		return result;
 	}
 
@@ -130,7 +126,6 @@ public class RowSerializer extends TypeSerializer<Row> {
 				reuse.setField(i, null);
 			}
 		}
-		reuse.command = from.command;
 		return reuse;
 	}
 
@@ -147,10 +142,6 @@ public class RowSerializer extends TypeSerializer<Row> {
 			throw new RuntimeException("Row arity of from does not match serializers.");
 		}
 
-		if (record.command == null) {
-			throw new RuntimeException("Null Command,{" + record + "}");
-		}
-
 		// write a null mask
 		writeNullMask(len, record, target);
 
@@ -161,7 +152,6 @@ public class RowSerializer extends TypeSerializer<Row> {
 				fieldSerializers[i].serialize(o, target);
 			}
 		}
-		commandSerializer.serialize(record.command, target);
 	}
 
 
@@ -181,7 +171,6 @@ public class RowSerializer extends TypeSerializer<Row> {
 				result.setField(i, fieldSerializers[i].deserialize(source));
 			}
 		}
-		result.command = (Command) commandSerializer.deserialize(source);
 
 		return result;
 	}
@@ -209,7 +198,6 @@ public class RowSerializer extends TypeSerializer<Row> {
 				}
 			}
 		}
-		reuse.command = (Command) commandSerializer.deserialize(source);
 
 		return reuse;
 	}
@@ -226,7 +214,6 @@ public class RowSerializer extends TypeSerializer<Row> {
 				fieldSerializers[i].copy(source, target);
 			}
 		}
-		commandSerializer.copy(source, target);
 	}
 
 	@Override

@@ -66,7 +66,7 @@ class DataSetSessionWindowAggReduceGroupFunction(
 
   private var aggregateBuffer: Row = _
   private var output: Row = _
-  private var collector: TimeWindowPropertyCollector = _
+  private var collector: TimeWindowPropertyCollector[Row] = _
   private val accumStartPos: Int = groupKeysMapping.length
   private val intermediateRowArity: Int = accumStartPos + aggregates.length + 2
   private val intermediateRowWindowStartPos = intermediateRowArity - 2

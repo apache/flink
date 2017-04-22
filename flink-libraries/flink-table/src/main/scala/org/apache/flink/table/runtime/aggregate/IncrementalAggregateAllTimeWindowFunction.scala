@@ -22,6 +22,7 @@ import java.lang.Iterable
 import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.util.Collector
 
 /**
@@ -39,7 +40,7 @@ class IncrementalAggregateAllTimeWindowFunction(
   extends IncrementalAggregateAllWindowFunction[TimeWindow](
     finalRowArity) {
 
-  private var collector: TimeWindowPropertyCollector = _
+  private var collector: TimeWindowPropertyCollector[CRow] = _
 
   override def open(parameters: Configuration): Unit = {
     collector = new TimeWindowPropertyCollector(windowStartPos, windowEndPos)
@@ -49,7 +50,7 @@ class IncrementalAggregateAllTimeWindowFunction(
   override def apply(
       window: TimeWindow,
       records: Iterable[Row],
-      out: Collector[Row]): Unit = {
+      out: Collector[CRow]): Unit = {
 
     // set collector and window
     collector.wrappedCollector = out

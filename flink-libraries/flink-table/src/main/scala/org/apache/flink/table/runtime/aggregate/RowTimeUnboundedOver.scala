@@ -28,7 +28,8 @@ import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.streaming.api.operators.TimestampedCollector
-import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.runtime.types.CRow
 import org.slf4j.LoggerFactory
 
 
@@ -42,15 +43,15 @@ import org.slf4j.LoggerFactory
 abstract class RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
-    inputType: TypeInformation[Row])
-  extends ProcessFunction[Row, Row]
+    inputType: TypeInformation[CRow])
+  extends ProcessFunction[CRow, CRow]
     with Compiler[GeneratedAggregations] {
 
-  protected var output: Row = _
+  protected var output: CRow = _
   // state to hold the accumulators of the aggregations
   private var accumulatorState: ValueState[Row] = _
   // state to hold rows until the next watermark arrives
-  private var rowMapState: MapState[Long, JList[Row]] = _
+  private var rowMapState: MapState[Long, JList[CRow]] = _
   // list to sort timestamps to access rows in timestamp order
   private var sortedTimestamps: util.LinkedList[Long] = _
 
@@ -76,9 +77,9 @@ abstract class RowTimeUnboundedOver(
     accumulatorState = getRuntimeContext.getState[Row](accDescriptor)
 
     // initialize row state
-    val rowListTypeInfo: TypeInformation[JList[Row]] = new ListTypeInfo[Row](inputType)
-    val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
-      new MapStateDescriptor[Long, JList[Row]]("rowmapstate",
+    val rowListTypeInfo: TypeInformation[JList[CRow]] = new ListTypeInfo[CRow](inputType)
+    val mapStateDescriptor: MapStateDescriptor[Long, JList[CRow]] =
+      new MapStateDescriptor[Long, JList[CRow]]("rowmapstate",
         BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]], rowListTypeInfo)
     rowMapState = getRuntimeContext.getMapState(mapStateDescriptor)
   }
@@ -93,9 +94,9 @@ abstract class RowTimeUnboundedOver(
     *
     */
   override def processElement(
-     input: Row,
-     ctx:  ProcessFunction[Row, Row]#Context,
-     out: Collector[Row]): Unit = {
+     input: CRow,
+     ctx:  ProcessFunction[CRow, CRow]#Context,
+     out: Collector[CRow]): Unit = {
 
     val timestamp = ctx.timestamp()
     val curWatermark = ctx.timerService().currentWatermark()
@@ -108,7 +109,7 @@ abstract class RowTimeUnboundedOver(
       // put row into state
       var rowList = rowMapState.get(timestamp)
       if (rowList == null) {
-        rowList = new util.ArrayList[Row]()
+        rowList = new util.ArrayList[CRow]()
       }
       rowList.add(input)
       rowMapState.put(timestamp, rowList)
@@ -126,11 +127,11 @@ abstract class RowTimeUnboundedOver(
     */
   override def onTimer(
       timestamp: Long,
-      ctx: ProcessFunction[Row, Row]#OnTimerContext,
-      out: Collector[Row]): Unit = {
+      ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+      out: Collector[CRow]): Unit = {
 
-    Preconditions.checkArgument(out.isInstanceOf[TimestampedCollector[Row]])
-    val collector = out.asInstanceOf[TimestampedCollector[Row]]
+    Preconditions.checkArgument(out.isInstanceOf[TimestampedCollector[CRow]])
+    val collector = out.asInstanceOf[TimestampedCollector[CRow]]
 
     val keyIterator = rowMapState.keys.iterator
     if (keyIterator.hasNext) {
@@ -204,9 +205,9 @@ abstract class RowTimeUnboundedOver(
    * rows and range window.
    */
   def processElementsWithSameTimestamp(
-    curRowList: JList[Row],
+    curRowList: JList[CRow],
     lastAccumulator: Row,
-    out: Collector[Row]): Unit
+    out: Collector[CRow]): Unit
 
 }
 
@@ -217,16 +218,16 @@ abstract class RowTimeUnboundedOver(
 class RowTimeUnboundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
-    inputType: TypeInformation[Row])
+    inputType: TypeInformation[CRow])
   extends RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType) {
 
   override def processElementsWithSameTimestamp(
-    curRowList: JList[Row],
+    curRowList: JList[CRow],
     lastAccumulator: Row,
-    out: Collector[Row]): Unit = {
+    out: Collector[CRow]): Unit = {
 
     var i = 0
     while (i < curRowList.size) {
@@ -255,16 +256,16 @@ class RowTimeUnboundedRowsOver(
 class RowTimeUnboundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
-    inputType: TypeInformation[Row])
+    inputType: TypeInformation[CRow])
   extends RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType) {
 
   override def processElementsWithSameTimestamp(
-    curRowList: JList[Row],
+    curRowList: JList[CRow],
     lastAccumulator: Row,
-    out: Collector[Row]): Unit = {
+    out: Collector[CRow]): Unit = {
 
     var i = 0
     // all same timestamp data should have same aggregation value.

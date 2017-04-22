@@ -54,7 +54,7 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
   Preconditions.checkNotNull(aggregates)
   Preconditions.checkNotNull(groupKeysMapping)
 
-  private var collector: TimeWindowPropertyCollector = _
+  private var collector: TimeWindowPropertyCollector[Row] = _
   protected var aggregateBuffer: Row = _
   private var output: Row = _
   private val accumStartPos: Int = groupKeysMapping.length

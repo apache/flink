@@ -29,6 +29,7 @@ import org.apache.flink.table.codegen.CodeGenUtils.primitiveDefaultValue
 import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NO_CODE}
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedCollector, GeneratedExpression, GeneratedFunction}
 import org.apache.flink.table.functions.utils.TableSqlFunction
+import org.apache.flink.table.runtime.types.CRowTypeInfo
 import org.apache.flink.table.runtime.{CorrelateFlatMapRunner, TableFunctionCollector}
 import org.apache.flink.types.Row
 
@@ -43,9 +44,9 @@ trait CommonCorrelate {
     * Creates the [[CorrelateFlatMapRunner]] to execute the join of input table
     * and user-defined table function.
     */
-  private[flink] def correlateMapFunction(
+  private[flink] def correlateMapFunction[T](
       config: TableConfig,
-      inputTypeInfo: TypeInformation[Row],
+      inputTypeInfo: TypeInformation[T],
       udtfTypeInfo: TypeInformation[Any],
       rowType: RelDataType,
       joinType: SemiJoinType,
@@ -53,11 +54,13 @@ trait CommonCorrelate {
       condition: Option[RexNode],
       pojoFieldMapping: Option[Array[Int]], // udtf return type pojo field mapping
       ruleDescription: String)
-    : CorrelateFlatMapRunner[Row, Row] = {
+    : CorrelateFlatMapRunner[T, T] = {
 
-    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType)
+    val returnType = FlinkTypeFactory
+      .toInternalRowTypeInfo(rowType, inputTypeInfo.getTypeClass)
+      .asInstanceOf[TypeInformation[T]]
 
-    val flatMap = generateFunction(
+    val flatMap = generateFunction[T](
       config,
       inputTypeInfo,
       udtfTypeInfo,
@@ -77,7 +80,7 @@ trait CommonCorrelate {
       condition,
       pojoFieldMapping)
 
-    new CorrelateFlatMapRunner[Row, Row](
+    new CorrelateFlatMapRunner[T, T](
       flatMap.name,
       flatMap.code,
       collector.name,
@@ -89,17 +92,17 @@ trait CommonCorrelate {
   /**
     * Generates the flat map function to run the user-defined table function.
     */
-  private def generateFunction(
+  private def generateFunction[T](
       config: TableConfig,
-      inputTypeInfo: TypeInformation[Row],
+      inputTypeInfo: TypeInformation[T],
       udtfTypeInfo: TypeInformation[Any],
-      returnType: TypeInformation[Row],
+      returnType: TypeInformation[T],
       rowType: RelDataType,
       joinType: SemiJoinType,
       rexCall: RexCall,
       pojoFieldMapping: Option[Array[Int]],
       ruleDescription: String)
-    : GeneratedFunction[FlatMapFunction[Row, Row], Row] = {
+    : GeneratedFunction[FlatMapFunction[T, T], T] = {
 
     val functionGenerator = new CodeGenerator(
       config,
@@ -137,9 +140,9 @@ trait CommonCorrelate {
       val outerResultExpr = functionGenerator.generateResultExpression(
         input1AccessExprs ++ input2NullExprs, returnType, rowType.getFieldNames.asScala)
 
-      val retractionProcess =
-        if (inputTypeInfo.isInstanceOf[RowTypeInfo] && returnType.isInstanceOf[RowTypeInfo]) {
-          s"${outerResultExpr.resultTerm}.command = ${functionGenerator.input1Term}.command;"
+      val retractionProcessCode =
+        if (inputTypeInfo.isInstanceOf[CRowTypeInfo] && returnType.isInstanceOf[CRowTypeInfo]) {
+          s"${outerResultExpr.resultTerm}.change_$$eq(${functionGenerator.input1Term}.change());"
         } else {
           ""
         }
@@ -149,7 +152,7 @@ trait CommonCorrelate {
           |boolean hasOutput = $collectorTerm.isCollected();
           |if (!hasOutput) {
           |  ${outerResultExpr.code}
-          |  ${retractionProcess}
+          |  ${retractionProcessCode}
           |  ${functionGenerator.collectorTerm}.collect(${outerResultExpr.resultTerm});
           |}
           |""".stripMargin
@@ -157,9 +160,9 @@ trait CommonCorrelate {
       throw TableException(s"Unsupported SemiJoinType: $joinType for correlate join.")
     }
 
-    functionGenerator.generateFunction(
+    functionGenerator.generateFunction[FlatMapFunction[T, T], T](
       ruleDescription,
-      classOf[FlatMapFunction[Row, Row]],
+      classOf[FlatMapFunction[T, T]],
       body,
       returnType)
   }
@@ -167,11 +170,11 @@ trait CommonCorrelate {
   /**
     * Generates table function collector.
     */
-  private[flink] def generateCollector(
+  private[flink] def generateCollector[T](
       config: TableConfig,
-      inputTypeInfo: TypeInformation[Row],
+      inputTypeInfo: TypeInformation[T],
       udtfTypeInfo: TypeInformation[Any],
-      returnType: TypeInformation[Row],
+      returnType: TypeInformation[T],
       rowType: RelDataType,
       condition: Option[RexNode],
       pojoFieldMapping: Option[Array[Int]])
@@ -192,9 +195,9 @@ trait CommonCorrelate {
       returnType,
       rowType.getFieldNames.asScala)
 
-    val retractionProcess =
-      if (inputTypeInfo.isInstanceOf[RowTypeInfo] && returnType.isInstanceOf[RowTypeInfo]) {
-        s"${crossResultExpr.resultTerm}.command = ${generator.input1Term}.command;"
+    val retractionProcessCode =
+      if (inputTypeInfo.isInstanceOf[CRowTypeInfo] && returnType.isInstanceOf[CRowTypeInfo]) {
+        s"${crossResultExpr.resultTerm}.change_$$eq(${generator.input1Term}.change());"
       } else {
         ""
       }
@@ -202,7 +205,7 @@ trait CommonCorrelate {
     val collectorCode = if (condition.isEmpty) {
       s"""
         |${crossResultExpr.code}
-        |${retractionProcess}
+        |${retractionProcessCode}
         |getCollector().collect(${crossResultExpr.resultTerm});
         |""".stripMargin
     } else {
@@ -214,7 +217,7 @@ trait CommonCorrelate {
         |${filterCondition.code}
         |if (${filterCondition.resultTerm}) {
         |  ${crossResultExpr.code}
-        |  ${retractionProcess}
+        |  ${retractionProcessCode}
         |  getCollector().collect(${crossResultExpr.resultTerm});
         |}
         |""".stripMargin

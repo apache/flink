@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.nodes.dataset
 
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.CommonScan
@@ -38,7 +39,9 @@ trait BatchScan extends CommonScan with DataSetRel {
 
     val inputType = input.getType
 
-    val internalType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
+    val internalType = FlinkTypeFactory
+      .toInternalRowTypeInfo(getRowType, classOf[Row])
+      .asInstanceOf[RowTypeInfo]
 
     // conversion
     if (needsConversion(inputType, internalType)) {

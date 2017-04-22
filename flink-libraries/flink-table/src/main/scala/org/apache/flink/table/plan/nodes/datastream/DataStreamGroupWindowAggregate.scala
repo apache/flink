@@ -36,9 +36,9 @@ import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.plan.nodes.datastream.DataStreamGroupWindowAggregate._
 import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.table.runtime.aggregate._
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
-import org.apache.flink.types.Row
 
 class DataStreamGroupWindowAggregate(
     window: LogicalWindow,
@@ -50,7 +50,7 @@ class DataStreamGroupWindowAggregate(
     rowRelDataType: RelDataType,
     inputType: RelDataType,
     grouping: Array[Int])
-  extends SingleRel(cluster, traitSet, inputNode) with CommonAggregate with DataStreamRel {
+  extends SingleRel(cluster, traitSet, inputNode) with CommonAggregate with DataStreamRel[CRow] {
 
   override def deriveRowType(): RelDataType = rowRelDataType
 
@@ -102,20 +102,22 @@ class DataStreamGroupWindowAggregate(
           namedProperties))
   }
 
-  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
+  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[CRow] = {
 
     val groupingKeys = grouping.indices.toArray
-    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
+    val inputDS = input.asInstanceOf[DataStreamRel[CRow]].translateToPlan(tableEnv)
 
     val consumeRetraction = DataStreamRetractionRules.isAccRetract(input)
 
     if (consumeRetraction) {
       throw new TableException(
         "Retraction on group window is not supported yet. Note: Currently, group window should " +
-          "not follow an unbounded groupby.")
+          "not follow a non-windowed GroupBy.")
     }
 
-    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
+    val rowTypeInfo = FlinkTypeFactory
+      .toInternalRowTypeInfo(getRowType, inputDS.getType.getTypeClass)
+      .asInstanceOf[CRowTypeInfo]
 
     val aggString = aggregationToString(
       inputType,
@@ -141,7 +143,7 @@ class DataStreamGroupWindowAggregate(
       val keyedStream = inputDS.keyBy(groupingKeys: _*)
       val windowedStream =
         createKeyedWindowedStream(window, keyedStream)
-          .asInstanceOf[WindowedStream[Row, Tuple, DataStreamWindow]]
+          .asInstanceOf[WindowedStream[CRow, Tuple, DataStreamWindow]]
 
       val (aggFunction, accumulatorRowType, aggResultRowType) =
         AggregateUtil.createDataStreamGroupWindowAggregateFunction(
@@ -163,7 +165,7 @@ class DataStreamGroupWindowAggregate(
 
       val windowedStream =
         createNonKeyedWindowedStream(window, inputDS)
-          .asInstanceOf[AllWindowedStream[Row, DataStreamWindow]]
+          .asInstanceOf[AllWindowedStream[CRow, DataStreamWindow]]
 
       val (aggFunction, accumulatorRowType, aggResultRowType) =
         AggregateUtil.createDataStreamGroupWindowAggregateFunction(
@@ -182,8 +184,10 @@ class DataStreamGroupWindowAggregate(
 object DataStreamGroupWindowAggregate {
 
 
-  private def createKeyedWindowedStream(groupWindow: LogicalWindow, stream: KeyedStream[Row, Tuple])
-    : WindowedStream[Row, Tuple, _ <: DataStreamWindow] = groupWindow match {
+  private def createKeyedWindowedStream(
+      groupWindow: LogicalWindow,
+      stream: KeyedStream[CRow, Tuple])
+    : WindowedStream[CRow, Tuple, _ <: DataStreamWindow] = groupWindow match {
 
     case ProcessingTimeTumblingGroupWindow(_, size) if isTimeInterval(size.resultType) =>
       stream.window(TumblingProcessingTimeWindows.of(asTime(size)))
@@ -224,8 +228,8 @@ object DataStreamGroupWindowAggregate {
       stream.window(EventTimeSessionWindows.withGap(asTime(gap)))
   }
 
-  private def createNonKeyedWindowedStream(groupWindow: LogicalWindow, stream: DataStream[Row])
-    : AllWindowedStream[Row, _ <: DataStreamWindow] = groupWindow match {
+  private def createNonKeyedWindowedStream(groupWindow: LogicalWindow, stream: DataStream[CRow])
+    : AllWindowedStream[CRow, _ <: DataStreamWindow] = groupWindow match {
 
     case ProcessingTimeTumblingGroupWindow(_, size) if isTimeInterval(size.resultType) =>
       stream.windowAll(TumblingProcessingTimeWindows.of(asTime(size)))

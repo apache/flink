@@ -26,6 +26,7 @@ import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
@@ -83,7 +84,9 @@ class DataSetCalc(
 
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
-    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
+    val returnType = FlinkTypeFactory
+      .toInternalRowTypeInfo(getRowType, classOf[Row])
+      .asInstanceOf[RowTypeInfo]
 
     val generator = new CodeGenerator(config, false, inputDS.getType)
 

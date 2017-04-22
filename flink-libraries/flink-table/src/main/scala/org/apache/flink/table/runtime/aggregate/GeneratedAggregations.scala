@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.aggregate
 
 import org.apache.flink.api.common.functions.Function
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 
 /**
@@ -31,35 +32,35 @@ abstract class GeneratedAggregations extends Function {
     *
     * @param accumulators the accumulators (saved in a row) which contains the current
     *                     aggregated results
-    * @param output       output results collected in a row
+    * @param output       output results collected in a command row
     */
-  def setAggregationResults(accumulators: Row, output: Row)
+  def setAggregationResults(accumulators: Row, output: CRow)
 
   /**
     * Copies forwarded fields from input row to output row.
     *
-    * @param input  input values bundled in a row
-    * @param output output results collected in a row
+    * @param input  input values bundled in a command row
+    * @param output output results collected in a command row
     */
-  def setForwardedFields(input: Row, output: Row)
+  def setForwardedFields(input: CRow, output: CRow)
 
   /**
     * Accumulate the input values to the accumulators
     *
     * @param accumulators the accumulators (saved in a row) which contains the current
     *                     aggregated results
-    * @param input        input values bundled in a row
+    * @param input        input values bundled in a command row
     */
-  def accumulate(accumulators: Row, input: Row)
+  def accumulate(accumulators: Row, input: CRow)
 
   /**
     * Retract the input values from the accumulators
     *
     * @param accumulators the accumulators (saved in a row) which contains the current
     *                     aggregated results
-    * @param input        input values bundled in a row
+    * @param input        input values bundled in a command row
     */
-  def retract(accumulators: Row, input: Row)
+  def retract(accumulators: Row, input: CRow)
 
   /**
     * Init the accumulators, and save them to a accumulators Row.
@@ -71,8 +72,8 @@ abstract class GeneratedAggregations extends Function {
   /**
     * Creates an output row object with the correct arity.
     *
-    * @return an output row object with the correct arity.
+    * @return an output command row object with the correct arity.
     */
-  def createOutputRow(): Row
+  def createOutputRow(): CRow
 
 }

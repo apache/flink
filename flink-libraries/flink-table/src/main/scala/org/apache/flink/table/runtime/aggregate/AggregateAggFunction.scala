@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.aggregate
 import java.util.{ArrayList => JArrayList, List => JList}
 import org.apache.flink.api.common.functions.{AggregateFunction => DataStreamAggFunc}
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 
 /**
@@ -29,12 +30,12 @@ import org.apache.flink.types.Row
   *
   * @param aggregates       the list of all [[org.apache.flink.table.functions.AggregateFunction]]
   *                         used for this aggregation
-  * @param aggFields   the position (in the input Row) of the input value for each aggregate
+  * @param aggFields   the position (in the input [[CRow]]) of the input value for each aggregate
   */
 class AggregateAggFunction(
     private val aggregates: Array[AggregateFunction[_]],
     private val aggFields: Array[Array[Int]])
-  extends DataStreamAggFunc[Row, Row, Row] {
+  extends DataStreamAggFunc[CRow, Row, Row] {
 
   override def createAccumulator(): Row = {
     val accumulatorRow: Row = new Row(aggregates.length)
@@ -46,12 +47,12 @@ class AggregateAggFunction(
     accumulatorRow
   }
 
-  override def add(value: Row, accumulatorRow: Row): Unit = {
+  override def add(value: CRow, accumulatorRow: Row): Unit = {
 
     var i = 0
     while (i < aggregates.length) {
       val acc = accumulatorRow.getField(i).asInstanceOf[Accumulator]
-      val v = value.getField(aggFields(i)(0))
+      val v = value.row.getField(aggFields(i)(0))
       aggregates(i).accumulate(acc, v)
       i += 1
     }

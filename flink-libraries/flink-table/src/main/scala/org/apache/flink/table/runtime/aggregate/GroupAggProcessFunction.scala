@@ -19,12 +19,13 @@ package org.apache.flink.table.runtime.aggregate
 
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.types.{Command, Row}
+import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.runtime.types.CRow
 
 /**
   * Aggregate Function used for the groupby (without window) aggregate
@@ -43,34 +44,37 @@ class GroupAggProcessFunction(
     private val groupings: Array[Int],
     private val aggregationStateType: RowTypeInfo,
     private val generateRetraction: Boolean)
-  extends ProcessFunction[Row, Row] {
+  extends ProcessFunction[CRow, CRow] {
 
   Preconditions.checkNotNull(aggregates)
   Preconditions.checkNotNull(aggFields)
   Preconditions.checkArgument(aggregates.length == aggFields.length)
 
-  private var output: Row = _
-  private var previous: Row = _
+  private var newRow: CRow = _
+  private var previousRow: CRow = _
   private var state: ValueState[Row] = _
 
   override def open(config: Configuration) {
-    output = new Row(groupings.length + aggregates.length)
+    newRow = new CRow(new Row(groupings.length + aggregates.length), true)
+    previousRow = new CRow(new Row(groupings.length + aggregates.length), true)
     val stateDescriptor: ValueStateDescriptor[Row] =
       new ValueStateDescriptor[Row]("GroupAggregateState", aggregationStateType)
     state = getRuntimeContext.getState(stateDescriptor)
   }
 
   override def processElement(
-      input: Row,
-      ctx: ProcessFunction[Row, Row]#Context,
-      out: Collector[Row]): Unit = {
+      input: CRow,
+      ctx: ProcessFunction[CRow, CRow]#Context,
+      out: Collector[CRow]): Unit = {
 
     var i = 0
 
     var accumulators = state.value()
 
     if (null == accumulators) {
-      previous = null
+      // previousRow is used to retract messages, so the change of previousRow will always be false,
+      // here, set change to true to indicate there is no previous row.
+      previousRow.change = true
       accumulators = new Row(aggregates.length)
       i = 0
       while (i < aggregates.length) {
@@ -78,44 +82,27 @@ class GroupAggProcessFunction(
         i += 1
       }
     } else {
-      // get previous row
-      if (generateRetraction) {
-        if (null == previous) {
-          previous = new Row(groupings.length + aggregates.length)
-          // previous is used to output retract message, so command of previous will always be
-          // Command.Delete
-          previous.command = Command.Delete
-        }
-        i = 0
-        while (i < groupings.length) {
-          previous.setField(i, input.getField(groupings(i)))
-          i += 1
-        }
-        i = 0
-        while (i < aggregates.length) {
-          val index = groupings.length + i
-          val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-          previous.setField(index, aggregates(i).getValue(accumulator))
-          i += 1
-        }
-      }
+      previousRow.change = false
     }
 
-    // Set group keys value to the final output
+    // Set group keys value to the newRow and previousRow
     i = 0
     while (i < groupings.length) {
-      output.setField(i, input.getField(groupings(i)))
+      newRow.row.setField(i, input.row.getField(groupings(i)))
+      previousRow.row.setField(i, input.row.getField(groupings(i)))
       i += 1
     }
 
-    // Set aggregate result to the final output
-    if (input.command == Command.Delete) {
+    // Set previous aggregate result to the previousRow
+    // Set current aggregate result to the newRow
+    if (!input.change) {
       i = 0
       while (i < aggregates.length) {
         val index = groupings.length + i
         val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-        aggregates(i).retract(accumulator, input.getField(aggFields(i)(0)))
-        output.setField(index, aggregates(i).getValue(accumulator))
+        previousRow.row.setField(index, aggregates(i).getValue(accumulator))
+        aggregates(i).retract(accumulator, input.row.getField(aggFields(i)(0)))
+        newRow.row.setField(index, aggregates(i).getValue(accumulator))
         i += 1
       }
     } else {
@@ -123,25 +110,26 @@ class GroupAggProcessFunction(
       while (i < aggregates.length) {
         val index = groupings.length + i
         val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-        aggregates(i).accumulate(accumulator, input.getField(aggFields(i)(0)))
-        output.setField(index, aggregates(i).getValue(accumulator))
+        previousRow.row.setField(index, aggregates(i).getValue(accumulator))
+        aggregates(i).accumulate(accumulator, input.row.getField(aggFields(i)(0)))
+        newRow.row.setField(index, aggregates(i).getValue(accumulator))
         i += 1
       }
     }
 
-    // if previous is not null, do retraction process
-    if (null != previous) {
-      if (previous.equals(output)) {
-        // ignore same output
+    state.update(accumulators)
+
+    // if previousRow is not null, do retraction process
+    if (generateRetraction && !previousRow.change) {
+      if (previousRow.row.equals(newRow.row)) {
+        // ignore same newRow
         return
       } else {
-        // output a retraction message
-        out.collect(previous)
+        // retract previous row
+        out.collect(previousRow)
       }
     }
 
-    state.update(accumulators)
-    out.collect(output)
+    out.collect(newRow)
   }
-
 }

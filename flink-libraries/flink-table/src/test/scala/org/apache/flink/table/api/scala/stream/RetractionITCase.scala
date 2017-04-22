@@ -40,7 +40,13 @@ class RetractionITCase extends StreamingWithStateTestBase {
     ("Hello", 1),
     ("word", 1),
     ("Hello", 1),
-    ("bark", 1)
+    ("bark", 1),
+    ("bark", 1),
+    ("bark", 1),
+    ("bark", 1),
+    ("bark", 1),
+    ("bark", 1),
+    ("flink", 1)
   )
 
   // keyed groupby + keyed groupby
@@ -64,7 +70,8 @@ class RetractionITCase extends StreamingWithStateTestBase {
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = Seq("1,1", "1,2", "1,1", "2,1", "1,2")
+    val expected = Seq("1,1", "1,2", "1,1", "2,1", "1,2", "1,1", "2,2", "2,1", "3,1", "3,0", "4," +
+        "1", "4,0", "5,1", "5,0", "6,1", "1,2")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -89,7 +96,8 @@ class RetractionITCase extends StreamingWithStateTestBase {
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = Seq("1", "2", "1", "3", "4")
+    val expected = Seq("1", "2", "1", "3", "4", "3", "5", "3", "6", "3", "7", "3", "8", "3", "9",
+                       "10")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -114,63 +122,8 @@ class RetractionITCase extends StreamingWithStateTestBase {
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = Seq("1,1", "1,0", "2,1", "2,0", "3,1", "3,0", "4,1")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
-  }
-
-  // keyed groupby + over agg(unbounded, procTime, keyed)
-  @Test
-  def testGroupByAndUnboundPartitionedProcessingWindowWithRow(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStateBackend(getStateBackend)
-    env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    StreamITCase.testResults = mutable.MutableList()
-
-    val t1 = env.fromCollection(data).toTable(tEnv).as('word, 'number)
-
-    tEnv.registerTable("T1", t1)
-
-    val sqlQuery = "SELECT word, cnt, count(word) " +
-      "OVER (PARTITION BY cnt ORDER BY ProcTime() " +
-      "ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW)" +
-      "FROM " +
-      "(SELECT word, count(number) as cnt from T1 group by word) "
-
-    val result = tEnv.sql(sqlQuery).toDataStream[Row]
-    result.addSink(new StreamITCase.StringSink)
-    env.execute()
-
-    val expected = mutable.MutableList("Hello,1,1", "word,1,2", "Hello,2,1", "bark,1,2")
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
-  }
-
-  // keyed groupby + over agg(unbounded, procTime, non-keyed)
-  @Test
-  def testGroupByAndUnboundNonPartitionedProcessingWindowWithRow(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStateBackend(getStateBackend)
-    env.setParallelism(1)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    StreamITCase.testResults = mutable.MutableList()
-
-    val t1 = env.fromCollection(data).toTable(tEnv).as('word, 'number)
-
-    tEnv.registerTable("T1", t1)
-
-    val sqlQuery = "SELECT word, cnt, count(word) " +
-      "OVER (ORDER BY ProcTime() ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW)" +
-      "FROM (SELECT word , count(number) as cnt from T1 group by word) "
-
-    val result = tEnv.sql(sqlQuery).toDataStream[Row]
-    result.addSink(new StreamITCase.StringSink)
-    env.execute()
-
-    val expected = mutable.MutableList("Hello,1,1", "word,1,2", "Hello,2,2", "bark,1,3")
+    val expected = Seq("1,1", "1,0", "2,1", "2,0", "3,1", "3,0", "4,1", "4,0", "5,1", "5,0", "6," +
+      "1", "6,0", "7,1", "7,0", "8,1", "8,0", "9,1", "9,0", "10,1")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -180,8 +133,19 @@ class RetractionITCase extends StreamingWithStateTestBase {
   def testUniqueProcess(): Unit = {
     // data input
     val data = List(
-      (1234, 2L),
-      (1234, 0L)
+      (1, 1L),
+      (2, 2L),
+      (3, 3L),
+      (3, 3L),
+      (4, 1L),
+      (4, 0L),
+      (4, 0L),
+      (4, 0L),
+      (5, 1L),
+      (6, 6L),
+      (6, 6L),
+      (6, 6L),
+      (7, 8L)
     )
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -201,7 +165,8 @@ class RetractionITCase extends StreamingWithStateTestBase {
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = Seq("2,1")
+    val expected = Seq("1,1", "2,1", "3,1", "3,0", "6,1", "1,2", "1,3", "6,2", "6,1", "12,1","12," +
+      "0", "18,1", "8,1")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -229,9 +194,63 @@ class RetractionITCase extends StreamingWithStateTestBase {
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = Seq("1,1", "1,2", "1,1", "2,1", "1,2")
+    val expected = Seq(
+      "1,1", "1,2", "1,1", "2,1", "1,2", "1,1", "2,2", "2,1", "3,1", "3,0", "4,1", "4,0", "5,1",
+      "5,0", "6,1", "1,2")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  // keyed groupby + over agg(unbounded, procTime, keyed)
+  @Test(expected = classOf[TableException])
+  def testGroupByAndUnboundPartitionedProcessingWindowWithRow(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    env.setParallelism(1)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    StreamITCase.testResults = mutable.MutableList()
+
+    val t1 = env.fromCollection(data).toTable(tEnv).as('word, 'number)
+
+    tEnv.registerTable("T1", t1)
+
+    val sqlQuery = "SELECT word, cnt, count(word) " +
+      "OVER (PARTITION BY cnt ORDER BY ProcTime() " +
+      "ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW)" +
+      "FROM " +
+      "(SELECT word, count(number) as cnt from T1 group by word) "
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+  }
+
+  // keyed groupby + over agg(unbounded, procTime, non-keyed)
+  @Test(expected = classOf[TableException])
+  def testGroupByAndUnboundNonPartitionedProcessingWindowWithRow(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    env.setParallelism(1)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    StreamITCase.testResults = mutable.MutableList()
+
+    val t1 = env.fromCollection(data).toTable(tEnv).as('word, 'number)
+
+    tEnv.registerTable("T1", t1)
+
+    val sqlQuery = "SELECT word, cnt, count(word) " +
+      "OVER (ORDER BY ProcTime() ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW)" +
+      "FROM (SELECT word , count(number) as cnt from T1 group by word) "
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+  }
+
+
 
   // groupby + window agg
   @Test(expected = classOf[TableException])

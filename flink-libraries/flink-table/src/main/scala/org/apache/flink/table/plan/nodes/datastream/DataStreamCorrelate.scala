@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
-import org.apache.flink.types.Row
+import org.apache.flink.table.runtime.types.CRow
 
 /**
   * Flink RelNode which matches along with join a user defined table function.
@@ -45,7 +45,7 @@ class DataStreamCorrelate(
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
   with CommonCorrelate
-  with DataStreamRel {
+  with DataStreamRel[CRow] {
 
   override def deriveRowType() = relRowType
 
@@ -79,12 +79,12 @@ class DataStreamCorrelate(
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
 
-  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
+  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[CRow] = {
 
     val config = tableEnv.getConfig
 
     // we do not need to specify input type
-    val inputDS = getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
+    val inputDS = getInput.asInstanceOf[DataStreamRel[CRow]].translateToPlan(tableEnv)
 
     val funcRel = scan.asInstanceOf[LogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]

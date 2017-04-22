@@ -27,7 +27,8 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
-import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.slf4j.LoggerFactory
 
 /**
@@ -41,15 +42,15 @@ import org.slf4j.LoggerFactory
 class RowTimeBoundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     aggregationStateType: RowTypeInfo,
-    inputRowType: RowTypeInfo,
+    inputRowType: CRowTypeInfo,
     precedingOffset: Long)
-  extends ProcessFunction[Row, Row]
+  extends ProcessFunction[CRow, CRow]
     with Compiler[GeneratedAggregations] {
 
   Preconditions.checkNotNull(aggregationStateType)
   Preconditions.checkNotNull(precedingOffset)
 
-  private var output: Row = _
+  private var output: CRow = _
 
   // the state which keeps the last triggering timestamp
   private var lastTriggeringTsState: ValueState[Long] = _
@@ -64,7 +65,7 @@ class RowTimeBoundedRowsOver(
   // The first element (as the mapState key) of the tuple is the time stamp. Per each time stamp,
   // the second element of tuple is a list that contains the entire data of all the rows belonging
   // to this time stamp.
-  private var dataState: MapState[Long, JList[Row]] = _
+  private var dataState: MapState[Long, JList[CRow]] = _
 
   val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
@@ -95,10 +96,10 @@ class RowTimeBoundedRowsOver(
 
     val keyTypeInformation: TypeInformation[Long] =
       BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]]
-    val valueTypeInformation: TypeInformation[JList[Row]] = new ListTypeInfo[Row](inputRowType)
+    val valueTypeInformation: TypeInformation[JList[CRow]] = new ListTypeInfo[CRow](inputRowType)
 
-    val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
-      new MapStateDescriptor[Long, JList[Row]](
+    val mapStateDescriptor: MapStateDescriptor[Long, JList[CRow]] =
+      new MapStateDescriptor[Long, JList[CRow]](
         "dataState",
         keyTypeInformation,
         valueTypeInformation)
@@ -107,9 +108,9 @@ class RowTimeBoundedRowsOver(
   }
 
   override def processElement(
-    input: Row,
-    ctx: ProcessFunction[Row, Row]#Context,
-    out: Collector[Row]): Unit = {
+    input: CRow,
+    ctx: ProcessFunction[CRow, CRow]#Context,
+    out: Collector[CRow]): Unit = {
 
     // triggering timestamp for trigger calculation
     val triggeringTs = ctx.timestamp
@@ -123,7 +124,7 @@ class RowTimeBoundedRowsOver(
         data.add(input)
         dataState.put(triggeringTs, data)
       } else {
-        val data = new util.ArrayList[Row]
+        val data = new util.ArrayList[CRow]
         data.add(input)
         dataState.put(triggeringTs, data)
         // register event time timer
@@ -134,18 +135,18 @@ class RowTimeBoundedRowsOver(
 
   override def onTimer(
     timestamp: Long,
-    ctx: ProcessFunction[Row, Row]#OnTimerContext,
-    out: Collector[Row]): Unit = {
+    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+    out: Collector[CRow]): Unit = {
 
     // gets all window data from state for the calculation
-    val inputs: JList[Row] = dataState.get(timestamp)
+    val inputs: JList[CRow] = dataState.get(timestamp)
 
     if (null != inputs) {
 
       var accumulators = accumulatorState.value
       var dataCount = dataCountState.value
 
-      var retractList: JList[Row] = null
+      var retractList: JList[CRow] = null
       var retractTs: Long = Long.MaxValue
       var retractCnt: Int = 0
       var i = 0
@@ -158,7 +159,7 @@ class RowTimeBoundedRowsOver(
           accumulators = function.createAccumulators()
         }
 
-        var retractRow: Row = null
+        var retractRow: CRow = null
 
         if (dataCount >= precedingOffset) {
           if (null == retractList) {

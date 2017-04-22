@@ -20,11 +20,9 @@ package org.apache.flink.table.plan.nodes
 
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.runtime.MapRunner
-import org.apache.flink.types.Row
 
 /**
   * Common class for batch and stream scans.
@@ -35,22 +33,22 @@ trait CommonScan {
     * We check if the input type is exactly the same as the internal row type.
     * A conversion is necessary if types differ.
     */
-  private[flink] def needsConversion(
+  private[flink] def needsConversion[T](
       externalTypeInfo: TypeInformation[Any],
-      internalTypeInfo: TypeInformation[Row])
+      internalTypeInfo: TypeInformation[T])
     : Boolean = {
 
     externalTypeInfo != internalTypeInfo
   }
 
-  private[flink] def getConversionMapper(
+  private[flink] def getConversionMapper[T](
       config: TableConfig,
       inputType: TypeInformation[Any],
-      expectedType: TypeInformation[Row],
+      expectedType: TypeInformation[T],
       conversionOperatorName: String,
       fieldNames: Seq[String],
       inputPojoFieldMapping: Option[Array[Int]] = None)
-    : MapFunction[Any, Row] = {
+    : MapFunction[Any, T] = {
 
     val generator = new CodeGenerator(
       config,
@@ -68,11 +66,11 @@ trait CommonScan {
 
     val genFunction = generator.generateFunction(
       conversionOperatorName,
-      classOf[MapFunction[Any, Row]],
+      classOf[MapFunction[Any, T]],
       body,
       expectedType)
 
-    new MapRunner[Any, Row](
+    new MapRunner[Any, T](
       genFunction.name,
       genFunction.code,
       genFunction.returnType)

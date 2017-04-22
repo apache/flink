@@ -28,6 +28,7 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedFunction}
 import org.apache.flink.table.runtime.FlatMapRunner
+import org.apache.flink.table.runtime.types.CRowTypeInfo
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
@@ -35,15 +36,15 @@ import scala.collection.JavaConverters._
 
 trait CommonCalc {
 
-  private[flink] def functionBody(
+  private[flink] def functionBody[T](
       generator: CodeGenerator,
-      inputType: TypeInformation[Row],
+      inputType: TypeInformation[T],
       rowType: RelDataType,
       calcProgram: RexProgram,
       config: TableConfig)
     : String = {
 
-    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType)
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType, inputType.getTypeClass)
 
     val condition = calcProgram.getCondition
     val expandedExpressions = calcProgram.getProjectList.map(
@@ -53,9 +54,9 @@ trait CommonCalc {
       rowType.getFieldNames,
       expandedExpressions)
 
-    val retractionProcess =
-      if (inputType.isInstanceOf[RowTypeInfo] && returnType.isInstanceOf[RowTypeInfo]) {
-        s"${projection.resultTerm}.command = ${generator.input1Term}.command;"
+    val retractionProcessCode =
+      if (inputType.isInstanceOf[CRowTypeInfo] && returnType.isInstanceOf[CRowTypeInfo]) {
+        s"${projection.resultTerm}.change_$$eq(${generator.input1Term}.change());"
       } else {
         ""
       }
@@ -64,7 +65,7 @@ trait CommonCalc {
     if (condition == null) {
       s"""
         |${projection.code}
-        |${retractionProcess}
+        |${retractionProcessCode}
         |${generator.collectorTerm}.collect(${projection.resultTerm});
         |""".stripMargin
     }
@@ -86,7 +87,7 @@ trait CommonCalc {
           |${filterCondition.code}
           |if (${filterCondition.resultTerm}) {
           |  ${projection.code}
-          |  ${retractionProcess}
+          |  ${retractionProcessCode}
           |  ${generator.collectorTerm}.collect(${projection.resultTerm});
           |}
           |""".stripMargin
@@ -94,11 +95,11 @@ trait CommonCalc {
     }
   }
 
-  private[flink] def calcMapFunction(
-      genFunction: GeneratedFunction[FlatMapFunction[Row, Row], Row])
-    : RichFlatMapFunction[Row, Row] = {
+  private[flink] def calcMapFunction[T](
+      genFunction: GeneratedFunction[FlatMapFunction[T, T], T])
+    : RichFlatMapFunction[T, T] = {
 
-    new FlatMapRunner[Row, Row](
+    new FlatMapRunner[T, T](
       genFunction.name,
       genFunction.code,
       genFunction.returnType)
