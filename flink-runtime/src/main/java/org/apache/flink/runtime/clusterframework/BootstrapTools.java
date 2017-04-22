@@ -21,11 +21,11 @@ package org.apache.flink.runtime.clusterframework;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
-import com.google.common.base.Joiner;
 import com.typesafe.config.Config;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -58,7 +58,6 @@ import java.util.Map;
  */
 public class BootstrapTools {
 	private static final Logger LOG = LoggerFactory.getLogger(BootstrapTools.class);
-	private static final Joiner SPACE_JOINER = Joiner.on(" ");
 
 	/**
 	 * Starts an ActorSystem with the given configuration listening at the address/ports.
@@ -368,7 +367,7 @@ public class BootstrapTools {
 				tmParams.taskManagerDirectMemoryLimitMB()));
 		}
 
-		startCommandValues.put("jvmmem", SPACE_JOINER.join(params));
+		startCommandValues.put("jvmmem", StringUtils.join(params, ' '));
 
 		String javaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
 		if (flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS).length() > 0) {
