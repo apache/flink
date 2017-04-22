@@ -73,51 +73,34 @@ import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, Predictor}
   *
   * =Parameters=
   *
-  *  - [[org.apache.flink.ml.regression.MultipleLinearRegression.Iterations]]:
+  *  - [[org.apache.flink.ml.regression.WithIterativeSolver.Iterations]]:
   *  Maximum number of iterations.
   *
-  *  - [[org.apache.flink.ml.regression.MultipleLinearRegression.Stepsize]]:
+  *  - [[org.apache.flink.ml.regression.WithIterativeSolver.Stepsize]]:
   *  Initial step size for the gradient descent method.
   *  This value controls how far the gradient descent method moves in the opposite direction of the
   *  gradient. Tuning this parameter might be crucial to make it stable and to obtain a better
   *  performance.
   *
-  *  - [[org.apache.flink.ml.regression.MultipleLinearRegression.ConvergenceThreshold]]:
+  *  - [[org.apache.flink.ml.regression.WithIterativeSolver.ConvergenceThreshold]]:
   *  Threshold for relative change of sum of squared residuals until convergence.
   *
-  *  - [[LearningRateMethodTrait]]:
+  *  - [[org.apache.flink.ml.regression.WithIterativeSolver.LearningRateMethodValue]]:
   *  The method used to calculate the effective learning rate for each iteration step. See
   *  [[LearningRateMethod]] for all supported methods.
   *
   */
-class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
+class MultipleLinearRegression
+  extends Predictor[MultipleLinearRegression]
+    with GeneralizedLinearModel[MultipleLinearRegression]
+    with WithIterativeSolver[MultipleLinearRegression] {
   import org.apache.flink.ml._
   import MultipleLinearRegression._
 
-  // Stores the weights of the linear model after the fitting phase
-  var weightsOption: Option[DataSet[WeightVector]] = None
+  val _solver: GradientDescent = GradientDescent()
+    .setLossFunction(lossFunction)
 
-  def setIterations(iterations: Int): MultipleLinearRegression = {
-    parameters.add(Iterations, iterations)
-    this
-  }
-
-  def setStepsize(stepsize: Double): MultipleLinearRegression = {
-    parameters.add(Stepsize, stepsize)
-    this
-  }
-
-  def setConvergenceThreshold(convergenceThreshold: Double): MultipleLinearRegression = {
-    parameters.add(ConvergenceThreshold, convergenceThreshold)
-    this
-  }
-
-  def setLearningRateMethod(
-      learningRateMethod: LearningRateMethodTrait)
-    : MultipleLinearRegression = {
-    parameters.add(LearningRateMethodValue, learningRateMethod)
-    this
-  }
+  protected def solver: GradientDescent = _solver
 
   def squaredResidualSum(input: DataSet[LabeledVector]): DataSet[Double] = {
     weightsOption match {
@@ -140,79 +123,16 @@ class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
 
 object MultipleLinearRegression {
 
-  val WEIGHTVECTOR_BROADCAST = "weights_broadcast"
-
   val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
-
-  // ====================================== Parameters =============================================
-
-  case object Stepsize extends Parameter[Double] {
-    val defaultValue = Some(0.1)
-  }
-
-  case object Iterations extends Parameter[Int] {
-    val defaultValue = Some(10)
-  }
-
-  case object ConvergenceThreshold extends Parameter[Double] {
-    val defaultValue = None
-  }
-
-  case object LearningRateMethodValue extends Parameter[LearningRateMethodTrait] {
-    val defaultValue = None
-  }
-
-  // ======================================== Factory methods ======================================
 
   def apply(): MultipleLinearRegression = {
     new MultipleLinearRegression()
   }
 
-  // ====================================== Operations =============================================
-
-  /** Trains the linear model to fit the training data. The resulting weight vector is stored in
-    * the [[MultipleLinearRegression]] instance.
-    *
-    */
-  implicit val fitMLR = new FitOperation[MultipleLinearRegression, LabeledVector] {
-    override def fit(
-      instance: MultipleLinearRegression,
-      fitParameters: ParameterMap,
-      input: DataSet[LabeledVector])
-    : Unit = {
-      val map = instance.parameters ++ fitParameters
-
-      // retrieve parameters of the algorithm
-      val numberOfIterations = map(Iterations)
-      val stepsize = map(Stepsize)
-      val convergenceThreshold = map.get(ConvergenceThreshold)
-      val learningRateMethod = map.get(LearningRateMethodValue)
-
-      val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
-
-      val optimizer = GradientDescent()
-        .setIterations(numberOfIterations)
-        .setStepsize(stepsize)
-        .setLossFunction(lossFunction)
-
-      convergenceThreshold match {
-        case Some(threshold) => optimizer.setConvergenceThreshold(threshold)
-        case None =>
-      }
-
-      learningRateMethod match {
-        case Some(method) => optimizer.setLearningRateMethod(method)
-        case None =>
-      }
-
-      instance.weightsOption = Some(optimizer.optimize(input, None))
-    }
-  }
-
   implicit def predictVectors[T <: Vector] = {
     new PredictOperation[MultipleLinearRegression, WeightVector, T, Double]() {
       override def getModel(self: MultipleLinearRegression, predictParameters: ParameterMap)
-        : DataSet[WeightVector] = {
+      : DataSet[WeightVector] = {
         self.weightsOption match {
           case Some(weights) => weights
 
