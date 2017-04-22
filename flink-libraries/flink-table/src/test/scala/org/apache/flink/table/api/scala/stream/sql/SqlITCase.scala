@@ -190,4 +190,94 @@ class SqlITCase extends StreamingWithStateTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
+  @Test
+  def testUnnestPrimitiveArrayFromTable(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = List(
+      (1, Array(12, 45), Array(Array(12, 45))),
+      (2, Array(41, 5), Array(Array(18), Array(87))),
+      (3, Array(18, 42), Array(Array(1), Array(45)))
+    )
+    val stream = env.fromCollection(data)
+    tEnv.registerDataStream("T", stream, 'a, 'b, 'c)
+
+    val sqlQuery = "SELECT a, b, s FROM T, UNNEST(T.b) AS A (s)"
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = List(
+      "1,[12, 45],12",
+      "1,[12, 45],45",
+      "2,[41, 5],41",
+      "2,[41, 5],5",
+      "3,[18, 42],18",
+      "3,[18, 42],42"
+    )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testUnnestArrayOfArrayFromTable(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = List(
+      (1, Array(12, 45), Array(Array(12, 45))),
+      (2, Array(41, 5), Array(Array(18), Array(87))),
+      (3, Array(18, 42), Array(Array(1), Array(45)))
+    )
+    val stream = env.fromCollection(data)
+    tEnv.registerDataStream("T", stream, 'a, 'b, 'c)
+
+    val sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) AS A (s)"
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = List(
+      "1,[12, 45]",
+      "2,[18]",
+      "2,[87]",
+      "3,[1]",
+      "3,[45]")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testUnnestObjectArrayFromTableWithFilter(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = List(
+      (1, Array((12, "45.6"), (12, "45.612"))),
+      (2, Array((13, "41.6"), (14, "45.2136"))),
+      (3, Array((18, "42.6")))
+    )
+    val stream = env.fromCollection(data)
+    tEnv.registerDataStream("T", stream, 'a, 'b)
+
+    val sqlQuery = "SELECT a, b, s, t FROM T, UNNEST(T.b) AS A (s, t) WHERE s > 13"
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = List(
+      "2,[(13,41.6), (14,45.2136)],14,45.2136",
+      "3,[(18,42.6)],18,42.6")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
 }
+
