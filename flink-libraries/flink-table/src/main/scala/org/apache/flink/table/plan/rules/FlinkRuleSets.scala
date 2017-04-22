@@ -100,6 +100,9 @@ object FlinkRuleSets {
     PushProjectIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
 
+    // Unnest rule
+    LogicalUnnestRule.INSTANCE,
+
     // translate to flink logical rel nodes
     FlinkLogicalAggregate.CONVERTER,
     FlinkLogicalWindowAggregate.CONVERTER,

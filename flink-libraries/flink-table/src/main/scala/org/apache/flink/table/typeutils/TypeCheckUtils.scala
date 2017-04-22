@@ -68,7 +68,9 @@ object TypeCheckUtils {
   def isLong(dataType: TypeInformation[_]): Boolean = dataType == LONG_TYPE_INFO
 
   def isArray(dataType: TypeInformation[_]): Boolean = dataType match {
-    case _: ObjectArrayTypeInfo[_, _] | _: PrimitiveArrayTypeInfo[_] => true
+    case _: ObjectArrayTypeInfo[_, _] |
+         _: PrimitiveArrayTypeInfo[_] |
+         _: BasicArrayTypeInfo[_, _] => true
     case _ => false
   }
 
