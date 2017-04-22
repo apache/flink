@@ -115,7 +115,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	public void report() {
 		DatadogHttpRequest request = new DatadogHttpRequest();
 
-		for d(Map.Entry<Gauge, DGauge> entry : gauges.entrySet()) {
+		for (Map.Entry<Gauge, DGauge> entry : gauges.entrySet()) {
 			DGauge g = entry.getValue();
 			try {
 				// Will throw exception if the Gauge is not of Number type
