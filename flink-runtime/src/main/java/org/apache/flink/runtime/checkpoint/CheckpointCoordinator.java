@@ -165,6 +165,8 @@ public class CheckpointCoordinator {
 	@Nullable
 	private CheckpointStatsTracker statsTracker;
 
+	private volatile long restoredCheckpointID = -1;
+
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
@@ -973,8 +975,15 @@ public class CheckpointCoordinator {
 
 				statsTracker.reportRestoredCheckpoint(restored);
 			}
-
+			// set it inside lock
+			restoredCheckpointID = latest.getCheckpointID();
 			return true;
+		}
+	}
+
+	public long getRestoredCheckpointID() {
+		synchronized (lock) {
+			return this.restoredCheckpointID;
 		}
 	}
 

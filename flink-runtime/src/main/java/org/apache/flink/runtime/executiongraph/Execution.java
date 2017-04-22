@@ -35,7 +35,9 @@ import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.DeployTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.RestoreTaskException;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.ConnectionID;
@@ -875,6 +877,15 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			if (transitionState(current, FAILED, t)) {
 				// success (in a manner of speaking)
+				if (current == DEPLOYING) {
+					long restoredCheckpointID = getVertex().getExecutionGraph().getCheckpointCoordinator().getRestoredCheckpointID();
+					if (restoredCheckpointID != -1) {
+						// we have restore it from a checkpoint
+						t = new RestoreTaskException(t, restoredCheckpointID);
+					} else {
+						t = new DeployTaskException(t);
+					}
+				}
 				this.failureCause = t;
 
 				updateAccumulatorsAndMetrics(userAccumulators, metrics);
