@@ -720,8 +720,6 @@ public class FlinkKinesisConsumerTest {
 
 		Mockito.verify(mockedFetcher).setIsRestoringFromFailure(true);
 		for (Map.Entry<KinesisStreamShard, SequenceNumber> restoredShard : fakeRestoredState.entrySet()) {
-			Mockito.verify(mockedFetcher).advanceLastDiscoveredShardOfStream(
-				restoredShard.getKey().getStreamName(), restoredShard.getKey().getShard().getShardId());
 			Mockito.verify(mockedFetcher).registerNewSubscribedShardState(
 				new KinesisStreamShardState(restoredShard.getKey(), restoredShard.getValue()));
 		}
@@ -774,8 +772,6 @@ public class FlinkKinesisConsumerTest {
 
 		Mockito.verify(mockedFetcher).setIsRestoringFromFailure(true);
 		for (Map.Entry<KinesisStreamShard, SequenceNumber> restoredShard : fakeRestoredState.entrySet()) {
-			Mockito.verify(mockedFetcher).advanceLastDiscoveredShardOfStream(
-				restoredShard.getKey().getStreamName(), restoredShard.getKey().getShard().getShardId());
 			Mockito.verify(mockedFetcher).registerNewSubscribedShardState(
 				new KinesisStreamShardState(restoredShard.getKey(), restoredShard.getValue()));
 		}
@@ -834,15 +830,11 @@ public class FlinkKinesisConsumerTest {
 		Mockito.verify(mockedFetcher).setIsRestoringFromFailure(true);
 		for (Map.Entry<KinesisStreamShard, SequenceNumber> restoredShard : fakeRestoredStateForOthers.entrySet()) {
 			// should never get restored state not belonging to itself
-			Mockito.verify(mockedFetcher, never()).advanceLastDiscoveredShardOfStream(
-				restoredShard.getKey().getStreamName(), restoredShard.getKey().getShard().getShardId());
 			Mockito.verify(mockedFetcher, never()).registerNewSubscribedShardState(
 				new KinesisStreamShardState(restoredShard.getKey(), restoredShard.getValue()));
 		}
 		for (Map.Entry<KinesisStreamShard, SequenceNumber> restoredShard : fakeRestoredState.entrySet()) {
 			// should get restored state belonging to itself
-			Mockito.verify(mockedFetcher).advanceLastDiscoveredShardOfStream(
-				restoredShard.getKey().getStreamName(), restoredShard.getKey().getShard().getShardId());
 			Mockito.verify(mockedFetcher).registerNewSubscribedShardState(
 				new KinesisStreamShardState(restoredShard.getKey(), restoredShard.getValue()));
 		}
@@ -925,8 +917,6 @@ public class FlinkKinesisConsumerTest {
 			SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
 		Mockito.verify(mockedFetcher).setIsRestoringFromFailure(true);
 		for (Map.Entry<KinesisStreamShard, SequenceNumber> restoredShard : fakeRestoredState.entrySet()) {
-			Mockito.verify(mockedFetcher).advanceLastDiscoveredShardOfStream(
-				restoredShard.getKey().getStreamName(), restoredShard.getKey().getShard().getShardId());
 			Mockito.verify(mockedFetcher).registerNewSubscribedShardState(
 				new KinesisStreamShardState(restoredShard.getKey(), restoredShard.getValue()));
 		}
