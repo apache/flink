@@ -18,8 +18,124 @@
 
 package org.apache.flink.table.api
 
-import org.apache.flink.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical._
+import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
+import org.apache.flink.table.api.scala.{CURRENT_RANGE, CURRENT_ROW}
+
+/**
+  * Over window is similar to the traditional OVER SQL.
+  */
+case class OverWindow(
+    private[flink] val alias: Expression,
+    private[flink] val partitionBy: Seq[Expression],
+    private[flink] val orderBy: Expression,
+    private[flink] val preceding: Expression,
+    private[flink] val following: Expression)
+
+case class CurrentRow() extends Expression {
+  override private[flink] def resultType = RowIntervalTypeInfo.INTERVAL_ROWS
+  override private[flink] def children = Seq()
+  override def toString = "CURRENT ROW"
+}
+
+case class CurrentRange() extends Expression {
+  override private[flink] def resultType = TimeIntervalTypeInfo.INTERVAL_MILLIS
+  override private[flink] def children = Seq()
+  override def toString = "CURRENT RANGE"
+}
+
+case class UnboundedRow() extends Expression {
+  override private[flink] def resultType = RowIntervalTypeInfo.INTERVAL_ROWS
+  override private[flink] def children = Seq()
+  override def toString = "UNBOUNDED ROW"
+}
+
+case class UnboundedRange() extends Expression {
+  override private[flink] def resultType = TimeIntervalTypeInfo.INTERVAL_MILLIS
+  override private[flink] def children = Seq()
+  override def toString = "UNBOUNDED RANGE"
+}
+
+/**
+  * An over window predefined  specification.
+  */
+class OverWindowPredefined(
+    private val partitionBy: Seq[Expression],
+    private val orderBy: Expression) {
+
+  private[flink] var preceding: Expression = _
+  private[flink] var following: Expression = _
+
+  /**
+    * Assigns an alias for this window that the following `select()` clause can refer to.
+    *
+    * @param alias alias for this over window
+    * @return over window
+    */
+  def as(alias: String): OverWindow = as(ExpressionParser.parseExpression(alias))
+
+  /**
+    * Assigns an alias for this window that the following `select()` clause can refer to.
+    *
+    * @param alias alias for this over window
+    * @return over window
+    */
+  def as(alias: Expression): OverWindow = {
+
+    // set following to CURRENT_ROW / CURRENT_RANGE if not defined
+    if (null == following) {
+      if (preceding.resultType.isInstanceOf[RowIntervalTypeInfo]) {
+        following = CURRENT_ROW
+      } else {
+        following = CURRENT_RANGE
+      }
+    }
+    OverWindow(alias, partitionBy, orderBy, preceding, following)
+  }
+
+  /**
+    * Set the preceding offset (based on time or row-count intervals) for over window.
+    *
+    * @param preceding preceding offset relative to the current row.
+    * @return this over window
+    */
+  def preceding(preceding: String): OverWindowPredefined = {
+    this.preceding(ExpressionParser.parseExpression(preceding))
+  }
+
+  /**
+    * Set the preceding offset (based on time or row-count intervals) for over window.
+    *
+    * @param preceding preceding offset relative to the current row.
+    * @return this over window
+    */
+  def preceding(preceding: Expression): OverWindowPredefined = {
+    this.preceding = preceding
+    this
+  }
+
+  /**
+    * Set the following offset (based on time or row-count intervals) for over window.
+    *
+    * @param following following offset that relative to the current row.
+    * @return this over window
+    */
+  def following(following: String): OverWindowPredefined = {
+    this.following(ExpressionParser.parseExpression(following))
+  }
+
+  /**
+    * Set the following offset (based on time or row-count intervals) for over window.
+    *
+    * @param following following offset that relative to the current row.
+    * @return this over window
+    */
+  def following(following: Expression): OverWindowPredefined = {
+    this.following = following
+    this
+  }
+}
 
 /**
   * A window specification.
