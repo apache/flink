@@ -471,9 +471,25 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		OperatorStateHandle opManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateManagedFuture());
 		OperatorStateHandle opRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateRawFuture());
 
+		// also snapshot legacy state, if any
+		StreamStateHandle legacyStateHandle = null;
+
+		if (operator instanceof StreamCheckpointedOperator) {
+
+			CheckpointStreamFactory streamFactory = stateBackend.createStreamFactory(
+					new JobID(),
+					"test_op");
+
+			final CheckpointStreamFactory.CheckpointStateOutputStream outStream =
+					streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
+
+				((StreamCheckpointedOperator) operator).snapshotState(outStream, checkpointId, timestamp);
+				legacyStateHandle = outStream.closeAndGetHandle();
+		}
+
 		return new OperatorStateHandles(
 			0,
-			null,
+			legacyStateHandle,
 			keyedManaged != null ? Collections.singletonList(keyedManaged) : null,
 			keyedRaw != null ? Collections.singletonList(keyedRaw) : null,
 			opManaged != null ? Collections.singletonList(opManaged) : null,
