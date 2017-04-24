@@ -55,7 +55,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 
-public class ContinuousFileProcessingMigrationTest {
+public class ContinuousFileProcessingFrom11MigrationTest {
 
 	private static final int NO_OF_FILES = 5;
 	private static final int LINES_PER_FILE = 10;
@@ -106,7 +106,7 @@ public class ContinuousFileProcessingMigrationTest {
 	}
 
 	private static String getResourceFilename(String filename) {
-		ClassLoader cl = ContinuousFileProcessingMigrationTest.class.getClassLoader();
+		ClassLoader cl = ContinuousFileProcessingFrom11MigrationTest.class.getClassLoader();
 		URL resource = cl.getResource(filename);
 		return resource.getFile();
 	}
