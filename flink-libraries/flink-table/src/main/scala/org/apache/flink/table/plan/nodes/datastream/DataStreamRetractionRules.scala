@@ -136,7 +136,7 @@ object DataStreamRetractionRules {
     def needsUpdatesAsRetraction(node: RelNode): Boolean = {
       node match {
         case _ if sendsUpdatesAsRetraction(node) => true
-        case dsr: DataStreamRel[CRow] => dsr.needsUpdatesAsRetraction
+        case dsr: DataStreamRel[_] => dsr.needsUpdatesAsRetraction
       }
     }
 
@@ -193,7 +193,7 @@ object DataStreamRetractionRules {
       */
     def producesUpdates(relNode: RelNode): Boolean = {
       relNode match {
-        case dsr: DataStreamRel[CRow] => dsr.producesUpdates
+        case dsr: DataStreamRel[_] => dsr.producesUpdates
       }
     }
 
@@ -212,7 +212,7 @@ object DataStreamRetractionRules {
       */
     def consumesRetractions(relNode: RelNode): Boolean = {
       relNode match {
-        case dsr: DataStreamRel[CRow] => dsr.consumesRetractions
+        case dsr: DataStreamRel[_] => dsr.consumesRetractions
       }
     }
 

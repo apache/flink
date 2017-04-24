@@ -56,7 +56,7 @@ import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.schema.RelTable
 import org.apache.flink.table.runtime.MapRunner
-import org.apache.flink.table.runtime.types.CRowTypeInfo
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.validate.FunctionCatalog
@@ -577,6 +577,18 @@ abstract class TableEnvironment(val config: TableConfig) {
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
+      case cr: CRowTypeInfo =>
+        exprs.zipWithIndex.map {
+          case (UnresolvedFieldReference(name), idx) => (idx, name)
+          case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
+            val idx = cr.getFieldIndex(origName)
+            if (idx < 0) {
+              throw new TableException(s"$origName is not a field of type $cr")
+            }
+            (idx, name)
+          case _ => throw new TableException(
+            "Field reference expression or alias on field expression expected.")
+        }
       case c: CaseClassTypeInfo[A] =>
         exprs.zipWithIndex.map {
           case (UnresolvedFieldReference(name), idx) => (idx, name)
@@ -645,7 +657,8 @@ abstract class TableEnvironment(val config: TableConfig) {
         "This is a bug and should not happen. Please file an issue.")
     }
 
-    // requested type is a generic Row, no conversion needed
+    // if requested type is a generic type and requested type class is equal to physical row type
+    // class, no conversion needed
     if (requestedTypeInfo.isInstanceOf[GenericTypeInfo[_]] &&
           requestedTypeInfo.getTypeClass == physicalRowTypeInfo.getTypeClass) {
       return None
@@ -659,14 +672,17 @@ abstract class TableEnvironment(val config: TableConfig) {
     val logicalFieldNames = logicalRowType.getFieldNames.asScala
 
 
-    val finalRequestTypeInfo =
-      if (requestedTypeInfo.isInstanceOf[GenericTypeInfo[Row]]) {
-        // if the request type is Row, we can't get the arity
-        // so make request type directly from physical row type
+    val finalRequestTypeInfo = requestedTypeInfo match {
+      // if requestedTypeInfo is a generic Row
+      case _: GenericTypeInfo[_] if requestedTypeInfo.getTypeClass == classOf[Row] =>
         physicalRowTypeInfo.asInstanceOf[CRowTypeInfo].rowType
-      } else {
-        requestedTypeInfo
-      }
+      // if requestedTypeInfo is a generic CRow
+      case _: GenericTypeInfo[_] if requestedTypeInfo.getTypeClass == classOf[CRow] =>
+        new CRowTypeInfo(physicalRowTypeInfo.asInstanceOf[RowTypeInfo])
+      // otherwise
+      case _ => requestedTypeInfo
+    }
+
 
     // validate requested type
     if (finalRequestTypeInfo.getArity != logicalFieldTypes.length) {
@@ -701,6 +717,16 @@ abstract class TableEnvironment(val config: TableConfig) {
             }
         }
 
+      // CRow type requested
+      case ct: CRowTypeInfo =>
+        logicalFieldTypes.zipWithIndex foreach {
+          case (fieldTypeInfo, i) =>
+            val finalRequestTypeInfo = ct.getTypeAt(i)
+            if (fieldTypeInfo != finalRequestTypeInfo) {
+              throw new TableException(s"Result field does not match requested type. " +
+                s"Requested: $finalRequestTypeInfo; Actual: $fieldTypeInfo")
+            }
+        }
 
       // Atomic type requested
       case at: AtomicType[_] if at.getTypeClass != classOf[Row] =>
