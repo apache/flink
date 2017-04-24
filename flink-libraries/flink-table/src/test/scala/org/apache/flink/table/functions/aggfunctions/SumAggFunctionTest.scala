@@ -26,7 +26,8 @@ import org.apache.flink.table.functions.AggregateFunction
   *
   * @tparam T the type for the aggregation result
   */
-abstract class SumAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T] {
+abstract class SumAggFunctionTestBase[T: Numeric]
+  extends AggFunctionTestBase[T, SumAccumulator[T]] {
 
   private val numeric: Numeric[T] = implicitly[Numeric[T]]
 
@@ -63,54 +64,59 @@ abstract class SumAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T]
     numeric.fromInt(2),
     null.asInstanceOf[T]
   )
-
-  override def supportRetraction: Boolean = false
 }
 
 class ByteSumAggFunctionTest extends SumAggFunctionTestBase[Byte] {
 
   override def maxVal = (Byte.MaxValue / 2).toByte
 
-  override def aggregator: AggregateFunction[Byte] = new ByteSumAggFunction
+  override def aggregator: AggregateFunction[Byte, SumAccumulator[Byte]] =
+    new ByteSumAggFunction
 }
 
 class ShortSumAggFunctionTest extends SumAggFunctionTestBase[Short] {
 
   override def maxVal = (Short.MaxValue / 2).toShort
 
-  override def aggregator: AggregateFunction[Short] = new ShortSumAggFunction
+  override def aggregator: AggregateFunction[Short, SumAccumulator[Short]] =
+    new ShortSumAggFunction
 }
 
 class IntSumAggFunctionTest extends SumAggFunctionTestBase[Int] {
 
   override def maxVal = Int.MaxValue / 2
 
-  override def aggregator: AggregateFunction[Int] = new IntSumAggFunction
+  override def aggregator: AggregateFunction[Int, SumAccumulator[Int]] =
+    new IntSumAggFunction
 }
 
 class LongSumAggFunctionTest extends SumAggFunctionTestBase[Long] {
 
   override def maxVal = Long.MaxValue / 2
 
-  override def aggregator: AggregateFunction[Long] = new LongSumAggFunction
+  override def aggregator: AggregateFunction[Long, SumAccumulator[Long]] =
+    new LongSumAggFunction
 }
 
 class FloatSumAggFunctionTest extends SumAggFunctionTestBase[Float] {
 
   override def maxVal = 12345.6789f
 
-  override def aggregator: AggregateFunction[Float] = new FloatSumAggFunction
+  override def aggregator: AggregateFunction[Float, SumAccumulator[Float]] =
+    new FloatSumAggFunction
 }
 
 class DoubleSumAggFunctionTest extends SumAggFunctionTestBase[Double] {
 
   override def maxVal = 12345.6789d
 
-  override def aggregator: AggregateFunction[Double] = new DoubleSumAggFunction
+  override def aggregator: AggregateFunction[Double, SumAccumulator[Double]] =
+    new DoubleSumAggFunction
 }
 
 
-class DecimalSumAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
+class DecimalSumAggFunctionTest
+  extends AggFunctionTestBase[BigDecimal, DecimalSumAccumulator] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
@@ -143,9 +149,8 @@ class DecimalSumAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
     null
   )
 
-  override def aggregator: AggregateFunction[BigDecimal] = new DecimalSumAggFunction()
-
-  override def supportRetraction: Boolean = false
+  override def aggregator: AggregateFunction[BigDecimal, DecimalSumAccumulator] =
+    new DecimalSumAggFunction()
 }
 
 
