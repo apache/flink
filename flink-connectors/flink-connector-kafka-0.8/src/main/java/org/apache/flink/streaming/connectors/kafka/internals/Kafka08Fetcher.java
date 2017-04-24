@@ -312,6 +312,10 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 					}
 				}
 				while (runningThreads > 0);
+
+				if (periodicCommitter != null) {
+					periodicCommitter.join();
+				}
 			}
 			catch (InterruptedException ignored) {
 				// waiting for the thread shutdown apparently got interrupted
@@ -324,7 +328,14 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 			}
 
 			try {
-				zookeeperOffsetHandler.close();
+				//notifyCheckpointComplete can occur during the cancellation
+				// and call commitOffset on closed curatorClient
+				// so use CheckpointLock to close curatorClient.
+				//by contract CheckpointLock must not be null
+				final Object lock = sourceContext.getCheckpointLock();
+				synchronized (lock) {
+					zookeeperOffsetHandler.close();
+				}
 			}
 			catch (Throwable t) {
 				// we catch all here to preserve the original exception
