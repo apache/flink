@@ -82,7 +82,7 @@ object AggregateUtil {
       isRowsClause: Boolean)
     : ProcessFunction[CRow, CRow] = {
 
-    val (aggFields, aggregates) =
+    val (aggFields, aggregates, distinctAcc) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
@@ -105,6 +105,7 @@ object AggregateUtil {
       forwardMapping,
       None,
       None,
+      distinctAcc,
       outputArity,
       needRetract = false,
       needMerge = false,
@@ -158,7 +159,7 @@ object AggregateUtil {
       generateRetraction: Boolean,
       consumeRetraction: Boolean): ProcessFunction[CRow, CRow] = {
 
-    val (aggFields, aggregates) =
+    val (aggFields, aggregates, distinctAcc) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputRowType,
@@ -181,6 +182,7 @@ object AggregateUtil {
       groupings,
       None,
       None,
+      distinctAcc,
       outputArity,
       consumeRetraction,
       needMerge = false,
@@ -220,7 +222,7 @@ object AggregateUtil {
     : ProcessFunction[CRow, CRow] = {
 
     val needRetract = true
-    val (aggFields, aggregates) =
+    val (aggFields, aggregates, distinctAcc) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
@@ -244,6 +246,7 @@ object AggregateUtil {
       forwardMapping,
       None,
       None,
+      distinctAcc,
       outputArity,
       needRetract,
       needMerge = false,
@@ -317,7 +320,7 @@ object AggregateUtil {
   : MapFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
+    val (aggFieldIndexes, aggregates, distinctAcc) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
       needRetract)
@@ -371,6 +374,7 @@ object AggregateUtil {
       groupings,
       None,
       None,
+      distinctAcc,
       outputArity,
       needRetract,
       needMerge = false,
@@ -422,7 +426,7 @@ object AggregateUtil {
     : RichGroupReduceFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
+    val (aggFieldIndexes, aggregates, distinctAcc) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
       needRetract)
@@ -449,6 +453,7 @@ object AggregateUtil {
           groupings.indices.toArray,
           Some(aggregates.indices.map(_ + groupings.length).toArray),
           None,
+          distinctAcc,
           keysAndAggregatesArity + 1,
           needRetract,
           needMerge = true,
@@ -535,7 +540,7 @@ object AggregateUtil {
     : RichGroupReduceFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
+    val (aggFieldIndexes, aggregates, distinctAcc) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
       needRetract)
@@ -553,6 +558,7 @@ object AggregateUtil {
       groupings,
       Some(aggregates.indices.map(_ + groupings.length).toArray),
       None,
+      distinctAcc,
       outputType.getFieldCount,
       needRetract,
       needMerge = true,
@@ -570,6 +576,7 @@ object AggregateUtil {
       groupings.indices.toArray,
       Some(aggregates.indices.map(_ + groupings.length).toArray),
       None,
+      distinctAcc,
       outputType.getFieldCount,
       needRetract,
       needMerge = true,
@@ -682,7 +689,7 @@ object AggregateUtil {
     groupings: Array[Int]): MapPartitionFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
+    val (aggFieldIndexes, aggregates, distinctAcc) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
       needRetract)
@@ -711,6 +718,7 @@ object AggregateUtil {
           groupings.indices.toArray,
           Some(aggregates.indices.map(_ + groupings.length).toArray),
           None,
+          distinctAcc,
           groupings.length + aggregates.length + 2,
           needRetract,
           needMerge = true,
@@ -755,7 +763,7 @@ object AggregateUtil {
     : GroupCombineFunction[Row, Row] = {
 
     val needRetract = false
-    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
+    val (aggFieldIndexes, aggregates, distinctAcc) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       physicalInputRowType,
       needRetract)
@@ -785,6 +793,7 @@ object AggregateUtil {
           groupings.indices.toArray,
           Some(aggregates.indices.map(_ + groupings.length).toArray),
           None,
+          distinctAcc,
           groupings.length + aggregates.length + 2,
           needRetract,
           needMerge = true,
@@ -821,7 +830,7 @@ object AggregateUtil {
         RichGroupReduceFunction[Row, Row]) = {
 
     val needRetract = false
-    val (aggInFields, aggregates) = transformToAggregateFunctions(
+    val (aggInFields, aggregates, distinctAcc) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
       needRetract)
@@ -866,6 +875,7 @@ object AggregateUtil {
         groupings,
         None,
         None,
+        distinctAcc,
         groupings.length + aggregates.length,
         needRetract,
         needMerge = false,
@@ -893,6 +903,7 @@ object AggregateUtil {
         gkeyMapping,
         Some(aggregates.indices.map(_ + groupings.length).toArray),
         constantFlags,
+        distinctAcc,
         outputType.getFieldCount,
         needRetract,
         needMerge = true,
@@ -917,6 +928,7 @@ object AggregateUtil {
         groupings,
         None,
         constantFlags,
+        distinctAcc,
         outputType.getFieldCount,
         needRetract,
         needMerge = false,
@@ -993,7 +1005,7 @@ object AggregateUtil {
     : (DataStreamAggFunction[CRow, Row, Row], RowTypeInfo, RowTypeInfo) = {
 
     val needRetract = false
-    val (aggFields, aggregates) =
+    val (aggFields, aggregates, distinctAcc) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
@@ -1013,6 +1025,7 @@ object AggregateUtil {
       groupingKeys,
       None,
       None,
+      distinctAcc,
       outputArity,
       needRetract,
       needMerge,
@@ -1152,7 +1165,7 @@ object AggregateUtil {
       aggregateCalls: Seq[AggregateCall],
       inputType: RelDataType,
       needRetraction: Boolean)
-  : (Array[Array[Int]], Array[TableAggregateFunction[_ <: Any, _ <: Any]]) = {
+  : (Array[Array[Int]], Array[TableAggregateFunction[_ <: Any, _ <: Any]], Set[Int]) = {
 
     // store the aggregate fields of each aggregate function, by the same order of aggregates.
     val aggFieldIndexes = new Array[Array[Int]](aggregateCalls.size)
@@ -1386,9 +1399,11 @@ object AggregateUtil {
         case unSupported: SqlAggFunction =>
           throw new TableException("unsupported Function: " + unSupported.getName)
       }
+
     }
 
-    (aggFieldIndexes, aggregates)
+    val distinctAcc = aggregateCalls.zipWithIndex.filter(x => x._1.isDistinct).map(x => x._2).toSet
+    (aggFieldIndexes, aggregates, distinctAcc)
   }
 
   private def createAccumulatorType(
