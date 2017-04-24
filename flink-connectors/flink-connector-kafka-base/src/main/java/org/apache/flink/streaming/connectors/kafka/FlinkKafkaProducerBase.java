@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.PartitionerInfo;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
 import org.apache.kafka.clients.producer.Callback;
@@ -45,12 +46,13 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.ArrayList;
-import java.util.Map;
-import java.util.Properties;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 import static java.util.Objects.requireNonNull;
 
@@ -76,12 +78,6 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	public static final String KEY_DISABLE_METRICS = "flink.disable-metrics";
 
 	/**
-	 * Array with the partition ids of the given defaultTopicId
-	 * The size of this array is the number of partitions
-	 */
-	protected int[] partitions;
-
-	/**
 	 * User defined properties for the Producer
 	 */
 	protected final Properties producerConfig;
@@ -98,9 +94,9 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	protected final KeyedSerializationSchema<IN> schema;
 
 	/**
-	 * User-provided partitioner for assigning an object to a Kafka partition.
+	 * User-provided partitioner for assigning an object to a Kafka partition for each topic
 	 */
-	protected final KafkaPartitioner<IN> partitioner;
+	protected final Map<String, PartitionerInfo<IN>> topicPartitionerMap;
 
 	/**
 	 * Flag indicating whether to accept failures (and log them), or to fail on failures
@@ -169,7 +165,10 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 			throw new IllegalArgumentException(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG + " must be supplied in the producer config properties.");
 		}
 
-		this.partitioner = customPartitioner;
+		this.topicPartitionerMap = new HashMap<>();
+		if(null != customPartitioner) {
+			this.topicPartitionerMap.put(defaultTopicId, new PartitionerInfo(defaultTopicId, customPartitioner));
+		}
 	}
 
 	// ---------------------------------- Properties --------------------------
@@ -204,6 +203,16 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		return new KafkaProducer<>(props);
 	}
 
+	/**
+	 * User add special topic and partitioner to the kafka producer. When data arrives to the sink, the target topic's
+	 * partitioner will be used to slice the data
+	 * @param topic the name of topic
+	 * @param partitioner the special partitioner of the topic
+	 */
+	public void addTopicPartitioner(String topic, KafkaPartitioner<IN> partitioner) {
+		this.topicPartitionerMap.put(topic, new PartitionerInfo(topic, partitioner));
+	}
+
 	// ----------------------------------- Utilities --------------------------
 	
 	/**
@@ -214,24 +223,28 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		producer = getKafkaProducer(this.producerConfig);
 
 		RuntimeContext ctx = getRuntimeContext();
-		if (partitioner != null) {
-			// the fetched list is immutable, so we're creating a mutable copy in order to sort it
-			List<PartitionInfo> partitionsList = new ArrayList<>(producer.partitionsFor(defaultTopicId));
+		if (!this.topicPartitionerMap.isEmpty()) {
+			for(Map.Entry<String, PartitionerInfo<IN>> entry : this.topicPartitionerMap.entrySet()) {
+				// the fetched list is immutable, so we're creating a mutable copy in order to sort it
+				List<PartitionInfo> partitionsList = new ArrayList<>(producer.partitionsFor(entry.getKey()));
 
-			// sort the partitions by partition id to make sure the fetched partition list is the same across subtasks
-			Collections.sort(partitionsList, new Comparator<PartitionInfo>() {
-				@Override
-				public int compare(PartitionInfo o1, PartitionInfo o2) {
-					return Integer.compare(o1.partition(), o2.partition());
+				// sort the partitions by partition id to make sure the fetched partition list is the same across subtasks
+				Collections.sort(partitionsList, new Comparator<PartitionInfo>() {
+					@Override
+					public int compare(PartitionInfo o1, PartitionInfo o2) {
+						return Integer.compare(o1.partition(), o2.partition());
+					}
+				});
+
+				int[] partitions = new int[partitionsList.size()];
+				for (int i = 0; i < partitions.length; i++) {
+					partitions[i] = partitionsList.get(i).partition();
 				}
-			});
 
-			partitions = new int[partitionsList.size()];
-			for (int i = 0; i < partitions.length; i++) {
-				partitions[i] = partitionsList.get(i).partition();
+				PartitionerInfo<IN> partitionerInfo = entry.getValue();
+				partitionerInfo.setPartitions(partitions);
+				partitionerInfo.getPartitioner().open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks(), partitions);
 			}
-
-			partitioner.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks(), partitions);
 		}
 
 		LOG.info("Starting FlinkKafkaProducer ({}/{}) to produce into topic {}", 
@@ -300,10 +313,11 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		}
 
 		ProducerRecord<byte[], byte[]> record;
-		if (partitioner == null) {
+		PartitionerInfo<IN> partitionerInfo = this.topicPartitionerMap.get(targetTopic);
+		if (partitionerInfo == null) {
 			record = new ProducerRecord<>(targetTopic, serializedKey, serializedValue);
 		} else {
-			record = new ProducerRecord<>(targetTopic, partitioner.partition(next, serializedKey, serializedValue, partitions.length), serializedKey, serializedValue);
+			record = new ProducerRecord<>(targetTopic, partitionerInfo.getPartitioner().partition(next, serializedKey, serializedValue, partitionerInfo.getPartitionNum()), serializedKey, serializedValue);
 		}
 		if (flushOnCheckpoint) {
 			synchronized (pendingRecordsLock) {

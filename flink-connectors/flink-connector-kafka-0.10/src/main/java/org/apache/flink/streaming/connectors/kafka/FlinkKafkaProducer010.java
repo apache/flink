@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.PartitionerInfo;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
@@ -243,10 +244,11 @@ public class FlinkKafkaProducer010<T> extends StreamSink<T> implements SinkFunct
 		}
 
 		ProducerRecord<byte[], byte[]> record;
-		if (internalProducer.partitioner == null) {
+		PartitionerInfo<T> partitionerInfo = internalProducer.topicPartitionerMap.get(targetTopic);
+		if (partitionerInfo == null) {
 			record = new ProducerRecord<>(targetTopic, null, timestamp, serializedKey, serializedValue);
 		} else {
-			record = new ProducerRecord<>(targetTopic, internalProducer.partitioner.partition(next, serializedKey, serializedValue, internalProducer.partitions.length), timestamp, serializedKey, serializedValue);
+			record = new ProducerRecord<>(targetTopic, partitionerInfo.getPartitioner().partition(next, serializedKey, serializedValue, partitionerInfo.getPartitionNum()), timestamp, serializedKey, serializedValue);
 		}
 		if (internalProducer.flushOnCheckpoint) {
 			synchronized (internalProducer.pendingRecordsLock) {
