@@ -39,6 +39,8 @@ under the License.
 	<modules>
 		<module>flink-storm</module>
 		<module>flink-storm-examples</module>
+		<module>flink-apache-storm</module>
+		<module>flink-apache-storm-examples</module>
 		<module>flink-streaming-contrib</module>
 		<module>flink-tweet-inputformat</module>
 		<module>flink-connector-wikiedits</module>
