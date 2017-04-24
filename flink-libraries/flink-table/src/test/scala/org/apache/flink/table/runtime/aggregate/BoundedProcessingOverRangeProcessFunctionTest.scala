@@ -51,7 +51,7 @@ class BoundedProcessingOverRangeProcessFunctionTest {
 
     val aggregates =
       Array(new LongMinWithRetractAggFunction,
-            new LongMaxWithRetractAggFunction).asInstanceOf[Array[AggregateFunction[_]]]
+            new LongMaxWithRetractAggFunction).asInstanceOf[Array[AggregateFunction[_, _]]]
     val aggregationStateType: RowTypeInfo = AggregateUtil.createAccumulatorRowType(aggregates)
 
     val funcCode =
@@ -71,9 +71,9 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |    org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
         |    .deserialize("rO0ABXNyAEtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbn" +
         |    "MuTG9uZ01pbldpdGhSZXRyYWN0QWdnRnVuY3Rpb26oIdX_DaMPxQIAAHhyAEdvcmcuYXBhY2hlLmZsaW5rL" +
-        |    "nRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbnMuTWluV2l0aFJldHJhY3RBZ2dGdW5jdGlvbkDcXxs1apkP" +
+        |    "nRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbnMuTWluV2l0aFJldHJhY3RBZ2dGdW5jdGlvbq_ZGuzxtA_S" +
         |    "AgABTAADb3JkdAAVTHNjYWxhL21hdGgvT3JkZXJpbmc7eHIAMm9yZy5hcGFjaGUuZmxpbmsudGFibGUuZnV" +
-        |    "uY3Rpb25zLkFnZ3JlZ2F0ZUZ1bmN0aW9uSa3YqbzCL3QCAAB4cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS" +
+        |    "uY3Rpb25zLkFnZ3JlZ2F0ZUZ1bmN0aW9uTcYVPtJjNfwCAAB4cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS" +
         |    "5mdW5jdGlvbnMuVXNlckRlZmluZWRGdW5jdGlvbi0B91QxuAyTAgAAeHBzcgAZc2NhbGEubWF0aC5PcmRlc" +
         |    "mluZyRMb25nJOda0iCPo2ukAgAAeHA");
         |
@@ -81,9 +81,9 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |    org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
         |    .deserialize("rO0ABXNyAEtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbn" +
         |    "MuTG9uZ01heFdpdGhSZXRyYWN0QWdnRnVuY3Rpb25RmsI8azNGXwIAAHhyAEdvcmcuYXBhY2hlLmZsaW5rL" +
-        |    "nRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbnMuTWF4V2l0aFJldHJhY3RBZ2dGdW5jdGlvbu4_w_gPePlO" +
+        |    "nRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbnMuTWF4V2l0aFJldHJhY3RBZ2dGdW5jdGlvbvnwowlX0_Qf" +
         |    "AgABTAADb3JkdAAVTHNjYWxhL21hdGgvT3JkZXJpbmc7eHIAMm9yZy5hcGFjaGUuZmxpbmsudGFibGUuZnV" +
-        |    "uY3Rpb25zLkFnZ3JlZ2F0ZUZ1bmN0aW9uSa3YqbzCL3QCAAB4cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS" +
+        |    "uY3Rpb25zLkFnZ3JlZ2F0ZUZ1bmN0aW9uTcYVPtJjNfwCAAB4cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS" +
         |    "5mdW5jdGlvbnMuVXNlckRlZmluZWRGdW5jdGlvbi0B91QxuAyTAgAAeHBzcgAZc2NhbGEubWF0aC5PcmRlc" +
         |    "mluZyRMb25nJOda0iCPo2ukAgAAeHA");
         |  }
@@ -95,12 +95,14 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |    org.apache.flink.table.functions.AggregateFunction baseClass0 =
         |      (org.apache.flink.table.functions.AggregateFunction) fmin;
         |    output.setField(5, baseClass0.getValue(
-        |      (org.apache.flink.table.functions.Accumulator) accs.getField(0)));
+        |      (org.apache.flink.table.functions.aggfunctions.MinWithRetractAccumulator)
+        |      accs.getField(0)));
         |
         |    org.apache.flink.table.functions.AggregateFunction baseClass1 =
         |      (org.apache.flink.table.functions.AggregateFunction) fmax;
         |    output.setField(6, baseClass1.getValue(
-        |      (org.apache.flink.table.functions.Accumulator) accs.getField(1)));
+        |      (org.apache.flink.table.functions.aggfunctions.MaxWithRetractAccumulator)
+        |      accs.getField(1)));
         |  }
         |
         |  public void accumulate(
@@ -108,11 +110,13 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |    org.apache.flink.types.Row input) {
         |
         |    fmin.accumulate(
-        |      ((org.apache.flink.table.functions.Accumulator) accs.getField(0)),
+        |      ((org.apache.flink.table.functions.aggfunctions.MinWithRetractAccumulator)
+        |      accs.getField(0)),
         |      (java.lang.Long) input.getField(4));
         |
         |    fmax.accumulate(
-        |      ((org.apache.flink.table.functions.Accumulator) accs.getField(1)),
+        |      ((org.apache.flink.table.functions.aggfunctions.MaxWithRetractAccumulator)
+        |      accs.getField(1)),
         |      (java.lang.Long) input.getField(4));
         |  }
         |
@@ -121,11 +125,13 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |    org.apache.flink.types.Row input) {
         |
         |    fmin.retract(
-        |      ((org.apache.flink.table.functions.Accumulator) accs.getField(0)),
+        |      ((org.apache.flink.table.functions.aggfunctions.MinWithRetractAccumulator)
+        |      accs.getField(0)),
         |      (java.lang.Long) input.getField(4));
         |
         |    fmax.retract(
-        |      ((org.apache.flink.table.functions.Accumulator) accs.getField(1)),
+        |      ((org.apache.flink.table.functions.aggfunctions.MaxWithRetractAccumulator)
+        |      accs.getField(1)),
         |      (java.lang.Long) input.getField(4));
         |  }
         |

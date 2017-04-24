@@ -265,14 +265,16 @@ class CodeGenerator(
       name: String,
       generator: CodeGenerator,
       inputType: RelDataType,
-      aggregates: Array[AggregateFunction[_ <: Any]],
+      aggregates: Array[AggregateFunction[_ <: Any, _ <: Any]],
       aggFields: Array[Array[Int]],
       aggMapping: Array[Int],
       partialResults: Boolean,
       fwdMapping: Array[Int],
       mergeMapping: Option[Array[Int]],
       constantFlags: Option[Array[(Int, Boolean)]],
-      outputArity: Int)
+      outputArity: Int,
+      needRetract: Boolean,
+      needMerge: Boolean)
   : GeneratedAggregationsFunction = {
 
     // get unique function name
@@ -364,9 +366,16 @@ class CodeGenerator(
              |      ${parameters(i)});""".stripMargin
       }.mkString("\n")
 
-      j"""$sig {
-         |$retract
-         |  }""".stripMargin
+      if (needRetract) {
+        j"""
+           |$sig {
+           |$retract
+           |  }""".stripMargin
+      } else {
+        j"""
+           |$sig {
+           |  }""".stripMargin
+      }
     }
 
     def genCreateAccumulators: String = {
@@ -471,11 +480,9 @@ class CodeGenerator(
           j"""
              |    ${accTypes(i)} aAcc$i = (${accTypes(i)}) a.getField($i);
              |    ${accTypes(i)} bAcc$i = (${accTypes(i)}) b.getField(${mapping(i)});
-             |    accList$i.set(0, aAcc$i);
-             |    accList$i.set(1, bAcc$i);
-             |    a.setField(
-             |      $i,
-             |      ${aggs(i)}.merge(accList$i));
+             |    accIt$i.setElement(bAcc$i);
+             |    ${aggs(i)}.merge(aAcc$i, accIt$i);
+             |    a.setField($i, aAcc$i);
              """.stripMargin
       }.mkString("\n")
       val ret: String =
@@ -483,29 +490,27 @@ class CodeGenerator(
            |      return a;
            """.stripMargin
 
-      j"""
-         |$sig {
-         |$merge
-         |$ret
-         |  }""".stripMargin
+      if (needMerge) {
+        j"""
+           |$sig {
+           |$merge
+           |$ret
+           |  }""".stripMargin
+      } else {
+        j"""
+           |$sig {
+           |$ret
+           |  }""".stripMargin
+      }
     }
 
     def genMergeList: String = {
       {
+        val singleIterableClass = "org.apache.flink.table.runtime.aggregate.SingleElementIterable"
         for (i <- accTypes.indices) yield
           j"""
-             |    private final java.util.ArrayList<${accTypes(i)}> accList$i =
-             |      new java.util.ArrayList<${accTypes(i)}>(2);
-             """.stripMargin
-      }.mkString("\n")
-    }
-
-    def initMergeList: String = {
-      {
-        for (i <- accTypes.indices) yield
-          j"""
-             |    accList$i.add(${aggs(i)}.createAccumulator());
-             |    accList$i.add(${aggs(i)}.createAccumulator());
+             |    private final $singleIterableClass<${accTypes(i)}> accIt$i =
+             |      new $singleIterableClass<${accTypes(i)}>();
              """.stripMargin
       }.mkString("\n")
     }
@@ -538,7 +543,6 @@ class CodeGenerator(
          |  $genMergeList
          |  public $funcName() throws Exception {
          |    ${reuseInitCode()}
-         |    $initMergeList
          |  }
          |  ${reuseConstructorCode(funcName)}
          |
