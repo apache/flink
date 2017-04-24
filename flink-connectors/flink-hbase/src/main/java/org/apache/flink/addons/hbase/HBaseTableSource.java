@@ -22,11 +22,13 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.sources.BatchTableSource;
-import org.apache.flink.table.sources.ProjectableTableSource;
+import org.apache.flink.table.sources.NestedFieldsProjectableTableSource;
+import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -52,7 +54,7 @@ import java.util.Map;
  * </pre>
  *
  */
-public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTableSource<Row> {
+public class HBaseTableSource implements BatchTableSource<Row>, NestedFieldsProjectableTableSource<Row> {
 
 	private Configuration conf;
 	private String tableName;
@@ -108,17 +110,33 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	}
 
 	@Override
-	public HBaseTableSource projectFields(int[] fields) {
+	public TableSource<Row> projectNestedFields(int[] fields, String[][] nestedFields) {
 		String[] famNames = schema.getFamilyNames();
 		HBaseTableSource newTableSource = new HBaseTableSource(this.conf, tableName);
-		// Extract the family from the given fields
+		int i = 0;
 		for(int field : fields) {
 			String family = famNames[field];
 			Map<String, TypeInformation<?>> familyInfo = schema.getFamilyInfo(family);
-			for(String qualifier : familyInfo.keySet()) {
-				// create the newSchema
-				newTableSource.addColumn(family, qualifier, familyInfo.get(qualifier).getTypeClass());
+			// sort the result. Need to check why the nestedFields comes in reverse sorted order
+			Arrays.sort(nestedFields[i]);
+			for(String fieldExpr : nestedFields[i]) {
+				if(fieldExpr.equals("*")) {
+					// means project all the qualifiers under this family
+					for(String qualifier : familyInfo.keySet()) {
+						// create the newSchema
+						newTableSource.addColumn(family, qualifier, familyInfo.get(qualifier).getTypeClass());
+					}
+				} else {
+					// ideally here the nesting is going to be only one level
+					for (String qualifier : familyInfo.keySet()) {
+						if (qualifier.equals(fieldExpr)) {
+							newTableSource.addColumn(family, qualifier, familyInfo.get(qualifier).getTypeClass());
+							break;
+						}
+					}
+				}
 			}
+			i++;
 		}
 		return newTableSource;
 	}

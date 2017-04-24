@@ -34,6 +34,7 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
     val scan: FlinkLogicalTableSourceScan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
     scan.tableSource match {
       case _: ProjectableTableSource[_] => true
+      case _: NestedFieldsProjectableTableSource[_] => true
       case _ => false
     }
   }

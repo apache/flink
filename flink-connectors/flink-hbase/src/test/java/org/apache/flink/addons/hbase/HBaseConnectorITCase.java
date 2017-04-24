@@ -208,6 +208,45 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 	}
 
 	@Test
+	public void testTableSourceProjectionWithDiffOrdering() throws Exception {
+
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(4);
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
+		HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE);
+		hbaseTable.addColumn(FAMILY1, F1COL1, Integer.class);
+		hbaseTable.addColumn(FAMILY2, F2COL1, String.class);
+		hbaseTable.addColumn(FAMILY2, F2COL2, Long.class);
+		hbaseTable.addColumn(FAMILY3, F3COL1, Double.class);
+		hbaseTable.addColumn(FAMILY3, F3COL2, Boolean.class);
+		hbaseTable.addColumn(FAMILY3, F3COL3, String.class);
+		tableEnv.registerTableSource("hTable", hbaseTable);
+
+		Table result = tableEnv.sql(
+			"SELECT " +
+				"  h.family1.col1, " +
+				"  h.family3.col1, " +
+				"  h.family3.col3, " +
+				"  h.family3.col2 " +
+				"FROM hTable AS h"
+		);
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+
+		String expected =
+			"10,1.01,Welt-1,false\n" +
+				"20,2.02,Welt-2,true\n" +
+				"30,3.03,Welt-3,false\n" +
+				"40,4.04,Welt-4,true\n" +
+				"50,5.05,Welt-5,false\n" +
+				"60,6.06,Welt-6,true\n" +
+				"70,7.07,Welt-7,false\n" +
+				"80,8.08,Welt-8,true\n";
+
+		TestBaseUtils.compareResultAsText(results, expected);
+	}
+
+	@Test
 	public void testTableSourceFieldOrder() throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
