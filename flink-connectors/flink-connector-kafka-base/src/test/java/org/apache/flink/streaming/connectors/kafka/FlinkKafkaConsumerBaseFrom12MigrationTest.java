@@ -17,6 +17,22 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyMapOf;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -27,48 +43,124 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.io.Serializable;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.anyMapOf;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-
 /**
  * Tests for checking whether {@link FlinkKafkaConsumerBase} can restore from snapshots that were
- * done using the Flink 1.1 {@link FlinkKafkaConsumerBase}.
+ * done using the Flink 1.2 {@link FlinkKafkaConsumerBase}.
  *
- * <p>For regenerating the binary snapshot file you have to run the commented out portion
- * of each test on a checkout of the Flink 1.1 branch.
+ * <p>For regenerating the binary snapshot files run {@link #writeSnapshot()} on the Flink 1.2
+ * branch.
  */
-public class FlinkKafkaConsumerBaseMigrationTest {
+public class FlinkKafkaConsumerBaseFrom12MigrationTest {
 
-	private static String getResourceFilename(String filename) {
-		ClassLoader cl = FlinkKafkaConsumerBaseMigrationTest.class.getClassLoader();
-		URL resource = cl.getResource(filename);
-		if (resource == null) {
-			throw new NullPointerException("Missing snapshot resource.");
+	final static HashMap<KafkaTopicPartition, Long> PARTITION_STATE = new HashMap<>();
+
+	static {
+		PARTITION_STATE.put(new KafkaTopicPartition("abc", 13), 16768L);
+		PARTITION_STATE.put(new KafkaTopicPartition("def", 7), 987654321L);
+	}
+
+	/**
+	 * Manually run this to write binary snapshot data.
+	 */
+	@Ignore
+	@Test
+	public void writeSnapshot() throws Exception {
+		writeSnapshot("src/test/resources/kafka-consumer-migration-test-flink1.2-snapshot", PARTITION_STATE);
+
+		final HashMap<KafkaTopicPartition, Long> emptyState = new HashMap<>();
+		writeSnapshot("src/test/resources/kafka-consumer-migration-test-flink1.2-snapshot-empty-state", emptyState);
+	}
+
+	private void writeSnapshot(String path, HashMap<KafkaTopicPartition, Long> state) throws Exception {
+
+		final OneShotLatch latch = new OneShotLatch();
+		final AbstractFetcher<String, ?> fetcher = mock(AbstractFetcher.class);
+
+		doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				latch.trigger();
+				return null;
+			}
+		}).when(fetcher).runFetchLoop();
+
+		when(fetcher.snapshotCurrentState()).thenReturn(state);
+
+		final List<KafkaTopicPartition> partitions = new ArrayList<>(PARTITION_STATE.keySet());
+
+		final DummyFlinkKafkaConsumer<String> consumerFunction = new DummyFlinkKafkaConsumer<>(
+				new FetcherFactory<String>() {
+					private static final long serialVersionUID = -2803131905656983619L;
+
+					@Override
+					public AbstractFetcher<String, ?> createFetcher() {
+						return fetcher;
+					}
+				},
+				partitions);
+
+		StreamSource<String, DummyFlinkKafkaConsumer<String>> consumerOperator =
+				new StreamSource<>(consumerFunction);
+
+
+		final AbstractStreamOperatorTestHarness<String> testHarness =
+				new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
+
+		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+
+		testHarness.setup();
+		testHarness.open();
+
+		final Throwable[] error = new Throwable[1];
+
+		// run the source asynchronously
+		Thread runner = new Thread() {
+			@Override
+			public void run() {
+				try {
+					consumerFunction.run(new DummySourceContext() {
+						@Override
+						public void collect(String element) {
+							latch.trigger();
+						}
+					});
+				}
+				catch (Throwable t) {
+					t.printStackTrace();
+					error[0] = t;
+				}
+			}
+		};
+		runner.start();
+
+		if (!latch.isTriggered()) {
+			latch.await();
 		}
-		return resource.getFile();
+
+		final OperatorStateHandles snapshot;
+		synchronized (testHarness.getCheckpointLock()) {
+			snapshot = testHarness.snapshot(0L, 0L);
+		}
+
+		OperatorSnapshotUtil.writeStateHandle(snapshot, path);
+
+		consumerOperator.close();
+		runner.join();
 	}
 
 	@Test
-	public void testRestoreFromFlink11WithEmptyStateNoPartitions() throws Exception {
+	public void testRestoreWithEmptyStateNoPartitions() throws Exception {
 		// --------------------------------------------------------------------
 		//   prepare fake states
 		// --------------------------------------------------------------------
@@ -114,8 +206,102 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		testHarness.setup();
-		testHarness.initializeStateFromLegacyCheckpoint(
-			getResourceFilename("kafka-consumer-migration-test-flink1.1-snapshot-empty-state"));
+		testHarness.initializeState(
+				OperatorSnapshotUtil.readStateHandle(
+						OperatorSnapshotUtil.getResourceFilename("kafka-consumer-migration-test-flink1.2-snapshot-empty-state")));
+		testHarness.open();
+
+		final Throwable[] error = new Throwable[1];
+
+		// run the source asynchronously
+		Thread runner = new Thread() {
+			@Override
+			public void run() {
+				try {
+					consumerFunction.run(new DummySourceContext() {
+						@Override
+						public void collect(String element) {
+							latch.trigger();
+							Assert.fail("This should never be called.");
+						}
+
+						@Override
+						public void emitWatermark(Watermark mark) {
+							latch.trigger();
+							assertEquals(Long.MAX_VALUE, mark.getTimestamp());
+						}
+					});
+				}
+				catch (Throwable t) {
+					t.printStackTrace();
+					error[0] = t;
+				}
+			}
+		};
+		runner.start();
+
+		if (!latch.isTriggered()) {
+			latch.await(2, TimeUnit.MINUTES);
+		}
+
+		assertTrue("Latch was not triggered within the given timeout.", latch.isTriggered());
+
+		consumerOperator.cancel();
+		consumerOperator.close();
+
+		runner.interrupt();
+		runner.join();
+
+		assertNull("Got error: " + error[0], error[0]);
+	}
+
+	@Test
+	public void testRestoreWithEmptyStateWithPartitions() throws Exception {
+		final OneShotLatch latch = new OneShotLatch();
+		final AbstractFetcher<String, ?> fetcher = mock(AbstractFetcher.class);
+
+		doAnswer(new Answer() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				latch.trigger();
+				Assert.fail("This should never be called");
+				return null;
+			}
+		}).when(fetcher).restoreOffsets(anyMapOf(KafkaTopicPartition.class, Long.class));
+
+		doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				latch.trigger();
+				return null;
+			}
+		}).when(fetcher).runFetchLoop();
+
+		final List<KafkaTopicPartition> partitions = new ArrayList<>(PARTITION_STATE.keySet());
+
+		final DummyFlinkKafkaConsumer<String> consumerFunction = new DummyFlinkKafkaConsumer<>(
+				new FetcherFactory<String>() {
+					private static final long serialVersionUID = -2803131905656983619L;
+
+					@Override
+					public AbstractFetcher<String, ?> createFetcher() {
+						return fetcher;
+					}
+				},
+				partitions);
+
+		StreamSource<String, DummyFlinkKafkaConsumer<String>> consumerOperator =
+			new StreamSource<>(consumerFunction);
+
+		final AbstractStreamOperatorTestHarness<String> testHarness =
+			new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
+
+		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+
+		testHarness.setup();
+		testHarness.initializeState(
+				OperatorSnapshotUtil.readStateHandle(
+						OperatorSnapshotUtil.getResourceFilename("kafka-consumer-migration-test-flink1.2-snapshot-empty-state")));
 		testHarness.open();
 
 		final Throwable[] error = new Throwable[1];
@@ -152,113 +338,19 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		}
 
 		consumerOperator.close();
-
-		consumerOperator.cancel();
 		runner.interrupt();
 		runner.join();
 
-		Assert.assertNull(error[0]);
+		assertNull("Got error: " + error[0], error[0]);
 	}
 
 	@Test
-	public void testRestoreFromFlink11WithEmptyStateWithPartitions() throws Exception {
-		final OneShotLatch latch = new OneShotLatch();
-		final AbstractFetcher<String, ?> fetcher = mock(AbstractFetcher.class);
-
-		doAnswer(new Answer() {
-			@Override
-			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				latch.trigger();
-				Assert.fail("This should never be called");
-				return null;
-			}
-		}).when(fetcher).restoreOffsets(anyMapOf(KafkaTopicPartition.class, Long.class));
-
-		doAnswer(new Answer<Void>() {
-			@Override
-			public Void answer(InvocationOnMock invocation) throws Throwable {
-				latch.trigger();
-				return null;
-			}
-		}).when(fetcher).runFetchLoop();
-
-		final List<KafkaTopicPartition> partitions = new ArrayList<>();
-		partitions.add(new KafkaTopicPartition("abc", 13));
-		partitions.add(new KafkaTopicPartition("def", 7));
-
-		final DummyFlinkKafkaConsumer<String> consumerFunction = new DummyFlinkKafkaConsumer<>(
-				new FetcherFactory<String>() {
-					private static final long serialVersionUID = -2803131905656983619L;
-
-					@Override
-					public AbstractFetcher<String, ?> createFetcher() {
-						return fetcher;
-					}
-				},
-				partitions);
-
-		StreamSource<String, DummyFlinkKafkaConsumer<String>> consumerOperator =
-			new StreamSource<>(consumerFunction);
-
-		final AbstractStreamOperatorTestHarness<String> testHarness =
-			new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
-
-		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-
-		testHarness.setup();
-		testHarness.initializeStateFromLegacyCheckpoint(
-			getResourceFilename("kafka-consumer-migration-test-flink1.1-snapshot-empty-state"));
-		testHarness.open();
-
-		final Throwable[] error = new Throwable[1];
-
-		// run the source asynchronously
-		Thread runner = new Thread() {
-			@Override
-			public void run() {
-				try {
-					consumerFunction.run(new DummySourceContext() {
-						@Override
-						public void collect(String element) {
-							latch.trigger();
-							Assert.fail("This should never be called.");
-						}
-
-						@Override
-						public void emitWatermark(Watermark mark) {
-							latch.trigger();
-							Assert.fail("This should never be called.");
-						}
-					});
-				}
-				catch (Throwable t) {
-					t.printStackTrace();
-					error[0] = t;
-				}
-			}
-		};
-		runner.start();
-
-		if (!latch.isTriggered()) {
-			latch.await();
-		}
-
-		consumerOperator.close();
-
-		runner.join();
-
-		Assert.assertNull(error[0]);
-	}
-
-	@Test
-	public void testRestoreFromFlink11() throws Exception {
+	public void testRestore() throws Exception {
 		// --------------------------------------------------------------------
 		//   prepare fake states
 		// --------------------------------------------------------------------
 
-		final HashMap<KafkaTopicPartition, Long> state1 = new HashMap<>();
-		state1.put(new KafkaTopicPartition("abc", 13), 16768L);
-		state1.put(new KafkaTopicPartition("def", 7), 987654321L);
+		final boolean[] verifiedState = new boolean[1];
 
 		final OneShotLatch latch = new OneShotLatch();
 		final AbstractFetcher<String, ?> fetcher = mock(AbstractFetcher.class);
@@ -269,15 +361,14 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 				Map<KafkaTopicPartition, Long> map = (HashMap<KafkaTopicPartition, Long>) invocationOnMock.getArguments()[0];
 
 				latch.trigger();
-				assertEquals(state1, map);
+				assertEquals(PARTITION_STATE, map);
+				verifiedState[0] = true;
 				return null;
 			}
 		}).when(fetcher).restoreOffsets(anyMapOf(KafkaTopicPartition.class, Long.class));
 
 
-		final List<KafkaTopicPartition> partitions = new ArrayList<>();
-		partitions.add(new KafkaTopicPartition("abc", 13));
-		partitions.add(new KafkaTopicPartition("def", 7));
+		final List<KafkaTopicPartition> partitions = new ArrayList<>(PARTITION_STATE.keySet());
 
 		final DummyFlinkKafkaConsumer<String> consumerFunction = new DummyFlinkKafkaConsumer<>(
 				new FetcherFactory<String>() {
@@ -299,8 +390,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		testHarness.setup();
-		testHarness.initializeStateFromLegacyCheckpoint(
-			getResourceFilename("kafka-consumer-migration-test-flink1.1-snapshot"));
+		testHarness.initializeState(
+				OperatorSnapshotUtil.readStateHandle(
+						OperatorSnapshotUtil.getResourceFilename("kafka-consumer-migration-test-flink1.2-snapshot")));
 		testHarness.open();
 
 		final Throwable[] error = new Throwable[1];
@@ -313,7 +405,6 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 					consumerFunction.run(new DummySourceContext() {
 						@Override
 						public void collect(String element) {
-							//latch.trigger();
 						}
 					});
 				}
@@ -333,7 +424,9 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
 		runner.join();
 
-		Assert.assertNull(error[0]);
+		assertNull("Got error: " + error[0], error[0]);
+
+		assertTrue(verifiedState[0]);
 	}
 
 	private abstract static class DummySourceContext
@@ -392,139 +485,3 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		}
 	}
 }
-
-/*
-	THE CODE FOR FLINK 1.1
-
-	@Test
-	public void testRestoreFromFlink11() throws Exception {
-		// --------------------------------------------------------------------
-		//   prepare fake states
-		// --------------------------------------------------------------------
-
-		final HashMap<KafkaTopicPartition, Long> state1 = new HashMap<>();
-		state1.put(new KafkaTopicPartition("abc", 13), 16768L);
-		state1.put(new KafkaTopicPartition("def", 7), 987654321L);
-
-		final OneShotLatch latch = new OneShotLatch();
-		final AbstractFetcher<String, ?> fetcher = mock(AbstractFetcher.class);
-
-		doAnswer(new Answer<Void>() {
-			@Override
-			public Void answer(InvocationOnMock invocation) throws Throwable {
-				latch.trigger();
-				return null;
-			}
-		}).when(fetcher).runFetchLoop();
-
-		when(fetcher.snapshotCurrentState()).thenReturn(state1);
-
-		final DummyFlinkKafkaConsumer<String> consumerFunction = new DummyFlinkKafkaConsumer<>(
-			new FetcherFactory<String>() {
-				private static final long serialVersionUID = -2803131905656983619L;
-
-				@Override
-				public AbstractFetcher<String, ?> createFetcher() {
-					return fetcher;
-				}
-			});
-
-		StreamSource<String, DummyFlinkKafkaConsumer<String>> consumerOperator =
-			new StreamSource<>(consumerFunction);
-
-		final OneInputStreamOperatorTestHarness<Void, String> testHarness =
-			new OneInputStreamOperatorTestHarness<>(consumerOperator);
-
-		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-
-		testHarness.setup();
-		testHarness.open();
-
-		final Throwable[] error = new Throwable[1];
-
-		// run the source asynchronously
-		Thread runner = new Thread() {
-			@Override
-			public void run() {
-				try {
-					consumerFunction.run(new DummySourceContext() {
-						@Override
-						public void collect(String element) {
-							latch.trigger();
-						}
-					});
-				}
-				catch (Throwable t) {
-					t.printStackTrace();
-					error[0] = t;
-				}
-			}
-		};
-		runner.start();
-
-		if (!latch.isTriggered()) {
-			latch.await();
-		}
-
-		StreamTaskState snapshot = testHarness.snapshot(0L, 0L);
-		testHarness.snaphotToFile(snapshot, "src/test/resources/kafka-consumer-migration-test-flink1.1-snapshot-2");
-		consumerOperator.run(new Object());
-
-		consumerOperator.close();
-		runner.join();
-
-		System.out.println("Killed");
-	}
-
-	private static abstract class DummySourceContext
-		implements SourceFunction.SourceContext<String> {
-
-		private final Object lock = new Object();
-
-		@Override
-		public void collectWithTimestamp(String element, long timestamp) {
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-		}
-
-		@Override
-		public Object getCheckpointLock() {
-			return lock;
-		}
-
-		@Override
-		public void close() {
-		}
-	}
-
-
-	// ------------------------------------------------------------------------
-
-	private interface FetcherFactory<T> extends Serializable {
-		AbstractFetcher<T, ?> createFetcher();
-	}
-
-	private static class DummyFlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
-		private static final long serialVersionUID = 1L;
-
-		private final FetcherFactory<T> fetcherFactory;
-
-		@SuppressWarnings("unchecked")
-		public DummyFlinkKafkaConsumer(FetcherFactory<T> fetcherFactory) {
-			super((KeyedDeserializationSchema< T >) mock(KeyedDeserializationSchema.class));
-
-			final List<KafkaTopicPartition> partitions = new ArrayList<>();
-			partitions.add(new KafkaTopicPartition("dummy-topic", 0));
-			setSubscribedPartitions(partitions);
-
-			this.fetcherFactory = fetcherFactory;
-		}
-
-		@Override
-		protected AbstractFetcher<T, ?> createFetcher(SourceContext<T> sourceContext, List<KafkaTopicPartition> thisSubtaskPartitions, SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic, SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated, StreamingRuntimeContext runtimeContext) throws Exception {
-			return fetcherFactory.createFetcher();
-		}
-	}
-* */
