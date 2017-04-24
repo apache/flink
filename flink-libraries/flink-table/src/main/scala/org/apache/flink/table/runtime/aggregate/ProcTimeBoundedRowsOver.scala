@@ -92,7 +92,7 @@ class ProcTimeBoundedRowsOver(
         getRuntimeContext.getUserCodeClassLoader,
         genDistinctAggregations(i).name,
         genDistinctAggregations(i).code)
-      LOG.debug("Instantiating DistinctAggregateHelper-"+i+".")
+      LOG.debug("Instantiating DistinctAggregateHelper-" + i + ".")
       distFunction(i) = distClazz.newInstance()
       
       val distinctValDescriptor = new MapStateDescriptor[Any, Long](

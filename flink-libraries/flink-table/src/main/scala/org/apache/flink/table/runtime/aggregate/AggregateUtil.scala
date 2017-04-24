@@ -174,7 +174,7 @@ object AggregateUtil {
     } 
     
     val aggregates = new Array[AggregateFunction[_ <: Any]](aggregatesList.size)
- 		val aggField = new Array[Array[Int]](aggregatesList.size) 
+     val aggField = new Array[Array[Int]](aggregatesList.size) 
     for(i <- 0 until aggregatesList.size){ 
       aggregates(i) = aggregatesList.get(i)
       aggField(i) = aggFieldsList.get(i)
@@ -204,17 +204,17 @@ object AggregateUtil {
     }
     val distinctAggregationStateTypes = new Array[RowTypeInfo](distCounter)
     for(i <- 0 until distCounter){
-    	val distinctAggregates: Array[AggregateFunction[_]] = Array(distinctAggregatesList(i)) 
-    	val distinctAggField: Array[Array[Int]] = Array(distinctAggFieldsList(i))
-    	val limit = outputArity + i
-    	val distinctForwardMapping = (0 until limit).map(x => (x, x)).toArray
+      val distinctAggregates: Array[AggregateFunction[_]] = Array(distinctAggregatesList(i)) 
+      val distinctAggField: Array[Array[Int]] = Array(distinctAggFieldsList(i))
+      val limit = outputArity + i
+      val distinctForwardMapping = (0 until limit).map(x => (x, x)).toArray
       val distAggMapping = distinctAggregates.indices.map(x => x + limit).toArray
       val distinctOutputArity = limit + i + distinctAggregates.length
-    	
-    	distinctAggregationStateTypes(i) = createAccumulatorRowType(distinctAggregates)
-    	
+      
+      distinctAggregationStateTypes(i) = createAccumulatorRowType(distinctAggregates)
+      
       genDistinctFunction(i) = generator.generateAggregations(
-        "BoundedOverDistinctAggregateHelper"+i,
+        "BoundedOverDistinctAggregateHelper" + i,
         generator,
         inputType,
         distinctAggregates,
