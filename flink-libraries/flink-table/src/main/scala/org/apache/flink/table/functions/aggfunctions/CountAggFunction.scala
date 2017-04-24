@@ -17,58 +17,55 @@
  */
 package org.apache.flink.table.functions.aggfunctions
 
-import java.util.{List => JList}
+import java.lang.{Iterable => JIterable}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.functions.AggregateFunction
 
 /** The initial accumulator for count aggregate function */
-class CountAccumulator extends JTuple1[Long] with Accumulator {
+class CountAccumulator extends JTuple1[Long] {
   f0 = 0L //count
 }
 
 /**
   * built-in count aggregate function
   */
-class CountAggFunction extends AggregateFunction[Long] {
+class CountAggFunction extends AggregateFunction[Long, CountAccumulator] {
 
-  override def accumulate(accumulator: Accumulator, value: Any): Unit = {
+  def accumulate(acc: CountAccumulator, value: Any): Unit = {
     if (value != null) {
-      accumulator.asInstanceOf[CountAccumulator].f0 += 1L
+      acc.f0 += 1L
     }
   }
 
-  override def retract(accumulator: Accumulator, value: Any): Unit = {
+  def retract(acc: CountAccumulator, value: Any): Unit = {
     if (value != null) {
-      accumulator.asInstanceOf[CountAccumulator].f0 -= 1L
+      acc.f0 -= 1L
     }
   }
 
-  override def getValue(accumulator: Accumulator): Long = {
-    accumulator.asInstanceOf[CountAccumulator].f0
+  override def getValue(acc: CountAccumulator): Long = {
+    acc.f0
   }
 
-  override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = accumulators.get(0).asInstanceOf[CountAccumulator]
-    var i: Int = 1
-    while (i < accumulators.size()) {
-      ret.f0 += accumulators.get(i).asInstanceOf[CountAccumulator].f0
-      i += 1
+  def merge(acc: CountAccumulator, its: JIterable[CountAccumulator]): Unit = {
+    val iter = its.iterator()
+    while (iter.hasNext) {
+      acc.f0 += iter.next().f0
     }
-    ret
   }
 
-  override def createAccumulator(): Accumulator = {
+  override def createAccumulator(): CountAccumulator = {
     new CountAccumulator
   }
 
-  override def resetAccumulator(accumulator: Accumulator): Unit = {
-    accumulator.asInstanceOf[CountAccumulator].f0 = 0L
+  def resetAccumulator(acc: CountAccumulator): Unit = {
+    acc.f0 = 0L
   }
 
-  override def getAccumulatorType(): TypeInformation[_] = {
+  def getAccumulatorType(): TypeInformation[_] = {
     new TupleTypeInfo((new CountAccumulator).getClass, BasicTypeInfo.LONG_TYPE_INFO)
   }
 }

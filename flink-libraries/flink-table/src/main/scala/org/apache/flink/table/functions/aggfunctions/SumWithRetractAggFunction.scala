@@ -18,77 +18,73 @@
 package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
-import java.util.{List => JList}
+import java.lang.{Iterable => JIterable}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.functions.AggregateFunction
 
 /** The initial accumulator for Sum with retract aggregate function */
-class SumWithRetractAccumulator[T] extends JTuple2[T, Long] with Accumulator
+class SumWithRetractAccumulator[T] extends JTuple2[T, Long]
 
 /**
   * Base class for built-in Sum with retract aggregate function
   *
   * @tparam T the type for the aggregation result
   */
-abstract class SumWithRetractAggFunction[T: Numeric] extends AggregateFunction[T] {
+abstract class SumWithRetractAggFunction[T: Numeric]
+  extends AggregateFunction[T, SumWithRetractAccumulator[T]] {
 
   private val numeric = implicitly[Numeric[T]]
 
-  override def createAccumulator(): Accumulator = {
+  override def createAccumulator(): SumWithRetractAccumulator[T] = {
     val acc = new SumWithRetractAccumulator[T]()
     acc.f0 = numeric.zero //sum
     acc.f1 = 0L //total count
     acc
   }
 
-  override def accumulate(accumulator: Accumulator, value: Any): Unit = {
+  def accumulate(acc: SumWithRetractAccumulator[T], value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[T]
-      val a = accumulator.asInstanceOf[SumWithRetractAccumulator[T]]
-      a.f0 = numeric.plus(a.f0, v)
-      a.f1 += 1
+      acc.f0 = numeric.plus(acc.f0, v)
+      acc.f1 += 1
     }
   }
 
-  override def retract(accumulator: Accumulator, value: Any): Unit = {
+  def retract(acc: SumWithRetractAccumulator[T], value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[T]
-      val a = accumulator.asInstanceOf[SumWithRetractAccumulator[T]]
-      a.f0 = numeric.minus(a.f0, v)
-      a.f1 -= 1
+      acc.f0 = numeric.minus(acc.f0, v)
+      acc.f1 -= 1
     }
   }
 
-  override def getValue(accumulator: Accumulator): T = {
-    val a = accumulator.asInstanceOf[SumWithRetractAccumulator[T]]
-    if (a.f1 > 0) {
-      a.f0
+  override def getValue(acc: SumWithRetractAccumulator[T]): T = {
+    if (acc.f1 > 0) {
+      acc.f0
     } else {
       null.asInstanceOf[T]
     }
   }
 
-  override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = accumulators.get(0).asInstanceOf[SumWithRetractAccumulator[T]]
-    var i: Int = 1
-    while (i < accumulators.size()) {
-      val a = accumulators.get(i).asInstanceOf[SumWithRetractAccumulator[T]]
-      ret.f0 = numeric.plus(ret.f0, a.f0)
-      ret.f1 += a.f1
-      i += 1
+  def merge(acc: SumWithRetractAccumulator[T],
+      its: JIterable[SumWithRetractAccumulator[T]]): Unit = {
+    val iter = its.iterator()
+    while (iter.hasNext) {
+      val a = iter.next()
+      acc.f0 = numeric.plus(acc.f0, a.f0)
+      acc.f1 += a.f1
     }
-    ret
   }
 
-  override def resetAccumulator(accumulator: Accumulator): Unit = {
-    accumulator.asInstanceOf[SumWithRetractAccumulator[T]].f0 = numeric.zero
-    accumulator.asInstanceOf[SumWithRetractAccumulator[T]].f1 = 0L
+  def resetAccumulator(acc: SumWithRetractAccumulator[T]): Unit = {
+    acc.f0 = numeric.zero
+    acc.f1 = 0L
   }
 
-  override def getAccumulatorType(): TypeInformation[_] = {
+  def getAccumulatorType(): TypeInformation[_] = {
     new TupleTypeInfo(
       (new SumWithRetractAccumulator).getClass,
       getValueTypeInfo,
@@ -141,7 +137,7 @@ class DoubleSumWithRetractAggFunction extends SumWithRetractAggFunction[Double] 
 }
 
 /** The initial accumulator for Big Decimal Sum with retract aggregate function */
-class DecimalSumWithRetractAccumulator extends JTuple2[BigDecimal, Long] with Accumulator {
+class DecimalSumWithRetractAccumulator extends JTuple2[BigDecimal, Long] {
   f0 = BigDecimal.ZERO
   f1 = 0L
 }
@@ -149,56 +145,53 @@ class DecimalSumWithRetractAccumulator extends JTuple2[BigDecimal, Long] with Ac
 /**
   * Built-in Big Decimal Sum with retract aggregate function
   */
-class DecimalSumWithRetractAggFunction extends AggregateFunction[BigDecimal] {
+class DecimalSumWithRetractAggFunction
+  extends AggregateFunction[BigDecimal, DecimalSumWithRetractAccumulator] {
 
-  override def createAccumulator(): Accumulator = {
+  override def createAccumulator(): DecimalSumWithRetractAccumulator = {
     new DecimalSumWithRetractAccumulator
   }
 
-  override def accumulate(accumulator: Accumulator, value: Any): Unit = {
+  def accumulate(acc: DecimalSumWithRetractAccumulator, value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[BigDecimal]
-      val accum = accumulator.asInstanceOf[DecimalSumWithRetractAccumulator]
-      accum.f0 = accum.f0.add(v)
-      accum.f1 += 1L
+      acc.f0 = acc.f0.add(v)
+      acc.f1 += 1L
     }
   }
 
-  override def retract(accumulator: Accumulator, value: Any): Unit = {
+  def retract(acc: DecimalSumWithRetractAccumulator, value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[BigDecimal]
-      val accum = accumulator.asInstanceOf[DecimalSumWithRetractAccumulator]
-      accum.f0 = accum.f0.subtract(v)
-      accum.f1 -= 1L
+      acc.f0 = acc.f0.subtract(v)
+      acc.f1 -= 1L
     }
   }
 
-  override def getValue(accumulator: Accumulator): BigDecimal = {
-    if (accumulator.asInstanceOf[DecimalSumWithRetractAccumulator].f1 == 0) {
+  override def getValue(acc: DecimalSumWithRetractAccumulator): BigDecimal = {
+    if (acc.f1 == 0) {
       null.asInstanceOf[BigDecimal]
     } else {
-      accumulator.asInstanceOf[DecimalSumWithRetractAccumulator].f0
+      acc.f0
     }
   }
 
-  override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = accumulators.get(0).asInstanceOf[DecimalSumWithRetractAccumulator]
-    var i: Int = 1
-    while (i < accumulators.size()) {
-      val a = accumulators.get(i).asInstanceOf[DecimalSumWithRetractAccumulator]
-      ret.f0 = ret.f0.add(a.f0)
-      ret.f1 += a.f1
-      i += 1
+  def merge(acc: DecimalSumWithRetractAccumulator,
+      its: JIterable[DecimalSumWithRetractAccumulator]): Unit = {
+    val iter = its.iterator()
+    while (iter.hasNext) {
+      val a = iter.next()
+      acc.f0 = acc.f0.add(a.f0)
+      acc.f1 += a.f1
     }
-    ret
   }
 
-  override def resetAccumulator(accumulator: Accumulator): Unit = {
-    accumulator.asInstanceOf[DecimalSumWithRetractAccumulator].f0 = BigDecimal.ZERO
-    accumulator.asInstanceOf[DecimalSumWithRetractAccumulator].f1 = 0L
+  def resetAccumulator(acc: DecimalSumWithRetractAccumulator): Unit = {
+    acc.f0 = BigDecimal.ZERO
+    acc.f1 = 0L
   }
 
-  override def getAccumulatorType(): TypeInformation[_] = {
+  def getAccumulatorType(): TypeInformation[_] = {
     new TupleTypeInfo(
       (new DecimalSumWithRetractAccumulator).getClass,
       BasicTypeInfo.BIG_DEC_TYPE_INFO,
