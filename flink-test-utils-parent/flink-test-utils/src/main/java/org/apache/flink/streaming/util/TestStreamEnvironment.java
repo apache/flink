@@ -36,7 +36,6 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	
 
 	public TestStreamEnvironment(LocalFlinkMiniCluster executor, int parallelism) {
-		super(parallelism);
 		this.executor = Preconditions.checkNotNull(executor);
 		setParallelism(parallelism);
 	}

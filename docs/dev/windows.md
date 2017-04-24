@@ -975,7 +975,7 @@ data is ever considered late because the end timestamp of the global window is `
 
 ### Getting late data as a side output
 
-Using Flink's [side output](/dev/stream/side_output.html) feature you can get a stream of the data
+Using Flink's [side output]({{ site.baseurl }}/dev/stream/side_output.html) feature you can get a stream of the data
 that was discarded as late.
 
 You first need to specify that you want to get late data using `sideOutputLateData(OutputTag)` on

@@ -32,11 +32,18 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 	private ExecutionEnvironment env;
 
 	protected StreamPlanEnvironment(ExecutionEnvironment env) {
-		super(GlobalConfiguration.loadConfiguration().getInteger(
-				ConfigConstants.DEFAULT_PARALLELISM_KEY,
-				ConfigConstants.DEFAULT_PARALLELISM));
-
+		super();
 		this.env = env;
+
+		int parallelism = env.getParallelism();
+		if (parallelism > 0) {
+			setParallelism(parallelism);
+		} else {
+			// determine parallelism
+			setParallelism(GlobalConfiguration.loadConfiguration().getInteger(
+					ConfigConstants.DEFAULT_PARALLELISM_KEY,
+					ConfigConstants.DEFAULT_PARALLELISM));
+		}
 	}
 
 	@Override

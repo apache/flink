@@ -23,7 +23,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
-import org.apache.flink.table.plan.nodes.TableSourceScan
+import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
 import org.apache.flink.types.Row
@@ -34,7 +34,7 @@ class BatchTableSourceScan(
     traitSet: RelTraitSet,
     table: RelOptTable,
     tableSource: BatchTableSource[_])
-  extends TableSourceScan(cluster, traitSet, table, tableSource)
+  extends PhysicalTableSourceScan(cluster, traitSet, table, tableSource)
   with BatchScan {
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -51,7 +51,11 @@ class BatchTableSourceScan(
     )
   }
 
-  override def copy(traitSet: RelTraitSet, newTableSource: TableSource[_]): TableSourceScan = {
+  override def copy(
+      traitSet: RelTraitSet,
+      newTableSource: TableSource[_])
+    : PhysicalTableSourceScan = {
+
     new BatchTableSourceScan(
       cluster,
       traitSet,

@@ -61,7 +61,7 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackendFactory;
@@ -458,8 +458,8 @@ public class StreamTaskTest extends TestLogger {
 
 		StreamOperator<?> streamOperator = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
 
-		KeyGroupsStateHandle managedKeyedStateHandle = mock(KeyGroupsStateHandle.class);
-		KeyGroupsStateHandle rawKeyedStateHandle = mock(KeyGroupsStateHandle.class);
+		KeyedStateHandle managedKeyedStateHandle = mock(KeyedStateHandle.class);
+		KeyedStateHandle rawKeyedStateHandle = mock(KeyedStateHandle.class);
 		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStateHandle.class);
 		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStateHandle.class);
 
@@ -563,8 +563,8 @@ public class StreamTaskTest extends TestLogger {
 					(ChainedStateHandle<StreamStateHandle>)invocation.getArguments()[0],
 					(ChainedStateHandle<OperatorStateHandle>)invocation.getArguments()[1],
 					(ChainedStateHandle<OperatorStateHandle>)invocation.getArguments()[2],
-					(KeyGroupsStateHandle)invocation.getArguments()[3],
-					(KeyGroupsStateHandle)invocation.getArguments()[4]);
+					(KeyedStateHandle)invocation.getArguments()[3],
+					(KeyedStateHandle)invocation.getArguments()[4]);
 			}
 		});
 
@@ -574,8 +574,8 @@ public class StreamTaskTest extends TestLogger {
 
 		StreamOperator<?> streamOperator = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
 
-		KeyGroupsStateHandle managedKeyedStateHandle = mock(KeyGroupsStateHandle.class);
-		KeyGroupsStateHandle rawKeyedStateHandle = mock(KeyGroupsStateHandle.class);
+		KeyedStateHandle managedKeyedStateHandle = mock(KeyedStateHandle.class);
+		KeyedStateHandle rawKeyedStateHandle = mock(KeyedStateHandle.class);
 		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStateHandle.class);
 		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStateHandle.class);
 

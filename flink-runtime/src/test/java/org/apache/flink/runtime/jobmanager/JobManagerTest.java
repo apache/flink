@@ -26,6 +26,7 @@ import com.typesafe.config.Config;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.checkpoint.CheckpointDeclineReason;
@@ -47,7 +48,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.JobManagerHARecoveryTest.BlockingStatefulInvokable;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
@@ -105,7 +106,6 @@ import scala.reflect.ClassTag$;
 import java.io.File;
 import java.net.InetAddress;
 import java.util.Collections;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
@@ -588,7 +588,7 @@ public class JobManagerTest extends TestLogger {
 				AkkaUtils.getAkkaURL(system, jobManager.actor()));
 
 		Configuration tmConfig = new Configuration();
-		tmConfig.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
+		tmConfig.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 		tmConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
 
 		ActorRef taskManager = TaskManager.startTaskManagerComponentsAndActor(
@@ -821,7 +821,7 @@ public class JobManagerTest extends TestLogger {
 
 			JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
 
-			JobSnapshottingSettings snapshottingSettings = new JobSnapshottingSettings(
+			JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
@@ -947,7 +947,7 @@ public class JobManagerTest extends TestLogger {
 
 			JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
 
-			JobSnapshottingSettings snapshottingSettings = new JobSnapshottingSettings(
+			JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
 				Collections.singletonList(sourceVertex.getID()),
 				Collections.singletonList(sourceVertex.getID()),
 				Collections.singletonList(sourceVertex.getID()),
@@ -1053,7 +1053,7 @@ public class JobManagerTest extends TestLogger {
 
 			JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
 
-			JobSnapshottingSettings snapshottingSettings = new JobSnapshottingSettings(
+			JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
@@ -1156,7 +1156,7 @@ public class JobManagerTest extends TestLogger {
 
 			JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
 
-			JobSnapshottingSettings snapshottingSettings = new JobSnapshottingSettings(
+			JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
@@ -1203,7 +1203,7 @@ public class JobManagerTest extends TestLogger {
 
 			JobGraph newJobGraph = new JobGraph("NewTestingJob", newSourceVertex);
 
-			JobSnapshottingSettings newSnapshottingSettings = new JobSnapshottingSettings(
+			JobCheckpointingSettings newSnapshottingSettings = new JobCheckpointingSettings(
 					Collections.singletonList(newSourceVertex.getID()),
 					Collections.singletonList(newSourceVertex.getID()),
 					Collections.singletonList(newSourceVertex.getID()),

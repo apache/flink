@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class SharedBufferTest extends TestLogger {
@@ -84,11 +85,16 @@ public class SharedBufferTest extends TestLogger {
 		sharedBuffer.put("b", events[7], timestamp, "a[]", events[6], timestamp, DeweyNumber.fromString("1.1.0"));
 
 		Collection<LinkedHashMultimap<String, Event>> patterns3 = sharedBuffer.extractPatterns("b", events[7], timestamp, DeweyNumber.fromString("1.1.0"));
-		sharedBuffer.remove("b", events[7], timestamp);
+		sharedBuffer.release("b", events[7], timestamp);
 		Collection<LinkedHashMultimap<String, Event>> patterns4 = sharedBuffer.extractPatterns("b", events[7], timestamp, DeweyNumber.fromString("1.1.0"));
 		Collection<LinkedHashMultimap<String, Event>> patterns1 = sharedBuffer.extractPatterns("b", events[5], timestamp, DeweyNumber.fromString("2.0.0"));
 		Collection<LinkedHashMultimap<String, Event>> patterns2 = sharedBuffer.extractPatterns("b", events[5], timestamp, DeweyNumber.fromString("1.0.0"));
-		sharedBuffer.remove("b", events[5], timestamp);
+		sharedBuffer.release("b", events[5], timestamp);
+
+		assertEquals(1L, patterns3.size());
+		assertEquals(0L, patterns4.size());
+		assertEquals(1L, patterns1.size());
+		assertEquals(1L, patterns2.size());
 
 		assertTrue(sharedBuffer.isEmpty());
 		assertTrue(patterns4.isEmpty());
@@ -132,5 +138,32 @@ public class SharedBufferTest extends TestLogger {
 		SharedBuffer<String, Event> copy = (SharedBuffer<String, Event>)ois.readObject();
 
 		assertEquals(sharedBuffer, copy);
+	}
+
+	@Test
+	public void testClearingSharedBufferWithMultipleEdgesBetweenEntries() {
+		SharedBuffer<String, Event> sharedBuffer = new SharedBuffer<>(Event.createTypeSerializer());
+		int numberEvents = 8;
+		Event[] events = new Event[numberEvents];
+		final long timestamp = 1L;
+
+		for (int i = 0; i < numberEvents; i++) {
+			events[i] = new Event(i + 1, "e" + (i + 1), i);
+		}
+
+		sharedBuffer.put("start", events[1], timestamp, DeweyNumber.fromString("1"));
+		sharedBuffer.put("branching", events[2], timestamp, "start", events[1], timestamp, DeweyNumber.fromString("1.0"));
+		sharedBuffer.put("branching", events[3], timestamp, "start", events[1], timestamp, DeweyNumber.fromString("1.1"));
+		sharedBuffer.put("branching", events[3], timestamp, "branching", events[2], timestamp, DeweyNumber.fromString("1.0.0"));
+		sharedBuffer.put("branching", events[4], timestamp, "branching", events[3], timestamp, DeweyNumber.fromString("1.0.0.0"));
+		sharedBuffer.put("branching", events[4], timestamp, "branching", events[3], timestamp, DeweyNumber.fromString("1.1.0"));
+
+		//simulate IGNORE (next event can point to events[2])
+		sharedBuffer.lock("branching", events[2], timestamp);
+
+		sharedBuffer.release("branching", events[4], timestamp);
+
+		//There should be still events[1] and events[2] in the buffer
+		assertFalse(sharedBuffer.isEmpty());
 	}
 }

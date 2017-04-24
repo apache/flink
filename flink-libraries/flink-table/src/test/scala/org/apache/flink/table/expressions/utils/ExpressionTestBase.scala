@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.expressions.utils
 
-import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
 import java.util
 import java.util.concurrent.Future
+
+import com.google.common.collect.ImmutableList
+import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql2rel.RelDecorrelator
@@ -41,7 +43,8 @@ import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.codegen.{CodeGenerator, Compiler, GeneratedFunction}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.plan.nodes.dataset.{DataSetCalc, DataSetConvention}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetCalc
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -64,7 +67,8 @@ abstract class ExpressionTestBase {
     context._2.getFrameworkConfig,
     context._2.getPlanner,
     context._2.getTypeFactory)
-  private val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
+  private val logicalOptProgram = Programs.ofRules(FlinkRuleSets.LOGICAL_OPT_RULES)
+  private val dataSetOptProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
 
   private def hepPlanner = {
     val builder = new HepProgramBuilder
@@ -192,9 +196,15 @@ abstract class ExpressionTestBase {
       decorPlan
     }
 
-    // create DataSetCalc
-    val flinkOutputProps = converted.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
-    val dataSetCalc = optProgram.run(context._2.getPlanner, normalizedPlan, flinkOutputProps)
+    // convert to logical plan
+    val logicalProps = converted.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val logicalCalc = logicalOptProgram.run(context._2.getPlanner, normalizedPlan, logicalProps,
+      ImmutableList.of(), ImmutableList.of())
+
+    // convert to dataset plan
+    val physicalProps = converted.getTraitSet.replace(FlinkConventions.DATASET).simplify()
+    val dataSetCalc = dataSetOptProgram.run(context._2.getPlanner, logicalCalc, physicalProps,
+      ImmutableList.of(), ImmutableList.of())
 
     // extract RexNode
     val calcProgram = dataSetCalc
@@ -216,8 +226,16 @@ abstract class ExpressionTestBase {
 
     // create DataSetCalc
     val decorPlan = RelDecorrelator.decorrelateQuery(converted)
-    val flinkOutputProps = converted.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
-    val dataSetCalc = optProgram.run(context._2.getPlanner, decorPlan, flinkOutputProps)
+
+    // convert to logical plan
+    val flinkLogicalProps = converted.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val logicalCalc = logicalOptProgram.run(context._2.getPlanner, decorPlan, flinkLogicalProps,
+      ImmutableList.of(), ImmutableList.of())
+
+    // convert to dataset plan
+    val flinkPhysicalProps = converted.getTraitSet.replace(FlinkConventions.DATASET).simplify()
+    val dataSetCalc = dataSetOptProgram.run(context._2.getPlanner, logicalCalc, flinkPhysicalProps,
+      ImmutableList.of(), ImmutableList.of())
 
     // extract RexNode
     val calcProgram = dataSetCalc

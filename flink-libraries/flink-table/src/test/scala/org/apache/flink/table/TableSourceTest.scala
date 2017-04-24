@@ -31,6 +31,35 @@ class TableSourceTest extends TableTestBase {
   private val projectedFields: Array[String] = Array("last", "id", "score")
   private val noCalcFields: Array[String] = Array("id", "score", "first")
 
+  @Test
+  def testTableSourceScanToString(): Unit = {
+    val (tableSource1, _) = filterableTableSource
+    val (tableSource2, _) = filterableTableSource
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
+
+    tEnv.registerTableSource("table1", tableSource1)
+    tEnv.registerTableSource("table2", tableSource2)
+
+    val table1 = tEnv.scan("table1").where("amount > 2")
+    val table2 = tEnv.scan("table2").where("amount > 2")
+    val result = table1.unionAll(table2)
+
+    val expected = binaryNode(
+      "DataSetUnion",
+      batchFilterableSourceTableNode(
+        "table1",
+        Array("name", "id", "amount", "price"),
+        "'amount > 2"),
+      batchFilterableSourceTableNode(
+        "table2",
+        Array("name", "id", "amount", "price"),
+        "'amount > 2"),
+      term("union", "name, id, amount, price")
+    )
+    util.verifyTable(result, expected)
+  }
+
   // batch plan
 
   @Test
@@ -61,7 +90,7 @@ class TableSourceTest extends TableTestBase {
 
     util.tEnv.registerTableSource(tableName, tableSource)
 
-    val sqlQuery = s"SELECT last, floor(id), score * 2 FROM $tableName"
+    val sqlQuery = s"SELECT `last`, floor(id), score * 2 FROM $tableName"
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -245,7 +274,7 @@ class TableSourceTest extends TableTestBase {
 
     util.tEnv.registerTableSource(tableName, tableSource)
 
-    val sqlQuery = s"SELECT last, floor(id), score * 2 FROM $tableName"
+    val sqlQuery = s"SELECT `last`, floor(id), score * 2 FROM $tableName"
 
     val expected = unaryNode(
       "DataStreamCalc",

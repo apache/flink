@@ -35,7 +35,7 @@ while read server ; do
     server=$(echo -e "${server}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//') # trim
 
     # match server.id=address[:port[:port]]
-    if [[ $server =~ ^server\.([0-9]+)[[:space:]]*\=([^: \#]+) ]]; then
+    if [[ $server =~ ^server\.([0-9]+)[[:space:]]*\=[[:space:]]*([^: \#]+) ]]; then
         id=${BASH_REMATCH[1]}
         address=${BASH_REMATCH[2]}
 

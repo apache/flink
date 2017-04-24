@@ -53,7 +53,7 @@ public abstract class VersionedIOReadableWritable implements IOReadableWritable,
 	 */
 	protected void resolveVersionRead(int foundVersion) throws VersionMismatchException {
 		if (!isCompatibleVersion(foundVersion)) {
-			long expectedVersion = getVersion();
+			int expectedVersion = getVersion();
 			throw new VersionMismatchException(
 					"Incompatible version: found " + foundVersion + ", required " + expectedVersion);
 		}

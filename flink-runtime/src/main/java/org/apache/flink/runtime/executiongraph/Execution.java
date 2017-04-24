@@ -357,7 +357,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 
 			if (LOG.isInfoEnabled()) {
-				LOG.info(String.format("Deploying %s (attempt #%d) to %s", vertex.getSimpleName(),
+				LOG.info(String.format("Deploying %s (attempt #%d) to %s", vertex.getTaskNameWithSubtaskIndex(),
 						attemptNumber, getAssignedResourceLocation().getHostname()));
 			}
 
@@ -820,7 +820,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	void sendPartitionInfos() {
 		// check if the ExecutionVertex has already been archived and thus cleared the
 		// partial partition infos queue
-		if(partialInputChannelDeploymentDescriptors != null && !partialInputChannelDeploymentDescriptors.isEmpty()) {
+		if (partialInputChannelDeploymentDescriptors != null && !partialInputChannelDeploymentDescriptors.isEmpty()) {
 
 			PartialInputChannelDeploymentDescriptor partialInputChannelDeploymentDescriptor;
 
@@ -931,7 +931,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 			else if (currentState == CANCELING || currentState == FAILED) {
 				if (LOG.isDebugEnabled()) {
-					LOG.debug(String.format("Concurrent canceling/failing of %s while deployment was in progress.", getVertexWithAttempt()));
+					// this log statement is guarded because the 'getVertexWithAttempt()' method
+					// performs string concatenations 
+					LOG.debug("Concurrent canceling/failing of {} while deployment was in progress.", getVertexWithAttempt());
 				}
 				sendCancelRpcCall();
 			}
@@ -1069,7 +1071,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	public String getVertexWithAttempt() {
-		return vertex.getSimpleName() + " - execution #" + attemptNumber;
+		return vertex.getTaskNameWithSubtaskIndex() + " - execution #" + attemptNumber;
 	}
 
 	// ------------------------------------------------------------------------
@@ -1124,7 +1126,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	
 	@Override
 	public String toString() {
-		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getSimpleName(),
+		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getTaskNameWithSubtaskIndex(),
 				(assignedResource == null ? "(unassigned)" : assignedResource.toString()), state);
 	}
 

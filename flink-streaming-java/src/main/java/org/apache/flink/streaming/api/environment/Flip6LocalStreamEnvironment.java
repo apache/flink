@@ -22,8 +22,8 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -46,9 +46,6 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Flip6LocalStreamEnvironment.class);
 
-	/** The default parallelism used when creating a local environment */
-	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
-
 	/** The configuration to use for the mini cluster */
 	private final Configuration conf;
 
@@ -65,7 +62,6 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 * @param config The configuration used to configure the local executor.
 	 */
 	public Flip6LocalStreamEnvironment(Configuration config) {
-		super(defaultLocalParallelism);
 		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
 			throw new InvalidProgramException(
 					"The Flip6LocalStreamEnvironment cannot be used when submitting a program through a client, " +
@@ -98,7 +94,7 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 		Configuration configuration = new Configuration();
 		configuration.addAll(jobGraph.getJobConfiguration());
-		configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
+		configuration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, -1L);
 
 		// add (and override) the settings with what the user defined
 		configuration.addAll(this.conf);

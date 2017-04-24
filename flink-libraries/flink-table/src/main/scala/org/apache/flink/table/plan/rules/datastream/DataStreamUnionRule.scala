@@ -18,26 +18,26 @@
 
 package org.apache.flink.table.plan.rules.datastream
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalUnion
-import org.apache.flink.table.plan.nodes.datastream.DataStreamConvention
+import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamUnion
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalUnion
 
 class DataStreamUnionRule
   extends ConverterRule(
-    classOf[LogicalUnion],
-    Convention.NONE,
-    DataStreamConvention.INSTANCE,
+    classOf[FlinkLogicalUnion],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASTREAM,
     "DataStreamUnionRule")
 {
 
   def convert(rel: RelNode): RelNode = {
-    val union: LogicalUnion = rel.asInstanceOf[LogicalUnion]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
-    val convLeft: RelNode = RelOptRule.convert(union.getInput(0), DataStreamConvention.INSTANCE)
-    val convRight: RelNode = RelOptRule.convert(union.getInput(1), DataStreamConvention.INSTANCE)
+    val union: FlinkLogicalUnion = rel.asInstanceOf[FlinkLogicalUnion]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASTREAM)
+    val convLeft: RelNode = RelOptRule.convert(union.getInput(0), FlinkConventions.DATASTREAM)
+    val convRight: RelNode = RelOptRule.convert(union.getInput(1), FlinkConventions.DATASTREAM)
 
     new DataStreamUnion(
       rel.getCluster,

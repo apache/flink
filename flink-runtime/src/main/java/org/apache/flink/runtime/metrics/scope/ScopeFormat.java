@@ -70,45 +70,14 @@ public abstract class ScopeFormat {
 
 	public static final String SCOPE_HOST = asVariable("host");
 
-	// ----- Job Manager ----
-
-	/** The default scope format of the JobManager component: {@code "<host>.jobmanager"} */
-	public static final String DEFAULT_SCOPE_JOBMANAGER_COMPONENT =
-		concat(SCOPE_HOST, "jobmanager");
-
-	/** The default scope format of JobManager metrics: {@code "<host>.jobmanager"} */
-	public static final String DEFAULT_SCOPE_JOBMANAGER_GROUP = DEFAULT_SCOPE_JOBMANAGER_COMPONENT;
-
 	// ----- Task Manager ----
 
 	public static final String SCOPE_TASKMANAGER_ID = asVariable("tm_id");
-
-	/** The default scope format of the TaskManager component: {@code "<host>.taskmanager.<tm_id>"} */
-	public static final String DEFAULT_SCOPE_TASKMANAGER_COMPONENT =
-			concat(SCOPE_HOST, "taskmanager", SCOPE_TASKMANAGER_ID);
-
-	/** The default scope format of TaskManager metrics: {@code "<host>.taskmanager.<tm_id>"} */
-	public static final String DEFAULT_SCOPE_TASKMANAGER_GROUP = DEFAULT_SCOPE_TASKMANAGER_COMPONENT;
 
 	// ----- Job -----
 
 	public static final String SCOPE_JOB_ID = asVariable("job_id");
 	public static final String SCOPE_JOB_NAME = asVariable("job_name");
-
-	/** The default scope format for the job component: {@code "<job_name>"} */
-	public static final String DEFAULT_SCOPE_JOB_COMPONENT = SCOPE_JOB_NAME;
-
-	// ----- Job on Job Manager ----
-
-	/** The default scope format for all job metrics on a jobmanager: {@code "<host>.jobmanager.<job_name>"} */
-	public static final String DEFAULT_SCOPE_JOBMANAGER_JOB_GROUP =
-		concat(DEFAULT_SCOPE_JOBMANAGER_COMPONENT, DEFAULT_SCOPE_JOB_COMPONENT);
-
-	// ----- Job on Task Manager ----
-
-	/** The default scope format for all job metrics on a taskmanager: {@code "<host>.taskmanager.<tm_id>.<job_name>"} */
-	public static final String DEFAULT_SCOPE_TASKMANAGER_JOB_GROUP =
-			concat(DEFAULT_SCOPE_TASKMANAGER_COMPONENT, DEFAULT_SCOPE_JOB_COMPONENT);
 
 	// ----- Task ----
 
@@ -118,27 +87,9 @@ public abstract class ScopeFormat {
 	public static final String SCOPE_TASK_ATTEMPT_NUM = asVariable("task_attempt_num");
 	public static final String SCOPE_TASK_SUBTASK_INDEX = asVariable("subtask_index");
 
-	/** Default scope of the task component: {@code "<task_name>.<subtask_index>"} */
-	public static final String DEFAULT_SCOPE_TASK_COMPONENT =
-			concat(SCOPE_TASK_NAME, SCOPE_TASK_SUBTASK_INDEX);
-
-	/** The default scope format for all task metrics:
-	 * {@code "<host>.taskmanager.<tm_id>.<job_name>.<task_name>.<subtask_index>"} */
-	public static final String DEFAULT_SCOPE_TASK_GROUP =
-			concat(DEFAULT_SCOPE_TASKMANAGER_JOB_GROUP, DEFAULT_SCOPE_TASK_COMPONENT);
-
 	// ----- Operator ----
 
 	public static final String SCOPE_OPERATOR_NAME = asVariable("operator_name");
-
-	/** The default scope added by the operator component: "<operator_name>.<subtask_index>" */
-	public static final String DEFAULT_SCOPE_OPERATOR_COMPONENT =
-			concat(SCOPE_OPERATOR_NAME, SCOPE_TASK_SUBTASK_INDEX);
-
-	/** The default scope format for all operator metrics:
-	 * {@code "<host>.taskmanager.<tm_id>.<job_name>.<operator_name>.<subtask_index>"} */
-	public static final String DEFAULT_SCOPE_OPERATOR_GROUP =
-			concat(DEFAULT_SCOPE_TASKMANAGER_JOB_GROUP, DEFAULT_SCOPE_OPERATOR_COMPONENT);
 	
 
 	// ------------------------------------------------------------------------

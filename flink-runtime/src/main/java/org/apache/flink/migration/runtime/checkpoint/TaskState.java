@@ -29,6 +29,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+/**
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
+ */
 @Deprecated
 @SuppressWarnings("deprecation")
 public class TaskState implements Serializable {

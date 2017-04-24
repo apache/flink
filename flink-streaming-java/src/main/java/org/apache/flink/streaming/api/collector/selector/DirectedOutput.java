@@ -140,7 +140,7 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 	}
 
 	@Override
-	public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 		throw new UnsupportedOperationException("Cannot use split/select with side outputs.");
 	}
 

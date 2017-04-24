@@ -71,6 +71,21 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	private int[] keyGroupOffsets;
 
 	/**
+	 * A local duplicate of the table's key serializer.
+	 */
+	private final TypeSerializer<K> localKeySerializer;
+
+	/**
+	 * A local duplicate of the table's namespace serializer.
+	 */
+	private final TypeSerializer<N> localNamespaceSerializer;
+
+	/**
+	 * A local duplicate of the table's state serializer.
+	 */
+	private final TypeSerializer<S> localStateSerializer;
+
+	/**
 	 * Creates a new {@link CopyOnWriteStateTableSnapshot}.
 	 *
 	 * @param owningStateTable the {@link CopyOnWriteStateTable} for which this object represents a snapshot.
@@ -81,6 +96,13 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 		this.snapshotData = owningStateTable.snapshotTableArrays();
 		this.snapshotVersion = owningStateTable.getStateTableVersion();
 		this.stateTableSize = owningStateTable.size();
+
+		// We create duplicates of the serializers for the async snapshot, because TypeSerializer
+		// might be stateful and shared with the event processing thread.
+		this.localKeySerializer = owningStateTable.keyContext.getKeySerializer().duplicate();
+		this.localNamespaceSerializer = owningStateTable.metaInfo.getNamespaceSerializer().duplicate();
+		this.localStateSerializer = owningStateTable.metaInfo.getStateSerializer().duplicate();
+
 		this.keyGroupOffsets = null;
 	}
 
@@ -162,10 +184,6 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 		int startOffset = keyGroupOffsetIdx < 0 ? 0 : keyGroupOffsets[keyGroupOffsetIdx];
 		int endOffset = keyGroupOffsets[keyGroupOffsetIdx + 1];
 
-		TypeSerializer<K> keySerializer = owningStateTable.keyContext.getKeySerializer();
-		TypeSerializer<N> namespaceSerializer = owningStateTable.metaInfo.getNamespaceSerializer();
-		TypeSerializer<S> stateSerializer = owningStateTable.metaInfo.getStateSerializer();
-
 		// write number of mappings in key-group
 		dov.writeInt(endOffset - startOffset);
 
@@ -173,9 +191,9 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 		for (int i = startOffset; i < endOffset; ++i) {
 			CopyOnWriteStateTable.StateTableEntry<K, N, S> toWrite = groupedOut[i];
 			groupedOut[i] = null; // free asap for GC
-			namespaceSerializer.serialize(toWrite.namespace, dov);
-			keySerializer.serialize(toWrite.key, dov);
-			stateSerializer.serialize(toWrite.state, dov);
+			localNamespaceSerializer.serialize(toWrite.namespace, dov);
+			localKeySerializer.serialize(toWrite.key, dov);
+			localStateSerializer.serialize(toWrite.state, dov);
 		}
 	}
 

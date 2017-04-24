@@ -118,7 +118,8 @@ public class ByteArrayInputStreamWithPos extends InputStream {
 		return position;
 	}
 
-	public void setPos(int pos) {
+	public void setPosition(int pos) {
+		Preconditions.checkArgument(pos >= 0 && pos <= count, "Position out of bounds.");
 		this.position = pos;
 	}
 }

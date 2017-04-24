@@ -62,6 +62,19 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class PendingCheckpoint {
 
+	/**
+	 * Result of the {@link PendingCheckpoint#acknowledgedTasks} method.
+	 */
+	public enum TaskAcknowledgeResult {
+		SUCCESS, // successful acknowledge of the task
+		DUPLICATE, // acknowledge message is a duplicate
+		UNKNOWN, // unknown task acknowledged
+		DISCARDED // pending checkpoint has been discarded
+	}
+
+	// ------------------------------------------------------------------------
+
+	/** The PendingCheckpoint logs to the same logger as the CheckpointCoordinator */
 	private static final Logger LOG = LoggerFactory.getLogger(CheckpointCoordinator.class);
 
 	private final Object lock = new Object();
@@ -201,7 +214,8 @@ public class PendingCheckpoint {
 	}
 
 	/**
-	 * Sets the handle for the canceller to this pending checkoint.
+	 * Sets the handle for the canceller to this pending checkpoint. This method fails
+	 * with an exception if a handle has already been set.
 	 * 
 	 * @return true, if the handle was set, false, if the checkpoint is already disposed;
 	 */
@@ -422,15 +436,7 @@ public class PendingCheckpoint {
 		}
 	}
 
-	/**
-	 * Result of the {@link PendingCheckpoint#acknowledgedTasks} method.
-	 */
-	public enum TaskAcknowledgeResult {
-		SUCCESS, // successful acknowledge of the task
-		DUPLICATE, // acknowledge message is a duplicate
-		UNKNOWN, // unknown task acknowledged
-		DISCARDED // pending checkpoint has been discarded
-	}
+	
 
 	// ------------------------------------------------------------------------
 	//  Cancellation
@@ -491,6 +497,7 @@ public class PendingCheckpoint {
 	}
 
 	private void dispose(boolean releaseState) {
+
 		synchronized (lock) {
 			try {
 				numAcknowledgedTasks = -1;
@@ -498,11 +505,14 @@ public class PendingCheckpoint {
 					executor.execute(new Runnable() {
 						@Override
 						public void run() {
+
+							// discard the private states.
+							// unregistered shared states are still considered private at this point.
 							try {
 								StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
 							} catch (Throwable t) {
-								LOG.warn("Could not properly dispose the pending checkpoint {} of job {}.", 
-										checkpointId, jobId, t);
+								LOG.warn("Could not properly dispose the private states in the pending checkpoint {} of job {}.",
+									checkpointId, jobId, t);
 							} finally {
 								taskStates.clear();
 							}
@@ -546,7 +556,9 @@ public class PendingCheckpoint {
 		}
 	}
 
-	// --------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {

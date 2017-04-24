@@ -25,58 +25,60 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.types.Row
-import org.apache.flink.util.Preconditions
-
+import org.slf4j.LoggerFactory
 
 /**
   * This map function only works for windows on batch tables.
   * It appends an (aligned) rowtime field to the end of the output row.
+  *
+  * @param genAggregations      Code-generated [[GeneratedAggregations]]
+  * @param timeFieldPos         Time field position in input row
+  * @param tumbleTimeWindowSize The size of tumble time window
   */
 class DataSetWindowAggMapFunction(
-    private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Int],
-    private val groupingKeys: Array[Int],
-    private val timeFieldPos: Int, // time field position in input row
+    private val genAggregations: GeneratedAggregationsFunction,
+    private val timeFieldPos: Int,
     private val tumbleTimeWindowSize: Option[Long],
     @transient private val returnType: TypeInformation[Row])
-  extends RichMapFunction[Row, Row] with ResultTypeQueryable[Row] {
+  extends RichMapFunction[Row, Row]
+    with ResultTypeQueryable[Row]
+    with Compiler[GeneratedAggregations] {
 
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(aggFields)
-  Preconditions.checkArgument(aggregates.length == aggFields.length)
-
+  private var accs: Row = _
   private var output: Row = _
-  // add one more arity to store rowtime
-  private val partialRowLength = groupingKeys.length + aggregates.length + 1
-  // rowtime index in the buffer output row
-  private val rowtimeIndex: Int = partialRowLength - 1
+
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
-    output = new Row(partialRowLength)
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getRuntimeContext.getUserCodeClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
+
+    accs = function.createAccumulators()
+    output = function.createOutputRow()
   }
 
   override def map(input: Row): Row = {
 
-    var i = 0
-    while (i < aggregates.length) {
-      val agg = aggregates(i)
-      val fieldValue = input.getField(aggFields(i))
-      val accumulator = agg.createAccumulator()
-      agg.accumulate(accumulator, fieldValue)
-      output.setField(groupingKeys.length + i, accumulator)
-      i += 1
-    }
+    function.resetAccumulator(accs)
 
-    i = 0
-    while (i < groupingKeys.length) {
-      output.setField(i, input.getField(groupingKeys(i)))
-      i += 1
-    }
+    function.accumulate(accs, input)
+
+    function.setAggregationResults(accs, output)
+
+    function.setForwardedFields(input, output)
 
     val timeField = input.getField(timeFieldPos)
     val rowtime = getTimestamp(timeField)
+    val rowtimeIndex = output.getArity - 1
     if (tumbleTimeWindowSize.isDefined) {
       // in case of tumble time window, align rowtime to window start to represent the window
       output.setField(

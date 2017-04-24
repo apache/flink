@@ -18,9 +18,12 @@
 
 package org.apache.flink.cep.pattern;
 
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.cep.nfa.NFA;
+import org.apache.flink.cep.pattern.conditions.AndCondition;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.cep.pattern.conditions.OrCondition;
+import org.apache.flink.cep.pattern.conditions.SubtypeCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
@@ -49,7 +52,7 @@ public class Pattern<T, F extends T> {
 	private final Pattern<T, ? extends T> previous;
 
 	// filter condition for an event to be matched
-	private FilterFunction<F> filterFunction;
+	private IterativeCondition<F> condition;
 
 	// window length in which the pattern match has to occur
 	private Time windowTime;
@@ -71,8 +74,8 @@ public class Pattern<T, F extends T> {
 		return previous;
 	}
 
-	public FilterFunction<F> getFilterFunction() {
-		return filterFunction;
+	public IterativeCondition<F> getCondition() {
+		return condition;
 	}
 
 	public Time getWindowTime() {
@@ -90,36 +93,34 @@ public class Pattern<T, F extends T> {
 	/**
 	 * Specifies a filter condition which has to be fulfilled by an event in order to be matched.
 	 *
-	 * @param newFilterFunction Filter condition
+	 * @param condition Filter condition
 	 * @return The same pattern operator where the new filter condition is set
 	 */
-	public Pattern<T, F> where(FilterFunction<F> newFilterFunction) {
-		ClosureCleaner.clean(newFilterFunction, true);
+	public Pattern<T, F> where(IterativeCondition<F> condition) {
+		ClosureCleaner.clean(condition, true);
 
-		if (this.filterFunction == null) {
-			this.filterFunction = newFilterFunction;
+		if (this.condition == null) {
+			this.condition = condition;
 		} else {
-			this.filterFunction = new AndFilterFunction<F>(this.filterFunction, newFilterFunction);
+			this.condition = new AndCondition<>(this.condition, condition);
 		}
-
 		return this;
 	}
 
 	/**
 	 * Specifies a filter condition which is OR'ed with an existing filter function.
 	 *
-	 * @param orFilterFunction OR filter condition
+	 * @param condition OR filter condition
 	 * @return The same pattern operator where the new filter condition is set
 	 */
-	public Pattern<T, F> or(FilterFunction<F> orFilterFunction) {
-		ClosureCleaner.clean(orFilterFunction, true);
+	public Pattern<T, F> or(IterativeCondition<F> condition) {
+		ClosureCleaner.clean(condition, true);
 
-		if (this.filterFunction == null) {
-			this.filterFunction = orFilterFunction;
+		if (this.condition == null) {
+			this.condition = condition;
 		} else {
-			this.filterFunction = new OrFilterFunction<>(this.filterFunction, orFilterFunction);
+			this.condition = new OrCondition<>(this.condition, condition);
 		}
-
 		return this;
 	}
 
@@ -132,10 +133,11 @@ public class Pattern<T, F extends T> {
 	 * @return The same pattern operator with the new subtype constraint
 	 */
 	public <S extends F> Pattern<T, S> subtype(final Class<S> subtypeClass) {
-		if (filterFunction == null) {
-			this.filterFunction = new SubtypeFilterFunction<F>(subtypeClass);
+		if (condition == null) {
+			this.condition = new SubtypeCondition<F>(subtypeClass);
 		} else {
-			this.filterFunction = new AndFilterFunction<F>(this.filterFunction, new SubtypeFilterFunction<F>(subtypeClass));
+			this.condition = new AndCondition<>(this.condition,
+					new SubtypeCondition<F>(subtypeClass));
 		}
 
 		@SuppressWarnings("unchecked")
@@ -149,7 +151,7 @@ public class Pattern<T, F extends T> {
 	 * between first and the last event must not be longer than the window time.
 	 *
 	 * @param windowTime Time of the matching window
-	 * @return The same pattenr operator with the new window length
+	 * @return The same pattern operator with the new window length
 	 */
 	public Pattern<T, F> within(Time windowTime) {
 		if (windowTime != null) {
@@ -265,6 +267,76 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
+	 * Works in conjunction with {@link Pattern#zeroOrMore()}, {@link Pattern#oneOrMore()} or {@link Pattern#times(int)}.
+	 * Specifies that any not matching element breaks the loop.
+	 *
+	 * <p>E.g. a pattern like:
+	 * <pre>{@code
+	 * Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+	 *      @Override
+	 *      public boolean filter(Event value) throws Exception {
+	 *          return value.getName().equals("c");
+	 *      }
+	 * })
+	 * .followedBy("middle").where(new FilterFunction<Event>() {
+	 *      @Override
+	 *      public boolean filter(Event value) throws Exception {
+	 *          return value.getName().equals("a");
+	 *      }
+	 * })
+	 * }<b>.oneOrMore(true).consecutive()</b>{@code
+	 * .followedBy("end1").where(new FilterFunction<Event>() {
+	 *      @Override
+	 *      public boolean filter(Event value) throws Exception {
+	 *          return value.getName().equals("b");
+	 *      }
+	 * });
+	 * }</pre>
+	 *
+	 * <p>for a sequence: C D A1 A2 A3 D A4 B
+	 *
+	 * <p>will generate matches: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}
+	 *
+	 * <p><b>NOTICE:</b> This operator can be applied only when either zeroOrMore,
+	 * oneOrMore or times was previously applied!
+	 *
+	 * <p>By default a relaxed continuity is applied.
+	 *
+	 * @return pattern with continuity changed to strict
+	 */
+	public Pattern<T, F> consecutive() {
+		switch (this.quantifier) {
+
+			case ZERO_OR_MORE_EAGER:
+				this.quantifier = Quantifier.ZERO_OR_MORE_EAGER_STRICT;
+				break;
+			case ZERO_OR_MORE_COMBINATIONS:
+				this.quantifier = Quantifier.ZERO_OR_MORE_COMBINATIONS_STRICT;
+				break;
+			case ONE_OR_MORE_EAGER:
+				this.quantifier = Quantifier.ONE_OR_MORE_EAGER_STRICT;
+				break;
+			case ONE_OR_MORE_COMBINATIONS:
+				this.quantifier = Quantifier.ONE_OR_MORE_COMBINATIONS_STRICT;
+				break;
+			case TIMES:
+				this.quantifier = Quantifier.TIMES_STRICT;
+				break;
+			case ZERO_OR_MORE_COMBINATIONS_STRICT:
+			case ONE_OR_MORE_EAGER_STRICT:
+			case ONE_OR_MORE_COMBINATIONS_STRICT:
+			case ZERO_OR_MORE_EAGER_STRICT:
+			case TIMES_STRICT:
+				throw new MalformedPatternException("Strict continuity already applied! consecutive() called twice.");
+			case ONE:
+			case OPTIONAL:
+				throw new MalformedPatternException("Strict continuity cannot be applied to " + this.quantifier);
+		}
+
+		return this;
+	}
+
+	/**
 	 * Specifies that this pattern can occur zero or once.
 	 *
 	 * @return The same pattern with applied Kleene ? operator
@@ -298,4 +370,5 @@ public class Pattern<T, F extends T> {
 			throw new MalformedPatternException("Already applied quantifier to this Pattern. Current quantifier is: " + this.quantifier);
 		}
 	}
+
 }

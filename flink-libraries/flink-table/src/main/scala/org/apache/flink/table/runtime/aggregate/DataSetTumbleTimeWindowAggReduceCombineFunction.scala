@@ -20,7 +20,8 @@ package org.apache.flink.table.runtime.aggregate
 import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.CombineFunction
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.codegen.GeneratedAggregationsFunction
 import org.apache.flink.types.Row
 
 /**
@@ -29,33 +30,44 @@ import org.apache.flink.types.Row
   * [[org.apache.flink.api.java.operators.GroupCombineOperator]].
   * It is used for tumbling time-window on batch.
   *
-  * @param windowSize       Tumbling time window size
-  * @param windowStartPos   The relative window-start field position to the last field of output row
-  * @param windowEndPos     The relative window-end field position to the last field of output row
-  * @param aggregates       The aggregate functions.
-  * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
-  *                         and output Row.
-  * @param aggregateMapping The index mapping between aggregate function list and aggregated value
-  *                         index in output Row.
-  * @param finalRowArity    The output row field count
+  * @param genPreAggregations        Code-generated [[GeneratedAggregations]] for partial aggs.
+  * @param genFinalAggregations        Code-generated [[GeneratedAggregations]] for final aggs.
+  * @param windowSize             Tumbling time window size
+  * @param windowStartPos         The relative window-start field position to the last field of
+  *                               output row
+  * @param windowEndPos           The relative window-end field position to the last field of
+  *                               output row
+  * @param keysAndAggregatesArity The total arity of keys and aggregates
   */
 class DataSetTumbleTimeWindowAggReduceCombineFunction(
+    genPreAggregations: GeneratedAggregationsFunction,
+    genFinalAggregations: GeneratedAggregationsFunction,
     windowSize: Long,
     windowStartPos: Option[Int],
     windowEndPos: Option[Int],
-    aggregates: Array[AggregateFunction[_ <: Any]],
-    groupKeysMapping: Array[(Int, Int)],
-    aggregateMapping: Array[(Int, Int)],
-    finalRowArity: Int)
+    keysAndAggregatesArity: Int)
   extends DataSetTumbleTimeWindowAggReduceGroupFunction(
+    genFinalAggregations,
     windowSize,
     windowStartPos,
     windowEndPos,
-    aggregates,
-    groupKeysMapping,
-    aggregateMapping,
-    finalRowArity)
+    keysAndAggregatesArity)
     with CombineFunction[Row, Row] {
+
+  protected var preAggfunction: GeneratedAggregations = _
+
+  override def open(config: Configuration): Unit = {
+    super.open(config)
+
+    LOG.debug(s"Compiling AggregateHelper: $genPreAggregations.name \n\n " +
+      s"Code:\n$genPreAggregations.code")
+    val clazz = compile(
+      getClass.getClassLoader,
+      genPreAggregations.name,
+      genPreAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    preAggfunction = clazz.newInstance()
+  }
 
   /**
     * For sub-grouped intermediate aggregate Rows, merge all of them into aggregate buffer,
@@ -69,47 +81,21 @@ class DataSetTumbleTimeWindowAggReduceCombineFunction(
     var last: Row = null
     val iterator = records.iterator()
 
-    // reset first accumulator in merge list
-    var i = 0
-    while (i < aggregates.length) {
-      aggregates(i).resetAccumulator(accumulatorList(i).get(0))
-      i += 1
-    }
+    // reset accumulator
+    preAggfunction.resetAccumulator(accumulators)
 
     while (iterator.hasNext) {
       val record = iterator.next()
-
-      i = 0
-      while (i < aggregates.length) {
-        // insert received accumulator into acc list
-        val newAcc = record.getField(groupKeysMapping.length + i).asInstanceOf[Accumulator]
-        accumulatorList(i).set(1, newAcc)
-        // merge acc list
-        val retAcc = aggregates(i).merge(accumulatorList(i))
-        // insert result into acc list
-        accumulatorList(i).set(0, retAcc)
-        i += 1
-      }
-
+      preAggfunction.mergeAccumulatorsPair(accumulators, record)
       last = record
     }
 
-    // set the partial merged result to the aggregateBuffer
-    i = 0
-    while (i < aggregates.length) {
-      aggregateBuffer.setField(groupKeysMapping.length + i, accumulatorList(i).get(0))
-      i += 1
-    }
-
-    // set group keys to aggregateBuffer.
-    i = 0
-    while (i < groupKeysMapping.length) {
-      aggregateBuffer.setField(i, last.getField(i))
-      i += 1
-    }
+    // set group keys and partial merged result to aggregateBuffer
+    preAggfunction.setAggregationResults(accumulators, aggregateBuffer)
+    preAggfunction.setForwardedFields(last, aggregateBuffer)
 
     // set the rowtime attribute
-    val rowtimePos = groupKeysMapping.length + aggregates.length
+    val rowtimePos = keysAndAggregatesArity
 
     aggregateBuffer.setField(rowtimePos, last.getField(rowtimePos))
 

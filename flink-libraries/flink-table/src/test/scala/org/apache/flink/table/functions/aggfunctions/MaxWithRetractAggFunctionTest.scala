@@ -186,3 +186,35 @@ class DecimalMaxWithRetractAggFunctionTest extends AggFunctionTestBase[BigDecima
 
   override def aggregator: AggregateFunction[BigDecimal] = new DecimalMaxWithRetractAggFunction()
 }
+
+class StringMaxWithRetractAggFunctionTest extends AggFunctionTestBase[String] {
+
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      "abc",
+      "def",
+      "ghi",
+      null,
+      "jkl",
+      null,
+      "zzz"
+    ),
+    Seq(
+      null,
+      null
+    ),
+    Seq(
+      "x",
+      null,
+      "e"
+    )
+  )
+
+  override def expectedResults: Seq[String] = Seq(
+    "zzz",
+    null,
+    "x"
+  )
+
+  override def aggregator: AggregateFunction[String] = new StringMaxWithRetractAggFunction()
+}

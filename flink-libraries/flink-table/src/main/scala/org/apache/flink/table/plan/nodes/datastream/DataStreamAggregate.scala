@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWin
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.nodes.CommonAggregate
@@ -117,6 +118,11 @@ class DataStreamAggregate(
       s"select: ($aggString)"
     val nonKeyedAggOpName = s"window: ($window), select: ($aggString)"
 
+    val generator = new CodeGenerator(
+      tableEnv.getConfig,
+      false,
+      inputDS.getType)
+
     // grouped / keyed aggregation
     if (groupingKeys.length > 0) {
       val windowFunction = AggregateUtil.createAggregationGroupWindowFunction(
@@ -133,10 +139,10 @@ class DataStreamAggregate(
 
       val (aggFunction, accumulatorRowType, aggResultRowType) =
         AggregateUtil.createDataStreamAggregateFunction(
+          generator,
           namedAggregates,
           inputType,
-          rowRelDataType,
-          grouping)
+          rowRelDataType)
 
       windowedStream
         .aggregate(aggFunction, windowFunction, accumulatorRowType, aggResultRowType, rowTypeInfo)
@@ -155,10 +161,10 @@ class DataStreamAggregate(
 
       val (aggFunction, accumulatorRowType, aggResultRowType) =
         AggregateUtil.createDataStreamAggregateFunction(
+          generator,
           namedAggregates,
           inputType,
-          rowRelDataType,
-          grouping)
+          rowRelDataType)
 
       windowedStream
         .aggregate(aggFunction, windowFunction, accumulatorRowType, aggResultRowType, rowTypeInfo)

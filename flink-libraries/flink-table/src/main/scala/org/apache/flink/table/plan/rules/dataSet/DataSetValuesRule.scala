@@ -18,24 +18,24 @@
 
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{RelOptRule, RelTraitSet, Convention}
+import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalValues
-import org.apache.flink.table.plan.nodes.dataset.{DataSetValues, DataSetConvention}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetValues
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalValues
 
 class DataSetValuesRule
   extends ConverterRule(
-    classOf[LogicalValues],
-    Convention.NONE,
-    DataSetConvention.INSTANCE,
+    classOf[FlinkLogicalValues],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
     "DataSetValuesRule")
 {
 
   def convert(rel: RelNode): RelNode = {
-
-    val values: LogicalValues = rel.asInstanceOf[LogicalValues]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
+    val values: FlinkLogicalValues = rel.asInstanceOf[FlinkLogicalValues]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
 
     new DataSetValues(
       rel.getCluster,

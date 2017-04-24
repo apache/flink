@@ -24,7 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
@@ -50,7 +50,7 @@ public class CheckpointConfigHandlerTest {
 
 		AccessExecutionGraph graph = graphAndSettings.graph;
 		when(graph.getJobID()).thenReturn(new JobID());
-		JobSnapshottingSettings settings = graphAndSettings.snapshottingSettings;
+		JobCheckpointingSettings settings = graphAndSettings.snapshottingSettings;
 		ExternalizedCheckpointSettings externalizedSettings = graphAndSettings.externalizedSettings;
 		
 		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(graph);
@@ -90,7 +90,7 @@ public class CheckpointConfigHandlerTest {
 		GraphAndSettings graphAndSettings = createGraphAndSettings(false, true);
 
 		AccessExecutionGraph graph = graphAndSettings.graph;
-		JobSnapshottingSettings settings = graphAndSettings.snapshottingSettings;
+		JobCheckpointingSettings settings = graphAndSettings.snapshottingSettings;
 
 		CheckpointConfigHandler handler = new CheckpointConfigHandler(mock(ExecutionGraphHolder.class));
 		String json = handler.handleRequest(graph, Collections.<String, String>emptyMap());
@@ -156,7 +156,7 @@ public class CheckpointConfigHandlerTest {
 			? ExternalizedCheckpointSettings.externalizeCheckpoints(true)
 			: ExternalizedCheckpointSettings.none();
 
-		JobSnapshottingSettings settings = new JobSnapshottingSettings(
+		JobCheckpointingSettings settings = new JobCheckpointingSettings(
 			Collections.<JobVertexID>emptyList(),
 			Collections.<JobVertexID>emptyList(),
 			Collections.<JobVertexID>emptyList(),
@@ -169,19 +169,19 @@ public class CheckpointConfigHandlerTest {
 			exactlyOnce);
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		when(graph.getJobSnapshottingSettings()).thenReturn(settings);
+		when(graph.getJobCheckpointingSettings()).thenReturn(settings);
 
 		return new GraphAndSettings(graph, settings, externalizedSetting);
 	}
 
 	private static class GraphAndSettings {
 		public final AccessExecutionGraph graph;
-		public final JobSnapshottingSettings snapshottingSettings;
+		public final JobCheckpointingSettings snapshottingSettings;
 		public final ExternalizedCheckpointSettings externalizedSettings;
 
 		public GraphAndSettings(
 				AccessExecutionGraph graph,
-				JobSnapshottingSettings snapshottingSettings,
+				JobCheckpointingSettings snapshottingSettings,
 				ExternalizedCheckpointSettings externalizedSettings) {
 			this.graph = graph;
 			this.snapshottingSettings = snapshottingSettings;

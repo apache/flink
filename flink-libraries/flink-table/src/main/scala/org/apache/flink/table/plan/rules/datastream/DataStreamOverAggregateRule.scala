@@ -19,31 +19,25 @@
 package org.apache.flink.table.plan.rules.datastream
 
 import org.apache.calcite.plan.volcano.RelSubset
-import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalWindow
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
-import org.apache.flink.table.plan.nodes.datastream.DataStreamConvention
+import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamOverAggregate
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalOverWindow
 
-import scala.collection.JavaConversions._
-
-/**
-  * Rule to convert a LogicalWindow into a DataStreamOverAggregate.
-  */
 class DataStreamOverAggregateRule
   extends ConverterRule(
-    classOf[LogicalWindow],
-    Convention.NONE,
-    DataStreamConvention.INSTANCE,
+    classOf[FlinkLogicalOverWindow],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASTREAM,
     "DataStreamOverAggregateRule") {
 
   override def convert(rel: RelNode): RelNode = {
-    val logicWindow: LogicalWindow = rel.asInstanceOf[LogicalWindow]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
+    val logicWindow: FlinkLogicalOverWindow = rel.asInstanceOf[FlinkLogicalOverWindow]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASTREAM)
     val convertInput: RelNode =
-      RelOptRule.convert(logicWindow.getInput, DataStreamConvention.INSTANCE)
+      RelOptRule.convert(logicWindow.getInput, FlinkConventions.DATASTREAM)
 
     val inputRowType = convertInput.asInstanceOf[RelSubset].getOriginal.getRowType
 

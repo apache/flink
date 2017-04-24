@@ -18,16 +18,28 @@
 ################################################################################
 
 constructFlinkClassPath() {
+    local FLINK_DIST
+    local FLINK_CLASSPATH
 
     while read -d '' -r jarfile ; do
-        if [[ $FLINK_CLASSPATH = "" ]]; then
+        if [[ "$jarfile" =~ .*flink-dist.*.jar ]]; then
+            FLINK_DIST="$FLINK_DIST":"$jarfile"
+        elif [[ "$FLINK_CLASSPATH" == "" ]]; then
             FLINK_CLASSPATH="$jarfile";
         else
             FLINK_CLASSPATH="$FLINK_CLASSPATH":"$jarfile"
         fi
-    done < <(find "$FLINK_LIB_DIR" ! -type d -name '*.jar' -print0)
+    done < <(find "$FLINK_LIB_DIR" ! -type d -name '*.jar' -print0 | sort -z)
 
-    echo $FLINK_CLASSPATH
+    if [[ "$FLINK_DIST" == "" ]]; then
+        # write error message to stderr since stdout is stored as the classpath
+        (>&2 echo "[ERROR] Flink distribution jar not found in $FLINK_LIB_DIR.")
+
+        # exit function with empty classpath to force process failure
+        exit 1
+    fi
+
+    echo "$FLINK_CLASSPATH""$FLINK_DIST"
 }
 
 # These are used to mangle paths that are passed to java when using
@@ -310,11 +322,24 @@ fi
 INTERNAL_HADOOP_CLASSPATHS="${HADOOP_CLASSPATH}:${HADOOP_CONF_DIR}:${YARN_CONF_DIR}"
 
 if [ -n "${HBASE_CONF_DIR}" ]; then
-    # Setup the HBase classpath.
-    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`hbase classpath`"
+    # Look for hbase command in HBASE_HOME or search PATH.
+    if [ -n "${HBASE_HOME}" ]; then
+        HBASE_PATH="${HBASE_HOME}/bin"
+        HBASE_COMMAND=`command -v "${HBASE_PATH}/hbase"`
+    else
+        HBASE_PATH=$PATH
+        HBASE_COMMAND=`command -v hbase`
+    fi
 
-    # We add the HBASE_CONF_DIR last to ensure the right config directory is used.
-    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:${HBASE_CONF_DIR}"
+    # Whether the hbase command was found.
+    if [[ $? -eq 0 ]]; then
+        # Setup the HBase classpath. We add the HBASE_CONF_DIR last to ensure the right config directory is used.
+        INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`${HBASE_COMMAND} classpath`:${HBASE_CONF_DIR}"
+    else
+        echo "HBASE_CONF_DIR=${HBASE_CONF_DIR} is set but 'hbase' command was not found in ${HBASE_PATH} so classpath could not be updated."
+    fi
+
+    unset HBASE_COMMAND HBASE_PATH
 fi
 
 # Auxilliary function which extracts the name of host from a line which
@@ -385,14 +410,45 @@ readSlaves() {
 
     SLAVES=()
 
+    SLAVES_ALL_LOCALHOST=true
     GOON=true
     while $GOON; do
         read line || GOON=false
         HOST=$( extractHostName $line)
-        if [ -n "$HOST" ]; then
+        if [ -n "$HOST" ] ; then
             SLAVES+=(${HOST})
+            if [ "${HOST}" != "localhost" ] ; then
+                SLAVES_ALL_LOCALHOST=false
+            fi
         fi
     done < "$SLAVES_FILE"
+}
+
+# starts or stops TMs on all slaves
+# TMSlaves start|stop
+TMSlaves() {
+    CMD=$1
+
+    readSlaves
+
+    if [ ${SLAVES_ALL_LOCALHOST} = true ] ; then
+        # all-local setup
+        for slave in ${SLAVES[@]}; do
+            "${FLINK_BIN_DIR}"/taskmanager.sh "${CMD}"
+        done
+    else
+        # non-local setup
+        # Stop TaskManager instance(s) using pdsh (Parallel Distributed Shell) when available
+        command -v pdsh >/dev/null 2>&1
+        if [[ $? -ne 0 ]]; then
+            for slave in ${SLAVES[@]}; do
+                ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" \"${CMD}\" &"
+            done
+        else
+            PDSH_SSH_ARGS="" PDSH_SSH_ARGS_APPEND=$FLINK_SSH_OPTS pdsh -w $(IFS=, ; echo "${SLAVES[*]}") \
+                "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" \"${CMD}\""
+        fi
+    fi
 }
 
 useOffHeapMemory() {

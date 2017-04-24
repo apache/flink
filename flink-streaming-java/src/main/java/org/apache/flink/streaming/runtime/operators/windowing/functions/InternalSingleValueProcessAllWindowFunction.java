@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.windowing.functions;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
@@ -36,21 +37,33 @@ public final class InternalSingleValueProcessAllWindowFunction<IN, OUT, W extend
 
 	private static final long serialVersionUID = 1L;
 
+	private transient InternalProcessAllWindowContext<IN, OUT, W> ctx;
+
 	public InternalSingleValueProcessAllWindowFunction(ProcessAllWindowFunction<IN, OUT, W> wrappedFunction) {
 		super(wrappedFunction);
 	}
 
 	@Override
-	public void apply(Byte key, final W window, IN input, Collector<OUT> out) throws Exception {
+	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
 		ProcessAllWindowFunction<IN, OUT, W> wrappedFunction = this.wrappedFunction;
-		ProcessAllWindowFunction<IN, OUT, W>.Context context = wrappedFunction.new Context() {
-			@Override
-			public W window() {
-				return window;
-			}
-		};
+		this.ctx = new InternalProcessAllWindowContext<>(wrappedFunction);
+	}
 
-		wrappedFunction.process(context, Collections.singletonList(input), out);
+	@Override
+	public void process(Byte key, final W window, final InternalWindowContext context, IN input, Collector<OUT> out) throws Exception {
+		this.ctx.window = window;
+		this.ctx.internalContext = context;
+		ProcessAllWindowFunction<IN, OUT, W> wrappedFunction = this.wrappedFunction;
+		wrappedFunction.process(ctx, Collections.singletonList(input), out);
+	}
+
+	@Override
+	public void clear(final W window, final InternalWindowContext context) throws Exception {
+		this.ctx.window = window;
+		this.ctx.internalContext = context;
+		ProcessAllWindowFunction<IN, OUT, W> wrappedFunction = this.wrappedFunction;
+		wrappedFunction.clear(ctx);
 	}
 
 	@Override

@@ -119,4 +119,5 @@ class ExplainTest
       "../../src/test/scala/resources/testUnion1.out").mkString.replaceAll("\\r\\n", "\n")
     assertEquals(result, source)
   }
+
 }

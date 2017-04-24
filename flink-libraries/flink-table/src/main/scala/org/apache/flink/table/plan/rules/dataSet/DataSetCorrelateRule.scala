@@ -18,45 +18,41 @@
 package org.apache.flink.table.plan.rules.dataSet
 
 import org.apache.calcite.plan.volcano.RelSubset
-import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.{LogicalFilter, LogicalCorrelate, LogicalTableFunctionScan}
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.table.plan.nodes.dataset.{DataSetConvention, DataSetCorrelate}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetCorrelate
+import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
 
-/**
-  * Rule to convert a LogicalCorrelate into a DataSetCorrelate.
-  */
 class DataSetCorrelateRule
   extends ConverterRule(
-      classOf[LogicalCorrelate],
-      Convention.NONE,
-      DataSetConvention.INSTANCE,
-      "DataSetCorrelateRule") {
+    classOf[FlinkLogicalCorrelate],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
+    "DataSetCorrelateRule") {
 
     override def matches(call: RelOptRuleCall): Boolean = {
-      val join: LogicalCorrelate = call.rel(0).asInstanceOf[LogicalCorrelate]
+      val join: FlinkLogicalCorrelate = call.rel(0).asInstanceOf[FlinkLogicalCorrelate]
       val right = join.getRight.asInstanceOf[RelSubset].getOriginal
 
 
       right match {
         // right node is a table function
-        case scan: LogicalTableFunctionScan => true
+        case scan: FlinkLogicalTableFunctionScan => true
         // a filter is pushed above the table function
-        case filter: LogicalFilter =>
-          filter
-            .getInput.asInstanceOf[RelSubset]
-            .getOriginal
-            .isInstanceOf[LogicalTableFunctionScan]
+        case calc: FlinkLogicalCalc =>
+          calc.getInput.asInstanceOf[RelSubset]
+            .getOriginal.isInstanceOf[FlinkLogicalTableFunctionScan]
         case _ => false
       }
     }
 
     override def convert(rel: RelNode): RelNode = {
-      val join: LogicalCorrelate = rel.asInstanceOf[LogicalCorrelate]
-      val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-      val convInput: RelNode = RelOptRule.convert(join.getInput(0), DataSetConvention.INSTANCE)
+      val join: FlinkLogicalCorrelate = rel.asInstanceOf[FlinkLogicalCorrelate]
+      val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
+      val convInput: RelNode = RelOptRule.convert(join.getInput(0), FlinkConventions.DATASET)
       val right: RelNode = join.getInput(1)
 
       def convertToCorrelate(relNode: RelNode, condition: Option[RexNode]): DataSetCorrelate = {
@@ -64,12 +60,12 @@ class DataSetCorrelateRule
           case rel: RelSubset =>
             convertToCorrelate(rel.getRelList.get(0), condition)
 
-          case filter: LogicalFilter =>
+          case calc: FlinkLogicalCalc =>
             convertToCorrelate(
-              filter.getInput.asInstanceOf[RelSubset].getOriginal,
-              Some(filter.getCondition))
+              calc.getInput.asInstanceOf[RelSubset].getOriginal,
+              Some(calc.getProgram.expandLocalRef(calc.getProgram.getCondition)))
 
-          case scan: LogicalTableFunctionScan =>
+          case scan: FlinkLogicalTableFunctionScan =>
             new DataSetCorrelate(
               rel.getCluster,
               traitSet,

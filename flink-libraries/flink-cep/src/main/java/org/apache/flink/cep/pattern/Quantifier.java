@@ -23,12 +23,24 @@ public enum Quantifier {
 	ONE,
 	ZERO_OR_MORE_EAGER(QuantifierProperty.LOOPING, QuantifierProperty.EAGER),
 	ZERO_OR_MORE_COMBINATIONS(QuantifierProperty.LOOPING),
+	ZERO_OR_MORE_EAGER_STRICT(QuantifierProperty.EAGER, QuantifierProperty.STRICT, QuantifierProperty.LOOPING),
+	ZERO_OR_MORE_COMBINATIONS_STRICT(QuantifierProperty.STRICT, QuantifierProperty.LOOPING),
 	ONE_OR_MORE_EAGER(
 		QuantifierProperty.LOOPING,
 		QuantifierProperty.EAGER,
 		QuantifierProperty.AT_LEAST_ONE),
+	ONE_OR_MORE_EAGER_STRICT(
+		QuantifierProperty.STRICT,
+		QuantifierProperty.LOOPING,
+		QuantifierProperty.EAGER,
+		QuantifierProperty.AT_LEAST_ONE),
 	ONE_OR_MORE_COMBINATIONS(QuantifierProperty.LOOPING, QuantifierProperty.AT_LEAST_ONE),
-	TIMES,
+	ONE_OR_MORE_COMBINATIONS_STRICT(
+		QuantifierProperty.STRICT,
+		QuantifierProperty.LOOPING,
+		QuantifierProperty.AT_LEAST_ONE),
+	TIMES(QuantifierProperty.TIMES),
+	TIMES_STRICT(QuantifierProperty.TIMES, QuantifierProperty.STRICT),
 	OPTIONAL;
 
 	private final EnumSet<QuantifierProperty> properties;
@@ -48,7 +60,9 @@ public enum Quantifier {
 	public enum QuantifierProperty {
 		LOOPING,
 		EAGER,
-		AT_LEAST_ONE
+		AT_LEAST_ONE,
+		STRICT,
+		TIMES
 	}
 
 }

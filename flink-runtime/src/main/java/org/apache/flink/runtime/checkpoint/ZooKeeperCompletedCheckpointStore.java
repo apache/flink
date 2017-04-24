@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.FlinkException;
@@ -67,7 +68,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * checkpoints is consistent. Currently, after recovery we start out with only a single
  * checkpoint to circumvent those situations.
  */
-public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointStore {
+public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpointStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperCompletedCheckpointStore.class);
 
@@ -123,7 +124,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		this.checkpointsInZooKeeper = new ZooKeeperStateHandleStore<>(this.client, stateStorage, executor);
 
 		this.checkpointStateHandles = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
-
+		
 		LOG.info("Initialized in '{}'.", checkpointsPath);
 	}
 
@@ -164,8 +165,24 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		LOG.info("Found {} checkpoints in ZooKeeper.", numberOfInitialCheckpoints);
 
-		for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> checkpoint : initialCheckpoints) {
-			checkpointStateHandles.add(checkpoint);
+		for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> checkpointStateHandle : initialCheckpoints) {
+
+			CompletedCheckpoint completedCheckpoint = null;
+
+			try {
+				completedCheckpoint = retrieveCompletedCheckpoint(checkpointStateHandle);
+			} catch (Exception e) {
+				LOG.warn("Could not retrieve checkpoint. Removing it from the completed " +
+					"checkpoint store.", e);
+
+				// remove the checkpoint with broken state handle
+				removeBrokenStateHandle(checkpointStateHandle);
+			}
+
+			if (completedCheckpoint != null) {
+				completedCheckpoint.registerSharedStates(sharedStateRegistry);
+				checkpointStateHandles.add(checkpointStateHandle);
+			}
 		}
 	}
 
@@ -175,21 +192,24 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	 * @param checkpoint Completed checkpoint to add.
 	 */
 	@Override
-	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
+	public void addCheckpoint(final CompletedCheckpoint checkpoint) throws Exception {
 		checkNotNull(checkpoint, "Checkpoint");
+		
+		final String path = checkpointIdToPath(checkpoint.getCheckpointID());
+		final RetrievableStateHandle<CompletedCheckpoint> stateHandle;
 
 		// First add the new one. If it fails, we don't want to loose existing data.
-		String path = checkpointIdToPath(checkpoint.getCheckpointID());
-
-		final RetrievableStateHandle<CompletedCheckpoint> stateHandle =
-				checkpointsInZooKeeper.add(path, checkpoint);
+		stateHandle = checkpointsInZooKeeper.add(path, checkpoint);
 
 		checkpointStateHandles.addLast(new Tuple2<>(stateHandle, path));
+
+		// Register all shared states in the checkpoint
+		checkpoint.registerSharedStates(sharedStateRegistry);
 
 		// Everything worked, let's remove a previous checkpoint if necessary.
 		while (checkpointStateHandles.size() > maxNumberOfCheckpointsToRetain) {
 			try {
-				removeSubsumed(checkpointStateHandles.removeFirst());
+				removeSubsumed(checkpointStateHandles.removeFirst(), sharedStateRegistry);
 			} catch (Exception e) {
 				LOG.warn("Failed to subsume the old checkpoint", e);
 			}
@@ -267,7 +287,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 			for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> checkpoint : checkpointStateHandles) {
 				try {
-					removeShutdown(checkpoint, jobStatus);
+					removeShutdown(checkpoint, jobStatus, sharedStateRegistry);
 				} catch (Exception e) {
 					LOG.error("Failed to discard checkpoint.", e);
 				}
@@ -289,11 +309,19 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 	// ------------------------------------------------------------------------
 
-	private void removeSubsumed(final Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> stateHandleAndPath) throws Exception {
+	private void removeSubsumed(
+		final Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> stateHandleAndPath,
+		final SharedStateRegistry sharedStateRegistry) throws Exception {
+		
 		Callable<Void> action = new Callable<Void>() {
 			@Override
 			public Void call() throws Exception {
-				stateHandleAndPath.f0.retrieveState().subsume();
+				CompletedCheckpoint completedCheckpoint = retrieveCompletedCheckpoint(stateHandleAndPath);
+				
+				if (completedCheckpoint != null) {
+					completedCheckpoint.discardOnSubsume(sharedStateRegistry);
+				}
+
 				return null;
 			}
 		};
@@ -303,13 +331,18 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 	private void removeShutdown(
 			final Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> stateHandleAndPath,
-			final JobStatus jobStatus) throws Exception {
+			final JobStatus jobStatus,
+			final SharedStateRegistry sharedStateRegistry) throws Exception {
 
 		Callable<Void> action = new Callable<Void>() {
 			@Override
 			public Void call() throws Exception {
-				CompletedCheckpoint checkpoint = stateHandleAndPath.f0.retrieveState();
-				checkpoint.discard(jobStatus);
+				CompletedCheckpoint completedCheckpoint = retrieveCompletedCheckpoint(stateHandleAndPath);
+				
+				if (completedCheckpoint != null) {
+					completedCheckpoint.discardOnShutdown(jobStatus, sharedStateRegistry);
+				}
+
 				return null;
 			}
 		};

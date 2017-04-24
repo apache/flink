@@ -33,13 +33,16 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
+import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
+import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.DynamicCodeLoadingException;
@@ -86,11 +89,8 @@ public class ExecutionGraphBuilder {
 		final JobID jobId = jobGraph.getJobID();
 
 		// create a new execution graph, if none exists so far
-		final ExecutionGraph executionGraph;
-
-		try {
-			executionGraph = (prior != null) ? prior :
-					new ExecutionGraph(
+		final ExecutionGraph executionGraph = (prior != null) ? prior :
+				new ExecutionGraph(
 						futureExecutor,
 						ioExecutor,
 						jobId,
@@ -102,11 +102,7 @@ public class ExecutionGraphBuilder {
 						jobGraph.getUserJarBlobKeys(),
 						jobGraph.getClasspaths(),
 						slotProvider,
-						classLoader,
-						metrics);
-		} catch (IOException e) {
-			throw new JobException("Could not create the execution graph.", e);
-		}
+						classLoader);
 
 		// set the basic properties
 
@@ -163,7 +159,7 @@ public class ExecutionGraphBuilder {
 		}
 
 		// configure the state checkpointing
-		JobSnapshottingSettings snapshotSettings = jobGraph.getSnapshotSettings();
+		JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
 		if (snapshotSettings != null) {
 			List<ExecutionJobVertex> triggerVertices = 
 					idToVertex(snapshotSettings.getVerticesToTrigger(), executionGraph);
@@ -249,6 +245,12 @@ public class ExecutionGraphBuilder {
 					metadataBackend,
 					checkpointStatsTracker);
 		}
+
+		// create all the metrics for the Execution Graph
+
+		metrics.gauge(RestartTimeGauge.METRIC_NAME, new RestartTimeGauge(executionGraph));
+		metrics.gauge(DownTimeGauge.METRIC_NAME, new DownTimeGauge(executionGraph));
+		metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(executionGraph));
 
 		return executionGraph;
 	}

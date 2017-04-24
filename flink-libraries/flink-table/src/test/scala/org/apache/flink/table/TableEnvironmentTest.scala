@@ -282,7 +282,6 @@ class TableEnvironmentTest extends TableTestBase {
   def testSqlWithoutRegisteringForBatchTables(): Unit = {
     val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]("tableName", 'a, 'b, 'c)
-    util.tEnv.unregisterTable("tableName")
 
     val sqlTable = util.tEnv.sql(s"SELECT a, b, c FROM $table WHERE b > 12")
 
@@ -321,7 +320,6 @@ class TableEnvironmentTest extends TableTestBase {
   def testSqlWithoutRegisteringForStreamTables(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]("tableName", 'a, 'b, 'c)
-    util.tEnv.unregisterTable("tableName")
 
     val sqlTable = util.tEnv.sql(s"SELECT a, b, c FROM $table WHERE b > 12")
 
@@ -335,13 +333,14 @@ class TableEnvironmentTest extends TableTestBase {
 
     val table2 = util.addTable[(Long, Int, String)]('d, 'e, 'f)
 
-    val sqlTable2 = util.tEnv.sql(s"SELECT d, e, f FROM $table2 UNION SELECT a, b, c FROM $table")
+    val sqlTable2 = util.tEnv.sql(s"SELECT d, e, f FROM $table2 " +
+        s"UNION ALL SELECT a, b, c FROM $table")
 
     val expected2 = binaryNode(
       "DataStreamUnion",
       streamTableNode(1),
       streamTableNode(0),
-      term("union", "d, e, f"))
+      term("union all", "d, e, f"))
 
     util.verifyTable(sqlTable2, expected2)
   }

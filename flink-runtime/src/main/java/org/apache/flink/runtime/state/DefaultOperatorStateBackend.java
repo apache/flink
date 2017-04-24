@@ -86,80 +86,48 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		registeredStates.clear();
 	}
 
+	// -------------------------------------------------------------------------------------------
+	//  State access methods
+	// -------------------------------------------------------------------------------------------
+
+	@Override
+	public <S> ListState<S> getListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
+		return getListState(stateDescriptor, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
+	}
+
+	@Override
+	public <S> ListState<S> getUnionListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
+		return getListState(stateDescriptor, OperatorStateHandle.Mode.BROADCAST);
+	}
+
+	// -------------------------------------------------------------------------------------------
+	//  Deprecated state access methods
+	// -------------------------------------------------------------------------------------------
+
+	/**
+	 * @deprecated This was deprecated as part of a refinement to the function names.
+	 *             Please use {@link #getListState(ListStateDescriptor)} instead.
+	 */
+	@Deprecated
+	@Override
+	public <S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception {
+		return getListState(stateDescriptor);
+	}
+
+	/**
+	 * @deprecated Using Java serialization for persisting state is not encouraged.
+	 *             Please use {@link #getListState(ListStateDescriptor)} instead.
+	 */
 	@SuppressWarnings("unchecked")
+	@Deprecated
 	@Override
 	public <T extends Serializable> ListState<T> getSerializableListState(String stateName) throws Exception {
-		return (ListState<T>) getOperatorState(new ListStateDescriptor<>(stateName, javaSerializer));
+		return (ListState<T>) getListState(new ListStateDescriptor<>(stateName, javaSerializer));
 	}
 
-	@Override
-	public <S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws IOException {
-		return getOperatorState(stateDescriptor, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
-	}
-
-	@SuppressWarnings("unchecked")
-	public <T extends Serializable> ListState<T> getBroadcastSerializableListState(String stateName) throws Exception {
-		return (ListState<T>) getBroadcastOperatorState(new ListStateDescriptor<>(stateName, javaSerializer));
-	}
-
-	public <S> ListState<S> getBroadcastOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception {
-		return getOperatorState(stateDescriptor, OperatorStateHandle.Mode.BROADCAST);
-	}
-
-	private <S> ListState<S> getOperatorState(
-			ListStateDescriptor<S> stateDescriptor,
-			OperatorStateHandle.Mode mode) throws IOException {
-
-		Preconditions.checkNotNull(stateDescriptor);
-
-		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
-
-		String name = Preconditions.checkNotNull(stateDescriptor.getName());
-		TypeSerializer<S> partitionStateSerializer = Preconditions.checkNotNull(stateDescriptor.getElementSerializer());
-
-		@SuppressWarnings("unchecked")
-		PartitionableListState<S> partitionableListState = (PartitionableListState<S>) registeredStates.get(name);
-
-		if (null == partitionableListState) {
-
-			partitionableListState = new PartitionableListState<>(
-					name,
-					partitionStateSerializer,
-					mode);
-
-			registeredStates.put(name, partitionableListState);
-		} else {
-			Preconditions.checkState(
-					partitionableListState.getAssignmentMode().equals(mode),
-					"Incompatible assignment mode. Provided: " + mode + ", expected: " +
-							partitionableListState.getAssignmentMode());
-			Preconditions.checkState(
-					stateDescriptor.getElementSerializer().
-							canRestoreFrom(partitionableListState.getPartitionStateSerializer()),
-					"Incompatible type serializers. Provided: " + stateDescriptor.getElementSerializer() +
-							", found: " + partitionableListState.getPartitionStateSerializer());
-		}
-
-		return partitionableListState;
-	}
-
-	private static <S> void deserializeStateValues(
-			PartitionableListState<S> stateListForName,
-			FSDataInputStream in,
-			OperatorStateHandle.StateMetaInfo metaInfo) throws IOException {
-
-		if (null != metaInfo) {
-			long[] offsets = metaInfo.getOffsets();
-			if (null != offsets) {
-				DataInputView div = new DataInputViewStreamWrapper(in);
-				TypeSerializer<S> serializer = stateListForName.getPartitionStateSerializer();
-				for (long offset : offsets) {
-					in.seek(offset);
-					stateListForName.add(serializer.deserialize(div));
-				}
-			}
-		}
-	}
+	// -------------------------------------------------------------------------------------------
+	//  Snapshot and restore
+	// -------------------------------------------------------------------------------------------
 
 	@Override
 	public RunnableFuture<OperatorStateHandle> snapshot(
@@ -356,6 +324,61 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			}
 
 			return partitionOffsets;
+		}
+	}
+
+	private <S> ListState<S> getListState(
+		ListStateDescriptor<S> stateDescriptor,
+		OperatorStateHandle.Mode mode) throws IOException {
+
+		Preconditions.checkNotNull(stateDescriptor);
+
+		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
+
+		String name = Preconditions.checkNotNull(stateDescriptor.getName());
+		TypeSerializer<S> partitionStateSerializer = Preconditions.checkNotNull(stateDescriptor.getElementSerializer());
+
+		@SuppressWarnings("unchecked")
+		PartitionableListState<S> partitionableListState = (PartitionableListState<S>) registeredStates.get(name);
+
+		if (null == partitionableListState) {
+
+			partitionableListState = new PartitionableListState<>(
+				name,
+				partitionStateSerializer,
+				mode);
+
+			registeredStates.put(name, partitionableListState);
+		} else {
+			Preconditions.checkState(
+				partitionableListState.getAssignmentMode().equals(mode),
+				"Incompatible assignment mode. Provided: " + mode + ", expected: " +
+					partitionableListState.getAssignmentMode());
+			Preconditions.checkState(
+				stateDescriptor.getElementSerializer().
+					canRestoreFrom(partitionableListState.getPartitionStateSerializer()),
+				"Incompatible type serializers. Provided: " + stateDescriptor.getElementSerializer() +
+					", found: " + partitionableListState.getPartitionStateSerializer());
+		}
+
+		return partitionableListState;
+	}
+
+	private static <S> void deserializeStateValues(
+		PartitionableListState<S> stateListForName,
+		FSDataInputStream in,
+		OperatorStateHandle.StateMetaInfo metaInfo) throws IOException {
+
+		if (null != metaInfo) {
+			long[] offsets = metaInfo.getOffsets();
+			if (null != offsets) {
+				DataInputView div = new DataInputViewStreamWrapper(in);
+				TypeSerializer<S> serializer = stateListForName.getPartitionStateSerializer();
+				for (long offset : offsets) {
+					in.seek(offset);
+					stateListForName.add(serializer.deserialize(div));
+				}
+			}
 		}
 	}
 }

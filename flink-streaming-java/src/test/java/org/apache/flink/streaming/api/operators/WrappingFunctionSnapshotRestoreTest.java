@@ -21,6 +21,8 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -139,7 +141,9 @@ public class WrappingFunctionSnapshotRestoreTest {
 
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
-			serializableListState = context.getOperatorStateStore().getSerializableListState("test-state");
+			serializableListState = context
+					.getOperatorStateStore()
+					.getListState(new ListStateDescriptor<>("test-state", IntSerializer.INSTANCE));
 			if (context.isRestored()) {
 				Iterator<Integer> integers = serializableListState.get().iterator();
 				int act = integers.next();
