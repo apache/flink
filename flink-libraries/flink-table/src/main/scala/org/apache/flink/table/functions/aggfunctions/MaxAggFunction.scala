@@ -18,69 +18,65 @@
 package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
-import java.util.{List => JList}
+import java.lang.{Iterable => JIterable}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.functions.AggregateFunction
 
 /** The initial accumulator for Max aggregate function */
-class MaxAccumulator[T] extends JTuple2[T, Boolean] with Accumulator
+class MaxAccumulator[T] extends JTuple2[T, Boolean]
 
 /**
   * Base class for built-in Max aggregate function
   *
   * @tparam T the type for the aggregation result
   */
-abstract class MaxAggFunction[T](implicit ord: Ordering[T]) extends AggregateFunction[T] {
+abstract class MaxAggFunction[T](implicit ord: Ordering[T])
+  extends AggregateFunction[T, MaxAccumulator[T]] {
 
-  override def createAccumulator(): Accumulator = {
+  override def createAccumulator(): MaxAccumulator[T] = {
     val acc = new MaxAccumulator[T]
     acc.f0 = getInitValue
     acc.f1 = false
     acc
   }
 
-  override def accumulate(accumulator: Accumulator, value: Any): Unit = {
+  def accumulate(acc: MaxAccumulator[T], value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[T]
-      val a = accumulator.asInstanceOf[MaxAccumulator[T]]
-      if (!a.f1 || ord.compare(a.f0, v) < 0) {
-        a.f0 = v
-        a.f1 = true
+      if (!acc.f1 || ord.compare(acc.f0, v) < 0) {
+        acc.f0 = v
+        acc.f1 = true
       }
     }
   }
 
-  override def getValue(accumulator: Accumulator): T = {
-    val a = accumulator.asInstanceOf[MaxAccumulator[T]]
-    if (a.f1) {
-      a.f0
+  override def getValue(acc: MaxAccumulator[T]): T = {
+    if (acc.f1) {
+      acc.f0
     } else {
       null.asInstanceOf[T]
     }
   }
 
-  override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = accumulators.get(0)
-    var i: Int = 1
-    while (i < accumulators.size()) {
-      val a = accumulators.get(i).asInstanceOf[MaxAccumulator[T]]
+  def merge(acc: MaxAccumulator[T], its: JIterable[MaxAccumulator[T]]): Unit = {
+    val iter = its.iterator()
+    while (iter.hasNext) {
+      val a = iter.next()
       if (a.f1) {
-        accumulate(ret.asInstanceOf[MaxAccumulator[T]], a.f0)
+        accumulate(acc, a.f0)
       }
-      i += 1
     }
-    ret
   }
 
-  override def resetAccumulator(accumulator: Accumulator): Unit = {
-    accumulator.asInstanceOf[MaxAccumulator[T]].f0 = getInitValue
-    accumulator.asInstanceOf[MaxAccumulator[T]].f1 = false
+  def resetAccumulator(acc: MaxAccumulator[T]): Unit = {
+    acc.f0 = getInitValue
+    acc.f1 = false
   }
 
-  override def getAccumulatorType(): TypeInformation[_] = {
+  def getAccumulatorType(): TypeInformation[_] = {
     new TupleTypeInfo(
       new MaxAccumulator[T].getClass,
       getValueTypeInfo,

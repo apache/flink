@@ -101,3 +101,35 @@ abstract class GeneratedAggregations extends Function {
     */
   def resetAccumulator(accumulators: Row)
 }
+
+class SingleElementIterable[T] extends java.lang.Iterable[T] {
+
+  class SingleElementIterator extends java.util.Iterator[T] {
+
+    var element: T = _
+    var newElement: Boolean = false
+
+    override def hasNext: Boolean = newElement
+
+    override def next(): T = {
+      if (newElement) {
+        newElement = false
+        element
+      } else {
+        throw new java.util.NoSuchElementException
+      }
+    }
+
+    override def remove(): Unit = new java.lang.UnsupportedOperationException
+  }
+
+  val it = new SingleElementIterator
+
+  def setElement(element: T): Unit = it.element = element
+
+  override def iterator(): java.util.Iterator[T] = {
+    it.newElement = true
+    it
+  }
+}
+

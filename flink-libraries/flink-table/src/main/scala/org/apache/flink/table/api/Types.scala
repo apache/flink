@@ -17,9 +17,8 @@
  */
 package org.apache.flink.table.api
 
-import org.apache.flink.api.common.typeinfo.{Types, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{Types => JTypes, TypeInformation}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
-import org.apache.flink.api.common.typeinfo.{Types => JTypes}
 
 /**
   * This class enumerates all supported types of the Table API.

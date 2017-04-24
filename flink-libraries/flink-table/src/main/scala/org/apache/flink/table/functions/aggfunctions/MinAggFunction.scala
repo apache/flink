@@ -18,69 +18,65 @@
 package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
-import java.util.{List => JList}
+import java.lang.{Iterable => JIterable}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.functions.AggregateFunction
 
 /** The initial accumulator for Min aggregate function */
-class MinAccumulator[T] extends JTuple2[T, Boolean] with Accumulator
+class MinAccumulator[T] extends JTuple2[T, Boolean]
 
 /**
   * Base class for built-in Min aggregate function
   *
   * @tparam T the type for the aggregation result
   */
-abstract class MinAggFunction[T](implicit ord: Ordering[T]) extends AggregateFunction[T] {
+abstract class MinAggFunction[T](implicit ord: Ordering[T])
+  extends AggregateFunction[T, MinAccumulator[T]] {
 
-  override def createAccumulator(): Accumulator = {
+  override def createAccumulator(): MinAccumulator[T] = {
     val acc = new MinAccumulator[T]
     acc.f0 = getInitValue
     acc.f1 = false
     acc
   }
 
-  override def accumulate(accumulator: Accumulator, value: Any): Unit = {
+  def accumulate(acc: MinAccumulator[T], value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[T]
-      val a = accumulator.asInstanceOf[MinAccumulator[T]]
-      if (!a.f1 || ord.compare(a.f0, v) > 0) {
-        a.f0 = v
-        a.f1 = true
+      if (!acc.f1 || ord.compare(acc.f0, v) > 0) {
+        acc.f0 = v
+        acc.f1 = true
       }
     }
   }
 
-  override def getValue(accumulator: Accumulator): T = {
-    val a = accumulator.asInstanceOf[MinAccumulator[T]]
-    if (a.f1) {
-      a.f0
+  override def getValue(acc: MinAccumulator[T]): T = {
+    if (acc.f1) {
+      acc.f0
     } else {
       null.asInstanceOf[T]
     }
   }
 
-  override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = accumulators.get(0)
-    var i: Int = 1
-    while (i < accumulators.size()) {
-      val a = accumulators.get(i).asInstanceOf[MinAccumulator[T]]
+  def merge(acc: MinAccumulator[T], its: JIterable[MinAccumulator[T]]): Unit = {
+    val iter = its.iterator()
+    while (iter.hasNext) {
+      val a = iter.next()
       if (a.f1) {
-        accumulate(ret.asInstanceOf[MinAccumulator[T]], a.f0)
+        accumulate(acc, a.f0)
       }
-      i += 1
     }
-    ret
   }
 
-  override def resetAccumulator(accumulator: Accumulator): Unit = {
-    accumulator.asInstanceOf[MinAccumulator[T]].f0 = getInitValue
-    accumulator.asInstanceOf[MinAccumulator[T]].f1 = false
+  def resetAccumulator(acc: MinAccumulator[T]): Unit = {
+    acc.f0 = getInitValue
+    acc.f1 = false
   }
 
-  override def getAccumulatorType(): TypeInformation[_] = {
+  def getAccumulatorType(): TypeInformation[_] = {
     new TupleTypeInfo(
       new MinAccumulator[T].getClass,
       getValueTypeInfo,
