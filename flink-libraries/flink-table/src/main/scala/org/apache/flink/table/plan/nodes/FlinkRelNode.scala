@@ -93,7 +93,7 @@ trait FlinkRelNode extends RelNode {
     case SqlTypeName.ARRAY =>
       // 16 is an arbitrary estimate
       estimateDataTypeSize(t.getComponentType) * 16
-    case SqlTypeName.ANY => 128 // 128 is an arbitrary estimate
+    case SqlTypeName.ANY | SqlTypeName.MAP => 128 // 128 is an arbitrary estimate
     case _ => throw TableException(s"Unsupported data type encountered: $t")
   }
 }
