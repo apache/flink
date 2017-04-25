@@ -26,7 +26,6 @@ import org.apache.flink.graph.drivers.output.Hash;
 import org.apache.flink.graph.drivers.output.Print;
 import org.apache.flink.graph.drivers.parameter.ChoiceParameter;
 import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
-import org.apache.flink.types.CopyableValue;
 
 /**
  * Driver for directed and undirected graph metrics analytics.
@@ -36,7 +35,7 @@ import org.apache.flink.types.CopyableValue;
  * @see org.apache.flink.graph.library.metric.undirected.EdgeMetrics
  * @see org.apache.flink.graph.library.metric.undirected.VertexMetrics
  */
-public class GraphMetrics<K extends Comparable<K> & CopyableValue<K>, VV, EV>
+public class GraphMetrics<K extends Comparable<K>, VV, EV>
 extends ParameterizedBase
 implements Driver<K, VV, EV>, Hash, Print {
 

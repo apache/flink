@@ -18,8 +18,8 @@
 
 package org.apache.flink.graph.drivers.parameter;
 
-import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.util.Preconditions;
@@ -36,6 +36,8 @@ public class ChoiceParameter
 extends SimpleParameter<String> {
 
 	private List<String> choices = new ArrayList<>();
+
+	private List<String> hiddenChoices = new ArrayList<>();
 
 	/**
 	 * Set the parameter name and add this parameter to the list of parameters
@@ -71,6 +73,18 @@ extends SimpleParameter<String> {
 		return this;
 	}
 
+	/**
+	 * Add additional hidden choices. This function can be called multiple
+	 * times. These choices will not be printed in the usage string.
+	 *
+	 * @param hiddenChoices additional hidden choices
+	 * @return this
+	 */
+	public ChoiceParameter addHiddenChoices(String... hiddenChoices) {
+		Collections.addAll(this.hiddenChoices, hiddenChoices);
+		return this;
+	}
+
 	@Override
 	public String getUsage() {
 		String option = new StrBuilder()
@@ -101,6 +115,13 @@ extends SimpleParameter<String> {
 		}
 
 		for (String choice : choices) {
+			if (choice.equals(selected)) {
+				this.value = selected;
+				return;
+			}
+		}
+
+		for (String choice : hiddenChoices) {
 			if (choice.equals(selected)) {
 				this.value = selected;
 				return;

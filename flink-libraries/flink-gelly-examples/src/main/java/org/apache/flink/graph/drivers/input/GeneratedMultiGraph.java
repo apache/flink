@@ -20,39 +20,40 @@ package org.apache.flink.graph.drivers.input;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.drivers.parameter.LongParameter;
-import org.apache.flink.types.LongValue;
+import org.apache.flink.graph.drivers.parameter.Simplify;
 import org.apache.flink.types.NullValue;
 
-import static org.apache.flink.graph.generator.EmptyGraph.MINIMUM_VERTEX_COUNT;
-
 /**
- * Generate an {@link org.apache.flink.graph.generator.EmptyGraph}.
+ * Base class for graph generators which may create duplicate edges.
+ *
+ * @param <K> graph ID type
  */
-public class EmptyGraph
-extends GeneratedGraph<LongValue> {
+public abstract class GeneratedMultiGraph<K extends Comparable<K>>
+extends GeneratedGraph<K> {
 
-	private LongParameter vertexCount = new LongParameter(this, "vertex_count")
-		.setMinimumValue(MINIMUM_VERTEX_COUNT);
+	private Simplify simplify = new Simplify(this);
 
-	@Override
-	public String getName() {
-		return EmptyGraph.class.getSimpleName();
+	/**
+	 * Get the short string representation of the simplify transformation.
+	 *
+	 * @return short string representation of the simplify transformation
+	 */
+	protected String getSimplifyShortString() {
+		return simplify.getShortString();
 	}
 
-	@Override
-	public String getIdentity() {
-		return getTypeName() + " " + getName() + " (" + vertexCount + ")";
-	}
+	/**
+	 * Generate the graph as configured.
+	 *
+	 * @param env Flink execution environment
+	 * @return input graph
+	 */
+	public Graph<K, NullValue, NullValue> create(ExecutionEnvironment env)
+			throws Exception {
+		Graph<K, NullValue, NullValue> graph = super.create(env);
 
-	@Override
-	protected long vertexCount() {
-		return vertexCount.getValue();
-	}
-
-	@Override
-	public Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) {
-		return new org.apache.flink.graph.generator.EmptyGraph(env, vertexCount.getValue())
-			.generate();
+		// simplify after the translation to improve the performance of the
+		// simplify operators by processing smaller data types
+		return simplify.simplify(graph);
 	}
 }
