@@ -66,14 +66,19 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 
 	private final RequestHandler handler;
 
+	private final String allowOrigin;
+
 	public RuntimeMonitorHandler(
+			WebMonitorConfig cfg,
 			RequestHandler handler,
 			JobManagerRetriever retriever,
 			Future<String> localJobManagerAddressFuture,
 			FiniteDuration timeout,
 			boolean httpsEnabled) {
+
 		super(retriever, localJobManagerAddressFuture, timeout, httpsEnabled);
 		this.handler = checkNotNull(handler);
+		this.allowOrigin = cfg.getAllowOrigin();
 	}
 
 	@Override
@@ -122,7 +127,7 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 			LOG.debug("Error while handling request", e);
 		}
 
-		response.headers().set(HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+		response.headers().set(HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN, allowOrigin);
 		// Content-Encoding:utf-8
 		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, ENCODING.name());
 
