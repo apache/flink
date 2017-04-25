@@ -35,7 +35,6 @@ import org.apache.flink.table.functions.aggfunctions.{LongMaxWithRetractAggFunct
 import org.apache.flink.table.runtime.aggregate.BoundedProcessingOverRangeProcessFunctionTest._
 import org.apache.flink.types.Row
 import org.junit.Test
-import org.apache.flink.table.runtime.aggregate.ProcTimeBoundedSortProcessFunction
 
 class BoundedProcessingOverRangeProcessFunctionTest {
 
@@ -280,85 +279,6 @@ class BoundedProcessingOverRangeProcessFunctionTest {
 
     testHarness.close()
 
-  }
-  
-  
-  @Test
-  def testSortProcTimeHarnessPartitioned(): Unit = {
-    
-    val rT =  new RowTypeInfo(Array[TypeInformation[_]](
-      INT_TYPE_INFO,
-      LONG_TYPE_INFO,
-      INT_TYPE_INFO,
-      STRING_TYPE_INFO,
-      LONG_TYPE_INFO),
-      Array("a","b","c","d","e"))
-    
-    val rTA =  new RowTypeInfo(Array[TypeInformation[_]](
-     LONG_TYPE_INFO), Array("count"))
-    val indexes = Array(1,2)
-    val orderings = Array[UntypedOrdering](
-     new LongOrdering(LONG_TYPE_INFO.createComparator(true, null)),
-     new IntOrdering(INT_TYPE_INFO.createComparator(false, null)) )
-        
-    
-    val rowComparator =  new SortRowComparator(orderings,indexes)
-    
-    val processFunction = new KeyedProcessOperator[Integer,Row,Row](
-      new ProcTimeBoundedSortProcessFunction(
-        5,  
-        rT,
-        rowComparator
-        ))
-  
-   val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer,Row,Row](
-      processFunction, 
-      new TupleRowSelector(0), 
-      BasicTypeInfo.INT_TYPE_INFO)
-    
-   testHarness.open();
-
-   testHarness.setProcessingTime(3)
-
-      // timestamp is ignored in processing time
-    testHarness.processElement(new StreamRecord(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 11L: JLong), 1001))
-    testHarness.processElement(new StreamRecord(
-        Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong), 2002))
-    testHarness.processElement(new StreamRecord(
-        Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong), 2003))
-    testHarness.processElement(new StreamRecord(
-        Row.of(1: JInt, 12L: JLong, 0: JInt, "aaa", 11L: JLong), 2004))
-    testHarness.processElement(new StreamRecord(
-        Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong), 2006))
-
-    //move the timestamp to ensure the execution
-    testHarness.setProcessingTime(1005)
-    
-    val result = testHarness.getOutput
-    
-    val expectedOutput = new ConcurrentLinkedQueue[Object]()
-    
-    // all elements at the same proc timestamp have the same value
-    // elements should be sorted ascending on field 1 and descending on field 2
-    // (10,0) (11,1) (12,2) (12,1) (12,0)
-    
-     expectedOutput.add(new StreamRecord(
-      Row.of(1: JInt, 10L: JLong, 0: JInt, "aaa", 11L: JLong), 4))
-     expectedOutput.add(new StreamRecord(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 11L: JLong), 4))
-    expectedOutput.add(new StreamRecord(
-      Row.of(1: JInt, 12L: JLong, 2: JInt, "aaa", 11L: JLong), 4))
-    expectedOutput.add(new StreamRecord(
-      Row.of(1: JInt, 12L: JLong, 1: JInt, "aaa", 11L: JLong), 4))
-    expectedOutput.add(new StreamRecord(
-      Row.of(1: JInt, 12L: JLong, 0: JInt, "aaa", 11L: JLong), 4))
-      
-    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",
-        expectedOutput, result, new RowResultSortComparator(6))
-    
-    testHarness.close()
-        
   }
   
 }

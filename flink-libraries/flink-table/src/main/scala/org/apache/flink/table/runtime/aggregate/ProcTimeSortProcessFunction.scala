@@ -33,9 +33,10 @@ import org.apache.flink.api.common.state.MapState
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ListTypeInfo
-import java.util.LinkedList
 import java.util.Comparator
-
+import java.util.ArrayList
+import java.util.Collections
+import org.apache.flink.api.common.typeutils.TypeComparator
 
 /**
  * Process Function used for the aggregate in bounded proctime sort without offset/fetch
@@ -45,15 +46,16 @@ import java.util.Comparator
  * @param inputType It is used to mark the type of the incoming data
  * @param rowComparator the [[java.util.Comparator]] is used for this sort aggregation
  */
-class ProcTimeBoundedSortProcessFunction(
+class ProcTimeSortProcessFunction(
   private val fieldCount: Int,
   private val inputType: TypeInformation[Row],
-  private val rowComparator:Comparator[Row])
+  private val rowComparator: CollectionRowComparator)
     extends ProcessFunction[Row, Row] {
 
   Preconditions.checkNotNull(rowComparator)
 
   private var stateEventsBuffer: ListState[Row] = _
+  private val sortArray: ArrayList[Row] = new ArrayList[Row]
 
   override def open(config: Configuration) {
     val sortDescriptor = new ListStateDescriptor[Row]("sortState", inputType)
@@ -82,18 +84,17 @@ class ProcTimeBoundedSortProcessFunction(
     out: Collector[Row]): Unit = {
     
     var i = 0
-    val sortList = new LinkedList[Row]
     val iter =  stateEventsBuffer.get.iterator()
     
     
     while(iter.hasNext())
     {
-      sortList.add(iter.next())  
+      sortArray.add(iter.next())
     }
     
     //if we do not rely on java collections to do the sort we could implement 
     //an insertion sort as we get the elements  from the state
-    sortList.sort(rowComparator)
+    Collections.sort(sortArray, rowComparator)
     
     //no retraction now
             
@@ -101,8 +102,8 @@ class ProcTimeBoundedSortProcessFunction(
     
     //we need to build the output and emit the events in order
     var iElemenets = 0
-    while (iElemenets < sortList.size) {
-      out.collect(sortList.get(iElemenets))
+    while (iElemenets < sortArray.size) {
+      out.collect(sortArray.get(iElemenets))
       iElemenets += 1
     }
     

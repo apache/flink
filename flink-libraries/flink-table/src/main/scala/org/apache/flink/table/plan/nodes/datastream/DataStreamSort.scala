@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan.{ RelOptCluster, RelTraitSet }
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{ RelNode, RelWriter, SingleRel }
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.{ AllWindowedStream, DataStream, KeyedStream, WindowedStream }
@@ -39,7 +38,6 @@ import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.table.typeutils.{ RowIntervalTypeInfo, TimeIntervalTypeInfo }
 import org.apache.flink.types.Row
-import org.apache.calcite.rel.logical.LogicalSort
 import org.apache.calcite.sql.SqlAggFunction
 import org.apache.flink.table.plan.nodes.datastream.DataStreamRel
 import org.apache.flink.table.api.TableException
@@ -57,18 +55,22 @@ import org.apache.calcite.rel.core.Sort
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.flink.table.runtime.aggregate.SortUtil._
+import org.apache.calcite.rel.RelCollation
+import org.apache.calcite.rex.RexNode
+import org.apache.flink.api.common.ExecutionConfig
 
 /**
   * Flink RelNode which matches along with Sort Rule.
   *
-  */
+ */
 class DataStreamSort(
-  sort: LogicalSort,
+  sortCollation: RelCollation,
+  sortOffset: RexNode,
+  sortFetch: RexNode,
   cluster: RelOptCluster,
   traitSet: RelTraitSet,
   inputNode: RelNode,
   rowRelDataType: RelDataType,
-  inputType: RelDataType,
   description: String)
     extends SingleRel(cluster, traitSet, inputNode) with DataStreamRel {
 
@@ -76,27 +78,31 @@ class DataStreamSort(
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamSort(
-      sort,
+      sortCollation,
+      sortOffset,
+      sortFetch,
       cluster,
       traitSet,
       inputs.get(0),
       rowRelDataType,
-      inputType,
-      description + sort.getId())
+      description)
   }
 
   override def toString: String = {
-    s"Sort($sort)" +
-      " on fields: (${sort.collation.getFieldCollations})"
+    s"Sort(by: ($SortUtil.getSortFieldToString(sortCollation, rowRelDataType))," +
+      " offset: $SortUtil.getOffsetToString(sortOffset)," +
+      " fetch: $SortUtil.getFetchToString(sortFetch, sortOffset))"
   }
-
-  override def explainTerms(pw: RelWriter): RelWriter = {
+  
+  override def explainTerms(pw: RelWriter) : RelWriter = {
+    
+    //need to identify time between others order fields. Time needs to be first sort element
+    checkTimeOrder()
+    
     super.explainTerms(pw)
-      .item("aggregate", sort)
-      .item("sort fields",sort.collation.getFieldCollations)
-      .itemIf("offset", sort.offset, sort.offset!=null)
-      .itemIf("fetch", sort.fetch, sort.fetch!=null)
-      .item("input", inputNode)
+      .item("orderBy", SortUtil.getSortFieldToString(sortCollation, rowRelDataType))
+      .item("offset", SortUtil.getOffsetToString(sortOffset))
+      .item("fetch", SortUtil.getFetchToString(sortFetch, sortOffset))
   }
 
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
@@ -104,24 +110,26 @@ class DataStreamSort(
     val inputDS = getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
     
     //need to identify time between others order fields. Time needs to be first sort element
-    val timeType = SortUtil.getTimeType(sort,inputType)
+    val timeType = SortUtil.getTimeType(sortCollation, rowRelDataType)
     
     //time ordering needs to be ascending
-    if (SortUtil.getTimeDirection(sort) != Direction.ASCENDING) {
+    if (SortUtil.getTimeDirection(sortCollation) != Direction.ASCENDING) {
       throw new TableException("SQL/Table supports only ascending time ordering")
     }
-      
-     
-    val (offset,fetch) = (sort.offset,sort.fetch)
     
+    val execCfg = tableEnv.execEnv.getConfig
+      
     //enable to extend for other types of aggregates that will not be implemented in a window
     timeType match {
         case _: ProcTimeType =>
-            (offset,fetch) match {
-              case (o:Any,f:Any)  => null             // offset and fetch needs retraction
-              case (_,f:Any) => null                  // offset needs retraction
-              case (o:Any,_) => null                  // fetch needs retraction
-              case _ => createSortProcTime(inputDS)   //sort can be done with/without retraction
+            (sortOffset,sortFetch) match {
+              case (o: Any, f: Any)  => // offset and fetch needs retraction
+                throw new TableException("SQL/Table does not support sort with offset and fetch") 
+              case (_, f: Any) => // offset needs retraction
+                throw new TableException("SQL/Table does not support sort with fetch")
+              case (o: Any, _) =>  // fetch needs retraction
+                throw new TableException("SQL/Table does not support sort with offset")
+              case _ => createSortProcTime(inputDS, execCfg)  //sort can be done without retraction
             }
         case _: RowTimeType =>
           throw new TableException("SQL/Table does not support sort on row time")
@@ -135,18 +143,16 @@ class DataStreamSort(
    * Create Sort logic based on processing time
    */
   def createSortProcTime(
-    inputDS: DataStream[Row]): DataStream[Row] = {
+    inputDS: DataStream[Row],
+    execCfg: ExecutionConfig): DataStream[Row] = {
 
-          
-    // get the output types
-    //Sort does not do project.= Hence it will output also the ordering proctime field
-    //[TODO]Do we need to drop some of the ordering fields? (implement a projection logic?
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
     
     //if the order has secondary sorting fields in addition to the proctime
-    if( SortUtil.getSortFieldIndexList(sort).size > 1) {
+    if( SortUtil.getSortFieldIndexList(sortCollation).size > 1) {
     
-      val processFunction = SortUtil.createProcTimeSortFunction(sort,inputType)
+      val processFunction = SortUtil.createProcTimeSortFunction(sortCollation,
+          rowRelDataType, execCfg)
       
       inputDS
             .keyBy(new NullByteKeySelector[Row])
@@ -163,6 +169,22 @@ class DataStreamSort(
     }   
   }
   
+  def checkTimeOrder() = {
+     //need to identify time between others order fields. Time needs to be first sort element
+    val timeType = SortUtil.getTimeType(sortCollation, rowRelDataType)
+    //time ordering needs to be ascending
+    if (SortUtil.getTimeDirection(sortCollation) != Direction.ASCENDING) {
+      throw new TableException("SQL/Table supports only ascending time ordering")
+    }
+    //enable to extend for other types of aggregates that will not be implemented in a window
+    timeType match {
+        case _: ProcTimeType =>
+        case _: RowTimeType =>
+        case _ =>
+          throw new TableException("SQL/Table needs to have sort on time as first sort element")    
+
+    }
+  }
 
 }
 

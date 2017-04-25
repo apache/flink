@@ -18,10 +18,9 @@
 package org.apache.flink.table.runtime.aggregate
 
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.types.Row
 import org.apache.calcite.rel.`type`._
-import org.apache.calcite.rel.logical.LogicalSort
+import org.apache.calcite.rel.RelCollation
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.calcite.sql.`type`.SqlTypeName
@@ -41,6 +40,14 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import java.lang.{Byte=>JByte,Integer=>JInt,Long=>JLong,Double=>JDouble,Short=>JShort,String=>JString,Float=>JFloat}
 import java.math.{BigDecimal=>JBigDecimal}
 import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.operators.Order
+import org.apache.calcite.rex.{RexLiteral, RexNode}
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.typeinfo.AtomicType
+import org.apache.flink.api.java.typeutils.runtime.RowComparator
+import org.apache.flink.api.common.typeutils.TypeSerializer
+
+import scala.collection.JavaConverters._
 
 /**
  * Class represents a collection of helper methods to build the sort logic.
@@ -52,159 +59,164 @@ object SortUtil {
   /**
    * Function creates [org.apache.flink.streaming.api.functions.ProcessFunction] for sorting 
    * elements based on proctime and potentially other fields
-   * @param calcSort Sort logical object
+   * @param collationSort The Sort collation list
    * @param inputType input row type
+   * @param execCfg table environment execution configuration
    * @return org.apache.flink.streaming.api.functions.ProcessFunction
    */
   private[flink] def createProcTimeSortFunction(
-    calcSort: LogicalSort,
-    inputType: RelDataType): ProcessFunction[Row, Row] = {
+    collationSort: RelCollation,
+    inputType: RelDataType,
+    execCfg: ExecutionConfig): ProcessFunction[Row, Row] = {
 
-    val keySortFields = getSortFieldIndexList(calcSort)
-    val keySortDirections = getSortFieldDirectionList(calcSort)
+    val keySortFields = getSortFieldIndexList(collationSort)
+    val keySortDirections = getSortFieldDirectionList(collationSort)
 
     val inputRowType = FlinkTypeFactory.toInternalRowTypeInfo(inputType).asInstanceOf[RowTypeInfo]
     
-    val orderings = createOrderingComparison(inputType, keySortFields, keySortDirections)
-    
-    //drop time from comparison
+       //drop time from comparison
     val keyIndexesNoTime = keySortFields.slice(1, keySortFields.size)
-    val orderingsNoTime = orderings.slice(1, keySortFields.size)
+    val keyDirectionsNoTime = keySortDirections.slice(1, keySortDirections.size)
+    val booleanOrderings = getSortFieldDirectionBooleanList(collationSort)
+    val booleanDirectionsNoTime = booleanOrderings.slice(1, booleanOrderings.size)
     
-    val rowComparator = createRowSortComparator(keyIndexesNoTime,orderingsNoTime)
+    val fieldComps = createFieldComparators(inputType, keyIndexesNoTime, keyDirectionsNoTime, execCfg)
+    val fieldCompsRefs = fieldComps.asInstanceOf[Array[TypeComparator[AnyRef]]]
     
-    new ProcTimeBoundedSortProcessFunction(
+    val rowComp = createRowComparator(inputType, keyIndexesNoTime, fieldCompsRefs, booleanDirectionsNoTime)
+    val collectionRowComparator = new CollectionRowComparator(rowComp)
+    
+ 
+    new ProcTimeSortProcessFunction(
       inputType.getFieldCount,
       inputRowType,
-      rowComparator)
+      collectionRowComparator)
 
   }
 
+  
    /**
-   * Function creates a row comparator for the sorting fields based on
-   * [java.util.Comparator] objects derived from [org.apache.flink.api.common.TypeInfo]
+   * Function creates comparison objects based on the field types
+   * @param inputType input row type
    * @param keyIndex the indexes of the fields on which the sorting is done. 
-   * First is expected to be the time  
-   * @param orderings the [UntypedOrdering] objects 
-   * @return Array of ordering objects
+   * @param orderDirection the directions of each sort field. 
+   * @param execConfig the configuration environment
+   * @return Array of TypeComparator objects
    */
-  def createRowSortComparator(keyIndex: Array[Int],
-    orderings:Array[UntypedOrdering]): Comparator[Row] = {
-          
-    new SortRowComparator(orderings,keyIndex)
+  def createFieldComparators(
+      inputType: RelDataType,
+      keyIndex: Array[Int],
+      orderDirection: Array[Direction],
+      execConfig: ExecutionConfig): Array[TypeComparator[_]] = {
+    
+    var iOrder = 0
+    for (i <- keyIndex) yield {
+
+      val order = if (orderDirection(iOrder) == Direction.ASCENDING) true else false
+      iOrder += 1
+      val fieldTypeInfo = FlinkTypeFactory.toTypeInfo(inputType.getFieldList.get(i).getType)
+      fieldTypeInfo match {
+        case a: AtomicType[_] => a.createComparator(order, execConfig)
+        case _ => throw new TableException(s"Unsupported field type $fieldTypeInfo to sort on.")
+      }
+    }
   }
   
    /**
-   * Function creates comparison objects with embeded type casting 
-   * @param inputType input row type
-   * @param keyIndex the indexes of the fields on which the sorting is done. 
-   * First is expected to be the time  
-   * @return Array of ordering objects
+   * Function creates a RowComparator based on the typed comparators
+   * @param inputRowType input row type
+   * @param fieldIdxs the indexes of the fields on which the sorting is done. 
+   * @param fieldComps the array of typed comparators
+   * @param fieldOrders the directions of each sort field (true = ASC). 
+   * @return A Row TypeComparator object 
    */
-  def createOrderingComparison(inputType: RelDataType,
-    keyIndex: Array[Int],
-    orderDirection: Array[Direction]): Array[UntypedOrdering] = {
+  def createRowComparator(
+    inputRowType: RelDataType,
+    fieldIdxs: Array[Int],
+    fieldComps: Array[TypeComparator[AnyRef]],
+    fieldOrders: Array[Boolean]): TypeComparator[Row] = {
 
-    var i = 0
-    val orderings = new Array[UntypedOrdering](keyIndex.size)
+  val rowComp = new RowComparator(
+    inputRowType.getFieldCount,
+    fieldIdxs,
+    fieldComps,
+    new Array[TypeSerializer[AnyRef]](0), //used only for serialized comparisons
+    fieldOrders)
 
-    while (i < keyIndex.size) {
-      val sqlTypeName = inputType.getFieldList.get(keyIndex(i)).getType.getSqlTypeName
-
-      orderings(i) = sqlTypeName match {
-        case TINYINT => new ByteOrdering(
-            BYTE_TYPE_INFO.createComparator(orderDirection(i)==Direction.ASCENDING, null))
-        case SMALLINT => new SmallOrdering(
-            SHORT_TYPE_INFO.createComparator(orderDirection(i)==Direction.ASCENDING, null))
-        case INTEGER => new IntOrdering(
-            INT_TYPE_INFO.createComparator(orderDirection(i)==Direction.ASCENDING, null))
-        case BIGINT => new LongOrdering(
-            LONG_TYPE_INFO.createComparator(orderDirection(i)==Direction.ASCENDING, null))
-        case FLOAT => new FloatOrdering(
-            FLOAT_TYPE_INFO.createComparator(orderDirection(i)==Direction.ASCENDING, null))
-        case DOUBLE => new DoubleOrdering(
-            DOUBLE_TYPE_INFO.createComparator(orderDirection(i)==Direction.ASCENDING, null))
-        case DECIMAL => new DecimalOrdering(
-            BIG_DEC_TYPE_INFO.createComparator(orderDirection(i)==Direction.ASCENDING, null))
-        case VARCHAR | CHAR => new StringOrdering(
-            STRING_TYPE_INFO.createComparator(orderDirection(i)==Direction.ASCENDING, null))
-        //should be updated when times are merged in master branch based on their types
-        case TIMESTAMP => new TimestampOrdering(
-            LONG_TYPE_INFO.createComparator(orderDirection(i)==Direction.ASCENDING, null))
-        case sqlType: SqlTypeName =>
-            throw new TableException("Sort aggregate does no support type:" + sqlType)
-      }
-      i += 1
-    }
-    
-    orderings
-  }
+  rowComp
+}
+  
  
   /**
    * Function returns the array of indexes for the fields on which the sort is done
-   * @param calcSort The LogicalSort object
+   * @param collationSort The Sort collation list
    * @return [Array[Int]]
    */
-  def getSortFieldIndexList(calcSort: LogicalSort): Array[Int] = {
-    val keyFields = calcSort.collation.getFieldCollations
-    var i = 0
-    val keySort = new Array[Int](keyFields.size())
-    while (i < keyFields.size()) {
-      keySort(i) = keyFields.get(i).getFieldIndex
-      i += 1
-    }
-    
-    keySort
+  def getSortFieldIndexList(collationSort: RelCollation): Array[Int] = {
+    val keyFields = collationSort.getFieldCollations.toArray()
+    //val keyFields = collationSort.getFieldCollations.toArray().asInstanceOf[Array[RelFieldCollation]]
+    for (f <- keyFields) yield f.asInstanceOf[RelFieldCollation].getFieldIndex
   }
   
    /**
    * Function returns the array of sort direction for each of the sort fields 
-   * @param calcSort The LogicalSort object
+   * @param collationSort The Sort collation list
    * @return [Array[Direction]]
    */
-  def getSortFieldDirectionList(calcSort: LogicalSort): Array[Direction] = {
-    val keyFields = calcSort.collation.getFieldCollations
+  def getSortFieldDirectionList(collationSort: RelCollation): Array[Direction] = {
+    val keyFields = collationSort.getFieldCollations.toArray()
+    for(f <- keyFields) yield f.asInstanceOf[RelFieldCollation].getDirection
+  }
+
+   /**
+   * Function returns the array of sort direction for each of the sort fields 
+   * @param collationSort The Sort collation list
+   * @return [Array[Direction]]
+   */
+  def getSortFieldDirectionBooleanList(collationSort: RelCollation): Array[Boolean] = {
+    val keyFields = collationSort.getFieldCollations
     var i = 0
-    val keySortDirection = new Array[Direction](keyFields.size())
+    val keySortDirection = new Array[Boolean](keyFields.size())
     while (i < keyFields.size()) {
-      keySortDirection(i) = getDirection(calcSort,i)
+      keySortDirection(i) = 
+        if (getDirection(collationSort,i) == Direction.ASCENDING) true else false 
       i += 1
     }
     keySortDirection
   }
-
+  
+  
    /**
    * Function returns the direction type of the time in order clause. 
-   * @param calcSort The LogicalSort object
-   * @return [Array[Int]]
+   * @param collationSort The Sort collation list of objects
+   * @return [org.apache.calcite.rel.RelFieldCollation.Direction]
    */
-  def getTimeDirection(calcSort: LogicalSort):Direction = {
-    calcSort.getCollationList.get(0).getFieldCollations.get(0).direction
+  def getTimeDirection(collationSort: RelCollation): Direction = {
+    collationSort.getFieldCollations.get(0).direction
   }
   
    /**
    * Function returns the time type in order clause. 
    * Expectation is that it is the primary sort field
-   * @param calcSort The LogicalSort object
+   * @param collationSort The Sort collation list
    * @param rowType The data type of the input
    * @return [org.apache.calcite.rel.type.RelDataType]
    */
-  def getTimeType(calcSort: LogicalSort, rowType: RelDataType): RelDataType = {
+  def getTimeType(collationSort: RelCollation, rowType: RelDataType): RelDataType = {
 
-    //need to identify time between others order fields
-    //
-    val ind = calcSort.getCollationList.get(0).getFieldCollations.get(0).getFieldIndex
+    //need to identify time between others ordering fields
+    val ind = collationSort.getFieldCollations.get(0).getFieldIndex
     rowType.getFieldList.get(ind).getValue
   }
 
    /**
    * Function returns the direction type of a field in order clause. 
-   * @param calcSort The LogicalSort object
+   * @param collationSort The Sort collation list
    * @return [org.apache.calcite.rel.RelFieldCollation.Direction]
    */
-  def getDirection(calcSort: LogicalSort, sortField:Int):Direction = {
+  def getDirection(collationSort: RelCollation, sortField:Int): Direction = {
     
-    calcSort.getCollationList.get(0).getFieldCollations.get(sortField).direction match {
+    collationSort.getFieldCollations.get(sortField).direction match {
       case Direction.ASCENDING => Direction.ASCENDING
       case Direction.DESCENDING => Direction.DESCENDING
       case _ =>  throw new TableException("SQL/Table does not support such sorting")
@@ -212,135 +224,71 @@ object SortUtil {
     
   }
   
-}
-
-
-/**
- * Untyped interface for defining comparison method that can be override by typed implementations
- * Each typed implementation will cast the generic type to the implicit ordering type used 
- */
-
-trait UntypedOrdering extends Serializable{
-  def compare(x: Any, y: Any): Int
-
-}
-
-class LongOrdering(private val ord: TypeComparator[JLong]) extends UntypedOrdering {
-
-  override def compare(x: Any, y: Any): Int = {
-    val xL = x.asInstanceOf[JLong]
-    val yL = y.asInstanceOf[JLong]
-    ord.compare(xL, yL)
+  def directionToOrder(direction: Direction) = {
+    direction match {
+      case Direction.ASCENDING | Direction.STRICTLY_ASCENDING => Order.ASCENDING
+      case Direction.DESCENDING | Direction.STRICTLY_DESCENDING => Order.DESCENDING
+      case _ => throw new IllegalArgumentException("Unsupported direction.")
+    }
   }
-}
+  
+  def getSortFieldToString(collationSort: RelCollation, rowRelDataType: RelDataType): String = {
+    val fieldCollations = collationSort.getFieldCollations.asScala  
+    .map(c => (c.getFieldIndex, directionToOrder(c.getDirection)))
 
-class IntOrdering(private val ord: TypeComparator[JInt]) extends UntypedOrdering {
-
-  override def compare(x: Any, y: Any): Int = {
-    val xI = x.asInstanceOf[JInt]
-    val yI = y.asInstanceOf[JInt]
-    ord.compare(xI, yI)
+    val sortFieldsToString = fieldCollations
+      .map(col => s"${
+        rowRelDataType.getFieldNames.get(col._1)} ${col._2.getShortName}" ).mkString(", ")
+    
+    sortFieldsToString
   }
-}
-
-class FloatOrdering(private val ord: TypeComparator[JFloat]) extends UntypedOrdering {
-
-  override def compare(x: Any, y: Any): Int = {
-    val xF = x.asInstanceOf[JFloat]
-    val yF = y.asInstanceOf[JFloat]
-    ord.compare(xF, yF)
+  
+  def getOffsetToString(offset: RexNode): String = {
+    val offsetToString = s"$offset"
+    offsetToString
   }
-}
-
-class DoubleOrdering(private val ord: TypeComparator[JDouble]) extends UntypedOrdering {
-
-  override def compare(x: Any, y: Any): Int = {
-    val xD = x.asInstanceOf[JDouble]
-    val yD = y.asInstanceOf[JDouble]
-    ord.compare(xD, yD)
+  
+  def getFetchToString(fetch: RexNode, offset: RexNode): String = {
+    val limitEnd = getFetchLimitEnd(fetch, offset)
+    val fetchToString = if (limitEnd == Long.MaxValue) {
+      "unlimited"
+    } else {
+      s"$limitEnd"
+    }
+    fetchToString
   }
-}
-
-class DecimalOrdering(private val ord: TypeComparator[JBigDecimal]) extends UntypedOrdering {
-
-  override def compare(x: Any, y: Any): Int = {
-    val xBD = x.asInstanceOf[JBigDecimal]
-    val yBD = y.asInstanceOf[JBigDecimal]
-    ord.compare(xBD, yBD)
+  
+  def getFetchLimitEnd (fetch: RexNode, offset: RexNode): Long = {
+    val limitEnd: Long = if (fetch != null) {
+      RexLiteral.intValue(fetch) + getFetchLimitStart(fetch, offset)
+    } else {
+      Long.MaxValue
+    }
+    limitEnd
   }
-}
-
-class ByteOrdering(private val ord: TypeComparator[JByte]) extends UntypedOrdering {
-
-  override def compare(x: Any, y: Any): Int = {
-    val xB = x.asInstanceOf[JByte]
-    val yB = y.asInstanceOf[JByte]
-    ord.compare(xB, yB)
-  }
-}
-
-class SmallOrdering(private val ord: TypeComparator[JShort]) extends UntypedOrdering {
-
-  override def compare(x: Any, y: Any): Int = {
-    val xS = x.asInstanceOf[JShort]
-    val yS = y.asInstanceOf[JShort]
-    ord.compare(xS, yS)
-  }
-}
-
-class StringOrdering(private val ord: TypeComparator[JString]) extends UntypedOrdering {
-
-  override def compare(x: Any, y: Any): Int = {
-    val xS = x.asInstanceOf[JString]
-    val yS = y.asInstanceOf[JString]
-    ord.compare(xS, yS)
-  }
-}
-
-
-/**
- * Ordering object for timestamps. As there is no implicit Ordering for [java.sql.Timestamp]
- * we need to compare based on the Long value of the timestamp
- */
-class TimestampOrdering(private val ord: TypeComparator[JLong]) extends UntypedOrdering {
-
-  override def compare(x: Any, y: Any): Int = {
-    val xTs = x.asInstanceOf[Timestamp]
-    val yTs = y.asInstanceOf[Timestamp]
-    ord.compare(xTs.getTime, yTs.getTime)
-  }
-}
-
-
-/**
- * Called every time when a sort operation is done. It applies the Comparator objects in cascade
- *
- * @param orderedComparators the sort Comparator objects with type casting
- * @param keyIndexes the sort index fields on which to apply the comparison on the inputs 
- */
-class SortRowComparator(
-    private val orderedComparators:Array[UntypedOrdering],
-    private val keyIndexes:Array[Int]) extends Comparator[Row] with Serializable {
-  override def compare(arg0:Row, arg1:Row):Int = {
-   
-     var i = 0
-     var result:Int = 0 
-     while (i<keyIndexes.size) {
-          
-          val compareResult = orderedComparators(i).compare(
-              arg0.getField(keyIndexes(i)), arg1.getField(keyIndexes(i)))
-          
-          compareResult match {
-            case 0 => i += 1 //same key and need to sort on consequent keys 
-            case g => { result = g  //in case the case does not return the result          
-              i = keyIndexes.size // exit and return the result
-            }
-          }
-        }  
-     result //all sort fields were equal, hence elements are equal
+  
+  def getFetchLimitStart (fetch: RexNode, offset: RexNode): Long = {
+     val limitStart: Long = if (offset != null) {
+      RexLiteral.intValue(offset)
+     } else {
+       0L
+     }
+     limitStart
   }
   
 }
+
+/**
+ * Wrapper for Row TypeComparator to a Java Comparator object
+ */
+class CollectionRowComparator(
+    private val rowComp: TypeComparator[Row]) extends Comparator[Row] with Serializable {
+  
+  override def compare(arg0:Row, arg1:Row):Int = {
+    rowComp.compare(arg0, arg1)
+  }
+}
+
 
 
 /**

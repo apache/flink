@@ -27,6 +27,7 @@ import org.apache.flink.table.plan.nodes.datastream.DataStreamConvention
 import org.apache.flink.table.plan.nodes.datastream.DataStreamCorrelate
 import org.apache.calcite.rel.logical.LogicalSort
 import org.apache.flink.table.plan.nodes.datastream.DataStreamSort
+import org.apache.calcite.rel.RelCollation
 
 /**
  * Rule to convert a LogicalSort into a DataStreamSort.
@@ -43,20 +44,19 @@ class DataStreamSortRule
   }
 
   override def convert(rel: RelNode): RelNode = {
-    val calc: LogicalSort = rel.asInstanceOf[LogicalSort]
+    val calcSort: LogicalSort = rel.asInstanceOf[LogicalSort]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
-    val convInput: RelNode = RelOptRule.convert(calc.getInput(0), DataStreamConvention.INSTANCE)
+    val convInput: RelNode = RelOptRule.convert(calcSort.getInput(0), DataStreamConvention.INSTANCE)
 
-    val inputRowType = convInput.asInstanceOf[RelSubset].getOriginal.getRowType
-    
     new DataStreamSort(
-      calc,
+      calcSort.collation,
+      calcSort.offset,
+      calcSort.fetch,
       rel.getCluster,
       traitSet,
       convInput,
       rel.getRowType,
-      inputRowType,
-      description + calc.getId())
+      description)
     
   }
 
