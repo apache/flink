@@ -307,7 +307,7 @@ public class CEPOperatorTest extends TestLogger {
 		// there must be 2 keys 42, 43 registered for the watermark callback
 		// all the seen elements must be in the priority queues but no NFA yet.
 
-		assertEquals(2L, harness.numKeysForWatermarkCallback());
+		assertEquals(2L, harness.numEventTimeTimers());
 		assertEquals(4L, operator.getPQSize(42));
 		assertEquals(1L, operator.getPQSize(43));
 		assertTrue(!operator.hasNonEmptyNFA(42));
@@ -322,7 +322,7 @@ public class CEPOperatorTest extends TestLogger {
 		// one element in PQ for 42 (the barfoo) as it arrived early
 		// for 43 the element entered the NFA and the PQ is empty
 
-		assertEquals(2L, harness.numKeysForWatermarkCallback());
+		assertEquals(2L, harness.numEventTimeTimers());
 		assertTrue(operator.hasNonEmptyNFA(42));
 		assertEquals(1L, operator.getPQSize(42));
 		assertTrue(operator.hasNonEmptyNFA(43));
@@ -336,7 +336,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		// now we have 1 key because the 43 expired and was removed.
 		// 42 is still there due to startEvent2
-		assertEquals(1L, harness.numKeysForWatermarkCallback());
+		assertEquals(1L, harness.numEventTimeTimers());
 		assertTrue(operator.hasNonEmptyNFA(42));
 		assertTrue(!operator.hasNonEmptyPQ(42));
 		assertTrue(!operator.hasNonEmptyNFA(43));
@@ -355,7 +355,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		assertTrue(!operator.hasNonEmptyNFA(42));
 		assertTrue(!operator.hasNonEmptyPQ(42));
-		assertEquals(0L, harness.numKeysForWatermarkCallback());
+		assertEquals(0L, harness.numEventTimeTimers());
 
 		verifyPattern(harness.getOutput().poll(), startEvent2, middleEvent2, endEvent2);
 		verifyPattern(harness.getOutput().poll(), startEvent2, middleEvent3, endEvent2);
@@ -430,7 +430,7 @@ public class CEPOperatorTest extends TestLogger {
 		// the pattern expired
 		assertTrue(!operator.hasNonEmptyNFA(42));
 
-		assertEquals(0L, harness.numKeysForWatermarkCallback());
+		assertEquals(0L, harness.numEventTimeTimers());
 		assertTrue(!operator.hasNonEmptyPQ(42));
 		assertTrue(!operator.hasNonEmptyPQ(43));
 

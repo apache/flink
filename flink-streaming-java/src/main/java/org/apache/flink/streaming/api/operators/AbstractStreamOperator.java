@@ -907,20 +907,6 @@ public abstract class AbstractStreamOperator<OUT>
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Returns an {@link InternalWatermarkCallbackService} which  allows to register a
-	 * {@link OnWatermarkCallback} and multiple keys, for which
-	 * the callback will be invoked every time a new {@link Watermark} is received.
-	 *
-	 * <p><b>NOTE: </b> This service is only available to <b>keyed</b> operators.
-	 */
-	public <K> InternalWatermarkCallbackService<K> getInternalWatermarkCallbackService() {
-		checkTimerServiceInitialization();
-
-		InternalTimeServiceManager<K, ?> keyedTimeServiceHandler = (InternalTimeServiceManager<K, ?>) timeServiceManager;
-		return keyedTimeServiceHandler.getWatermarkCallbackService();
-	}
-
-	/**
 	 * Returns a {@link InternalTimerService} that can be used to query current processing time
 	 * and event time and to set timers. An operator can have several timer services, where
 	 * each has its own namespace serializer. Timer services are differentiated by the string
@@ -997,11 +983,5 @@ public abstract class AbstractStreamOperator<OUT>
 	public int numEventTimeTimers() {
 		return timeServiceManager == null ? 0 :
 			timeServiceManager.numEventTimeTimers();
-	}
-
-	@VisibleForTesting
-	public int numKeysForWatermarkCallback() {
-		return timeServiceManager == null ? 0 :
-			timeServiceManager.numKeysForWatermarkCallback();
 	}
 }
