@@ -35,11 +35,11 @@ public class ReconnectResourceManager implements RequiresLeaderSessionID, java.i
 
 	private final ActorRef resourceManager;
 
-	private final UUID connID;
+	private final UUID currentConnID;
 
-	public ReconnectResourceManager(ActorRef resourceManager, UUID connID) {
+	public ReconnectResourceManager(ActorRef resourceManager, UUID currentConnID) {
 		this.resourceManager = Preconditions.checkNotNull(resourceManager);
-		this.connID = Preconditions.checkNotNull(connID);
+		this.currentConnID = Preconditions.checkNotNull(currentConnID);
 	}
 	
 	public ActorRef resourceManager() {
@@ -47,7 +47,7 @@ public class ReconnectResourceManager implements RequiresLeaderSessionID, java.i
 	}
 
 	public UUID connID() {
-		return connID;
+		return currentConnID;
 	}
 
 	@Override

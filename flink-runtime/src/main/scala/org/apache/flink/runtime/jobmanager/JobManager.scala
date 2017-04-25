@@ -359,7 +359,7 @@ class JobManager(
         msg.resourceManager() ! decorateMessage(new TriggerRegistrationAtJobManager(self))
         // try again after some delay
         context.system.scheduler.scheduleOnce(2 seconds) {
-          self ! decorateMessage (msg)
+          self ! decorateMessage(msg)
         }(context.dispatcher)
       }
 
