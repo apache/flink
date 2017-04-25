@@ -22,6 +22,8 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 
 public class PartitionerInfo<IN> implements Serializable {
+	private static final long serialVersionUID = 6837684728261265770L;
+	
 	private final String topic;
 	private final KafkaPartitioner<IN> partitioner;
 	private int[] partitions;
