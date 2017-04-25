@@ -544,6 +544,26 @@ public class SmarterLeaderLatch implements Closeable
 				break;
 			}
 
+			case RECONNECTED:
+			{
+				if (!hasLeadership()) {
+					try
+					{
+						reset();
+					}
+					catch ( Exception e )
+					{
+						if ( e instanceof InterruptedException )
+						{
+							Thread.currentThread().interrupt();
+						}
+						log.error("Could not reset leader latch", e);
+						setLeadership(false);
+					}
+				}
+				break;
+			}
+
 			case SUSPENDED:
 			{
 				Thread t = new Thread("Suspend state waiting handler") {
