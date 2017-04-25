@@ -79,20 +79,28 @@ under the License.
 	<build>
 		<plugins>
 			<plugin>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.4</version>
-				<configuration>
-					<descriptorRefs>
-						<descriptorRef>jar-with-dependencies</descriptorRef>
-					</descriptorRefs>
-				</configuration>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>make-assembly</id>
 						<phase>package</phase>
 						<goals>
-							<goal>single</goal>
+							<goal>shade</goal>
 						</goals>
+						<configuration>
+							<shadedClassifierName>jar-with-dependencies</shadedClassifierName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<relocations combine.children="append">
+								<relocation>
+									<pattern>okhttp3</pattern>
+									<shadedPattern>org.apache.flink.shaded.okhttp3</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>okio</pattern>
+									<shadedPattern>org.apache.flink.shaded.okio</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>
