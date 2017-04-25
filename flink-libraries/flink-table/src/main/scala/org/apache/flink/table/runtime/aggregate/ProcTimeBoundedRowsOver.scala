@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory
   */
 class ProcTimeBoundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
+    distinctAggFlags: Array[Boolean],
     precedingOffset: Long,
     aggregatesTypeInfo: RowTypeInfo,
     inputType: TypeInformation[Row])
@@ -72,7 +73,15 @@ class ProcTimeBoundedRowsOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
-
+    
+    var initialized = false
+    for(i <- distinctAggFlags.indices){
+      if(distinctAggFlags(i) && !initialized){
+        function.initialize(getRuntimeContext())
+        initialized = true
+      }
+    }
+    
     output = function.createOutputRow()
     // We keep the elements received in a Map state keyed
     // by the ingestion time in the operator.
