@@ -132,8 +132,4 @@ public class HighAvailabilityOptions {
 
 	/** Not intended to be instantiated */
 	private HighAvailabilityOptions() {}
-
-	public static void main(String[] args) {
-		System.out.println(ConfigOptionsDocGenerator.create(HighAvailabilityOptions.class, false));
-	}
 }

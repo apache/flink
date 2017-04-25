@@ -47,14 +47,14 @@ public class ConfigOptionsDocGenerator {
 	private static String toHTMLTable(final List<ConfigOption> options, boolean includeShort) {
 		final StringBuilder htmlTable = new StringBuilder(
 			"<table class=\"table table-bordered\"><thead><tr><th class=\"text-left\" style=\"width: 20%\">Name</th>" +
-			"<th class=\"text-left\" style=\"width: 20%\">Default Value</th>");
+			"<th class=\"text-left\" style=\"width: 15%\">Default Value</th>");
 		if (includeShort) {
 			htmlTable.append(
 				"<th class=\"text-left\" style=\"width: 25%\">Short description</th>" +
-				"<th class=\"text-left\" style=\"width: 35%\">Description</th></tr></thead><tbody>");
+				"<th class=\"text-left\" style=\"width: 40%\">Description</th></tr></thead><tbody>");
 		} else {
 			htmlTable.append(
-				"<th class=\"text-left\" style=\"width: 60%\">Description</th></tr></thead><tbody>");
+				"<th class=\"text-left\" style=\"width: 65%\">Description</th></tr></thead><tbody>");
 		}
 
 		for (ConfigOption option : options) {
@@ -108,7 +108,7 @@ public class ConfigOptionsDocGenerator {
 		final StringBuilder stringBuilder = new StringBuilder("<tr><td>")
 			.append(option.key()).append("</td>")
 			.append("<td>")
-			.append(option.defaultValue() == null ? "" : option.defaultValue())
+			.append(defaultValueToHtml(option.defaultValue()))
 			.append("</td>");
 		if (includeShort) {
 			stringBuilder.append("<td>").append(option.shortDescription()).append("</td>");
@@ -116,6 +116,14 @@ public class ConfigOptionsDocGenerator {
 
 		stringBuilder.append("<td>").append(option.description()).append("</td></tr>");
 		return stringBuilder.toString();
+	}
+
+	private static String defaultValueToHtml(Object value) {
+		if (value instanceof String) {
+			return "\"" + value +"\"";
+		}
+
+		return value == null ? "(none)" : value.toString();
 	}
 
 	/**
