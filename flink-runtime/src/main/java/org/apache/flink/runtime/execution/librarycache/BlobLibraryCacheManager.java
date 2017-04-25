@@ -224,7 +224,11 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 
 	@Override
 	public File getFile(JobID jobId, String key) throws IOException {
-		return new File(blobService.getURL(jobId, key).getFile());
+		// There is a concurrency issue between the BlobService's deleteAll and getURL methods (FLINK-6380)
+		// -> serialize these two for now to be on the safe side.
+		synchronized (lockObject) {
+			return new File(blobService.getURL(jobId, key).getFile());
+		}
 	}
 
 	public BlobService getBlobService() {
