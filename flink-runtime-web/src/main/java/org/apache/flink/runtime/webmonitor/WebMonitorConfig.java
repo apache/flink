@@ -80,8 +80,6 @@ public class WebMonitorConfig {
 	}
 
 	public String getAllowOrigin() {
-		return config.getString(
-			ConfigConstants.JOB_MANAGER_WEB_ACCESS_CONTROL_ALLOW_ORIGIN.key(),
-			ConfigConstants.JOB_MANAGER_WEB_ACCESS_CONTROL_ALLOW_ORIGIN.defaultValue());
+		return config.getString(ConfigConstants.JOB_MANAGER_WEB_ACCESS_CONTROL_ALLOW_ORIGIN);
 	}
 }
