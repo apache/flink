@@ -60,7 +60,7 @@ public class RestartIndividualStrategy extends FailoverStrategy {
 	private final SimpleCounter numTaskFailures;
 
 	/**
-	 * Creates a new failover strategy that recovers from failures by restarting all tasks
+	 * Creates a new failover strategy that recovers from failures by restarting only the failed task
 	 * of the execution graph.
 	 * 
 	 * <p>The strategy will use the ExecutionGraph's future executor for callbacks.
@@ -72,7 +72,7 @@ public class RestartIndividualStrategy extends FailoverStrategy {
 	}
 
 	/**
-	 * Creates a new failover strategy that recovers from failures by restarting all tasks
+	 * Creates a new failover strategy that recovers from failures by restarting only the failed task
 	 * of the execution graph.
 	 *
 	 * @param executionGraph The execution graph to handle.
