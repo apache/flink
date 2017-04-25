@@ -166,7 +166,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 		return Graph.fromDataSet(vertices, edges, env);
 	}
 
-	private static final class GenerateEdges<T extends RandomGenerator>
+	private static class GenerateEdges<T extends RandomGenerator>
 	implements FlatMapFunction<BlockInfo<T>, Edge<LongValue, NullValue>> {
 
 		// Configuration
