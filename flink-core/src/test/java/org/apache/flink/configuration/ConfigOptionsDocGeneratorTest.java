@@ -45,8 +45,8 @@ public class ConfigOptionsDocGeneratorTest {
 			"<thead>" +
 			"<tr>" +
 			"<th class=\"text-left\" style=\"width: 20%\">Name</th>" +
-			"<th class=\"text-left\" style=\"width: 20%\">Default Value</th>" +
-			"<th class=\"text-left\" style=\"width: 60%\">Description</th>" +
+			"<th class=\"text-left\" style=\"width: 15%\">Default Value</th>" +
+			"<th class=\"text-left\" style=\"width: 65%\">Description</th>" +
 			"</tr>" +
 			"</thead>" +
 			"<tbody>" +
@@ -57,7 +57,7 @@ public class ConfigOptionsDocGeneratorTest {
 			"</tr>" +
 			"<tr>" +
 			"<td>second.option.a</td>" +
-			"<td></td>" +
+			"<td>(none)</td>" +
 			"<td>This is long example description for the second option.</td>" +
 			"</tr>" +
 			"</tbody>" +
@@ -73,9 +73,9 @@ public class ConfigOptionsDocGeneratorTest {
 		                             "<thead>" +
 		                             "<tr>" +
 		                             "<th class=\"text-left\" style=\"width: 20%\">Name</th>" +
-		                             "<th class=\"text-left\" style=\"width: 20%\">Default Value</th>" +
+		                             "<th class=\"text-left\" style=\"width: 15%\">Default Value</th>" +
 		                             "<th class=\"text-left\" style=\"width: 25%\">Short description</th>" +
-		                             "<th class=\"text-left\" style=\"width: 35%\">Description</th>" +
+		                             "<th class=\"text-left\" style=\"width: 40%\">Description</th>" +
 		                             "</tr>" +
 		                             "</thead>" +
 		                             "<tbody>" +
@@ -87,7 +87,7 @@ public class ConfigOptionsDocGeneratorTest {
 		                             "</tr>" +
 		                             "<tr>" +
 		                             "<td>second.option.a</td>" +
-		                             "<td></td>" +
+		                             "<td>(none)</td>" +
 		                             "<td>Short second option descr</td>" +
 		                             "<td>This is long example description for the second option.</td>" +
 		                             "</tr>" +
