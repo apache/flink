@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api.java.batch.sql;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -39,6 +38,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -153,8 +153,8 @@ public class SqlITCase extends TableProgramsCollectionTestBase {
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		List<Tuple2<Integer, Map<String, String>>> rows = new ArrayList<>();
-		rows.add(new Tuple2<>(1, (Map<String, String>)ImmutableMap.of("foo", "bar")));
-		rows.add(new Tuple2<>(2, (Map<String, String>)ImmutableMap.of("foo", "spam")));
+		rows.add(new Tuple2<>(1, Collections.singletonMap("foo", "bar")));
+		rows.add(new Tuple2<>(2, Collections.singletonMap("foo", "spam")));
 
 		TypeInformation<Tuple2<Integer, Map<String, String>>> ty = new TupleTypeInfo<>(
 			BasicTypeInfo.INT_TYPE_INFO,
