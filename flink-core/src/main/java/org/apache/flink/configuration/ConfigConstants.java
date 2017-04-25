@@ -487,6 +487,11 @@ public final class ConfigConstants {
 	public static final String MESOS_INITIAL_TASKS = "mesos.initial-tasks";
 
 	/**
+	* Constraints for placement of Mesos tasks.
+	*/
+	public static final String MESOS_CONSTRAINTS = "mesos.constraints.hard.hostattribute";
+
+	/**
 	 * The maximum number of failed Mesos tasks before entirely stopping
 	 * the Mesos session / job on Mesos.
 	 *

@@ -132,7 +132,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 
 		@Override
 		public List<? extends ConstraintEvaluator> getHardConstraints() {
-			return null;
+			return params.constraints();
 		}
 
 		@Override

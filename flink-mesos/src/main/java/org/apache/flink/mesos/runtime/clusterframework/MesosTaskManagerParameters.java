@@ -18,12 +18,19 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
+import com.netflix.fenzo.ConstraintEvaluator;
+import com.netflix.fenzo.functions.Func1;
+import com.netflix.fenzo.plugins.HostAttrValueConstraint;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import scala.Option;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -56,6 +63,10 @@ public class MesosTaskManagerParameters {
 		key("mesos.resourcemanager.tasks.container.image.name")
 			.noDefaultValue();
 
+	public static final ConfigOption<String> MESOS_CONSTRAINTS_HARD_HOSTATTR =
+		key("mesos.constraints.hard.hostattribute")
+			.noDefaultValue();
+
 	/**
 	 * Value for {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE} setting. Tells to use the Mesos containerizer.
 	 */
@@ -73,16 +84,20 @@ public class MesosTaskManagerParameters {
 
 	private final ContaineredTaskManagerParameters containeredParameters;
 
+	private final List<ConstraintEvaluator> constraints;
+
 	public MesosTaskManagerParameters(
 		double cpus,
 		ContainerType containerType,
 		Option<String> containerImageName,
-		ContaineredTaskManagerParameters containeredParameters) {
+		ContaineredTaskManagerParameters containeredParameters,
+		List<ConstraintEvaluator> constraints) {
 		requireNonNull(containeredParameters);
 		this.cpus = cpus;
 		this.containerType = containerType;
 		this.containerImageName = containerImageName;
 		this.containeredParameters = containeredParameters;
+		this.constraints = constraints;
 	}
 
 	/**
@@ -115,6 +130,14 @@ public class MesosTaskManagerParameters {
 		return containeredParameters;
 	}
 
+	/**
+	 *
+	 * Get the placement constraints
+	 */
+	public List<ConstraintEvaluator> constraints() {
+		return constraints;
+	}
+
 	@Override
 	public String toString() {
 		return "MesosTaskManagerParameters{" +
@@ -122,6 +145,7 @@ public class MesosTaskManagerParameters {
 			", containerType=" + containerType +
 			", containerImageName=" + containerImageName +
 			", containeredParameters=" + containeredParameters +
+			", constraints=" + constraints +
 			'}';
 	}
 
@@ -131,6 +155,7 @@ public class MesosTaskManagerParameters {
      */
 	public static MesosTaskManagerParameters create(Configuration flinkConfig) {
 
+		List<ConstraintEvaluator> constraints = parseConstraints(flinkConfig.getString(MESOS_CONSTRAINTS_HARD_HOSTATTR));
 		// parse the common parameters
 		ContaineredTaskManagerParameters containeredParameters = ContaineredTaskManagerParameters.create(
 			flinkConfig,
@@ -166,7 +191,36 @@ public class MesosTaskManagerParameters {
 			cpus,
 			containerType,
 			Option.apply(imageName),
-			containeredParameters);
+			containeredParameters,
+			constraints);
+		}
+
+	private static List<ConstraintEvaluator> parseConstraints(String mesosConstraints) {
+		List<ConstraintEvaluator> constraints = new ArrayList<>();
+
+		if (mesosConstraints != null) {
+			for (String constraint : Arrays.asList(mesosConstraints.split(","))) {
+				if (constraint.isEmpty()) {
+					continue;
+				}
+				final List<String> constraintList = Arrays.asList(constraint.split(":"));
+				if (constraintList.size() != 2) {
+					continue;
+				}
+				addConstraint(constraints, constraintList);
+			}
+		}
+
+		return constraints;
+	}
+
+	private static void addConstraint(List<ConstraintEvaluator> constraints, final List<String> constraintList) {
+		constraints.add(new HostAttrValueConstraint(constraintList.get(0), new Func1<String, String>() {
+			@Override
+			public String call(String s) {
+				return constraintList.get(1);
+			}
+		}));
 	}
 
 	public enum ContainerType {
