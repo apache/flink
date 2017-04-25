@@ -78,4 +78,10 @@ public class WebMonitorConfig {
 			ConfigConstants.JOB_MANAGER_WEB_SUBMIT_ENABLED_KEY,
 			ConfigConstants.DEFAULT_JOB_MANAGER_WEB_SUBMIT_ENABLED);
 	}
+
+	public String getAllowOrigin() {
+		return config.getString(
+			ConfigConstants.JOB_MANAGER_WEB_ACCESS_CONTROL_ALLOW_ORIGIN,
+			ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ACCESS_CONTROL_ALLOW_ORIGIN);
+	}
 }

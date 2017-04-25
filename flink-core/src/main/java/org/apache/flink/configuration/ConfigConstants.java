@@ -701,6 +701,9 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_DELAY = "jobmanager.web.backpressure.delay-between-samples";
 
+	/** Web response header of Access-Control-Allow-Origin */
+	public static final String JOB_MANAGER_WEB_ACCESS_CONTROL_ALLOW_ORIGIN = "jobmanager.web.access-control-allow-origin";
+
 	// ------------------------------ AKKA ------------------------------------
 
 	/**
@@ -1364,6 +1367,9 @@ public final class ConfigConstants {
 
 	/** Delay between samples to determine back pressure. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_DELAY = 50;
+
+	/** Default access control allow any origin site. */
+	public static final String DEFAULT_JOB_MANAGER_WEB_ACCESS_CONTROL_ALLOW_ORIGIN = "*";
 
 	// ------------------------------ Akka Values ------------------------------
 
