@@ -226,4 +226,11 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * @param resourceID unique id of the task manager
 	 */
 	void heartbeatFromTaskManager(final ResourceID resourceID);
+
+	/**
+	 * Heartbeat request from the resource manager
+	 *
+	 * @param resourceID unique id of the resource manager
+	 */
+	void heartbeatFromResourceManager(final ResourceID resourceID);
 }
