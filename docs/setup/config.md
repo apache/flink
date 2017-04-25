@@ -375,6 +375,8 @@ These parameters allow for advanced tuning. The default values are sufficient wh
 
 - `jobmanager.web.ssl.enabled`: Enable https access to the web frontend. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: `true`).
 
+- `jobmanager.web.access-control-allow-origin`: Enable custom access control parameter for allow origin header, default is `*`.
+
 ### File Systems
 
 The parameters define the behavior of tasks that create result files.
