@@ -152,7 +152,9 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
         val rm = startTestingResourceManager(_system, jm.actor())
         rmOption = Some(rm)
 
-        val selfGateway = new AkkaActorGateway(probe.ref, HighAvailabilityServices.DEFAULT_LEADER_ID)
+        val selfGateway = new AkkaActorGateway(
+          probe.ref,
+          HighAvailabilityServices.DEFAULT_LEADER_ID)
 
         val resourceID = ResourceID.generate()
         val connectionInfo = new TaskManagerLocation(resourceID, InetAddress.getLocalHost, 1)
