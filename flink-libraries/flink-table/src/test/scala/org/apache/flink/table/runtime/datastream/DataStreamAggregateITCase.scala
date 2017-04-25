@@ -213,6 +213,33 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testEventTimeGroupWindowWithoutExplicitTimeField(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+      .map(t => (t._2, t._6))
+    val table = stream.toTable(tEnv, 'int, 'string)
+
+    val windowedTable = table
+      .window(Slide over 3.milli every 10.milli on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count, 'w.start, 'w.end)
+
+    val results = windowedTable.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+    val expected = Seq(
+      "Hallo,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003",
+      "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 }
 
 object DataStreamAggregateITCase {

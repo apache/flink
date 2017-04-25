@@ -101,7 +101,6 @@ class DataStreamAggregate(
 
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
 
-    val groupingKeys = grouping.indices.toArray
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
 
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
@@ -124,15 +123,15 @@ class DataStreamAggregate(
       inputDS.getType)
 
     // grouped / keyed aggregation
-    if (groupingKeys.length > 0) {
+    if (grouping.length > 0) {
       val windowFunction = AggregateUtil.createAggregationGroupWindowFunction(
         window,
-        groupingKeys.length,
+        grouping.length,
         namedAggregates.size,
         rowRelDataType.getFieldCount,
         namedProperties)
 
-      val keyedStream = inputDS.keyBy(groupingKeys: _*)
+      val keyedStream = inputDS.keyBy(grouping: _*)
       val windowedStream =
         createKeyedWindowedStream(window, keyedStream)
           .asInstanceOf[WindowedStream[Row, Tuple, DataStreamWindow]]
