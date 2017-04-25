@@ -22,7 +22,7 @@ import java.net.InetAddress
 import java.util.concurrent.{Executors, ScheduledExecutorService}
 
 import akka.actor._
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobmanager.JobManagerRegistrationTest.PlainForwa
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered, RegisterTaskManager}
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation
+import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.apache.flink.runtime.testutils.TestingResourceManager
 import org.apache.flink.runtime.util.LeaderRetrievalUtils
 import org.junit.Assert.{assertNotEquals, assertNotNull}
@@ -62,132 +63,186 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
   "The JobManager" should {
 
     "assign a TaskManager a unique instance ID" in {
-      val jm = startTestingJobManager(_system)
-      val rm = startTestingResourceManager(_system, jm.actor())
 
-      val tm1 = _system.actorOf(Props(new PlainForwardingActor(testActor)))
-      val tm2 = _system.actorOf(Props(new PlainForwardingActor(testActor)))
+      var jmOption: Option[ActorGateway] = None
+      var rmOption: Option[ActorGateway] = None
+      var tm1Option: Option[ActorRef] = None
+      var tm2Option: Option[ActorRef] = None
 
-      val resourceId1 = ResourceID.generate()
-      val resourceId2 = ResourceID.generate()
-      
-      val connectionInfo1 = new TaskManagerLocation(resourceId1, InetAddress.getLocalHost, 10000)
-      val connectionInfo2 = new TaskManagerLocation(resourceId2, InetAddress.getLocalHost, 10001)
+      try {
+        val jm = startTestingJobManager(_system)
+        jmOption = Some(jm)
 
-      val hardwareDescription = HardwareDescription.extractFromSystem(10)
+        val rm = startTestingResourceManager(_system, jm.actor())
+        rmOption = Some(rm)
 
-      var id1: InstanceID = null
-      var id2: InstanceID = null
+        val probe = TestProbe()
+        val tm1 = _system.actorOf(Props(new PlainForwardingActor(probe.ref)))
+        tm1Option = Some(tm1)
 
-      // task manager 1
-      within(10 seconds) {
-        jm.tell(
-          RegisterTaskManager(
-            resourceId1,
-            connectionInfo1,
-            hardwareDescription,
-            1),
-          new AkkaActorGateway(tm1, HighAvailabilityServices.DEFAULT_LEADER_ID))
+        val tm2 = _system.actorOf(Props(new PlainForwardingActor(probe.ref)))
+        tm2Option = Some(tm2)
 
-        val response = expectMsgType[LeaderSessionMessage]
-        response match {
-          case LeaderSessionMessage(_, AcknowledgeRegistration(id, _)) => id1 = id
-          case _ => fail("Wrong response message: " + response)
-        }
+        val resourceId1 = ResourceID.generate()
+        val resourceId2 = ResourceID.generate()
+
+        val connectionInfo1 = new TaskManagerLocation(resourceId1, InetAddress.getLocalHost, 10000)
+        val connectionInfo2 = new TaskManagerLocation(resourceId2, InetAddress.getLocalHost, 10001)
+
+        val hardwareDescription = HardwareDescription.extractFromSystem(10)
+
+        var id1: InstanceID = null
+        var id2: InstanceID = null
+
+        // task manager 1
+        within(10 seconds) {
+         jm.tell(
+           RegisterTaskManager(
+             resourceId1,
+             connectionInfo1,
+             hardwareDescription,
+             1),
+           new AkkaActorGateway(tm1, HighAvailabilityServices.DEFAULT_LEADER_ID))
+
+         val response = probe.expectMsgType[LeaderSessionMessage]
+         response match {
+           case LeaderSessionMessage(_, AcknowledgeRegistration(id, _)) => id1 = id
+           case _ => fail("Wrong response message: " + response)
+         }
+       }
+
+        // task manager 2
+        within(10 seconds) {
+         jm.tell(
+           RegisterTaskManager(
+             resourceId2,
+             connectionInfo2,
+             hardwareDescription,
+             1),
+           new AkkaActorGateway(tm2, HighAvailabilityServices.DEFAULT_LEADER_ID))
+
+         val response = probe.expectMsgType[LeaderSessionMessage]
+         response match {
+           case LeaderSessionMessage(leaderSessionID, AcknowledgeRegistration(id, _)) => id2 = id
+           case _ => fail("Wrong response message: " + response)
+         }
+       }
+
+        assertNotNull(id1)
+        assertNotNull(id2)
+        assertNotEquals(id1, id2)
+      } finally {
+        jmOption.foreach(TestingUtils.stopActorGracefully)
+        rmOption.foreach(TestingUtils.stopActorGracefully)
+        tm1Option.foreach(TestingUtils.stopActorGracefully)
+        tm2Option.foreach(TestingUtils.stopActorGracefully)
       }
-
-      // task manager 2
-      within(10 seconds) {
-        jm.tell(
-          RegisterTaskManager(
-            resourceId2,
-            connectionInfo2,
-            hardwareDescription,
-            1),
-          new AkkaActorGateway(tm2, HighAvailabilityServices.DEFAULT_LEADER_ID))
-
-        val response = expectMsgType[LeaderSessionMessage]
-        response match {
-          case LeaderSessionMessage(leaderSessionID, AcknowledgeRegistration(id, _)) => id2 = id
-          case _ => fail("Wrong response message: " + response)
-        }
-      }
-
-      assertNotNull(id1)
-      assertNotNull(id2)
-      assertNotEquals(id1, id2)
     }
 
     "handle repeated registration calls" in {
 
-      val jm = startTestingJobManager(_system)
-      val rm = startTestingResourceManager(_system, jm.actor())
+      var jmOption: Option[ActorGateway] = None
+      var rmOption: Option[ActorGateway] = None
 
-      val selfGateway = new AkkaActorGateway(testActor, HighAvailabilityServices.DEFAULT_LEADER_ID)
+      try {
+        val probe = TestProbe()
 
-      val resourceID = ResourceID.generate()
-      val connectionInfo = new TaskManagerLocation(resourceID, InetAddress.getLocalHost, 1)
-      val hardwareDescription = HardwareDescription.extractFromSystem(10)
+        val jm = startTestingJobManager(_system)
+        jmOption = Some(jm)
+        val rm = startTestingResourceManager(_system, jm.actor())
+        rmOption = Some(rm)
 
-      within(20 seconds) {
-        jm.tell(
-          RegisterTaskManager(
-            resourceID,
-            connectionInfo,
-            hardwareDescription,
-            1),
-          selfGateway)
+        val selfGateway = new AkkaActorGateway(probe.ref, HighAvailabilityServices.DEFAULT_LEADER_ID)
 
-        jm.tell(
-          RegisterTaskManager(
-            resourceID,
-            connectionInfo,
-            hardwareDescription,
-            1),
-          selfGateway)
+        val resourceID = ResourceID.generate()
+        val connectionInfo = new TaskManagerLocation(resourceID, InetAddress.getLocalHost, 1)
+        val hardwareDescription = HardwareDescription.extractFromSystem(10)
 
-        jm.tell(
-          RegisterTaskManager(
-            resourceID,
-            connectionInfo,
-            hardwareDescription,
-            1),
-          selfGateway)
+        within(20 seconds) {
+          jm.tell(
+            RegisterTaskManager(
+              resourceID,
+              connectionInfo,
+              hardwareDescription,
+              1),
+              selfGateway)
 
-        expectMsgType[LeaderSessionMessage] match {
-          case LeaderSessionMessage(
-            HighAvailabilityServices.DEFAULT_LEADER_ID,
-            AcknowledgeRegistration(_, _)) =>
-          case m => fail("Wrong message type: " + m)
+          jm.tell(
+            RegisterTaskManager(
+              resourceID,
+              connectionInfo,
+              hardwareDescription,
+              1),
+              selfGateway)
+
+          jm.tell(
+            RegisterTaskManager(
+              resourceID,
+              connectionInfo,
+              hardwareDescription,
+              1),
+              selfGateway)
+
+          probe.expectMsgType[LeaderSessionMessage] match {
+            case LeaderSessionMessage(
+              HighAvailabilityServices.DEFAULT_LEADER_ID,
+              AcknowledgeRegistration(_, _)) =>
+            case m => fail("Wrong message type: " + m)
+          }
+
+          probe.expectMsgType[LeaderSessionMessage] match {
+            case LeaderSessionMessage(
+              HighAvailabilityServices.DEFAULT_LEADER_ID,
+              AlreadyRegistered(_, _)) =>
+            case m => fail("Wrong message type: " + m)
+          }
+
+          probe.expectMsgType[LeaderSessionMessage] match {
+            case LeaderSessionMessage(
+              HighAvailabilityServices.DEFAULT_LEADER_ID,
+              AlreadyRegistered(_, _)) =>
+            case m => fail("Wrong message type: " + m)
+          }
         }
-
-        expectMsgType[LeaderSessionMessage] match {
-          case LeaderSessionMessage(
-            HighAvailabilityServices.DEFAULT_LEADER_ID,
-            AlreadyRegistered(_, _)) =>
-          case m => fail("Wrong message type: " + m)
-        }
-
-        expectMsgType[LeaderSessionMessage] match {
-          case LeaderSessionMessage(
-            HighAvailabilityServices.DEFAULT_LEADER_ID,
-            AlreadyRegistered(_, _)) =>
-          case m => fail("Wrong message type: " + m)
-        }
+      } finally {
+        jmOption.foreach(TestingUtils.stopActorGracefully)
+        rmOption.foreach(TestingUtils.stopActorGracefully)
       }
     }
   }
 
   private def startTestingJobManager(system: ActorSystem): ActorGateway = {
-    val (jm: ActorRef, _) = JobManager.startJobManagerActors(
-      new Configuration(),
-      _system,
+    val config = new Configuration()
+
+    val components = JobManager.createJobManagerComponents(
+      config,
       executor,
       executor,
-      None,
-      None,
+      None)
+
+    // Start the JobManager without a MetricRegistry so that we don't start the MetricQueryService.
+    // The problem of the MetricQueryService is that it starts an actor with a fixed name. Thus,
+    // if there exists already one of these actors (e.g. JobManager has not been properly shutdown),
+    // then this will fail the JobManager creation
+    val props = JobManager.getJobManagerProps(
       classOf[JobManager],
-      classOf[MemoryArchivist])
+      config,
+      executor,
+      executor,
+      components._1,
+      components._2,
+      components._3,
+      ActorRef.noSender,
+      components._4,
+      components._5,
+      components._8,
+      components._9,
+      components._10,
+      components._11,
+      None)
+
+    val jm = _system.actorOf(props)
+
     new AkkaActorGateway(jm, HighAvailabilityServices.DEFAULT_LEADER_ID)
   }
 
