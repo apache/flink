@@ -18,8 +18,8 @@
 
 package org.apache.flink.graph.drivers;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.client.program.ProgramParametrizationException;
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -28,8 +28,15 @@ import org.junit.runners.Parameterized;
 public class GraphMetricsITCase
 extends DriverBaseITCase {
 
-	public GraphMetricsITCase(TestExecutionMode mode) {
-		super(mode);
+	public GraphMetricsITCase(String idType, TestExecutionMode mode) {
+		super(idType, mode);
+	}
+
+	private String[] parameters(int scale, String order, String output) {
+		return new String[] {
+			"--algorithm", "GraphMetrics", "--order", order,
+			"--input", "RMatGraph", "--scale", Integer.toString(scale), "--type", idType, "--simplify", order,
+			"--output", output};
 	}
 
 	@Test
@@ -43,58 +50,110 @@ extends DriverBaseITCase {
 	}
 
 	@Test
-	public void testWithDirectedRMatIntegerGraph() throws Exception {
+	public void testWithSmallDirectedRMatIntegerGraph() throws Exception {
 		String expected = "\n" +
 			"Vertex metrics:\n" +
-			"  vertex count: 902\n" +
-			"  edge count: 12,009\n" +
-			"  unidirectional edge count: 8,875\n" +
-			"  bidirectional edge count: 1,567\n" +
-			"  average degree: 13.314\n" +
-			"  density: 0.01477663\n" +
-			"  triplet count: 1,003,442\n" +
-			"  maximum degree: 463\n" +
-			"  maximum out degree: 334\n" +
-			"  maximum in degree: 342\n" +
-			"  maximum triplets: 106,953\n" +
+			"  vertex count: 117\n" +
+			"  edge count: 1,168\n" +
+			"  unidirectional edge count: 686\n" +
+			"  bidirectional edge count: 241\n" +
+			"  average degree: 9.983\n" +
+			"  density: 0.08605953\n" +
+			"  triplet count: 29,286\n" +
+			"  maximum degree: 91\n" +
+			"  maximum out degree: 77\n" +
+			"  maximum in degree: 68\n" +
+			"  maximum triplets: 4,095\n" +
 			"\n" +
 			"Edge metrics:\n" +
-			"  triangle triplet count: 107,817\n" +
-			"  rectangle triplet count: 315,537\n" +
-			"  maximum triangle triplets: 820\n" +
-			"  maximum rectangle triplets: 3,822\n";
+			"  triangle triplet count: 4,575\n" +
+			"  rectangle triplet count: 11,756\n" +
+			"  maximum triangle triplets: 153\n" +
+			"  maximum rectangle triplets: 391\n";
 
-		String[] arguments = new String[]{"--algorithm", "GraphMetrics", "--order", "directed",
-			"--input", "RMatGraph", "--type", "integer", "--simplify", "directed",
-			"--output"};
-
-		expectedOutput(ArrayUtils.addAll(arguments, "hash"), expected);
-		expectedOutput(ArrayUtils.addAll(arguments, "print"), expected);
+		expectedOutput(parameters(7, "directed", "hash"), expected);
+		expectedOutput(parameters(7, "directed", "print"), expected);
 	}
 
 	@Test
-	public void testWithUndirectedRMatIntegerGraph() throws Exception {
+	public void testWithLargeDirectedRMatIntegerGraph() throws Exception {
+		// skip 'byte' which cannot store vertex IDs for scale > 8
+		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
+
+		// skip 'string' which does not compare numerically and generates a different triangle count
+		Assume.assumeFalse(idType.equals("string") || idType.equals("nativeString"));
+
 		String expected = "\n" +
 			"Vertex metrics:\n" +
-			"  vertex count: 902\n" +
-			"  edge count: 10,442\n" +
-			"  average degree: 23.153\n" +
-			"  density: 0.025697\n" +
-			"  triplet count: 1,003,442\n" +
-			"  maximum degree: 463\n" +
-			"  maximum triplets: 106,953\n" +
+			"  vertex count: 3,349\n" +
+			"  edge count: 53,368\n" +
+			"  unidirectional edge count: 43,602\n" +
+			"  bidirectional edge count: 4,883\n" +
+			"  average degree: 15.936\n" +
+			"  density: 0.00475971\n" +
+			"  triplet count: 9,276,207\n" +
+			"  maximum degree: 1,356\n" +
+			"  maximum out degree: 921\n" +
+			"  maximum in degree: 966\n" +
+			"  maximum triplets: 918,690\n" +
 			"\n" +
 			"Edge metrics:\n" +
-			"  triangle triplet count: 107,817\n" +
-			"  rectangle triplet count: 315,537\n" +
-			"  maximum triangle triplets: 820\n" +
-			"  maximum rectangle triplets: 3,822\n";
+			"  triangle triplet count: 779,202\n" +
+			"  rectangle triplet count: 2,506,371\n" +
+			"  maximum triangle triplets: 3,160\n" +
+			"  maximum rectangle triplets: 16,835\n";
 
-		String[] arguments = new String[]{"--algorithm", "GraphMetrics", "--order", "undirected",
-				"--input", "RMatGraph", "--type", "integer", "--simplify", "undirected",
-				"--output"};
+		expectedOutput(parameters(12, "directed", "hash"), expected);
+		expectedOutput(parameters(12, "directed", "print"), expected);
+	}
 
-		expectedOutput(ArrayUtils.addAll(arguments, "hash"), expected);
-		expectedOutput(ArrayUtils.addAll(arguments, "print"), expected);
+	@Test
+	public void testWithSmallUndirectedRMatIntegerGraph() throws Exception {
+		String expected = "\n" +
+			"Vertex metrics:\n" +
+			"  vertex count: 117\n" +
+			"  edge count: 927\n" +
+			"  average degree: 15.846\n" +
+			"  density: 0.13660477\n" +
+			"  triplet count: 29,286\n" +
+			"  maximum degree: 91\n" +
+			"  maximum triplets: 4,095\n" +
+			"\n" +
+			"Edge metrics:\n" +
+			"  triangle triplet count: 4,575\n" +
+			"  rectangle triplet count: 11,756\n" +
+			"  maximum triangle triplets: 153\n" +
+			"  maximum rectangle triplets: 391\n";
+
+		expectedOutput(parameters(7, "undirected", "hash"), expected);
+		expectedOutput(parameters(7, "undirected", "print"), expected);
+	}
+
+	@Test
+	public void testWithLargelUndirectedRMatIntegerGraph() throws Exception {
+		// skip 'byte' which cannot store vertex IDs for scale > 8
+		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
+
+		// skip 'string' which does not compare numerically and generates a different triangle count
+		Assume.assumeFalse(idType.equals("string") || idType.equals("nativeString"));
+
+		String expected = "\n" +
+			"Vertex metrics:\n" +
+			"  vertex count: 3,349\n" +
+			"  edge count: 48,485\n" +
+			"  average degree: 28.955\n" +
+			"  density: 0.00864842\n" +
+			"  triplet count: 9,276,207\n" +
+			"  maximum degree: 1,356\n" +
+			"  maximum triplets: 918,690\n" +
+			"\n" +
+			"Edge metrics:\n" +
+			"  triangle triplet count: 779,202\n" +
+			"  rectangle triplet count: 2,506,371\n" +
+			"  maximum triangle triplets: 3,160\n" +
+			"  maximum rectangle triplets: 16,835\n";
+
+		expectedOutput(parameters(12, "undirected", "hash"), expected);
+		expectedOutput(parameters(12, "undirected", "print"), expected);
 	}
 }

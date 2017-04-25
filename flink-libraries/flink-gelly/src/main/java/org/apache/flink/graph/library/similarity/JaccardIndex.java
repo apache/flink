@@ -80,6 +80,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	private int maximumScoreDenominator = 1;
 
+	private boolean mirrorResults;
+
 	private int littleParallelism = PARALLELISM_DEFAULT;
 
 	/**
@@ -141,6 +143,20 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	/**
+	 * By default only one result is output for each pair of vertices. When
+	 * mirroring a second result with the vertex order flipped is output for
+	 * each pair of vertices.
+	 *
+	 * @param mirrorResults whether output results should be mirrored
+	 * @return this
+	 */
+	public JaccardIndex<K, VV, EV> setMirrorResults(boolean mirrorResults) {
+		this.mirrorResults = mirrorResults;
+
+		return this;
+	}
+
+	/**
 	 * Override the parallelism of operators processing small amounts of data.
 	 *
 	 * @param littleParallelism operator parallelism
@@ -176,7 +192,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			minimumScoreNumerator != rhs.minimumScoreNumerator ||
 			minimumScoreDenominator != rhs.minimumScoreDenominator ||
 			maximumScoreNumerator != rhs.maximumScoreNumerator ||
-			maximumScoreDenominator != rhs.maximumScoreDenominator) {
+			maximumScoreDenominator != rhs.maximumScoreDenominator ||
+			mirrorResults != rhs.mirrorResults) {
 			return false;
 		}
 
@@ -230,12 +247,20 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.name("Generate group pairs");
 
 		// t, u, intersection, union
-		return twoPaths
+		DataSet<Result<K>> scores = twoPaths
 			.groupBy(0, 1)
 			.reduceGroup(new ComputeScores<K>(unboundedScores,
 					minimumScoreNumerator, minimumScoreDenominator,
 					maximumScoreNumerator, maximumScoreDenominator))
 				.name("Compute scores");
+
+		if (mirrorResults) {
+			scores = scores
+				.flatMap(new MirrorResult<K, Result<K>>())
+					.name("Mirror results");
+		}
+
+		return scores;
 	}
 
 	/**
@@ -447,6 +472,27 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				output.f3.setValue(distinctNeighbors);
 				out.collect(output);
 			}
+		}
+	}
+
+	/**
+	 * Output each input and a second result with the vertex order flipped.
+	 *
+	 * @param <T> ID type
+	 * @param <RT> result type
+	 */
+	private static class MirrorResult<T, RT extends BinaryResult<T>>
+	implements FlatMapFunction<RT, RT> {
+		@Override
+		public void flatMap(RT value, Collector<RT> out)
+				throws Exception {
+			out.collect(value);
+
+			T tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			out.collect(value);
 		}
 	}
 

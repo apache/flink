@@ -80,17 +80,16 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@ForwardedFields("*->f0")
-	public class LinkVertexToAll
+	private static class LinkVertexToAll
 	implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
-
 		private final long vertexCount;
 
 		private LongValue target = new LongValue();
 
 		private Edge<LongValue, NullValue> edge = new Edge<>(null, target, NullValue.getInstance());
 
-		public LinkVertexToAll(long vertex_count) {
-			this.vertexCount = vertex_count;
+		public LinkVertexToAll(long vertexCount) {
+			this.vertexCount = vertexCount;
 		}
 
 		@Override
