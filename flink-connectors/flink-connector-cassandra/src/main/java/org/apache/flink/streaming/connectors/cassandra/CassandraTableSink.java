@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
-import com.datastax.driver.core.Cluster;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -26,9 +25,6 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import java.net.InetSocketAddress;
-import java.util.Collection;
-import java.util.List;
 import java.util.Properties;
 
 /**
@@ -36,17 +32,15 @@ import java.util.Properties;
  *
  */
 class CassandraTableSink implements StreamTableSink<Row> {
-	private final List<InetSocketAddress> hostAddrs;
+	private final ClusterBuilder builder;
 	private final String cql;
-	private final String[] fieldNames;
-	private final TypeInformation[] fieldTypes;
+	private String[] fieldNames;
+	private TypeInformation[] fieldTypes;
 	private final Properties properties;
 
-	public CassandraTableSink(List<InetSocketAddress> hostAddrs, String cql, String[] fieldNames, TypeInformation[] fieldTypes, Properties properties) {
-		this.hostAddrs = Preconditions.checkNotNull(hostAddrs, "hostAddrs");
+	public CassandraTableSink(ClusterBuilder builder, String cql, Properties properties) {
+		this.builder = Preconditions.checkNotNull(builder, "builder");
 		this.cql = Preconditions.checkNotNull(cql, "cql");
-		this.fieldNames = Preconditions.checkNotNull(fieldNames, "fieldNames");
-		this.fieldTypes = Preconditions.checkNotNull(fieldTypes, "fieldTypes");
 		this.properties = Preconditions.checkNotNull(properties, "properties");
 	}
 
@@ -67,35 +61,23 @@ class CassandraTableSink implements StreamTableSink<Row> {
 
 	@Override
 	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		fieldNames = Preconditions.checkNotNull(fieldNames, "fieldNames");
-		fieldTypes = Preconditions.checkNotNull(fieldTypes, "fieldTypes");
+		CassandraTableSink cassandraTableSink = new CassandraTableSink(this.builder, this.cql, this.properties);
+		cassandraTableSink.fieldNames = Preconditions.checkNotNull(fieldNames, "fieldNames");
+		cassandraTableSink.fieldTypes = Preconditions.checkNotNull(fieldTypes, "fieldTypes");
 		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
 			"Number of provided field names and types does not match.");
-		return new CassandraTableSink(this.hostAddrs, this.cql, fieldNames, fieldTypes, this.properties);
+		return cassandraTableSink;
 	}
 
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
 		try {
 			CassandraSink.addSink(dataStream)
-				.setClusterBuilder(new CassandraClusterBuilder(this.hostAddrs))
+				.setClusterBuilder(this.builder)
 				.setQuery(this.cql)
 				.build();
 		} catch (Exception e) {
 			throw new RuntimeException(e);
-		}
-	}
-
-	private class CassandraClusterBuilder extends ClusterBuilder {
-		private final Collection<InetSocketAddress> hostAddrs;
-
-		CassandraClusterBuilder(Collection<InetSocketAddress> hostAddrs) {
-			this.hostAddrs = hostAddrs;
-		}
-
-		@Override
-		protected Cluster buildCluster(Cluster.Builder builder) {
-			return builder.addContactPointsWithPorts(hostAddrs).build();
 		}
 	}
 }

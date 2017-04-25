@@ -46,7 +46,6 @@ import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
-import com.google.common.collect.ImmutableList;
 import org.apache.cassandra.service.CassandraDaemon;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -117,7 +116,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	private static final ArrayList<Tuple3<String, Integer, Integer>> collection = new ArrayList<>(20);
 	private static final ArrayList<org.apache.flink.types.Row> rowCollection = new ArrayList<>(20);
 
-	private static final String[] FIELD_NAME = new String[] {"id, counter, batch_id"};
+	private static final String[] FIELD_NAMES = new String[] {"id", "counter", "batch_id"};
 	private static final TypeInformation[] FIELD_TYPES = new TypeInformation[] {BasicTypeInfo.STRING_TYPE_INFO,
 	BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO};
 
@@ -398,7 +397,9 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		env.setParallelism(1);
 
 		DataStreamSource<org.apache.flink.types.Row> source = env.fromCollection(rowCollection);
-		source.addSink(new CassandraRowSink(INSERT_DATA_QUERY, builder));
+
+		new CassandraSink.CassandraRowSinkBuilder(source, source.getType(),
+			source.getType().createSerializer(source.getExecutionEnvironment().getConfig())).setQuery(INSERT_DATA_QUERY).setClusterBuilder(builder).build();
 
 		env.execute();
 
@@ -430,7 +431,13 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		env.setParallelism(1);
 
 		DataStreamSource<org.apache.flink.types.Row> source = env.fromCollection(rowCollection);
-		CassandraTableSink cassandraTableSink = new CassandraTableSink(ImmutableList.of(new InetSocketAddress(HOST, PORT)), INSERT_DATA_QUERY, FIELD_NAME, FIELD_TYPES, new Properties());
+		CassandraTableSink cassandraTableSink = new CassandraTableSink(new ClusterBuilder() {
+			@Override
+			protected Cluster buildCluster(Cluster.Builder builder) {
+				return builder.addContactPointsWithPorts(new InetSocketAddress(HOST, PORT)).build();
+			}
+		}, INSERT_DATA_QUERY, new Properties());
+		cassandraTableSink.configure(FIELD_NAMES, FIELD_TYPES);
 
 		cassandraTableSink.emitDataStream(source);
 
