@@ -1747,6 +1747,7 @@ The Table API is built on top of Flink's DataSet and DataStream API. Internally,
 | `Types.INTERVAL_MILLIS`| `INTERVAL DAY TO SECOND(3)` | `java.lang.Long`       |
 | `Types.PRIMITIVE_ARRAY`| `ARRAY`                     | e.g. `int[]`           |
 | `Types.OBJECT_ARRAY`   | `ARRAY`                     | e.g. `java.lang.Byte[]`|
+| `Types.MAP`            | `MAP`                       | `java.util.HashMap`    |
 
 
 Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and array types (object or primitive arrays) can be fields of a row. 
