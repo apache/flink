@@ -71,7 +71,7 @@ public class DatadogHttpClient{
 					String.format("API key: %s is invalid", apiKey));
 			}
 		} catch(IOException e) {
-			throw new IllegalStateException("Failed contacting Datadog to validate API key");
+			throw new IllegalStateException("Failed contacting Datadog to validate API key", e);
 		}
 	}
 
