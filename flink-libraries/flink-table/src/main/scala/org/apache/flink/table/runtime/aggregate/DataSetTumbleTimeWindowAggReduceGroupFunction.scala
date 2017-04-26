@@ -69,7 +69,7 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
   override def open(config: Configuration) {
     aggregateBuffer = new Row(intermediateRowArity)
     output = new Row(finalRowArity)
-    collector = new TimeWindowPropertyCollector(windowStartPos, windowEndPos)
+    collector = new RowTimeWindowPropertyCollector(windowStartPos, windowEndPos)
 
     // init lists with two empty accumulators
     for (i <- aggregates.indices) {

@@ -39,7 +39,7 @@ class DataStreamUnion(
     rightNode: RelNode,
     rowRelDataType: RelDataType)
   extends BiRel(cluster, traitSet, leftNode, rightNode)
-  with DataStreamRel[CRow] {
+  with DataStreamRel {
 
   override def deriveRowType() = rowRelDataType
 
@@ -63,8 +63,8 @@ class DataStreamUnion(
 
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[CRow] = {
 
-    val leftDataSet = left.asInstanceOf[DataStreamRel[CRow]].translateToPlan(tableEnv)
-    val rightDataSet = right.asInstanceOf[DataStreamRel[CRow]].translateToPlan(tableEnv)
+    val leftDataSet = left.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
+    val rightDataSet = right.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
     leftDataSet.union(rightDataSet)
   }
 

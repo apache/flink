@@ -23,28 +23,26 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedFunction}
-import org.apache.flink.table.runtime.FlatMapRunner
-import org.apache.flink.table.runtime.types.CRowTypeInfo
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
-trait CommonCalc {
+trait CommonCalc[T] {
 
-  private[flink] def functionBody[T](
+  private[flink] def generateFunction(
       generator: CodeGenerator,
-      inputType: TypeInformation[T],
+      ruleDescription: String,
+      inputType: TypeInformation[Row],
       rowType: RelDataType,
       calcProgram: RexProgram,
-      config: TableConfig)
-    : String = {
+      config: TableConfig):
+    GeneratedFunction[FlatMapFunction[Row, Row], Row] = {
 
-    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType, inputType.getTypeClass)
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType)
 
     val condition = calcProgram.getCondition
     val expandedExpressions = calcProgram.getProjectList.map(
@@ -54,18 +52,10 @@ trait CommonCalc {
       rowType.getFieldNames,
       expandedExpressions)
 
-    val retractionProcessCode =
-      if (inputType.isInstanceOf[CRowTypeInfo] && returnType.isInstanceOf[CRowTypeInfo]) {
-        s"${projection.resultTerm}.change_$$eq(${generator.input1Term}.change());"
-      } else {
-        ""
-      }
-
     // only projection
-    if (condition == null) {
+    val body = if (condition == null) {
       s"""
         |${projection.code}
-        |${retractionProcessCode}
         |${generator.collectorTerm}.collect(${projection.resultTerm});
         |""".stripMargin
     }
@@ -87,23 +77,23 @@ trait CommonCalc {
           |${filterCondition.code}
           |if (${filterCondition.resultTerm}) {
           |  ${projection.code}
-          |  ${retractionProcessCode}
           |  ${generator.collectorTerm}.collect(${projection.resultTerm});
           |}
           |""".stripMargin
       }
     }
+
+    generator.generateFunction(
+      ruleDescription,
+      classOf[FlatMapFunction[Row, Row]],
+      body,
+      returnType)
   }
 
-  private[flink] def calcMapFunction[T](
-      genFunction: GeneratedFunction[FlatMapFunction[T, T], T])
-    : RichFlatMapFunction[T, T] = {
-
-    new FlatMapRunner[T, T](
-      genFunction.name,
-      genFunction.code,
-      genFunction.returnType)
-  }
+  private[flink] def calcMapFunction(
+      genFunction: GeneratedFunction[FlatMapFunction[Row, Row], Row],
+      returnType: TypeInformation[T]):
+    RichFlatMapFunction[T, T]
 
   private[flink] def conditionToString(
       calcProgram: RexProgram,

@@ -43,7 +43,7 @@ class IncrementalAggregateAllTimeWindowFunction(
   private var collector: TimeWindowPropertyCollector[CRow] = _
 
   override def open(parameters: Configuration): Unit = {
-    collector = new TimeWindowPropertyCollector(windowStartPos, windowEndPos)
+    collector = new CRowTimeWindowPropertyCollector(windowStartPos, windowEndPos)
     super.open(parameters)
   }
 

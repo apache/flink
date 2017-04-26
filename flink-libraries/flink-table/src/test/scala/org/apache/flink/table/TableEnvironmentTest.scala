@@ -218,7 +218,6 @@ class TableEnvironmentTest extends TableTestBase {
       ))
   }
 
-
   @Test
   def testGetFieldInfoCRowAlias1(): Unit = {
     val fieldInfo = tEnv.getFieldInfo(

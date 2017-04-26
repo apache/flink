@@ -104,9 +104,7 @@ class DataSetAggregate(
 
     val aggString = aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)
 
-    val rowTypeInfo = FlinkTypeFactory
-      .toInternalRowTypeInfo(getRowType, classOf[Row])
-      .asInstanceOf[RowTypeInfo]
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
     if (grouping.length > 0) {
       // grouped aggregation

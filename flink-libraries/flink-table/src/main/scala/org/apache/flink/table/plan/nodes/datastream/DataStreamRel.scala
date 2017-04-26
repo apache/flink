@@ -22,16 +22,17 @@ import org.apache.calcite.rel.RelNode
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.plan.nodes.FlinkRel
+import org.apache.flink.table.runtime.types.CRow
 
-trait DataStreamRel[T] extends RelNode with FlinkRel {
+trait DataStreamRel extends RelNode with FlinkRel {
 
   /**
     * Translates the FlinkRelNode into a Flink operator.
     *
     * @param tableEnv The [[StreamTableEnvironment]] of the translated Table.
-    * @return DataStream of type T
+    * @return DataStream of type [[CRow]]
     */
-  def translateToPlan(tableEnv: StreamTableEnvironment) : DataStream[T]
+  def translateToPlan(tableEnv: StreamTableEnvironment) : DataStream[CRow]
 
   /**
     * Whether the [[DataStreamRel]] requires that update and delete changes are sent with retraction

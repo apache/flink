@@ -43,7 +43,6 @@ import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.runtime.TableFunctionCollector
-import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
 
@@ -256,22 +255,16 @@ class CodeGenerator(
     *
     * @return A GeneratedAggregationsFunction
     */
-  def generateAggregations[T](
+  def generateAggregations(
      name: String,
      generator: CodeGenerator,
      inputType: RelDataType,
-     inputTypeInfo: TypeInformation[T],
-     returnTypeInfo: TypeInformation[T],
      aggregates: Array[AggregateFunction[_ <: Any]],
      aggFields: Array[Array[Int]],
      aggMapping: Array[Int],
      fwdMapping: Array[(Int, Int)],
      outputArity: Int)
   : GeneratedAggregationsFunction = {
-
-
-    val inputGetCRow = if (inputTypeInfo.getTypeClass == classOf[CRow]) "row()." else ""
-    val outputGetCRow = if (returnTypeInfo.getTypeClass == classOf[CRow]) "row()." else ""
 
     def generateSetAggregationResults(
       accTypes: Array[String],
@@ -282,7 +275,7 @@ class CodeGenerator(
         j"""
             |  public void setAggregationResults(
             |    org.apache.flink.types.Row accs,
-            |    ${primitiveTypeTermForTypeInfo(returnTypeInfo)} output)""".stripMargin
+            |    org.apache.flink.types.Row output)""".stripMargin
 
       val setAggs: String = {
         for (i <- aggs.indices) yield
@@ -290,7 +283,7 @@ class CodeGenerator(
              |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
              |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
              |
-             |    output.${outputGetCRow}setField(
+             |    output.setField(
              |      ${aggMapping(i)},
              |      baseClass$i.getValue((${accTypes(i)}) accs.getField($i)));""".stripMargin
       }.mkString("\n")
@@ -309,7 +302,7 @@ class CodeGenerator(
         j"""
             |  public void accumulate(
             |    org.apache.flink.types.Row accs,
-            |    ${primitiveTypeTermForTypeInfo(inputTypeInfo)} input)""".stripMargin
+            |    org.apache.flink.types.Row input)""".stripMargin
 
       val accumulate: String = {
         for (i <- aggs.indices) yield
@@ -333,7 +326,7 @@ class CodeGenerator(
         j"""
             |  public void retract(
             |    org.apache.flink.types.Row accs,
-            |    ${primitiveTypeTermForTypeInfo(inputTypeInfo)} input)""".stripMargin
+            |    org.apache.flink.types.Row input)""".stripMargin
 
       val retract: String = {
         for (i <- aggs.indices) yield
@@ -386,15 +379,15 @@ class CodeGenerator(
       val sig: String =
         j"""
            |  public void setForwardedFields(
-           |    ${primitiveTypeTermForTypeInfo(inputTypeInfo)} input,
-           |    ${primitiveTypeTermForTypeInfo(returnTypeInfo)} output)
+           |    org.apache.flink.types.Row input,
+           |    org.apache.flink.types.Row output)
            |    """.stripMargin
       val forward: String = {
         for (i <- forwardMapping.indices) yield
           j"""
-             |    output.${outputGetCRow}setField(
+             |    output.setField(
              |      ${forwardMapping(i)._1},
-             |      input.${inputGetCRow}getField(${forwardMapping(i)._2}));"""
+             |      input.getField(${forwardMapping(i)._2}));"""
             .stripMargin
       }.mkString("\n")
 
@@ -404,21 +397,10 @@ class CodeGenerator(
     }
 
     def generateCreateOutputRow(outputArity: Int): String = {
-      returnTypeInfo match {
-        case ri: RowTypeInfo =>
-          j"""
-             |  public ${primitiveTypeTermForTypeInfo(ri)} createOutputRow() {
-             |    return new ${primitiveTypeTermForTypeInfo(ri)}($outputArity);
-             |  }""".stripMargin
-        case cri: CRowTypeInfo =>
-          j"""
-             |  public ${primitiveTypeTermForTypeInfo(cri)} createOutputRow() {
-             |    return new ${primitiveTypeTermForTypeInfo(cri)}
-             |    (new ${cri.rowType.getTypeClass.getCanonicalName}($outputArity), true);
-             |  }""".stripMargin
-        case _ =>
-          throw new CodeGenException(s"Unsupported result type: $returnTypeInfo")
-      }
+      j"""
+         |  public org.apache.flink.types.Row createOutputRow() {
+         |    return new org.apache.flink.types.Row($outputArity);
+         |  }""".stripMargin
     }
 
     // get unique function name
@@ -436,7 +418,7 @@ class CodeGenerator(
       .map(t => t.getTypeClass.getCanonicalName)
     // get parameter lists for aggregation functions
     val parameters = aggFields.map {inFields =>
-      val fields = for (f <- inFields) yield s"(${javaTypes(f)}) input.${inputGetCRow}getField($f)"
+      val fields = for (f <- inFields) yield s"(${javaTypes(f)}) input.getField($f)"
       fields.mkString(", ")
     }
 
@@ -568,7 +550,7 @@ class CodeGenerator(
     * @tparam T Return type of the Flink Function.
     * @return instance of GeneratedFunction
     */
-  def generateValuesInputFormat[T](
+  def generateValuesInputFormat[T <: Row](
       name: String,
       records: Seq[String],
       returnType: TypeInformation[T])
@@ -762,8 +744,7 @@ class CodeGenerator(
           case _ => // ok
         }
 
-      case at: AtomicType[_] if at.getTypeClass != classOf[Row] &&
-        at != fieldExprs.head.resultType =>
+      case at: AtomicType[_] if at != fieldExprs.head.resultType =>
         throw new CodeGenException("Incompatible types of expression and result type.")
 
       case _ => // ok
@@ -794,31 +775,6 @@ class CodeGenerator(
               |${fieldExpr.code}
               |$outRecordTerm.setField($i, ${fieldExpr.resultTerm});
               |""".stripMargin
-            }
-        } mkString "\n"
-
-        GeneratedExpression(outRecordTerm, "false", resultSetters, returnType)
-
-      case cri: CRowTypeInfo =>
-        addReusableOutRecord(cri)
-        val resultSetters: String = boxedFieldExprs.zipWithIndex map {
-          case (fieldExpr, i) =>
-            if (nullCheck) {
-              s"""
-                 |${fieldExpr.code}
-                 |if (${fieldExpr.nullTerm}) {
-                 |  $outRecordTerm.row().setField($i, null);
-                 |}
-                 |else {
-                 |  $outRecordTerm.row().setField($i, ${fieldExpr.resultTerm});
-                 |}
-                 |""".stripMargin
-            }
-            else {
-              s"""
-                 |${fieldExpr.code}
-                 |$outRecordTerm.row().setField($i, ${fieldExpr.resultTerm});
-                 |""".stripMargin
             }
         } mkString "\n"
 
@@ -1503,12 +1459,7 @@ class CodeGenerator(
 
           case ProductAccessor(i) =>
             // Object
-            val inputCode =
-              if (inputType.getTypeClass == classOf[CRow]) {
-                s"($fieldTypeTerm) $inputTerm.row().getField($i)"
-              } else {
-                s"($fieldTypeTerm) $inputTerm.getField($i)"
-              }
+            val inputCode = s"($fieldTypeTerm) $inputTerm.getField($i)"
             generateInputFieldUnboxing(fieldType, inputCode)
 
           case ObjectPrivateFieldAccessor(field) =>
@@ -1695,12 +1646,6 @@ class CodeGenerator(
           |transient ${ti.getTypeClass.getCanonicalName} $outRecordTerm =
           |    new ${ti.getTypeClass.getCanonicalName}(${rt.getArity});
           |""".stripMargin
-      case crt: CRowTypeInfo =>
-        s"""
-           |transient ${ti.getTypeClass.getCanonicalName} $outRecordTerm =
-           |    new ${ti.getTypeClass.getCanonicalName}
-           |    (new ${crt.rowType.getTypeClass.getCanonicalName}(${crt.getArity}), true);
-           |""".stripMargin
       case _ =>
         s"""
           |${ti.getTypeClass.getCanonicalName} $outRecordTerm =

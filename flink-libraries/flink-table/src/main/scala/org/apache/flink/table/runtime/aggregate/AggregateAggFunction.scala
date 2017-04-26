@@ -49,10 +49,12 @@ class AggregateAggFunction(
 
   override def add(value: CRow, accumulatorRow: Row): Unit = {
 
+    val row = value.row
+
     var i = 0
     while (i < aggregates.length) {
       val acc = accumulatorRow.getField(i).asInstanceOf[Accumulator]
-      val v = value.row.getField(aggFields(i)(0))
+      val v = row.getField(aggFields(i)(0))
       aggregates(i).accumulate(acc, v)
       i += 1
     }

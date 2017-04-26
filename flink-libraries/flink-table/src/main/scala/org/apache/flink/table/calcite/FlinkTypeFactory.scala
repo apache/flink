@@ -36,7 +36,6 @@ import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils.isSimple
 import org.apache.flink.table.plan.schema.ArrayRelDataType
 import org.apache.flink.table.calcite.FlinkTypeFactory.typeInfoToSqlTypeName
-import org.apache.flink.table.runtime.types.CRowTypeInfo
 import org.apache.flink.types.Row
 
 import scala.collection.mutable
@@ -176,19 +175,14 @@ object FlinkTypeFactory {
   /**
     * Converts a Calcite logical record into a Flink type information.
     */
-  def toInternalRowTypeInfo[T](logicalRowType: RelDataType, resultClass: Class[T])
-    : TypeInformation[_] = {
+  def toInternalRowTypeInfo(logicalRowType: RelDataType): TypeInformation[Row] = {
     // convert to type information
     val logicalFieldTypes = logicalRowType.getFieldList.asScala map { relDataType =>
       FlinkTypeFactory.toTypeInfo(relDataType.getType)
     }
     // field names
     val logicalFieldNames = logicalRowType.getFieldNames.asScala
-    if (resultClass == classOf[Row]) {
-      new RowTypeInfo(logicalFieldTypes.toArray, logicalFieldNames.toArray)
-    } else {
-      new CRowTypeInfo(new RowTypeInfo(logicalFieldTypes.toArray, logicalFieldNames.toArray))
-    }
+    new RowTypeInfo(logicalFieldTypes.toArray, logicalFieldNames.toArray)
   }
 
   def toTypeInfo(relDataType: RelDataType): TypeInformation[_] = relDataType.getSqlTypeName match {

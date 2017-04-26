@@ -16,40 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.types
+package org.apache.flink.table.runtime
 
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
+import org.apache.flink.util.Collector
 
 /**
-  * Wrapper for a [[Row]] to add retraction information.
-  *
-  * If [[change]] is true, the [[CRow]] is an accumulate message, if it is false it is a
-  * retraction message.
-  *
-  * @param row The wrapped [[Row]].
-  * @param change true for an accumulate message, false for a retraction message.
+  * The collector is used to wrap a [[Row]] to a [[CRow]]
   */
-class CRow(var row: Row, var change: Boolean) {
+class CRowWrappingCollector() extends Collector[Row] {
 
-  def this() {
-    this(null, true)
+  var out: Collector[CRow] = _
+  val outCRow: CRow = new CRow()
+
+  def setChange(change: Boolean): Unit = this.outCRow.change = change
+
+  override def collect(record: Row): Unit = {
+    outCRow.row = record
+    out.collect(outCRow)
   }
 
-  override def toString: String = s"${if(change) "+" else "-"}$row"
-
-  override def equals(other: scala.Any): Boolean = {
-    val otherCRow = other.asInstanceOf[CRow]
-    row.equals(otherCRow.row) && change == otherCRow.change
-  }
-}
-
-object CRow {
-
-  def apply(): CRow = {
-    new CRow()
-  }
-
-  def apply(row: Row, change: Boolean): CRow = {
-    new CRow(row, change)
-  }
+  override def close(): Unit = out.close()
 }

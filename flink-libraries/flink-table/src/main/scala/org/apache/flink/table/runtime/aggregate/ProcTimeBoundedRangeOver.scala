@@ -53,7 +53,7 @@ class ProcTimeBoundedRangeOver(
     with Compiler[GeneratedAggregations] {
   private var output: CRow = _
   private var accumulatorState: ValueState[Row] = _
-  private var rowMapState: MapState[Long, JList[CRow]] = _
+  private var rowMapState: MapState[Long, JList[Row]] = _
 
   val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
@@ -67,19 +67,20 @@ class ProcTimeBoundedRangeOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
-    output = function.createOutputRow()
 
     // We keep the elements received in a MapState indexed based on their ingestion time
-    val rowListTypeInfo: TypeInformation[JList[CRow]] =
-      new ListTypeInfo[CRow](inputType).asInstanceOf[TypeInformation[JList[CRow]]]
-    val mapStateDescriptor: MapStateDescriptor[Long, JList[CRow]] =
-      new MapStateDescriptor[Long, JList[CRow]]("rowmapstate",
+    val rowListTypeInfo: TypeInformation[JList[Row]] =
+      new ListTypeInfo[CRow](inputType).asInstanceOf[TypeInformation[JList[Row]]]
+    val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
+      new MapStateDescriptor[Long, JList[Row]]("rowmapstate",
         BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]], rowListTypeInfo)
     rowMapState = getRuntimeContext.getMapState(mapStateDescriptor)
 
     val stateDescriptor: ValueStateDescriptor[Row] =
       new ValueStateDescriptor[Row]("overState", aggregatesTypeInfo)
     accumulatorState = getRuntimeContext.getState(stateDescriptor)
+
+    output = new CRow(function.createOutputRow(), true)
   }
 
   override def processElement(
@@ -94,11 +95,11 @@ class ProcTimeBoundedRangeOver(
     var rowList = rowMapState.get(currentTime)
     // null value means that this si the first event received for this timestamp
     if (rowList == null) {
-      rowList = new ArrayList[CRow]()
+      rowList = new ArrayList[Row]()
       // register timer to process event once the current millisecond passed
       ctx.timerService.registerProcessingTimeTimer(currentTime + 1)
     }
-    rowList.add(input)
+    rowList.add(input.row)
     rowMapState.put(currentTime, rowList)
 
   }
@@ -167,10 +168,10 @@ class ProcTimeBoundedRangeOver(
       val input = currentElements.get(iElemenets)
 
       // set the fields of the last event to carry on with the aggregates
-      function.setForwardedFields(input, output)
+      function.setForwardedFields(input, output.row)
 
       // add the accumulators values to result
-      function.setAggregationResults(accumulators, output)
+      function.setAggregationResults(accumulators, output.row)
       out.collect(output)
       iElemenets += 1
     }

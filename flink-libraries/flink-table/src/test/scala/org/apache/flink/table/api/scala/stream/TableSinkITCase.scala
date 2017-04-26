@@ -59,7 +59,7 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
 
     TestBaseUtils.compareResultsByLinesInMemory(expected, path)
   }
-
+  
   @Test
   def testStreamTableSinkWithCRow(): Unit = {
 
@@ -88,5 +88,4 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
 
     TestBaseUtils.compareResultsByLinesInMemory(expected, path)
   }
-
 }

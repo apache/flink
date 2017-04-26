@@ -24,13 +24,15 @@ import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex._
-import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.codegen.{CodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.nodes.CommonCalc
+import org.apache.flink.table.runtime.FlatMapRunner
 import org.apache.flink.types.Row
 
 /**
@@ -45,7 +47,7 @@ class DataSetCalc(
     calcProgram: RexProgram,
     ruleDescription: String)
   extends Calc(cluster, traitSet, input, calcProgram)
-  with CommonCalc
+  with CommonCalc[Row]
   with DataSetRel {
 
   override def deriveRowType(): RelDataType = rowRelDataType
@@ -78,6 +80,16 @@ class DataSetCalc(
     estimateRowCount(calcProgram, rowCnt)
   }
 
+  override def calcMapFunction(
+      genFunction: GeneratedFunction[FlatMapFunction[Row, Row], Row],
+      returnType: TypeInformation[Row]): RichFlatMapFunction[Row, Row] = {
+
+    new FlatMapRunner(
+      genFunction.name,
+      genFunction.code,
+      returnType)
+  }
+
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
     val config = tableEnv.getConfig
@@ -85,25 +97,20 @@ class DataSetCalc(
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val returnType = FlinkTypeFactory
-      .toInternalRowTypeInfo(getRowType, classOf[Row])
+      .toInternalRowTypeInfo(getRowType)
       .asInstanceOf[RowTypeInfo]
 
     val generator = new CodeGenerator(config, false, inputDS.getType)
 
-    val body = functionBody(
+    val genFunction = generateFunction(
       generator,
+      ruleDescription,
       inputDS.getType,
       getRowType,
       calcProgram,
       config)
 
-    val genFunction = generator.generateFunction(
-      ruleDescription,
-      classOf[FlatMapFunction[Row, Row]],
-      body,
-      returnType)
-
-    val mapFunc = calcMapFunction(genFunction)
+    val mapFunc = calcMapFunction(genFunction, returnType)
     inputDS.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString))
   }
 }

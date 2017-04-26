@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan._
-import org.apache.flink.table.runtime.types.CRow
 
 class DataStreamConvention extends Convention {
 
@@ -31,7 +30,7 @@ class DataStreamConvention extends Convention {
 
   override def canConvertConvention(toConvention: Convention): Boolean = false
 
-  def getInterface: Class[_] = classOf[DataStreamRel[CRow]]
+  def getInterface: Class[_] = classOf[DataStreamRel]
 
   def getName: String = "DATASTREAM"
 

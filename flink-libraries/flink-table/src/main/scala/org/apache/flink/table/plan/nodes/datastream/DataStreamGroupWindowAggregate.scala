@@ -50,7 +50,7 @@ class DataStreamGroupWindowAggregate(
     rowRelDataType: RelDataType,
     inputType: RelDataType,
     grouping: Array[Int])
-  extends SingleRel(cluster, traitSet, inputNode) with CommonAggregate with DataStreamRel[CRow] {
+  extends SingleRel(cluster, traitSet, inputNode) with CommonAggregate with DataStreamRel {
 
   override def deriveRowType(): RelDataType = rowRelDataType
 
@@ -105,7 +105,7 @@ class DataStreamGroupWindowAggregate(
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[CRow] = {
 
     val groupingKeys = grouping.indices.toArray
-    val inputDS = input.asInstanceOf[DataStreamRel[CRow]].translateToPlan(tableEnv)
+    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
 
     val consumeRetraction = DataStreamRetractionRules.isAccRetract(input)
 
@@ -115,9 +115,7 @@ class DataStreamGroupWindowAggregate(
           "not follow a non-windowed GroupBy.")
     }
 
-    val rowTypeInfo = FlinkTypeFactory
-      .toInternalRowTypeInfo(getRowType, inputDS.getType.getTypeClass)
-      .asInstanceOf[CRowTypeInfo]
+    val rowTypeInfo = CRowTypeInfo(FlinkTypeFactory.toInternalRowTypeInfo(getRowType))
 
     val aggString = aggregationToString(
       inputType,

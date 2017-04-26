@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeinfo.{FractionalTypeInfo, SqlTimeTypeInfo
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.table.runtime.types.CRowTypeInfo
 import org.apache.flink.table.typeutils.{TimeIntervalTypeInfo, TypeCheckUtils}
 
 object CodeGenUtils {
@@ -232,9 +231,6 @@ object CodeGenUtils {
   def fieldAccessorFor(compType: CompositeType[_], index: Int): FieldAccessor = {
     compType match {
       case ri: RowTypeInfo =>
-        ProductAccessor(index)
-
-      case cri: CRowTypeInfo =>
         ProductAccessor(index)
 
       case cc: CaseClassTypeInfo[_] =>

@@ -62,8 +62,6 @@ object AggregateUtil {
     * @param generator       code generator instance
     * @param namedAggregates List of calls to aggregate functions and their output field names
     * @param inputType Input row type
-    * @param inputTypeInfo Input DataStream row type
-    * @param returnTypeInfo Return DataStream row type
     * @param isRowTimeType It is a tag that indicates whether the time type is rowTimeType
     * @param isPartitioned It is a tag that indicate whether the input is partitioned
     * @param isRowsClause It is a tag that indicates whether the OVER clause is ROWS clause
@@ -72,8 +70,6 @@ object AggregateUtil {
     generator: CodeGenerator,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
-    inputTypeInfo: TypeInformation[T],
-    returnTypeInfo: TypeInformation[T],
     isRowTimeType: Boolean,
     isPartitioned: Boolean,
     isRowsClause: Boolean,
@@ -95,8 +91,6 @@ object AggregateUtil {
       "UnboundedProcessingOverAggregateHelper",
       generator,
       inputType,
-      inputTypeInfo,
-      returnTypeInfo,
       aggregates,
       aggFields,
       aggMapping,
@@ -110,17 +104,13 @@ object AggregateUtil {
         new RowTimeUnboundedRowsOver(
           genFunction,
           aggregationStateType,
-          FlinkTypeFactory
-            .toInternalRowTypeInfo(inputType, classOf[CRow])
-            .asInstanceOf[CRowTypeInfo])
+          CRowTypeInfo(FlinkTypeFactory.toInternalRowTypeInfo(inputType)))
       } else {
         // RANGE unbounded over process function
         new RowTimeUnboundedRangeOver(
           genFunction,
           aggregationStateType,
-          FlinkTypeFactory
-            .toInternalRowTypeInfo(inputType, classOf[CRow])
-            .asInstanceOf[CRowTypeInfo])
+          CRowTypeInfo(FlinkTypeFactory.toInternalRowTypeInfo(inputType)))
       }
     } else {
       if (isPartitioned) {
@@ -130,7 +120,7 @@ object AggregateUtil {
       } else {
         new ProcTimeUnboundedNonPartitionedOver(
           genFunction,
-          new CRowTypeInfo(aggregationStateType))
+          aggregationStateType)
       }
     }
   }
@@ -174,8 +164,6 @@ object AggregateUtil {
     * @param generator       code generator instance
     * @param namedAggregates List of calls to aggregate functions and their output field names
     * @param inputType       Input row type
-    * @param inputTypeInfo   Input DataStream row type
-    * @param returnTypeInfo  Return DataStream row type
     * @param precedingOffset the preceding offset
     * @param isRowsClause    It is a tag that indicates whether the OVER clause is ROWS clause
     * @param isRowTimeType   It is a tag that indicates whether the time type is rowTimeType
@@ -185,8 +173,6 @@ object AggregateUtil {
     generator: CodeGenerator,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
-    inputTypeInfo: TypeInformation[T],
-    returnTypeInfo: TypeInformation[T],
     precedingOffset: Long,
     isRowsClause: Boolean,
     isRowTimeType: Boolean): ProcessFunction[CRow, CRow] = {
@@ -198,9 +184,7 @@ object AggregateUtil {
         needRetraction = true)
 
     val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
-    val inputRowType = FlinkTypeFactory
-      .toInternalRowTypeInfo(inputType, classOf[CRow])
-      .asInstanceOf[CRowTypeInfo]
+    val inputRowType = CRowTypeInfo(FlinkTypeFactory.toInternalRowTypeInfo(inputType))
 
     val forwardMapping = (0 until inputType.getFieldCount).map(x => (x, x)).toArray
     val aggMapping = aggregates.indices.map(x => x + inputType.getFieldCount).toArray
@@ -210,8 +194,6 @@ object AggregateUtil {
       "BoundedOverAggregateHelper",
       generator,
       inputType,
-      inputTypeInfo,
-      returnTypeInfo,
       aggregates,
       aggFields,
       aggMapping,

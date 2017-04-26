@@ -60,7 +60,7 @@ class RowTimeBoundedRangeOver(
   // The first element (as the mapState key) of the tuple is the time stamp. Per each time stamp,
   // the second element of tuple is a list that contains the entire data of all the rows belonging
   // to this time stamp.
-  private var dataState: MapState[Long, JList[CRow]] = _
+  private var dataState: MapState[Long, JList[Row]] = _
 
   val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
@@ -75,7 +75,7 @@ class RowTimeBoundedRangeOver(
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
 
-    output = function.createOutputRow()
+    output = new CRow(function.createOutputRow(), true)
 
     val lastTriggeringTsDescriptor: ValueStateDescriptor[Long] =
       new ValueStateDescriptor[Long]("lastTriggeringTsState", classOf[Long])
@@ -87,10 +87,11 @@ class RowTimeBoundedRangeOver(
 
     val keyTypeInformation: TypeInformation[Long] =
       BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]]
-    val valueTypeInformation: TypeInformation[JList[CRow]] = new ListTypeInfo[CRow](inputRowType)
+    val valueTypeInformation: TypeInformation[JList[Row]] =
+      new ListTypeInfo[Row](inputRowType.asInstanceOf[CRowTypeInfo].rowType)
 
-    val mapStateDescriptor: MapStateDescriptor[Long, JList[CRow]] =
-      new MapStateDescriptor[Long, JList[CRow]](
+    val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
+      new MapStateDescriptor[Long, JList[Row]](
         "dataState",
         keyTypeInformation,
         valueTypeInformation)
@@ -99,9 +100,11 @@ class RowTimeBoundedRangeOver(
   }
 
   override def processElement(
-    input: CRow,
+    inputC: CRow,
     ctx: ProcessFunction[CRow, CRow]#Context,
     out: Collector[CRow]): Unit = {
+
+    val input = inputC.row
 
     // triggering timestamp for trigger calculation
     val triggeringTs = ctx.timestamp
@@ -115,7 +118,7 @@ class RowTimeBoundedRangeOver(
         data.add(input)
         dataState.put(triggeringTs, data)
       } else {
-        val data = new JArrayList[CRow]
+        val data = new JArrayList[Row]
         data.add(input)
         dataState.put(triggeringTs, data)
         // register event time timer
@@ -129,7 +132,7 @@ class RowTimeBoundedRangeOver(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
     // gets all window data from state for the calculation
-    val inputs: JList[CRow] = dataState.get(timestamp)
+    val inputs: JList[Row] = dataState.get(timestamp)
 
     if (null != inputs) {
 
@@ -173,13 +176,13 @@ class RowTimeBoundedRangeOver(
       }
 
       // set aggregate in output row
-      function.setAggregationResults(accumulators, output)
+      function.setAggregationResults(accumulators, output.row)
 
       // copy forwarded fields to output row and emit output row
       dataListIndex = 0
       while (dataListIndex < inputs.size()) {
         aggregatesIndex = 0
-        function.setForwardedFields(inputs.get(dataListIndex), output)
+        function.setForwardedFields(inputs.get(dataListIndex), output.row)
         out.collect(output)
         dataListIndex += 1
       }

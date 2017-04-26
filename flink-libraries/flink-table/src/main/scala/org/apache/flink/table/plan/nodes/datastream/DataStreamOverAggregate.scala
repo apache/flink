@@ -45,7 +45,7 @@ class DataStreamOverAggregate(
     inputType: RelDataType)
   extends SingleRel(cluster, traitSet, inputNode)
   with OverAggregate
-  with DataStreamRel[CRow] {
+  with DataStreamRel {
 
   override def deriveRowType(): RelDataType = rowRelDataType
 
@@ -106,7 +106,7 @@ class DataStreamOverAggregate(
         "Unsupported use of OVER windows. The window can only be ordered in ASCENDING mode.")
     }
 
-    val inputDS = input.asInstanceOf[DataStreamRel[CRow]].translateToPlan(tableEnv)
+    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
 
     val consumeRetraction = DataStreamRetractionRules.isAccRetract(input)
 
@@ -195,16 +195,12 @@ class DataStreamOverAggregate(
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
 
     // get the output types
-    val retrunTypeInfo = FlinkTypeFactory
-      .toInternalRowTypeInfo(getRowType, classOf[CRow])
-      .asInstanceOf[CRowTypeInfo]
+    val retrunTypeInfo = CRowTypeInfo(FlinkTypeFactory.toInternalRowTypeInfo(getRowType))
 
     val processFunction = AggregateUtil.createUnboundedOverProcessFunction(
       generator,
       namedAggregates,
       inputType,
-      inputDS.getType,
-      retrunTypeInfo,
       isRowTimeType,
       partitionKeys.nonEmpty,
       isRowsClause,
@@ -253,16 +249,12 @@ class DataStreamOverAggregate(
       getLowerBoundary(logicWindow, overWindow, getInput()) + (if (isRowsClause) 1 else 0)
 
     // get the output types
-    val retrunTypeInfo = FlinkTypeFactory
-      .toInternalRowTypeInfo(getRowType, classOf[CRow])
-      .asInstanceOf[CRowTypeInfo]
+    val retrunTypeInfo = CRowTypeInfo(FlinkTypeFactory.toInternalRowTypeInfo(getRowType))
 
     val processFunction = AggregateUtil.createBoundedOverProcessFunction[CRow](
       generator,
       namedAggregates,
       inputType,
-      inputDS.getType,
-      retrunTypeInfo,
       precedingOffset,
       isRowsClause,
       isRowTimeType

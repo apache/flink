@@ -27,7 +27,6 @@ import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.plan.nodes.CommonAggregate
-import org.apache.flink.types.Row
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
@@ -54,7 +53,7 @@ class DataStreamGroupAggregate(
     groupings: Array[Int])
   extends SingleRel(cluster, traitSet, inputNode)
     with CommonAggregate
-    with DataStreamRel[CRow] {
+    with DataStreamRel {
 
   override def deriveRowType() = rowRelDataType
 
@@ -93,11 +92,9 @@ class DataStreamGroupAggregate(
 
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[CRow] = {
 
-    val inputDS = input.asInstanceOf[DataStreamRel[CRow]].translateToPlan(tableEnv)
+    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
 
-    val physicalRowTypeInfo = FlinkTypeFactory
-      .toInternalRowTypeInfo(getRowType, classOf[CRow])
-      .asInstanceOf[CRowTypeInfo]
+    val physicalRowTypeInfo = CRowTypeInfo(FlinkTypeFactory.toInternalRowTypeInfo(getRowType))
 
     val aggString = aggregationToString(
       inputType,

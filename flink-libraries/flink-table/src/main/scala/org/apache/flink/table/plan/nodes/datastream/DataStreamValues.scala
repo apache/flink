@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
-import org.apache.flink.table.runtime.io.ValuesInputFormat
+import org.apache.flink.table.runtime.io.{RetractValuesInputFormat}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 import scala.collection.JavaConverters._
@@ -43,7 +43,7 @@ class DataStreamValues(
     tuples: ImmutableList[ImmutableList[RexLiteral]],
     ruleDescription: String)
   extends Values(cluster, rowRelDataType, tuples, traitSet)
-  with DataStreamRel[CRow] {
+  with DataStreamRel {
 
   override def deriveRowType() = rowRelDataType
 
@@ -61,9 +61,7 @@ class DataStreamValues(
 
     val config = tableEnv.getConfig
 
-    val returnType = FlinkTypeFactory
-      .toInternalRowTypeInfo(getRowType, classOf[CRow])
-      .asInstanceOf[CRowTypeInfo]
+    val returnType = CRowTypeInfo(FlinkTypeFactory.toInternalRowTypeInfo(getRowType))
 
     val generator = new CodeGenerator(config)
 
@@ -79,12 +77,12 @@ class DataStreamValues(
     val generatedFunction = generator.generateValuesInputFormat(
       ruleDescription,
       generatedRecords.map(_.code),
-      returnType)
+      returnType.rowType)
 
-    val inputFormat = new ValuesInputFormat[CRow](
+    val inputFormat = new RetractValuesInputFormat(
       generatedFunction.name,
       generatedFunction.code,
-      generatedFunction.returnType)
+      returnType)
 
     tableEnv.execEnv.createInput(inputFormat, returnType)
   }

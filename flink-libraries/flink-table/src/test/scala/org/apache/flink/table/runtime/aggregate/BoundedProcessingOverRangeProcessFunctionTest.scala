@@ -91,43 +91,43 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |
         |  public void setAggregationResults(
         |    org.apache.flink.types.Row accs,
-        |    org.apache.flink.table.runtime.types.CRow output) {
+        |    org.apache.flink.types.Row output) {
         |
         |    org.apache.flink.table.functions.AggregateFunction baseClass0 =
         |      (org.apache.flink.table.functions.AggregateFunction) fmin;
-        |    output.row().setField(5, baseClass0.getValue(
+        |    output.setField(5, baseClass0.getValue(
         |      (org.apache.flink.table.functions.Accumulator) accs.getField(0)));
         |
         |    org.apache.flink.table.functions.AggregateFunction baseClass1 =
         |      (org.apache.flink.table.functions.AggregateFunction) fmax;
-        |    output.row().setField(6, baseClass1.getValue(
+        |    output.setField(6, baseClass1.getValue(
         |      (org.apache.flink.table.functions.Accumulator) accs.getField(1)));
         |  }
         |
         |  public void accumulate(
         |    org.apache.flink.types.Row accs,
-        |    org.apache.flink.table.runtime.types.CRow input) {
+        |    org.apache.flink.types.Row input) {
         |
         |    fmin.accumulate(
         |      ((org.apache.flink.table.functions.Accumulator) accs.getField(0)),
-        |      (java.lang.Long) input.row().getField(4));
+        |      (java.lang.Long) input.getField(4));
         |
         |    fmax.accumulate(
         |      ((org.apache.flink.table.functions.Accumulator) accs.getField(1)),
-        |      (java.lang.Long) input.row().getField(4));
+        |      (java.lang.Long) input.getField(4));
         |  }
         |
         |  public void retract(
         |    org.apache.flink.types.Row accs,
-        |    org.apache.flink.table.runtime.types.CRow input) {
+        |    org.apache.flink.types.Row input) {
         |
         |    fmin.retract(
         |      ((org.apache.flink.table.functions.Accumulator) accs.getField(0)),
-        |      (java.lang.Long) input.row().getField(4));
+        |      (java.lang.Long) input.getField(4));
         |
         |    fmax.retract(
         |      ((org.apache.flink.table.functions.Accumulator) accs.getField(1)),
-        |      (java.lang.Long) input.row().getField(4));
+        |      (java.lang.Long) input.getField(4));
         |  }
         |
         |  public org.apache.flink.types.Row createAccumulators() {
@@ -146,19 +146,18 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |  }
         |
         |  public void setForwardedFields(
-        |    org.apache.flink.table.runtime.types.CRow input,
-        |    org.apache.flink.table.runtime.types.CRow output) {
+        |    org.apache.flink.types.Row input,
+        |    org.apache.flink.types.Row output) {
         |
-        |    output.row().setField(0, input.row().getField(0));
-        |    output.row().setField(1, input.row().getField(1));
-        |    output.row().setField(2, input.row().getField(2));
-        |    output.row().setField(3, input.row().getField(3));
-        |    output.row().setField(4, input.row().getField(4));
+        |    output.setField(0, input.getField(0));
+        |    output.setField(1, input.getField(1));
+        |    output.setField(2, input.getField(2));
+        |    output.setField(3, input.getField(3));
+        |    output.setField(4, input.getField(4));
         |  }
         |
-        |  public org.apache.flink.table.runtime.types.CRow createOutputRow() {
-        |    return new org.apache.flink.table.runtime.types.CRow(
-        |        new org.apache.flink.types.Row(7), true);
+        |  public org.apache.flink.types.Row createOutputRow() {
+        |    return new org.apache.flink.types.Row(7);
         |  }
         |}
       """.stripMargin

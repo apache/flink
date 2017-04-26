@@ -25,6 +25,7 @@ import org.junit.Assert._
 
 import scala.collection.mutable
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
+import org.apache.flink.table.runtime.types.CRow
 
 import scala.collection.JavaConverters._
 
@@ -43,6 +44,14 @@ object StreamITCase {
 
   final class StringSink extends RichSinkFunction[Row]() {
     def invoke(value: Row) {
+      testResults.synchronized {
+        testResults += value.toString
+      }
+    }
+  }
+
+  final class StringSinkWithCRow extends RichSinkFunction[CRow]() {
+    def invoke(value: CRow) {
       testResults.synchronized {
         testResults += value.toString
       }

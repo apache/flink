@@ -26,7 +26,6 @@ import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
@@ -130,9 +129,7 @@ class DataSetSingleRowJoin(
       inputType1,
       Some(inputType2))
 
-    val returnType = FlinkTypeFactory
-      .toInternalRowTypeInfo(getRowType, classOf[Row])
-      .asInstanceOf[RowTypeInfo]
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     val conversion = codeGenerator.generateConverterResultExpression(
       returnType,

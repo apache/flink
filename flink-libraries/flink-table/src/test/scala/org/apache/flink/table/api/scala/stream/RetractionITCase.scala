@@ -27,6 +27,7 @@ import org.junit.Test
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.utils.TableFunc0
 
 import scala.collection.mutable
@@ -66,12 +67,13 @@ class RetractionITCase extends StreamingWithStateTestBase {
       .groupBy('count)
       .select('count, 'word.count as 'frequency)
 
-    val results = resultTable.toDataStream[Row]
-    results.addSink(new StreamITCase.StringSink)
+    // to DataStream with CRow
+    val results = resultTable.toDataStream[CRow]
+    results.addSink(new StreamITCase.StringSinkWithCRow)
     env.execute()
 
-    val expected = Seq("1,1", "1,2", "1,1", "2,1", "1,2", "1,1", "2,2", "2,1", "3,1", "3,0", "4," +
-        "1", "4,0", "5,1", "5,0", "6,1", "1,2")
+    val expected = Seq("+1,1", "+1,2", "+1,1", "+2,1", "+1,2", "+1,1", "+2,2", "+2,1", "+3,1",
+      "+3,0", "+4,1", "+4,0", "+5,1", "+5,0", "+6,1", "+1,2")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -97,7 +99,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = Seq("1", "2", "1", "3", "4", "3", "5", "3", "6", "3", "7", "3", "8", "3", "9",
-                       "10")
+      "10")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

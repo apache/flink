@@ -28,7 +28,6 @@ import org.apache.calcite.util.mapping.IntPair
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
@@ -106,9 +105,7 @@ class DataSetJoin(
 
     val config = tableEnv.getConfig
 
-    val returnType = FlinkTypeFactory
-      .toInternalRowTypeInfo(getRowType, classOf[Row])
-      .asInstanceOf[RowTypeInfo]
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     // get the equality keys
     val leftKeys = ArrayBuffer.empty[Int]

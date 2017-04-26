@@ -66,7 +66,7 @@ class DataSetSlideWindowAggReduceGroupFunction(
 
   override def open(config: Configuration) {
     output = new Row(finalRowArity)
-    collector = new TimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
+    collector = new RowTimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
 
     // init lists with two empty accumulators
     var i = 0

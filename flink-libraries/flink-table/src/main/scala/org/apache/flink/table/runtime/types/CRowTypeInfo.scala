@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.{CompositeType, TypeComparator, TypeSerializer}
 import org.apache.flink.api.common.typeutils.CompositeType.{FlatFieldDescriptor, TypeComparatorBuilder}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.types.Row
 
 class CRowTypeInfo(val rowType: RowTypeInfo) extends CompositeType[CRow](classOf[CRow]) {
 
@@ -82,5 +83,16 @@ class CRowTypeInfo(val rowType: RowTypeInfo) extends CompositeType[CRow](classOf
   }
 
   override def canEqual(obj: scala.Any): Boolean = obj.isInstanceOf[CRowTypeInfo]
+
+}
+
+object CRowTypeInfo {
+
+  def apply(rowType: TypeInformation[Row]): CRowTypeInfo = {
+    rowType match {
+      case r: RowTypeInfo => new CRowTypeInfo(r)
+    }
+  }
+
 }
 

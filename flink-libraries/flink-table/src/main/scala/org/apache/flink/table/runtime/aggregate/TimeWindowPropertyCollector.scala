@@ -27,23 +27,21 @@ import org.apache.flink.util.Collector
   * Adds TimeWindow properties to specified fields of a row before it emits the row to a wrapped
   * collector.
   */
-class TimeWindowPropertyCollector[T](windowStartOffset: Option[Int], windowEndOffset: Option[Int])
-    extends Collector[T] {
+abstract class TimeWindowPropertyCollector[T](
+    windowStartOffset: Option[Int],
+    windowEndOffset: Option[Int])
+  extends Collector[T] {
 
   var wrappedCollector: Collector[T] = _
   var output: Row = _
   var windowStart:Long = _
   var windowEnd:Long = _
 
+  def getRow(record: T): Row
+
   override def collect(record: T): Unit = {
 
-    // use output to reference to the Row of record
-    if (record.isInstanceOf[CRow]) {
-      output = record.asInstanceOf[CRow].row
-    } else {
-      output = record.asInstanceOf[Row]
-    }
-
+    output = getRow(record)
     val lastFieldPos = output.getArity - 1
 
     if (windowStartOffset.isDefined) {
@@ -61,4 +59,16 @@ class TimeWindowPropertyCollector[T](windowStartOffset: Option[Int], windowEndOf
   }
 
   override def close(): Unit = wrappedCollector.close()
+}
+
+class RowTimeWindowPropertyCollector(startOffset: Option[Int], endOffset: Option[Int])
+  extends TimeWindowPropertyCollector[Row](startOffset, endOffset) {
+
+  override def getRow(record: Row): Row = record
+}
+
+class CRowTimeWindowPropertyCollector(startOffset: Option[Int], endOffset: Option[Int])
+  extends TimeWindowPropertyCollector[CRow](startOffset, endOffset) {
+
+  override def getRow(record: CRow): Row = record.row
 }

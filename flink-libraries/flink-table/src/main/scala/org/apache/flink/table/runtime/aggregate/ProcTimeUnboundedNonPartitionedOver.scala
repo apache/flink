@@ -18,6 +18,7 @@
 package org.apache.flink.table.runtime.aggregate
 
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
@@ -25,6 +26,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.util.Collector
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.types.Row
 import org.slf4j.LoggerFactory
 
 /**
@@ -35,14 +37,14 @@ import org.slf4j.LoggerFactory
   */
 class ProcTimeUnboundedNonPartitionedOver(
     genAggregations: GeneratedAggregationsFunction,
-    aggregationStateType: CRowTypeInfo)
+    aggregationStateType: RowTypeInfo)
   extends ProcessFunction[CRow, CRow]
     with CheckpointedFunction
     with Compiler[GeneratedAggregations] {
 
-  private var accumulators: CRow = _
+  private var accumulators: Row = _
   private var output: CRow = _
-  private var state: ListState[CRow] = _
+  private var state: ListState[Row] = _
   val LOG = LoggerFactory.getLogger(this.getClass)
 
   private var function: GeneratedAggregations = _
@@ -57,26 +59,28 @@ class ProcTimeUnboundedNonPartitionedOver(
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
 
-    output = function.createOutputRow()
+    output = new CRow(function.createOutputRow(), true)
     if (null == accumulators) {
       val it = state.get().iterator()
       if (it.hasNext) {
         accumulators = it.next()
       } else {
-        accumulators = new CRow(function.createAccumulators(), true)
+        accumulators = function.createAccumulators()
       }
     }
   }
 
   override def processElement(
-      input: CRow,
+      inputC: CRow,
       ctx: ProcessFunction[CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
 
-    function.setForwardedFields(input, output)
+    val input = inputC.row
 
-    function.accumulate(accumulators.row, input)
-    function.setAggregationResults(accumulators.row, output)
+    function.setForwardedFields(input, output.row)
+
+    function.accumulate(accumulators, input)
+    function.setAggregationResults(accumulators, output.row)
 
     out.collect(output)
   }
@@ -89,7 +93,7 @@ class ProcTimeUnboundedNonPartitionedOver(
   }
 
   override def initializeState(context: FunctionInitializationContext): Unit = {
-    val accumulatorsDescriptor = new ListStateDescriptor[CRow]("overState", aggregationStateType)
+    val accumulatorsDescriptor = new ListStateDescriptor[Row]("overState", aggregationStateType)
     state = context.getOperatorStateStore.getOperatorState(accumulatorsDescriptor)
   }
 }

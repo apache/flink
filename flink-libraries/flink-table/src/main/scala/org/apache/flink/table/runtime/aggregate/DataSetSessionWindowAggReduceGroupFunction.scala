@@ -79,7 +79,7 @@ class DataSetSessionWindowAggReduceGroupFunction(
   override def open(config: Configuration) {
     aggregateBuffer = new Row(intermediateRowArity)
     output = new Row(finalRowArity)
-    collector = new TimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
+    collector = new RowTimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
 
     // init lists with two empty accumulators
     for (i <- aggregates.indices) {

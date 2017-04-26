@@ -24,7 +24,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.typeutils.{ResultTypeQueryable, RowTypeInfo}
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -161,9 +161,7 @@ class DataSetWindowAggregate(
       .map(mapFunction)
       .name(prepareOperatorName)
 
-    val rowTypeInfo = FlinkTypeFactory
-      .toInternalRowTypeInfo(getRowType, classOf[Row])
-      .asInstanceOf[RowTypeInfo]
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     val mapReturnType = mapFunction.asInstanceOf[ResultTypeQueryable[Row]].getProducedType
     if (isTimeWindow) {
@@ -201,9 +199,7 @@ class DataSetWindowAggregate(
       isParserCaseSensitive: Boolean): DataSet[Row] = {
 
     val groupingKeys = grouping.indices.toArray
-    val rowTypeInfo = FlinkTypeFactory
-      .toInternalRowTypeInfo(getRowType, classOf[Row])
-      .asInstanceOf[RowTypeInfo]
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     // create mapFunction for initializing the aggregations
     val mapFunction = createDataSetWindowPrepareMapFunction(
@@ -346,9 +342,7 @@ class DataSetWindowAggregate(
 
     val mapReturnType = mappedDataSet.getType
 
-    val rowTypeInfo = FlinkTypeFactory
-      .toInternalRowTypeInfo(getRowType, classOf[Row])
-      .asInstanceOf[RowTypeInfo]
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
     val groupingKeys = grouping.indices.toArray
 
     // do partial aggregation if possible
