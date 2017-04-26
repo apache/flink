@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -31,6 +32,7 @@ import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -98,8 +100,14 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 */
 	private SerializedValue<TaskInformation> serializedTaskInformation;
 
+	/**
+	 * Whether {@link #serializedTaskInformation} has been successfully stored at the
+	 * BLOB server.
+	 */
+	private boolean taskInformationAtBlobStore = false;
+
 	private InputSplitAssigner splitAssigner;
-	
+
 	public ExecutionJobVertex(
 		ExecutionGraph graph,
 		JobVertex jobVertex,
@@ -300,6 +308,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	public SerializedValue<TaskInformation> getSerializedTaskInformation() throws IOException {
 
 		if (null == serializedTaskInformation) {
+			// TODO: actually, at the moment, multiple threads may enter this code
+			// -> we may be able to avoid some unnecessary work here
 
 			int parallelism = getParallelism();
 			int maxParallelism = getMaxParallelism();
@@ -316,9 +326,70 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 							maxParallelism,
 							jobVertex.getInvokableClassName(),
 							jobVertex.getConfiguration()));
+
+			taskInformationAtBlobStore = tryOffLoadTaskInformation();
 		}
 
 		return serializedTaskInformation;
+	}
+
+	/**
+	 * Returns whether serialized job information is (also) available at the blob server.
+	 *
+	 * This may be true after the first call to {@link #getSerializedTaskInformation()}.
+	 *
+	 * @return whether serialized job information is available at the blob server
+	 */
+	public boolean hasTaskInformationAtBlobStore() {
+		return taskInformationAtBlobStore;
+	}
+
+	/**
+	 * Tries to store {@link #serializedTaskInformation} and in the graph's {@link
+	 * ExecutionGraph#blobServer} (if not <tt>null</tt>) so that RPC messages do not need to include
+	 * it.
+	 *
+	 * @return whether the data has been offloaded or not
+	 */
+	private boolean tryOffLoadTaskInformation() {
+		// If the serialized task information inside #serializedTaskInformation is larger than this,
+		// we try to offload it to the BLOB server.
+		BlobServer blobServer = graph.getBlobServer();
+		if (blobServer == null) {
+			return false;
+		}
+
+		final int rpcOffloadMinSize =
+			blobServer.getConfiguration().getInteger(AkkaOptions.AKKA_RPC_OFFLOAD_MINSIZE);
+
+		if (serializedTaskInformation.getByteArray().length > rpcOffloadMinSize) {
+			LOG.info("Storing task {} information at the BLOB server", getJobVertexId());
+
+			try {
+				final String fileKey = getOffloadedTaskInfoFileName(getJobVertexId());
+				// do not overwrite an existing task info which will speed up recovery
+				boolean fileWritten =
+					blobServer.putObject(serializedTaskInformation, getJobId(), fileKey, false);
+				if (!fileWritten) {
+					LOG.info("Found existing task {} information at the BLOB server, skipping transfer", getJobVertexId());
+				}
+				return true;
+			} catch (IOException e) {
+				LOG.warn("Failed to offload task " + getJobVertexId() + " information data to BLOB store", e);
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Returns the filename that is used for storing the serialized task information on the BLOB server.
+	 *
+	 * @param jobVertexID the job vertex ID the task belongs to
+	 * @return  taskinfo file name
+	 */
+	public static final String getOffloadedTaskInfoFileName(JobVertexID jobVertexID) {
+		return "task-" + jobVertexID;
 	}
 
 	public boolean isInFinalState() {

@@ -190,10 +190,10 @@ public class BlobUtils {
 	 *        the ID of the job to return the storage directory for
 	 * @return the storage directory for BLOBs belonging to the job with the given ID
 	 */
-	private static File getJobDirectory(File storageDir, JobID jobID) {
+	static File getJobDirectory(File storageDir, JobID jobID) {
 		final File jobDirectory = new File(storageDir, JOB_DIR_PREFIX + jobID.toString());
 
-		if (!jobDirectory.exists() && !jobDirectory.mkdirs()) {
+		if (!jobDirectory.mkdirs() && !jobDirectory.exists()) {
 			throw new RuntimeException("Could not create jobId directory '" + jobDirectory.getAbsolutePath() + "'.");
 		}
 

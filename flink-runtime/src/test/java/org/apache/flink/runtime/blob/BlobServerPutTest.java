@@ -20,13 +20,18 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.RandomAccessFile;
+import java.io.StreamCorruptedException;
 import java.net.InetSocketAddress;
 import java.util.Random;
 
@@ -40,6 +45,110 @@ import static org.junit.Assume.assumeTrue;
 public class BlobServerPutTest {
 
 	private final Random rnd = new Random();
+
+
+	// --- concurrency tests for utility methods which could fail during the put operation ---
+
+	/**
+	 * Checked thread that calls {@link BlobServer#getStorageLocation(BlobKey)}
+	 */
+	public static class ContentAddressableGetStorageLocation extends CheckedThread {
+		private final BlobServer server;
+		private final BlobKey key;
+
+		public ContentAddressableGetStorageLocation(BlobServer server, BlobKey key) {
+			this.server = server;
+			this.key = key;
+		}
+
+		@Override
+		public void go() throws Exception {
+			server.getStorageLocation(key);
+		}
+	}
+
+	/**
+	 * Tests concurrent calls to {@link BlobServer#getStorageLocation(BlobKey)}.
+	 */
+	@Test
+	public void testServerContentAddressableGetStorageLocationConcurrent() throws Exception {
+		BlobServer server = new BlobServer(new Configuration());
+
+		try {
+			BlobKey key = new BlobKey();
+			CheckedThread[] threads = new CheckedThread[] {
+				new ContentAddressableGetStorageLocation(server, key),
+				new ContentAddressableGetStorageLocation(server, key),
+				new ContentAddressableGetStorageLocation(server, key)
+			};
+			checkedThreadSimpleTest(threads);
+		} finally {
+			server.shutdown();
+		}
+	}
+
+	/**
+	 * Helper method to first start all threads and then wait for their completion.
+	 *
+	 * @param threads threads to use
+	 * @throws Exception exceptions that are thrown from the threads
+	 */
+	protected void checkedThreadSimpleTest(CheckedThread[] threads)
+		throws Exception {
+
+		// start all threads
+		for (CheckedThread t: threads) {
+			t.start();
+		}
+
+		// wait for thread completion and check exceptions
+		for (CheckedThread t: threads) {
+			t.sync();
+		}
+	}
+
+	/**
+	 * Checked thread that calls {@link BlobServer#getStorageLocation(JobID, String)}
+	 */
+	public static class NameAddressableGetStorageLocation extends CheckedThread {
+		private final BlobServer server;
+		private final JobID jid;
+		private final String name;
+
+		public NameAddressableGetStorageLocation(BlobServer server, JobID jid, String name) {
+			this.server = server;
+			this.jid = jid;
+			this.name = name;
+		}
+
+		@Override
+		public void go() throws Exception {
+			server.getStorageLocation(jid, name);
+		}
+	}
+
+	/**
+	 * Tests concurrent calls to {@link BlobServer#getStorageLocation(JobID, String)}.
+	 */
+	@Test
+	public void testServerNameAddressableGetStorageLocationConcurrent() throws Exception {
+		BlobServer server = new BlobServer(new Configuration());
+
+		try {
+			JobID jid = new JobID();
+			String stringKey = "my test key";
+			CheckedThread[] threads = new CheckedThread[] {
+				new NameAddressableGetStorageLocation(server, jid, stringKey),
+				new NameAddressableGetStorageLocation(server, jid, stringKey),
+				new NameAddressableGetStorageLocation(server, jid, stringKey)
+			};
+			checkedThreadSimpleTest(threads);
+		} finally {
+			server.shutdown();
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
 
 	@Test
 	public void testPutBufferSuccessful() {
@@ -334,6 +443,113 @@ public class BlobServerPutTest {
 					t.printStackTrace();
 				}
 			}
+			if (server != null) {
+				server.shutdown();
+			}
+		}
+	}
+
+	@Test
+	public void testServerPutObject() throws Exception {
+		BlobServer server = null;
+
+		try {
+			Configuration config = new Configuration();
+			server = new BlobServer(config);
+
+			byte[] data = new byte[2000000];
+			rnd.nextBytes(data);
+
+			// put under job and name scope
+			JobID jid = new JobID();
+			String stringKey = "my test key";
+			server.putObject(data, jid, stringKey, true);
+
+			// --- GET the data and check that it is equal ---
+
+			final String dataFile = server.getURL(jid, stringKey).getFile();
+			try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(dataFile))) {
+				byte[] result = (byte[]) ois.readObject();
+				assertArrayEquals(data, result);
+			}
+
+			// --- change file contents and check that it is not written again if not set to overwrite ---
+			final RandomAccessFile raf = new RandomAccessFile(new File(dataFile), "rw");
+			raf.writeByte(data[0] ^ 1);
+			server.putObject(data, jid, stringKey, false);
+
+			assertEquals(dataFile, server.getURL(jid, stringKey).getFile());
+			try (ObjectInputStream ignored = new ObjectInputStream(new FileInputStream(dataFile))) {
+				fail("BLOB file was written although overwriteExisting is not set");
+			} catch (StreamCorruptedException ignored) {
+			}
+
+			// --- overwrite and check that the data is correct again ---
+			server.putObject(data, jid, stringKey, true);
+
+			assertEquals(dataFile, server.getURL(jid, stringKey).getFile());
+			try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(dataFile))) {
+				byte[] result = (byte[]) ois.readObject();
+				assertArrayEquals(data, result);
+			}
+		} finally {
+			if (server != null) {
+				server.shutdown();
+			}
+		}
+	}
+
+	/**
+	 * Checked thread that calls {@link BlobServer#putObject(Object, JobID, String, boolean)}.
+	 */
+	public static class Putter extends CheckedThread {
+		private final BlobServer server;
+		private final JobID jid;
+		private final String name;
+		private final byte[] data;
+
+		public Putter(BlobServer server, JobID jid, String name, byte[] data) {
+			this.server = server;
+			this.jid = jid;
+			this.name = name;
+			this.data = data;
+		}
+
+		@Override
+		public void go() throws Exception {
+			server.putObject(data, jid, name, true);
+		}
+	}
+
+	/**
+	 * Tests concurrent calls to {@link BlobServer#putObject(Object, JobID, String, boolean)}.
+	 */
+	@Test
+	public void testServerPutObjectConcurrent() throws Exception {
+		BlobServer server = new BlobServer(new Configuration());
+
+		try {
+			JobID jid = new JobID();
+			String stringKey = "my test key";
+			byte[] data = new byte[2000000];
+			rnd.nextBytes(data);
+
+			CheckedThread[] threads = new CheckedThread[] {
+				new Putter(server, jid, stringKey, data),
+				new Putter(server, jid, stringKey, data),
+				new Putter(server, jid, stringKey, data)
+			};
+			checkedThreadSimpleTest(threads);
+
+			// --- GET the data and check that it is equal ---
+
+			final String dataFile = server.getURL(jid, stringKey).getFile();
+			try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(dataFile))) {
+				byte[] result = (byte[]) ois.readObject();
+				assertArrayEquals(data, result);
+			}
+
+		} finally {
 			if (server != null) {
 				server.shutdown();
 			}

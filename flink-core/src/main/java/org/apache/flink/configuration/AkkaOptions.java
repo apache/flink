@@ -55,4 +55,12 @@ public class AkkaOptions {
 	public static final ConfigOption<String> AKKA_WATCH_HEARTBEAT_PAUSE = ConfigOptions
 		.key("akka.watch.heartbeat.pause")
 		.defaultValue("60 s");
+
+	/**
+	 * The maximum size of binary blobs to still transmit them through Akka. Larger blobs may be
+	 * offloaded to the BLOB server.
+	 */
+	public static final ConfigOption<Integer> AKKA_RPC_OFFLOAD_MINSIZE = ConfigOptions
+		.key("akka.rpc.offload.minsize")
+		.defaultValue(1_024); // 1KiB by default
 }

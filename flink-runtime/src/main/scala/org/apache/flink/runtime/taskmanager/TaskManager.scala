@@ -1125,9 +1125,17 @@ class TaskManager(
       }
 
       // create the task. this does not grab any TaskManager resources or download
-      // and libraries - the operation does not block
+      // any libraries except for offloaded TaskDeploymentDescriptor data which
+      // was too big for the RPC - the operation may only block for the latter
 
       val jobManagerGateway = new AkkaActorGateway(jobManagerActor, leaderSessionID.orNull)
+
+      try {
+        tdd.loadBigData(libCache);
+      } catch {
+        case e @ (_: IOException | _: ClassNotFoundException) =>
+          throw new IOException("Could not deserialize the job information.", e)
+      }
 
       val jobInformation = try {
         tdd.getSerializedJobInformation.deserializeValue(getClass.getClassLoader)
@@ -1135,12 +1143,22 @@ class TaskManager(
         case e @ (_: IOException | _: ClassNotFoundException) =>
           throw new IOException("Could not deserialize the job information.", e)
       }
+      if (tdd.getJobId != jobInformation.getJobId) {
+        throw new IOException(
+          "Inconsistent job ID information inside TaskDeploymentDescriptor (" +
+          tdd.getJobId + " vs. " + jobInformation.getJobId + ")")
+      }
 
       val taskInformation = try {
         tdd.getSerializedTaskInformation.deserializeValue(getClass.getClassLoader)
       } catch {
         case e@(_: IOException | _: ClassNotFoundException) =>
           throw new IOException("Could not deserialize the job vertex information.", e)
+      }
+      if (tdd.getJobVertexId != taskInformation.getJobVertexId) {
+        throw new IOException(
+          "Inconsistent task vertex ID information inside TaskDeploymentDescriptor (" +
+          tdd.getJobVertexId + " vs. " + taskInformation.getJobVertexId + ")")
       }
 
       val taskMetricGroup = taskManagerMetricGroup.addTaskForJob(

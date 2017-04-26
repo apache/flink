@@ -102,7 +102,6 @@ import static org.apache.flink.runtime.messages.JobManagerMessages.getDisposeSav
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -313,7 +312,9 @@ public class SavepointITCase extends TestLogger {
 			// - Verification START -------------------------------------------
 
 			String errMsg = "Error during gathering of TaskDeploymentDescriptors";
-			assertNull(errMsg, error[0]);
+			if (error[0] != null) {
+				throw new AssertionError(errMsg, error[0]);
+			}
 
 			// Verify that all tasks, which are part of the savepoint
 			// have a matching task deployment descriptor.

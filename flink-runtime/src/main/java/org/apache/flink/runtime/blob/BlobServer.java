@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import com.google.common.io.Files;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -26,14 +27,15 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URL;
@@ -214,18 +216,6 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
-	 * Method which deletes all files associated with the given jobID.
-	 *
-	 * <p><strong>This is only called from the {@link BlobServerConnection}</strong>
-	 *
-	 * @param jobID all files associated to this jobID will be deleted
-	 * @throws IOException
-	 */
-	void deleteJobDirectory(JobID jobID) throws IOException {
-		BlobUtils.deleteJobDirectory(storageDir, jobID);
-	}
-
-	/**
 	 * Returns a temporary file inside the BLOB server's incoming directory.
 	 *
 	 * @return a temporary file inside the BLOB server's incoming directory
@@ -344,6 +334,43 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
+	 * Uses an {@link ObjectOutputStream} to write the given object to files served by the blob
+	 * server under the given name
+	 *
+	 * @param data
+	 * 		object to write
+	 * @param jobId
+	 * 		JobID of the file in the blob store
+	 * @param key
+	 * 		String key of the file in the blob store
+	 * @param overwriteExisting
+	 * 		if set, any existing file under the given name will be overwritten, otherwise nothing is
+	 * 		done
+	 *
+	 * @return whether the file has been successfully written (<tt>true</tt>) or was skipped due to an existing file
+	 * 			(<tt>false</tt>)
+	 */
+	public boolean putObject(Object data, JobID jobId, String key, boolean overwriteExisting) throws IOException {
+		File storageFile = getStorageLocation(jobId, key);
+
+		// already existing file that is not to be overwritten?
+		if (!overwriteExisting && storageFile.exists()) {
+			return false;
+		}
+
+		// temporary file during transfer:
+		File incomingFile = createTemporaryFilename();
+		try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(incomingFile))) {
+			oos.writeObject(data);
+			oos.close();
+
+			Files.move(incomingFile, storageFile);
+			blobStore.put(storageFile, jobId, key);
+			return true;
+		}
+	}
+
+	/**
 	 * Method which retrieves the URL of a file associated with a blob key. The blob server looks
 	 * the blob key up in its local storage. If the file exists, then the URL is returned. If the
 	 * file does not exist, then a FileNotFoundException is thrown.
@@ -380,16 +407,67 @@ public class BlobServer extends Thread implements BlobService {
 		}
 	}
 
+	@Override
+	public URL getURL(JobID jobId, String key) throws IOException {
+		checkArgument(jobId != null, "Job id cannot be null.");
+		checkArgument(key != null, "BLOB name cannot be null.");
+
+		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, key);
+
+		if (localFile.exists()) {
+			return localFile.toURI().toURL();
+		}
+		else {
+			try {
+				// Try the blob store
+				blobStore.get(jobId, key, localFile);
+			}
+			catch (Exception e) {
+				throw new IOException("Failed to copy from blob store.", e);
+			}
+
+			if (localFile.exists()) {
+				return localFile.toURI().toURL();
+			}
+			else {
+				throw new FileNotFoundException("Local file " + localFile + " does not exist " +
+					"and failed to copy from blob store.");
+			}
+		}
+	}
+
 	/**
-	 * This method deletes the file associated to the blob key if it exists in the local storage
+	 * Deletes the file associated to the blob key if it exists in the local storage
 	 * of the blob server.
 	 *
 	 * @param key associated with the file to be deleted
-	 * @throws IOException
 	 */
 	@Override
-	public void delete(BlobKey key) throws IOException {
+	public void delete(BlobKey key) {
+		checkArgument(key != null, "BLOB key must not be null.");
+
 		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
+
+		if (!localFile.delete() && localFile.exists()) {
+			LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
+		}
+
+		blobStore.delete(key);
+	}
+
+	/**
+	 * Deletes the file associated with the given job and key if it exists in the local
+	 * storage of the blob server.
+	 *
+	 * @param jobId     JobID of the file in the blob store
+	 * @param key       String key of the file in the blob store
+	 */
+	@Override
+	public void delete(JobID jobId, String key) {
+		checkArgument(jobId != null, "Job id must not be null.");
+		checkArgument(key != null, "BLOB name must not be null.");
+
+		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, key);
 
 		if (localFile.exists()) {
 			if (!localFile.delete()) {
@@ -397,7 +475,34 @@ public class BlobServer extends Thread implements BlobService {
 			}
 		}
 
-		blobStore.delete(key);
+		blobStore.delete(jobId, key);
+	}
+
+	/**
+	 * Deletes all files associated with the given job id from the storage.
+	 *
+	 * @param jobId     JobID of the files in the blob store
+	 */
+	@Override
+	public void deleteAll(final JobID jobId) {
+		checkArgument(jobId != null, "Job id must not be null.");
+
+		try {
+			BlobUtils.deleteJobDirectory(storageDir, jobId);
+		} catch (Exception e) {
+			LOG.warn("Failed to delete local BLOB storage dir {}.", BlobUtils.getJobDirectory(storageDir, jobId));
+		}
+
+		blobStore.deleteAll(jobId);
+	}
+
+	/**
+	 * Returns the configuration used by the BLOB server.
+	 *
+	 * @return configuration
+	 */
+	public final Configuration getConfiguration() {
+		return blobServiceConfiguration;
 	}
 
 	/**

@@ -18,14 +18,23 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Collection;
 
@@ -37,10 +46,26 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	private static final long serialVersionUID = -3233562176034358530L;
 
 	/** Serialized job information */
-	private final SerializedValue<JobInformation> serializedJobInformation;
+	private SerializedValue<JobInformation> serializedJobInformation;
 
 	/** Serialized task information */
-	private final SerializedValue<TaskInformation> serializedTaskInformation;
+	private SerializedValue<TaskInformation> serializedTaskInformation;
+
+	/**
+	 * The ID referencing the job this task belongs to.
+	 *
+	 * <p>NOTE: this is redundant to the information stored in {@link #serializedJobInformation} but
+	 * needed in order to restore offloaded data.</p>
+	 */
+	private final JobID jobId;
+
+	/**
+	 * The ID referencing the job vertex this task belongs to.
+	 *
+	 * <p>NOTE: this is redundant to the information stored in {@link #serializedTaskInformation} but
+	 * needed in order to restore offloaded data.</p>
+	 */
+	private final JobVertexID jobVertexId;
 
 	/** The ID referencing the attempt to execute the task. */
 	private final ExecutionAttemptID executionId;
@@ -67,6 +92,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	private final TaskStateHandles taskStateHandles;
 
 	public TaskDeploymentDescriptor(
+			JobID jobId,
+			JobVertexID jobVertexId,
 			SerializedValue<JobInformation> serializedJobInformation,
 			SerializedValue<TaskInformation> serializedTaskInformation,
 			ExecutionAttemptID executionAttemptId,
@@ -78,8 +105,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
 			Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
 
-		this.serializedJobInformation = Preconditions.checkNotNull(serializedJobInformation);
-		this.serializedTaskInformation = Preconditions.checkNotNull(serializedTaskInformation);
+		this.jobId = jobId;
+		this.jobVertexId = jobVertexId;
+		this.serializedJobInformation = serializedJobInformation;
+		this.serializedTaskInformation = serializedTaskInformation;
 		this.executionId = Preconditions.checkNotNull(executionAttemptId);
 		this.allocationId = Preconditions.checkNotNull(allocationId);
 
@@ -114,6 +143,24 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 */
 	public SerializedValue<TaskInformation> getSerializedTaskInformation() {
 		return serializedTaskInformation;
+	}
+
+	/**
+	 * Returns the task's job ID.
+	 *
+	 * @return the job ID this task belongs to
+	 */
+	public JobID getJobId() {
+		return jobId;
+	}
+
+	/**
+	 * Returns the task's job vertex ID.
+	 *
+	 * @return the job vertex ID this task belongs to
+	 */
+	public JobVertexID getJobVertexId() {
+		return jobVertexId;
 	}
 
 	public ExecutionAttemptID getExecutionAttemptId() {
@@ -159,6 +206,50 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	public AllocationID getAllocationId() {
 		return allocationId;
+	}
+
+	/**
+	 * Loads externalized data from the BLOB store back to the object.
+	 *
+	 * @param blobLibCache
+	 * 		the blob store to use (may be <tt>null</tt> if {@link #serializedJobInformation} and {@link
+	 * 		#serializedTaskInformation} are non-<tt>null</tt>)
+	 *
+	 * @throws IOException
+	 * @throws ClassNotFoundException
+	 * 		Class of a serialized object cannot be found.
+	 */
+	public void loadBigData(final LibraryCacheManager blobLibCache)
+			throws IOException, ClassNotFoundException {
+
+		// re-integrate offloaded job info and delete blob
+		// here, if this fails, we need to throw the exception as there is no backup path anymore
+		if (serializedJobInformation == null) {
+			final String fileKey = ExecutionGraph.getOffloadedJobInfoFileName();
+			final File dataFile = blobLibCache.getFile(jobId, fileKey);
+			try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(dataFile))) {
+				serializedJobInformation = (SerializedValue<JobInformation>) ois.readObject();
+				// NOTE: Do not delete the job info BLOB since it may be needed again during recovery.
+				//       (it is deleted automatically on the BLOB server and cache when the job
+				//       enters a terminal state)
+			}
+		}
+
+		// re-integrate offloaded task info and delete blob
+		if (serializedTaskInformation == null) {
+			final String fileKey = ExecutionJobVertex.getOffloadedTaskInfoFileName(jobVertexId);
+			final File dataFile = blobLibCache.getFile(jobId, fileKey);
+			try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(dataFile))) {
+				serializedTaskInformation = (SerializedValue<TaskInformation>) ois.readObject();
+				// NOTE: Do not delete the task info BLOB since it may be needed again during recovery.
+				//       (it is deleted automatically on the BLOB server and cache when the job
+				//       enters a terminal state)
+			}
+		}
+
+		// make sure that the serialized job and task information fields are filled
+		Preconditions.checkNotNull(serializedJobInformation);
+		Preconditions.checkNotNull(serializedTaskInformation);
 	}
 
 	@Override
