@@ -99,6 +99,7 @@ object AggregateUtil {
       forwardMapping,
       None,
       None,
+      None,
       outputArity,
       needRetract,
       needMerge = false
@@ -174,6 +175,7 @@ object AggregateUtil {
       aggMapping,
       partialResults = false,
       forwardMapping,
+      None,
       None,
       None,
       outputArity,
@@ -301,6 +303,7 @@ object AggregateUtil {
       groupings,
       None,
       None,
+      None,
       outputArity,
       needRetract,
       needMerge = false
@@ -376,6 +379,7 @@ object AggregateUtil {
           partialResults = true,
           groupings,
           Some(aggregates.indices.map(_ + groupings.length).toArray),
+          None,
           None,
           keysAndAggregatesArity + 1,
           needRetract,
@@ -479,6 +483,7 @@ object AggregateUtil {
       groupings,
       Some(aggregates.indices.map(_ + groupings.length).toArray),
       None,
+      None,
       outputType.getFieldCount,
       needRetract,
       needMerge = true
@@ -494,6 +499,7 @@ object AggregateUtil {
       partialResults = false,
       groupings.indices.toArray,
       Some(aggregates.indices.map(_ + groupings.length).toArray),
+      None,
       None,
       outputType.getFieldCount,
       needRetract,
@@ -634,6 +640,7 @@ object AggregateUtil {
           groupings.indices.toArray,
           Some(aggregates.indices.map(_ + groupings.length).toArray),
           None,
+          None,
           groupings.length + aggregates.length + 2,
           needRetract,
           needMerge = true
@@ -705,6 +712,7 @@ object AggregateUtil {
           partialResults = true,
           groupings.indices.toArray,
           Some(aggregates.indices.map(_ + groupings.length).toArray),
+          None,
           None,
           groupings.length + aggregates.length + 2,
           needRetract,
@@ -785,6 +793,7 @@ object AggregateUtil {
         groupings,
         None,
         None,
+        None,
         groupings.length + aggregates.length,
         needRetract,
         needMerge = false
@@ -811,6 +820,7 @@ object AggregateUtil {
         gkeyMapping,
         Some(aggregates.indices.map(_ + groupings.length).toArray),
         constantFlags,
+        None,
         outputType.getFieldCount,
         needRetract,
         needMerge = true
@@ -834,6 +844,7 @@ object AggregateUtil {
         groupings,
         None,
         constantFlags,
+        None,
         outputType.getFieldCount,
         needRetract,
         needMerge = false
@@ -924,6 +935,7 @@ object AggregateUtil {
       aggMapping,
       partialResults = false,
       Array(), // no fields are forwarded
+      None,
       None,
       None,
       outputArity,

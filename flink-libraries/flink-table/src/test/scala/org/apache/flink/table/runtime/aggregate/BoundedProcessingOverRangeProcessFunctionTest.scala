@@ -88,6 +88,8 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |    "mluZyRMb25nJOda0iCPo2ukAgAAeHA");
         |  }
         |
+        |  public void initialize(org.apache.flink.api.common.functions.RuntimeContext ctx) { }
+        |
         |  public void setAggregationResults(
         |    org.apache.flink.types.Row accs,
         |    org.apache.flink.types.Row output) {

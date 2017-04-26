@@ -257,6 +257,8 @@ class CodeGenerator(
     *                     assume that both rows have the accumulators at the same position.
     * @param constantFlags An optional parameter to define where to set constant boolean flags in
     *                      the output row.
+    * @param distinctAggsFlags  An optional parameter indicating the aggregations that should 
+    *                           aggregate only DISTINCT values
     * @param outputArity The number of fields in the output row.
     *
     * @return A GeneratedAggregationsFunction
@@ -272,6 +274,7 @@ class CodeGenerator(
       fwdMapping: Array[Int],
       mergeMapping: Option[Array[Int]],
       constantFlags: Option[Array[(Int, Boolean)]],
+      distinctAggsFlags: Option[Array[Boolean]],
       outputArity: Int,
       needRetract: Boolean,
       needMerge: Boolean)
@@ -294,6 +297,39 @@ class CodeGenerator(
     val parameters = aggFields.map {inFields =>
       val fields = for (f <- inFields) yield s"(${javaTypes(f)}) input.getField($f)"
       fields.mkString(", ")
+    }
+
+    def genInitialize(): String = {
+      
+      val sig: String = 
+        j"""
+           |  public void initialize(
+           |    org.apache.flink.api.common.functions.RuntimeContext ctx
+           |  )""".stripMargin
+        
+      val initDist: String = if( distinctAggsFlags.isDefined ) {
+        val statePackage = "org.apache.flink.api.common.state"
+        val distAggsFlags = distinctAggsFlags.get
+          for(i <- distAggsFlags.indices) yield
+            if(distAggsFlags(i)) {
+              val typeString = javaTypes(aggFields(i)(0))
+              j"""
+                 |  ${statePackage}.MapStateDescriptor<${typeString}, Long> distDesc$i =
+                 |    new ${statePackage}.MapStateDescriptor<${typeString}, Long>(
+                 |      "distinctValuesBufferMapState" + $i,
+                 |      ${typeString}.class, Long.class);
+                 |  distStateList[$i] = ctx.getMapState( distDesc$i );
+              """.stripMargin
+            } else {
+              ""
+            }
+          }.mkString("\n") else {
+             ""
+         }
+      
+      j"""$sig {
+         |  $initDist
+         |  }""".stripMargin
     }
 
     def genSetAggregationResults: String = {
@@ -335,15 +371,30 @@ class CodeGenerator(
         j"""
             |  public final void accumulate(
             |    org.apache.flink.types.Row accs,
-            |    org.apache.flink.types.Row input)""".stripMargin
+            |    org.apache.flink.types.Row input) throws Exception""".stripMargin
 
+      val distAggsFlags: Array[Boolean] = distinctAggsFlags.getOrElse(new Array[Boolean](0))    
       val accumulate: String = {
         for (i <- aggs.indices) yield
-          j"""
-             |    ${aggs(i)}.accumulate(
-             |      ((${accTypes(i)}) accs.getField($i)),
-             |      ${parameters(i)});""".stripMargin
-      }.mkString("\n")
+          if (distinctAggsFlags.isDefined && distAggsFlags(i)){
+            j"""
+               |  Long distValCount$i = (Long) distStateList[$i].get(${parameters(i)});
+               |  if( distValCount$i == null){
+               |    ${aggs(i)}.accumulate(
+               |      ((${accTypes(i)}) accs.getField($i)),
+               |      ${parameters(i)});
+               |    distValCount$i = 0L;
+               |  }
+               |  distValCount$i += 1;
+               |  distStateList[$i].put(${parameters(i)}, distValCount$i);
+            """.stripMargin
+          } else {
+            j"""  
+               |    ${aggs(i)}.accumulate(
+               |      ((${accTypes(i)}) accs.getField($i)),
+               |      ${parameters(i)});""".stripMargin
+          }
+      }.mkString("\n") 
 
       j"""$sig {
          |$accumulate
@@ -356,14 +407,30 @@ class CodeGenerator(
         j"""
             |  public final void retract(
             |    org.apache.flink.types.Row accs,
-            |    org.apache.flink.types.Row input)""".stripMargin
+            |    org.apache.flink.types.Row input) throws Exception""".stripMargin
 
-      val retract: String = {
+       val distFlag: Array[Boolean]= distinctAggsFlags.getOrElse(new Array[Boolean](0))
+       val retract: String = {
         for (i <- aggs.indices) yield
-          j"""
-             |    ${aggs(i)}.retract(
-             |      ((${accTypes(i)}) accs.getField($i)),
-             |      ${parameters(i)});""".stripMargin
+          if(distinctAggsFlags.isDefined && distFlag(i)){
+            j"""
+               |  Long distValCount$i = (Long) distStateList[$i].get(${parameters(i)});
+               |  if(distValCount$i == 1L){
+               |    ${aggs(i)}.retract(
+               |      ((${accTypes(i)}) accs.getField($i)),
+               |      ${parameters(i)});
+               |    distStateList[$i].remove(${parameters(i)});
+               |  } else {
+               |    distValCount$i -= 1L; 
+               |    distStateList[$i].put(${parameters(i)},distValCount$i);
+               |  }
+            """.stripMargin
+          } else {
+            j"""
+               |    ${aggs(i)}.retract(
+               |      ((${accTypes(i)}) accs.getField($i)),
+               |      ${parameters(i)});""".stripMargin
+          }
       }.mkString("\n")
 
       if (needRetract) {
@@ -533,7 +600,25 @@ class CodeGenerator(
          |$reset
          |  }""".stripMargin
     }
-
+    
+    var existDistinct = false
+    if (distinctAggsFlags.isDefined){
+      val distAggsFlags = distinctAggsFlags.get
+      for(i <- distAggsFlags.indices){
+        if(distAggsFlags(i)){ existDistinct = true }
+      }
+    }
+    if(existDistinct){
+     val initReusMember = {
+       val packageName = "org.apache.flink.api.common.state"
+       j"""
+          |  private final ${packageName}.MapState[]
+          |  distStateList = new ${packageName}.MapState[${distinctAggsFlags.size}];
+       """.stripMargin 
+      }
+      reusableMemberStatements.add(initReusMember)
+    }
+    
     var funcCode =
       j"""
          |public final class $funcName
@@ -548,6 +633,7 @@ class CodeGenerator(
          |
          """.stripMargin
 
+    funcCode += genInitialize + "\n"
     funcCode += genSetAggregationResults + "\n"
     funcCode += genAccumulate + "\n"
     funcCode += genRetract + "\n"
