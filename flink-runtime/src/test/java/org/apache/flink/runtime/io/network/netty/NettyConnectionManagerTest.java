@@ -23,7 +23,6 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.EventLoopGroup;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.util.NetUtils;
 import org.junit.Test;
@@ -60,8 +59,7 @@ public class NettyConnectionManagerTest {
 
 		connectionManager.start(
 				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class),
-				mock(NetworkBufferPool.class));
+				mock(TaskEventDispatcher.class));
 
 		assertEquals(numberOfSlots, connectionManager.getBufferPool().getNumberOfArenas());
 
@@ -129,8 +127,7 @@ public class NettyConnectionManagerTest {
 
 		connectionManager.start(
 				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class),
-				mock(NetworkBufferPool.class));
+				mock(TaskEventDispatcher.class));
 
 		assertEquals(numberOfArenas, connectionManager.getBufferPool().getNumberOfArenas());
 

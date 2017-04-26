@@ -68,7 +68,6 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 	
 			try {
 				runKMeans(cluster.getLeaderRPCPort());
-				fail("This program execution should have failed.");
 			}
 			catch (ProgramInvocationException e) {
 				assertTrue(e.getCause().getCause().getMessage().contains("Insufficient number of network buffers"));

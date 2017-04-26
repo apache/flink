@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.channel.ChannelHandler;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.NettyMessageEncoder;
@@ -34,12 +33,10 @@ class PartitionRequestProtocol implements NettyProtocol {
 
 	private final ResultPartitionProvider partitionProvider;
 	private final TaskEventDispatcher taskEventDispatcher;
-	private final NetworkBufferPool networkbufferPool;
 
-	PartitionRequestProtocol(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher, NetworkBufferPool networkbufferPool) {
+	PartitionRequestProtocol(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher) {
 		this.partitionProvider = partitionProvider;
 		this.taskEventDispatcher = taskEventDispatcher;
-		this.networkbufferPool = networkbufferPool;
 	}
 
 	// +-------------------------------------------------------------------+
@@ -77,7 +74,7 @@ class PartitionRequestProtocol implements NettyProtocol {
 	public ChannelHandler[] getServerChannelHandlers() {
 		PartitionRequestQueue queueOfPartitionQueues = new PartitionRequestQueue();
 		PartitionRequestServerHandler serverHandler = new PartitionRequestServerHandler(
-				partitionProvider, taskEventDispatcher, queueOfPartitionQueues, networkbufferPool);
+				partitionProvider, taskEventDispatcher, queueOfPartitionQueues);
 
 		return new ChannelHandler[] {
 				messageEncoder,
