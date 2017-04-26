@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -56,7 +57,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 		CompletedCheckpointStore store = mock(CompletedCheckpointStore.class);
 
 		ExecutionGraph graph = createExecutionGraphAndEnableCheckpointing(counter, store);
-		graph.fail(new Exception("Test Exception"));
+		graph.failGlobal(new Exception("Test Exception"));
 
 		verify(counter, times(1)).shutdown(JobStatus.FAILED);
 		verify(store, times(1)).shutdown(eq(JobStatus.FAILED));
@@ -91,6 +92,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			Time.days(1L),
 			new NoRestartStrategy(),
+			new RestartAllStrategy.Factory(),
 			Collections.<BlobKey>emptyList(),
 			Collections.<URL>emptyList(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),

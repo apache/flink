@@ -432,7 +432,7 @@ public class JobManagerTest extends TestLogger {
 							vertex.getCurrentExecutionAttempt().getAttemptId());
 
 						// Reset execution => new execution attempt
-						vertex.resetForNewExecution();
+						vertex.resetForNewExecution(System.currentTimeMillis(), 1L);
 
 						// Producer finished, request state
 						Object request = new JobManagerMessages.RequestPartitionProducerState(jid, rid, partitionId);
