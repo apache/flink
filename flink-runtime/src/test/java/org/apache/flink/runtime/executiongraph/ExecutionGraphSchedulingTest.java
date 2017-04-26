@@ -61,6 +61,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -300,8 +301,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		slotProvider.addSlots(targetVertex.getID(), targetFutures);
 
 		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
-		TerminalJobStatusListener testListener = new TerminalJobStatusListener();
-		eg.registerJobStatusListener(testListener);
 
 		//
 		//  we complete some of the futures
@@ -322,7 +321,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		sourceFutures[1].completeExceptionally(new TestRuntimeException());
 
 		// wait until the job failed as a whole
-		testListener.waitForTerminalState(2000);
+		eg.getTerminationFuture().get(2000, TimeUnit.MILLISECONDS);
 
 		// wait until all slots are back
 		verify(slotOwner, new Timeout(2000, times(6))).returnAllocatedSlot(any(Slot.class));
@@ -371,8 +370,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		slotProvider.addSlots(vertex.getID(), slotFutures);
 
 		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider, Time.milliseconds(20));
-		final TerminalJobStatusListener statusListener = new TerminalJobStatusListener();
-		eg.registerJobStatusListener(statusListener);
 
 		//  we complete one future
 		slotFutures[1].complete(slots[1]);
@@ -388,7 +385,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		// since future[0] is still missing the while operation must time out
 		// we have no restarts allowed, so the job will go terminal
-		statusListener.waitForTerminalState(2000);
+		eg.getTerminationFuture().get(2000, TimeUnit.MILLISECONDS);
 
 		// wait until all slots are back
 		verify(slotOwner, new Timeout(2000, times(2))).returnAllocatedSlot(any(Slot.class));

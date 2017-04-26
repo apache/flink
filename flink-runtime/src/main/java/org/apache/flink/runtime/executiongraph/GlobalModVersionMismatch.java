@@ -18,28 +18,29 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.jobgraph.JobStatus;
-
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 /**
- * A job status listener that waits lets one block until the job is in a terminal state.
+ * An exception that indicates a mismatch between the expected global modification version
+ * of the execution graph, and the actual modification version.
  */
-public class TerminalJobStatusListener  implements JobStatusListener {
+public class GlobalModVersionMismatch extends Exception {
 
-	private final OneShotLatch terminalStateLatch = new OneShotLatch();
+	private static final long serialVersionUID = 6643688395797045098L;
 
-	public void waitForTerminalState(long timeoutMillis) throws InterruptedException, TimeoutException {
-		terminalStateLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
+	private final long expectedModVersion;
+
+	private final long actualModVersion;
+
+	public GlobalModVersionMismatch(long expectedModVersion, long actualModVersion) {
+		super("expected=" + expectedModVersion + ", actual=" + actualModVersion);
+		this.expectedModVersion = expectedModVersion;
+		this.actualModVersion = actualModVersion;
 	}
 
-	@Override
-	public void jobStatusChanges(JobID jobId, JobStatus newJobStatus, long timestamp, Throwable error) {
-		if (newJobStatus.isGloballyTerminalState() || newJobStatus == JobStatus.SUSPENDED) {
-			terminalStateLatch.trigger();
-		}
+	public long expectedModVersion() {
+		return expectedModVersion;
+	}
+
+	public long actualModVersion() {
+		return actualModVersion;
 	}
 }
