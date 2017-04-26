@@ -24,48 +24,62 @@ public class Quantifier {
 
 	private final EnumSet<QuantifierProperty> properties;
 
-	private Quantifier(final QuantifierProperty first, final QuantifierProperty... rest) {
+	private final ConsumingStrategy consumingStrategy;
+
+	private ConsumingStrategy innerConsumingStrategy = ConsumingStrategy.SKIP_TILL_NEXT;
+
+	private Quantifier(
+			final ConsumingStrategy consumingStrategy,
+			final QuantifierProperty first,
+			final QuantifierProperty... rest) {
 		this.properties = EnumSet.of(first, rest);
+		this.consumingStrategy = consumingStrategy;
 	}
 
-	public static Quantifier ONE() {
-		return new Quantifier(QuantifierProperty.SINGLE);
+	public static Quantifier ONE(final ConsumingStrategy consumingStrategy) {
+		return new Quantifier(consumingStrategy, QuantifierProperty.SINGLE);
 	}
 
-	public static Quantifier ONE_OR_MORE() {
-		return new Quantifier(QuantifierProperty.LOOPING, QuantifierProperty.EAGER);
+	public static Quantifier ONE_OR_MORE(final ConsumingStrategy consumingStrategy) {
+		return new Quantifier(consumingStrategy, QuantifierProperty.LOOPING);
 	}
 
-	public static Quantifier TIMES() {
-		return new Quantifier(QuantifierProperty.TIMES, QuantifierProperty.EAGER);
+	public static Quantifier TIMES(final ConsumingStrategy consumingStrategy) {
+		return new Quantifier(consumingStrategy, QuantifierProperty.TIMES);
 	}
 
 	public boolean hasProperty(QuantifierProperty property) {
 		return properties.contains(property);
 	}
 
-	public void combinations() {
-		if (!hasProperty(QuantifierProperty.SINGLE) && !hasProperty(Quantifier.QuantifierProperty.EAGER)) {
-			throw new MalformedPatternException("Combinations already allowed!");
-		}
+	public ConsumingStrategy getConsumingStrategy() {
+		return consumingStrategy;
+	}
 
-		if (hasProperty(Quantifier.QuantifierProperty.LOOPING) || hasProperty(Quantifier.QuantifierProperty.TIMES)) {
-			properties.remove(Quantifier.QuantifierProperty.EAGER);
-		} else {
-			throw new MalformedPatternException("Combinations not applicable to " + this + "!");
+	public ConsumingStrategy getInnerConsumingStrategy() {
+		return innerConsumingStrategy;
+	}
+
+	private static void checkPattern(boolean condition, Object errorMessage) {
+		if (!condition) {
+			throw new MalformedPatternException(String.valueOf(errorMessage));
 		}
 	}
 
-	public void consecutive() {
-		if (!hasProperty(QuantifierProperty.SINGLE) && hasProperty(Quantifier.QuantifierProperty.CONSECUTIVE)) {
-			throw new MalformedPatternException("Strict continuity already applied!");
-		}
+	public void combinations() {
+		checkPattern(!hasProperty(QuantifierProperty.SINGLE), "Combinations not applicable to " + this + "!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.STRICT, "You can apply apply either combinations or consecutive, not both!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.SKIP_TILL_ANY, "Combinations already applied!");
 
-		if (hasProperty(Quantifier.QuantifierProperty.LOOPING) || hasProperty(Quantifier.QuantifierProperty.TIMES)) {
-			properties.add(Quantifier.QuantifierProperty.CONSECUTIVE);
-		} else {
-			throw new MalformedPatternException("Strict continuity not applicable to " + this + "!");
-		}
+		innerConsumingStrategy = ConsumingStrategy.SKIP_TILL_ANY;
+	}
+
+	public void consecutive() {
+		checkPattern(hasProperty(QuantifierProperty.LOOPING) || hasProperty(QuantifierProperty.TIMES), "Combinations not applicable to " + this + "!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.SKIP_TILL_ANY, "You can apply apply either combinations or consecutive, not both!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.STRICT, "Combinations already applied!");
+
+		innerConsumingStrategy = ConsumingStrategy.STRICT;
 	}
 
 	public void optional() {
@@ -76,13 +90,21 @@ public class Quantifier {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof Quantifier && properties.equals(((Quantifier)obj).properties);
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		Quantifier that = (Quantifier) o;
+		return Objects.equals(properties, that.properties) &&
+				consumingStrategy == that.consumingStrategy;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hashCode(properties);
+		return Objects.hash(properties, consumingStrategy);
 	}
 
 	/**
@@ -92,9 +114,13 @@ public class Quantifier {
 		SINGLE,
 		LOOPING,
 		TIMES,
-		EAGER,
-		CONSECUTIVE,
 		OPTIONAL
+	}
+
+	public enum ConsumingStrategy {
+		STRICT,
+		SKIP_TILL_NEXT,
+		SKIP_TILL_ANY
 	}
 
 }

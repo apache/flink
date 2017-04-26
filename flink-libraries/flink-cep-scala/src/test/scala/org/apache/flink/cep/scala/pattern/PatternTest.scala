@@ -22,7 +22,7 @@ import org.junit.Assert._
 import org.junit.Test
 import org.apache.flink.cep.Event
 import org.apache.flink.cep.SubEvent
-import org.apache.flink.cep.pattern.conditions.IterativeCondition.Context
+import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy
 import org.apache.flink.cep.pattern.conditions._
 
 class PatternTest {
@@ -33,7 +33,7 @@ class PatternTest {
     */
 
   @Test
-  def testStrictContiguity: Unit = {
+  def testStrictContiguity(): Unit = {
     val pattern = Pattern.begin[Event]("start").next("next").next("end")
     val jPattern = JPattern.begin[Event]("start").next("next").next("end")
 
@@ -56,7 +56,7 @@ class PatternTest {
 
 
   @Test
-  def testNonStrictContiguity: Unit = {
+  def testNonStrictContiguity(): Unit = {
     val pattern = Pattern.begin[Event]("start").followedBy("next").followedBy("end")
     val jPattern = JPattern.begin[Event]("start").followedBy("next").followedBy("end")
 
@@ -69,8 +69,8 @@ class PatternTest {
     assertTrue(previous.getPrevious.isDefined)
     assertFalse(preprevious.getPrevious.isDefined)
 
-    assertTrue(pattern.isInstanceOf[FollowedByPattern[_, _]])
-    assertTrue(previous.isInstanceOf[FollowedByPattern[_, _]])
+    assertEquals(ConsumingStrategy.SKIP_TILL_NEXT, pattern.getQuantifier.getConsumingStrategy)
+    assertEquals(ConsumingStrategy.SKIP_TILL_NEXT, previous.getQuantifier.getConsumingStrategy)
 
     assertEquals(pattern.getName, "end")
     assertEquals(previous.getName, "next")
@@ -78,25 +78,25 @@ class PatternTest {
   }
 
   @Test
-  def testStrictContiguityWithCondition: Unit = {
+  def testStrictContiguityWithCondition(): Unit = {
     val pattern = Pattern.begin[Event]("start")
       .next("next")
-      .where((value: Event, ctx: Context[Event]) => value.getName() == "foobar")
+      .where((value: Event, _) => value.getName == "foobar")
       .next("end")
-      .where((value: Event, ctx: Context[Event]) => value.getId() == 42)
+      .where((value: Event, _) => value.getId == 42)
 
     val jPattern = JPattern.begin[Event]("start")
       .next("next")
       .where(new SimpleCondition[Event]() {
         @throws[Exception]
         def filter(value: Event): Boolean = {
-          return value.getName() == "foobar"
+          value.getName == "foobar"
         }
       }).next("end")
       .where(new SimpleCondition[Event]() {
         @throws[Exception]
         def filter(value: Event): Boolean = {
-          return value.getId() == 42
+          value.getId == 42
         }
       })
 
@@ -120,7 +120,7 @@ class PatternTest {
   }
 
   @Test
-  def testPatternWithSubtyping: Unit = {
+  def testPatternWithSubtyping(): Unit = {
     val pattern = Pattern.begin[Event]("start")
       .next("subevent")
       .subtype(classOf[SubEvent])
@@ -150,11 +150,11 @@ class PatternTest {
   }
 
   @Test
-  def testPatternWithSubtypingAndFilter: Unit = {
+  def testPatternWithSubtypingAndFilter(): Unit = {
     val pattern = Pattern.begin[Event]("start")
       .next("subevent")
       .subtype(classOf[SubEvent])
-      .where((value: SubEvent) => false)
+      .where(_ => false)
       .followedBy("end")
 
     val jpattern = JPattern.begin[Event]("start")
@@ -163,7 +163,7 @@ class PatternTest {
       .where(new SimpleCondition[SubEvent]() {
         @throws[Exception]
         def filter(value: SubEvent): Boolean = {
-          return false
+          false
         }
       }).followedBy("end")
 
@@ -178,8 +178,8 @@ class PatternTest {
     assertTrue(previous.getPrevious.isDefined)
     assertFalse(preprevious.getPrevious.isDefined)
 
-    assertTrue(pattern.isInstanceOf[FollowedByPattern[_, _]])
-    assertTrue(previous.getCondition().isDefined)
+    assertEquals(ConsumingStrategy.SKIP_TILL_NEXT, pattern.getQuantifier.getConsumingStrategy)
+    assertTrue(previous.getCondition.isDefined)
 
     assertEquals(pattern.getName, "end")
     assertEquals(previous.getName, "subevent")
@@ -194,25 +194,25 @@ class PatternTest {
       && threeWayEquals(
       pattern.getName,
       pattern.wrappedPattern.getName,
-      jPattern.getName())
+      jPattern.getName)
       //check equal time windows
       && threeWayEquals(
       pattern.getWindowTime.orNull,
       pattern.wrappedPattern.getWindowTime,
-      jPattern.getWindowTime())
+      jPattern.getWindowTime)
       //check congruent class names / types
       && threeWayEquals(
       pattern.getClass.getSimpleName,
       pattern.wrappedPattern.getClass.getSimpleName,
-      jPattern.getClass().getSimpleName())
+      jPattern.getClass.getSimpleName)
       //best effort to confirm congruent filter functions
       && compareFilterFunctions(
-      pattern.getCondition().orNull,
-      jPattern.getCondition())
+      pattern.getCondition.orNull,
+      jPattern.getCondition)
       //recursively check previous patterns
       && checkCongruentRepresentations(
       pattern.getPrevious.orNull,
-      jPattern.getPrevious()))
+      jPattern.getPrevious))
   }
 
   def threeWayEquals(a: AnyRef, b: AnyRef, c: AnyRef): Boolean = {
@@ -233,15 +233,15 @@ class PatternTest {
     (sFilter, jFilter) match {
       //matching types: and-filter; branch and recurse for inner filters
       case (saf: AndCondition[_], jaf: AndCondition[_])
-      => (compareFilterFunctions(saf.getLeft(), jaf.getLeft())
-        && compareFilterFunctions(saf.getRight(), jaf.getRight()))
+      => (compareFilterFunctions(saf.getLeft, jaf.getLeft)
+        && compareFilterFunctions(saf.getRight, jaf.getRight))
       //matching types: subtype-filter
-      case (saf: SubtypeCondition[_], jaf: SubtypeCondition[_]) => true
+      case (_: SubtypeCondition[_], _: SubtypeCondition[_]) => true
       //mismatch: one-sided and/subtype-filter
       case (_: AndCondition[_] | _: SubtypeCondition[_], _) => false
       case (_, _: AndCondition[_] | _: SubtypeCondition[_]) => false
       //from here we can only check mutual presence or absence of a function
-      case (s: IterativeCondition[_], j: IterativeCondition[_]) => true
+      case (_: IterativeCondition[_], _: IterativeCondition[_]) => true
       case (null, null) => true
       case _ => false
     }
