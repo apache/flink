@@ -34,8 +34,7 @@ public class InternalProcessApplyWindowContext<IN, OUT, KEY, W extends Window>
 	extends ProcessWindowFunction<IN, OUT, KEY, W>.Context {
 
 	W window;
-	KeyedStateStore windowState;
-	KeyedStateStore globalState;
+	ProcessWindowFunction.Context context;
 
 	InternalProcessApplyWindowContext(ProcessWindowFunction<IN, OUT, KEY, W> function) {
 		function.super();
@@ -47,12 +46,21 @@ public class InternalProcessApplyWindowContext<IN, OUT, KEY, W extends Window>
 	}
 
 	@Override
+	public long currentProcessingTime() {
+		return context.currentProcessingTime();
+	}
+
+	@Override
+	public long currentWatermark() {
+		return context.currentWatermark();
+	}
+
 	public KeyedStateStore windowState() {
-		return windowState;
+		return context.windowState();
 	}
 
 	@Override
 	public KeyedStateStore globalState() {
-		return globalState;
+		return context.globalState();
 	}
 }

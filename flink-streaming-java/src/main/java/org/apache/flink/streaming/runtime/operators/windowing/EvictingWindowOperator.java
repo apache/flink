@@ -348,7 +348,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 				}
 			});
 
-		processContext.window = triggerContext.window;
+		processContext.update(triggerContext);
 		userFunction.process(triggerContext.key, triggerContext.window, processContext, projectedContents, timestampedCollector);
 		evictorContext.evictAfter(recordsWithTimestamp, Iterables.size(recordsWithTimestamp));
 
@@ -367,7 +367,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 			MergingWindowSet<W> mergingWindows) throws Exception {
 		windowState.clear();
 		triggerContext.clear();
-		processContext.window = window;
+		processContext.update(triggerContext);
 		processContext.clear();
 		if (mergingWindows != null) {
 			mergingWindows.retireWindow(window);

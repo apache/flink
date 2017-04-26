@@ -68,6 +68,16 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function
     def window: W
 
     /**
+     * @return The current processing time.
+     */
+    def currentProcessingTime: Long
+
+    /**
+     * @return The current event-time watermark.
+     */
+    def currentWatermark: Long
+
+    /**
       * State accessor for per-key and per-window state.
       */
     def windowState: KeyedStateStore

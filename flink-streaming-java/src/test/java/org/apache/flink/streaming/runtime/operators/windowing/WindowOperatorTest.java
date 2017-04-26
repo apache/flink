@@ -2560,7 +2560,7 @@ public class WindowOperatorTest extends TestLogger {
 					if (comparison != 0) {
 						return comparison;
 					}
-					return (int) (sr0.getValue().f1 - sr1.getValue().f1);
+					return (int) (sr0.getValue().f2 - sr1.getValue().f2);
 				}
 			}
 		}

@@ -50,6 +50,10 @@ public interface InternalWindowFunction<IN, OUT, KEY, W extends Window> extends 
 	void clear(W window, InternalWindowContext context) throws Exception;
 
 	interface InternalWindowContext extends java.io.Serializable {
+		long currentProcessingTime();
+
+		long currentWatermark();
+
 		KeyedStateStore windowState();
 
 		KeyedStateStore globalState();
