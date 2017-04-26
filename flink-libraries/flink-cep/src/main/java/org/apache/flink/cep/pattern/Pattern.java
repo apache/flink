@@ -20,6 +20,7 @@ package org.apache.flink.cep.pattern;
 
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.cep.nfa.NFA;
+import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy;
 import org.apache.flink.cep.pattern.conditions.AndCondition;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.OrCondition;
@@ -56,8 +57,8 @@ public class Pattern<T, F extends T> {
 	/** Window length in which the pattern match has to occur. */
 	private Time windowTime;
 
-	/** A quantifier for the pattern. By default set to {@link Quantifier#ONE()}. */
-	private Quantifier quantifier = Quantifier.ONE();
+	/** A quantifier for the pattern. By default set to {@link Quantifier#ONE(ConsumingStrategy)}. */
+	private Quantifier quantifier = Quantifier.ONE(ConsumingStrategy.STRICT);
 
 	/**
 	 * Applicable to a {@code times} pattern, and holds
@@ -68,6 +69,15 @@ public class Pattern<T, F extends T> {
 	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
 		this.name = name;
 		this.previous = previous;
+	}
+
+	protected Pattern(
+			final String name,
+			final Pattern<T, ? extends T> previous,
+			final ConsumingStrategy consumingStrategy) {
+		this.name = name;
+		this.previous = previous;
+		this.quantifier = Quantifier.ONE(consumingStrategy);
 	}
 
 	public Pattern<T, ? extends T> getPrevious() {
@@ -195,7 +205,7 @@ public class Pattern<T, F extends T> {
 	 * @return A new pattern which is appended to this one
 	 */
 	public Pattern<T, T> next(final String name) {
-		return new Pattern<T, T>(name, this);
+		return new Pattern<T, T>(name, this, ConsumingStrategy.STRICT);
 	}
 
 	/**
@@ -206,8 +216,20 @@ public class Pattern<T, F extends T> {
 	 * @param name Name of the new pattern
 	 * @return A new pattern which is appended to this one
 	 */
-	public FollowedByPattern<T, T> followedBy(final String name) {
-		return new FollowedByPattern<T, T>(name, this);
+	public Pattern<T, T> followedBy(final String name) {
+		return new Pattern<>(name, this, ConsumingStrategy.SKIP_TILL_NEXT);
+	}
+
+	/**
+	 * Appends a new pattern to the existing one. The new pattern enforces non-strict
+	 * temporal contiguity. This means that a matching event of this pattern and the
+	 * preceding matching event might be interleaved with other events which are ignored.
+	 *
+	 * @param name Name of the new pattern
+	 * @return A new pattern which is appended to this one
+	 */
+	public Pattern<T, T> followedByAny(final String name) {
+		return new Pattern<>(name, this, ConsumingStrategy.SKIP_TILL_ANY);
 	}
 
 	/**
@@ -232,12 +254,12 @@ public class Pattern<T, F extends T> {
 	 * {@code A1 A2 B} appears, this will generate patterns:
 	 * {@code A1 B} and {@code A1 A2 B}. See also {@link #allowCombinations()}.
 	 *
-	 * @return The same pattern with a {@link Quantifier#ONE_OR_MORE()} quantifier applied.
+	 * @return The same pattern with a {@link Quantifier#ONE_OR_MORE(ConsumingStrategy)} quantifier applied.
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> oneOrMore() {
 		checkIfQuantifierApplied();
-		this.quantifier = Quantifier.ONE_OR_MORE();
+		this.quantifier = Quantifier.ONE_OR_MORE(quantifier.getConsumingStrategy());
 		return this;
 	}
 
@@ -252,14 +274,14 @@ public class Pattern<T, F extends T> {
 	public Pattern<T, F> times(int times) {
 		checkIfQuantifierApplied();
 		Preconditions.checkArgument(times > 0, "You should give a positive number greater than 0.");
-		this.quantifier = Quantifier.TIMES();
+		this.quantifier = Quantifier.TIMES(quantifier.getConsumingStrategy());
 		this.times = times;
 		return this;
 	}
 
 	/**
-	 * Applicable only to {@link Quantifier#ONE_OR_MORE()} and {@link Quantifier#TIMES()} patterns,
-	 * this option allows more flexibility to the matching events.
+	 * Applicable only to {@link Quantifier#ONE_OR_MORE(ConsumingStrategy)} and
+	 * {@link Quantifier#TIMES(ConsumingStrategy)} patterns, this option allows more flexibility to the matching events.
 	 *
 	 * <p>If {@code allowCombinations()} is not applied for a
 	 * pattern {@code A.oneOrMore().followedBy(B)} and a sequence of events

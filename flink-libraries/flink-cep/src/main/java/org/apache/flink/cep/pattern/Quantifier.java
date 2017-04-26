@@ -24,24 +24,34 @@ public class Quantifier {
 
 	private final EnumSet<QuantifierProperty> properties;
 
-	private Quantifier(final QuantifierProperty first, final QuantifierProperty... rest) {
+	private final ConsumingStrategy consumingStrategy;
+
+	private Quantifier(
+			final ConsumingStrategy consumingStrategy,
+			final QuantifierProperty first,
+			final QuantifierProperty... rest) {
 		this.properties = EnumSet.of(first, rest);
+		this.consumingStrategy = consumingStrategy;
 	}
 
-	public static Quantifier ONE() {
-		return new Quantifier(QuantifierProperty.SINGLE);
+	public static Quantifier ONE(final ConsumingStrategy consumingStrategy) {
+		return new Quantifier(consumingStrategy, QuantifierProperty.SINGLE);
 	}
 
-	public static Quantifier ONE_OR_MORE() {
-		return new Quantifier(QuantifierProperty.LOOPING, QuantifierProperty.EAGER);
+	public static Quantifier ONE_OR_MORE(final ConsumingStrategy consumingStrategy) {
+		return new Quantifier(consumingStrategy, QuantifierProperty.LOOPING, QuantifierProperty.EAGER);
 	}
 
-	public static Quantifier TIMES() {
-		return new Quantifier(QuantifierProperty.TIMES, QuantifierProperty.EAGER);
+	public static Quantifier TIMES(final ConsumingStrategy consumingStrategy) {
+		return new Quantifier(consumingStrategy, QuantifierProperty.TIMES, QuantifierProperty.EAGER);
 	}
 
 	public boolean hasProperty(QuantifierProperty property) {
 		return properties.contains(property);
+	}
+
+	public ConsumingStrategy getConsumingStrategy() {
+		return consumingStrategy;
 	}
 
 	public void combinations() {
@@ -76,13 +86,21 @@ public class Quantifier {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof Quantifier && properties.equals(((Quantifier)obj).properties);
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		Quantifier that = (Quantifier) o;
+		return Objects.equals(properties, that.properties) &&
+				consumingStrategy == that.consumingStrategy;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hashCode(properties);
+		return Objects.hash(properties, consumingStrategy);
 	}
 
 	/**
@@ -95,6 +113,12 @@ public class Quantifier {
 		EAGER,
 		CONSECUTIVE,
 		OPTIONAL
+	}
+
+	public enum ConsumingStrategy {
+		STRICT,
+		SKIP_TILL_NEXT,
+		SKIP_TILL_ANY
 	}
 
 }
