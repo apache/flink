@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.flink.configuration.ConfigConstants;
 
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -57,6 +58,8 @@ import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+
+import java.lang.reflect.Method;
 
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 
@@ -459,9 +462,17 @@ public final class Utils {
 
 		try (DataOutputBuffer dob = new DataOutputBuffer()) {
 			log.debug("Adding security tokens to Task Executor Container launch Context....");
-			UserGroupInformation user = UserGroupInformation.getCurrentUser();
-			Credentials credentials = user.getCredentials();
-			credentials.writeTokenStorageToStream(dob);
+			/*
+			 * For taskmanager yarn container context, read the tokens from the jobmanager yarn container local flie.
+			 * Notify: must read the tokens from the local file, but not from UGI context.Because if UGI is login
+			 * from Keytab, there is no HDFS degegation token in UGI context.
+			 */
+			String fileLocation = System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
+			Method readTokenStorageFileMethod = Credentials.class.getMethod("readTokenStorageFile",
+				File.class, org.apache.hadoop.conf.Configuration.class);
+			Credentials cred = (Credentials) readTokenStorageFileMethod.invoke(null, new File(fileLocation),
+				new SecurityUtils.SecurityConfiguration(flinkConfig).getHadoopConfiguration());
+			cred.writeTokenStorageToStream(dob);
 			ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
 			ctx.setTokens(securityTokens);
 		}
