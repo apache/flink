@@ -21,8 +21,6 @@ package org.apache.flink.runtime.io.network.netty;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CloseRequest;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
@@ -47,36 +45,24 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 
 	private final PartitionRequestQueue outboundQueue;
 
-	private final NetworkBufferPool networkBufferPool;
-
-	private BufferPool bufferPool;
-
 	PartitionRequestServerHandler(
 		ResultPartitionProvider partitionProvider,
 		TaskEventDispatcher taskEventDispatcher,
-		PartitionRequestQueue outboundQueue,
-		NetworkBufferPool networkBufferPool) {
+		PartitionRequestQueue outboundQueue) {
 
 		this.partitionProvider = partitionProvider;
 		this.taskEventDispatcher = taskEventDispatcher;
 		this.outboundQueue = outboundQueue;
-		this.networkBufferPool = networkBufferPool;
 	}
 
 	@Override
 	public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
 		super.channelRegistered(ctx);
-
-		bufferPool = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
 	}
 
 	@Override
 	public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
 		super.channelUnregistered(ctx);
-
-		if (bufferPool != null) {
-			bufferPool.lazyDestroy();
-		}
 	}
 
 	@Override
@@ -100,8 +86,7 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 					reader.requestSubpartitionView(
 						partitionProvider,
 						request.partitionId,
-						request.queueIndex,
-						bufferPool);
+						request.queueIndex);
 				} catch (PartitionNotFoundException notFound) {
 					respondWithError(ctx, notFound, request.receiverId);
 				}

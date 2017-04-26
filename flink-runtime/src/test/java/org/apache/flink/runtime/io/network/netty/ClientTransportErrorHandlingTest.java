@@ -29,7 +29,6 @@ import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
@@ -85,8 +84,7 @@ public class ClientTransportErrorHandlingTest {
 			public ChannelHandler[] getClientChannelHandlers() {
 				return new PartitionRequestProtocol(
 						mock(ResultPartitionProvider.class),
-						mock(TaskEventDispatcher.class),
-						mock(NetworkBufferPool.class)).getClientChannelHandlers();
+						mock(TaskEventDispatcher.class)).getClientChannelHandlers();
 			}
 		};
 
@@ -235,8 +233,7 @@ public class ClientTransportErrorHandlingTest {
 			public ChannelHandler[] getClientChannelHandlers() {
 				return new PartitionRequestProtocol(
 						mock(ResultPartitionProvider.class),
-						mock(TaskEventDispatcher.class),
-						mock(NetworkBufferPool.class)).getClientChannelHandlers();
+						mock(TaskEventDispatcher.class)).getClientChannelHandlers();
 			}
 		};
 
@@ -383,8 +380,7 @@ public class ClientTransportErrorHandlingTest {
 	private EmbeddedChannel createEmbeddedChannel() {
 		PartitionRequestProtocol protocol = new PartitionRequestProtocol(
 				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class),
-				mock(NetworkBufferPool.class));
+				mock(TaskEventDispatcher.class));
 
 		return new EmbeddedChannel(protocol.getClientChannelHandlers());
 	}
