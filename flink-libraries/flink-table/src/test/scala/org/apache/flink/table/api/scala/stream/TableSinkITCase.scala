@@ -23,7 +23,7 @@ import java.io.File
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala.stream.utils.StreamTestData
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.sinks.CsvTableSink
+import org.apache.flink.table.sinks.{CsvTableSink, CsvTableSinkForCRow}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
@@ -59,5 +59,33 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
 
     TestBaseUtils.compareResultsByLinesInMemory(expected, path)
   }
+  
+  @Test
+  def testStreamTableSinkWithCRow(): Unit = {
 
+    val tmpFile = File.createTempFile("flink-table-sink-test", ".tmp")
+    tmpFile.deleteOnExit()
+    val path = tmpFile.toURI.toString
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(4)
+
+    val input = StreamTestData.get3TupleDataStream(env)
+      .map(x => x).setParallelism(4) // increase DOP to 4
+
+    val results = input.toTable(tEnv, 'a, 'b, 'c)
+      .where('a < 5 || 'a > 17)
+      .select('c, 'b)
+      .writeToSink(new CsvTableSinkForCRow(path))
+
+    env.execute()
+
+    val expected = Seq(
+      "true,Hi,1", "true,Hello,2", "true,Hello world,2", "true,Hello world, how are you?,3",
+      "true,Comment#12,6", "true,Comment#13,6", "true,Comment#14,6", "true,Comment#15,6")
+      .mkString("\n")
+
+    TestBaseUtils.compareResultsByLinesInMemory(expected, path)
+  }
 }

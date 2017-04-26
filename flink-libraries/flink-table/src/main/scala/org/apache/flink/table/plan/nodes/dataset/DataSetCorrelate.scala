@@ -26,9 +26,11 @@ import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
+import org.apache.flink.table.runtime.CorrelateFlatMapRunner
 import org.apache.flink.types.Row
 
 /**
@@ -45,7 +47,7 @@ class DataSetCorrelate(
     joinType: SemiJoinType,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, inputNode)
-  with CommonCorrelate
+  with CommonCorrelate[Row]
   with DataSetRel {
 
   override def deriveRowType() = relRowType
@@ -83,6 +85,50 @@ class DataSetCorrelate(
       .item("rowType", relRowType)
       .item("joinType", joinType)
       .itemIf("condition", condition.orNull, condition.isDefined)
+  }
+
+
+  private[flink] def correlateMapFunction(
+      config: TableConfig,
+      inputTypeInfo: TypeInformation[Row],
+      udtfTypeInfo: TypeInformation[Any],
+      rowType: RelDataType,
+      joinType: SemiJoinType,
+      rexCall: RexCall,
+      condition: Option[RexNode],
+      pojoFieldMapping: Option[Array[Int]], // udtf return type pojo field mapping
+      ruleDescription: String):
+    CorrelateFlatMapRunner[Row, Row] = {
+
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType)
+
+    val flatMap = generateFunction(
+      config,
+      inputTypeInfo,
+      udtfTypeInfo,
+      returnType,
+      rowType,
+      joinType,
+      rexCall,
+      pojoFieldMapping,
+      ruleDescription)
+
+    val collector = generateCollector(
+      config,
+      inputTypeInfo,
+      udtfTypeInfo,
+      returnType,
+      rowType,
+      condition,
+      pojoFieldMapping)
+
+    new CorrelateFlatMapRunner[Row, Row](
+      flatMap.name,
+      flatMap.code,
+      collector.name,
+      collector.code,
+      flatMap.returnType)
+
   }
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {

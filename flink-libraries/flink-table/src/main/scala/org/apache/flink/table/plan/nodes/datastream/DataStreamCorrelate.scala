@@ -25,10 +25,12 @@ import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
-import org.apache.flink.types.Row
+import org.apache.flink.table.runtime.CRowCorrelateFlatMapRunner
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 /**
   * Flink RelNode which matches along with join a user defined table function.
@@ -44,7 +46,7 @@ class DataStreamCorrelate(
     joinType: SemiJoinType,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
-  with CommonCorrelate
+  with CommonCorrelate[CRow]
   with DataStreamRel {
 
   override def deriveRowType() = relRowType
@@ -79,12 +81,57 @@ class DataStreamCorrelate(
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
 
-  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
+  override def correlateMapFunction(
+      config: TableConfig,
+      inputTypeInfo: TypeInformation[CRow],
+      udtfTypeInfo: TypeInformation[Any],
+      rowType: RelDataType,
+      joinType: SemiJoinType,
+      rexCall: RexCall,
+      condition: Option[RexNode],
+      pojoFieldMapping: Option[Array[Int]], // udtf return type pojo field mapping
+      ruleDescription: String):
+    CRowCorrelateFlatMapRunner = {
+
+    val inputRowType = inputTypeInfo.asInstanceOf[CRowTypeInfo].rowType
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType)
+
+    val flatMap = generateFunction(
+      config,
+      inputRowType,
+      udtfTypeInfo,
+      returnType,
+      rowType,
+      joinType,
+      rexCall,
+      pojoFieldMapping,
+      ruleDescription)
+
+    val collector = generateCollector(
+      config,
+      inputRowType,
+      udtfTypeInfo,
+      returnType,
+      rowType,
+      condition,
+      pojoFieldMapping)
+
+    new CRowCorrelateFlatMapRunner(
+      flatMap.name,
+      flatMap.code,
+      collector.name,
+      collector.code,
+      CRowTypeInfo(flatMap.returnType))
+
+  }
+
+  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[CRow] = {
 
     val config = tableEnv.getConfig
 
     // we do not need to specify input type
     val inputDS = getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
+    val inputRowType = inputDS.getType.asInstanceOf[CRowTypeInfo]
 
     val funcRel = scan.asInstanceOf[LogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
@@ -94,7 +141,7 @@ class DataStreamCorrelate(
 
     val mapFunc = correlateMapFunction(
       config,
-      inputDS.getType,
+      inputRowType,
       udtfTypeInfo,
       getRowType,
       joinType,

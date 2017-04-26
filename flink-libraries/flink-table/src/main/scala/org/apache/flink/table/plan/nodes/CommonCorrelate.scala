@@ -20,10 +20,9 @@ package org.apache.flink.table.plan.nodes
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
-import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils.primitiveDefaultValue
 import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NO_CODE}
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedCollector, GeneratedExpression, GeneratedFunction}
@@ -36,7 +35,7 @@ import scala.collection.JavaConverters._
 /**
   * Join a user-defined table function
   */
-trait CommonCorrelate {
+trait CommonCorrelate[T] {
 
   /**
     * Creates the [[CorrelateFlatMapRunner]] to execute the join of input table
@@ -44,51 +43,20 @@ trait CommonCorrelate {
     */
   private[flink] def correlateMapFunction(
       config: TableConfig,
-      inputTypeInfo: TypeInformation[Row],
+      inputTypeInfo: TypeInformation[T],
       udtfTypeInfo: TypeInformation[Any],
       rowType: RelDataType,
       joinType: SemiJoinType,
       rexCall: RexCall,
       condition: Option[RexNode],
       pojoFieldMapping: Option[Array[Int]], // udtf return type pojo field mapping
-      ruleDescription: String)
-    : CorrelateFlatMapRunner[Row, Row] = {
-
-    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType)
-
-    val flatMap = generateFunction(
-      config,
-      inputTypeInfo,
-      udtfTypeInfo,
-      returnType,
-      rowType,
-      joinType,
-      rexCall,
-      pojoFieldMapping,
-      ruleDescription)
-
-    val collector = generateCollector(
-      config,
-      inputTypeInfo,
-      udtfTypeInfo,
-      returnType,
-      rowType,
-      condition,
-      pojoFieldMapping)
-
-    new CorrelateFlatMapRunner[Row, Row](
-      flatMap.name,
-      flatMap.code,
-      collector.name,
-      collector.code,
-      flatMap.returnType)
-
-  }
+      ruleDescription: String):
+    RichFlatMapFunction[T, T]
 
   /**
     * Generates the flat map function to run the user-defined table function.
     */
-  private def generateFunction(
+  private[flink] def generateFunction(
       config: TableConfig,
       inputTypeInfo: TypeInformation[Row],
       udtfTypeInfo: TypeInformation[Any],
@@ -97,8 +65,8 @@ trait CommonCorrelate {
       joinType: SemiJoinType,
       rexCall: RexCall,
       pojoFieldMapping: Option[Array[Int]],
-      ruleDescription: String)
-    : GeneratedFunction[FlatMapFunction[Row, Row], Row] = {
+      ruleDescription: String):
+    GeneratedFunction[FlatMapFunction[Row, Row], Row] = {
 
     val functionGenerator = new CodeGenerator(
       config,

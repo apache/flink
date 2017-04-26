@@ -54,7 +54,7 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
   Preconditions.checkNotNull(aggregates)
   Preconditions.checkNotNull(groupKeysMapping)
 
-  private var collector: TimeWindowPropertyCollector = _
+  private var collector: TimeWindowPropertyCollector[Row] = _
   protected var aggregateBuffer: Row = _
   private var output: Row = _
   private val accumStartPos: Int = groupKeysMapping.length
@@ -69,7 +69,7 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
   override def open(config: Configuration) {
     aggregateBuffer = new Row(intermediateRowArity)
     output = new Row(finalRowArity)
-    collector = new TimeWindowPropertyCollector(windowStartPos, windowEndPos)
+    collector = new RowTimeWindowPropertyCollector(windowStartPos, windowEndPos)
 
     // init lists with two empty accumulators
     for (i <- aggregates.indices) {

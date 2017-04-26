@@ -22,23 +22,28 @@ import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 import org.slf4j.LoggerFactory
 
-class FlatMapRunner(
+/**
+  * FlatMapRunner with [[CRow]] input and [[CRow]] output.
+  */
+class CRowFlatMapRunner(
     name: String,
     code: String,
-    @transient returnType: TypeInformation[Row])
-  extends RichFlatMapFunction[Row, Row]
-  with ResultTypeQueryable[Row]
+    @transient returnType: TypeInformation[CRow])
+  extends RichFlatMapFunction[CRow, CRow]
+  with ResultTypeQueryable[CRow]
   with Compiler[FlatMapFunction[Row, Row]] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
   private var function: FlatMapFunction[Row, Row] = _
+  private var cRowWrapper: CRowWrappingCollector = _
 
   override def open(parameters: Configuration): Unit = {
     LOG.debug(s"Compiling FlatMapFunction: $name \n\n Code:\n$code")
@@ -47,14 +52,21 @@ class FlatMapRunner(
     function = clazz.newInstance()
     FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
     FunctionUtils.openFunction(function, parameters)
+
+    this.cRowWrapper = new CRowWrappingCollector()
   }
 
-  override def flatMap(in: Row, out: Collector[Row]): Unit =
-    function.flatMap(in, out)
+  override def flatMap(in: CRow, out: Collector[CRow]): Unit = {
+    cRowWrapper.out = out
+    cRowWrapper.setChange(in.change)
+    function.flatMap(in.row, cRowWrapper)
+  }
 
-  override def getProducedType: TypeInformation[Row] = returnType
+  override def getProducedType: TypeInformation[CRow] = returnType
 
   override def close(): Unit = {
     FunctionUtils.closeFunction(function)
   }
 }
+
+
