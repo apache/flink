@@ -15,40 +15,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
-import org.apache.flink.streaming.runtime.operators.GenericWriteAheadSink;
-import org.apache.flink.table.sinks.StreamTableSink;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 
-import java.io.IOException;
-import java.util.UUID;
-
-public class JDBCTableSink extends GenericWriteAheadSink<Row> implements StreamTableSink<Row> {
+/**
+ * An at-least-once Table sink for JDBC.
+ */
+public class JDBCTableSink extends RichSinkFunction<Row>
+	implements AppendStreamTableSink<Row>, CheckpointedFunction {
 	private final JDBCOutputFormat outputFormat;
-	private final CheckpointCommitter committer;
-	private final String[] fieldNames;
-	private final TypeInformation[] fieldTypes;
 
-	public JDBCTableSink(CheckpointCommitter committer, TypeSerializer<Row> serializer,
-				JDBCOutputFormat outputFormat, String[] fieldNames,
-				TypeInformation[] fieldTypes) throws Exception {
-		super(committer, serializer, UUID.randomUUID().toString().replace("-", "_"));
+	private String[] fieldNames;
+	private TypeInformation[] fieldTypes;
+
+	public JDBCTableSink(JDBCOutputFormat outputFormat) {
 		this.outputFormat = outputFormat;
-		this.committer = committer;
-		this.fieldNames = fieldNames;
-		this.fieldTypes = fieldTypes;
 	}
 
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
-		dataStream.transform("JDBC Sink", getOutputType(), this);
+		dataStream.addSink(this);
 	}
 
 	@Override
@@ -68,24 +67,36 @@ public class JDBCTableSink extends GenericWriteAheadSink<Row> implements StreamT
 
 	@Override
 	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		try {
-			return new JDBCTableSink(committer, serializer, outputFormat, fieldNames, fieldTypes);
-		} catch (Exception e) {
-			LOG.warn("Failed to create a copy of the sink.", e);
-			return null;
-		}
+		JDBCTableSink copy = new JDBCTableSink(outputFormat);
+		copy.fieldNames = fieldNames;
+		copy.fieldTypes = fieldTypes;
+		return copy;
 	}
 
 	@Override
-	protected boolean sendValues(Iterable<Row> value, long timestamp) throws Exception {
-		for (Row r : value) {
-			try {
-				outputFormat.writeRecord(r);
-			} catch (IOException e) {
-				LOG.warn("Sending a value failed.", e);
-				return false;
-			}
-		}
-		return true;
+	public void invoke(Row value) throws Exception {
+		outputFormat.writeRecord(value);
+	}
+
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+		RuntimeContext ctx = getRuntimeContext();
+		outputFormat.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks());
+	}
+
+	@Override
+	public void close() throws Exception {
+		outputFormat.close();
+		super.close();
+	}
+
+	@Override
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
+		outputFormat.flush();
+	}
+
+	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
 	}
 }
