@@ -41,7 +41,6 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -540,20 +539,6 @@ public class CheckpointCoordinator {
 				checkpoint.setStatsCallback(callback);
 			}
 
-			// trigger the master hooks for the checkpoint
-			try {
-				List<MasterState> masterStates = MasterHooks.triggerMasterHooks(masterHooks.values(),
-						checkpointID, timestamp, executor, Time.milliseconds(checkpointTimeout));
-
-				for (MasterState s : masterStates) {
-					checkpoint.addMasterState(s);
-				}
-			}
-			catch (FlinkException e) {
-				checkpoint.abortError(e);
-				return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
-			}
-
 			// schedule the timer that will clean up the expired checkpoints
 			final Runnable canceller = new Runnable() {
 				@Override
@@ -628,6 +613,13 @@ public class CheckpointCoordinator {
 						// checkpoint is already disposed!
 						cancellerHandle.cancel(false);
 					}
+
+					// trigger the master hooks for the checkpoint
+					final List<MasterState> masterStates = MasterHooks.triggerMasterHooks(masterHooks.values(),
+							checkpointID, timestamp, executor, Time.milliseconds(checkpointTimeout));
+					for (MasterState s : masterStates) {
+						checkpoint.addMasterState(s);
+					}
 				}
 				// end of lock scope
 
@@ -656,7 +648,7 @@ public class CheckpointCoordinator {
 				LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
 
 				if (!checkpoint.isDiscarded()) {
-					checkpoint.abortError(new Exception("Failed to trigger checkpoint"));
+					checkpoint.abortError(new Exception("Failed to trigger checkpoint", t));
 				}
 				return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
 			}
