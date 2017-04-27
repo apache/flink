@@ -190,7 +190,8 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table_2.10</artifactId>
-			<version>1.3-SNAPSHOT</version>
+			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 </project>

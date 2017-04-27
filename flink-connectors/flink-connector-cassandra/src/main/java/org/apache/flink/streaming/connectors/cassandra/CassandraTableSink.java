@@ -20,18 +20,16 @@ package org.apache.flink.streaming.connectors.cassandra;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.table.sinks.StreamTableSink;
-import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Properties;
 
 /**
- * A cassandra  {@link StreamTableSink}.
- *
+ * A cassandra  {@link AppendStreamTableSink}.
  */
-class CassandraTableSink implements StreamTableSink<Row> {
+class CassandraTableSink implements AppendStreamTableSink<Row> {
 	private final ClusterBuilder builder;
 	private final String cql;
 	private String[] fieldNames;
@@ -39,9 +37,9 @@ class CassandraTableSink implements StreamTableSink<Row> {
 	private final Properties properties;
 
 	public CassandraTableSink(ClusterBuilder builder, String cql, Properties properties) {
-		this.builder = Preconditions.checkNotNull(builder, "builder");
-		this.cql = Preconditions.checkNotNull(cql, "cql");
-		this.properties = Preconditions.checkNotNull(properties, "properties");
+		this.builder = Preconditions.checkNotNull(builder, "ClusterBuilder must not be null");
+		this.cql = Preconditions.checkNotNull(cql, "Cql must not be null");
+		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null");
 	}
 
 	@Override
@@ -60,10 +58,10 @@ class CassandraTableSink implements StreamTableSink<Row> {
 	}
 
 	@Override
-	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+	public CassandraTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
 		CassandraTableSink cassandraTableSink = new CassandraTableSink(this.builder, this.cql, this.properties);
-		cassandraTableSink.fieldNames = Preconditions.checkNotNull(fieldNames, "fieldNames");
-		cassandraTableSink.fieldTypes = Preconditions.checkNotNull(fieldTypes, "fieldTypes");
+		cassandraTableSink.fieldNames = Preconditions.checkNotNull(fieldNames, "FieldNames must not be null");
+		cassandraTableSink.fieldTypes = Preconditions.checkNotNull(fieldTypes, "fieldTypes must not be null");
 		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
 			"Number of provided field names and types does not match.");
 		return cassandraTableSink;

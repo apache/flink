@@ -207,15 +207,14 @@ public class CassandraSink<IN> {
 	 * @param <IN>  input type
 	 * @return CassandraSinkBuilder, to further configure the sink
 	 */
-
-	public static <IN, T extends Tuple, R extends Row> CassandraSinkBuilder<IN> addSink(DataStream<IN> input) {
+	public static <IN> CassandraSinkBuilder<IN> addSink(DataStream<IN> input) {
 		TypeInformation<IN> typeInfo = input.getType();
 		if (typeInfo instanceof TupleTypeInfo) {
-			DataStream<T> tupleInput = (DataStream<T>) input;
+			DataStream<Tuple> tupleInput = (DataStream<Tuple>) input;
 			return (CassandraSinkBuilder<IN>) new CassandraTupleSinkBuilder<>(tupleInput, tupleInput.getType(), tupleInput.getType().createSerializer(tupleInput.getExecutionEnvironment().getConfig()));
 		}
 		if (typeInfo instanceof RowTypeInfo) {
-			DataStream<R> rowInput = (DataStream<R>) input;
+			DataStream<Row> rowInput = (DataStream<Row>) input;
 			return (CassandraSinkBuilder<IN>) new CassandraRowSinkBuilder<>(rowInput, rowInput.getType(), rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()));
 		}
 		if (typeInfo instanceof PojoTypeInfo) {
