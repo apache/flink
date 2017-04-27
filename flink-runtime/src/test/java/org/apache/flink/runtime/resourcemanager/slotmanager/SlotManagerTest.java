@@ -25,10 +25,9 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.clusterframework.types.TaskManagerSlot;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.concurrent.*;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
@@ -38,7 +37,6 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
-import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -46,9 +44,11 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.Arrays;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -648,7 +648,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testTaskManagerTimeout() throws Exception {
-		final long tmTimeout = 50L;
+		final long tmTimeout = 500L;
 
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 		final UUID leaderId = UUID.randomUUID();
@@ -661,7 +661,7 @@ public class SlotManagerTest extends TestLogger {
 		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
 		final SlotReport slotReport = new SlotReport(slotStatus);
 
-		final Executor mainThreadExecutor = mock(Executor.class);
+		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
 		try (SlotManager slotManager = new SlotManager(
 			TestingUtils.defaultScheduledExecutor(),
@@ -671,24 +671,21 @@ public class SlotManagerTest extends TestLogger {
 
 			slotManager.start(leaderId, mainThreadExecutor, resourceManagerActions);
 
-			slotManager.registerTaskManager(taskManagerConnection, slotReport);
+			mainThreadExecutor.execute(new Runnable() {
+				@Override
+				public void run() {
+					slotManager.registerTaskManager(taskManagerConnection, slotReport);
+				}
+			});
 
-			ArgumentCaptor<Runnable> runnableArgumentCaptor = ArgumentCaptor.forClass(Runnable.class);
-
-			verify(mainThreadExecutor, timeout(tmTimeout * 10L)).execute(runnableArgumentCaptor.capture());
-
-			// the only runnable being executed by the main thread executor should be the timeout runnable
-			Runnable timeoutRunnable = runnableArgumentCaptor.getValue();
-
-			timeoutRunnable.run();
-
-			verify(resourceManagerActions, times(1)).releaseResource(eq(taskManagerConnection.getInstanceID()));
+			verify(resourceManagerActions, timeout(100L * tmTimeout).times(1))
+				.releaseResource(eq(taskManagerConnection.getInstanceID()));
 		}
 	}
 
 	/**
 	 * Tests that slot requests time out after the specified request timeout. If a slot request
-	 * times out, then the request is cancelled, removed from the slot manager and the resourc
+	 * times out, then the request is cancelled, removed from the slot manager and the resource
 	 * manager is notified about the failed allocation.
 	 */
 	@Test
@@ -703,7 +700,7 @@ public class SlotManagerTest extends TestLogger {
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
 		final SlotRequest slotRequest = new SlotRequest(jobId, allocationId, resourceProfile, "foobar");
 
-		final Executor mainThreadExecutor = mock(Executor.class);
+		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
 		try (SlotManager slotManager = new SlotManager(
 			TestingUtils.defaultScheduledExecutor(),
@@ -713,21 +710,27 @@ public class SlotManagerTest extends TestLogger {
 
 			slotManager.start(leaderId, mainThreadExecutor, resourceManagerActions);
 
-			assertTrue(slotManager.registerSlotRequest(slotRequest));
+			final AtomicReference<Exception> atomicException = new AtomicReference<>(null);
 
-			ArgumentCaptor<Runnable> runnableArgumentCaptor = ArgumentCaptor.forClass(Runnable.class);
+			mainThreadExecutor.execute(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						assertTrue(slotManager.registerSlotRequest(slotRequest));
+					} catch (Exception e) {
+						atomicException.compareAndSet(null, e);
+					}
+				}
+			});
 
-			verify(mainThreadExecutor, timeout(allocationTimeout * 10L)).execute(runnableArgumentCaptor.capture());
-
-			// the only runnable being executed by the main thread executor should be the timeout runnable
-			Runnable timeoutRunnable = runnableArgumentCaptor.getValue();
-
-			timeoutRunnable.run();
-
-			verify(resourceManagerActions, times(1)).notifyAllocationFailure(
+			verify(resourceManagerActions, timeout(100L * allocationTimeout).times(1)).notifyAllocationFailure(
 				eq(jobId),
 				eq(allocationId),
 				any(TimeoutException.class));
+
+			if (atomicException.get() != null) {
+				throw atomicException.get();
+			}
 		}
 	}
 
@@ -815,6 +818,7 @@ public class SlotManagerTest extends TestLogger {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testSlotReportWhileActiveSlotRequest() throws Exception {
+		final long verifyTimeout = 1000L;
 		final UUID leaderId = UUID.randomUUID();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 
@@ -842,20 +846,37 @@ public class SlotManagerTest extends TestLogger {
 		final SlotStatus slotStatus2 = new SlotStatus(slotId2, resourceProfile);
 		final SlotReport slotReport = new SlotReport(Arrays.asList(slotStatus1, slotStatus2));
 
-		// we have to manually trigger the future call backs to simulate the main thread executor behaviour
-		final Executor mainThreadExecutorMock = mock(Executor.class);
+		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
-		try (SlotManager slotManager = new SlotManager(
+		try (final SlotManager slotManager = new SlotManager(
 			TestingUtils.defaultScheduledExecutor(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime())) {
 
-			slotManager.start(leaderId, mainThreadExecutorMock, resourceManagerActions);
+			slotManager.start(leaderId, mainThreadExecutor, resourceManagerActions);
 
-			slotManager.registerTaskManager(taskManagerConnection, slotReport);
+			Future<Void> registrationFuture = FlinkFuture.supplyAsync(new Callable<Void>() {
+				@Override
+				public Void call() throws Exception {
+					slotManager.registerTaskManager(taskManagerConnection, slotReport);
 
-			slotManager.registerSlotRequest(slotRequest);
+					return null;
+				}
+			}, mainThreadExecutor)
+			.thenAccept(new AcceptFunction<Void>() {
+				@Override
+				public void accept(Void value) {
+					try {
+						slotManager.registerSlotRequest(slotRequest);
+					} catch (SlotManagerException e) {
+						throw new RuntimeException("Could not register slots.", e);
+					}
+				}
+			});
+
+			// check that no exception has been thrown
+			registrationFuture.get();
 
 			ArgumentCaptor<SlotID> slotIdCaptor = ArgumentCaptor.forClass(SlotID.class);
 
@@ -867,26 +888,33 @@ public class SlotManagerTest extends TestLogger {
 				eq(leaderId),
 				any(Time.class));
 
-			final SlotID requestedSlotdId = slotIdCaptor.getValue();
-			final SlotID freeSlotId = requestedSlotdId.equals(slotId1) ? slotId2 : slotId1;
+			final SlotID requestedSlotId = slotIdCaptor.getValue();
+			final SlotID freeSlotId = requestedSlotId.equals(slotId1) ? slotId2 : slotId1;
 
-			assertTrue(slotManager.getSlot(freeSlotId).isFree());
+			Future<Boolean> freeSlotFuture = FlinkFuture.supplyAsync(new Callable<Boolean>() {
+				@Override
+				public Boolean call() throws Exception {
+					return slotManager.getSlot(freeSlotId).isFree();
+				}
+			}, mainThreadExecutor);
+
+			assertTrue(freeSlotFuture.get());
 
 			final SlotStatus newSlotStatus1 = new SlotStatus(slotIdCaptor.getValue(), resourceProfile, new JobID(), new AllocationID());
 			final SlotStatus newSlotStatus2 = new SlotStatus(freeSlotId, resourceProfile);
 			final SlotReport newSlotReport = new SlotReport(Arrays.asList(newSlotStatus1, newSlotStatus2));
 
-			// this should update the slot with the pending slot request triggering the reassignment of it
-			slotManager.reportSlotStatus(taskManagerConnection.getInstanceID(), newSlotReport);
+			FlinkFuture.supplyAsync(new Callable<Void>() {
+				@Override
+				public Void call() throws Exception {
+					// this should update the slot with the pending slot request triggering the reassignment of it
+					slotManager.reportSlotStatus(taskManagerConnection.getInstanceID(), newSlotReport);
 
-			ArgumentCaptor<Runnable> runnableArgumentCaptor = ArgumentCaptor.forClass(Runnable.class);
-			verify(mainThreadExecutorMock).execute(runnableArgumentCaptor.capture());
+					return null;
+				}
+			}, mainThreadExecutor);
 
-			Runnable requestFailureRunnable = runnableArgumentCaptor.getValue();
-
-			requestFailureRunnable.run();
-
-			verify(taskExecutorGateway, times(2)).requestSlot(
+			verify(taskExecutorGateway, timeout(verifyTimeout).times(2)).requestSlot(
 				slotIdCaptor.capture(),
 				eq(jobId),
 				eq(allocationId),
@@ -894,16 +922,18 @@ public class SlotManagerTest extends TestLogger {
 				eq(leaderId),
 				any(Time.class));
 
-			verify(mainThreadExecutorMock, times(2)).execute(runnableArgumentCaptor.capture());
-			Runnable requestSuccessRunnable = runnableArgumentCaptor.getValue();
+			final SlotID requestedSlotId2 = slotIdCaptor.getValue();
 
-			requestSuccessRunnable.run();
+			assertEquals(slotId2, requestedSlotId2);
 
-			final SlotID requestedSlotId = slotIdCaptor.getValue();
+			Future<TaskManagerSlot> requestedSlotFuture = FlinkFuture.supplyAsync(new Callable<TaskManagerSlot>() {
+				@Override
+				public TaskManagerSlot call() throws Exception {
+					return slotManager.getSlot(requestedSlotId2);
+				}
+			}, mainThreadExecutor);
 
-			assertEquals(slotId2, requestedSlotId);
-
-			TaskManagerSlot slot = slotManager.getSlot(requestedSlotId);
+			TaskManagerSlot slot = requestedSlotFuture.get();
 
 			assertTrue(slot.isAllocated());
 			assertEquals(allocationId, slot.getAllocationId());
@@ -916,11 +946,12 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testTimeoutForUnusedTaskManager() throws Exception {
-		final long taskManagerTimeout = 123456L;
+		final long taskManagerTimeout = 50L;
+		final long verifyTimeout = taskManagerTimeout * 10L;
 
 		final UUID leaderId = UUID.randomUUID();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
-		final ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
+		final ScheduledExecutor scheduledExecutor = TestingUtils.defaultScheduledExecutor();
 
 		final ResourceID resourceId = ResourceID.generate();
 
@@ -946,21 +977,34 @@ public class SlotManagerTest extends TestLogger {
 		final SlotStatus slotStatus2 = new SlotStatus(slotId2, resourceProfile);
 		final SlotReport initialSlotReport = new SlotReport(Arrays.asList(slotStatus1, slotStatus2));
 
-		try (SlotManager slotManager = new SlotManager(
+		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
+
+		try (final SlotManager slotManager = new SlotManager(
 			scheduledExecutor,
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			Time.of(taskManagerTimeout, TimeUnit.MILLISECONDS))) {
 
-			slotManager.start(leaderId, Executors.directExecutor(), resourceManagerActions);
+			slotManager.start(leaderId, mainThreadExecutor, resourceManagerActions);
 
-			slotManager.registerSlotRequest(slotRequest);
+			FlinkFuture.supplyAsync(new Callable<Void>() {
+				@Override
+				public Void call() throws Exception {
+					slotManager.registerSlotRequest(slotRequest);
 
-			slotManager.registerTaskManager(taskManagerConnection, initialSlotReport);
+					return null;
+				}
+			}, mainThreadExecutor)
+			.thenAccept(new AcceptFunction<Void>() {
+				@Override
+				public void accept(Void value) {
+					slotManager.registerTaskManager(taskManagerConnection, initialSlotReport);
+				}
+			});
 
 			ArgumentCaptor<SlotID> slotIdArgumentCaptor = ArgumentCaptor.forClass(SlotID.class);
 
-			verify(taskExecutorGateway).requestSlot(
+			verify(taskExecutorGateway, timeout(verifyTimeout)).requestSlot(
 				slotIdArgumentCaptor.capture(),
 				eq(jobId),
 				eq(allocationId),
@@ -968,103 +1012,48 @@ public class SlotManagerTest extends TestLogger {
 				eq(leaderId),
 				any(Time.class));
 
-			assertFalse(slotManager.hasTimeoutRegistered(taskManagerConnection.getInstanceID()));
+			Future<Boolean> idleFuture = FlinkFuture.supplyAsync(new Callable<Boolean>() {
+				@Override
+				public Boolean call() throws Exception {
+					return slotManager.isTaskManagerIdle(taskManagerConnection.getInstanceID());
+				}
+			}, mainThreadExecutor);
 
-			SlotID slotId = slotIdArgumentCaptor.getValue();
-			TaskManagerSlot slot = slotManager.getSlot(slotId);
+			// check that the TaskManaer is not idle
+			assertFalse(idleFuture.get());
+
+			final SlotID slotId = slotIdArgumentCaptor.getValue();
+
+			Future<TaskManagerSlot> slotFuture = FlinkFuture.supplyAsync(new Callable<TaskManagerSlot>() {
+				@Override
+				public TaskManagerSlot call() throws Exception {
+					return slotManager.getSlot(slotId);
+				}
+			}, mainThreadExecutor);
+
+			TaskManagerSlot slot = slotFuture.get();
 
 			assertTrue(slot.isAllocated());
 			assertEquals(allocationId, slot.getAllocationId());
 
-			slotManager.freeSlot(slotId, allocationId);
+			Future<Boolean> idleFuture2 = FlinkFuture.supplyAsync(new Callable<Void>() {
+				@Override
+				public Void call() throws Exception {
+					slotManager.freeSlot(slotId, allocationId);
 
-			assertTrue(slotManager.hasTimeoutRegistered(taskManagerConnection.getInstanceID()));
+					return null;
+				}
+			}, mainThreadExecutor)
+			.thenApply(new ApplyFunction<Void, Boolean>() {
+				@Override
+				public Boolean apply(Void value) {
+					return slotManager.isTaskManagerIdle(taskManagerConnection.getInstanceID());
+				}
+			});
 
-			ArgumentCaptor<Runnable> runnableArgumentCaptor = ArgumentCaptor.forClass(Runnable.class);
+			assertTrue(idleFuture2.get());
 
-			// filter out the schedule call for the task manager which will be registered using the
-			// taskManagerTimeout value
-			verify(scheduledExecutor).schedule(runnableArgumentCaptor.capture(), eq(taskManagerTimeout), eq(TimeUnit.MILLISECONDS));
-
-			Runnable timeoutRunnable = runnableArgumentCaptor.getValue();
-
-			timeoutRunnable.run();
-
-			verify(resourceManagerActions, times(1)).releaseResource(eq(taskManagerConnection.getInstanceID()));
-		}
-	}
-
-	/**
-	 * Tests that the slot manager re-registers a timeout for a rejected slot request.
-	 */
-	@Test
-	public void testTimeoutForRejectedSlotRequest() throws Exception {
-
-		final long slotRequestTimeout = 1337L;
-		final ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
-
-		final ResourceID resourceId = ResourceID.generate();
-		final SlotID slotId = new SlotID(resourceId, 0);
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
-		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
-		final SlotReport slotReport = new SlotReport(slotStatus);
-
-		final UUID leaderId = UUID.randomUUID();
-		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
-
-		final JobID jobId = new JobID();
-		final AllocationID allocationId = new AllocationID();
-		final AllocationID allocationId2 = new AllocationID();
-		final SlotRequest slotRequest = new SlotRequest(jobId, allocationId, resourceProfile, "foobar");
-
-		CompletableFuture<Acknowledge> requestFuture = new FlinkCompletableFuture<>();
-
-		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
-		when(taskExecutorGateway.requestSlot(
-			eq(slotId),
-			eq(jobId),
-			eq(allocationId),
-			anyString(),
-			eq(leaderId),
-			any(Time.class))).thenReturn(requestFuture);
-
-		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
-
-		try (SlotManager slotManager = new SlotManager(
-			scheduledExecutor,
-			TestingUtils.infiniteTime(),
-			Time.milliseconds(slotRequestTimeout),
-			TestingUtils.infiniteTime())) {
-
-			slotManager.start(leaderId, Executors.directExecutor(), resourceManagerActions);
-
-			slotManager.registerTaskManager(taskManagerConnection, slotReport);
-
-			slotManager.registerSlotRequest(slotRequest);
-
-			verify(taskExecutorGateway).requestSlot(
-				eq(slotId),
-				eq(jobId),
-				eq(allocationId),
-				anyString(),
-				eq(leaderId),
-				any(Time.class));
-
-			requestFuture.completeExceptionally(new SlotOccupiedException("Slot is already occupied", allocationId2));
-
-			ArgumentCaptor<Runnable> runnableArgumentCaptor = ArgumentCaptor.forClass(Runnable.class);
-			verify(scheduledExecutor).schedule(runnableArgumentCaptor.capture(), eq(slotRequestTimeout), eq(TimeUnit.MILLISECONDS));
-
-			Runnable timeoutRunnable = runnableArgumentCaptor.getValue();
-
-			timeoutRunnable.run();
-
-			verify(resourceManagerActions).notifyAllocationFailure(eq(jobId), eq(allocationId), any(Exception.class));
-
-			TaskManagerSlot slot = slotManager.getSlot(slotId);
-
-			assertTrue(slot.isAllocated());
-			assertEquals(allocationId2, slot.getAllocationId());
+			verify(resourceManagerActions, timeout(verifyTimeout).times(1)).releaseResource(eq(taskManagerConnection.getInstanceID()));
 		}
 	}
 

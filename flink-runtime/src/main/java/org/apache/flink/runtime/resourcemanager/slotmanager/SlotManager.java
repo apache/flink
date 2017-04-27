@@ -64,11 +64,10 @@ import java.util.concurrent.TimeoutException;
  * {@link ResourceManagerActions#allocateResource(ResourceProfile)}.
  *
  * In order to free resources and avoid resource leaks, idling task managers (task managers whose
- * slots are currently not used) and not fulfilled pending slot requests time out triggering their
- * release and failure, respectively.
+ * slots are currently not used) and pending slot requests time out triggering their release and
+ * failure, respectively.
  */
 public class SlotManager implements AutoCloseable {
-
 	private static final Logger LOG = LoggerFactory.getLogger(SlotManager.class);
 
 	/** Scheduled executor for timeouts */
@@ -107,6 +106,10 @@ public class SlotManager implements AutoCloseable {
 	/** Callbacks for resource (de-)allocations */
 	private ResourceManagerActions resourceManagerActions;
 
+	private ScheduledFuture<?> taskManagerTimeoutCheck;
+
+	private ScheduledFuture<?> slotRequestTimeoutCheck;
+
 	/** True iff the component has been started */
 	private boolean started;
 
@@ -128,6 +131,10 @@ public class SlotManager implements AutoCloseable {
 
 		leaderId = null;
 		resourceManagerActions = null;
+		mainThreadExecutor = null;
+		taskManagerTimeoutCheck = null;
+		slotRequestTimeoutCheck = null;
+
 		started = false;
 	}
 
@@ -142,17 +149,52 @@ public class SlotManager implements AutoCloseable {
 	 * @param newResourceManagerActions to use for resource (de-)allocations
 	 */
 	public void start(UUID newLeaderId, Executor newMainThreadExecutor, ResourceManagerActions newResourceManagerActions) {
+		LOG.info("Starting the SlotManager.");
+
 		leaderId = Preconditions.checkNotNull(newLeaderId);
 		mainThreadExecutor = Preconditions.checkNotNull(newMainThreadExecutor);
 		resourceManagerActions = Preconditions.checkNotNull(newResourceManagerActions);
 
 		started = true;
+
+		taskManagerTimeoutCheck = scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
+			@Override
+			public void run() {
+				mainThreadExecutor.execute(new Runnable() {
+					@Override
+					public void run() {
+						checkTaskManagerTimeouts();
+					}
+				});
+			}
+		}, 0L, taskManagerTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+		slotRequestTimeoutCheck = scheduledExecutor.scheduleWithFixedDelay(new Runnable() {
+			@Override
+			public void run() {
+				mainThreadExecutor.execute(new Runnable() {
+					@Override
+					public void run() {
+						checkSlotRequestTimeouts();
+					}
+				});
+			}
+		}, 0L, slotRequestTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 	/**
 	 * Suspends the component. This clears the internal state of the slot manager.
 	 */
 	public void suspend() {
+		LOG.info("Suspending the SlotManager.");
+
+		// stop the timeout checks for the TaskManagers and the SlotRequests
+		taskManagerTimeoutCheck.cancel(false);
+		slotRequestTimeoutCheck.cancel(false);
+
+		taskManagerTimeoutCheck = null;
+		slotRequestTimeoutCheck = null;
+
 		for (PendingSlotRequest pendingSlotRequest : pendingSlotRequests.values()) {
 			cancelPendingSlotRequest(pendingSlotRequest);
 		}
@@ -177,6 +219,8 @@ public class SlotManager implements AutoCloseable {
 	 */
 	@Override
 	public void close() throws Exception {
+		LOG.info("Closing the SlotManager.");
+
 		suspend();
 	}
 
@@ -249,6 +293,8 @@ public class SlotManager implements AutoCloseable {
 	public void registerTaskManager(final TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) {
 		checkInit();
 
+		LOG.info("Register TaskManager {} at the SlotManager.", taskExecutorConnection.getInstanceID());
+
 		// we identify task managers by their instance id
 		if (taskManagerRegistrations.containsKey(taskExecutorConnection.getInstanceID())) {
 			reportSlotStatus(taskExecutorConnection.getInstanceID(), initialSlotReport);
@@ -272,8 +318,13 @@ public class SlotManager implements AutoCloseable {
 					taskExecutorConnection);
 			}
 
-			if (!anySlotUsed(taskManagerRegistration.getSlots())) {
-				registerTaskManagerTimeout(taskManagerRegistration);
+			// determine if the task manager is idle or not
+			boolean idle = !anySlotUsed(taskManagerRegistration.getSlots());
+
+			if (idle) {
+				taskManagerRegistration.markIdle();
+			} else {
+				taskManagerRegistration.markUsed();
 			}
 		}
 
@@ -292,9 +343,7 @@ public class SlotManager implements AutoCloseable {
 		TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.remove(instanceId);
 
 		if (null != taskManagerRegistration) {
-			removeSlots(taskManagerRegistration.getSlots());
-
-			taskManagerRegistration.cancelTimeout();
+			internalUnregisterTaskManager(taskManagerRegistration);
 
 			return true;
 		} else {
@@ -334,8 +383,11 @@ public class SlotManager implements AutoCloseable {
 			}
 
 			if (idle) {
-				// no slot of this task manager is being used --> register timer to free this resource
-				registerTaskManagerTimeout(taskManagerRegistration);
+				// no slot of this task manager is being used --> mark this task manager to be idle which allows it to
+				// time out
+				taskManagerRegistration.markIdle();
+			} else {
+				taskManagerRegistration.markUsed();
 			}
 
 			return true;
@@ -371,9 +423,14 @@ public class SlotManager implements AutoCloseable {
 
 					TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(slot.getInstanceId());
 
-					if (null != taskManagerRegistration && !anySlotUsed(taskManagerRegistration.getSlots())) {
-						registerTaskManagerTimeout(taskManagerRegistration);
+					if (null != taskManagerRegistration) {
+						if (anySlotUsed(taskManagerRegistration.getSlots())) {
+							taskManagerRegistration.markUsed();
+						} else {
+							taskManagerRegistration.markIdle();
+						}
 					}
+
 				} else {
 					LOG.debug("Received request to free slot {} with expected allocation id {}, " +
 						"but actual allocation id {} differs. Ignoring the request.", slotId, allocationId, slot.getAllocationId());
@@ -524,8 +581,8 @@ public class SlotManager implements AutoCloseable {
 				TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(slot.getInstanceId());
 
 				if (null != taskManagerRegistration) {
-					// disable any registered time out for the task manager
-					taskManagerRegistration.cancelTimeout();
+					// mark this TaskManager to be used to exempt it from timing out
+					taskManagerRegistration.markUsed();
 				}
 			}
 
@@ -551,24 +608,6 @@ public class SlotManager implements AutoCloseable {
 		if (taskManagerSlot != null) {
 			allocateSlot(taskManagerSlot, pendingSlotRequest);
 		} else {
-			final UUID timeoutIdentifier = UUID.randomUUID();
-			final AllocationID allocationId = pendingSlotRequest.getAllocationId();
-
-			// register timeout for slot request
-			ScheduledFuture<?> timeoutFuture = scheduledExecutor.schedule(new Runnable() {
-				@Override
-				public void run() {
-					mainThreadExecutor.execute(new Runnable() {
-						@Override
-						public void run() {
-							timeoutSlotRequest(allocationId, timeoutIdentifier);
-						}
-					});
-				}
-			}, slotRequestTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-
-			pendingSlotRequest.registerTimeout(timeoutFuture, timeoutIdentifier);
-
 			resourceManagerActions.allocateResource(pendingSlotRequest.getResourceProfile());
 		}
 	}
@@ -590,6 +629,16 @@ public class SlotManager implements AutoCloseable {
 
 		taskManagerSlot.setAssignedSlotRequest(pendingSlotRequest);
 		pendingSlotRequest.setRequestFuture(completableFuture);
+
+		TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(taskManagerSlot.getInstanceId());
+
+		if (taskManagerRegistration != null) {
+			// mark the task manager to be used since we have a pending slot request assigned ot one of its slots
+			taskManagerRegistration.markUsed();
+		} else {
+			throw new IllegalStateException("Could not find a registered task manager for instance id " +
+				taskManagerSlot.getInstanceId() + '.');
+		}
 
 		// RPC call to the task manager
 		Future<Acknowledge> requestFuture = gateway.requestSlot(
@@ -717,7 +766,7 @@ public class SlotManager implements AutoCloseable {
 			TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(taskManagerSlot.getInstanceId());
 
 			if (null != taskManagerRegistration && !anySlotUsed(taskManagerRegistration.getSlots())) {
-				registerTaskManagerTimeout(taskManagerRegistration);
+				taskManagerRegistration.markIdle();
 			}
 		} else {
 			LOG.debug("There was no slot with {} registered. Probably this slot has been already freed.", slotId);
@@ -778,8 +827,6 @@ public class SlotManager implements AutoCloseable {
 	 * @param pendingSlotRequest to cancel
 	 */
 	private void cancelPendingSlotRequest(PendingSlotRequest pendingSlotRequest) {
-		pendingSlotRequest.cancelTimeout();
-
 		CompletableFuture<Acknowledge> request = pendingSlotRequest.getRequestFuture();
 
 		if (null != request) {
@@ -791,60 +838,62 @@ public class SlotManager implements AutoCloseable {
 	// Internal timeout methods
 	// ---------------------------------------------------------------------------------------------
 
-	private void timeoutTaskManager(InstanceID instanceId, UUID timeoutIdentifier) {
-		TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.remove(instanceId);
+	private void checkTaskManagerTimeouts() {
+		if (!taskManagerRegistrations.isEmpty()) {
+			long currentTime = System.currentTimeMillis();
 
-		if (null != taskManagerRegistration) {
-			if (Objects.equals(timeoutIdentifier, taskManagerRegistration.getTimeoutIdentifier())) {
+			Iterator<Map.Entry<InstanceID, TaskManagerRegistration>> taskManagerRegistrationIterator = taskManagerRegistrations.entrySet().iterator();
+
+			while (taskManagerRegistrationIterator.hasNext()) {
+				TaskManagerRegistration taskManagerRegistration = taskManagerRegistrationIterator.next().getValue();
+
 				if (anySlotUsed(taskManagerRegistration.getSlots())) {
-					LOG.debug("Cannot release the task manager with instance id {}, because some " +
-						"of its slots are still being used.", instanceId);
-				} else {
-					unregisterTaskManager(instanceId);
+					taskManagerRegistration.markUsed();
+				} else if (currentTime - taskManagerRegistration.getIdleSince() >= taskManagerTimeout.toMilliseconds()) {
+					taskManagerRegistrationIterator.remove();
 
-					resourceManagerActions.releaseResource(instanceId);
+					internalUnregisterTaskManager(taskManagerRegistration);
+
+					resourceManagerActions.releaseResource(taskManagerRegistration.getInstanceId());
 				}
-			} else {
-				taskManagerRegistrations.put(instanceId, taskManagerRegistration);
-
-				LOG.debug("Expected timeout identifier {} differs from the task manager's " +
-					"timeout identifier {}. Ignoring the task manager timeout call.",
-					timeoutIdentifier, taskManagerRegistration.getTimeoutIdentifier());
 			}
-		} else {
-			LOG.debug("Could not find a registered task manager with instance id {}. Ignoring the task manager timeout call.", instanceId);
 		}
 	}
 
-	private void timeoutSlotRequest(AllocationID allocationId, UUID timeoutIdentifier) {
-		PendingSlotRequest pendingSlotRequest = pendingSlotRequests.remove(allocationId);
+	private void checkSlotRequestTimeouts() {
+		if (!pendingSlotRequests.isEmpty()) {
+			long currentTime = System.currentTimeMillis();
 
-		if (null != pendingSlotRequest) {
-			if (Objects.equals(timeoutIdentifier, pendingSlotRequest.getTimeoutIdentifier())) {
-				if (!pendingSlotRequest.isAssigned()) {
+			Iterator<Map.Entry<AllocationID, PendingSlotRequest>> slotRequestIterator = pendingSlotRequests.entrySet().iterator();
+
+			while (slotRequestIterator.hasNext()) {
+				PendingSlotRequest slotRequest = slotRequestIterator.next().getValue();
+
+				if (currentTime - slotRequest.getCreationTimestamp() >= slotRequestTimeout.toMilliseconds()) {
+					slotRequestIterator.remove();
+
+					if (slotRequest.isAssigned()) {
+						cancelPendingSlotRequest(slotRequest);
+					}
 
 					resourceManagerActions.notifyAllocationFailure(
-						pendingSlotRequest.getJobId(),
-						allocationId,
+						slotRequest.getJobId(),
+						slotRequest.getAllocationId(),
 						new TimeoutException("The allocation could not be fulfilled in time."));
-				} else {
-					LOG.debug("Cannot fail pending slot request {} because it has been assigned.", allocationId);
 				}
-			} else {
-				pendingSlotRequests.put(allocationId, pendingSlotRequest);
-
-				LOG.debug("Expected timeout identifier {} differs from the pending slot request's " +
-					"timeout identifier {}. Ignoring the slot request timeout call.",
-					timeoutIdentifier, pendingSlotRequest.getTimeoutIdentifier());
 			}
-		} else {
-			LOG.debug("Could not find pending slot request with allocation id {}. Ignoring the slot request timeout call.", allocationId);
 		}
 	}
 
 	// ---------------------------------------------------------------------------------------------
 	// Internal utility methods
 	// ---------------------------------------------------------------------------------------------
+
+	private void internalUnregisterTaskManager(TaskManagerRegistration taskManagerRegistration) {
+		Preconditions.checkNotNull(taskManagerRegistration);
+
+		removeSlots(taskManagerRegistration.getSlots());
+	}
 
 	private boolean checkDuplicateRequest(AllocationID allocationId) {
 		return pendingSlotRequests.containsKey(allocationId) || fulfilledSlotRequests.containsKey(allocationId);
@@ -853,38 +902,18 @@ public class SlotManager implements AutoCloseable {
 	private boolean anySlotUsed(Iterable<SlotID> slotsToCheck) {
 
 		if (null != slotsToCheck) {
-			boolean idle = true;
-
 			for (SlotID slotId : slotsToCheck) {
 				TaskManagerSlot taskManagerSlot = slots.get(slotId);
 
 				if (null != taskManagerSlot) {
-					idle &= taskManagerSlot.isFree();
+					if (taskManagerSlot.isAllocated()) {
+						return true;
+					}
 				}
 			}
-
-			return !idle;
-		} else {
-			return false;
 		}
-	}
 
-	private void registerTaskManagerTimeout(final TaskManagerRegistration taskManagerRegistration) {
-		final UUID timeoutIdentifier = UUID.randomUUID();
-
-		ScheduledFuture<?> timeoutFuture = scheduledExecutor.schedule(new Runnable() {
-			@Override
-			public void run() {
-				mainThreadExecutor.execute(new Runnable() {
-					@Override
-					public void run() {
-						timeoutTaskManager(taskManagerRegistration.getInstanceId(), timeoutIdentifier);
-					}
-				});
-			}
-		}, taskManagerTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-
-		taskManagerRegistration.registerTimeout(timeoutFuture, timeoutIdentifier);
+		return false;
 	}
 
 	private void checkInit() {
@@ -911,11 +940,11 @@ public class SlotManager implements AutoCloseable {
 	}
 
 	@VisibleForTesting
-	boolean hasTimeoutRegistered(InstanceID instanceId) {
+	boolean isTaskManagerIdle(InstanceID instanceId) {
 		TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(instanceId);
 
 		if (null != taskManagerRegistration) {
-			return taskManagerRegistration.getTimeoutIdentifier() != null;
+			return taskManagerRegistration.isIdle();
 		} else {
 			return false;
 		}

@@ -82,7 +82,7 @@ object TestingUtils {
   def getDefaultTestingActorSystemConfig = testConfig
 
   def infiniteTime: Time = {
-    Time.milliseconds(Long.MaxValue);
+    Time.milliseconds(Integer.MAX_VALUE);
   }
   
 
@@ -113,7 +113,7 @@ object TestingUtils {
   def defaultExecutor: ScheduledExecutorService = {
     synchronized {
       if (sharedExecutorInstance == null || sharedExecutorInstance.isShutdown) {
-        sharedExecutorInstance = Executors.newSingleThreadScheduledExecutor()
+        sharedExecutorInstance = Executors.newSingleThreadScheduledExecutor();
       }
 
       sharedExecutorInstance

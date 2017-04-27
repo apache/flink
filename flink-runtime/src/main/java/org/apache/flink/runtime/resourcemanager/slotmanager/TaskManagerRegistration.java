@@ -25,8 +25,6 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.UUID;
-import java.util.concurrent.ScheduledFuture;
 
 public class TaskManagerRegistration {
 
@@ -34,9 +32,8 @@ public class TaskManagerRegistration {
 
 	private final HashSet<SlotID> slots;
 
-	private UUID timeoutIdentifier;
-
-	private ScheduledFuture<?> timeoutFuture;
+	/** Timestamp when the last time becoming idle. Otherwise Long.MAX_VALUE. */
+	private long idleSince;
 
 	public TaskManagerRegistration(
 		TaskExecutorConnection taskManagerConnection,
@@ -47,8 +44,7 @@ public class TaskManagerRegistration {
 
 		this.slots = new HashSet<>(slots);
 
-		timeoutIdentifier = null;
-		timeoutFuture = null;
+		idleSince = Long.MAX_VALUE;
 	}
 
 	public TaskExecutorConnection getTaskManagerConnection() {
@@ -59,31 +55,27 @@ public class TaskManagerRegistration {
 		return taskManagerConnection.getInstanceID();
 	}
 
-	public UUID getTimeoutIdentifier() {
-		return timeoutIdentifier;
-	}
-
 	public Iterable<SlotID> getSlots() {
 		return slots;
 	}
 
+	public long getIdleSince() {
+		return idleSince;
+	}
+
+	public boolean isIdle() {
+		return idleSince != Long.MAX_VALUE;
+	}
+
+	public void markIdle() {
+		idleSince = System.currentTimeMillis();
+	}
+
+	public void markUsed() {
+		idleSince = Long.MAX_VALUE;
+	}
+
 	public boolean containsSlot(SlotID slotId) {
 		return slots.contains(slotId);
-	}
-
-	public void cancelTimeout() {
-		if (null != timeoutFuture) {
-			timeoutFuture.cancel(false);
-
-			timeoutFuture = null;
-			timeoutIdentifier = null;
-		}
-	}
-
-	public void registerTimeout(ScheduledFuture<?> newTimeoutFuture, UUID newTimeoutIdentifier) {
-		cancelTimeout();
-
-		timeoutFuture = newTimeoutFuture;
-		timeoutIdentifier = newTimeoutIdentifier;
 	}
 }
