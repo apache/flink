@@ -76,7 +76,6 @@ public class SlotProtocolTest extends TestLogger {
 	@Test
 	public void testSlotsUnavailableRequest() throws Exception {
 		final JobID jobID = new JobID();
-		final ResourceID jmResourceId = new ResourceID(jmAddress);
 
 		final UUID rmLeaderID = UUID.randomUUID();
 
@@ -133,7 +132,6 @@ public class SlotProtocolTest extends TestLogger {
 	@Test
 	public void testSlotAvailableRequest() throws Exception {
 		final JobID jobID = new JobID();
-		final ResourceID jmResourceId = new ResourceID(jmAddress);
 
 		final UUID rmLeaderID = UUID.randomUUID();
 

@@ -488,13 +488,17 @@ public class ResourceManagerTest extends TestLogger {
 		final ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
 		final HeartbeatServices heartbeatServices = new TestingHeartbeatServices(heartbeatInterval, heartbeatTimeout, scheduledExecutor);
 
-		final TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		final MetricRegistry metricRegistry = mock(MetricRegistry.class);
 		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor(),
 			Time.minutes(5L));
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
+		final SlotManager slotManager = new SlotManager(
+			TestingUtils.defaultScheduledExecutor(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime());
 
 		try {
 			final StandaloneResourceManager resourceManager = new StandaloneResourceManager(
@@ -504,7 +508,7 @@ public class ResourceManagerTest extends TestLogger {
 				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,
-				slotManagerFactory,
+				slotManager,
 				metricRegistry,
 				jobLeaderIdService,
 				testingFatalErrorHandler);
