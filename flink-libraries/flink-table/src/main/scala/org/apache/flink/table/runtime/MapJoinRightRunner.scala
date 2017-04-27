@@ -24,7 +24,7 @@ import org.apache.flink.util.Collector
 class MapJoinRightRunner[IN1, IN2, OUT](
     name: String,
     code: String,
-    @transient returnType: TypeInformation[OUT],
+    returnType: TypeInformation[OUT],
     broadcastSetName: String)
   extends MapSideJoinRunner[IN1, IN2, IN1, IN2, OUT](name, code, returnType, broadcastSetName) {
 

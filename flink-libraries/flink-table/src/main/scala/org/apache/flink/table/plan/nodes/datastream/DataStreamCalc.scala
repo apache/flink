@@ -100,11 +100,17 @@ class DataStreamCalc(
       calcProgram,
       config)
 
+    val inputParallelism = inputDataStream.getParallelism
+
     val mapFunc = new CRowFlatMapRunner(
       genFunction.name,
       genFunction.code,
       CRowTypeInfo(schema.physicalTypeInfo))
 
-    inputDataStream.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString))
+    inputDataStream
+      .flatMap(mapFunc)
+      .name(calcOpName(calcProgram, getExpressionString))
+      // keep parallelism to ensure order of accumulate and retract messages
+      .setParallelism(inputParallelism)
   }
 }

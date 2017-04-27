@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory
 class ValuesInputFormat(
     name: String,
     code: String,
-    @transient returnType: TypeInformation[Row])
+    @transient var returnType: TypeInformation[Row])
   extends GenericInputFormat[Row]
   with NonParallelInput
   with ResultTypeQueryable[Row]

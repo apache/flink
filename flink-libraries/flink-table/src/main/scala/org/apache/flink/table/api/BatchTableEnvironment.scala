@@ -36,7 +36,7 @@ import org.apache.flink.table.expressions.{Expression, RowtimeAttribute, TimeAtt
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{DataSetTable, TableSourceTable}
+import org.apache.flink.table.plan.schema.{DataSetTable, RowSchema, TableSourceTable}
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks.{BatchTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
@@ -133,14 +133,14 @@ abstract class BatchTableEnvironment(
     * Creates a final converter that maps the internal row type to external type.
     *
     * @param physicalTypeInfo the input of the sink
-    * @param logicalRowType the logical type with correct field names (esp. for POJO field mapping)
+    * @param schema the input schema with correct field names (esp. for POJO field mapping)
     * @param requestedTypeInfo the output type of the sink
     * @param functionName name of the map function. Must not be unique but has to be a
     *                     valid Java class identifier.
     */
-  override protected def getConversionMapper[IN, OUT](
+  protected def getConversionMapper[IN, OUT](
       physicalTypeInfo: TypeInformation[IN],
-      logicalRowType: RelDataType,
+      schema: RowSchema,
       requestedTypeInfo: TypeInformation[OUT],
       functionName: String):
     Option[MapFunction[IN, OUT]] = {
@@ -153,7 +153,7 @@ abstract class BatchTableEnvironment(
 
       val converterFunction = generateRowConverterFunction[OUT](
         physicalTypeInfo.asInstanceOf[TypeInformation[Row]],
-        logicalRowType,
+        schema,
         requestedTypeInfo,
         functionName
       )
@@ -334,7 +334,11 @@ abstract class BatchTableEnvironment(
       case node: DataSetRel =>
         val plan = node.translateToPlan(this)
         val conversion =
-          getConversionMapper(plan.getType, logicalType, tpe, "DataSetSinkConversion")
+          getConversionMapper(
+            plan.getType,
+            new RowSchema(logicalType),
+            tpe,
+            "DataSetSinkConversion")
         conversion match {
           case None => plan.asInstanceOf[DataSet[A]] // no conversion necessary
           case Some(mapFunction: MapFunction[Row, A]) =>

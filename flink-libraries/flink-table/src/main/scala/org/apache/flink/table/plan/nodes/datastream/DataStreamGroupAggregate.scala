@@ -67,6 +67,8 @@ class DataStreamGroupAggregate(
 
   override def consumesRetractions = true
 
+  def getGroupings: Array[Int] = groupings
+
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamGroupAggregate(
       cluster,

@@ -21,11 +21,15 @@ package org.apache.flink.table.sinks
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.Table
 
-/** Defines an external [[TableSink]] to emit a batch [[Table]].
+/**
+  * Defines an external [[TableSink]] to emit streaming [[Table]] with only insert changes.
+  *
+  * If the [[Table]] is also modified by update or delete changes, a
+  * [[org.apache.flink.table.api.TableException]] will be thrown.
   *
   * @tparam T Type of [[DataStream]] that this [[TableSink]] expects and supports.
   */
-trait StreamTableSink[T] extends TableSink[T] {
+trait AppendStreamTableSink[T] extends TableSink[T] {
 
   /** Emits the DataStream. */
   def emitDataStream(dataStream: DataStream[T]): Unit

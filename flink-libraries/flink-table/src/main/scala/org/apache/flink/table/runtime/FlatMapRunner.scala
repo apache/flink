@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory
 class FlatMapRunner(
     name: String,
     code: String,
-    @transient returnType: TypeInformation[Row])
+    @transient var returnType: TypeInformation[Row])
   extends RichFlatMapFunction[Row, Row]
   with ResultTypeQueryable[Row]
   with Compiler[FlatMapFunction[Row, Row]] {

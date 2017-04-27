@@ -51,15 +51,14 @@ import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer, GeneratedFunction}
 import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction, AggregateFunction}
+import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.RelTable
-import org.apache.flink.table.runtime.types.CRowTypeInfo
+import org.apache.flink.table.plan.schema.{RelTable, RowSchema}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.validate.FunctionCatalog
@@ -620,7 +619,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         throw new TableException(
           "An input of GenericTypeInfo<Row> cannot be converted to Table. " +
             "Please specify the type of the input with a RowTypeInfo.")
-      case a: AtomicType[A] =>
+      case a: AtomicType[_] =>
         exprs.zipWithIndex flatMap {
           case (UnresolvedFieldReference(name), idx) =>
             if (idx > 0) {
@@ -691,53 +690,32 @@ abstract class TableEnvironment(val config: TableConfig) {
     (fieldNames.toArray, fieldIndexes.toArray)
   }
 
-  /**
-    * Creates a final converter that maps the internal row type to external type.
-    *
-    * @param physicalTypeInfo the input of the sink
-    * @param logicalRowType the logical type with correct field names (esp. for POJO field mapping)
-    * @param requestedTypeInfo the output type of the sink
-    * @param functionName name of the map function. Must not be unique but has to be a
-    *                     valid Java class identifier.
-    */
-  protected def getConversionMapper[IN, OUT](
-      physicalTypeInfo: TypeInformation[IN],
-      logicalRowType: RelDataType,
-      requestedTypeInfo: TypeInformation[OUT],
-      functionName: String):
-    Option[MapFunction[IN, OUT]]
-
   protected def generateRowConverterFunction[OUT](
       inputTypeInfo: TypeInformation[Row],
-      logicalRowType: RelDataType,
+      schema: RowSchema,
       requestedTypeInfo: TypeInformation[OUT],
       functionName: String):
     GeneratedFunction[MapFunction[Row, OUT], OUT] = {
 
     // validate that at least the field types of physical and logical type match
     // we do that here to make sure that plan translation was correct
-    val logicalRowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(logicalRowType)
-    if (logicalRowTypeInfo != inputTypeInfo) {
+    if (schema.physicalTypeInfo != inputTypeInfo) {
       throw TableException("The field types of physical and logical row types do not match." +
         "This is a bug and should not happen. Please file an issue.")
     }
 
-    // convert to type information
-    val logicalFieldTypes = logicalRowType.getFieldList.asScala
-      .map(t => FlinkTypeFactory.toTypeInfo(t.getType))
-
-    // field names
-    val logicalFieldNames = logicalRowType.getFieldNames.asScala
+    val fieldTypes = schema.physicalFieldTypeInfo
+    val fieldNames = schema.physicalFieldNames
 
     // validate requested type
-    if (requestedTypeInfo.getArity != logicalFieldTypes.length) {
+    if (requestedTypeInfo.getArity != fieldTypes.length) {
       throw new TableException("Arity of result does not match requested type.")
     }
 
     requestedTypeInfo match {
       // POJO type requested
       case pt: PojoTypeInfo[_] =>
-        logicalFieldNames.zip(logicalFieldTypes) foreach {
+        fieldNames.zip(fieldTypes) foreach {
           case (fName, fType) =>
             val pojoIdx = pt.getFieldIndex(fName)
             if (pojoIdx < 0) {
@@ -752,7 +730,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
       // Tuple/Case class/Row type requested
       case tt: TupleTypeInfoBase[_] =>
-        logicalFieldTypes.zipWithIndex foreach {
+        fieldTypes.zipWithIndex foreach {
           case (fieldTypeInfo, i) =>
             val requestedTypeInfo = tt.getTypeAt(i)
             if (fieldTypeInfo != requestedTypeInfo) {
@@ -763,11 +741,11 @@ abstract class TableEnvironment(val config: TableConfig) {
 
       // Atomic type requested
       case at: AtomicType[_] =>
-        if (logicalFieldTypes.size != 1) {
+        if (fieldTypes.size != 1) {
           throw new TableException(s"Requested result type is an atomic type but " +
             s"result has more or less than a single field.")
         }
-        val fieldTypeInfo = logicalFieldTypes.head
+        val fieldTypeInfo = fieldTypes.head
         if (fieldTypeInfo != at) {
           throw new TableException(s"Result field does not match requested type. " +
             s"Requested: $at; Actual: $fieldTypeInfo")
@@ -787,7 +765,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     val conversion = generator.generateConverterResultExpression(
       requestedTypeInfo,
-      logicalFieldNames)
+      fieldNames)
 
     val body =
       s"""

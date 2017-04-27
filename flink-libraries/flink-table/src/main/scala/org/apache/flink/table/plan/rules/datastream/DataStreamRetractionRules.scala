@@ -102,17 +102,17 @@ object DataStreamRetractionRules {
       val rel = call.rel(0).asInstanceOf[DataStreamRel]
       val traits = rel.getTraitSet
 
-      val traitsWithUpdateAsRetrac =
+      val traitsWithUpdateAsRetraction =
         if (null == traits.getTrait(UpdateAsRetractionTraitDef.INSTANCE)) {
         traits.plus(UpdateAsRetractionTrait.DEFAULT)
       } else {
         traits
       }
       val traitsWithAccMode =
-        if (null == traitsWithUpdateAsRetrac.getTrait(AccModeTraitDef.INSTANCE)) {
-          traitsWithUpdateAsRetrac.plus(AccModeTrait.DEFAULT)
+        if (null == traitsWithUpdateAsRetraction.getTrait(AccModeTraitDef.INSTANCE)) {
+          traitsWithUpdateAsRetraction.plus(AccModeTrait.DEFAULT)
       } else {
-        traitsWithUpdateAsRetrac
+        traitsWithUpdateAsRetraction
       }
 
       if (traits != traitsWithAccMode) {
@@ -122,8 +122,8 @@ object DataStreamRetractionRules {
   }
 
   /**
-    * Rule that annotates all [[DataStreamRel]] nodes that need to sent out update and delete
-    * changes as retraction messages.
+    * Rule that annotates all [[DataStreamRel]] nodes that need to sent out update changes with
+    * retraction messages.
     */
   class SetUpdatesAsRetractionRule extends RelOptRule(
     operand(
@@ -131,7 +131,7 @@ object DataStreamRetractionRules {
     "SetUpdatesAsRetractionRule") {
 
     /**
-      * Checks if a [[RelNode]] requires that update and delete changes are sent with retraction
+      * Checks if a [[RelNode]] requires that update changes are sent with retraction
       * messages.
       */
     def needsUpdatesAsRetraction(node: RelNode): Boolean = {
@@ -142,7 +142,7 @@ object DataStreamRetractionRules {
     }
 
     /**
-      * Annotates a [[RelNode]] to send out update and delete changes as retraction messages.
+      * Annotates a [[RelNode]] to send out update changes with retraction messages.
       */
     def setUpdatesAsRetraction(relNode: RelNode): RelNode = {
       val traitSet = relNode.getTraitSet
