@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.scala
 
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.api.{OverWindowPredefined, SessionWindow, SlideWithSize, TumblingWindow}
+import org.apache.flink.table.api.{TumblingWindowPredefined, OverWindowPredefined, SlideWithSize, SessionWindowPreDefined}
 
 /**
   * Helper object for creating a tumbling window. Tumbling windows are consecutive, non-overlapping
@@ -34,9 +34,9 @@ object Tumble {
     * elements in 5 minutes intervals.
     *
     * @param size the size of the window as time or row-count interval.
-    * @return a tumbling window
+    * @return a predefined tumbling window
     */
-  def over(size: Expression): TumblingWindow = new TumblingWindow(size)
+  def over(size: Expression): TumblingWindowPredefined = new TumblingWindowPredefined(size)
 }
 
 /**
@@ -79,9 +79,9 @@ object Session {
     *
     * @param gap specifies how long (as interval of milliseconds) to wait for new data before
     *            closing the session window.
-    * @return a session window
+    * @return a predefined session window
     */
-  def withGap(gap: Expression): SessionWindow = new SessionWindow(gap)
+  def withGap(gap: Expression): SessionWindowPreDefined = new SessionWindowPreDefined(gap)
 }
 
 /**

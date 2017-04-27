@@ -97,7 +97,7 @@ class GroupWindowTest extends TableTestBase {
       "DataSetWindowAggregate",
       batchTableNode(0),
       term("groupBy", "string"),
-      term("window", EventTimeTumblingGroupWindow(Some(WindowReference("w")), 'long, 2.rows)),
+      term("window", EventTimeTumblingGroupWindow(WindowReference("w"), 'long, 2.rows)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
@@ -118,7 +118,7 @@ class GroupWindowTest extends TableTestBase {
       "DataSetWindowAggregate",
       batchTableNode(0),
       term("groupBy", "string"),
-      term("window", EventTimeTumblingGroupWindow(Some(WindowReference("w")), 'long, 5.milli)),
+      term("window", EventTimeTumblingGroupWindow(WindowReference("w"), 'long, 5.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
@@ -164,7 +164,7 @@ class GroupWindowTest extends TableTestBase {
         batchTableNode(0),
         term("select", "int", "long")
       ),
-      term("window", EventTimeTumblingGroupWindow(Some(WindowReference("w")), 'long, 5.milli)),
+      term("window", EventTimeTumblingGroupWindow(WindowReference("w"), 'long, 5.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
 
@@ -188,7 +188,7 @@ class GroupWindowTest extends TableTestBase {
         batchTableNode(0),
         term("select", "int", "long")
       ),
-      term("window", EventTimeTumblingGroupWindow(Some(WindowReference("w")), 'long, 2.rows)),
+      term("window", EventTimeTumblingGroupWindow(WindowReference("w"), 'long, 2.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
 
@@ -236,7 +236,7 @@ class GroupWindowTest extends TableTestBase {
       batchTableNode(0),
       term("groupBy", "string"),
       term("window",
-        EventTimeSlidingGroupWindow(Some(WindowReference("w")), 'long, 8.milli, 10.milli)),
+        EventTimeSlidingGroupWindow(WindowReference("w"), 'long, 8.milli, 10.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
@@ -258,7 +258,7 @@ class GroupWindowTest extends TableTestBase {
       batchTableNode(0),
       term("groupBy", "string"),
       term("window",
-        EventTimeSlidingGroupWindow(Some(WindowReference("w")), 'long, 2.rows, 1.rows)),
+        EventTimeSlidingGroupWindow(WindowReference("w"), 'long, 2.rows, 1.rows)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
@@ -294,7 +294,7 @@ class GroupWindowTest extends TableTestBase {
         term("select", "int", "long")
       ),
       term("window",
-        EventTimeSlidingGroupWindow(Some(WindowReference("w")), 'long, 8.milli, 10.milli)),
+        EventTimeSlidingGroupWindow(WindowReference("w"), 'long, 8.milli, 10.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
 
@@ -319,7 +319,7 @@ class GroupWindowTest extends TableTestBase {
         term("select", "int", "long")
       ),
       term("window",
-        EventTimeSlidingGroupWindow(Some(WindowReference("w")), 'long, 2.rows, 1.rows)),
+        EventTimeSlidingGroupWindow(WindowReference("w"), 'long, 2.rows, 1.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
 
@@ -344,7 +344,7 @@ class GroupWindowTest extends TableTestBase {
       "DataSetWindowAggregate",
       batchTableNode(0),
       term("groupBy", "string"),
-      term("window", EventTimeSessionGroupWindow(Some(WindowReference("w")), 'long, 7.milli)),
+      term("window", EventTimeSessionGroupWindow(WindowReference("w"), 'long, 7.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
