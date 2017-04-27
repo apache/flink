@@ -26,12 +26,11 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.RuleSet
-import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.{Expression, RowtimeAttribute, TimeAttribute}
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -39,7 +38,6 @@ import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{DataSetTable, TableSourceTable}
 import org.apache.flink.table.runtime.MapRunner
-import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sinks.{BatchTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
 import org.apache.flink.types.Row
@@ -150,18 +148,6 @@ abstract class BatchTableEnvironment(
     if (requestedTypeInfo.getTypeClass == classOf[Row]) {
       // Row to Row, no conversion needed
       None
-    } else if (requestedTypeInfo.getTypeClass == classOf[CRow]) {
-      // Row to CRow, only needs to be wrapped
-      Some(
-        new RichMapFunction[Row, CRow] {
-          private var outCRow: CRow = _
-          override def open(parameters: Configuration): Unit = outCRow = new CRow(null, true)
-          override def map(value: Row): CRow = {
-            outCRow.row = value
-            outCRow
-          }
-        }.asInstanceOf[MapFunction[IN, OUT]]
-      )
     } else {
       // some type that is neither Row or CRow
 

@@ -37,6 +37,11 @@ class TableConfig {
   private var nullCheck: Boolean = true
 
   /**
+    * Defines whether sink table requires that update and delete changes are sent with retraction
+    */
+  private var needsUpdatesAsRetractionForSink: Boolean = false
+
+  /**
     * Defines the configuration of Calcite for Table API and SQL queries.
     */
   private var calciteConfig = CalciteConfig.DEFAULT
@@ -64,6 +69,18 @@ class TableConfig {
    */
   def setNullCheck(nullCheck: Boolean): Unit = {
     this.nullCheck = nullCheck
+  }
+
+  /**
+    * Returns the need retraction property for table sink.
+    */
+  def getNeedsUpdatesAsRetractionForSink = needsUpdatesAsRetractionForSink
+
+  /**
+    * Set the need retraction property for table sink.
+    */
+  def setNeedsUpdatesAsRetractionForSink(needsUpdatesAsRetraction: Boolean ): Unit = {
+    this.needsUpdatesAsRetractionForSink = needsUpdatesAsRetraction
   }
 
   /**
