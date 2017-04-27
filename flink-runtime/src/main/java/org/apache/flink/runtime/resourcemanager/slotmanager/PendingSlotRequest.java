@@ -27,8 +27,6 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
-import java.util.UUID;
-import java.util.concurrent.ScheduledFuture;
 
 public class PendingSlotRequest {
 
@@ -37,14 +35,12 @@ public class PendingSlotRequest {
 	@Nullable
 	private CompletableFuture<Acknowledge> requestFuture;
 
-	@Nullable
-	private UUID timeoutIdentifier;
-
-	@Nullable
-	private ScheduledFuture<?> timeoutFuture;
+	/** Timestamp when this pending slot request has been created. */
+	private final long creationTimestamp;
 
 	public PendingSlotRequest(SlotRequest slotRequest) {
 		this.slotRequest = Preconditions.checkNotNull(slotRequest);
+		creationTimestamp = System.currentTimeMillis();
 	}
 
 	// ------------------------------------------------------------------------
@@ -57,17 +53,16 @@ public class PendingSlotRequest {
 		return slotRequest.getResourceProfile();
 	}
 
-	@Nullable
-	public UUID getTimeoutIdentifier() {
-		return timeoutIdentifier;
-	}
-
 	public JobID getJobId() {
 		return slotRequest.getJobId();
 	}
 
 	public String getTargetAddress() {
 		return slotRequest.getTargetAddress();
+	}
+
+	public long getCreationTimestamp() {
+		return creationTimestamp;
 	}
 
 	public boolean isAssigned() {
@@ -81,21 +76,5 @@ public class PendingSlotRequest {
 	@Nullable
 	public CompletableFuture<Acknowledge> getRequestFuture() {
 		return requestFuture;
-	}
-
-	public void cancelTimeout() {
-		if (timeoutFuture != null) {
-			timeoutFuture.cancel(true);
-
-			timeoutIdentifier = null;
-			timeoutFuture = null;
-		}
-	}
-
-	public void registerTimeout(ScheduledFuture<?> newTimeoutFuture, UUID newTimeoutIdentifier) {
-		cancelTimeout();
-
-		timeoutFuture = newTimeoutFuture;
-		timeoutIdentifier = newTimeoutIdentifier;
 	}
 }
