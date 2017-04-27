@@ -40,6 +40,7 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-scala_2.10</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -195,13 +196,17 @@ under the License.
 						<configuration>
 							<filters>
 								<filter>
+									<artifact>*:*</artifact>
 									<excludes>
-									    	<exclude>org-apache-calcite-jdbc.properties</exclude>
+										<exclude>org-apache-calcite-jdbc.properties</exclude>
 										<exclude>mozilla/**</exclude>
 										<exclude>codegen/**</exclude>
 										<exclude>google/**</exclude>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
 									</excludes>
-								 </filter>
+								</filter>
 							</filters>
 							<artifactSet>
 								<includes combine.children="append">
@@ -209,6 +214,7 @@ under the License.
 									<include>org.apache.calcite.avatica:*</include>
 									<include>net.hydromatic:*</include>
                                     <include>org.reflections:*</include>
+									<include>org.codehaus.janino:*</include>
                                 </includes>
 							</artifactSet>
 							<relocations>
