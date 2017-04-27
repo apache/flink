@@ -400,27 +400,13 @@ public class NFACompiler {
 		 */
 		@SuppressWarnings("unchecked")
 		private IterativeCondition<T> getInnerIgnoreCondition(Pattern<T, ?> pattern) {
-			final Quantifier quantifier = pattern.getQuantifier();
-			if (quantifier.hasProperty(Quantifier.QuantifierProperty.LOOPING) ||
-				quantifier.hasProperty(Quantifier.QuantifierProperty.TIMES)) {
-
-				if (quantifier.hasProperty(Quantifier.QuantifierProperty.CONSECUTIVE) &&
-					quantifier.hasProperty(Quantifier.QuantifierProperty.EAGER)) {
-					//no inner branching and no invalid elements in between
+			switch (pattern.getQuantifier().getInnerConsumingStrategy()) {
+				case STRICT:
 					return null;
-				} else if (quantifier.hasProperty(Quantifier.QuantifierProperty.CONSECUTIVE) &&
-							!quantifier.hasProperty(Quantifier.QuantifierProperty.EAGER)) {
-					//inner branching and no invalid elements in between
-					return (IterativeCondition<T>) pattern.getCondition();
-				} else if (!quantifier.hasProperty(Quantifier.QuantifierProperty.CONSECUTIVE) &&
-							quantifier.hasProperty(Quantifier.QuantifierProperty.EAGER)) {
-					//no inner branching but possible invalid elements in between
+				case SKIP_TILL_NEXT:
 					return new NotCondition<>((IterativeCondition<T>) pattern.getCondition());
-				} else {
-					//inner branching and possible invalid elements in between
+				case SKIP_TILL_ANY:
 					return BooleanConditions.trueFunction();
-				}
-
 			}
 
 			return null;

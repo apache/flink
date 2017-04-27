@@ -26,6 +26,8 @@ public class Quantifier {
 
 	private final ConsumingStrategy consumingStrategy;
 
+	private ConsumingStrategy innerConsumingStrategy = ConsumingStrategy.SKIP_TILL_NEXT;
+
 	private Quantifier(
 			final ConsumingStrategy consumingStrategy,
 			final QuantifierProperty first,
@@ -39,11 +41,11 @@ public class Quantifier {
 	}
 
 	public static Quantifier ONE_OR_MORE(final ConsumingStrategy consumingStrategy) {
-		return new Quantifier(consumingStrategy, QuantifierProperty.LOOPING, QuantifierProperty.EAGER);
+		return new Quantifier(consumingStrategy, QuantifierProperty.LOOPING);
 	}
 
 	public static Quantifier TIMES(final ConsumingStrategy consumingStrategy) {
-		return new Quantifier(consumingStrategy, QuantifierProperty.TIMES, QuantifierProperty.EAGER);
+		return new Quantifier(consumingStrategy, QuantifierProperty.TIMES);
 	}
 
 	public boolean hasProperty(QuantifierProperty property) {
@@ -54,28 +56,30 @@ public class Quantifier {
 		return consumingStrategy;
 	}
 
-	public void combinations() {
-		if (!hasProperty(QuantifierProperty.SINGLE) && !hasProperty(Quantifier.QuantifierProperty.EAGER)) {
-			throw new MalformedPatternException("Combinations already allowed!");
-		}
+	public ConsumingStrategy getInnerConsumingStrategy() {
+		return innerConsumingStrategy;
+	}
 
-		if (hasProperty(Quantifier.QuantifierProperty.LOOPING) || hasProperty(Quantifier.QuantifierProperty.TIMES)) {
-			properties.remove(Quantifier.QuantifierProperty.EAGER);
-		} else {
-			throw new MalformedPatternException("Combinations not applicable to " + this + "!");
+	private static void checkPattern(boolean condition, Object errorMessage) {
+		if (!condition) {
+			throw new MalformedPatternException(String.valueOf(errorMessage));
 		}
 	}
 
-	public void consecutive() {
-		if (!hasProperty(QuantifierProperty.SINGLE) && hasProperty(Quantifier.QuantifierProperty.CONSECUTIVE)) {
-			throw new MalformedPatternException("Strict continuity already applied!");
-		}
+	public void combinations() {
+		checkPattern(!hasProperty(QuantifierProperty.SINGLE), "Combinations not applicable to " + this + "!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.STRICT, "You can apply apply either combinations or consecutive, not both!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.SKIP_TILL_ANY, "Combinations already applied!");
 
-		if (hasProperty(Quantifier.QuantifierProperty.LOOPING) || hasProperty(Quantifier.QuantifierProperty.TIMES)) {
-			properties.add(Quantifier.QuantifierProperty.CONSECUTIVE);
-		} else {
-			throw new MalformedPatternException("Strict continuity not applicable to " + this + "!");
-		}
+		innerConsumingStrategy = ConsumingStrategy.SKIP_TILL_ANY;
+	}
+
+	public void consecutive() {
+		checkPattern(hasProperty(QuantifierProperty.LOOPING) || hasProperty(QuantifierProperty.TIMES), "Combinations not applicable to " + this + "!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.SKIP_TILL_ANY, "You can apply apply either combinations or consecutive, not both!");
+		checkPattern(innerConsumingStrategy != ConsumingStrategy.STRICT, "Combinations already applied!");
+
+		innerConsumingStrategy = ConsumingStrategy.STRICT;
 	}
 
 	public void optional() {
@@ -110,8 +114,6 @@ public class Quantifier {
 		SINGLE,
 		LOOPING,
 		TIMES,
-		EAGER,
-		CONSECUTIVE,
 		OPTIONAL
 	}
 
