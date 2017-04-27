@@ -216,7 +216,7 @@ class JobManager(
       case Some(group) =>
         instantiateMetrics(group)
       case None =>
-        log.warn("Could not instantiate JobManager metrics.")
+        log.warn("Could not instantiate JobManager metric group.")
     }
   }
 
