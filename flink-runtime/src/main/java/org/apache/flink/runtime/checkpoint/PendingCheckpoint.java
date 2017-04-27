@@ -351,17 +351,6 @@ public class PendingCheckpoint {
 	}
 
 	/**
-	 * Adds a master state (state generated on the checkpoint coordinator) to
-	 * the pending checkpoint.
-	 * 
-	 * @param state The state to add
-	 */
-	public void addMasterState(MasterState state) {
-		checkNotNull(state);
-		masterState.add(state);
-	}
-
-	/**
 	 * Acknowledges the task with the given execution attempt id and the given subtask state.
 	 *
 	 * @param executionAttemptId of the acknowledged task
@@ -453,7 +442,22 @@ public class PendingCheckpoint {
 		}
 	}
 
-	
+	/**
+	 * Adds a master state (state generated on the checkpoint coordinator) to
+	 * the pending checkpoint.
+	 *
+	 * @param state The state to add
+	 */
+	public void addMasterState(MasterState state) {
+		checkNotNull(state);
+
+		synchronized (lock) {
+			if (!discarded) {
+				masterState.add(state);
+			}
+		}
+	}
+
 
 	// ------------------------------------------------------------------------
 	//  Cancellation
