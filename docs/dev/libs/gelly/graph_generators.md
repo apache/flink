@@ -72,6 +72,42 @@ val graph = new GridGraph(env.getJavaEnv).addDimension(2, wrapEndpoints).addDime
 </div>
 </div>
 
+## Circulant Graph
+
+A [circulant graph](http://mathworld.wolfram.com/CirculantGraph.html) is an
+[oriented graph](http://mathworld.wolfram.com/OrientedGraph.html) configured
+with one or more contiguous ranges of offsets. Edges connect integer vertex IDs
+whose difference equals a configured offset. The circulant graph with no offsets
+is the [empty graph](#empty-graph) and the graph with the maximum range is the
+[complete graph](#complete-graph).
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+long vertexCount = 5;
+
+Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, vertexCount)
+    .addRange(1, 2)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.CirculantGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+val vertexCount = 5
+
+val graph = new CirculantGraph(env.getJavaEnv, vertexCount).addRange(1, 2).generate()
+{% endhighlight %}
+</div>
+</div>
+
 ## Complete Graph
 
 An undirected graph connecting every distinct pair of vertices.
@@ -83,7 +119,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 long vertexCount = 5;
 
-Graph<LongValue,NullValue,NullValue> graph = new CompleteGraph(env, vertexCount)
+Graph<LongValue, NullValue, NullValue> graph = new CompleteGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -148,7 +184,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 long vertexCount = 5;
 
-Graph<LongValue,NullValue,NullValue> graph = new CycleGraph(env, vertexCount)
+Graph<LongValue, NullValue, NullValue> graph = new CycleGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -193,6 +229,41 @@ val graph = new CycleGraph(env.getJavaEnv, vertexCount).generate()
     <text x="51" y="199">4</text>
 </svg>
 
+## Echo Graph
+
+An [echo graph](http://mathworld.wolfram.com/EchoGraph.html) is a
+[circulant graph](#circulant-graph) with `n` vertices defined by the width of a
+single range of offsets centered at `n/2`. A vertex is connected to 'far'
+vertices, which connect to 'near' vertices, which connect to 'far' vertices, ....
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+long vertexCount = 5;
+long vertexDegree = 2;
+
+Graph<LongValue, NullValue, NullValue> graph = new EchoGraph(env, vertexCount, vertexDegree)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.EchoGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+val vertexCount = 5
+val vertexDegree = 2
+
+val graph = new EchoGraph(env.getJavaEnv, vertexCount, vertexDegree).generate()
+{% endhighlight %}
+</div>
+</div>
+
 ## Empty Graph
 
 A graph containing no edges.
@@ -204,7 +275,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 long vertexCount = 5;
 
-Graph<LongValue,NullValue,NullValue> graph = new EmptyGraph(env, vertexCount)
+Graph<LongValue, NullValue, NullValue> graph = new EmptyGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -257,7 +328,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 boolean wrapEndpoints = false;
 
-Graph<LongValue,NullValue,NullValue> graph = new GridGraph(env)
+Graph<LongValue, NullValue, NullValue> graph = new GridGraph(env)
     .addDimension(2, wrapEndpoints)
     .addDimension(4, wrapEndpoints)
     .generate();
@@ -327,7 +398,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 long dimensions = 3;
 
-Graph<LongValue,NullValue,NullValue> graph = new HypercubeGraph(env, dimensions)
+Graph<LongValue, NullValue, NullValue> graph = new HypercubeGraph(env, dimensions)
     .generate();
 {% endhighlight %}
 </div>
@@ -403,7 +474,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 long vertexCount = 5
 
-Graph<LongValue,NullValue,NullValue> graph = new PathGraph(env, vertexCount)
+Graph<LongValue, NullValue, NullValue> graph = new PathGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -464,7 +535,7 @@ RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory()
 int vertexCount = 1 << scale;
 int edgeCount = edgeFactor * vertexCount;
 
-Graph<LongValue,NullValue,NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
+Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -505,7 +576,7 @@ int edgeCount = edgeFactor * vertexCount;
 
 boolean clipAndFlip = false;
 
-Graph<LongValue,NullValue,NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
+Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
     .setConstants(0.57f, 0.19f, 0.19f)
     .setNoise(true, 0.10f)
     .generate();
@@ -542,7 +613,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 long vertexPairCount = 4
 
 // note: configured with the number of vertex pairs
-Graph<LongValue,NullValue,NullValue> graph = new SingletonEdgeGraph(env, vertexPairCount)
+Graph<LongValue, NullValue, NullValue> graph = new SingletonEdgeGraph(env, vertexPairCount)
     .generate();
 {% endhighlight %}
 </div>
@@ -607,7 +678,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 long vertexCount = 6;
 
-Graph<LongValue,NullValue,NullValue> graph = new StarGraph(env, vertexCount)
+Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, vertexCount)
     .generate();
 {% endhighlight %}
 </div>
