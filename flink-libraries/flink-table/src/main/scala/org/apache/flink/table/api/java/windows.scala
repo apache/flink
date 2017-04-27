@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.api.java
 
-import org.apache.flink.table.api.{OverWindowPredefined, SessionWindow, SlideWithSize, TumblingWindow}
+import org.apache.flink.table.api.{TumbleWithSize, OverWindowWithOrderBy, SlideWithSize, SessionWithGap}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 
 /**
@@ -34,9 +34,9 @@ object Tumble {
     * elements in 5 minutes intervals.
     *
     * @param size the size of the window as time or row-count interval.
-    * @return a tumbling window
+    * @return a partially defined tumbling window
     */
-  def over(size: String): TumblingWindow = new TumblingWindow(size)
+  def over(size: String): TumbleWithSize = new TumbleWithSize(size)
 }
 
 /**
@@ -79,9 +79,9 @@ object Session {
     *
     * @param gap specifies how long (as interval of milliseconds) to wait for new data before
     *            closing the session window.
-    * @return a session window
+    * @return a partially defined session window
     */
-  def withGap(gap: String): SessionWindow = new SessionWindow(gap)
+  def withGap(gap: String): SessionWithGap = new SessionWithGap(gap)
 }
 
 /**
@@ -96,9 +96,9 @@ object Over {
     *
     * For batch tables, refer to a timestamp or long attribute.
     */
-  def orderBy(orderBy: String): OverWindowPredefined = {
+  def orderBy(orderBy: String): OverWindowWithOrderBy = {
     val orderByExpr = ExpressionParser.parseExpression(orderBy)
-    new OverWindowPredefined(Seq[Expression](), orderByExpr)
+    new OverWindowWithOrderBy(Seq[Expression](), orderByExpr)
   }
 
   /**
@@ -122,8 +122,8 @@ class PartitionedOver(private val partitionByExpr: Array[Expression]) {
     *
     * For batch tables, refer to a timestamp or long attribute.
     */
-  def orderBy(orderBy: String): OverWindowPredefined = {
+  def orderBy(orderBy: String): OverWindowWithOrderBy = {
     val orderByExpr = ExpressionParser.parseExpression(orderBy)
-    new OverWindowPredefined(partitionByExpr, orderByExpr)
+    new OverWindowWithOrderBy(partitionByExpr, orderByExpr)
   }
 }
