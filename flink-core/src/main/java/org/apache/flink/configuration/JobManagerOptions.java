@@ -168,6 +168,10 @@ public class JobManagerOptions {
 		key("jobmanager.archive.fs.dir")
 			.noDefaultValue();
 
+	/** Config parameter indicating whether enable the web access log. */
+	public static final ConfigOption<Boolean> JOB_MANAGER_WEB_ACCESSLOG_ENABLE =
+		key("jobmanager.web.accesslog.enable")
+			.defaultValue(false);
 	// ---------------------------------------------------------------------------------------------
 
 	private JobManagerOptions() {

@@ -108,7 +108,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 				}
 
 				if (enableAccesslog) {
-					accesslog(ctx, currentRequest);
+					logAccess(ctx, currentRequest);
 				}
 
 				if (currentRequest.getMethod() == HttpMethod.GET || currentRequest.getMethod() == HttpMethod.DELETE) {
@@ -197,17 +197,16 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 
   /**
    * Record the access log if enable configure of
-   * {@link org.apache.flink.configuration.ConfigConstants#JOB_MANAGER_WEB_ACCESSLOG_ENABLE}.
+   * {@link org.apache.flink.configuration.JobManagerOptions#JOB_MANAGER_WEB_ACCESSLOG_ENABLE}.
    * record format:
    * remote_addr - [time_local] "request_method URI protocolVersion" "http_referer" "http_user_agent"
    */
-	private void accesslog(ChannelHandlerContext ctx, HttpRequest req) {
+	private void logAccess(ChannelHandlerContext ctx, HttpRequest req) {
 		HttpHeaders headers = req.headers();
 		if (headers != null) {
-			String line = ctx.channel().remoteAddress() + " - [" + new Date() + "] \""
+			LOG.info(ctx.channel().remoteAddress() + " - [" + new Date() + "] \""
 					+ req.getMethod().name() + " " + req.getUri() + " " + req.getProtocolVersion().text() + "\" "
-					+ getHeader(Names.REFERER, headers) + "\" \"" + getHeader(Names.USER_AGENT, headers) + "\" ";
-			LOG.info(line);
+					+ getHeader(Names.REFERER, headers) + "\" \"" + getHeader(Names.USER_AGENT, headers) + "\" ");
 		}
 	}
 
