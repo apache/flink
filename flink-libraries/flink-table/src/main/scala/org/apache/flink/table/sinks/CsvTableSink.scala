@@ -25,7 +25,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 
 /**
   * A simple [[TableSink]] to emit data as CSV files.
@@ -125,6 +125,102 @@ class CsvFormatter(fieldDelim: String) extends MapFunction[Row, String] {
 
     // write following values
     for (i <- 1 until row.getArity) {
+      builder.append(fieldDelim)
+      val v = row.getField(i)
+      if (v != null) {
+        builder.append(v.toString)
+      }
+    }
+    builder.mkString
+  }
+}
+
+/**
+  * A simple [[TableSink]] to emit data as CSV files.
+  *
+  * @param path The output path to write the Table to.
+  * @param fieldDelim The field delimiter
+  * @param numFiles The number of files to write to
+  * @param writeMode The write mode to specify whether existing files are overwritten or not.
+  */
+class CsvRetractTableSink(
+    path: String,
+    fieldDelim: Option[String],
+    numFiles: Option[Int],
+    writeMode: Option[WriteMode])
+  extends TableSinkBase[Row] with StreamRetractSink[Row] {
+
+  override def needsUpdatesAsRetraction: Boolean = true
+
+  /**
+    * A simple [[TableSink]] to emit data as CSV files.
+    *
+    * @param path The output path to write the Table to.
+    * @param fieldDelim The field delimiter, ',' by default.
+    */
+  def this(path: String, fieldDelim: String = ",") {
+    this(path, Some(fieldDelim), None, None)
+  }
+
+  /**
+    * A simple [[TableSink]] to emit data as CSV files.
+    *
+    * @param path The output path to write the Table to.
+    * @param fieldDelim The field delimiter.
+    * @param numFiles The number of files to write to.
+    * @param writeMode The write mode to specify whether existing files are overwritten or not.
+    */
+  def this(path: String, fieldDelim: String, numFiles: Int, writeMode: WriteMode) {
+    this(path, Some(fieldDelim), Some(numFiles), Some(writeMode))
+  }
+
+
+  override def emitDataStreamWithChange(dataStream: DataStream[JTuple2[Boolean,Row]]): Unit = {
+    val csvRows = dataStream
+      .map(new CsvRetractFormatter(fieldDelim.getOrElse(",")))
+      .returns(TypeInformation.of(classOf[String]))
+
+
+    if (numFiles.isDefined) {
+      csvRows.setParallelism(numFiles.get)
+    }
+
+    val sink = writeMode match {
+      case None => csvRows.writeAsText(path)
+      case Some(wm) => csvRows.writeAsText(path, wm)
+    }
+
+    if (numFiles.isDefined) {
+      sink.setParallelism(numFiles.get)
+    }
+  }
+
+  override protected def copy: TableSinkBase[Row] = {
+    new CsvRetractTableSink(path, fieldDelim, numFiles, writeMode)
+  }
+
+  override def getOutputType: TypeInformation[Row] = {
+    new RowTypeInfo(getFieldTypes: _*)
+  }
+}
+
+/**
+  * Formats a [[Tuple2]] with change information into a [[String]] with fields separated by the
+  * field delimiter.
+  *
+  * @param fieldDelim The field delimiter.
+  */
+class CsvRetractFormatter(fieldDelim: String) extends MapFunction[JTuple2[Boolean,Row], String] {
+  override def map(rowT: JTuple2[Boolean,Row]): String = {
+
+    val row: Row = rowT.f1
+
+    val builder = new StringBuilder
+
+    builder.append(rowT.f0.toString)
+
+    // write following values
+    for (i <- 0 until row.getArity) {
       builder.append(fieldDelim)
       val v = row.getField(i)
       if (v != null) {
