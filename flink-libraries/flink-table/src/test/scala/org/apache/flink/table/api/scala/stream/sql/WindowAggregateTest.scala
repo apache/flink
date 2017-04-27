@@ -102,7 +102,7 @@ class WindowAggregateTest extends TableTestBase {
             streamTableNode(0),
             term("select", "1970-01-01 00:00:00 AS $f0")
           ),
-          term("window", EventTimeTumblingGroupWindow(Some('w$), 'rowtime, 900000.millis)),
+          term("window", EventTimeTumblingGroupWindow('w$, 'rowtime, 900000.millis)),
           term("select", "COUNT(*) AS EXPR$0, start('w$) AS w$start, end('w$) AS w$end")
         ),
         term("select", "EXPR$0, CAST(w$start) AS w$start, CAST(w$end) AS w$end")
@@ -128,7 +128,7 @@ class WindowAggregateTest extends TableTestBase {
             streamTableNode(0),
             term("select", "1970-01-01 00:00:00 AS $f0")
           ),
-          term("window", ProcessingTimeSlidingGroupWindow(Some('w$),
+          term("window", ProcessingTimeSlidingGroupWindow('w$,
             3600000.millis, 900000.millis)),
           term("select", "COUNT(*) AS EXPR$0, start('w$) AS w$start, end('w$) AS w$end")
         ),
@@ -156,7 +156,7 @@ class WindowAggregateTest extends TableTestBase {
             streamTableNode(0),
             term("select", "1970-01-01 00:00:00 AS $f0")
           ),
-          term("window", ProcessingTimeSessionGroupWindow(Some('w$), 900000.millis)),
+          term("window", ProcessingTimeSessionGroupWindow('w$, 900000.millis)),
           term("select", "COUNT(*) AS EXPR$0, start('w$) AS w$start, end('w$) AS w$end")
         ),
         term("select", "EXPR$0, CAST(w$start) AS w$start, CAST(w$end) AS w$end")

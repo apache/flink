@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.api.java
 
-import org.apache.flink.table.api.{OverWindowPredefined, SessionWindow, SlideWithSize, TumblingWindow}
+import org.apache.flink.table.api.{TumblingWindowPredefined, OverWindowPredefined, SlideWithSize, SessionWindowPreDefined}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 
 /**
@@ -34,9 +34,9 @@ object Tumble {
     * elements in 5 minutes intervals.
     *
     * @param size the size of the window as time or row-count interval.
-    * @return a tumbling window
+    * @return a predefined tumbling window
     */
-  def over(size: String): TumblingWindow = new TumblingWindow(size)
+  def over(size: String): TumblingWindowPredefined = new TumblingWindowPredefined(size)
 }
 
 /**
@@ -79,9 +79,9 @@ object Session {
     *
     * @param gap specifies how long (as interval of milliseconds) to wait for new data before
     *            closing the session window.
-    * @return a session window
+    * @return a predefined session window
     */
-  def withGap(gap: String): SessionWindow = new SessionWindow(gap)
+  def withGap(gap: String): SessionWindowPreDefined = new SessionWindowPreDefined(gap)
 }
 
 /**

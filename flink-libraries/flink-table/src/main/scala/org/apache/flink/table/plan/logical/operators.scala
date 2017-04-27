@@ -568,7 +568,7 @@ case class WindowAggregate(
     case _ =>
       window.alias match {
         // resolve reference to this window's alias
-        case Some(UnresolvedFieldReference(alias)) if name == alias =>
+        case UnresolvedFieldReference(alias) if name == alias =>
           // check if reference can already be resolved by input fields
           val found = super.resolveReference(tableEnv, name)
           if (found.isDefined) {
