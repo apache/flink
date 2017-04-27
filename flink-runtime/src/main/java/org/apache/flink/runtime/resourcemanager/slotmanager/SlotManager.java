@@ -250,12 +250,33 @@ public class SlotManager implements AutoCloseable {
 		checkInit();
 
 		// we identify task managers by their instance id
-		if (!taskManagerRegistrations.containsKey(taskExecutorConnection.getInstanceID())) {
-			TaskManagerRegistration taskManagerRegistration = new TaskManagerRegistration(taskExecutorConnection);
+		if (taskManagerRegistrations.containsKey(taskExecutorConnection.getInstanceID())) {
+			reportSlotStatus(taskExecutorConnection.getInstanceID(), initialSlotReport);
+		} else {
+			// first register the TaskManager
+			ArrayList<SlotID> reportedSlots = new ArrayList<>();
+
+			for (SlotStatus slotStatus : initialSlotReport) {
+				reportedSlots.add(slotStatus.getSlotID());
+			}
+
+			TaskManagerRegistration taskManagerRegistration = new TaskManagerRegistration(taskExecutorConnection, reportedSlots);
 			taskManagerRegistrations.put(taskExecutorConnection.getInstanceID(), taskManagerRegistration);
+
+			// next register the new slots
+			for (SlotStatus slotStatus : initialSlotReport) {
+				registerSlot(
+					slotStatus.getSlotID(),
+					slotStatus.getAllocationID(),
+					slotStatus.getResourceProfile(),
+					taskExecutorConnection);
+			}
+
+			if (!anySlotUsed(taskManagerRegistration.getSlots())) {
+				registerTaskManagerTimeout(taskManagerRegistration);
+			}
 		}
 
-		reportSlotStatus(taskExecutorConnection.getInstanceID(), initialSlotReport);
 	}
 
 	/**
@@ -296,30 +317,21 @@ public class SlotManager implements AutoCloseable {
 		TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(instanceId);
 
 		if (null != taskManagerRegistration) {
-			ArrayList<SlotID> slotsToRemove = new ArrayList<>(taskManagerRegistration.getSlots());
 			boolean idle = true;
 
 			for (SlotStatus slotStatus : slotReport) {
-				if (slotsToRemove.remove(slotStatus.getSlotID())) {
-					// slot which was already registered
-					updateSlot(slotStatus.getSlotID(), slotStatus.getAllocationID());
+
+				// We assume that the slots of a TaskManager don't change over its lifetime and they are registered
+				// once when the TaskManager is registered
+				if (taskManagerRegistration.containsSlot(slotStatus.getSlotID()) && updateSlot(slotStatus.getSlotID(), slotStatus.getAllocationID())) {
+					TaskManagerSlot slot = slots.get(slotStatus.getSlotID());
+					idle &= slot.isFree();
 				} else {
-					// new slot
-					registerSlot(
-						taskManagerRegistration,
-						slotStatus.getSlotID(),
-						slotStatus.getAllocationID(),
-						slotStatus.getResourceProfile(),
-						taskManagerRegistration.getTaskManagerConnection());
+					// sanity check to guarantee that slots of a TaskManager don't change
+					throw new IllegalStateException("Reported a slot status for slot " +  slotStatus.getSlotID() +
+						" which has not been registered.");
 				}
-
-				TaskManagerSlot slot = slots.get(slotStatus.getSlotID());
-
-				idle &= slot.isFree();
 			}
-
-			// remove the slots for which we haven't received a slot status message
-			removeSlots(slotsToRemove);
 
 			if (idle) {
 				// no slot of this task manager is being used --> register timer to free this resource
@@ -439,20 +451,21 @@ public class SlotManager implements AutoCloseable {
 	 * the given slot id. The given resource profile defines the available resources for the slot.
 	 * The task manager connection can be used to communicate with the task manager.
 	 *
-	 * @param taskManagerRegistration Task manager for which to register the given slot
 	 * @param slotId identifying the slot on the task manager
 	 * @param allocationId which is currently deployed in the slot
 	 * @param resourceProfile of the slot
 	 * @param taskManagerConnection to communicate with the remote task manager
 	 */
 	private void registerSlot(
-			TaskManagerRegistration taskManagerRegistration,
 			SlotID slotId,
 			AllocationID allocationId,
 			ResourceProfile resourceProfile,
 			TaskExecutorConnection taskManagerConnection) {
 
-		Preconditions.checkNotNull(taskManagerRegistration);
+		if (slots.containsKey(slotId)) {
+			// remove the old slot first
+			removeSlot(slotId);
+		}
 
 		TaskManagerSlot slot = new TaskManagerSlot(
 			slotId,
@@ -461,8 +474,6 @@ public class SlotManager implements AutoCloseable {
 			allocationId);
 
 		slots.put(slotId, slot);
-
-		taskManagerRegistration.addSlot(slotId);
 
 		if (slot.isFree()) {
 			handleFreeSlot(slot);
@@ -478,8 +489,9 @@ public class SlotManager implements AutoCloseable {
 	 *
 	 * @param slotId to update
 	 * @param allocationId specifying the current allocation of the slot
+	 * @return True if the slot could be updated; otherwise false
 	 */
-	private void updateSlot(SlotID slotId, AllocationID allocationId) {
+	private boolean updateSlot(SlotID slotId, AllocationID allocationId) {
 		TaskManagerSlot slot = slots.get(slotId);
 
 		if (null != slot) {
@@ -516,8 +528,12 @@ public class SlotManager implements AutoCloseable {
 					taskManagerRegistration.cancelTimeout();
 				}
 			}
+
+			return true;
 		} else {
 			LOG.debug("Trying to update unknown slot with slot id {}.", slotId);
+
+			return false;
 		}
 	}
 
@@ -670,12 +686,6 @@ public class SlotManager implements AutoCloseable {
 			AllocationID oldAllocationId = slot.getAllocationId();
 
 			fulfilledSlotRequests.remove(oldAllocationId);
-
-			TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(slot.getInstanceId());
-
-			if (null != taskManagerRegistration) {
-				taskManagerRegistration.removeSlot(slotId);
-			}
 		} else {
 			LOG.debug("There was no slot registered with slot id {}.", slotId);
 		}
