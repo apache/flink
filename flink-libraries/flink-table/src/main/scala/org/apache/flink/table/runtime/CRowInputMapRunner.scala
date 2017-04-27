@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory
 class CRowInputMapRunner[OUT](
     name: String,
     code: String,
-    @transient returnType: TypeInformation[OUT])
+    @transient var returnType: TypeInformation[OUT])
   extends RichMapFunction[CRow, OUT]
   with ResultTypeQueryable[OUT]
   with Compiler[MapFunction[Row, OUT]] {

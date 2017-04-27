@@ -37,7 +37,7 @@ class CRowCorrelateFlatMapRunner(
     flatMapCode: String,
     collectorName: String,
     collectorCode: String,
-    @transient returnType: TypeInformation[CRow])
+    @transient var returnType: TypeInformation[CRow])
   extends RichFlatMapFunction[CRow, CRow]
   with ResultTypeQueryable[CRow]
   with Compiler[Any] {

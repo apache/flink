@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory
 class CRowValuesInputFormat(
     name: String,
     code: String,
-    @transient returnType: TypeInformation[CRow])
+    @transient var returnType: TypeInformation[CRow])
   extends GenericInputFormat[CRow]
   with NonParallelInput
   with ResultTypeQueryable[CRow]

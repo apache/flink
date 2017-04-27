@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory
 class CRowFlatMapRunner(
     name: String,
     code: String,
-    @transient returnType: TypeInformation[CRow])
+    @transient var returnType: TypeInformation[CRow])
   extends RichFlatMapFunction[CRow, CRow]
   with ResultTypeQueryable[CRow]
   with Compiler[FlatMapFunction[Row, Row]] {

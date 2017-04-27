@@ -59,6 +59,10 @@ class DataStreamGroupWindowAggregate(
 
   override def consumesRetractions = true
 
+  def getGroupings: Array[Int] = grouping
+
+  def getWindowProperties: Seq[NamedWindowProperty] = namedProperties
+
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamGroupWindowAggregate(
       window,
