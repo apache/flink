@@ -67,13 +67,12 @@ class RetractionITCase extends StreamingWithStateTestBase {
       .groupBy('count)
       .select('count, 'word.count as 'frequency)
 
-    // to DataStream with CRow
-    val results = resultTable.toDataStream[CRow]
-    results.addSink(new StreamITCase.StringSinkWithCRow)
+    val results = resultTable.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = Seq("+1,1", "+1,2", "+1,1", "+2,1", "+1,2", "+1,1", "+2,2", "+2,1", "+3,1",
-      "+3,0", "+4,1", "+4,0", "+5,1", "+5,0", "+6,1", "+1,2")
+    val expected = Seq("1,1", "1,2", "1,1", "2,1", "1,2", "1,1", "2,2", "2,1", "3,1", "3,0",
+      "4,1", "4,0", "5,1", "5,0", "6,1", "1,2")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

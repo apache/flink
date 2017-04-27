@@ -102,13 +102,14 @@ object DataStreamRetractionRules {
       val rel = call.rel(0).asInstanceOf[DataStreamRel]
       val traits = rel.getTraitSet
 
-      val traitsWithUpdateAsRetrac = if (!traits.contains(UpdateAsRetractionTraitDef.INSTANCE)) {
+      val traitsWithUpdateAsRetrac =
+        if (null == traits.getTrait(UpdateAsRetractionTraitDef.INSTANCE)) {
         traits.plus(UpdateAsRetractionTrait.DEFAULT)
       } else {
         traits
       }
       val traitsWithAccMode =
-        if (!traitsWithUpdateAsRetrac.contains(AccModeTraitDef.INSTANCE)) {
+        if (null == traitsWithUpdateAsRetrac.getTrait(AccModeTraitDef.INSTANCE)) {
           traitsWithUpdateAsRetrac.plus(AccModeTrait.DEFAULT)
       } else {
         traitsWithUpdateAsRetrac

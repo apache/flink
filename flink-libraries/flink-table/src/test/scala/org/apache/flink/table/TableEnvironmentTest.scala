@@ -21,6 +21,7 @@ package org.apache.flink.table
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.TableException
@@ -62,14 +63,6 @@ class TableEnvironmentTest extends TableTestBase {
   }
 
   @Test
-  def testGetFieldInfoCRow(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(cRowType)
-
-    fieldInfo._1.zip(Array("f0", "f1", "f2")).foreach(x => assertEquals(x._2, x._1))
-    fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
-  }
-
-  @Test
   def testGetFieldInfoCClass(): Unit = {
     val fieldInfo = tEnv.getFieldInfo(caseClassType)
 
@@ -102,20 +95,6 @@ class TableEnvironmentTest extends TableTestBase {
   def testGetFieldInfoTupleNames(): Unit = {
     val fieldInfo = tEnv.getFieldInfo(
       tupleType,
-      Array(
-        UnresolvedFieldReference("name1"),
-        UnresolvedFieldReference("name2"),
-        UnresolvedFieldReference("name3")
-      ))
-
-    fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
-    fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
-  }
-
-  @Test
-  def testGetFieldInfoCRowNames(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
-      cRowType,
       Array(
         UnresolvedFieldReference("name1"),
         UnresolvedFieldReference("name2"),
@@ -217,45 +196,6 @@ class TableEnvironmentTest extends TableTestBase {
   def testGetFieldInfoTupleAlias3(): Unit = {
     tEnv.getFieldInfo(
       tupleType,
-      Array(
-        Alias(UnresolvedFieldReference("xxx"), "name1"),
-        Alias(UnresolvedFieldReference("yyy"), "name2"),
-        Alias(UnresolvedFieldReference("zzz"), "name3")
-      ))
-  }
-
-  @Test
-  def testGetFieldInfoCRowAlias1(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
-      cRowType,
-      Array(
-        Alias(UnresolvedFieldReference("f0"), "name1"),
-        Alias(UnresolvedFieldReference("f1"), "name2"),
-        Alias(UnresolvedFieldReference("f2"), "name3")
-      ))
-
-    fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
-    fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
-  }
-
-  @Test
-  def testGetFieldInfoCRowAlias2(): Unit = {
-    val fieldInfo = tEnv.getFieldInfo(
-      cRowType,
-      Array(
-        Alias(UnresolvedFieldReference("f2"), "name1"),
-        Alias(UnresolvedFieldReference("f0"), "name2"),
-        Alias(UnresolvedFieldReference("f1"), "name3")
-      ))
-
-    fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
-    fieldInfo._2.zip(Array(2, 0, 1)).foreach(x => assertEquals(x._2, x._1))
-  }
-
-  @Test(expected = classOf[TableException])
-  def testGetFieldInfoCRowAlias3(): Unit = {
-    tEnv.getFieldInfo(
-      cRowType,
       Array(
         Alias(UnresolvedFieldReference("xxx"), "name1"),
         Alias(UnresolvedFieldReference("yyy"), "name2"),

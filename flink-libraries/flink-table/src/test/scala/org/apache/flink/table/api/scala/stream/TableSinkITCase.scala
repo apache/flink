@@ -23,7 +23,7 @@ import java.io.File
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala.stream.utils.StreamTestData
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.sinks.CsvTableSink
+import org.apache.flink.table.sinks.{CsvTableSink, CsvRetractTableSink}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
@@ -59,5 +59,34 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
 
     TestBaseUtils.compareResultsByLinesInMemory(expected, path)
   }
-  
+
+  @Test
+  def testStreamTableSinkNeedRetraction(): Unit = {
+
+    val tmpFile = File.createTempFile("flink-table-sink-test", ".tmp")
+    tmpFile.deleteOnExit()
+    val path = tmpFile.toURI.toString
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(4)
+
+    val input = StreamTestData.get3TupleDataStream(env)
+      .map(x => x).setParallelism(1) // increase DOP to 4
+
+    val results = input.toTable(tEnv, 'a, 'b, 'c)
+      .where('a < 5 || 'a > 17)
+      .select('c, 'b)
+      .groupBy('b)
+      .select('b, 'c.count)
+      .writeToSink(new CsvRetractTableSink(path))
+
+    env.execute()
+
+    val expected = Seq(
+      "true,1,1", "true,2,1", "false,2,1", "true,2,2", "true,3,1", "true,6,1", "false,6,1",
+      "true,6,2", "false,6,2", "true,6,3", "false,6,3", "true,6,4").mkString("\n")
+
+    TestBaseUtils.compareResultsByLinesInMemory(expected, path)
+  }
 }

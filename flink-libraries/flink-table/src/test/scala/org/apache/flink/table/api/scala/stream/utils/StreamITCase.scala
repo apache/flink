@@ -49,12 +49,4 @@ object StreamITCase {
       }
     }
   }
-
-  final class StringSinkWithCRow extends RichSinkFunction[CRow]() {
-    def invoke(value: CRow) {
-      testResults.synchronized {
-        testResults += value.toString
-      }
-    }
-  }
 }

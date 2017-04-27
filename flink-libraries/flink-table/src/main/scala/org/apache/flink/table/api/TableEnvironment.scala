@@ -644,18 +644,6 @@ abstract class TableEnvironment(val config: TableConfig) {
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
-      case cr: CRowTypeInfo =>
-        exprs.zipWithIndex.map {
-          case (UnresolvedFieldReference(name), idx) => (idx, name)
-          case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
-            val idx = cr.getFieldIndex(origName)
-            if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $cr")
-            }
-            (idx, name)
-          case _ => throw new TableException(
-            "Field reference expression or alias on field expression expected.")
-        }
       case c: CaseClassTypeInfo[A] =>
         exprs.zipWithIndex flatMap {
           case (UnresolvedFieldReference(name), idx) =>
