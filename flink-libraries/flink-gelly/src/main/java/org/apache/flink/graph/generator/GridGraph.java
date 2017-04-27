@@ -85,9 +85,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 	@Override
 	public Graph<LongValue, NullValue, NullValue> generate() {
-		if (dimensions.isEmpty()) {
-			throw new RuntimeException("No dimensions added to GridGraph");
-		}
+		Preconditions.checkState(!dimensions.isEmpty(), "No dimensions added to GridGraph");
 
 		// Vertices
 		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
