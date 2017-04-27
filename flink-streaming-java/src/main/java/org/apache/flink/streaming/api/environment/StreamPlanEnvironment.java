@@ -26,17 +26,28 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
+/**
+ * A special {@link StreamExecutionEnvironment} that is used in the web frontend when generating
+ * a user-inspectable graph of a streaming job.
+ */
 @PublicEvolving
 public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 
 	private ExecutionEnvironment env;
 
 	protected StreamPlanEnvironment(ExecutionEnvironment env) {
-		super(GlobalConfiguration.loadConfiguration().getInteger(
-				ConfigConstants.DEFAULT_PARALLELISM_KEY,
-				ConfigConstants.DEFAULT_PARALLELISM));
-
+		super();
 		this.env = env;
+
+		int parallelism = env.getParallelism();
+		if (parallelism > 0) {
+			setParallelism(parallelism);
+		} else {
+			// determine parallelism
+			setParallelism(GlobalConfiguration.loadConfiguration().getInteger(
+					ConfigConstants.DEFAULT_PARALLELISM_KEY,
+					ConfigConstants.DEFAULT_PARALLELISM));
+		}
 	}
 
 	@Override

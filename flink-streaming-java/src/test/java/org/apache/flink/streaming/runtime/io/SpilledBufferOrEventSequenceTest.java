@@ -44,14 +44,14 @@ import static org.junit.Assert.*;
  * with respect to detecting corrupt sequences, trailing data, and interleaved buffers and events.
  */
 public class SpilledBufferOrEventSequenceTest {
-	
+
 	private final ByteBuffer buffer = ByteBuffer.allocateDirect(128 * 1024).order(ByteOrder.LITTLE_ENDIAN);
 	private final int pageSize = 32*1024;
-	
+
 	private File tempFile;
 	private FileChannel fileChannel;
-	
-	
+
+
 	@Before
 	public void initTempChannel() {
 		try {
@@ -62,7 +62,7 @@ public class SpilledBufferOrEventSequenceTest {
 			cleanup();
 		}
 	}
-	
+
 	@After
 	public void cleanup() {
 		if (fileChannel != null) {
@@ -78,18 +78,18 @@ public class SpilledBufferOrEventSequenceTest {
 			tempFile.delete();
 		}
 	}
-	
-	
+
+
 	// ------------------------------------------------------------------------
 	//  Tests
 	// ------------------------------------------------------------------------
-	
+
 	@Test
 	public void testEmptyChannel() {
 		try {
 			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
 			seq.open();
-			
+
 			assertNull(seq.getNext());
 		}
 		catch (Exception e) {
@@ -97,19 +97,19 @@ public class SpilledBufferOrEventSequenceTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testIncompleteHeaderOnFirstElement() {
 		try {
 			ByteBuffer buf = ByteBuffer.allocate(7);
 			buf.order(ByteOrder.LITTLE_ENDIAN);
-			
+
 			fileChannel.write(buf);
 			fileChannel.position(0);
-			
+
 			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
 			seq.open();
-			
+
 			try {
 				seq.getNext();
 				fail("should fail with an exception");
@@ -129,12 +129,12 @@ public class SpilledBufferOrEventSequenceTest {
 		try {
 			final Random rnd = new Random();
 			final long seed = rnd.nextLong();
-			
+
 			final int numBuffers = 325;
 			final int numChannels = 671;
-			
+
 			rnd.setSeed(seed);
-			
+
 			for (int i = 0; i < numBuffers; i++) {
 				writeBuffer(fileChannel, rnd.nextInt(pageSize) + 1, rnd.nextInt(numChannels));
 			}
@@ -144,11 +144,11 @@ public class SpilledBufferOrEventSequenceTest {
 
 			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
 			seq.open();
-			
+
 			for (int i = 0; i < numBuffers; i++) {
 				validateBuffer(seq.getNext(), rnd.nextInt(pageSize) + 1, rnd.nextInt(numChannels));
 			}
-			
+
 			// should have no more data
 			assertNull(seq.getNext());
 		}
@@ -157,16 +157,16 @@ public class SpilledBufferOrEventSequenceTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testBufferSequenceWithIncompleteBuffer() {
 		try {
 			writeBuffer(fileChannel, 1672, 7);
-			
+
 			// write an incomplete buffer
 			ByteBuffer data = ByteBuffer.allocate(615);
 			data.order(ByteOrder.LITTLE_ENDIAN);
-			
+
 			data.putInt(2);
 			data.putInt(999);
 			data.put((byte) 0);
@@ -177,10 +177,10 @@ public class SpilledBufferOrEventSequenceTest {
 
 			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
 			seq.open();
-			
+
 			// first one is valid
 			validateBuffer(seq.getNext(), 1672, 7);
-			
+
 			// next one should fail
 			try {
 				seq.getNext();
@@ -202,9 +202,9 @@ public class SpilledBufferOrEventSequenceTest {
 			final Random rnd = new Random();
 			final int numEvents = 3000;
 			final int numChannels = 1656;
-			
+
 			final ArrayList<BufferOrEvent> events = new ArrayList<BufferOrEvent>(numEvents);
-			
+
 			for (int i = 0; i < numEvents; i++) {
 				events.add(generateAndWriteEvent(fileChannel, rnd, numChannels));
 			}
@@ -212,7 +212,7 @@ public class SpilledBufferOrEventSequenceTest {
 			fileChannel.position(0L);
 			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
 			seq.open();
-			
+
 			int i = 0;
 			BufferOrEvent boe;
 			while ((boe = seq.getNext()) != null) {
@@ -222,7 +222,7 @@ public class SpilledBufferOrEventSequenceTest {
 				assertEquals(expected.getChannelIndex(), boe.getChannelIndex());
 				i++;
 			}
-			
+
 			assertEquals(numEvents, i);
 		}
 		catch (Exception e) {
@@ -239,14 +239,14 @@ public class SpilledBufferOrEventSequenceTest {
 
 			final long bufferSeed = rnd.nextLong();
 			bufferRnd.setSeed(bufferSeed);
-			
+
 			final int numEventsAndBuffers = 3000;
 			final int numChannels = 1656;
 
 			final ArrayList<BufferOrEvent> events = new ArrayList<BufferOrEvent>(128);
 
 			// generate sequence
-			
+
 			for (int i = 0; i < numEventsAndBuffers; i++) {
 				boolean isEvent = rnd.nextDouble() < 0.05d;
 				if (isEvent) {
@@ -256,16 +256,16 @@ public class SpilledBufferOrEventSequenceTest {
 					writeBuffer(fileChannel, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numChannels));
 				}
 			}
-			
+
 			// reset and create reader
-			
+
 			fileChannel.position(0L);
 			bufferRnd.setSeed(bufferSeed);
 			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
 			seq.open();
-			
+
 			// read and validate the sequence
-			
+
 			int numEvent = 0;
 			for (int i = 0; i < numEventsAndBuffers; i++) {
 				BufferOrEvent next = seq.getNext();
@@ -278,10 +278,10 @@ public class SpilledBufferOrEventSequenceTest {
 					validateBuffer(next, bufferRnd.nextInt(pageSize) + 1, bufferRnd.nextInt(numChannels));
 				}
 			}
-			
+
 			// no further data
 			assertNull(seq.getNext());
-			
+
 			// all events need to be consumed
 			assertEquals(events.size(), numEvent);
 		}
@@ -295,12 +295,12 @@ public class SpilledBufferOrEventSequenceTest {
 	public void testMultipleSequences() {
 		File secondFile = null;
 		FileChannel secondChannel = null;
-		
+
 		try {
 			// create the second file channel
 			secondFile = File.createTempFile("testdata", "tmp");
 			secondChannel = new RandomAccessFile(secondFile, "rw").getChannel();
-			
+
 			final Random rnd = new Random();
 			final Random bufferRnd = new Random();
 
@@ -309,7 +309,7 @@ public class SpilledBufferOrEventSequenceTest {
 
 			final int numEventsAndBuffers1 = 272;
 			final int numEventsAndBuffers2 = 151;
-			
+
 			final int numChannels = 1656;
 
 			final ArrayList<BufferOrEvent> events1 = new ArrayList<BufferOrEvent>(128);
@@ -343,9 +343,9 @@ public class SpilledBufferOrEventSequenceTest {
 
 			fileChannel.position(0L);
 			secondChannel.position(0L);
-			
+
 			bufferRnd.setSeed(bufferSeed);
-			
+
 			SpilledBufferOrEventSequence seq1 = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
 			SpilledBufferOrEventSequence seq2 = new SpilledBufferOrEventSequence(secondFile, secondChannel, buffer, pageSize);
 
@@ -410,14 +410,14 @@ public class SpilledBufferOrEventSequenceTest {
 		try {
 			ByteBuffer data = ByteBuffer.allocate(157);
 			data.order(ByteOrder.LITTLE_ENDIAN);
-			
+
 			fileChannel.write(data);
 			fileChannel.position(54);
-			
+
 			SpilledBufferOrEventSequence seq = new SpilledBufferOrEventSequence(tempFile, fileChannel, buffer, pageSize);
 			seq.open();
 			seq.cleanup();
-			
+
 			assertFalse(fileChannel.isOpen());
 			assertFalse(tempFile.exists());
 		}
@@ -426,7 +426,7 @@ public class SpilledBufferOrEventSequenceTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Utils
 	// ------------------------------------------------------------------------
@@ -436,27 +436,27 @@ public class SpilledBufferOrEventSequenceTest {
 		byte[] data = new byte[rnd.nextInt(1000)];
 		rnd.nextBytes(data);
 		TestEvent evt = new TestEvent(magicNumber, data);
-		
+
 		int channelIndex = rnd.nextInt(numChannels);
-		
+
 		ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(evt);
 		ByteBuffer header = ByteBuffer.allocate(9);
 		header.order(ByteOrder.LITTLE_ENDIAN);
-		
+
 		header.putInt(channelIndex);
 		header.putInt(serializedEvent.remaining());
 		header.put((byte) 1);
 		header.flip();
-		
+
 		fileChannel.write(header);
 		fileChannel.write(serializedEvent);
 		return new BufferOrEvent(evt, channelIndex);
 	}
-	
+
 	private static void writeBuffer(FileChannel fileChannel, int size, int channelIndex) throws IOException {
 		ByteBuffer data = ByteBuffer.allocate(size + 9);
 		data.order(ByteOrder.LITTLE_ENDIAN);
-		
+
 		data.putInt(channelIndex);
 		data.putInt(size);
 		data.put((byte) 0);
@@ -470,10 +470,10 @@ public class SpilledBufferOrEventSequenceTest {
 	private static void validateBuffer(BufferOrEvent boe, int expectedSize, int expectedChannelIndex) {
 		assertEquals("wrong channel index", expectedChannelIndex, boe.getChannelIndex());
 		assertTrue("is not buffer", boe.isBuffer());
-		
+
 		Buffer buf = boe.getBuffer();
 		assertEquals("wrong buffer size", expectedSize, buf.getSize());
-		
+
 		MemorySegment seg = buf.getMemorySegment();
 		for (int i = 0; i < expectedSize; i++) {
 			assertEquals("wrong buffer contents", (byte) i, seg.get(i));

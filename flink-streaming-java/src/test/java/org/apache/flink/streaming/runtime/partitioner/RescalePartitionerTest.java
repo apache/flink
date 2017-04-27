@@ -59,17 +59,17 @@ import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
 public class RescalePartitionerTest extends TestLogger {
-	
+
 	private RescalePartitioner<Tuple> distributePartitioner;
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>(null);
 	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(
 			null);
-	
+
 	@Before
 	public void setPartitioner() {
 		distributePartitioner = new RescalePartitioner<Tuple>();
 	}
-	
+
 	@Test
 	public void testSelectChannelsLength() {
 		sd.setInstance(streamRecord);
@@ -77,7 +77,7 @@ public class RescalePartitionerTest extends TestLogger {
 		assertEquals(1, distributePartitioner.selectChannels(sd, 2).length);
 		assertEquals(1, distributePartitioner.selectChannels(sd, 1024).length);
 	}
-	
+
 	@Test
 	public void testSelectChannelsInterval() {
 		sd.setInstance(streamRecord);

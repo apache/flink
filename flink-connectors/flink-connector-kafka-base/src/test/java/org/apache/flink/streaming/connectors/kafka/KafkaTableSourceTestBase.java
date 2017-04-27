@@ -19,8 +19,12 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import java.util.Properties;
+import org.apache.avro.Schema;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.connectors.kafka.testutils.AvroTestUtils;
+import org.apache.flink.table.api.Types;
 import org.apache.flink.types.Row;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
@@ -34,7 +38,7 @@ import static org.mockito.Mockito.verify;
 public abstract class KafkaTableSourceTestBase {
 
 	private static final String TOPIC = "testTopic";
-	private static final String[] FIELD_NAMES = new String[] { "long", "string", "boolean", "double", "missing-field" };
+	private static final String[] FIELD_NAMES = new String[] { "mylong", "mystring", "myboolean", "mydouble", "missingField" };
 	private static final TypeInformation<?>[] FIELD_TYPES = new TypeInformation<?>[] {
 		BasicTypeInfo.LONG_TYPE_INFO,
 		BasicTypeInfo.STRING_TYPE_INFO,
@@ -42,6 +46,33 @@ public abstract class KafkaTableSourceTestBase {
 		BasicTypeInfo.DOUBLE_TYPE_INFO,
 		BasicTypeInfo.LONG_TYPE_INFO };
 	private static final Properties PROPERTIES = createSourceProperties();
+
+	// Avro record that matches above schema
+	public static class AvroSpecificRecord extends SpecificRecordBase {
+
+		public static Schema SCHEMA$ = AvroTestUtils.createFlatAvroSchema(FIELD_NAMES, FIELD_TYPES);
+
+		public Long mylong;
+		public String mystring;
+		public Boolean myboolean;
+		public Double mydouble;
+		public Long missingField;
+
+		@Override
+		public Schema getSchema() {
+			return null;
+		}
+
+		@Override
+		public Object get(int field) {
+			return null;
+		}
+
+		@Override
+		public void put(int field, Object value) {
+
+		}
+	}
 
 	@Test
 	public void testKafkaTableSource() {
@@ -57,15 +88,14 @@ public abstract class KafkaTableSourceTestBase {
 			any(getDeserializationSchema()));
 	}
 
-	protected abstract KafkaTableSource createTableSource(String topic, Properties properties,
-			String[] fieldNames, TypeInformation<?>[] typeInfo);
+	protected abstract KafkaTableSource createTableSource(String topic, Properties properties, TypeInformation<Row> typeInfo);
 
 	protected abstract Class<DeserializationSchema<Row>> getDeserializationSchema();
 
 	protected abstract Class<FlinkKafkaConsumerBase<Row>> getFlinkKafkaConsumer();
 
 	private KafkaTableSource createTableSource() {
-		return createTableSource(TOPIC, PROPERTIES, FIELD_NAMES, FIELD_TYPES);
+		return createTableSource(TOPIC, PROPERTIES, Types.ROW(FIELD_NAMES, FIELD_TYPES));
 	}
 
 	private static Properties createSourceProperties() {

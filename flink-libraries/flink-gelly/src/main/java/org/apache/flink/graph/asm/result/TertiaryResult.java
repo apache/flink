@@ -33,6 +33,13 @@ public interface TertiaryResult<T> {
 	T getVertexId0();
 
 	/**
+	 * Set the first vertex ID.
+	 *
+	 * @param value new vertex ID
+	 */
+	void setVertexId0(T value);
+
+	/**
 	 * Get the second vertex ID.
 	 *
 	 * @return second vertex ID
@@ -40,9 +47,23 @@ public interface TertiaryResult<T> {
 	T getVertexId1();
 
 	/**
+	 * Set the second vertex ID.
+	 *
+	 * @param value new vertex ID
+	 */
+	void setVertexId1(T value);
+
+	/**
 	 * Get the third vertex ID.
 	 *
 	 * @return third vertex ID
 	 */
 	T getVertexId2();
+
+	/**
+	 * Set the third vertex ID.
+	 *
+	 * @param value new vertex ID
+	 */
+	void setVertexId2(T value);
 }

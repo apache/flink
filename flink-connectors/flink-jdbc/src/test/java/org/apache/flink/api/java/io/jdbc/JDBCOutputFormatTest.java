@@ -25,7 +25,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.types.Row;
 import org.junit.After;
 import org.junit.Assert;
@@ -34,7 +33,6 @@ import org.junit.Test;
 public class JDBCOutputFormatTest extends JDBCTestBase {
 
 	private JDBCOutputFormat jdbcOutputFormat;
-	private Tuple5<Integer, String, String, Double, String> tuple5 = new Tuple5<>();
 
 	@After
 	public void tearDown() throws IOException {
@@ -92,23 +90,19 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.finish();
 		jdbcOutputFormat.open(0, 1);
 
-		tuple5.setField(4, 0);
-		tuple5.setField("hello", 1);
-		tuple5.setField("world", 2);
-		tuple5.setField(0.99, 3);
-		tuple5.setField("imthewrongtype", 4);
+		Row row = new Row(5);
+		row.setField(0, 4);
+		row.setField(1, "hello");
+		row.setField(2, "world");
+		row.setField(3, 0.99);
+		row.setField(4, "imthewrongtype");
 
-		Row row = new Row(tuple5.getArity());
-		for (int i = 0; i < tuple5.getArity(); i++) {
-			row.setField(i, tuple5.getField(i));
-		}
 		jdbcOutputFormat.writeRecord(row);
 		jdbcOutputFormat.close();
 	}
 
 	@Test
-	public void testJDBCOutputFormat() throws IOException, InstantiationException, IllegalAccessException {
-
+	public void testJDBCOutputFormat() throws IOException, SQLException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
@@ -116,54 +110,34 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.finish();
 		jdbcOutputFormat.open(0, 1);
 
-		for (int i = 0; i < testData.length; i++) {
-			Row row = new Row(testData[i].length);
-			for (int j = 0; j < testData[i].length; j++) {
-				row.setField(j, testData[i][j]);
-			}
+		for (JDBCTestBase.TestEntry entry : TEST_DATA) {
+			Row row = new Row(5);
+			row.setField(0, entry.id);
+			row.setField(1, entry.title);
+			row.setField(2, entry.author);
+			row.setField(3, entry.price);
+			row.setField(4, entry.qty);
 			jdbcOutputFormat.writeRecord(row);
 		}
 
 		jdbcOutputFormat.close();
 
 		try (
-			Connection dbConn = DriverManager.getConnection(JDBCTestBase.DB_URL);
+			Connection dbConn = DriverManager.getConnection(DB_URL);
 			PreparedStatement statement = dbConn.prepareStatement(JDBCTestBase.SELECT_ALL_NEWBOOKS);
 			ResultSet resultSet = statement.executeQuery()
 		) {
 			int recordCount = 0;
 			while (resultSet.next()) {
-				Row row = new Row(tuple5.getArity());
-				for (int i = 0; i < tuple5.getArity(); i++) {
-					row.setField(i, resultSet.getObject(i + 1));
-				}
-				if (row.getField(0) != null) {
-					Assert.assertEquals("Field 0 should be int", Integer.class, row.getField(0).getClass());
-				}
-				if (row.getField(1) != null) {
-					Assert.assertEquals("Field 1 should be String", String.class, row.getField(1).getClass());
-				}
-				if (row.getField(2) != null) {
-					Assert.assertEquals("Field 2 should be String", String.class, row.getField(2).getClass());
-				}
-				if (row.getField(3) != null) {
-					Assert.assertEquals("Field 3 should be float", Double.class, row.getField(3).getClass());
-				}
-				if (row.getField(4) != null) {
-					Assert.assertEquals("Field 4 should be int", Integer.class, row.getField(4).getClass());
-				}
-
-				for (int x = 0; x < tuple5.getArity(); x++) {
-					if (JDBCTestBase.testData[recordCount][x] != null) {
-						Assert.assertEquals(JDBCTestBase.testData[recordCount][x], row.getField(x));
-					}
-				}
+				Assert.assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
+				Assert.assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
+				Assert.assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
+				Assert.assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
+				Assert.assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
 
 				recordCount++;
 			}
-			Assert.assertEquals(JDBCTestBase.testData.length, recordCount);
-		} catch (SQLException e) {
-			Assert.fail("JDBC OutputFormat test failed. " + e.getMessage());
+			Assert.assertEquals(TEST_DATA.length, recordCount);
 		}
 	}
 }

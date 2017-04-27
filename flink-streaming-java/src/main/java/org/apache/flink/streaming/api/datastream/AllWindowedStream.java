@@ -18,8 +18,11 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.PublicEvolving;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -40,9 +43,9 @@ import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.functions.windowing.AggregateApplyAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.FoldApplyAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.FoldApplyProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughAllWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.FoldApplyAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyProcessAllWindowFunction;
@@ -66,24 +69,19 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A {@code AllWindowedStream} represents a data stream where the stream of
  * elements is split into windows based on a
  * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. Window emission
  * is triggered based on a {@link org.apache.flink.streaming.api.windowing.triggers.Trigger}.
  *
- * <p>
- * If an {@link org.apache.flink.streaming.api.windowing.evictors.Evictor} is specified it will be
+ * <p>If an {@link org.apache.flink.streaming.api.windowing.evictors.Evictor} is specified it will be
  * used to evict elements from the window after
  * evaluation was triggered by the {@code Trigger} but before the actual evaluation of the window.
  * When using an evictor window performance will degrade significantly, since
  * pre-aggregation of window results cannot be used.
  *
- * <p>
- * Note that the {@code AllWindowedStream} is purely and API construct, during runtime
+ * <p>Note that the {@code AllWindowedStream} is purely and API construct, during runtime
  * the {@code AllWindowedStream} will be collapsed together with the
  * operation over the window into one single operation.
  *
@@ -93,10 +91,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Public
 public class AllWindowedStream<T, W extends Window> {
 
-	/** The keyed data stream that is windowed by this stream */
+	/** The keyed data stream that is windowed by this stream. */
 	private final KeyedStream<T, Byte> input;
 
-	/** The window assigner */
+	/** The window assigner. */
 	private final WindowAssigner<? super T, W> windowAssigner;
 
 	/** The trigger that is used for window evaluation/emission. */
@@ -171,8 +169,7 @@ public class AllWindowedStream<T, W extends Window> {
 	/**
 	 * Sets the {@code Evictor} that should be used to evict elements from a window before emission.
 	 *
-	 * <p>
-	 * Note: When using an evictor window performance will degrade significantly, since
+	 * <p>Note: When using an evictor window performance will degrade significantly, since
 	 * incremental aggregation of window results cannot be used.
 	 */
 	@PublicEvolving
@@ -195,8 +192,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * of the window for each key individually. The output of the reduce function is interpreted
 	 * as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * This window will try and incrementally aggregate data as much as the window policies permit.
+	 * <p>This window will try and incrementally aggregate data as much as the window policies permit.
 	 * For example, tumbling time windows can aggregate the data, meaning that only one element per
 	 * key is stored. Sliding time windows will aggregate on the granularity of the slide interval,
 	 * so a few elements are stored per key (one per slide interval).
@@ -227,8 +223,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Arriving data is incrementally aggregated using the given reducer.
+	 * <p>Arriving data is incrementally aggregated using the given reducer.
 	 *
 	 * @param reduceFunction The reduce function that is used for incremental aggregation.
 	 * @param function The window function.
@@ -251,8 +246,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Arriving data is incrementally aggregated using the given reducer.
+	 * <p>Arriving data is incrementally aggregated using the given reducer.
 	 *
 	 * @param reduceFunction The reduce function that is used for incremental aggregation.
 	 * @param function The window function.
@@ -326,8 +320,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Arriving data is incrementally aggregated using the given reducer.
+	 * <p>Arriving data is incrementally aggregated using the given reducer.
 	 *
 	 * @param reduceFunction The reduce function that is used for incremental aggregation.
 	 * @param function The process window function.
@@ -349,8 +342,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Arriving data is incrementally aggregated using the given reducer.
+	 * <p>Arriving data is incrementally aggregated using the given reducer.
 	 *
 	 * @param reduceFunction The reduce function that is used for incremental aggregation.
 	 * @param function The process window function.
@@ -424,7 +416,7 @@ public class AllWindowedStream<T, W extends Window> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Applies the given {@code AggregateFunction} to each window. The AggregateFunction 
+	 * Applies the given {@code AggregateFunction} to each window. The AggregateFunction
 	 * aggregates all elements of a window into a single result element. The stream of these
 	 * result elements (one per window) is interpreted as a regular non-windowed stream.
 	 *
@@ -433,7 +425,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 *
 	 * @param <ACC> The type of the AggregateFunction's accumulator
 	 * @param <R> The type of the elements in the resulting stream, equal to the
-	 *            AggregateFunction's result type   
+	 *            AggregateFunction's result type
 	 */
 	@PublicEvolving
 	public <ACC, R> SingleOutputStreamOperator<R> aggregate(AggregateFunction<T, ACC, R> function) {
@@ -453,7 +445,7 @@ public class AllWindowedStream<T, W extends Window> {
 	}
 
 	/**
-	 * Applies the given {@code AggregateFunction} to each window. The AggregateFunction 
+	 * Applies the given {@code AggregateFunction} to each window. The AggregateFunction
 	 * aggregates all elements of a window into a single result element. The stream of these
 	 * result elements (one per window) is interpreted as a regular non-windowed stream.
 	 *
@@ -462,7 +454,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 *
 	 * @param <ACC> The type of the AggregateFunction's accumulator
 	 * @param <R> The type of the elements in the resulting stream, equal to the
-	 *            AggregateFunction's result type  
+	 *            AggregateFunction's result type
 	 */
 	@PublicEvolving
 	public <ACC, R> SingleOutputStreamOperator<R> aggregate(
@@ -496,7 +488,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 *
 	 * @param <ACC> The type of the AggregateFunction's accumulator
-	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input  
+	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            WindowFunction's result type
 	 */
@@ -536,7 +528,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 *
 	 * @param <ACC> The type of the AggregateFunction's accumulator
-	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input  
+	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            WindowFunction's result type
 	 */
@@ -796,8 +788,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Arriving data is incrementally aggregated using the given fold function.
+	 * <p>Arriving data is incrementally aggregated using the given fold function.
 	 *
 	 * @param initialValue The initial value of the fold.
 	 * @param foldFunction The fold function that is used for incremental aggregation.
@@ -821,8 +812,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Arriving data is incrementally aggregated using the given fold function.
+	 * <p>Arriving data is incrementally aggregated using the given fold function.
 	 *
 	 * @param initialValue The initial value of the fold.
 	 * @param foldFunction The fold function that is used for incremental aggregation.
@@ -904,8 +894,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Arriving data is incrementally aggregated using the given fold function.
+	 * <p>Arriving data is incrementally aggregated using the given fold function.
 	 *
 	 * @param initialValue The initial value of the fold.
 	 * @param foldFunction The fold function that is used for incremental aggregation.
@@ -929,8 +918,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Arriving data is incrementally aggregated using the given fold function.
+	 * <p>Arriving data is incrementally aggregated using the given fold function.
 	 *
 	 * @param initialValue The initial value of the fold.
 	 * @param foldFunction The fold function that is used for incremental aggregation.
@@ -1016,8 +1004,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Not that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1036,8 +1023,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Not that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1054,8 +1040,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Not that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The process window function.
@@ -1075,8 +1060,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Not that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The process window function.
@@ -1146,8 +1130,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Arriving data is incrementally aggregated using the given reducer.
+	 * <p>Arriving data is incrementally aggregated using the given reducer.
 	 *
 	 * @param reduceFunction The reduce function that is used for incremental aggregation.
 	 * @param function The window function.
@@ -1169,8 +1152,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Arriving data is incrementally aggregated using the given reducer.
+	 * <p>Arriving data is incrementally aggregated using the given reducer.
 	 *
 	 * @param reduceFunction The reduce function that is used for incremental aggregation.
 	 * @param function The window function.
@@ -1246,8 +1228,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Arriving data is incrementally aggregated using the given fold function.
+	 * <p>Arriving data is incrementally aggregated using the given fold function.
 	 *
 	 * @param initialValue The initial value of the fold.
 	 * @param foldFunction The fold function that is used for incremental aggregation.
@@ -1270,8 +1251,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>
-	 * Arriving data is incrementally aggregated using the given fold function.
+	 * <p>Arriving data is incrementally aggregated using the given fold function.
 	 *
 	 * @param initialValue The initial value of the fold.
 	 * @param foldFunction The fold function that is used for incremental aggregation.
@@ -1364,10 +1344,8 @@ public class AllWindowedStream<T, W extends Window> {
 	 * Applies an aggregation that sums every window of the pojo data stream at
 	 * the given field for every window.
 	 *
-	 * <p>
-	 * A field expression is either
-	 * the name of a public field or a getter method with parentheses of the
-	 * stream's underlying type. A dot can be used to drill down into objects,
+	 * <p>A field expression is either the name of a public field or a getter method with
+	 * parentheses of the stream's underlying type. A dot can be used to drill down into objects,
 	 * as in {@code "field1.getInnerField2()" }.
 	 *
 	 * @param field The field to sum
@@ -1392,11 +1370,9 @@ public class AllWindowedStream<T, W extends Window> {
 	 * Applies an aggregation that that gives the minimum value of the pojo data
 	 * stream at the given field expression for every window.
 	 *
-	 * <p>
-	 * A field
-	 * expression is either the name of a public field or a getter method with
-	 * parentheses of the {@link DataStream}S underlying type. A dot can be used
-	 * to drill down into objects, as in {@code "field1.getInnerField2()" }.
+	 * <p>A field expression is either the name of a public field or a getter method with
+	 * parentheses of the {@link DataStream}S underlying type. A dot can be used to drill down into
+	 * objects, as in {@code "field1.getInnerField2()" }.
 	 *
 	 * @param field The field expression based on which the aggregation will be applied.
 	 * @return The transformed DataStream.

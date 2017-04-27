@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,13 +28,13 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 @PublicEvolving
 public class TimestampedValue<T> {
 
-	/** The actual value held by this record */
+	/** The actual value held by this record. */
 	private T value;
 
-	/** The timestamp of the record */
+	/** The timestamp of the record. */
 	private long timestamp;
 
-	/** Flag whether the timestamp is actually set */
+	/** Flag whether the timestamp is actually set. */
 	private boolean hasTimestamp;
 
 	/**

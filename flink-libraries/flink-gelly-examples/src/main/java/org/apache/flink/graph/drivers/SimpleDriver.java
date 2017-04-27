@@ -19,6 +19,7 @@
 package org.apache.flink.graph.drivers;
 
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.asm.dataset.Collect;
@@ -33,30 +34,74 @@ import java.util.List;
  *
  * @param <R> algorithm's result type
  */
-public abstract class SimpleDriver<R extends PrintableResult>
-extends ParameterizedBase {
+public abstract class SimpleDriver<K, VV, EV, R extends PrintableResult>
+extends ParameterizedBase
+implements Driver<K, VV, EV> {
 
-	protected DataSet<? extends R> result;
+	private DataSet<R> result;
 
+	protected DataSet<R> getResult() {
+		return result;
+	}
+
+	/**
+	 * Plan the algorithm and return the result {@link DataSet}.
+	 *
+	 * @param graph input graph
+	 * @return driver output
+	 * @throws Exception on error
+	 */
+	protected abstract DataSet<R> simplePlan(Graph<K, VV, EV> graph) throws Exception;
+
+	@Override
+	public void plan(Graph<K, VV, EV> graph) throws Exception {
+		result = simplePlan(graph);
+	}
+
+	/**
+	 * Print hash of execution results.
+	 *
+	 * Does *not* implement/override {@code Hash} since {@link Driver}
+	 * implementations designate the appropriate outputs.
+	 *
+	 * @param executionName job name
+	 * @throws Exception on error
+	 */
 	public void hash(String executionName) throws Exception {
 		Checksum checksum = new ChecksumHashCode<R>()
-			.run((DataSet<R>) result)
+			.run(result)
 			.execute(executionName);
 
 		System.out.println(checksum);
 	}
 
+	/**
+	 * Print execution results.
+	 *
+	 * Does *not* implement/override {@code Print} since {@link Driver}
+	 * implementations designate the appropriate outputs.
+	 *
+	 * @param executionName job name
+	 * @throws Exception on error
+	 */
 	public void print(String executionName) throws Exception {
-		Collect<R> collector = new Collect<>();
+		List<R> results = new Collect<R>().run(result).execute(executionName);
 
-		// Refactored due to openjdk7 compile error: https://travis-ci.org/greghogan/flink/builds/200487761
-		List<R> records = collector.run((DataSet<R>) result).execute(executionName);
-
-		for (R result : records) {
+		for (R result : results) {
 			System.out.println(result.toPrintableString());
 		}
 	}
 
+	/**
+	 * Write execution results to file using CSV format.
+	 *
+	 * Does *not* implement/override {@code CSV} since {@link Driver}
+	 * implementations designate the appropriate outputs.
+	 *
+	 * @param filename output filename
+	 * @param lineDelimiter CSV delimiter between lines
+	 * @param fieldDelimiter CSV delimiter between fields
+	 */
 	public void writeCSV(String filename, String lineDelimiter, String fieldDelimiter) {
 		result
 			.writeAsCsv(filename, lineDelimiter, fieldDelimiter)

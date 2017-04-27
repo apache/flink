@@ -30,6 +30,9 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Collector;
 
 /**
+ * This is used together with {@link FileMonitoringFunction} to read from files that the
+ * monitoring functions discovers.
+ *
  * @deprecated Internal class deprecated in favour of {@link ContinuousFileMonitoringFunction}.
  */
 @Internal

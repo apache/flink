@@ -25,25 +25,27 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 
 /**
+ * Special window operator implementation for windows that fire at the same time for all keys with
+ * aggregating windows.
+ *
  * @deprecated Deprecated in favour of the generic {@link WindowOperator}. This was an
  * optimized implementation used for aligned windows.
  */
 @Internal
 @Deprecated
-public class AggregatingProcessingTimeWindowOperator<KEY, IN> 
+public class AggregatingProcessingTimeWindowOperator<KEY, IN>
 		extends AbstractAlignedProcessingTimeWindowOperator<KEY, IN, IN, IN, ReduceFunction<IN>> {
 
 	private static final long serialVersionUID = 7305948082830843475L;
 
-	
+
 	public AggregatingProcessingTimeWindowOperator(
 			ReduceFunction<IN> function,
 			KeySelector<IN, KEY> keySelector,
 			TypeSerializer<KEY> keySerializer,
 			TypeSerializer<IN> aggregateSerializer,
 			long windowLength,
-			long windowSlide)
-	{
+			long windowSlide) {
 		super(function, keySelector, keySerializer, aggregateSerializer, windowLength, windowSlide);
 	}
 
@@ -51,7 +53,7 @@ public class AggregatingProcessingTimeWindowOperator<KEY, IN>
 	protected AggregatingKeyedTimePanes<IN, KEY> createPanes(KeySelector<IN, KEY> keySelector, Function function) {
 		@SuppressWarnings("unchecked")
 		ReduceFunction<IN> windowFunction = (ReduceFunction<IN>) function;
-		
+
 		return new AggregatingKeyedTimePanes<IN, KEY>(keySelector, windowFunction);
 	}
 }

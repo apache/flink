@@ -35,11 +35,12 @@ import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class SuccessAfterNetworkBuffersFailureITCase {
+public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 	
 	
 	@Test

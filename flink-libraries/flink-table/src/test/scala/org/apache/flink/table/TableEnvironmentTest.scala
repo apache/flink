@@ -333,13 +333,14 @@ class TableEnvironmentTest extends TableTestBase {
 
     val table2 = util.addTable[(Long, Int, String)]('d, 'e, 'f)
 
-    val sqlTable2 = util.tEnv.sql(s"SELECT d, e, f FROM $table2 UNION SELECT a, b, c FROM $table")
+    val sqlTable2 = util.tEnv.sql(s"SELECT d, e, f FROM $table2 " +
+        s"UNION ALL SELECT a, b, c FROM $table")
 
     val expected2 = binaryNode(
       "DataStreamUnion",
       streamTableNode(1),
       streamTableNode(0),
-      term("union", "d, e, f"))
+      term("union all", "d, e, f"))
 
     util.verifyTable(sqlTable2, expected2)
   }

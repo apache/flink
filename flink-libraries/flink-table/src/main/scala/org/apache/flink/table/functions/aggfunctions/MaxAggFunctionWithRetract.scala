@@ -18,15 +18,16 @@
 package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
-import java.util.{HashMap => JHashMap, List => JList}
+import java.util.{HashMap => JHashMap}
+import java.lang.{Iterable => JIterable}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, TupleTypeInfo}
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.functions.AggregateFunction
 
 /** The initial accumulator for Max with retraction aggregate function */
-class MaxWithRetractAccumulator[T] extends JTuple2[T, JHashMap[T, Long]] with Accumulator
+class MaxWithRetractAccumulator[T] extends JTuple2[T, JHashMap[T, Long]]
 
 /**
   * Base class for built-in Max with retraction aggregate function
@@ -34,110 +35,105 @@ class MaxWithRetractAccumulator[T] extends JTuple2[T, JHashMap[T, Long]] with Ac
   * @tparam T the type for the aggregation result
   */
 abstract class MaxWithRetractAggFunction[T](implicit ord: Ordering[T])
-  extends AggregateFunction[T] {
+  extends AggregateFunction[T, MaxWithRetractAccumulator[T]] {
 
-  override def createAccumulator(): Accumulator = {
+  override def createAccumulator(): MaxWithRetractAccumulator[T] = {
     val acc = new MaxWithRetractAccumulator[T]
     acc.f0 = getInitValue //max
     acc.f1 = new JHashMap[T, Long]() //store the count for each value
     acc
   }
 
-  override def accumulate(accumulator: Accumulator, value: Any): Unit = {
+  def accumulate(acc: MaxWithRetractAccumulator[T], value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[T]
-      val a = accumulator.asInstanceOf[MaxWithRetractAccumulator[T]]
 
-      if (a.f1.size() == 0 || (ord.compare(a.f0, v) < 0)) {
-        a.f0 = v
+      if (acc.f1.size() == 0 || (ord.compare(acc.f0, v) < 0)) {
+        acc.f0 = v
       }
 
-      if (!a.f1.containsKey(v)) {
-        a.f1.put(v, 1L)
+      if (!acc.f1.containsKey(v)) {
+        acc.f1.put(v, 1L)
       } else {
-        var count = a.f1.get(v)
+        var count = acc.f1.get(v)
         count += 1L
-        a.f1.put(v, count)
+        acc.f1.put(v, count)
       }
     }
   }
 
-  override def retract(accumulator: Accumulator, value: Any): Unit = {
+  def retract(acc: MaxWithRetractAccumulator[T], value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[T]
-      val a = accumulator.asInstanceOf[MaxWithRetractAccumulator[T]]
 
-      var count = a.f1.get(v)
+      var count = acc.f1.get(v)
       count -= 1L
       if (count == 0) {
         //remove the key v from the map if the number of appearance of the value v is 0
-        a.f1.remove(v)
+        acc.f1.remove(v)
         //if the total count is 0, we could just simply set the f0(max) to the initial value
-        if (a.f1.size() == 0) {
-          a.f0 = getInitValue
+        if (acc.f1.size() == 0) {
+          acc.f0 = getInitValue
           return
         }
         //if v is the current max value, we have to iterate the map to find the 2nd biggest
         // value to replace v as the max value
-        if (v == a.f0) {
-          val iterator = a.f1.keySet().iterator()
+        if (v == acc.f0) {
+          val iterator = acc.f1.keySet().iterator()
           var key = iterator.next()
-          a.f0 = key
+          acc.f0 = key
           while (iterator.hasNext()) {
             key = iterator.next()
-            if (ord.compare(a.f0, key) < 0) {
-              a.f0 = key
+            if (ord.compare(acc.f0, key) < 0) {
+              acc.f0 = key
             }
           }
         }
       } else {
-        a.f1.put(v, count)
+        acc.f1.put(v, count)
       }
     }
 
   }
 
-  override def getValue(accumulator: Accumulator): T = {
-    val a = accumulator.asInstanceOf[MaxWithRetractAccumulator[T]]
-    if (a.f1.size() != 0) {
-      a.f0
+  override def getValue(acc: MaxWithRetractAccumulator[T]): T = {
+    if (acc.f1.size() != 0) {
+      acc.f0
     } else {
       null.asInstanceOf[T]
     }
   }
 
-  override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = accumulators.get(0).asInstanceOf[MaxWithRetractAccumulator[T]]
-    var i: Int = 1
-    while (i < accumulators.size()) {
-      val a = accumulators.get(i).asInstanceOf[MaxWithRetractAccumulator[T]]
+  def merge(acc: MaxWithRetractAccumulator[T],
+      its: JIterable[MaxWithRetractAccumulator[T]]): Unit = {
+    val iter = its.iterator()
+    while (iter.hasNext) {
+      val a = iter.next()
       if (a.f1.size() != 0) {
         // set max element
-        if (ord.compare(ret.f0, a.f0) < 0) {
-          ret.f0 = a.f0
+        if (ord.compare(acc.f0, a.f0) < 0) {
+          acc.f0 = a.f0
         }
         // merge the count for each key
         val iterator = a.f1.keySet().iterator()
         while (iterator.hasNext()) {
           val key = iterator.next()
-          if (ret.f1.containsKey(key)) {
-            ret.f1.put(key, ret.f1.get(key) + a.f1.get(key))
+          if (acc.f1.containsKey(key)) {
+            acc.f1.put(key, acc.f1.get(key) + a.f1.get(key))
           } else {
-            ret.f1.put(key, a.f1.get(key))
+            acc.f1.put(key, a.f1.get(key))
           }
         }
       }
-      i += 1
     }
-    ret
   }
 
-  override def resetAccumulator(accumulator: Accumulator): Unit = {
-    accumulator.asInstanceOf[MaxWithRetractAccumulator[T]].f0 = getInitValue
-    accumulator.asInstanceOf[MaxWithRetractAccumulator[T]].f1.clear()
+  def resetAccumulator(acc: MaxWithRetractAccumulator[T]): Unit = {
+    acc.f0 = getInitValue
+    acc.f1.clear()
   }
 
-  override def getAccumulatorType(): TypeInformation[_] = {
+  def getAccumulatorType(): TypeInformation[_] = {
     new TupleTypeInfo(
       new MaxWithRetractAccumulator[T].getClass,
       getValueTypeInfo,

@@ -155,11 +155,6 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 		return new VoidBlobStore();
 	}
 
-	@Override
-	public String getResourceManagerEndpointName() {
-		throw new UnsupportedOperationException();
-	}
-
 	// ------------------------------------------------------------------------
 	//  Shutdown
 	// ------------------------------------------------------------------------

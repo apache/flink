@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 public class MockContext<IN, OUT> {
-	
+
 	private List<OUT> outputs;
 
 	private MockOutput<OUT> output;
@@ -54,7 +54,7 @@ public class MockContext<IN, OUT> {
 	public static <IN, OUT> List<OUT> createAndExecute(OneInputStreamOperator<IN, OUT> operator, List<IN> inputs) throws Exception {
 		return createAndExecuteForKeyedStream(operator, inputs, null, null);
 	}
-	
+
 	public static <IN, OUT, KEY> List<OUT> createAndExecuteForKeyedStream(
 				OneInputStreamOperator<IN, OUT> operator, List<IN> inputs,
 				KeySelector<IN, KEY> keySelector, TypeInformation<KEY> keyType) throws Exception {
@@ -64,7 +64,7 @@ public class MockContext<IN, OUT> {
 
 		testHarness.setup();
 		testHarness.open();
-		
+
 		operator.open();
 
 		for (IN in: inputs) {

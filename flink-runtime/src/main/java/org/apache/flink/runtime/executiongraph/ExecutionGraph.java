@@ -39,6 +39,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -55,7 +56,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
@@ -360,6 +361,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			List<ExecutionJobVertex> verticesToTrigger,
 			List<ExecutionJobVertex> verticesToWaitFor,
 			List<ExecutionJobVertex> verticesToCommitTo,
+			List<MasterTriggerRestoreHook<?>> masterHooks,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore checkpointStore,
 			String checkpointDir,
@@ -395,6 +397,13 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			checkpointDir,
 			ioExecutor);
 
+		// register the master hooks on the checkpoint coordinator
+		for (MasterTriggerRestoreHook<?> hook : masterHooks) {
+			if (!checkpointCoordinator.addMasterHook(hook)) {
+				LOG.warn("Trying to register multiple checkpoint hooks with the name: {}", hook.getIdentifier());
+			}
+		}
+
 		checkpointCoordinator.setCheckpointStatsTracker(checkpointStatsTracker);
 
 		// interval of max long value indicates disable periodic checkpoint,
@@ -419,8 +428,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		return restartStrategy;
 	}
 
-	@Override
-	public JobSnapshottingSettings getJobSnapshottingSettings() {
+	public JobCheckpointingSettings getJobCheckpointingSettings() {
 		if (checkpointStatsTracker != null) {
 			return checkpointStatsTracker.getSnapshottingSettings();
 		} else {
@@ -1477,7 +1485,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			serializedUserAccumulators,
 			getArchivedExecutionConfig(),
 			isStoppable(),
-			getJobSnapshottingSettings(),
+			getJobCheckpointingSettings(),
 			getCheckpointStatsSnapshot());
 	}
 }

@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -28,10 +31,6 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * An entity keeping all the time-related services available to all operators extending the

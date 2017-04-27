@@ -31,24 +31,22 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
  * that buffer elements, such as window operators, must forward a watermark after emission of
  * elements that is triggered by the arriving watermark.
  *
- * <p>
- * In some cases a watermark is only a heuristic and operators should be able to deal with
+ * <p>In some cases a watermark is only a heuristic and operators should be able to deal with
  * late elements. They can either discard those or update the result and emit updates/retractions
  * to downstream operations.
  *
- * <p>
- * When a source closes it will emit a final watermark with timestamp {@code Long.MAX_VALUE}. When
- * an operator receives this it will know that no more input will be arriving in the future.
+ * <p>When a source closes it will emit a final watermark with timestamp {@code Long.MAX_VALUE}.
+ * When an operator receives this it will know that no more input will be arriving in the future.
  */
 @PublicEvolving
 public final class Watermark extends StreamElement {
 
-	/** The watermark that signifies end-of-event-time */
+	/** The watermark that signifies end-of-event-time. */
 	public static final Watermark MAX_WATERMARK = new Watermark(Long.MAX_VALUE);
-	
+
 	// ------------------------------------------------------------------------
-	
-	/** The timestamp of the watermark in milliseconds*/
+
+	/** The timestamp of the watermark in milliseconds. */
 	private final long timestamp;
 
 	/**
@@ -66,7 +64,7 @@ public final class Watermark extends StreamElement {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public boolean equals(Object o) {
 		return this == o ||

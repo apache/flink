@@ -25,7 +25,7 @@ import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeIn
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 abstract class EventTimeGroupWindow(
-    alias: Option[Expression],
+    alias: Expression,
     time: Expression)
   extends LogicalWindow(alias) {
 
@@ -55,7 +55,7 @@ abstract class EventTimeGroupWindow(
   }
 }
 
-abstract class ProcessingTimeGroupWindow(alias: Option[Expression]) extends LogicalWindow(alias) {
+abstract class ProcessingTimeGroupWindow(alias: Expression) extends LogicalWindow(alias) {
   override def validate(tableEnv: TableEnvironment): ValidationResult = {
     val valid = super.validate(tableEnv)
     if (valid.isFailure) {
@@ -88,13 +88,13 @@ object TumblingGroupWindow {
 }
 
 case class ProcessingTimeTumblingGroupWindow(
-    override val alias: Option[Expression],
+    override val alias: Expression,
     size: Expression)
   extends ProcessingTimeGroupWindow(alias) {
 
   override def resolveExpressions(resolve: (Expression) => Expression): LogicalWindow =
     ProcessingTimeTumblingGroupWindow(
-      alias.map(resolve),
+      resolve(alias),
       resolve(size))
 
   override def validate(tableEnv: TableEnvironment): ValidationResult =
@@ -104,7 +104,7 @@ case class ProcessingTimeTumblingGroupWindow(
 }
 
 case class EventTimeTumblingGroupWindow(
-    override val alias: Option[Expression],
+    override val alias: Expression,
     timeField: Expression,
     size: Expression)
   extends EventTimeGroupWindow(
@@ -113,7 +113,7 @@ case class EventTimeTumblingGroupWindow(
 
   override def resolveExpressions(resolve: (Expression) => Expression): LogicalWindow =
     EventTimeTumblingGroupWindow(
-      alias.map(resolve),
+      resolve(alias),
       resolve(timeField),
       resolve(size))
 
@@ -177,14 +177,14 @@ object SlidingGroupWindow {
 }
 
 case class ProcessingTimeSlidingGroupWindow(
-    override val alias: Option[Expression],
+    override val alias: Expression,
     size: Expression,
     slide: Expression)
   extends ProcessingTimeGroupWindow(alias) {
 
   override def resolveExpressions(resolve: (Expression) => Expression): LogicalWindow =
     ProcessingTimeSlidingGroupWindow(
-      alias.map(resolve),
+      resolve(alias),
       resolve(size),
       resolve(slide))
 
@@ -195,7 +195,7 @@ case class ProcessingTimeSlidingGroupWindow(
 }
 
 case class EventTimeSlidingGroupWindow(
-    override val alias: Option[Expression],
+    override val alias: Expression,
     timeField: Expression,
     size: Expression,
     slide: Expression)
@@ -203,7 +203,7 @@ case class EventTimeSlidingGroupWindow(
 
   override def resolveExpressions(resolve: (Expression) => Expression): LogicalWindow =
     EventTimeSlidingGroupWindow(
-      alias.map(resolve),
+      resolve(alias),
       resolve(timeField),
       resolve(size),
       resolve(slide))
@@ -240,13 +240,13 @@ object SessionGroupWindow {
 }
 
 case class ProcessingTimeSessionGroupWindow(
-    override val alias: Option[Expression],
+    override val alias: Expression,
     gap: Expression)
   extends ProcessingTimeGroupWindow(alias) {
 
   override def resolveExpressions(resolve: (Expression) => Expression): LogicalWindow =
     ProcessingTimeSessionGroupWindow(
-      alias.map(resolve),
+      resolve(alias),
       resolve(gap))
 
   override def validate(tableEnv: TableEnvironment): ValidationResult =
@@ -256,7 +256,7 @@ case class ProcessingTimeSessionGroupWindow(
 }
 
 case class EventTimeSessionGroupWindow(
-    override val alias: Option[Expression],
+    override val alias: Expression,
     timeField: Expression,
     gap: Expression)
   extends EventTimeGroupWindow(
@@ -265,7 +265,7 @@ case class EventTimeSessionGroupWindow(
 
   override def resolveExpressions(resolve: (Expression) => Expression): LogicalWindow =
     EventTimeSessionGroupWindow(
-      alias.map(resolve),
+      resolve(alias),
       resolve(timeField),
       resolve(gap))
 

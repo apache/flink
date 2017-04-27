@@ -18,23 +18,22 @@
 
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.flink.table.plan.nodes.dataset.{BatchTableSourceScan, DataSetConvention}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.BatchTableSourceScan
 import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.sources.BatchTableSource
 
-/** Rule to convert a [[LogicalTableScan]] into a [[BatchTableSourceScan]]. */
 class BatchTableSourceScanRule
   extends ConverterRule(
-      classOf[LogicalTableScan],
-      Convention.NONE,
-      DataSetConvention.INSTANCE,
-      "BatchTableSourceScanRule")
-  {
+    classOf[FlinkLogicalTableSourceScan],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
+    "BatchTableSourceScanRule") {
 
   /** Rule must only match if TableScan targets a [[BatchTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -54,16 +53,13 @@ class BatchTableSourceScanRule
   }
 
   def convert(rel: RelNode): RelNode = {
-    val scan: TableScan = rel.asInstanceOf[TableScan]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-
-    val tableSource = scan.getTable.unwrap(classOf[TableSourceTable[_]]).tableSource
-      .asInstanceOf[BatchTableSource[_]]
+    val scan: FlinkLogicalTableSourceScan = rel.asInstanceOf[FlinkLogicalTableSourceScan]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
     new BatchTableSourceScan(
       rel.getCluster,
       traitSet,
       scan.getTable,
-      tableSource
+      scan.tableSource.asInstanceOf[BatchTableSource[_]]
     )
   }
 }

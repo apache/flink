@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -54,6 +55,7 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.TestLogger;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
@@ -72,7 +74,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class TaskExecutorITCase {
+public class TaskExecutorITCase extends TestLogger {
 
 	@Test
 	public void testSlotAllocation() throws Exception {
@@ -88,6 +90,7 @@ public class TaskExecutorITCase {
 		final String jmAddress = "jm";
 		final UUID jmLeaderId = UUID.randomUUID();
 		final ResourceID rmResourceId = new ResourceID(rmAddress);
+		final ResourceID jmResourceId = new ResourceID(jmAddress);
 		final JobID jobId = new JobID();
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
 
@@ -120,7 +123,9 @@ public class TaskExecutorITCase {
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
 
 		ResourceManager<ResourceID> resourceManager = new StandaloneResourceManager(
-			rpcService, rmResourceId,
+			rpcService,
+			FlinkResourceManager.RESOURCE_MANAGER_NAME,
+			rmResourceId,
 			resourceManagerConfiguration,
 			testingHAServices,
 			heartbeatServices,
@@ -130,9 +135,9 @@ public class TaskExecutorITCase {
 			testingFatalErrorHandler);
 
 		TaskExecutor taskExecutor = new TaskExecutor(
+			rpcService,
 			taskManagerConfiguration,
 			taskManagerLocation,
-			rpcService,
 			memoryManager,
 			ioManager,
 			networkEnvironment,
@@ -176,7 +181,12 @@ public class TaskExecutorITCase {
 			// notify the TM about the new RM leader
 			rmLeaderRetrievalService.notifyListener(rmAddress, rmLeaderId);
 
-			Future<RegistrationResponse> registrationResponseFuture = resourceManager.registerJobManager(rmLeaderId, jmLeaderId, jmAddress, jobId);
+			Future<RegistrationResponse> registrationResponseFuture = resourceManager.registerJobManager(
+				rmLeaderId,
+				jmLeaderId,
+				jmResourceId,
+				jmAddress,
+				jobId);
 
 			RegistrationResponse registrationResponse = registrationResponseFuture.get();
 

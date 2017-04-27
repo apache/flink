@@ -18,22 +18,21 @@
 
 package org.apache.flink.table.plan.rules.datastream
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.flink.table.plan.nodes.datastream.
-  {StreamTableSourceScan, DataStreamConvention}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.datastream.StreamTableSourceScan
 import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.sources.StreamTableSource
 
-/** Rule to convert a [[LogicalTableScan]] into a [[StreamTableSourceScan]]. */
 class StreamTableSourceScanRule
   extends ConverterRule(
-    classOf[LogicalTableScan],
-    Convention.NONE,
-    DataStreamConvention.INSTANCE,
+    classOf[FlinkLogicalTableSourceScan],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASTREAM,
     "StreamTableSourceScanRule")
 {
 
@@ -55,18 +54,14 @@ class StreamTableSourceScanRule
   }
 
   def convert(rel: RelNode): RelNode = {
-    val scan: LogicalTableScan = rel.asInstanceOf[LogicalTableScan]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
-
-    // The original registered table source
-    val table = scan.getTable.unwrap(classOf[TableSourceTable[_]])
-    val tableSource: StreamTableSource[_] = table.tableSource.asInstanceOf[StreamTableSource[_]]
+    val scan: FlinkLogicalTableSourceScan = rel.asInstanceOf[FlinkLogicalTableSourceScan]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASTREAM)
 
     new StreamTableSourceScan(
       rel.getCluster,
       traitSet,
       scan.getTable,
-      tableSource
+      scan.tableSource.asInstanceOf[StreamTableSource[_]]
     )
   }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.graph;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.text.StrBuilder;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.utils.ParameterTool;
@@ -108,7 +109,7 @@ public class Runner {
 
 		strBuilder
 			.appendNewLine()
-			.appendln("Select an algorithm to view usage: flink run opt/flink-gelly-examples_<version>.jar --algorithm <algorithm>")
+			.appendln("Select an algorithm to view usage: flink run examples/flink-gelly-examples_<version>.jar --algorithm <algorithm>")
 			.appendNewLine()
 			.appendln("Available algorithms:");
 
@@ -139,7 +140,7 @@ public class Runner {
 			.appendNewLine()
 			.appendln(algorithm.getLongDescription())
 			.appendNewLine()
-			.append("usage: flink run opt/flink-gelly-examples_<version>.jar --algorithm ")
+			.append("usage: flink run examples/flink-gelly-examples_<version>.jar --algorithm ")
 			.append(algorithmName)
 			.append(" [algorithm options] --input <input> [input options] --output <output> [output options]")
 			.appendNewLine()
@@ -188,20 +189,21 @@ public class Runner {
 	public static void main(String[] args) throws Exception {
 		// Set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		ExecutionConfig config = env.getConfig();
 
 		// should not have any non-Flink data types
-		env.getConfig().disableAutoTypeRegistration();
-		env.getConfig().disableForceAvro();
-		env.getConfig().disableForceKryo();
+		config.disableAutoTypeRegistration();
+		config.disableForceAvro();
+		config.disableForceKryo();
 
 		ParameterTool parameters = ParameterTool.fromArgs(args);
-		env.getConfig().setGlobalJobParameters(parameters);
+		config.setGlobalJobParameters(parameters);
 
 		// integration tests run with with object reuse both disabled and enabled
 		if (parameters.has("__disable_object_reuse")) {
-			env.getConfig().disableObjectReuse();
+			config.disableObjectReuse();
 		} else {
-			env.getConfig().enableObjectReuse();
+			config.enableObjectReuse();
 		}
 
 		// Usage

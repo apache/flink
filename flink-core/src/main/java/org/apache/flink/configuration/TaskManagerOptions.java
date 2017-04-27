@@ -39,6 +39,11 @@ public class TaskManagerOptions {
 			key("taskmanager.jvm-exit-on-oom")
 			.defaultValue(false);
 
+	/** JVM heap size (in megabytes) for the TaskManagers */
+	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY =
+			key("taskmanager.heap.mb")
+			.defaultValue(1024);
+		   
 	/** Size of memory buffers used by the network stack and the memory manager (in bytes). */
 	public static final ConfigOption<Integer> MEMORY_SEGMENT_SIZE =
 			key("taskmanager.memory.segment-size")
@@ -109,6 +114,14 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
 		key("taskmanager.net.memory.extra-buffers-per-gate")
 			.defaultValue(8);
+
+	/**
+	 * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
+	 * lengths.
+	 */
+	public static final ConfigOption<Boolean> NETWORK_DETAILED_METRICS =
+			key("taskmanager.net.detailed-metrics")
+			.defaultValue(false);
 
 	// ------------------------------------------------------------------------
 	//  Task Options

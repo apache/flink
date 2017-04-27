@@ -22,6 +22,9 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+/**
+ * A {@link StreamOperator} for executing {@link SinkFunction SinkFunctions}.
+ */
 @Internal
 public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFunction<IN>>
 		implements OneInputStreamOperator<IN, Object> {

@@ -23,7 +23,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
-import org.apache.flink.table.plan.nodes.TableSourceScan
+import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.types.Row
@@ -34,7 +34,7 @@ class StreamTableSourceScan(
     traitSet: RelTraitSet,
     table: RelOptTable,
     tableSource: StreamTableSource[_])
-  extends TableSourceScan(cluster, traitSet, table, tableSource)
+  extends PhysicalTableSourceScan(cluster, traitSet, table, tableSource)
   with StreamScan {
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -51,7 +51,11 @@ class StreamTableSourceScan(
     )
   }
 
-  override def copy(traitSet: RelTraitSet, newTableSource: TableSource[_]): TableSourceScan = {
+  override def copy(
+      traitSet: RelTraitSet,
+      newTableSource: TableSource[_])
+    : PhysicalTableSourceScan = {
+
     new StreamTableSourceScan(
       cluster,
       traitSet,

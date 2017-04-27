@@ -21,21 +21,21 @@ import org.apache.flink.annotation.Internal;
 
 /**
  * One value in a data stream. This stores the value and an optional associated timestamp.
- * 
+ *
  * @param <T> The type encapsulated with the stream record.
  */
 @Internal
 public final class StreamRecord<T> extends StreamElement {
-	
-	/** The actual value held by this record */
+
+	/** The actual value held by this record. */
 	private T value;
-	
-	/** The timestamp of the record */
+
+	/** The timestamp of the record. */
 	private long timestamp;
 
-	/** Flag whether the timestamp is actually set */
+	/** Flag whether the timestamp is actually set. */
 	private boolean hasTimestamp;
-	
+
 	/**
 	 * Creates a new StreamRecord. The record does not have a timestamp.
 	 */
@@ -59,7 +59,7 @@ public final class StreamRecord<T> extends StreamElement {
 	// ------------------------------------------------------------------------
 	//  Accessors
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Returns the value wrapped in this stream value.
 	 */
@@ -82,7 +82,7 @@ public final class StreamRecord<T> extends StreamElement {
 	}
 
 	/** Checks whether this record has a timestamp.
-	 * 
+	 *
  	 * @return True if the record has a timestamp, false if not.
 	 */
 	public boolean hasTimestamp() {
@@ -92,7 +92,7 @@ public final class StreamRecord<T> extends StreamElement {
 	// ------------------------------------------------------------------------
 	//  Updating
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Replace the currently stored value by the given new value. This returns a StreamElement
 	 * with the generic type parameter that matches the new value while keeping the old
@@ -121,10 +121,10 @@ public final class StreamRecord<T> extends StreamElement {
 		this.timestamp = timestamp;
 		this.value = (T) value;
 		this.hasTimestamp = true;
-		
+
 		return (StreamRecord<X>) this;
 	}
-	
+
 	public void setTimestamp(long timestamp) {
 		this.timestamp = timestamp;
 		this.hasTimestamp = true;
@@ -133,7 +133,7 @@ public final class StreamRecord<T> extends StreamElement {
 	public void eraseTimestamp() {
 		this.hasTimestamp = false;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Copying
 	// ------------------------------------------------------------------------
@@ -162,7 +162,7 @@ public final class StreamRecord<T> extends StreamElement {
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {

@@ -40,6 +40,7 @@ import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -56,7 +57,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 
 @SuppressWarnings({"serial", "EqualsWhichDoesntCheckParameterClass", 
 		"StatementWithEmptyBody", "KeySetIterationMayUseEntrySet"})
-public class NonReusingHashJoinIteratorITCase {
+public class NonReusingHashJoinIteratorITCase extends TestLogger {
 	
 	private static final int MEMORY_SIZE = 16000000;		// total memory
 

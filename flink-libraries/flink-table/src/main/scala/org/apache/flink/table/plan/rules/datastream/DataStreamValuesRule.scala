@@ -18,24 +18,24 @@
 
 package org.apache.flink.table.plan.rules.datastream
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalValues
-import org.apache.flink.table.plan.nodes.datastream.{DataStreamValues, DataStreamConvention}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.datastream.DataStreamValues
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalValues
 
 class DataStreamValuesRule
   extends ConverterRule(
-    classOf[LogicalValues],
-    Convention.NONE,
-    DataStreamConvention.INSTANCE,
+    classOf[FlinkLogicalValues],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASTREAM,
     "DataStreamValuesRule")
 {
 
   def convert(rel: RelNode): RelNode = {
-
-    val values: LogicalValues = rel.asInstanceOf[LogicalValues]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
+    val values: FlinkLogicalValues = rel.asInstanceOf[FlinkLogicalValues]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASTREAM)
 
     new DataStreamValues(
       rel.getCluster,

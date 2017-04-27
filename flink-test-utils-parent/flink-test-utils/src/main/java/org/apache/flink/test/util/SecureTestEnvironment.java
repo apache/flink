@@ -138,6 +138,7 @@ public class SecureTestEnvironment {
 			//ctx.setHadoopConfiguration() for the UGI implementation to work properly.
 			//See Yarn test case module for reference
 			Configuration flinkConfig = GlobalConfiguration.loadConfiguration();
+			flinkConfig.setBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE, false);
 			flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, testKeytab);
 			flinkConfig.setBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE, false);
 			flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, testPrincipal);

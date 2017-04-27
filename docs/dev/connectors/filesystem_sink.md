@@ -44,7 +44,7 @@ cluster execution.
 #### Bucketing File Sink
 
 The bucketing behaviour as well as the writing can be configured but we will get to that later.
-This is how you can create a bucketing sick which by default, sinks to rolling files that are split by time:
+This is how you can create a bucketing sink which by default, sinks to rolling files that are split by time:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

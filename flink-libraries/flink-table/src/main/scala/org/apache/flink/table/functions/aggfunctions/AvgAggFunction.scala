@@ -18,15 +18,15 @@
 package org.apache.flink.table.functions.aggfunctions
 
 import java.math.{BigDecimal, BigInteger}
-import java.util.{List => JList}
+import java.lang.{Iterable => JIterable}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.functions.AggregateFunction
 
 /** The initial accumulator for Integral Avg aggregate function */
-class IntegralAvgAccumulator extends JTuple2[Long, Long] with Accumulator {
+class IntegralAvgAccumulator extends JTuple2[Long, Long] {
   f0 = 0L //sum
   f1 = 0L //count
 }
@@ -36,57 +36,51 @@ class IntegralAvgAccumulator extends JTuple2[Long, Long] with Accumulator {
   *
   * @tparam T the type for the aggregation result
   */
-abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T] {
+abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T, IntegralAvgAccumulator] {
 
-  override def createAccumulator(): Accumulator = {
+  override def createAccumulator(): IntegralAvgAccumulator = {
     new IntegralAvgAccumulator
   }
 
-  override def accumulate(accumulator: Accumulator, value: Any): Unit = {
+  def accumulate(acc: IntegralAvgAccumulator, value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[Number].longValue()
-      val accum = accumulator.asInstanceOf[IntegralAvgAccumulator]
-      accum.f0 += v
-      accum.f1 += 1L
+      acc.f0 += v
+      acc.f1 += 1L
     }
   }
 
-  override def retract(accumulator: Accumulator, value: Any): Unit = {
+  def retract(acc: IntegralAvgAccumulator, value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[Number].longValue()
-      val accum = accumulator.asInstanceOf[IntegralAvgAccumulator]
-      accum.f0 -= v
-      accum.f1 -= 1L
+      acc.f0 -= v
+      acc.f1 -= 1L
     }
   }
 
-  override def getValue(accumulator: Accumulator): T = {
-    val accum = accumulator.asInstanceOf[IntegralAvgAccumulator]
-    if (accum.f1 == 0) {
+  override def getValue(acc: IntegralAvgAccumulator): T = {
+    if (acc.f1 == 0) {
       null.asInstanceOf[T]
     } else {
-      resultTypeConvert(accum.f0 / accum.f1)
+      resultTypeConvert(acc.f0 / acc.f1)
     }
   }
 
-  override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = accumulators.get(0).asInstanceOf[IntegralAvgAccumulator]
-    var i: Int = 1
-    while (i < accumulators.size()) {
-      val a = accumulators.get(i).asInstanceOf[IntegralAvgAccumulator]
-      ret.f1 += a.f1
-      ret.f0 += a.f0
-      i += 1
+  def merge(acc: IntegralAvgAccumulator, its: JIterable[IntegralAvgAccumulator]): Unit = {
+    val iter = its.iterator()
+    while (iter.hasNext) {
+      val a = iter.next()
+      acc.f1 += a.f1
+      acc.f0 += a.f0
     }
-    ret
   }
 
-  override def resetAccumulator(accumulator: Accumulator): Unit = {
-    accumulator.asInstanceOf[IntegralAvgAccumulator].f0 = 0L
-    accumulator.asInstanceOf[IntegralAvgAccumulator].f1 = 0L
+  def resetAccumulator(acc: IntegralAvgAccumulator): Unit = {
+    acc.f0 = 0L
+    acc.f1 = 0L
   }
 
-  override def getAccumulatorType: TypeInformation[_] = {
+  def getAccumulatorType: TypeInformation[_] = {
     new TupleTypeInfo(
       new IntegralAvgAccumulator().getClass,
       BasicTypeInfo.LONG_TYPE_INFO,
@@ -126,7 +120,7 @@ class IntAvgAggFunction extends IntegralAvgAggFunction[Int] {
 
 /** The initial accumulator for Big Integral Avg aggregate function */
 class BigIntegralAvgAccumulator
-  extends JTuple2[BigInteger, Long] with Accumulator {
+  extends JTuple2[BigInteger, Long] {
   f0 = BigInteger.ZERO //sum
   f1 = 0L //count
 }
@@ -136,57 +130,52 @@ class BigIntegralAvgAccumulator
   *
   * @tparam T the type for the aggregation result
   */
-abstract class BigIntegralAvgAggFunction[T] extends AggregateFunction[T] {
+abstract class BigIntegralAvgAggFunction[T]
+  extends AggregateFunction[T, BigIntegralAvgAccumulator] {
 
-  override def createAccumulator(): Accumulator = {
+  override def createAccumulator(): BigIntegralAvgAccumulator = {
     new BigIntegralAvgAccumulator
   }
 
-  override def accumulate(accumulator: Accumulator, value: Any): Unit = {
+  def accumulate(acc: BigIntegralAvgAccumulator, value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[Long]
-      val a = accumulator.asInstanceOf[BigIntegralAvgAccumulator]
-      a.f0 = a.f0.add(BigInteger.valueOf(v))
-      a.f1 += 1L
+      acc.f0 = acc.f0.add(BigInteger.valueOf(v))
+      acc.f1 += 1L
     }
   }
 
-  override def retract(accumulator: Accumulator, value: Any): Unit = {
+  def retract(acc: BigIntegralAvgAccumulator, value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[Long]
-      val a = accumulator.asInstanceOf[BigIntegralAvgAccumulator]
-      a.f0 = a.f0.subtract(BigInteger.valueOf(v))
-      a.f1 -= 1L
+      acc.f0 = acc.f0.subtract(BigInteger.valueOf(v))
+      acc.f1 -= 1L
     }
   }
 
-  override def getValue(accumulator: Accumulator): T = {
-    val a = accumulator.asInstanceOf[BigIntegralAvgAccumulator]
-    if (a.f1 == 0) {
+  override def getValue(acc: BigIntegralAvgAccumulator): T = {
+    if (acc.f1 == 0) {
       null.asInstanceOf[T]
     } else {
-      resultTypeConvert(a.f0.divide(BigInteger.valueOf(a.f1)))
+      resultTypeConvert(acc.f0.divide(BigInteger.valueOf(acc.f1)))
     }
   }
 
-  override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = accumulators.get(0).asInstanceOf[BigIntegralAvgAccumulator]
-    var i: Int = 1
-    while (i < accumulators.size()) {
-      val a = accumulators.get(i).asInstanceOf[BigIntegralAvgAccumulator]
-      ret.f1 += a.f1
-      ret.f0 = ret.f0.add(a.f0)
-      i += 1
+  def merge(acc: BigIntegralAvgAccumulator, its: JIterable[BigIntegralAvgAccumulator]): Unit = {
+    val iter = its.iterator()
+    while (iter.hasNext) {
+      val a = iter.next()
+      acc.f1 += a.f1
+      acc.f0 = acc.f0.add(a.f0)
     }
-    ret
   }
 
-  override def resetAccumulator(accumulator: Accumulator): Unit = {
-    accumulator.asInstanceOf[BigIntegralAvgAccumulator].f0 = BigInteger.ZERO
-    accumulator.asInstanceOf[BigIntegralAvgAccumulator].f1 = 0
+  def resetAccumulator(acc: BigIntegralAvgAccumulator): Unit = {
+    acc.f0 = BigInteger.ZERO
+    acc.f1 = 0
   }
 
-  override def getAccumulatorType: TypeInformation[_] = {
+  def getAccumulatorType: TypeInformation[_] = {
     new TupleTypeInfo(
       new BigIntegralAvgAccumulator().getClass,
       BasicTypeInfo.BIG_INT_TYPE_INFO,
@@ -212,7 +201,7 @@ class LongAvgAggFunction extends BigIntegralAvgAggFunction[Long] {
 }
 
 /** The initial accumulator for Floating Avg aggregate function */
-class FloatingAvgAccumulator extends JTuple2[Double, Long] with Accumulator {
+class FloatingAvgAccumulator extends JTuple2[Double, Long] {
   f0 = 0 //sum
   f1 = 0L //count
 }
@@ -222,57 +211,51 @@ class FloatingAvgAccumulator extends JTuple2[Double, Long] with Accumulator {
   *
   * @tparam T the type for the aggregation result
   */
-abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T] {
+abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T, FloatingAvgAccumulator] {
 
-  override def createAccumulator(): Accumulator = {
+  override def createAccumulator(): FloatingAvgAccumulator = {
     new FloatingAvgAccumulator
   }
 
-  override def accumulate(accumulator: Accumulator, value: Any): Unit = {
+  def accumulate(acc: FloatingAvgAccumulator, value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[Number].doubleValue()
-      val accum = accumulator.asInstanceOf[FloatingAvgAccumulator]
-      accum.f0 += v
-      accum.f1 += 1L
+      acc.f0 += v
+      acc.f1 += 1L
     }
   }
 
-  override def retract(accumulator: Accumulator, value: Any): Unit = {
+  def retract(acc: FloatingAvgAccumulator, value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[Number].doubleValue()
-      val accum = accumulator.asInstanceOf[FloatingAvgAccumulator]
-      accum.f0 -= v
-      accum.f1 -= 1L
+      acc.f0 -= v
+      acc.f1 -= 1L
     }
   }
 
-  override def getValue(accumulator: Accumulator): T = {
-    val accum = accumulator.asInstanceOf[FloatingAvgAccumulator]
-    if (accum.f1 == 0) {
+  override def getValue(acc: FloatingAvgAccumulator): T = {
+    if (acc.f1 == 0) {
       null.asInstanceOf[T]
     } else {
-      resultTypeConvert(accum.f0 / accum.f1)
+      resultTypeConvert(acc.f0 / acc.f1)
     }
   }
 
-  override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = accumulators.get(0).asInstanceOf[FloatingAvgAccumulator]
-    var i: Int = 1
-    while (i < accumulators.size()) {
-      val a = accumulators.get(i).asInstanceOf[FloatingAvgAccumulator]
-      ret.f1 += a.f1
-      ret.f0 += a.f0
-      i += 1
+  def merge(acc: FloatingAvgAccumulator, its: JIterable[FloatingAvgAccumulator]): Unit = {
+    val iter = its.iterator()
+    while (iter.hasNext) {
+      val a = iter.next()
+      acc.f1 += a.f1
+      acc.f0 += a.f0
     }
-    ret
   }
 
-  override def resetAccumulator(accumulator: Accumulator): Unit = {
-    accumulator.asInstanceOf[FloatingAvgAccumulator].f0 = 0
-    accumulator.asInstanceOf[FloatingAvgAccumulator].f1 = 0L
+  def resetAccumulator(acc: FloatingAvgAccumulator): Unit = {
+    acc.f0 = 0
+    acc.f1 = 0L
   }
 
-  override def getAccumulatorType: TypeInformation[_] = {
+  def getAccumulatorType: TypeInformation[_] = {
     new TupleTypeInfo(
       new FloatingAvgAccumulator().getClass,
       BasicTypeInfo.DOUBLE_TYPE_INFO,
@@ -304,8 +287,7 @@ class DoubleAvgAggFunction extends FloatingAvgAggFunction[Double] {
 }
 
 /** The initial accumulator for Big Decimal Avg aggregate function */
-class DecimalAvgAccumulator
-  extends JTuple2[BigDecimal, Long] with Accumulator {
+class DecimalAvgAccumulator extends JTuple2[BigDecimal, Long] {
   f0 = BigDecimal.ZERO //sum
   f1 = 0L //count
 }
@@ -313,57 +295,51 @@ class DecimalAvgAccumulator
 /**
   * Base class for built-in Big Decimal Avg aggregate function
   */
-class DecimalAvgAggFunction extends AggregateFunction[BigDecimal] {
+class DecimalAvgAggFunction extends AggregateFunction[BigDecimal, DecimalAvgAccumulator] {
 
-  override def createAccumulator(): Accumulator = {
+  override def createAccumulator(): DecimalAvgAccumulator = {
     new DecimalAvgAccumulator
   }
 
-  override def accumulate(accumulator: Accumulator, value: Any): Unit = {
+  def accumulate(acc: DecimalAvgAccumulator, value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[BigDecimal]
-      val accum = accumulator.asInstanceOf[DecimalAvgAccumulator]
-      accum.f0 = accum.f0.add(v)
-      accum.f1 += 1L
+      acc.f0 = acc.f0.add(v)
+      acc.f1 += 1L
     }
   }
 
-  override def retract(accumulator: Accumulator, value: Any): Unit = {
+  def retract(acc: DecimalAvgAccumulator, value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[BigDecimal]
-      val accum = accumulator.asInstanceOf[DecimalAvgAccumulator]
-      accum.f0 = accum.f0.subtract(v)
-      accum.f1 -= 1L
+      acc.f0 = acc.f0.subtract(v)
+      acc.f1 -= 1L
     }
   }
 
-  override def getValue(accumulator: Accumulator): BigDecimal = {
-    val a = accumulator.asInstanceOf[DecimalAvgAccumulator]
-    if (a.f1 == 0) {
+  override def getValue(acc: DecimalAvgAccumulator): BigDecimal = {
+    if (acc.f1 == 0) {
       null.asInstanceOf[BigDecimal]
     } else {
-      a.f0.divide(BigDecimal.valueOf(a.f1))
+      acc.f0.divide(BigDecimal.valueOf(acc.f1))
     }
   }
 
-  override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = accumulators.get(0).asInstanceOf[DecimalAvgAccumulator]
-    var i: Int = 1
-    while (i < accumulators.size()) {
-      val a = accumulators.get(i).asInstanceOf[DecimalAvgAccumulator]
-      ret.f0 = ret.f0.add(a.f0)
-      ret.f1 += a.f1
-      i += 1
+  def merge(acc: DecimalAvgAccumulator, its: JIterable[DecimalAvgAccumulator]): Unit = {
+    val iter = its.iterator()
+    while (iter.hasNext) {
+      val a = iter.next()
+      acc.f0 = acc.f0.add(a.f0)
+      acc.f1 += a.f1
     }
-    ret
   }
 
-  override def resetAccumulator(accumulator: Accumulator): Unit = {
-    accumulator.asInstanceOf[DecimalAvgAccumulator].f0 = BigDecimal.ZERO
-    accumulator.asInstanceOf[DecimalAvgAccumulator].f1 = 0L
+  def resetAccumulator(acc: DecimalAvgAccumulator): Unit = {
+    acc.f0 = BigDecimal.ZERO
+    acc.f1 = 0L
   }
 
-  override def getAccumulatorType: TypeInformation[_] = {
+  def getAccumulatorType: TypeInformation[_] = {
     new TupleTypeInfo(
       new DecimalAvgAccumulator().getClass,
       BasicTypeInfo.BIG_DEC_TYPE_INFO,

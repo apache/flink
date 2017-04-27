@@ -20,10 +20,10 @@ package org.apache.flink.runtime.state;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -31,8 +31,12 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.checkpoint.AbstractAsyncSnapshotIOCallable;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -50,21 +54,54 @@ import java.util.concurrent.RunnableFuture;
 @Internal
 public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
-	/** The default namespace for state in cases where no state name is provided */
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultOperatorStateBackend.class);
+
+	/**
+	 * The default namespace for state in cases where no state name is provided
+	 */
 	public static final String DEFAULT_OPERATOR_STATE_NAME = "_default_";
-	
+
+	/**
+	 * Map for all registered operator states. Maps state name -> state
+	 */
 	private final Map<String, PartitionableListState<?>> registeredStates;
+
+	/**
+	 * CloseableRegistry to participate in the tasks lifecycle.
+	 */
 	private final CloseableRegistry closeStreamOnCancelRegistry;
+
+	/**
+	 * Default serializer. Only used for the default operator state.
+	 */
 	private final JavaSerializer<Serializable> javaSerializer;
+
+	/**
+	 * The user code classloader.
+	 */
 	private final ClassLoader userClassloader;
+
+	/**
+	 * The execution configuration.
+	 */
 	private final ExecutionConfig executionConfig;
 
-	public DefaultOperatorStateBackend(ClassLoader userClassLoader, ExecutionConfig executionConfig) throws IOException {
+	/**
+	 * Flag to de/activate asynchronous snapshots.
+	 */
+	private final boolean asynchronousSnapshots;
+
+	public DefaultOperatorStateBackend(
+		ClassLoader userClassLoader,
+		ExecutionConfig executionConfig,
+		boolean asynchronousSnapshots) throws IOException {
+
 		this.closeStreamOnCancelRegistry = new CloseableRegistry();
 		this.userClassloader = Preconditions.checkNotNull(userClassLoader);
 		this.executionConfig = executionConfig;
 		this.javaSerializer = new JavaSerializer<>();
 		this.registeredStates = new HashMap<>();
+		this.asynchronousSnapshots = asynchronousSnapshots;
 	}
 
 	public ExecutionConfig getExecutionConfig() {
@@ -86,136 +123,154 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		registeredStates.clear();
 	}
 
+	// -------------------------------------------------------------------------------------------
+	//  State access methods
+	// -------------------------------------------------------------------------------------------
+
+	@Override
+	public <S> ListState<S> getListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
+		return getListState(stateDescriptor, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
+	}
+
+	@Override
+	public <S> ListState<S> getUnionListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
+		return getListState(stateDescriptor, OperatorStateHandle.Mode.BROADCAST);
+	}
+
+	// -------------------------------------------------------------------------------------------
+	//  Deprecated state access methods
+	// -------------------------------------------------------------------------------------------
+
+	/**
+	 * @deprecated This was deprecated as part of a refinement to the function names.
+	 *             Please use {@link #getListState(ListStateDescriptor)} instead.
+	 */
+	@Deprecated
+	@Override
+	public <S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception {
+		return getListState(stateDescriptor);
+	}
+
+	/**
+	 * @deprecated Using Java serialization for persisting state is not encouraged.
+	 *             Please use {@link #getListState(ListStateDescriptor)} instead.
+	 */
 	@SuppressWarnings("unchecked")
+	@Deprecated
 	@Override
 	public <T extends Serializable> ListState<T> getSerializableListState(String stateName) throws Exception {
-		return (ListState<T>) getOperatorState(new ListStateDescriptor<>(stateName, javaSerializer));
+		return (ListState<T>) getListState(new ListStateDescriptor<>(stateName, javaSerializer));
 	}
 
-	@Override
-	public <S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws IOException {
-		return getOperatorState(stateDescriptor, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
-	}
-
-	@SuppressWarnings("unchecked")
-	public <T extends Serializable> ListState<T> getBroadcastSerializableListState(String stateName) throws Exception {
-		return (ListState<T>) getBroadcastOperatorState(new ListStateDescriptor<>(stateName, javaSerializer));
-	}
-
-	public <S> ListState<S> getBroadcastOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception {
-		return getOperatorState(stateDescriptor, OperatorStateHandle.Mode.BROADCAST);
-	}
-
-	private <S> ListState<S> getOperatorState(
-			ListStateDescriptor<S> stateDescriptor,
-			OperatorStateHandle.Mode mode) throws IOException {
-
-		Preconditions.checkNotNull(stateDescriptor);
-
-		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
-
-		String name = Preconditions.checkNotNull(stateDescriptor.getName());
-		TypeSerializer<S> partitionStateSerializer = Preconditions.checkNotNull(stateDescriptor.getElementSerializer());
-
-		@SuppressWarnings("unchecked")
-		PartitionableListState<S> partitionableListState = (PartitionableListState<S>) registeredStates.get(name);
-
-		if (null == partitionableListState) {
-
-			partitionableListState = new PartitionableListState<>(
-					name,
-					partitionStateSerializer,
-					mode);
-
-			registeredStates.put(name, partitionableListState);
-		} else {
-			Preconditions.checkState(
-					partitionableListState.getAssignmentMode().equals(mode),
-					"Incompatible assignment mode. Provided: " + mode + ", expected: " +
-							partitionableListState.getAssignmentMode());
-			Preconditions.checkState(
-					stateDescriptor.getElementSerializer().
-							canRestoreFrom(partitionableListState.getPartitionStateSerializer()),
-					"Incompatible type serializers. Provided: " + stateDescriptor.getElementSerializer() +
-							", found: " + partitionableListState.getPartitionStateSerializer());
-		}
-
-		return partitionableListState;
-	}
-
-	private static <S> void deserializeStateValues(
-			PartitionableListState<S> stateListForName,
-			FSDataInputStream in,
-			OperatorStateHandle.StateMetaInfo metaInfo) throws IOException {
-
-		if (null != metaInfo) {
-			long[] offsets = metaInfo.getOffsets();
-			if (null != offsets) {
-				DataInputView div = new DataInputViewStreamWrapper(in);
-				TypeSerializer<S> serializer = stateListForName.getPartitionStateSerializer();
-				for (long offset : offsets) {
-					in.seek(offset);
-					stateListForName.add(serializer.deserialize(div));
-				}
-			}
-		}
-	}
+	// -------------------------------------------------------------------------------------------
+	//  Snapshot and restore
+	// -------------------------------------------------------------------------------------------
 
 	@Override
 	public RunnableFuture<OperatorStateHandle> snapshot(
-			long checkpointId,
-			long timestamp,
-			CheckpointStreamFactory streamFactory,
-			CheckpointOptions checkpointOptions) throws Exception {
+			final long checkpointId,
+			final long timestamp,
+			final CheckpointStreamFactory streamFactory,
+			final CheckpointOptions checkpointOptions) throws Exception {
+
+		final long syncStartTime = System.currentTimeMillis();
 
 		if (registeredStates.isEmpty()) {
 			return DoneFuture.nullValue();
 		}
 
-		List<OperatorBackendSerializationProxy.StateMetaInfo<?>> metaInfoList =
-				new ArrayList<>(registeredStates.size());
+		final Map<String, PartitionableListState<?>> registeredStatesDeepCopies =
+				new HashMap<>(registeredStates.size());
 
-		for (Map.Entry<String, PartitionableListState<?>> entry : registeredStates.entrySet()) {
-			PartitionableListState<?> state = entry.getValue();
-			OperatorBackendSerializationProxy.StateMetaInfo<?> metaInfo =
-					new OperatorBackendSerializationProxy.StateMetaInfo<>(
-							state.getName(),
-							state.getPartitionStateSerializer(),
-							state.getAssignmentMode());
-			metaInfoList.add(metaInfo);
-		}
+		// eagerly create deep copies of the list states in the sync phase, so that we can use them in the async writing
+		for (Map.Entry<String, PartitionableListState<?>> entry : this.registeredStates.entrySet()) {
 
-		Map<String, OperatorStateHandle.StateMetaInfo> writtenStatesMetaData = new HashMap<>(registeredStates.size());
-
-		CheckpointStreamFactory.CheckpointStateOutputStream out = streamFactory.
-				createCheckpointStateOutputStream(checkpointId, timestamp);
-
-		try {
-			closeStreamOnCancelRegistry.registerClosable(out);
-
-			DataOutputView dov = new DataOutputViewStreamWrapper(out);
-
-			OperatorBackendSerializationProxy backendSerializationProxy =
-					new OperatorBackendSerializationProxy(metaInfoList);
-
-			backendSerializationProxy.write(dov);
-
-			dov.writeInt(registeredStates.size());
-			for (Map.Entry<String, PartitionableListState<?>> entry : registeredStates.entrySet()) {
-
-				PartitionableListState<?> value = entry.getValue();
-				long[] partitionOffsets = value.write(out);
-				OperatorStateHandle.Mode mode = value.getAssignmentMode();
-				writtenStatesMetaData.put(entry.getKey(), new OperatorStateHandle.StateMetaInfo(partitionOffsets, mode));
+			PartitionableListState<?> listState = entry.getValue();
+			if (null != listState) {
+				listState = listState.deepCopy();
 			}
-
-			OperatorStateHandle handle = new OperatorStateHandle(writtenStatesMetaData, out.closeAndGetHandle());
-
-			return new DoneFuture<>(handle);
-		} finally {
-			closeStreamOnCancelRegistry.unregisterClosable(out);
-			out.close();
+			registeredStatesDeepCopies.put(entry.getKey(), listState);
 		}
+
+		// implementation of the async IO operation, based on FutureTask
+		final AbstractAsyncSnapshotIOCallable<OperatorStateHandle> ioCallable =
+			new AbstractAsyncSnapshotIOCallable<OperatorStateHandle>(
+				checkpointId,
+				timestamp,
+				streamFactory,
+				closeStreamOnCancelRegistry) {
+
+				@Override
+				public OperatorStateHandle performOperation() throws Exception {
+					long asyncStartTime = System.currentTimeMillis();
+
+					final Map<String, OperatorStateHandle.StateMetaInfo> writtenStatesMetaData =
+						new HashMap<>(registeredStatesDeepCopies.size());
+
+					List<OperatorBackendSerializationProxy.StateMetaInfo<?>> metaInfoList =
+						new ArrayList<>(registeredStatesDeepCopies.size());
+
+					for (Map.Entry<String, PartitionableListState<?>> entry :
+						registeredStatesDeepCopies.entrySet()) {
+
+						PartitionableListState<?> state = entry.getValue();
+						OperatorBackendSerializationProxy.StateMetaInfo<?> metaInfo =
+							new OperatorBackendSerializationProxy.StateMetaInfo<>(
+								state.getName(),
+								state.getPartitionStateSerializer(),
+								state.getAssignmentMode());
+						metaInfoList.add(metaInfo);
+					}
+
+					CheckpointStreamFactory.CheckpointStateOutputStream out = getIoHandle();
+					DataOutputView dov = new DataOutputViewStreamWrapper(out);
+
+					OperatorBackendSerializationProxy backendSerializationProxy =
+						new OperatorBackendSerializationProxy(metaInfoList);
+
+					backendSerializationProxy.write(dov);
+
+					dov.writeInt(registeredStatesDeepCopies.size());
+
+					for (Map.Entry<String, PartitionableListState<?>> entry :
+						registeredStatesDeepCopies.entrySet()) {
+
+						PartitionableListState<?> value = entry.getValue();
+						long[] partitionOffsets = value.write(out);
+						OperatorStateHandle.Mode mode = value.getAssignmentMode();
+						writtenStatesMetaData.put(
+							entry.getKey(),
+							new OperatorStateHandle.StateMetaInfo(partitionOffsets, mode));
+					}
+
+					StreamStateHandle stateHandle = closeStreamAndGetStateHandle();
+
+					if (asynchronousSnapshots) {
+						LOG.info("DefaultOperatorStateBackend snapshot ({}, asynchronous part) in thread {} took {} ms.",
+							streamFactory, Thread.currentThread(), (System.currentTimeMillis() - asyncStartTime));
+					}
+
+					if (stateHandle == null) {
+						return null;
+					}
+
+					OperatorStateHandle operatorStateHandle =
+						new OperatorStateHandle(writtenStatesMetaData, stateHandle);
+
+					return operatorStateHandle;
+				}
+			};
+
+		AsyncStoppableTaskWithCallback<OperatorStateHandle> task = AsyncStoppableTaskWithCallback.from(ioCallable);
+
+		if (!asynchronousSnapshots) {
+			task.run();
+		}
+
+		LOG.info("DefaultOperatorStateBackend snapshot (" + streamFactory + ", synchronous part) in thread " +
+				Thread.currentThread() + " took " + (System.currentTimeMillis() - syncStartTime) + " ms.");
+
+		return task;
 	}
 
 	@Override
@@ -285,22 +340,67 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		}
 	}
 
+	/**
+	 *
+	 * Implementation of operator list state.
+	 *
+	 * @param <S> the type of an operator state partition.
+	 */
 	static final class PartitionableListState<S> implements ListState<S> {
 
+		/**
+		 * The name of the state, as registered by the user
+		 */
 		private final String name;
+
+		/**
+		 * The type serializer for the elements in the state list
+		 */
 		private final TypeSerializer<S> partitionStateSerializer;
+
+		/**
+		 * The mode how elements in this state are assigned to tasks during restore
+		 */
 		private final OperatorStateHandle.Mode assignmentMode;
-		private final List<S> internalList;
+
+		/**
+		 * The internal list the holds the elements of the state
+		 */
+		private final ArrayList<S> internalList;
+
+		/**
+		 * A serializer that allows to perfom deep copies of internalList
+		 */
+		private final ArrayListSerializer<S> internalListCopySerializer;
 
 		public PartitionableListState(
 				String name,
 				TypeSerializer<S> partitionStateSerializer,
 				OperatorStateHandle.Mode assignmentMode) {
 
+			this(name, partitionStateSerializer, assignmentMode, new ArrayList<S>());
+		}
+
+		private PartitionableListState(
+				String name,
+				TypeSerializer<S> partitionStateSerializer,
+				OperatorStateHandle.Mode assignmentMode,
+				ArrayList<S> internalList) {
+
 			this.name = Preconditions.checkNotNull(name);
 			this.partitionStateSerializer = Preconditions.checkNotNull(partitionStateSerializer);
 			this.assignmentMode = Preconditions.checkNotNull(assignmentMode);
-			this.internalList = new ArrayList<>();
+			this.internalList = Preconditions.checkNotNull(internalList);
+			this.internalListCopySerializer = new ArrayListSerializer<>(partitionStateSerializer);
+		}
+
+		private PartitionableListState(PartitionableListState<S> toCopy) {
+
+			this(
+					toCopy.name,
+					toCopy.partitionStateSerializer.duplicate(),
+					toCopy.assignmentMode,
+					toCopy.internalListCopySerializer.copy(toCopy.internalList));
 		}
 
 		public String getName() {
@@ -317,6 +417,10 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 		public List<S> getInternalList() {
 			return internalList;
+		}
+
+		public PartitionableListState<S> deepCopy() {
+			return new PartitionableListState<>(this);
 		}
 
 		@Override
@@ -356,6 +460,61 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			}
 
 			return partitionOffsets;
+		}
+	}
+
+	private <S> ListState<S> getListState(
+		ListStateDescriptor<S> stateDescriptor,
+		OperatorStateHandle.Mode mode) throws IOException {
+
+		Preconditions.checkNotNull(stateDescriptor);
+
+		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
+
+		String name = Preconditions.checkNotNull(stateDescriptor.getName());
+		TypeSerializer<S> partitionStateSerializer = Preconditions.checkNotNull(stateDescriptor.getElementSerializer());
+
+		@SuppressWarnings("unchecked")
+		PartitionableListState<S> partitionableListState = (PartitionableListState<S>) registeredStates.get(name);
+
+		if (null == partitionableListState) {
+
+			partitionableListState = new PartitionableListState<>(
+				name,
+				partitionStateSerializer,
+				mode);
+
+			registeredStates.put(name, partitionableListState);
+		} else {
+			Preconditions.checkState(
+				partitionableListState.getAssignmentMode().equals(mode),
+				"Incompatible assignment mode. Provided: " + mode + ", expected: " +
+					partitionableListState.getAssignmentMode());
+			Preconditions.checkState(
+				stateDescriptor.getElementSerializer().
+					canRestoreFrom(partitionableListState.getPartitionStateSerializer()),
+				"Incompatible type serializers. Provided: " + stateDescriptor.getElementSerializer() +
+					", found: " + partitionableListState.getPartitionStateSerializer());
+		}
+
+		return partitionableListState;
+	}
+
+	private static <S> void deserializeStateValues(
+		PartitionableListState<S> stateListForName,
+		FSDataInputStream in,
+		OperatorStateHandle.StateMetaInfo metaInfo) throws IOException {
+
+		if (null != metaInfo) {
+			long[] offsets = metaInfo.getOffsets();
+			if (null != offsets) {
+				DataInputView div = new DataInputViewStreamWrapper(in);
+				TypeSerializer<S> serializer = stateListForName.getPartitionStateSerializer();
+				for (long offset : offsets) {
+					in.seek(offset);
+					stateListForName.add(serializer.deserialize(div));
+				}
+			}
 		}
 	}
 }

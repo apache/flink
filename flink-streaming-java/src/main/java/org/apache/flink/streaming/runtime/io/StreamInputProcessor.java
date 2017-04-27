@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import java.io.IOException;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
+import java.io.IOException;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
@@ -27,9 +28,6 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -39,33 +37,33 @@ import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpa
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Input reader for {@link org.apache.flink.streaming.runtime.tasks.OneInputStreamTask}.
  *
- * <p>
- * This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and {@link StreamStatus} events,
- * and forwards them to event subscribers once the {@link StatusWatermarkValve} determines the {@link Watermark} from
- * all inputs has advanced, or that a {@link StreamStatus} needs to be propagated downstream to denote a status change.
+ * <p>This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and
+ * {@link StreamStatus} events, and forwards them to event subscribers once the
+ * {@link StatusWatermarkValve} determines the {@link Watermark} from all inputs has advanced, or
+ * that a {@link StreamStatus} needs to be propagated downstream to denote a status change.
  *
- * <p>
- * Forwarding elements, watermarks, or status status elements must be protected by synchronizing on the given lock
- * object. This ensures that we don't call methods on a {@link OneInputStreamOperator} concurrently
- * with the timer callback or other things.
- * 
+ * <p>Forwarding elements, watermarks, or status status elements must be protected by synchronizing
+ * on the given lock object. This ensures that we don't call methods on a
+ * {@link OneInputStreamOperator} concurrently with the timer callback or other things.
+ *
  * @param <IN> The type of the record that can be read with this record reader.
  */
 @Internal
@@ -96,7 +94,7 @@ public class StreamInputProcessor<IN> {
 	private int currentChannel = -1;
 
 	private final StreamStatusMaintainer streamStatusMaintainer;
-	
+
 	private final OneInputStreamOperator<IN, ?> streamOperator;
 
 	// ---------------- Metrics ------------------
@@ -135,19 +133,19 @@ public class StreamInputProcessor<IN> {
 		else {
 			throw new IllegalArgumentException("Unrecognized Checkpointing Mode: " + checkpointMode);
 		}
-		
+
 		if (checkpointedTask != null) {
 			this.barrierHandler.registerCheckpointEventHandler(checkpointedTask);
 		}
 
 		this.lock = checkNotNull(lock);
-		
+
 		StreamElementSerializer<IN> ser = new StreamElementSerializer<>(inputSerializer);
 		this.deserializationDelegate = new NonReusingDeserializationDelegate<>(ser);
 
 		// Initialize one deserializer per input channel
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
-		
+
 		for (int i = 0; i < recordDeserializers.length; i++) {
 			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<>(
 					ioManager.getSpillingDirectoriesPaths());
@@ -239,7 +237,7 @@ public class StreamInputProcessor<IN> {
 
 	/**
 	 * Sets the metric group for this StreamInputProcessor.
-	 * 
+	 *
 	 * @param metrics metric group
 	 */
 	public void setMetricGroup(TaskIOMetricGroup metrics) {
@@ -257,7 +255,7 @@ public class StreamInputProcessor<IN> {
 			}
 		});
 	}
-	
+
 	public void cleanup() throws IOException {
 		// clear the buffers first. this part should not ever fail
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
@@ -266,7 +264,7 @@ public class StreamInputProcessor<IN> {
 				buffer.recycle();
 			}
 		}
-		
+
 		// cleanup the barrier handler resources
 		barrierHandler.cleanup();
 	}

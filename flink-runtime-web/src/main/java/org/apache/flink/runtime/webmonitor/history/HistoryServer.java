@@ -138,7 +138,7 @@ public class HistoryServer {
 
 		String webDirectory = config.getString(HistoryServerOptions.HISTORY_SERVER_WEB_DIR);
 		if (webDirectory == null) {
-			webDirectory = System.getProperty("java.io.tmpdir") + "flink-web-history-" + UUID.randomUUID();
+			webDirectory = System.getProperty("java.io.tmpdir") + File.separator + "flink-web-history-" + UUID.randomUUID();
 		}
 		webDir = new File(webDirectory);
 

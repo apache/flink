@@ -25,8 +25,8 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelNode, RelShuttle}
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkRelBuilder}
-import FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical.LogicalWindow
 
 class LogicalWindowAggregate(
@@ -39,18 +39,11 @@ class LogicalWindowAggregate(
     groupSet: ImmutableBitSet,
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall])
-  extends Aggregate(
-    cluster,
-    traitSet,
-    child,
-    indicator,
-    groupSet,
-    groupSets,
-    aggCalls) {
+  extends Aggregate(cluster, traitSet, child, indicator, groupSet, groupSets, aggCalls) {
 
-  def getWindow = window
+  def getWindow: LogicalWindow = window
 
-  def getNamedProperties = namedProperties
+  def getNamedProperties: Seq[NamedWindowProperty] = namedProperties
 
   override def copy(
       traitSet: RelTraitSet,

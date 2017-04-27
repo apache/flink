@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.apache.commons.math3.util.ArithmeticUtils;
+import static java.util.Objects.requireNonNull;
 
+import org.apache.commons.math3.util.ArithmeticUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -28,64 +29,64 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.util.MathUtils;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
-import static java.util.Objects.requireNonNull;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
+import org.apache.flink.util.MathUtils;
 
 /**
+ * Base class for special window operator implementation for windows that fire at the same time for
+ * all keys.
+ *
  * @deprecated Deprecated in favour of the generic {@link WindowOperator}. This was an
  * optimized implementation used for aligned windows.
  */
 @Internal
 @Deprecated
-public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, STATE, F extends Function> 
-		extends AbstractUdfStreamOperator<OUT, F> 
+public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, STATE, F extends Function>
+		extends AbstractUdfStreamOperator<OUT, F>
 		implements OneInputStreamOperator<IN, OUT>, ProcessingTimeCallback {
-	
+
 	private static final long serialVersionUID = 3245500864882459867L;
-	
+
 	private static final long MIN_SLIDE_TIME = 50;
-	
+
 	// ----- fields for operator parametrization -----
-	
+
 	private final Function function;
 	private final KeySelector<IN, KEY> keySelector;
-	
+
 	private final TypeSerializer<KEY> keySerializer;
 	private final TypeSerializer<STATE> stateTypeSerializer;
-	
+
 	private final long windowSize;
 	private final long windowSlide;
 	private final long paneSize;
 	private final int numPanesPerWindow;
-	
+
 	// ----- fields for operator functionality -----
-	
+
 	private transient AbstractKeyedTimePanes<IN, KEY, STATE, OUT> panes;
-	
+
 	private transient TimestampedCollector<OUT> out;
-	
+
 	private transient RestoredState<IN, KEY, STATE, OUT> restoredState;
-	
+
 	private transient long nextEvaluationTime;
 	private transient long nextSlideTime;
-	
+
 	protected AbstractAlignedProcessingTimeWindowOperator(
 			F function,
 			KeySelector<IN, KEY> keySelector,
 			TypeSerializer<KEY> keySerializer,
 			TypeSerializer<STATE> stateTypeSerializer,
 			long windowLength,
-			long windowSlide)
-	{
+			long windowSlide) {
 		super(function);
-		
+
 		if (windowLength < MIN_SLIDE_TIME) {
 			throw new IllegalArgumentException("Window length must be at least " + MIN_SLIDE_TIME + " msecs");
 		}
@@ -95,14 +96,14 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		if (windowLength < windowSlide) {
 			throw new IllegalArgumentException("The window size must be larger than the window slide");
 		}
-		
+
 		final long paneSlide = ArithmeticUtils.gcd(windowLength, windowSlide);
 		if (paneSlide < MIN_SLIDE_TIME) {
 			throw new IllegalArgumentException(String.format(
 					"Cannot compute window of size %d msecs sliding by %d msecs. " +
 							"The unit of grouping is too small: %d msecs", windowLength, windowSlide, paneSlide));
 		}
-		
+
 		this.function = requireNonNull(function);
 		this.keySelector = requireNonNull(keySelector);
 		this.keySerializer = requireNonNull(keySerializer);
@@ -112,8 +113,8 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		this.paneSize = paneSlide;
 		this.numPanesPerWindow = MathUtils.checkedDownCast(windowLength / paneSlide);
 	}
-	
-	
+
+
 	protected abstract AbstractKeyedTimePanes<IN, KEY, STATE, OUT> createPanes(
 			KeySelector<IN, KEY> keySelector, Function function);
 
@@ -126,7 +127,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		super.open();
 
 		out = new TimestampedCollector<>(output);
-		
+
 		// decide when to first compute the window and when to slide it
 		// the values should align with the start of time (that is, the UNIX epoch, not the big bang)
 		final long now = getProcessingTimeService().getCurrentProcessingTime();
@@ -134,7 +135,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		nextSlideTime = now + paneSize - (now % paneSize);
 
 		final long firstTriggerTime = Math.min(nextEvaluationTime, nextSlideTime);
-		
+
 		// check if we restored state and if we need to fire some windows based on that restored state
 		if (restoredState == null) {
 			// initial empty state: create empty panes that gather the elements per slide
@@ -143,12 +144,12 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		else {
 			// restored state
 			panes = restoredState.panes;
-			
+
 			long nextPastEvaluationTime = restoredState.nextEvaluationTime;
 			long nextPastSlideTime = restoredState.nextSlideTime;
 			long nextPastTriggerTime = Math.min(nextPastEvaluationTime, nextPastSlideTime);
 			int numPanesRestored = panes.getNumPanes();
-			
+
 			// fire windows from the past as long as there are more panes with data and as long
 			// as the missed trigger times have not caught up with the presence
 			while (numPanesRestored > 0 && nextPastTriggerTime < firstTriggerTime) {
@@ -157,7 +158,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 					computeWindow(nextPastTriggerTime);
 					nextPastEvaluationTime += windowSlide;
 				}
-				
+
 				// evaluate slide from the past
 				if (nextPastTriggerTime == nextPastSlideTime) {
 					panes.slidePanes(numPanesPerWindow);
@@ -176,7 +177,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	@Override
 	public void close() throws Exception {
 		super.close();
-		
+
 		// early stop the triggering thread, so it does not attempt to return any more data
 		stopTriggers();
 	}
@@ -184,7 +185,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	@Override
 	public void dispose() throws Exception {
 		super.dispose();
-		
+
 		// acquire the lock during shutdown, to prevent trigger calls at the same time
 		// fail-safe stop of the triggering thread (in case of an error)
 		stopTriggers();
@@ -195,7 +196,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 			panes.dispose();
 		}
 	}
-	
+
 	private void stopTriggers() {
 		// reset the action timestamps. this makes sure any pending triggers will not evaluate
 		nextEvaluationTime = -1L;
@@ -205,7 +206,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	// ------------------------------------------------------------------------
 	//  Receiving elements and triggers
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		panes.addElementToLatestPane(element.getValue());
@@ -231,7 +232,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		long nextTriggerTime = Math.min(nextEvaluationTime, nextSlideTime);
 		getProcessingTimeService().registerTimer(nextTriggerTime, this);
 	}
-	
+
 	private void computeWindow(long timestamp) throws Exception {
 		out.setAbsoluteTimestamp(timestamp);
 		panes.truncatePanes(numPanesPerWindow);
@@ -290,7 +291,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	public long getPaneSize() {
 		return paneSize;
 	}
-	
+
 	public int getNumPanesPerWindow() {
 		return numPanesPerWindow;
 	}
@@ -306,7 +307,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return "Window (processing time) (length=" + windowSize + ", slide=" + windowSlide + ')';
@@ -314,7 +315,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 
 	// ------------------------------------------------------------------------
 	// ------------------------------------------------------------------------
-	
+
 	private static final class RestoredState<IN, KEY, STATE, OUT> {
 
 		final AbstractKeyedTimePanes<IN, KEY, STATE, OUT> panes;

@@ -53,11 +53,11 @@ class DataStreamUnion(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw).item("union", unionSelectionToString)
+    super.explainTerms(pw).item("union all", unionSelectionToString)
   }
 
   override def toString = {
-    s"Union(union: (${getRowType.getFieldNames.asScala.toList.mkString(", ")}))"
+    s"Union All(union: (${getRowType.getFieldNames.asScala.toList.mkString(", ")}))"
   }
 
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {

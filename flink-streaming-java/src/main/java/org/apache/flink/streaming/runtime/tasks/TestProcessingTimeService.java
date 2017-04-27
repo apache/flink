@@ -17,9 +17,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.Preconditions;
-
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.PriorityQueue;
@@ -30,6 +27,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.Preconditions;
 
 /**
  * This is a {@link ProcessingTimeService} used <b>strictly for testing</b> the
@@ -67,7 +66,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 					callbackTask.onProcessingTime(entry.f0);
 
 					if (callbackTask instanceof PeriodicCallbackTask) {
-						priorityQueue.offer(Tuple2.of(((PeriodicCallbackTask)callbackTask).nextTimestamp(entry.f0), callbackTask));
+						priorityQueue.offer(Tuple2.of(((PeriodicCallbackTask) callbackTask).nextTimestamp(entry.f0), callbackTask));
 					}
 				}
 			}

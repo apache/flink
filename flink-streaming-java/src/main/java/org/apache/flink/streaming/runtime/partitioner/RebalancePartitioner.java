@@ -24,7 +24,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 /**
  * Partitioner that distributes the data equally by cycling through the output
  * channels.
- * 
+ *
  * @param <T> Type of the elements in the Stream being rebalanced
  */
 @Internal
@@ -39,11 +39,11 @@ public class RebalancePartitioner<T> extends StreamPartitioner<T> {
 		this.returnArray[0] = (this.returnArray[0] + 1) % numberOfOutputChannels;
 		return this.returnArray;
 	}
-	
+
 	public StreamPartitioner<T> copy() {
 		return this;
 	}
-	
+
 	@Override
 	public String toString() {
 		return "REBALANCE";

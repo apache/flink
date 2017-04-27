@@ -884,6 +884,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 					// close the async barrier if there is one
 					if (this.tempBarriers[i] != null) {
 						this.tempBarriers[i].close();
+						this.tempBarriers[i] = null;
 					}
 
 					// recreate the local strategy

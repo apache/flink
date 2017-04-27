@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 /**
  * Implementation of WriteSinkFunction. Writes tuples to file in every millis
  * milliseconds.
- * 
+ *
  * @param <IN>
  *            Input tuple type
  */

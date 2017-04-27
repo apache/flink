@@ -18,6 +18,12 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -27,13 +33,6 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.InstantiationUtil;
-
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The watermark callback service allows to register a {@link OnWatermarkCallback OnWatermarkCallback}

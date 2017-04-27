@@ -18,7 +18,11 @@
 
 package org.apache.flink.graph.drivers;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
@@ -28,11 +32,17 @@ import org.apache.flink.graph.drivers.output.CSV;
 import org.apache.flink.graph.drivers.output.Hash;
 import org.apache.flink.graph.drivers.output.Print;
 import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
+import org.apache.flink.graph.utils.EdgeToTuple2Map;
+import org.apache.flink.types.NullValue;
 
 import java.util.List;
 
 /**
- * Convert a {@link Graph} to the {@link DataSet} of {@link Edge}s.
+ * Convert a {@link Graph} to the {@link DataSet} of {@link Edge}.
+ *
+ * @param <K> graph ID type
+ * @param <VV> vertex value type
+ * @param <EV> edge value type
  */
 public class EdgeList<K, VV, EV>
 extends ParameterizedBase
@@ -72,21 +82,47 @@ implements Driver<K, VV, EV>, CSV, Hash, Print {
 
 	@Override
 	public void print(String executionName) throws Exception {
-		Collect<Edge<K, EV>> collector = new Collect<>();
+		List<Edge<K, EV>> records = new Collect<Edge<K, EV>>().run(edges).execute(executionName);
 
-		// Refactored due to openjdk7 compile error: https://travis-ci.org/greghogan/flink/builds/200487761
-		List<Edge<K, EV>> records = collector.run(edges).execute(executionName);
-
-		for (Edge<K, EV> result : records) {
-			System.out.println(result);
+		if (hasNullValueEdges(edges)) {
+			for (Edge<K, EV> result : records) {
+				System.out.println("(" + result.f0 + "," + result.f1 + ")");
+			}
+		} else {
+			for (Edge<K, EV> result : records) {
+				System.out.println(result);
+			}
 		}
-
 	}
 
 	@Override
 	public void writeCSV(String filename, String lineDelimiter, String fieldDelimiter) {
-		edges
-			.writeAsCsv(filename, lineDelimiter, fieldDelimiter)
-				.name("CSV: " + filename);
+		if (hasNullValueEdges(edges)) {
+			edges
+				.map(new EdgeToTuple2Map<K, EV>())
+					.name("Edge to Tuple2")
+				.writeAsCsv(filename, lineDelimiter, fieldDelimiter)
+					.name("CSV: " + filename);
+		} else {
+			edges
+				.writeAsCsv(filename, lineDelimiter, fieldDelimiter)
+					.name("CSV: " + filename);
+		}
+	}
+
+	/**
+	 * Check whether the edge type of the {@link DataSet} is {@link NullValue}.
+	 *
+	 * @param edges data set for introspection
+	 * @param <T> graph ID type
+	 * @param <ET> edge value type
+	 * @return whether the edge type of the {@link DataSet} is {@link NullValue}
+	 */
+	private static <T, ET> boolean hasNullValueEdges(DataSet<Edge<T, ET>> edges) {
+		TypeInformation<?> genericTypeInfo = edges.getType();
+		@SuppressWarnings("unchecked")
+		TupleTypeInfo<Tuple3<T, T, ET>> tupleTypeInfo = (TupleTypeInfo<Tuple3<T, T, ET>>) genericTypeInfo;
+
+		return tupleTypeInfo.getTypeAt(2).equals(ValueTypeInfo.NULL_VALUE_TYPE_INFO);
 	}
 }

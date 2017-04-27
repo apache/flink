@@ -23,9 +23,11 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -61,10 +63,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
-import java.io.PrintStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URISyntaxException;
@@ -113,9 +115,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 */
 	private int slots = -1;
 
-	private int jobManagerMemoryMb = 1024;
+	private int jobManagerMemoryMb = JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.defaultValue();
 
-	private int taskManagerMemoryMb = 1024;
+	private int taskManagerMemoryMb = TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.defaultValue();
 
 	private int taskManagerCount = 1;
 
@@ -166,8 +168,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			flinkConfigurationPath = new Path(confFile.getAbsolutePath());
 
 			slots = flinkConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+
+			jobManagerMemoryMb = flinkConfiguration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
+			taskManagerMemoryMb = flinkConfiguration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
+
 		} catch (Exception e) {
-			LOG.debug("Config couldn't be loaded from environment variable.");
+			LOG.debug("Config couldn't be loaded from environment variable.", e);
 		}
 	}
 
@@ -663,12 +669,11 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		final Map<String, LocalResource> localResources = new HashMap<>(2 + effectiveShipFiles.size());
 		// list of remote paths (after upload)
 		final List<Path> paths = new ArrayList<>(2 + effectiveShipFiles.size());
-		// classpath assembler
-		final StringBuilder classPathBuilder = new StringBuilder();
 		// ship list that enables reuse of resources for task manager containers
 		StringBuilder envShipFileList = new StringBuilder();
 
 		// upload and register ship files
+		final List<String> classPaths = new ArrayList<>();
 		for (File shipFile : effectiveShipFiles) {
 			LocalResource shipResources = Records.newRecord(LocalResource.class);
 
@@ -687,27 +692,30 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 				Files.walkFileTree(shipPath, new SimpleFileVisitor<java.nio.file.Path>() {
 					@Override
-					public FileVisitResult preVisitDirectory(java.nio.file.Path dir, BasicFileAttributes attrs)
+					public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs)
 							throws IOException {
-						super.preVisitDirectory(dir, attrs);
+						java.nio.file.Path relativePath = parentPath.relativize(file);
 
-						java.nio.file.Path relativePath = parentPath.relativize(dir);
-
-						classPathBuilder
-							.append(relativePath)
-							.append(File.separator)
-							.append("*")
-							.append(File.pathSeparator);
+						classPaths.add(relativePath.toString());
 
 						return FileVisitResult.CONTINUE;
 					}
 				});
 			} else {
 				// add files to the classpath
-				classPathBuilder.append(shipFile.getName()).append(File.pathSeparator);
+				classPaths.add(shipFile.getName());
 			}
 
 			envShipFileList.append(remotePath).append(",");
+		}
+
+		// normalize classpath by sorting
+		Collections.sort(classPaths);
+
+		// classpath assembler
+		StringBuilder classPathBuilder = new StringBuilder();
+		for (String classPath : classPaths) {
+			classPathBuilder.append(classPath).append(File.pathSeparator);
 		}
 
 		// Setup jar for ApplicationMaster

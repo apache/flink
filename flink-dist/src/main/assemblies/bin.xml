@@ -59,6 +59,14 @@ under the License.
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
 		</file>
+
+		<!-- copy jar file of the Gelly examples -->
+		<file>
+			<source>../flink-libraries/flink-gelly-examples/target/flink-gelly-examples_2.10-${project.version}.jar</source>
+			<outputDirectory>examples/</outputDirectory>
+			<destName>flink-gelly-examples_2.10-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
 	</files>
 
 	<fileSets>
