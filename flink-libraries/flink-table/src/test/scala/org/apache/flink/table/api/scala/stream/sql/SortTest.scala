@@ -50,6 +50,25 @@ class SortTest extends TableTestBase {
   }
   
   
+  @Test
+  def testSortRowTime() = {
+
+    val sqlQuery = "SELECT a FROM MyTable ORDER BY rowTime(), c"
+      
+      val expected =
+      unaryNode(
+        "DataStreamSort",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "1970-01-01 00:00:00 AS EXPR$1","c")
+          ),
+        term("orderBy", "EXPR$1 ASC, c ASC], offset=[null], fetch=[unlimited")
+      )
+
+    streamUtil.verifySql(sqlQuery, expected)
+  }
+  
    @Test
   def testSortProcessingTimeDesc() = {
 

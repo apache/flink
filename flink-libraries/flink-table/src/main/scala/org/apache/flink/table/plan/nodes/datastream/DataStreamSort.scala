@@ -132,7 +132,15 @@ class DataStreamSort(
               case _ => createSortProcTime(inputDS, execCfg)  //sort can be done without retraction
             }
         case _: RowTimeType =>
-          throw new TableException("SQL/Table does not support sort on row time")
+            (sortOffset,sortFetch) match {
+              case (o: Any, f: Any)  => // offset and fetch needs retraction
+                throw new TableException("SQL/Table does not support sort with offset and fetch") 
+              case (_, f: Any) => // offset needs retraction
+                throw new TableException("SQL/Table does not support sort with fetch")
+              case (o: Any, _) =>  // fetch needs retraction
+                throw new TableException("SQL/Table does not support sort with offset")
+              case _ => createSortRowTime(inputDS, execCfg)  //sort can be done without retraction
+            }
         case _ =>
           throw new TableException("SQL/Table needs to have sort on time as first sort element")
     }
@@ -168,6 +176,30 @@ class DataStreamSort(
           .asInstanceOf[DataStream[Row]]
     }   
   }
+  
+   /**
+   * Create Sort logic based on row time
+   */
+  def createSortRowTime(
+    inputDS: DataStream[Row],
+    execCfg: ExecutionConfig): DataStream[Row] = {
+
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
+    
+    val processFunction = SortUtil.createRowTimeSortFunction(sortCollation,
+          rowRelDataType, execCfg)
+      
+    inputDS
+          .keyBy(new NullByteKeySelector[Row])
+          .process(processFunction).setParallelism(1).setMaxParallelism(1)
+          .returns(rowTypeInfo)
+          .asInstanceOf[DataStream[Row]]
+       
+  }
+  
+  /**
+   * Function is used to check at verification time if the SQL syntax is supported
+   */
   
   def checkTimeOrder() = {
      //need to identify time between others order fields. Time needs to be first sort element

@@ -86,9 +86,8 @@ class ProcTimeSortProcessFunction(
     var i = 0
     val iter =  stateEventsBuffer.get.iterator()
     
-    
-    while(iter.hasNext())
-    {
+    sortArray.clear()
+    while(iter.hasNext()) {
       sortArray.add(iter.next())
     }
     

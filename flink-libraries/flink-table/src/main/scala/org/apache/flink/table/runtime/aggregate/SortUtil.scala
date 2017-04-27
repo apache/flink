@@ -56,6 +56,48 @@ import scala.collection.JavaConverters._
 
 object SortUtil {
 
+  
+  /**
+   * Function creates [org.apache.flink.streaming.api.functions.ProcessFunction] for sorting 
+   * elements based on rowtime and potentially other fields
+   * @param collationSort The Sort collation list
+   * @param inputType input row type
+   * @param execCfg table environment execution configuration
+   * @return org.apache.flink.streaming.api.functions.ProcessFunction
+   */
+  private[flink] def createRowTimeSortFunction(
+    collationSort: RelCollation,
+    inputType: RelDataType,
+    execCfg: ExecutionConfig): ProcessFunction[Row, Row] = {
+
+    val keySortFields = getSortFieldIndexList(collationSort)
+    val keySortDirections = getSortFieldDirectionList(collationSort)
+
+    val inputRowType = FlinkTypeFactory.toInternalRowTypeInfo(inputType).asInstanceOf[RowTypeInfo]
+    
+       //drop time from comparison as we sort on time in the states and result emission
+    val keyIndexesNoTime = keySortFields.slice(1, keySortFields.size)
+    val keyDirectionsNoTime = keySortDirections.slice(1, keySortDirections.size)
+    val booleanOrderings = getSortFieldDirectionBooleanList(collationSort)
+    val booleanDirectionsNoTime = booleanOrderings.slice(1, booleanOrderings.size)
+    
+    val fieldComps = createFieldComparators(inputType, 
+        keyIndexesNoTime, keyDirectionsNoTime, execCfg)
+    val fieldCompsRefs = fieldComps.asInstanceOf[Array[TypeComparator[AnyRef]]]
+    
+    val rowComp = createRowComparator(inputType,
+        keyIndexesNoTime, fieldCompsRefs, booleanDirectionsNoTime)
+    val collectionRowComparator = new CollectionRowComparator(rowComp)
+    
+ 
+    new RowTimeSortProcessFunction(
+      inputType.getFieldCount,
+      inputRowType,
+      collectionRowComparator)
+
+  }
+  
+  
   /**
    * Function creates [org.apache.flink.streaming.api.functions.ProcessFunction] for sorting 
    * elements based on proctime and potentially other fields
@@ -80,10 +122,12 @@ object SortUtil {
     val booleanOrderings = getSortFieldDirectionBooleanList(collationSort)
     val booleanDirectionsNoTime = booleanOrderings.slice(1, booleanOrderings.size)
     
-    val fieldComps = createFieldComparators(inputType, keyIndexesNoTime, keyDirectionsNoTime, execCfg)
+    val fieldComps = createFieldComparators(inputType, 
+        keyIndexesNoTime, keyDirectionsNoTime, execCfg)
     val fieldCompsRefs = fieldComps.asInstanceOf[Array[TypeComparator[AnyRef]]]
     
-    val rowComp = createRowComparator(inputType, keyIndexesNoTime, fieldCompsRefs, booleanDirectionsNoTime)
+    val rowComp = createRowComparator(inputType, 
+        keyIndexesNoTime, fieldCompsRefs, booleanDirectionsNoTime)
     val collectionRowComparator = new CollectionRowComparator(rowComp)
     
  
@@ -154,7 +198,6 @@ object SortUtil {
    */
   def getSortFieldIndexList(collationSort: RelCollation): Array[Int] = {
     val keyFields = collationSort.getFieldCollations.toArray()
-    //val keyFields = collationSort.getFieldCollations.toArray().asInstanceOf[Array[RelFieldCollation]]
     for (f <- keyFields) yield f.asInstanceOf[RelFieldCollation].getFieldIndex
   }
   
