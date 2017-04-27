@@ -216,10 +216,9 @@ make_binary_release() {
 
   # make distribution
   cd "${dir_name}"
-  ./tools/change-scala-version.sh ${SCALA_VERSION}
 
   # enable release profile here (to check for the maven version)
-  $MVN clean package $FLAGS -DskipTests -Prelease -Dgpg.skip
+  $MVN clean package $FLAGS -DskipTests -Prelease,scala-${SCALA_VERSION} -Dgpg.skip
 
   cd flink-dist/target/flink-*-bin/
   tar czf "${dir_name}.tgz" flink-*
@@ -243,15 +242,12 @@ deploy_to_maven() {
   cp ../../deploysettings.xml .
   
   echo "Deploying Scala 2.11 version"
-  cd tools && ./change-scala-version.sh 2.11 && cd ..
-
-  $MVN clean deploy -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.executable=$GPG -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+  $MVN clean deploy -Prelease,docs-and-source,scala-2.11 --settings deploysettings.xml -DskipTests -Dgpg.executable=$GPG -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
   
   # It is important to first deploy scala 2.11 and then scala 2.10 so that the quickstarts (which are independent of the scala version)
   # are depending on scala 2.10.
   echo "Deploying Scala 2.10 version"
-  cd tools && ./change-scala-version.sh 2.10 && cd ..
-  $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+  $MVN clean deploy -Prelease,docs-and-source,scala-2.10 --settings deploysettings.xml -DskipTests -Dgpg.executable=$GPG -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
 }
 
 copy_data() {
