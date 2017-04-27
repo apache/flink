@@ -49,10 +49,6 @@ public class SlotReport implements Serializable, Iterable<SlotStatus> {
 		this.slotsStatus = checkNotNull(slotsStatus);
 	}
 
-	public Collection<SlotStatus> getSlotsStatus() {
-		return slotsStatus;
-	}
-
 	@Override
 	public Iterator<SlotStatus> iterator() {
 		return slotsStatus.iterator();

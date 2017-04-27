@@ -587,8 +587,7 @@ public class SlotManagerTest extends TestLogger {
 
 	/**
 	 * Tests that slots are updated with respect to the latest incoming slot report. This means that
-	 * slot for which not report has been received will be removed and those for which a report was
-	 * received are updated accordingly.
+	 * slots for which a report was received are updated accordingly.
 	 */
 	@Test
 	public void testUpdateSlotReport() throws Exception {
@@ -601,7 +600,6 @@ public class SlotManagerTest extends TestLogger {
 		final ResourceID resourceId = ResourceID.generate();
 		final SlotID slotId1 = new SlotID(resourceId, 0);
 		final SlotID slotId2 = new SlotID(resourceId, 1);
-		final SlotID slotId3 = new SlotID(resourceId, 2);
 
 
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
@@ -609,10 +607,9 @@ public class SlotManagerTest extends TestLogger {
 		final SlotStatus slotStatus2 = new SlotStatus(slotId2, resourceProfile);
 
 		final SlotStatus newSlotStatus2 = new SlotStatus(slotId2, resourceProfile, jobId, allocationId);
-		final SlotStatus slotStatus3 = new SlotStatus(slotId3, resourceProfile);
 
 		final SlotReport slotReport1 = new SlotReport(Arrays.asList(slotStatus1, slotStatus2));
-		final SlotReport slotReport2 = new SlotReport(Arrays.asList(newSlotStatus2, slotStatus3));
+		final SlotReport slotReport2 = new SlotReport(Arrays.asList(newSlotStatus2, slotStatus1));
 
 		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
@@ -623,20 +620,21 @@ public class SlotManagerTest extends TestLogger {
 
 			slotManager.registerTaskManager(taskManagerConnection, slotReport1);
 
-			TaskManagerSlot slot = slotManager.getSlot(slotId2);
+			TaskManagerSlot slot1 = slotManager.getSlot(slotId1);
+			TaskManagerSlot slot2 = slotManager.getSlot(slotId2);
 
 			assertTrue(2 == slotManager.getNumberRegisteredSlots());
 
-			assertTrue(slot.isFree());
+			assertTrue(slot1.isFree());
+			assertTrue(slot2.isFree());
 
 			assertTrue(slotManager.reportSlotStatus(taskManagerConnection.getInstanceID(), slotReport2));
 
 			assertTrue(2 == slotManager.getNumberRegisteredSlots());
 
 			// the slot manager should have removed slotId1
-			assertNull(slotManager.getSlot(slotId1));
-
-			assertNotNull(slotManager.getSlot(slotId3));
+			assertNotNull(slotManager.getSlot(slotId1));
+			assertNotNull(slotManager.getSlot(slotId2));
 
 			// slotId2 should have been allocated for allocationId
 			assertEquals(allocationId, slotManager.getSlot(slotId2).getAllocationId());
@@ -840,7 +838,6 @@ public class SlotManagerTest extends TestLogger {
 		final ResourceID resourceId = ResourceID.generate();
 		final SlotID slotId1 = new SlotID(resourceId, 0);
 		final SlotID slotId2 = new SlotID(resourceId, 1);
-		final SlotID slotId3 = new SlotID(resourceId, 2);
 		final SlotStatus slotStatus1 = new SlotStatus(slotId1, resourceProfile);
 		final SlotStatus slotStatus2 = new SlotStatus(slotId2, resourceProfile);
 		final SlotReport slotReport = new SlotReport(Arrays.asList(slotStatus1, slotStatus2));
@@ -870,11 +867,16 @@ public class SlotManagerTest extends TestLogger {
 				eq(leaderId),
 				any(Time.class));
 
+			final SlotID requestedSlotdId = slotIdCaptor.getValue();
+			final SlotID freeSlotId = requestedSlotdId.equals(slotId1) ? slotId2 : slotId1;
+
+			assertTrue(slotManager.getSlot(freeSlotId).isFree());
+
 			final SlotStatus newSlotStatus1 = new SlotStatus(slotIdCaptor.getValue(), resourceProfile, new JobID(), new AllocationID());
-			final SlotStatus newSlotStatus2 = new SlotStatus(slotId3, resourceProfile);
+			final SlotStatus newSlotStatus2 = new SlotStatus(freeSlotId, resourceProfile);
 			final SlotReport newSlotReport = new SlotReport(Arrays.asList(newSlotStatus1, newSlotStatus2));
 
-			// this should remove the unused slot, replacing it with slotId3 and retry the pending slot request
+			// this should update the slot with the pending slot request triggering the reassignment of it
 			slotManager.reportSlotStatus(taskManagerConnection.getInstanceID(), newSlotReport);
 
 			ArgumentCaptor<Runnable> runnableArgumentCaptor = ArgumentCaptor.forClass(Runnable.class);
@@ -899,7 +901,7 @@ public class SlotManagerTest extends TestLogger {
 
 			final SlotID requestedSlotId = slotIdCaptor.getValue();
 
-			assertEquals(slotId3, requestedSlotId);
+			assertEquals(slotId2, requestedSlotId);
 
 			TaskManagerSlot slot = slotManager.getSlot(requestedSlotId);
 

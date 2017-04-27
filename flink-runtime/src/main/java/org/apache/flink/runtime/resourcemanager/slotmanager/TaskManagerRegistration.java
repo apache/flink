@@ -23,8 +23,8 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ScheduledFuture;
 
@@ -38,10 +38,14 @@ public class TaskManagerRegistration {
 
 	private ScheduledFuture<?> timeoutFuture;
 
-	public TaskManagerRegistration(TaskExecutorConnection taskManagerConnection) {
-		this.taskManagerConnection = Preconditions.checkNotNull(taskManagerConnection);
+	public TaskManagerRegistration(
+		TaskExecutorConnection taskManagerConnection,
+		Collection<SlotID> slots) {
 
-		slots = new HashSet<>(4);
+		this.taskManagerConnection = Preconditions.checkNotNull(taskManagerConnection, "taskManagerConnection");
+		Preconditions.checkNotNull(slots, "slots");
+
+		this.slots = new HashSet<>(slots);
 
 		timeoutIdentifier = null;
 		timeoutFuture = null;
@@ -59,16 +63,12 @@ public class TaskManagerRegistration {
 		return timeoutIdentifier;
 	}
 
-	public Set<SlotID> getSlots() {
+	public Iterable<SlotID> getSlots() {
 		return slots;
 	}
 
-	public boolean removeSlot(SlotID slotId) {
-		return slots.remove(slotId);
-	}
-
-	public void addSlot(SlotID slotId) {
-		slots.add(slotId);
+	public boolean containsSlot(SlotID slotId) {
+		return slots.contains(slotId);
 	}
 
 	public void cancelTimeout() {
