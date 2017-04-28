@@ -765,6 +765,11 @@ class JobManagerITCase(_system: ActorSystem)
           val jobManager = flinkCluster
             .getLeaderGateway(deadline.timeLeft)
 
+          // we have to make sure that the job manager knows also that he is the leader
+          // in case of standalone leader retrieval this can happen after the getLeaderGateway call
+          val leaderFuture = jobManager.ask(NotifyWhenLeader, timeout.duration)
+          Await.ready(leaderFuture, timeout.duration)
+
           val jobId = new JobID()
 
           // Trigger savepoint for non-existing job
