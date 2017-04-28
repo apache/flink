@@ -23,7 +23,11 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.mesos.Protos;
 import scala.Option;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -56,6 +60,9 @@ public class MesosTaskManagerParameters {
 		key("mesos.resourcemanager.tasks.container.image.name")
 			.noDefaultValue();
 
+	public static final ConfigOption<String> MESOS_RM_CONTAINER_VOLUMES =
+		key("mesos.resourcemanager.tasks.container.volumes")
+			.noDefaultValue();
 	/**
 	 * Value for {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE} setting. Tells to use the Mesos containerizer.
 	 */
@@ -73,19 +80,24 @@ public class MesosTaskManagerParameters {
 
 	private final ContaineredTaskManagerParameters containeredParameters;
 
+	private final List<Protos.Volume> containerVolumes;
+
 	public MesosTaskManagerParameters(
 		double cpus,
 		ContainerType containerType,
 		Option<String> containerImageName,
-		ContaineredTaskManagerParameters containeredParameters) {
+		ContaineredTaskManagerParameters containeredParameters,
+		List<Protos.Volume> containerVolumes) {
 		requireNonNull(containeredParameters);
 		this.cpus = cpus;
 		this.containerType = containerType;
 		this.containerImageName = containerImageName;
 		this.containeredParameters = containeredParameters;
+		this.containerVolumes =  containerVolumes;
 	}
 
-	/**
+
+    /**
 	 * Get the CPU units to use for the TaskManager process.
      */
 	public double cpus() {
@@ -115,6 +127,13 @@ public class MesosTaskManagerParameters {
 		return containeredParameters;
 	}
 
+	/**
+	 * Get the container volumes string
+	 */
+	public List<Protos.Volume> containerVolumes() {
+		return containerVolumes;
+	}
+
 	@Override
 	public String toString() {
 		return "MesosTaskManagerParameters{" +
@@ -122,6 +141,7 @@ public class MesosTaskManagerParameters {
 			", containerType=" + containerType +
 			", containerImageName=" + containerImageName +
 			", containeredParameters=" + containeredParameters +
+			", containerVolumes=" + containerVolumes.toString()	+
 			'}';
 	}
 
@@ -162,11 +182,65 @@ public class MesosTaskManagerParameters {
 				throw new IllegalConfigurationException("invalid container type: " + containerTypeString);
 		}
 
+		Option<String> containerVolOpt = Option.<String>apply(flinkConfig.getString(MESOS_RM_CONTAINER_VOLUMES));
+		List<Protos.Volume> containerVolumes = buildVolumes(containerVolOpt);
+
 		return new MesosTaskManagerParameters(
 			cpus,
 			containerType,
 			Option.apply(imageName),
-			containeredParameters);
+			containeredParameters,
+			containerVolumes);
+	}
+
+	/**
+	 * Used to build volume specs for mesos. This allows for mounting additional volumes into a container
+	 *
+	 * @param containerVolumes a comma delimited optional string of [host_path:]container_path[:RO|RW] that
+	 *                         defines mount points for a container volume. If None or empty string, returns
+	 *                         an empty iterator
+	 */
+	public static List<Protos.Volume> buildVolumes(Option<String> containerVolumes) {
+		if (containerVolumes.isEmpty()) {
+			return new ArrayList<Protos.Volume>();
+		}
+		String[] specs = containerVolumes.get().split(",");
+		List<Protos.Volume> vols = new ArrayList<Protos.Volume>();
+		for (String s : specs) {
+			if (s.trim().isEmpty()) {
+				continue;
+			}
+			Protos.Volume.Builder vol = Protos.Volume.newBuilder();
+			vol.setMode(Protos.Volume.Mode.RW);
+
+			String[] parts = s.split(":");
+			switch (parts.length) {
+				case 1:
+					vol.setContainerPath(parts[0]);
+					break;
+				case 2:
+					try {
+						Protos.Volume.Mode mode = Protos.Volume.Mode.valueOf(parts[1].trim().toUpperCase());
+						vol.setMode(mode)
+								.setContainerPath(parts[0]);
+					} catch (IllegalArgumentException e) {
+						vol.setHostPath(parts[0])
+								.setContainerPath(parts[1]);
+					}
+					break;
+				case 3:
+					Protos.Volume.Mode mode = Protos.Volume.Mode.valueOf(parts[2].trim().toUpperCase());
+					vol.setMode(mode)
+							.setHostPath(parts[0])
+							.setContainerPath(parts[1]);
+					break;
+				default:
+					throw new IllegalArgumentException("volume specification is invalid, given: " + s);
+			}
+
+			vols.add(vol.build());
+		}
+		return vols;
 	}
 
 	public enum ContainerType {

@@ -29,6 +29,8 @@ import org.apache.flink.mesos.util.MesosArtifactResolver;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.mesos.Protos;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -48,6 +50,7 @@ import static org.apache.flink.mesos.Utils.scalar;
  */
 public class LaunchableMesosWorker implements LaunchableTask {
 
+	protected static final Logger LOG = LoggerFactory.getLogger(LaunchableMesosWorker.class);
 	/**
 	 * The set of configuration keys to be dynamically configured with a port allocated from Mesos.
 	 */
@@ -232,23 +235,25 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		cmd.setValue(launchCommand.toString());
 
 		// build the container info
-		Protos.ContainerInfo.Builder containerInfo = null;
+		Protos.ContainerInfo.Builder containerInfo = Protos.ContainerInfo.newBuilder();
+		// in event that no docker image or mesos image name is specified, we must still
+		// set type to MESOS
+		containerInfo.setType(Protos.ContainerInfo.Type.MESOS);
 		switch(params.containerType()) {
 			case MESOS:
 				if(params.containerImageName().isDefined()) {
-					containerInfo = Protos.ContainerInfo.newBuilder()
-						.setType(Protos.ContainerInfo.Type.MESOS)
+					containerInfo
 						.setMesos(Protos.ContainerInfo.MesosInfo.newBuilder()
-						.setImage(Protos.Image.newBuilder()
-							.setType(Protos.Image.Type.DOCKER)
-							.setDocker(Protos.Image.Docker.newBuilder()
-								.setName(params.containerImageName().get()))));
+							.setImage(Protos.Image.newBuilder()
+								.setType(Protos.Image.Type.DOCKER)
+								.setDocker(Protos.Image.Docker.newBuilder()
+									.setName(params.containerImageName().get()))));
 				}
 				break;
 
 			case DOCKER:
 				assert(params.containerImageName().isDefined());
-				containerInfo = Protos.ContainerInfo.newBuilder()
+					containerInfo
 					.setType(Protos.ContainerInfo.Type.DOCKER)
 					.setDocker(Protos.ContainerInfo.DockerInfo.newBuilder()
 						.setNetwork(Protos.ContainerInfo.DockerInfo.Network.HOST)
@@ -258,9 +263,11 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			default:
 				throw new IllegalStateException("unsupported container type");
 		}
-		if(containerInfo != null) {
-			taskInfo.setContainer(containerInfo);
-		}
+
+		// add any volumes to the containerInfo
+		containerInfo.addAllVolumes(params.containerVolumes());
+		taskInfo.setContainer(containerInfo);
+
 
 		return taskInfo.build();
 	}
