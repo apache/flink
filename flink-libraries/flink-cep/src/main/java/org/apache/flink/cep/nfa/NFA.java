@@ -21,21 +21,6 @@ package org.apache.flink.cep.nfa;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.LinkedHashMultimap;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
-import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
-import org.apache.flink.cep.NonDuplicatingTypeSerializer;
-import org.apache.flink.cep.nfa.compiler.NFACompiler;
-import org.apache.flink.cep.pattern.conditions.IterativeCondition;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.util.Preconditions;
-
-import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -58,6 +43,20 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
+import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
+import org.apache.flink.cep.NonDuplicatingTypeSerializer;
+import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Non-deterministic finite automaton implementation.
@@ -180,6 +179,9 @@ public class NFA<T> implements Serializable {
 	 * resulting event sequences are returned. If computations time out and timeout handling is
 	 * activated, then the timed out event patterns are returned.
 	 *
+	 * <p>If computations reach a stop state, the path forward is discarded and currently constructed path is returned
+	 * with the element that resulted in the stop state.
+	 *
 	 * @param event The current event to be processed or null if only pruning shall be done
 	 * @param timestamp The timestamp of the current event
 	 * @return Tuple of the collection of matched patterns (e.g. the result of computations which have
@@ -222,7 +224,12 @@ public class NFA<T> implements Serializable {
 				newComputationStates = Collections.singleton(computationState);
 			}
 
-			for (ComputationState<T> newComputationState: newComputationStates) {
+
+			//delay adding new computation states in case a stop state is reached and we discard the path.
+			final Collection<ComputationState<T>> statesToRetain = new ArrayList<>();
+			//if stop state reached in this path
+			boolean shouldDiscardPath = false;
+			for (final ComputationState<T> newComputationState: newComputationStates) {
 				if (newComputationState.isFinalState()) {
 					// we've reached a final state and can thus retrieve the matching event sequence
 					Collection<Map<String, T>> matches = extractPatternMatches(newComputationState);
@@ -233,11 +240,32 @@ public class NFA<T> implements Serializable {
 							newComputationState.getPreviousState().getName(),
 							newComputationState.getEvent(),
 							newComputationState.getTimestamp());
+				} else if (newComputationState.isStopState()) {
+					//reached stop state. release entry for the stop state
+					shouldDiscardPath = true;
+					stringSharedBuffer.release(
+						newComputationState.getPreviousState().getName(),
+						newComputationState.getEvent(),
+						newComputationState.getTimestamp());
 				} else {
 					// add new computation state; it will be processed once the next event arrives
-					computationStates.add(newComputationState);
+					statesToRetain.add(newComputationState);
 				}
 			}
+
+			if (shouldDiscardPath) {
+				// a stop state was reached in this branch. release branch which results in removing previous event from
+				// the buffer
+				for (final ComputationState<T> state : statesToRetain) {
+					stringSharedBuffer.release(
+						state.getPreviousState().getName(),
+						state.getEvent(),
+						state.getTimestamp());
+				}
+			} else {
+				computationStates.addAll(statesToRetain);
+			}
+
 		}
 
 		// prune shared buffer based on window length
