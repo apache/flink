@@ -52,7 +52,7 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 80L);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
-			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 840);
+			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 640);
 			
 			cluster = new LocalFlinkMiniCluster(config, false);
 
@@ -68,6 +68,7 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 	
 			try {
 				runKMeans(cluster.getLeaderRPCPort());
+				fail("This program execution should have failed.");
 			}
 			catch (ProgramInvocationException e) {
 				assertTrue(e.getCause().getCause().getMessage().contains("Insufficient number of network buffers"));

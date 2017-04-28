@@ -67,7 +67,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	}
 
 	@Override
-	ResultSubpartition createSubpartition() {
+	SpillableSubpartition createSubpartition() {
 		ResultPartition parent = mock(ResultPartition.class);
 		BufferProvider bufferProvider = mock(BufferProvider.class);
 		when(parent.getBufferProvider()).thenReturn(bufferProvider);
@@ -142,13 +142,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	@Test
 	public void testReleasePartitionAndGetNext() throws Exception {
 		// Create partition and add some buffers
-		ResultPartition parent = mock(ResultPartition.class);
-		BufferProvider bufferProvider = mock(BufferProvider.class);
-		when(parent.getBufferProvider()).thenReturn(bufferProvider);
-		when(bufferProvider.getMemorySegmentSize()).thenReturn(32 * 1024);
-
-		SpillableSubpartition partition = new SpillableSubpartition(
-			0, parent, ioManager);
+		SpillableSubpartition partition = createSubpartition();
 
 		partition.finish();
 
@@ -177,14 +171,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	 */
 	@Test
 	public void testConsumeSpilledPartition() throws Exception {
-		ResultPartition parent = mock(ResultPartition.class);
-		BufferProvider bufferProvider = mock(BufferProvider.class);
-		when(parent.getBufferProvider()).thenReturn(bufferProvider);
-		when(bufferProvider.getMemorySegmentSize()).thenReturn(32 * 1024);
-		SpillableSubpartition partition = new SpillableSubpartition(
-			0,
-			parent,
-			ioManager);
+		SpillableSubpartition partition = createSubpartition();
 
 		Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096), FreeingBufferRecycler.INSTANCE);
 		buffer.retain();
@@ -228,14 +215,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	 */
 	@Test
 	public void testConsumeSpillablePartitionSpilledDuringConsume() throws Exception {
-		ResultPartition parent = mock(ResultPartition.class);
-		BufferProvider bufferProvider = mock(BufferProvider.class);
-		when(parent.getBufferProvider()).thenReturn(bufferProvider);
-		when(bufferProvider.getMemorySegmentSize()).thenReturn(32 * 1024);
-		SpillableSubpartition partition = new SpillableSubpartition(
-			0,
-			parent,
-			ioManager);
+		SpillableSubpartition partition = createSubpartition();
 
 		Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096), FreeingBufferRecycler.INSTANCE);
 		buffer.retain();
