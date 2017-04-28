@@ -42,6 +42,7 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Migration;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
@@ -323,9 +324,13 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 	@Override
 	public void restoreState(FSDataInputStream in) throws Exception {
-		// this is the flag indicating if we have udf
-		// state to restore (not needed here)
-		in.read();
+		if (in instanceof Migration) {
+			// absorb the introduced byte from the migration stream
+			int hasUdfState = in.read();
+			if (hasUdfState == 1) {
+				throw new Exception("Found UDF state but CEPOperator is not an UDF operator.");
+			}
+		}
 
 		DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(in);
 		timerService = getInternalTimerService(
