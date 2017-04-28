@@ -21,7 +21,6 @@ package org.apache.flink.table.catalog
 import java.util.{HashMap => JHashMap, Map => JMap}
 import java.lang.{Long => JLong}
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.plan.stats.TableStats
 
