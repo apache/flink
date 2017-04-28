@@ -20,9 +20,12 @@ package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.checkpoint.MasterState;
+import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -47,6 +50,94 @@ import static org.junit.Assert.assertEquals;
  * checkpoint metadata for persistence.
  */
 public class CheckpointTestUtils {
+
+	/**
+	 * Creates a random collection of OperatorState objects containing various types of state handles.
+	 */
+	public static Collection<OperatorState> createOperatorStates(int numTaskStates, int numSubtasksPerTask) {
+		return createOperatorStates(new Random(), numTaskStates, numSubtasksPerTask);
+	}
+
+	/**
+	 * Creates a random collection of OperatorState objects containing various types of state handles.
+	 */
+	public static Collection<OperatorState> createOperatorStates(
+			Random random,
+			int numTaskStates,
+			int numSubtasksPerTask) {
+
+		List<OperatorState> taskStates = new ArrayList<>(numTaskStates);
+
+		for (int stateIdx = 0; stateIdx < numTaskStates; ++stateIdx) {
+
+			OperatorState taskState = new OperatorState(new OperatorID(), numSubtasksPerTask, 128);
+
+			boolean hasNonPartitionableState = random.nextBoolean();
+			boolean hasOperatorStateBackend = random.nextBoolean();
+			boolean hasOperatorStateStream = random.nextBoolean();
+
+			boolean hasKeyedBackend = random.nextInt(4) != 0;
+			boolean hasKeyedStream = random.nextInt(4) != 0;
+
+			for (int subtaskIdx = 0; subtaskIdx < numSubtasksPerTask; subtaskIdx++) {
+
+				StreamStateHandle nonPartitionableState = null;
+				StreamStateHandle operatorStateBackend =
+					new TestByteStreamStateHandleDeepCompare("b", ("Beautiful").getBytes(ConfigConstants.DEFAULT_CHARSET));
+				StreamStateHandle operatorStateStream =
+					new TestByteStreamStateHandleDeepCompare("b", ("Beautiful").getBytes(ConfigConstants.DEFAULT_CHARSET));
+
+				OperatorStateHandle operatorStateHandleBackend = null;
+				OperatorStateHandle operatorStateHandleStream = null;
+				
+				Map<String, StateMetaInfo> offsetsMap = new HashMap<>();
+				offsetsMap.put("A", new OperatorStateHandle.StateMetaInfo(new long[]{0, 10, 20}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
+				offsetsMap.put("B", new OperatorStateHandle.StateMetaInfo(new long[]{30, 40, 50}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
+				offsetsMap.put("C", new OperatorStateHandle.StateMetaInfo(new long[]{60, 70, 80}, OperatorStateHandle.Mode.BROADCAST));
+
+				if (hasNonPartitionableState) {
+					nonPartitionableState =
+						new TestByteStreamStateHandleDeepCompare("a", ("Hi").getBytes(ConfigConstants.DEFAULT_CHARSET));
+				}
+
+				if (hasOperatorStateBackend) {
+					operatorStateHandleBackend = new OperatorStateHandle(offsetsMap, operatorStateBackend);
+				}
+
+				if (hasOperatorStateStream) {
+					operatorStateHandleStream = new OperatorStateHandle(offsetsMap, operatorStateStream);
+				}
+
+				KeyGroupsStateHandle keyedStateBackend = null;
+				KeyGroupsStateHandle keyedStateStream = null;
+
+				if (hasKeyedBackend) {
+					keyedStateBackend = new KeyGroupsStateHandle(
+							new KeyGroupRangeOffsets(1, 1, new long[]{42}),
+							new TestByteStreamStateHandleDeepCompare("c", "Hello"
+									.getBytes(ConfigConstants.DEFAULT_CHARSET)));
+				}
+
+				if (hasKeyedStream) {
+					keyedStateStream = new KeyGroupsStateHandle(
+							new KeyGroupRangeOffsets(1, 1, new long[]{23}),
+							new TestByteStreamStateHandleDeepCompare("d", "World"
+									.getBytes(ConfigConstants.DEFAULT_CHARSET)));
+				}
+
+				taskState.putState(subtaskIdx, new OperatorSubtaskState(
+						nonPartitionableState,
+						operatorStateHandleBackend,
+						operatorStateHandleStream,
+						keyedStateStream,
+						keyedStateBackend));
+			}
+
+			taskStates.add(taskState);
+		}
+
+		return taskStates;
+	}
 
 	/**
 	 * Creates a random collection of TaskState objects containing various types of state handles.
@@ -88,7 +179,7 @@ public class CheckpointTestUtils {
 
 					StreamStateHandle nonPartitionableState =
 							new TestByteStreamStateHandleDeepCompare("a-" + chainIdx, ("Hi-" + chainIdx).getBytes(
-									ConfigConstants.DEFAULT_CHARSET));
+								ConfigConstants.DEFAULT_CHARSET));
 					StreamStateHandle operatorStateBackend =
 							new TestByteStreamStateHandleDeepCompare("b-" + chainIdx, ("Beautiful-" + chainIdx).getBytes(ConfigConstants.DEFAULT_CHARSET));
 					StreamStateHandle operatorStateStream =
@@ -122,14 +213,14 @@ public class CheckpointTestUtils {
 					keyedStateBackend = new KeyGroupsStateHandle(
 							new KeyGroupRangeOffsets(1, 1, new long[]{42}),
 							new TestByteStreamStateHandleDeepCompare("c", "Hello"
-									.getBytes(ConfigConstants.DEFAULT_CHARSET)));
+								.getBytes(ConfigConstants.DEFAULT_CHARSET)));
 				}
 
 				if (hasKeyedStream) {
 					keyedStateStream = new KeyGroupsStateHandle(
 							new KeyGroupRangeOffsets(1, 1, new long[]{23}),
 							new TestByteStreamStateHandleDeepCompare("d", "World"
-									.getBytes(ConfigConstants.DEFAULT_CHARSET)));
+								.getBytes(ConfigConstants.DEFAULT_CHARSET)));
 				}
 
 				taskState.putState(subtaskIdx, new SubtaskState(

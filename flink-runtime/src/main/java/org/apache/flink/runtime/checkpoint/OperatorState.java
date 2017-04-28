@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.Preconditions;
@@ -30,24 +30,18 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Simple container class which contains the task state and key-group state handles for the sub
- * tasks of a {@link org.apache.flink.runtime.jobgraph.JobVertex}.
- *
- * This class basically groups all non-partitioned state and key-group state belonging to the same job vertex together.
- *
- * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
+ * Simple container class which contains the raw/managed/legacy operator state and key-group state handles for the sub
+ * tasks of an operator.
  */
-@Deprecated
-@SuppressWarnings("deprecation")
-public class TaskState implements CompositeStateHandle {
+public class OperatorState implements CompositeStateHandle {
 
 	private static final long serialVersionUID = -4845578005863201810L;
 
-	private final JobVertexID jobVertexID;
+	/** id of the operator */
+	private final OperatorID operatorID;
 
 	/** handles to non-partitioned states, subtaskindex -> subtaskstate */
-	private final Map<Integer, SubtaskState> subtaskStates;
-
+	private final Map<Integer, OperatorSubtaskState> operatorSubtaskStates;
 
 	/** parallelism of the operator when it was checkpointed */
 	private final int parallelism;
@@ -55,54 +49,49 @@ public class TaskState implements CompositeStateHandle {
 	/** maximum parallelism of the operator when the job was first created */
 	private final int maxParallelism;
 
-	/** length of the operator chain */
-	private final int chainLength;
-
-	public TaskState(JobVertexID jobVertexID, int parallelism, int maxParallelism, int chainLength) {
+	public OperatorState(OperatorID operatorID, int parallelism, int maxParallelism) {
 		Preconditions.checkArgument(
-				parallelism <= maxParallelism,
-				"Parallelism " + parallelism + " is not smaller or equal to max parallelism " + maxParallelism + ".");
-		Preconditions.checkArgument(chainLength > 0, "There has to be at least one operator in the operator chain.");
+			parallelism <= maxParallelism,
+			"Parallelism " + parallelism + " is not smaller or equal to max parallelism " + maxParallelism + ".");
 
-		this.jobVertexID = jobVertexID;
+		this.operatorID = operatorID;
 
-		this.subtaskStates = new HashMap<>(parallelism);
+		this.operatorSubtaskStates = new HashMap<>(parallelism);
 
 		this.parallelism = parallelism;
 		this.maxParallelism = maxParallelism;
-		this.chainLength = chainLength;
 	}
 
-	public JobVertexID getJobVertexID() {
-		return jobVertexID;
+	public OperatorID getOperatorID() {
+		return operatorID;
 	}
 
-	public void putState(int subtaskIndex, SubtaskState subtaskState) {
+	public void putState(int subtaskIndex, OperatorSubtaskState subtaskState) {
 		Preconditions.checkNotNull(subtaskState);
 
 		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
 			throw new IndexOutOfBoundsException("The given sub task index " + subtaskIndex +
-				" exceeds the maximum number of sub tasks " + subtaskStates.size());
+				" exceeds the maximum number of sub tasks " + operatorSubtaskStates.size());
 		} else {
-			subtaskStates.put(subtaskIndex, subtaskState);
+			operatorSubtaskStates.put(subtaskIndex, subtaskState);
 		}
 	}
 
-	public SubtaskState getState(int subtaskIndex) {
+	public OperatorSubtaskState getState(int subtaskIndex) {
 		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
 			throw new IndexOutOfBoundsException("The given sub task index " + subtaskIndex +
-				" exceeds the maximum number of sub tasks " + subtaskStates.size());
+				" exceeds the maximum number of sub tasks " + operatorSubtaskStates.size());
 		} else {
-			return subtaskStates.get(subtaskIndex);
+			return operatorSubtaskStates.get(subtaskIndex);
 		}
 	}
 
-	public Collection<SubtaskState> getStates() {
-		return subtaskStates.values();
+	public Collection<OperatorSubtaskState> getStates() {
+		return operatorSubtaskStates.values();
 	}
 
 	public int getNumberCollectedStates() {
-		return subtaskStates.size();
+		return operatorSubtaskStates.size();
 	}
 
 	public int getParallelism() {
@@ -113,13 +102,9 @@ public class TaskState implements CompositeStateHandle {
 		return maxParallelism;
 	}
 
-	public int getChainLength() {
-		return chainLength;
-	}
-
 	public boolean hasNonPartitionedState() {
-		for(SubtaskState sts : subtaskStates.values()) {
-			if (sts != null && !sts.getLegacyOperatorState().isEmpty()) {
+		for (OperatorSubtaskState sts : operatorSubtaskStates.values()) {
+			if (sts != null && sts.getLegacyOperatorState() != null) {
 				return true;
 			}
 		}
@@ -128,22 +113,22 @@ public class TaskState implements CompositeStateHandle {
 
 	@Override
 	public void discardState() throws Exception {
-		for (SubtaskState subtaskState : subtaskStates.values()) {
-			subtaskState.discardState();
+		for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
+			operatorSubtaskState.discardState();
 		}
 	}
 
 	@Override
 	public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
-		for (SubtaskState subtaskState : subtaskStates.values()) {
-			subtaskState.registerSharedStates(sharedStateRegistry);
+		for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
+			operatorSubtaskState.registerSharedStates(sharedStateRegistry);
 		}
 	}
 
 	@Override
 	public void unregisterSharedStates(SharedStateRegistry sharedStateRegistry) {
-		for (SubtaskState subtaskState : subtaskStates.values()) {
-			subtaskState.unregisterSharedStates(sharedStateRegistry);
+		for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
+			operatorSubtaskState.unregisterSharedStates(sharedStateRegistry);
 		}
 	}
 
@@ -152,9 +137,9 @@ public class TaskState implements CompositeStateHandle {
 		long result = 0L;
 
 		for (int i = 0; i < parallelism; i++) {
-			SubtaskState subtaskState = subtaskStates.get(i);
-			if (subtaskState != null) {
-				result += subtaskState.getStateSize();
+			OperatorSubtaskState operatorSubtaskState = operatorSubtaskStates.get(i);
+			if (operatorSubtaskState != null) {
+				result += operatorSubtaskState.getStateSize();
 			}
 		}
 
@@ -163,12 +148,12 @@ public class TaskState implements CompositeStateHandle {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof TaskState) {
-			TaskState other = (TaskState) obj;
+		if (obj instanceof OperatorState) {
+			OperatorState other = (OperatorState) obj;
 
-			return jobVertexID.equals(other.jobVertexID)
-					&& parallelism == other.parallelism
-					&& subtaskStates.equals(other.subtaskStates);
+			return operatorID.equals(other.operatorID)
+				&& parallelism == other.parallelism
+				&& operatorSubtaskStates.equals(other.operatorSubtaskStates);
 		} else {
 			return false;
 		}
@@ -176,21 +161,22 @@ public class TaskState implements CompositeStateHandle {
 
 	@Override
 	public int hashCode() {
-		return parallelism + 31 * Objects.hash(jobVertexID, subtaskStates);
+		return parallelism + 31 * Objects.hash(operatorID, operatorSubtaskStates);
 	}
 
-	public Map<Integer, SubtaskState> getSubtaskStates() {
-		return Collections.unmodifiableMap(subtaskStates);
+	public Map<Integer, OperatorSubtaskState> getSubtaskStates() {
+		return Collections.unmodifiableMap(operatorSubtaskStates);
 	}
 
 	@Override
 	public String toString() {
 		// KvStates are always null in 1.1. Don't print this as it might
 		// confuse users that don't care about how we store it internally.
-		return "TaskState(" +
-			"jobVertexID: " + jobVertexID +
+		return "OperatorState(" +
+			"operatorID: " + operatorID +
 			", parallelism: " + parallelism +
-			", sub task states: " + subtaskStates.size() +
+			", maxParallelism: " + maxParallelism +
+			", sub task states: " + operatorSubtaskStates.size() +
 			", total size (bytes): " + getStateSize() +
 			')';
 	}

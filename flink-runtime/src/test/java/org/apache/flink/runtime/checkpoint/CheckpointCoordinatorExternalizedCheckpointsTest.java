@@ -34,6 +34,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
@@ -190,7 +191,9 @@ public class CheckpointCoordinatorExternalizedCheckpointsTest {
 				false);
 
 		for (ExecutionVertex vertex : vertices) {
-			assertEquals(checkpoint.getTaskState(vertex.getJobvertexId()), loaded.getTaskState(vertex.getJobvertexId()));
+			for (OperatorID operatorID : vertex.getJobVertex().getOperatorIDs()) {
+				assertEquals(checkpoint.getOperatorStates().get(operatorID), loaded.getOperatorStates().get(operatorID));
+			}
 		}
 	}
 

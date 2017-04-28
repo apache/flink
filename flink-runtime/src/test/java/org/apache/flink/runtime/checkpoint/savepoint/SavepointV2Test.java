@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.runtime.checkpoint.MasterState;
-import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 
 import org.junit.Test;
 
@@ -36,7 +36,7 @@ public class SavepointV2Test {
 	 * Simple test of savepoint methods.
 	 */
 	@Test
-	public void testSavepointV1() throws Exception {
+	public void testSavepointV2() throws Exception {
 		final Random rnd = new Random();
 
 		final long checkpointId = rnd.nextInt(Integer.MAX_VALUE) + 1;
@@ -44,8 +44,8 @@ public class SavepointV2Test {
 		final int numSubtaskStates = 16;
 		final int numMasterStates = 7;
 
-		Collection<TaskState> taskStates =
-				CheckpointTestUtils.createTaskStates(rnd, numTaskStates, numSubtaskStates);
+		Collection<OperatorState> taskStates =
+				CheckpointTestUtils.createOperatorStates(rnd, numTaskStates, numSubtaskStates);
 
 		Collection<MasterState> masterStates =
 				CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
@@ -54,15 +54,15 @@ public class SavepointV2Test {
 
 		assertEquals(2, checkpoint.getVersion());
 		assertEquals(checkpointId, checkpoint.getCheckpointId());
-		assertEquals(taskStates, checkpoint.getTaskStates());
+		assertEquals(taskStates, checkpoint.getOperatorStates());
 		assertEquals(masterStates, checkpoint.getMasterStates());
 
-		assertFalse(checkpoint.getTaskStates().isEmpty());
+		assertFalse(checkpoint.getOperatorStates().isEmpty());
 		assertFalse(checkpoint.getMasterStates().isEmpty());
 
 		checkpoint.dispose();
 
-		assertTrue(checkpoint.getTaskStates().isEmpty());
+		assertTrue(checkpoint.getOperatorStates().isEmpty());
 		assertTrue(checkpoint.getMasterStates().isEmpty());
 	}
 }
