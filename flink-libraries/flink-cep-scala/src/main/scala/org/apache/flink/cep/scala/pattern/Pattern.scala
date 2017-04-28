@@ -46,22 +46,22 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   /**
     * @return The previous pattern
     */
-  def getPrevious(): Option[Pattern[T, _ <: T]] = {
-    wrapPattern(jPattern.getPrevious())
+  def getPrevious: Option[Pattern[T, _ <: T]] = {
+    wrapPattern(jPattern.getPrevious)
   }
 
   /**
     *
     * @return Name of the pattern operator
     */
-  def getName(): String = jPattern.getName()
+  def getName: String = jPattern.getName
 
   /**
     *
     * @return Window length in which the pattern match has to occur
     */
-  def getWindowTime(): Option[Time] = {
-    Option(jPattern.getWindowTime())
+  def getWindowTime: Option[Time] = {
+    Option(jPattern.getWindowTime)
   }
 
   /**
@@ -70,8 +70,8 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     */
   def getQuantifier: Quantifier = jPattern.getQuantifier
 
-  def getCondition(): Option[IterativeCondition[F]] = {
-    Option(jPattern.getCondition())
+  def getCondition: Option[IterativeCondition[F]] = {
+    Option(jPattern.getCondition)
   }
 
   /**
@@ -208,7 +208,22 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @param name Name of the new pattern
     * @return A new pattern which is appended to this one
     */
-  def followedBy(name: String) = FollowedByPattern(jPattern.followedBy(name))
+  def followedBy(name: String): Pattern[T, T] = {
+    Pattern[T, T](jPattern.followedBy(name))
+  }
+
+  /**
+    * Appends a new pattern to the existing one. The new pattern enforces non-strict
+    * temporal contiguity. This means that a matching event of this pattern and the
+    * preceding matching event might be interleaved with other events which are ignored.
+    *
+    * @param name Name of the new pattern
+    * @return A new pattern which is appended to this one
+    */
+  def followedByAny(name: String): Pattern[T, T] = {
+    Pattern[T, T](jPattern.followedByAny(name))
+  }
+
 
   /**
     * Specifies that this pattern is optional for a final match of the pattern
