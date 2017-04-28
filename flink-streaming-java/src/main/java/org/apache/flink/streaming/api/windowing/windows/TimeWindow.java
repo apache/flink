@@ -81,7 +81,17 @@ public class TimeWindow extends Window {
 	public long maxTimestamp() {
 		return end - 1;
 	}
-
+	
+	/**
+     * Updates window max timestamp
+     * @param timestamp
+     */
+  public void update(long timestamp) {
+    if (this.end < timestamp) {
+      this.end = timestamp;
+    }
+  }
+	
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
