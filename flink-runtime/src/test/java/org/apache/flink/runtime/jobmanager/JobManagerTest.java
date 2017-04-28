@@ -18,18 +18,22 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.PoisonPill;
+import akka.actor.*;
 import akka.testkit.JavaTestKit;
+import akka.testkit.TestProbe;
 import com.typesafe.config.Config;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.checkpoint.CheckpointDeclineReason;
+import org.apache.flink.runtime.clusterframework.messages.NotifyResourceStarted;
+import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
+import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
+import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -40,6 +44,7 @@ import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
+import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -64,6 +69,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.StoppingSuccess;
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
+import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateMessage.LookupKvStateLocation;
@@ -73,6 +79,7 @@ import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskManager;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
@@ -89,11 +96,15 @@ import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
 import org.apache.flink.util.TestLogger;
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.ArgumentCaptor;
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
@@ -107,6 +118,7 @@ import java.io.File;
 import java.net.InetAddress;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.apache.flink.runtime.messages.JobManagerMessages.JobResultSuccess;
@@ -121,6 +133,9 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.argThat;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.*;
 
 public class JobManagerTest extends TestLogger {
 
@@ -1259,6 +1274,90 @@ public class JobManagerTest extends TestLogger {
 			if (taskManager != null) {
 				taskManager.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
 			}
+		}
+	}
+
+	/**
+	 * This tests makes sure that triggering a reconnection from the ResourceManager will stop after a new
+	 * ResourceManager has connected. Furthermore it makes sure that there is not endless loop of reconnection
+	 * commands (see FLINK-6341).
+	 */
+	@Test
+	public void testResourceManagerConnection() throws TimeoutException, InterruptedException {
+		FiniteDuration testTimeout = new FiniteDuration(30L, TimeUnit.SECONDS);
+		final long reconnectionInterval = 200L;
+
+		final Configuration configuration = new Configuration();
+		configuration.setLong(JobManagerOptions.RESOURCE_MANAGER_RECONNECT_INTERVAL, reconnectionInterval);
+
+
+		final ActorSystem actorSystem = AkkaUtils.createLocalActorSystem(configuration);
+
+		try {
+			final ActorGateway jmGateway = TestingUtils.createJobManager(
+				actorSystem,
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
+				configuration);
+
+			final TestProbe probe = TestProbe.apply(actorSystem);
+			final AkkaActorGateway rmGateway = new AkkaActorGateway(probe.ref(), HighAvailabilityServices.DEFAULT_LEADER_ID);
+
+			// wait for the JobManager to become the leader
+			Future<?> leaderFuture = jmGateway.ask(TestingJobManagerMessages.getNotifyWhenLeader(), testTimeout);
+			Await.ready(leaderFuture, testTimeout);
+
+			jmGateway.tell(new RegisterResourceManager(probe.ref()), rmGateway);
+
+			JobManagerMessages.LeaderSessionMessage leaderSessionMessage = probe.expectMsgClass(JobManagerMessages.LeaderSessionMessage.class);
+
+			assertEquals(HighAvailabilityServices.DEFAULT_LEADER_ID, leaderSessionMessage.leaderSessionID());
+			assertTrue(leaderSessionMessage.message() instanceof RegisterResourceManagerSuccessful);
+
+			jmGateway.tell(
+				new RegistrationMessages.RegisterTaskManager(
+					ResourceID.generate(),
+					mock(TaskManagerLocation.class),
+					new HardwareDescription(1, 1L, 1L, 1L),
+					1));
+			leaderSessionMessage = probe.expectMsgClass(JobManagerMessages.LeaderSessionMessage.class);
+
+			assertTrue(leaderSessionMessage.message() instanceof NotifyResourceStarted);
+
+			// fail the NotifyResourceStarted so that we trigger the reconnection process on the JobManager's side
+			probe.lastSender().tell(new Status.Failure(new Exception("Test exception")), ActorRef.noSender());
+
+			Deadline reconnectionDeadline = new FiniteDuration(5L * reconnectionInterval, TimeUnit.MILLISECONDS).fromNow();
+			boolean registered = false;
+
+			while (reconnectionDeadline.hasTimeLeft()) {
+				try {
+					leaderSessionMessage = probe.expectMsgClass(reconnectionDeadline.timeLeft(), JobManagerMessages.LeaderSessionMessage.class);
+				} catch (AssertionError ignored) {
+					// expected timeout after the reconnectionDeadline has been exceeded
+					continue;
+				}
+
+				if (leaderSessionMessage.message() instanceof TriggerRegistrationAtJobManager) {
+					if (registered) {
+						fail("A successful registration should not be followed by another TriggerRegistrationAtJobManager message.");
+					}
+
+					jmGateway.tell(new RegisterResourceManager(probe.ref()), rmGateway);
+				} else if (leaderSessionMessage.message() instanceof RegisterResourceManagerSuccessful) {
+					// now we should no longer receive TriggerRegistrationAtJobManager messages
+					registered = true;
+				} else {
+					fail("Received unknown message: " + leaderSessionMessage.message() + '.');
+				}
+			}
+
+			assertTrue(registered);
+
+		} finally {
+			// cleanup the actor system and with it all of the started actors if not already terminated
+			actorSystem.shutdown();
+			actorSystem.awaitTermination();
 		}
 	}
 }
