@@ -139,9 +139,9 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<!-- Concrete logging framework - we only add this here to not tie
-			the projects to one specific framework and make it easier for
-			users to swap logging frameworks -->
+		<!-- Concrete logging framework - we add this only here (and not in the 
+			root POM to not tie the projects to one specific framework and make
+			it easier for users to swap logging frameworks -->
 
 		<dependency>
 			<groupId>org.slf4j</groupId>

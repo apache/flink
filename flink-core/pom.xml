@@ -95,26 +95,6 @@ under the License.
 			<version>${asm.version}</version>
 		</dependency>
 
-		<!--
-			Because there are no logger implementation dependency in the root pom, we
-			add them here so that they are available during execution of code (core 
-			and example) in the IDE
-
-			NOTE: Once we are confident that users will use the newer quickstart templates,
-			we can drop these dependencies and only add them to 'flink-dist' and as test
-			dependencies
-		-->
-
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-log4j12</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-		</dependency>
-
 		<!-- ================== test dependencies ================== -->
 
 		<dependency>
