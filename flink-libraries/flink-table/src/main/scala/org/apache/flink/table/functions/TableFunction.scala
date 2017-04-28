@@ -19,8 +19,9 @@
 package org.apache.flink.table.functions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.expressions.{Expression, TableFunctionCall}
+import org.apache.flink.table.expressions.{Expression, Literal, TableFunctionCall}
 import org.apache.flink.util.Collector
+import scala.collection.JavaConversions._
 
 /**
   * Base class for a user-defined table function (UDTF). A user-defined table functions works on
@@ -86,10 +87,16 @@ abstract class TableFunction[T] extends UserDefinedFunction {
     * @return [[Expression]] in form of a [[TableFunctionCall]]
     */
   final def apply(params: Expression*)(implicit typeInfo: TypeInformation[T]): Expression = {
-    val resultType = if (getResultType == null) {
+    val arguments = params.map {
+      case exp: Literal =>
+        exp.value.asInstanceOf[AnyRef]
+      case _ =>
+        null
+    }
+    val resultType = if (getResultType(arguments) == null) {
       typeInfo
     } else {
-      getResultType
+      getResultType(arguments)
     }
     TableFunctionCall(getClass.getSimpleName, this, params, resultType)
   }
@@ -131,8 +138,10 @@ abstract class TableFunction[T] extends UserDefinedFunction {
     * method. Flink's type extraction facilities can handle basic types or
     * simple POJOs but might be wrong for more complex, custom, or composite types.
     *
+    * @param arguments arguments of a function call (only literal arguments
+    *                  are passed, nulls for non-literal ones)
     * @return [[TypeInformation]] of result type or null if Flink should determine the type
     */
-  def getResultType: TypeInformation[T] = null
+  def getResultType(arguments: java.util.List[AnyRef]): TypeInformation[T] = null
 
 }

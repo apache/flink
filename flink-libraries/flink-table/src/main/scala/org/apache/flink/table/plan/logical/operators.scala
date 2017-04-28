@@ -690,22 +690,27 @@ case class LogicalTableFunctionCall(
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    val fieldIndexes = getFieldInfo(resultType)._2
-    val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames, evalMethod)
+    val function = new FlinkTableFunctionImpl(
+      tableFunction, resultType, fieldIndexes, fieldNames, evalMethod)
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val sqlFunction = TableSqlFunction(
       tableFunction.functionIdentifier,
       tableFunction,
-      resultType,
       typeFactory,
       function)
 
+    val arguments = parameters.map {
+      case exp: Literal =>
+        exp.value.asInstanceOf[AnyRef]
+      case _ =>
+        null
+    }.asJava
     val scan = LogicalTableFunctionScan.create(
       relBuilder.peek().getCluster,
       new util.ArrayList[RelNode](),
       relBuilder.call(sqlFunction, parameters.map(_.toRexNode(relBuilder)).asJava),
       function.getElementType(null),
-      function.getRowType(relBuilder.getTypeFactory, null),
+      function.getRowType(relBuilder.getTypeFactory, arguments),
       null)
 
     relBuilder.push(scan)

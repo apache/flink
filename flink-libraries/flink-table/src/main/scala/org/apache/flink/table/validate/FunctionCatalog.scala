@@ -93,8 +93,18 @@ class FunctionCatalog {
           .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[TableSqlFunction])
           .getOrElse(throw ValidationException(s"Undefined table function: $name"))
           .asInstanceOf[TableSqlFunction]
-        val typeInfo = tableSqlFunction.getRowTypeInfo
         val function = tableSqlFunction.getTableFunction
+        val arguments = children.map {
+          case exp: Literal =>
+            exp.value.asInstanceOf[AnyRef]
+          case _ =>
+            null
+        }
+        val typeInfo = if (null != function.getResultType(arguments)) {
+          function.getResultType(arguments)
+        } else {
+          tableSqlFunction.getRowTypeInfo
+        }
         TableFunctionCall(name, function, children, typeInfo)
 
       // general expression call
