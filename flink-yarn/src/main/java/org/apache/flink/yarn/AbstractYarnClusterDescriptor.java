@@ -515,12 +515,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		final String NOTE = "Please check the 'yarn.scheduler.maximum-allocation-mb' and the 'yarn.nodemanager.resource.memory-mb' configuration values\n";
 		if(jobManagerMemoryMb > maxRes.getMemory() ) {
 			failSessionDuringDeployment(yarnClient, yarnApplication);
+		  yarnClient.stop();
 			throw new YarnDeploymentException("The cluster does not have the requested resources for the JobManager available!\n"
 				+ "Maximum Memory: " + maxRes.getMemory() + "MB Requested: " + jobManagerMemoryMb + "MB. " + NOTE);
 		}
 
 		if(taskManagerMemoryMb > maxRes.getMemory() ) {
 			failSessionDuringDeployment(yarnClient, yarnApplication);
+		  yarnClient.stop();
 			throw new YarnDeploymentException("The cluster does not have the requested resources for the TaskManagers available!\n"
 				+ "Maximum Memory: " + maxRes.getMemory() + " Requested: " + taskManagerMemoryMb + "MB. " + NOTE);
 		}
