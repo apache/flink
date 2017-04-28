@@ -639,6 +639,25 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
+	@Override
+	public void notifyCheckpointTimeout(long checkpointId) throws Exception {
+		synchronized (lock) {
+			if (isRunning) {
+				LOG.debug("Notification of checkpoint timeout for task {}", getName());
+
+				for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
+					if (operator != null) {
+						operator.notifyOfTimedOutCheckpoint(checkpointId);
+					}
+				}
+			}
+			else {
+				LOG.debug("Ignoring notification of checkpoint timeout for not-running task {}", getName());
+			}
+		}
+	}
+
+
 	private void checkpointState(
 			CheckpointMetaData checkpointMetaData,
 			CheckpointOptions checkpointOptions,

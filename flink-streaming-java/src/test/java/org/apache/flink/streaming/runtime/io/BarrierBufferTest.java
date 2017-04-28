@@ -1513,6 +1513,11 @@ public class BarrierBufferTest {
 		public void notifyCheckpointComplete(long checkpointId) throws Exception {
 			throw new UnsupportedOperationException("should never be called");
 		}
+
+		@Override
+		public void notifyCheckpointTimeout(long checkpointId) throws Exception {
+			throw new UnsupportedOperationException("should never be called");
+		}
 	}
 
 	private static class CheckpointMatcher extends BaseMatcher<CheckpointMetaData> {

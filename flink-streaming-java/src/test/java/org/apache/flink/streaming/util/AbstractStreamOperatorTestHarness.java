@@ -545,6 +545,13 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	}
 
 	/**
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#notifyOfTimedOutCheckpoint(long)} ()}
+	 */
+	public void notifyOfTimedOutCheckpoint(long checkpointId) throws Exception {
+		operator.notifyOfTimedOutCheckpoint(checkpointId);
+	}
+
+	/**
 	 * Calls {@link StreamCheckpointedOperator#restoreState(FSDataInputStream)} if
 	 * the operator implements this interface.
 	 */

@@ -412,7 +412,7 @@ public class CheckpointCoordinator {
 
 	@VisibleForTesting
 	CheckpointTriggerResult triggerCheckpoint(
-			long timestamp,
+			final long timestamp,
 			CheckpointProperties props,
 			String targetDirectory,
 			boolean isPeriodic) {
@@ -552,6 +552,13 @@ public class CheckpointCoordinator {
 							checkpoint.abortExpired();
 							pendingCheckpoints.remove(checkpointID);
 							rememberRecentCheckpointId(checkpointID);
+
+							for (ExecutionVertex ev : tasksToCommitTo) {
+								Execution ee = ev.getCurrentExecutionAttempt();
+								if (ee != null) {
+									ee.notifyCheckpointTimeout(checkpointID, timestamp);
+								}
+							}
 
 							triggerQueuedRequests();
 						}

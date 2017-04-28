@@ -39,6 +39,7 @@ import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
+import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointTimeout;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
 import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.FiniteDuration;
@@ -190,6 +191,14 @@ public class ActorTaskManagerGateway implements TaskManagerGateway {
 		Preconditions.checkNotNull(jobId);
 
 		actorGateway.tell(new NotifyCheckpointComplete(jobId, executionAttemptID, checkpointId, timestamp));
+	}
+
+	@Override
+	public void notifyCheckpointTimeout(ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp) {
+		Preconditions.checkNotNull(executionAttemptID);
+		Preconditions.checkNotNull(jobId);
+
+		actorGateway.tell(new NotifyCheckpointTimeout(jobId, executionAttemptID, checkpointId, timestamp));
 	}
 
 	@Override

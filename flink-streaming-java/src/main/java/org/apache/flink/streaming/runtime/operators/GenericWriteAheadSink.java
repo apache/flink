@@ -252,6 +252,9 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 		}
 	}
 
+	@Override
+	public void notifyOfTimedOutCheckpoint(long checkpointId) throws Exception {}
+
 	/**
 	 * Write the given element into the backend.
 	 *

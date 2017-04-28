@@ -124,6 +124,11 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
+	public void notifyCheckpointTimeout(ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp) {
+		throw new UnsupportedOperationException("Operation is not yet supported.");
+	}
+
+	@Override
 	public void triggerCheckpoint(ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
 //		taskExecutorGateway.triggerCheckpoint(executionAttemptID, jobId, checkpointId, timestamp);
 		throw new UnsupportedOperationException("Operation is not yet supported.");

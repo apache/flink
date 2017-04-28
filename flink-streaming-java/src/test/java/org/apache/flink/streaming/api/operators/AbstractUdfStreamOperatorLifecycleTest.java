@@ -84,7 +84,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 
 	private static final String ALL_METHODS_STREAM_OPERATOR = "[close[], dispose[], getChainingStrategy[], " +
 			"getMetricGroup[], initializeState[class org.apache.flink.streaming.runtime.tasks.OperatorStateHandles], " +
-			"notifyOfCompletedCheckpoint[long], open[], setChainingStrategy[class " +
+			"notifyOfCompletedCheckpoint[long], notifyOfTimedOutCheckpoint[long], open[], setChainingStrategy[class " +
 			"org.apache.flink.streaming.api.operators.ChainingStrategy], setKeyContextElement1[class " +
 			"org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +
 			"setKeyContextElement2[class org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +

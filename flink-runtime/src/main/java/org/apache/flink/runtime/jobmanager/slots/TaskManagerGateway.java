@@ -155,6 +155,20 @@ public interface TaskManagerGateway {
 		long timestamp);
 
 	/**
+	 * Notify the given task about a checkpoint timeout.
+	 *
+	 * @param executionAttemptID identifying the task
+	 * @param jobId identifying the job to which the task belongs
+	 * @param checkpointId of the completed checkpoint
+	 * @param timestamp of the completed checkpoint
+	 */
+	void notifyCheckpointTimeout(
+		ExecutionAttemptID executionAttemptID,
+		JobID jobId,
+		long checkpointId,
+		long timestamp);
+
+	/**
 	 * Trigger for the given task a checkpoint.
 	 *
 	 * @param executionAttemptID identifying the task

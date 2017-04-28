@@ -506,6 +506,9 @@ public abstract class AbstractStreamOperator<OUT>
 	@Override
 	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {}
 
+	@Override
+	public void notifyOfTimedOutCheckpoint(long checkpointId) throws Exception {}
+
 	/**
 	 * Returns a checkpoint stream factory for the provided options.
 	 *
