@@ -60,7 +60,7 @@ class InputChannelTestUtils {
 			@Override
 			public ResultSubpartitionView answer(InvocationOnMock invocation) throws Throwable {
 				BufferAvailabilityListener channel = (BufferAvailabilityListener) invocation.getArguments()[2];
-				return sources[num++].createReadView(null, channel);
+				return sources[num++].createReadView(channel);
 			}
 		};
 

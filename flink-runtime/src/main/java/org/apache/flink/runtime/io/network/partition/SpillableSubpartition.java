@@ -25,7 +25,6 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -164,7 +163,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public ResultSubpartitionView createReadView(BufferProvider bufferProvider, BufferAvailabilityListener availabilityListener) throws IOException {
+	public ResultSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
 		synchronized (buffers) {
 			if (!isFinished) {
 				throw new IllegalStateException("Subpartition has not been finished yet, " +
@@ -180,7 +179,7 @@ class SpillableSubpartition extends ResultSubpartition {
 			if (spillWriter != null) {
 				readView = new SpilledSubpartitionView(
 					this,
-					bufferProvider.getMemorySegmentSize(),
+					parent.getBufferProvider().getMemorySegmentSize(),
 					spillWriter,
 					getTotalNumberOfBuffers(),
 					availabilityListener);
@@ -189,7 +188,7 @@ class SpillableSubpartition extends ResultSubpartition {
 					this,
 					buffers,
 					ioManager,
-					bufferProvider.getMemorySegmentSize(),
+					parent.getBufferProvider().getMemorySegmentSize(),
 					availabilityListener);
 			}
 

@@ -359,7 +359,7 @@ public class ResultPartition implements BufferPoolOwner {
 
 		checkElementIndex(index, subpartitions.length, "Subpartition not found.");
 
-		ResultSubpartitionView readView = subpartitions[index].createReadView(bufferPool, availabilityListener);
+		ResultSubpartitionView readView = subpartitions[index].createReadView(availabilityListener);
 
 		LOG.debug("Created {}", readView);
 
