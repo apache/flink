@@ -18,12 +18,16 @@
 
 package org.apache.flink.metrics.datadog;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Abstract metric of Datadog for serialization
  * */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public abstract class DMetric {
 	private static final long MILLIS_TO_SEC = 1000L;
 
@@ -33,11 +37,13 @@ public abstract class DMetric {
 	 * */
 	private final String metric; // Metric name
 	private final MetricType type;
+	private final String host;
 	private final List<String> tags;
 
-	public DMetric(MetricType metricType, String metric, List<String> tags) {
+	public DMetric(MetricType metricType, String metric, String host, List<String> tags) {
 		this.type = metricType;
 		this.metric = metric;
+		this.host = host;
 		this.tags = tags;
 	}
 
@@ -47,6 +53,10 @@ public abstract class DMetric {
 
 	public String getMetric() {
 		return metric;
+	}
+
+	public String getHost() {
+		return host;
 	}
 
 	public List<String> getTags() {
@@ -65,11 +75,8 @@ public abstract class DMetric {
 		return points;
 	}
 
-	/**
-	 * Visibility of this method must not be changed
-	 * since we deliberately not map it to json object in a Datadog-defined format
-	 * */
-	abstract Number getMetricValue();
+	@JsonIgnore
+	public abstract Number getMetricValue();
 
 	public static long getUnixEpochTimestamp() {
 		return (System.currentTimeMillis() / MILLIS_TO_SEC);

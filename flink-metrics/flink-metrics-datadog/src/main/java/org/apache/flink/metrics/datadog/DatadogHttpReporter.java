@@ -44,6 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * */
 public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpReporter.class);
+	private static final String HOST_VARIABLE = "<host>";
 
 	// Both Flink's Gauge and Meter values are taken as gauge in Datadog
 	private final Map<Gauge, DGauge> gauges = new ConcurrentHashMap<>();
@@ -62,17 +63,18 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 		List<String> tags = new ArrayList<>(configTags);
 		tags.addAll(getTagsFromMetricGroup(group));
+		String host = getHostFromMetricGroup(group);
 
 		if (metric instanceof Counter) {
 			Counter c = (Counter) metric;
-			counters.put(c, new DCounter(c, name, tags));
+			counters.put(c, new DCounter(c, name, host, tags));
 		} else if (metric instanceof Gauge) {
 			Gauge g = (Gauge) metric;
-			gauges.put(g, new DGauge(g, name, tags));
+			gauges.put(g, new DGauge(g, name, host, tags));
 		} else if (metric instanceof Meter) {
 			Meter m = (Meter) metric;
 			// Only consider rate
-			meters.put(m, new DMeter(m, name, tags));
+			meters.put(m, new DMeter(m, name, host, tags));
 		} else if (metric instanceof Histogram) {
 			LOGGER.warn("Cannot add {} because Datadog HTTP API doesn't support Histogram", metricName);
 		} else {
@@ -151,16 +153,25 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	}
 
 	/**
-	 * Get tags from MetricGroup#getAllVariables()
+	 * Get tags from MetricGroup#getAllVariables(), excluding 'host'
 	 * */
 	private List<String> getTagsFromMetricGroup(MetricGroup metricGroup) {
 		List<String> tags = new ArrayList<>();
 
 		for (Map.Entry<String, String> entry: metricGroup.getAllVariables().entrySet()) {
-			tags.add(getVariableName(entry.getKey()) + ":" + entry.getValue());
+			if(!entry.getKey().equals(HOST_VARIABLE)) {
+				tags.add(getVariableName(entry.getKey()) + ":" + entry.getValue());
+			}
 		}
 
 		return tags;
+	}
+
+	/**
+	 * Get host from MetricGroup#getAllVariables() if it exists; returns Null otherwise
+	 * */
+	private String getHostFromMetricGroup(MetricGroup metricGroup) {
+		return metricGroup.getAllVariables().get(HOST_VARIABLE);
 	}
 
 	/**

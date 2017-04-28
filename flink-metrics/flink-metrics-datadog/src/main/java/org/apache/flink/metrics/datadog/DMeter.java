@@ -30,13 +30,13 @@ import java.util.List;
 public class DMeter extends DMetric {
 	private final Meter meter;
 
-	public DMeter(Meter m, String metricName, List<String> tags) {
-		super(MetricType.gauge, metricName, tags);
+	public DMeter(Meter m, String metricName, String host, List<String> tags) {
+		super(MetricType.gauge, metricName, host, tags);
 		meter = m;
 	}
 
 	@Override
-	Number getMetricValue() {
+	public Number getMetricValue() {
 		return meter.getRate();
 	}
 }

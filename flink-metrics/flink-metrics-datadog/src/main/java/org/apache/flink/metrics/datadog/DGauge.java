@@ -29,8 +29,8 @@ import java.util.List;
 public class DGauge extends DMetric {
 	private final Gauge<Number> gauge;
 
-	public DGauge(Gauge<Number> g, String metricName, List<String> tags) {
-		super(MetricType.gauge, metricName, tags);
+	public DGauge(Gauge<Number> g, String metricName, String host, List<String> tags) {
+		super(MetricType.gauge, metricName, host, tags);
 		gauge = g;
 	}
 
@@ -39,7 +39,7 @@ public class DGauge extends DMetric {
 	 * since we deliberately not map it to json object in a Datadog-defined format
 	 * */
 	@Override
-	Number getMetricValue() {
+	public Number getMetricValue() {
 		return gauge.getValue();
 	}
 }

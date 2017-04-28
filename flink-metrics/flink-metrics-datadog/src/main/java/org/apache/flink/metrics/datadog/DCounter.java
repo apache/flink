@@ -28,8 +28,8 @@ import java.util.List;
 public class DCounter extends DMetric {
 	private final Counter counter;
 
-	public DCounter(Counter c, String metricName, List<String> tags) {
-		super(MetricType.counter, metricName, tags);
+	public DCounter(Counter c, String metricName, String host, List<String> tags) {
+		super(MetricType.counter, metricName, host, tags);
 		counter = c;
 	}
 
@@ -38,7 +38,7 @@ public class DCounter extends DMetric {
 	 * since we deliberately not map it to json object in a Datadog-defined format
 	 * */
 	@Override
-	Number getMetricValue() {
+	public Number getMetricValue() {
 		return counter.getCount();
 	}
 }
