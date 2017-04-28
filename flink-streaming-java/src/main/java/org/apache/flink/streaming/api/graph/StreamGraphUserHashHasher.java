@@ -38,15 +38,6 @@ public class StreamGraphUserHashHasher implements StreamGraphHasher {
 			String userHash = streamNode.getUserHash();
 
 			if (null != userHash) {
-				for (StreamEdge inEdge : streamNode.getInEdges()) {
-					if (StreamingJobGraphGenerator.isChainable(inEdge, streamGraph)) {
-						throw new UnsupportedOperationException("Cannot assign user-specified hash "
-								+ "to intermediate node in chain. This will be supported in future "
-								+ "versions of Flink. As a work around start new chain at task "
-								+ streamNode.getOperatorName() + ".");
-					}
-				}
-
 				hashResult.put(streamNode.getId(), StringUtils.hexStringToByte(userHash));
 			}
 		}

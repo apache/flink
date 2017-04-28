@@ -45,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
@@ -140,7 +141,9 @@ public class StreamingJobGraphGenerator {
 			legacyHashes.add(hasher.traverseStreamGraphAndGenerateHashes(streamGraph));
 		}
 
-		setChaining(hashes, legacyHashes);
+		Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes = new HashMap<>();
+
+		setChaining(hashes, legacyHashes, chainedOperatorHashes);
 
 		setPhysicalEdges();
 
@@ -190,9 +193,9 @@ public class StreamingJobGraphGenerator {
 	 *
 	 * <p>This will recursively create all {@link JobVertex} instances.
 	 */
-	private void setChaining(Map<Integer, byte[]> hashes, List<Map<Integer, byte[]>> legacyHashes) {
+	private void setChaining(Map<Integer, byte[]> hashes, List<Map<Integer, byte[]>> legacyHashes, Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes) {
 		for (Integer sourceNodeId : streamGraph.getSourceIDs()) {
-			createChain(sourceNodeId, sourceNodeId, hashes, legacyHashes, 0);
+			createChain(sourceNodeId, sourceNodeId, hashes, legacyHashes, 0, chainedOperatorHashes);
 		}
 	}
 
@@ -201,7 +204,8 @@ public class StreamingJobGraphGenerator {
 			Integer currentNodeId,
 			Map<Integer, byte[]> hashes,
 			List<Map<Integer, byte[]>> legacyHashes,
-			int chainIndex) {
+			int chainIndex,
+			Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes) {
 
 		if (!builtVertices.contains(startNodeId)) {
 
@@ -220,20 +224,27 @@ public class StreamingJobGraphGenerator {
 
 			for (StreamEdge chainable : chainableOutputs) {
 				transitiveOutEdges.addAll(
-						createChain(startNodeId, chainable.getTargetId(), hashes, legacyHashes, chainIndex + 1));
+						createChain(startNodeId, chainable.getTargetId(), hashes, legacyHashes, chainIndex + 1, chainedOperatorHashes));
 			}
 
 			for (StreamEdge nonChainable : nonChainableOutputs) {
 				transitiveOutEdges.add(nonChainable);
-				createChain(nonChainable.getTargetId(), nonChainable.getTargetId(), hashes, legacyHashes, 0);
+				createChain(nonChainable.getTargetId(), nonChainable.getTargetId(), hashes, legacyHashes, 0, chainedOperatorHashes);
 			}
+
+			List<Tuple2<byte[], byte[]>> operatorHashes = chainedOperatorHashes.get(startNodeId);
+			if (operatorHashes == null) {
+				operatorHashes = new ArrayList<>();
+				chainedOperatorHashes.put(startNodeId, operatorHashes);
+			}
+			operatorHashes.add(new Tuple2<>(hashes.get(currentNodeId), legacyHashes.get(1).get(currentNodeId)));
 
 			chainedNames.put(currentNodeId, createChainedName(currentNodeId, chainableOutputs));
 			chainedMinResources.put(currentNodeId, createChainedMinResources(currentNodeId, chainableOutputs));
 			chainedPreferredResources.put(currentNodeId, createChainedPreferredResources(currentNodeId, chainableOutputs));
 
 			StreamConfig config = currentNodeId.equals(startNodeId)
-					? createJobVertex(startNodeId, hashes, legacyHashes)
+					? createJobVertex(startNodeId, hashes, legacyHashes, chainedOperatorHashes)
 					: new StreamConfig(new Configuration());
 
 			setVertexConfig(currentNodeId, config, chainableOutputs, nonChainableOutputs);
@@ -308,7 +319,8 @@ public class StreamingJobGraphGenerator {
 	private StreamConfig createJobVertex(
 			Integer streamNodeId,
 			Map<Integer, byte[]> hashes,
-			List<Map<Integer, byte[]>> legacyHashes) {
+			List<Map<Integer, byte[]>> legacyHashes,
+			Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes) {
 
 		JobVertex jobVertex;
 		StreamNode streamNode = streamGraph.getStreamNode(streamNodeId);
@@ -330,18 +342,32 @@ public class StreamingJobGraphGenerator {
 			}
 		}
 
+		List<Tuple2<byte[], byte[]>> chainedOperators = chainedOperatorHashes.get(streamNodeId);
+		List<OperatorID> chainedOperatorVertexIds = new ArrayList<>();
+		List<OperatorID> userDefinedChainedOperatorVertexIds = new ArrayList<>();
+		if (chainedOperators != null) {
+			for (Tuple2<byte[], byte[]> chainedOperator : chainedOperators) {
+				chainedOperatorVertexIds.add(new OperatorID(chainedOperator.f0));
+				userDefinedChainedOperatorVertexIds.add(chainedOperator.f1 != null ? new OperatorID(chainedOperator.f1) : null);
+			}
+		}
+
 		if (streamNode.getInputFormat() != null) {
 			jobVertex = new InputFormatVertex(
 					chainedNames.get(streamNodeId),
 					jobVertexId,
-					legacyJobVertexIds);
+					legacyJobVertexIds,
+					chainedOperatorVertexIds,
+					userDefinedChainedOperatorVertexIds);
 			TaskConfig taskConfig = new TaskConfig(jobVertex.getConfiguration());
 			taskConfig.setStubWrapper(new UserCodeObjectWrapper<Object>(streamNode.getInputFormat()));
 		} else {
 			jobVertex = new JobVertex(
 					chainedNames.get(streamNodeId),
 					jobVertexId,
-					legacyJobVertexIds);
+					legacyJobVertexIds,
+					chainedOperatorVertexIds,
+					userDefinedChainedOperatorVertexIds);
 		}
 
 		jobVertex.setResources(chainedMinResources.get(streamNodeId), chainedPreferredResources.get(streamNodeId));

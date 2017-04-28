@@ -20,10 +20,9 @@ package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.MasterState;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
-import org.apache.flink.runtime.checkpoint.TaskState;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -97,25 +96,25 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			serializeMasterState(ms, dos);
 		}
 
-		// third: task states
-		final Collection<TaskState> taskStates = checkpointMetadata.getTaskStates();
-		dos.writeInt(taskStates.size());
+		// third: operator states
+		Collection<OperatorState> operatorStates = checkpointMetadata.getOperatorStates();
+		dos.writeInt(operatorStates.size());
 
-		for (TaskState taskState : checkpointMetadata.getTaskStates()) {
-			// Vertex ID
-			dos.writeLong(taskState.getJobVertexID().getLowerPart());
-			dos.writeLong(taskState.getJobVertexID().getUpperPart());
+		for (OperatorState operatorState : operatorStates) {
+			// Operator ID
+			dos.writeLong(operatorState.getOperatorID().getLowerPart());
+			dos.writeLong(operatorState.getOperatorID().getUpperPart());
 
 			// Parallelism
-			int parallelism = taskState.getParallelism();
+			int parallelism = operatorState.getParallelism();
 			dos.writeInt(parallelism);
-			dos.writeInt(taskState.getMaxParallelism());
-			dos.writeInt(taskState.getChainLength());
+			dos.writeInt(operatorState.getMaxParallelism());
+			dos.writeInt(1);
 
 			// Sub task states
-			Map<Integer, SubtaskState> subtaskStateMap = taskState.getSubtaskStates();
+			Map<Integer, OperatorSubtaskState> subtaskStateMap = operatorState.getSubtaskStates();
 			dos.writeInt(subtaskStateMap.size());
-			for (Map.Entry<Integer, SubtaskState> entry : subtaskStateMap.entrySet()) {
+			for (Map.Entry<Integer, OperatorSubtaskState> entry : subtaskStateMap.entrySet()) {
 				dos.writeInt(entry.getKey());
 				serializeSubtaskState(entry.getValue(), dos);
 			}
@@ -147,31 +146,32 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			throw new IOException("invalid number of master states: " + numMasterStates);
 		}
 
-		// third: task states
-		final int numTaskStates = dis.readInt();
-		final ArrayList<TaskState> taskStates = new ArrayList<>(numTaskStates);
+		// third: operator states
+		int numTaskStates = dis.readInt();
+		List<OperatorState> operatorStates = new ArrayList<>(numTaskStates);
 
 		for (int i = 0; i < numTaskStates; i++) {
-			JobVertexID jobVertexId = new JobVertexID(dis.readLong(), dis.readLong());
+			OperatorID jobVertexId = new OperatorID(dis.readLong(), dis.readLong());
 			int parallelism = dis.readInt();
 			int maxParallelism = dis.readInt();
 			int chainLength = dis.readInt();
 
 			// Add task state
-			TaskState taskState = new TaskState(jobVertexId, parallelism, maxParallelism, chainLength);
-			taskStates.add(taskState);
+			OperatorState taskState = new OperatorState(jobVertexId, parallelism, maxParallelism);
+			operatorStates.add(taskState);
 
 			// Sub task states
 			int numSubTaskStates = dis.readInt();
 
 			for (int j = 0; j < numSubTaskStates; j++) {
 				int subtaskIndex = dis.readInt();
-				SubtaskState subtaskState = deserializeSubtaskState(dis);
+
+				OperatorSubtaskState subtaskState = deserializeSubtaskState(dis);
 				taskState.putState(subtaskIndex, subtaskState);
 			}
 		}
 
-		return new SavepointV2(checkpointId, taskStates, masterStates);
+		return new SavepointV2(checkpointId, operatorStates, masterStates);
 	}
 
 	// ------------------------------------------------------------------------
@@ -235,35 +235,32 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 	//  task state (de)serialization methods
 	// ------------------------------------------------------------------------
 
-	private static void serializeSubtaskState(SubtaskState subtaskState, DataOutputStream dos) throws IOException {
+	private static void serializeSubtaskState(OperatorSubtaskState subtaskState, DataOutputStream dos) throws IOException {
 
 		dos.writeLong(-1);
 
-		ChainedStateHandle<StreamStateHandle> nonPartitionableState = subtaskState.getLegacyOperatorState();
+		StreamStateHandle nonPartitionableState = subtaskState.getLegacyOperatorState();
 
-		int len = nonPartitionableState != null ? nonPartitionableState.getLength() : 0;
+		int len = nonPartitionableState != null ? 1 : 0;
 		dos.writeInt(len);
-		for (int i = 0; i < len; ++i) {
-			StreamStateHandle stateHandle = nonPartitionableState.get(i);
-			serializeStreamStateHandle(stateHandle, dos);
+		if (len == 1) {
+			serializeStreamStateHandle(nonPartitionableState, dos);
 		}
 
-		ChainedStateHandle<OperatorStateHandle> operatorStateBackend = subtaskState.getManagedOperatorState();
+		OperatorStateHandle operatorStateBackend = subtaskState.getManagedOperatorState();
 
-		len = operatorStateBackend != null ? operatorStateBackend.getLength() : 0;
+		len = operatorStateBackend != null ? 1 : 0;
 		dos.writeInt(len);
-		for (int i = 0; i < len; ++i) {
-			OperatorStateHandle stateHandle = operatorStateBackend.get(i);
-			serializeOperatorStateHandle(stateHandle, dos);
+		if (len == 1) {
+			serializeOperatorStateHandle(operatorStateBackend, dos);
 		}
 
-		ChainedStateHandle<OperatorStateHandle> operatorStateFromStream = subtaskState.getRawOperatorState();
+		OperatorStateHandle operatorStateFromStream = subtaskState.getRawOperatorState();
 
-		len = operatorStateFromStream != null ? operatorStateFromStream.getLength() : 0;
+		len = operatorStateFromStream != null ? 1 : 0;
 		dos.writeInt(len);
-		for (int i = 0; i < len; ++i) {
-			OperatorStateHandle stateHandle = operatorStateFromStream.get(i);
-			serializeOperatorStateHandle(stateHandle, dos);
+		if (len == 1) {
+			serializeOperatorStateHandle(operatorStateFromStream, dos);
 		}
 
 		KeyedStateHandle keyedStateBackend = subtaskState.getManagedKeyedState();
@@ -273,49 +270,28 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 		serializeKeyedStateHandle(keyedStateStream, dos);
 	}
 
-	private static SubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
+	private static OperatorSubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
 		// Duration field has been removed from SubtaskState
 		long ignoredDuration = dis.readLong();
 
 		int len = dis.readInt();
-		List<StreamStateHandle> nonPartitionableState = new ArrayList<>(len);
-		for (int i = 0; i < len; ++i) {
-			StreamStateHandle streamStateHandle = deserializeStreamStateHandle(dis);
-			nonPartitionableState.add(streamStateHandle);
-		}
-
+		StreamStateHandle nonPartitionableState = len == 0 ? null : deserializeStreamStateHandle(dis);
 
 		len = dis.readInt();
-		List<OperatorStateHandle> operatorStateBackend = new ArrayList<>(len);
-		for (int i = 0; i < len; ++i) {
-			OperatorStateHandle streamStateHandle = deserializeOperatorStateHandle(dis);
-			operatorStateBackend.add(streamStateHandle);
-		}
+		OperatorStateHandle operatorStateBackend = len == 0 ? null : deserializeOperatorStateHandle(dis);
 
 		len = dis.readInt();
-		List<OperatorStateHandle> operatorStateStream = new ArrayList<>(len);
-		for (int i = 0; i < len; ++i) {
-			OperatorStateHandle streamStateHandle = deserializeOperatorStateHandle(dis);
-			operatorStateStream.add(streamStateHandle);
-		}
+		OperatorStateHandle operatorStateStream = len == 0 ? null : deserializeOperatorStateHandle(dis);
 
 		KeyedStateHandle keyedStateBackend = deserializeKeyedStateHandle(dis);
 
 		KeyedStateHandle keyedStateStream = deserializeKeyedStateHandle(dis);
 
-		ChainedStateHandle<StreamStateHandle> nonPartitionableStateChain =
-				new ChainedStateHandle<>(nonPartitionableState);
 
-		ChainedStateHandle<OperatorStateHandle> operatorStateBackendChain =
-				new ChainedStateHandle<>(operatorStateBackend);
-
-		ChainedStateHandle<OperatorStateHandle> operatorStateStreamChain =
-				new ChainedStateHandle<>(operatorStateStream);
-
-		return new SubtaskState(
-				nonPartitionableStateChain,
-				operatorStateBackendChain,
-				operatorStateStreamChain,
+		return new OperatorSubtaskState(
+				nonPartitionableState,
+				operatorStateBackend,
+				operatorStateStream,
 				keyedStateBackend,
 				keyedStateStream);
 	}

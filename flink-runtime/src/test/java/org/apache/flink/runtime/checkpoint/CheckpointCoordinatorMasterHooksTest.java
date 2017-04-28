@@ -27,6 +27,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 
@@ -228,7 +229,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 		final CompletedCheckpoint checkpoint = new CompletedCheckpoint(
 				jid, checkpointId, 123L, 125L,
-				Collections.<JobVertexID, TaskState>emptyMap(),
+				Collections.<OperatorID, OperatorState>emptyMap(),
 				masterHookStates,
 				CheckpointProperties.forStandardCheckpoint(),
 				null,
@@ -282,7 +283,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 		final CompletedCheckpoint checkpoint = new CompletedCheckpoint(
 				jid, checkpointId, 123L, 125L,
-				Collections.<JobVertexID, TaskState>emptyMap(),
+				Collections.<OperatorID, OperatorState>emptyMap(),
 				masterHookStates,
 				CheckpointProperties.forStandardCheckpoint(),
 				null,

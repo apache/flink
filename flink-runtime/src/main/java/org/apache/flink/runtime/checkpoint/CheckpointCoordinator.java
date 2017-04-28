@@ -36,6 +36,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
@@ -892,7 +893,7 @@ public class CheckpointCoordinator {
 		if (LOG.isDebugEnabled()) {
 			StringBuilder builder = new StringBuilder();
 			builder.append("Checkpoint state: ");
-			for (TaskState state : completedCheckpoint.getTaskStates().values()) {
+			for (OperatorState state : completedCheckpoint.getOperatorStates().values()) {
 				builder.append(state);
 				builder.append(", ");
 			}
@@ -1017,11 +1018,11 @@ public class CheckpointCoordinator {
 			LOG.info("Restoring from latest valid checkpoint: {}.", latest);
 
 			// re-assign the task states
-
-			final Map<JobVertexID, TaskState> taskStates = latest.getTaskStates();
+			final Map<OperatorID, OperatorState> operatorStates = latest.getOperatorStates();
 
 			StateAssignmentOperation stateAssignmentOperation =
-					new StateAssignmentOperation(LOG, tasks, taskStates, allowNonRestoredState);
+					new StateAssignmentOperation(tasks, operatorStates, allowNonRestoredState);
+
 			stateAssignmentOperation.assignStates();
 
 			// call master hooks for restore

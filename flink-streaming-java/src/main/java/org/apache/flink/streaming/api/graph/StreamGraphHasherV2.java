@@ -169,19 +169,6 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 
 			return true;
 		} else {
-			// Check that this node is not part of a chain. This is currently
-			// not supported, because the runtime takes the snapshots by the
-			// operator ID of the first vertex in a chain. It's OK if the node
-			// has chained outputs.
-			for (StreamEdge inEdge : node.getInEdges()) {
-				if (isChainable(inEdge, isChainingEnabled)) {
-					throw new UnsupportedOperationException("Cannot assign user-specified hash "
-							+ "to intermediate node in chain. This will be supported in future "
-							+ "versions of Flink. As a work around start new chain at task "
-							+ node.getOperatorName() + ".");
-				}
-			}
-
 			Hasher hasher = hashFunction.newHasher();
 			byte[] hash = generateUserSpecifiedHash(node, hasher);
 

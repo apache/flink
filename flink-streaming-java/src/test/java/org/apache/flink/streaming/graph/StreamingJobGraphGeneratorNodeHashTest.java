@@ -47,7 +47,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Tests the {@link StreamNode} hash assignment during translation from {@link StreamGraph} to
@@ -392,10 +391,10 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that a manual hash for an intermediate chain node throws an Exception.
+	 * Tests that a manual hash for an intermediate chain node is accepted.
 	 */
-	@Test(expected = UnsupportedOperationException.class)
-	public void testManualHashAssignmentForIntermediateNodeInChainThrowsException() throws Exception {
+	@Test
+	public void testManualHashAssignmentForIntermediateNodeInChain() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 		env.setParallelism(4);
 
@@ -409,9 +408,6 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
 	/**
 	 * Tests that a manual hash at the beginning of a chain is accepted.
-	 *
-	 * <p>This should work, because the ID is used at the beginning of a chain. This is currently
-	 * not allowed for intermediate nodes (see {@link #testManualHashAssignmentForIntermediateNodeInChainThrowsException()}).
 	 */
 	@Test
 	public void testManualHashAssignmentForStartNodeInInChain() throws Exception {
@@ -446,7 +442,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 	}
 
 	@Test
-	public void testUserProvidedHashingOnChainNotSupported() {
+	public void testUserProvidedHashingOnChainSupported() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
 		env.addSource(new NoOpSourceFunction(), "src").setUidHash("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
@@ -455,11 +451,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 				.keyBy(new NoOpKeySelector())
 				.reduce(new NoOpReduceFunction()).name("reduce").setUidHash("dddddddddddddddddddddddddddddddd");
 
-		try {
-			env.getStreamGraph().getJobGraph();
-			fail();
-		} catch (UnsupportedOperationException ignored) {
-		}
+		env.getStreamGraph().getJobGraph();
 	}
 
 	// ------------------------------------------------------------------------

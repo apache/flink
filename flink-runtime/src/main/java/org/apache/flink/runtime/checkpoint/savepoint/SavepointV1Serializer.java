@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -38,7 +37,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,7 +95,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 			}
 		}
 
-		return new SavepointV2(checkpointId, taskStates, Collections.<MasterState>emptyList());
+		return new SavepointV2(checkpointId, taskStates);
 	}
 
 	public void serializeOld(SavepointV1 savepoint, DataOutputStream dos) throws IOException {
