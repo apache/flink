@@ -22,6 +22,8 @@ import akka.actor.ActorRef;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 import org.apache.flink.util.Preconditions;
 
+import java.util.UUID;
+
 /**
  * This message signals that the ResourceManager should reconnect to the JobManager. It is processed
  * by the JobManager if it fails to register resources with the ResourceManager. The JobManager wants
@@ -33,12 +35,19 @@ public class ReconnectResourceManager implements RequiresLeaderSessionID, java.i
 
 	private final ActorRef resourceManager;
 
-	public ReconnectResourceManager(ActorRef resourceManager) {
+	private final UUID currentConnID;
+
+	public ReconnectResourceManager(ActorRef resourceManager, UUID currentConnID) {
 		this.resourceManager = Preconditions.checkNotNull(resourceManager);
+		this.currentConnID = Preconditions.checkNotNull(currentConnID);
 	}
 	
 	public ActorRef resourceManager() {
 		return resourceManager;
+	}
+
+	public UUID connID() {
+		return currentConnID;
 	}
 
 	@Override
