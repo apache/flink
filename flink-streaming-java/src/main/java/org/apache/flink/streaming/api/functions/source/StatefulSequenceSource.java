@@ -17,6 +17,8 @@
  */
 package org.apache.flink.streaming.api.functions.source;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -25,9 +27,6 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.util.Preconditions;
-
-import java.util.ArrayDeque;
-import java.util.Deque;
 
 /**
  * A stateful streaming source that emits each number from a given interval exactly once,
@@ -42,7 +41,7 @@ import java.util.Deque;
  */
 @PublicEvolving
 public class StatefulSequenceSource extends RichParallelSourceFunction<Long> implements CheckpointedFunction {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	private final long start;

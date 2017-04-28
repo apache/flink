@@ -47,8 +47,8 @@ import org.slf4j.LoggerFactory;
 public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(LocalStreamEnvironment.class);
-	
-	/** The configuration to use for the local cluster */
+
+	/** The configuration to use for the local cluster. */
 	private final Configuration conf;
 
 	/**
@@ -69,14 +69,14 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 					"The LocalStreamEnvironment cannot be used when submitting a program through a client, " +
 							"or running in a TestEnvironment context.");
 		}
-		
+
 		this.conf = config == null ? new Configuration() : config;
 	}
 
 	/**
 	 * Executes the JobGraph of the on a mini cluster of CLusterUtil with a user
 	 * specified name.
-	 * 
+	 *
 	 * @param jobName
 	 *            name of the job
 	 * @return The result of the job execution, containing elapsed time and accumulators.
@@ -94,10 +94,10 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 		configuration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, -1L);
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
-		
+
 		// add (and override) the settings with what the user defined
 		configuration.addAll(this.conf);
-		
+
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running job on local embedded Flink mini cluster");
 		}

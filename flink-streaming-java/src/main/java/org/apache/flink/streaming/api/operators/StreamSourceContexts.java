@@ -17,17 +17,16 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import java.util.concurrent.ScheduledFuture;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
-
-import java.util.concurrent.ScheduledFuture;
 
 /**
  * Source contexts for various stream time characteristics.
@@ -200,7 +199,7 @@ public class StreamSourceContexts {
 			return mark.getTimestamp() == Long.MAX_VALUE && nextWatermarkTime != Long.MAX_VALUE;
 		}
 
-		/** This will only be called if allowWatermark returned {@code true} */
+		/** This will only be called if allowWatermark returned {@code true}. */
 		@Override
 		protected void processAndEmitWatermark(Watermark mark) {
 			nextWatermarkTime = Long.MAX_VALUE;
@@ -279,7 +278,7 @@ public class StreamSourceContexts {
 	 * watermarks, but if records are emitted without timestamps, no timestamps are automatically
 	 * generated and attached. The records will simply have no timestamp in that case.
 	 *
-	 * Streaming topologies can use timestamp assigner functions to override the timestamps
+	 * <p>Streaming topologies can use timestamp assigner functions to override the timestamps
 	 * assigned here.
 	 */
 	private static class ManualWatermarkContext<T> extends WatermarkContext<T> {
@@ -325,18 +324,18 @@ public class StreamSourceContexts {
 	 * An abstract {@link SourceFunction.SourceContext} that should be used as the base for
 	 * stream source contexts that are relevant with {@link Watermark}s.
 	 *
-	 * Stream source contexts that are relevant with watermarks are responsible of manipulating
+	 * <p>Stream source contexts that are relevant with watermarks are responsible of manipulating
 	 * the current {@link StreamStatus}, so that stream status can be correctly propagated
 	 * downstream. Please refer to the class-level documentation of {@link StreamStatus} for
 	 * information on how stream status affects watermark advancement at downstream tasks.
 	 *
-	 * This class implements the logic of idleness detection. It fires idleness detection
+	 * <p>This class implements the logic of idleness detection. It fires idleness detection
 	 * tasks at a given interval; if no records or watermarks were collected by the source context
 	 * between 2 consecutive checks, it determines the source to be IDLE and correspondingly
 	 * toggles the status. ACTIVE status resumes as soon as some record or watermark is collected
 	 * again.
 	 */
-	private static abstract class WatermarkContext<T> implements SourceFunction.SourceContext<T> {
+	private abstract static class WatermarkContext<T> implements SourceFunction.SourceContext<T> {
 
 		protected final ProcessingTimeService timeService;
 		protected final Object checkpointLock;
@@ -349,8 +348,8 @@ public class StreamSourceContexts {
 		 * This flag will be reset to {@code true} every time the next check is scheduled.
 		 * Whenever a record or watermark is collected, the flag will be set to {@code false}.
 		 *
-		 * When the scheduled check is fired, if the flag remains to be {@code true}, the check will fail,
-		 * and our current status will determined to be IDLE.
+		 * <p>When the scheduled check is fired, if the flag remains to be {@code true}, the check
+		 * will fail, and our current status will determined to be IDLE.
 		 */
 		private volatile boolean failOnNextCheck;
 
@@ -491,10 +490,13 @@ public class StreamSourceContexts {
 		/** Process and collect record with timestamp. */
 		protected abstract void processAndCollectWithTimestamp(T element, long timestamp);
 
-		/** Whether or not a watermark should be allowed */
+		/** Whether or not a watermark should be allowed. */
 		protected abstract boolean allowWatermark(Watermark mark);
 
-		/** Process and emit watermark. Only called if {@link WatermarkContext#allowWatermark(Watermark)} returns {@code true} */
+		/**
+		 * Process and emit watermark. Only called if
+		 * {@link WatermarkContext#allowWatermark(Watermark)} returns {@code true}.
+		 */
 		protected abstract void processAndEmitWatermark(Watermark mark);
 
 	}

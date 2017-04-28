@@ -17,10 +17,9 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import org.apache.flink.annotation.PublicEvolving;
-
 import java.io.Serializable;
 import java.util.ArrayList;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * Abstract class for formatting the output of the writeAsText and writeAsCsv
@@ -35,7 +34,7 @@ public abstract class WriteFormat<IN> implements Serializable {
 
 	/**
 	 * Writes the contents of tupleList to the file specified by path.
-	 * 
+	 *
 	 * @param path
 	 *            is the path to the location where the tuples are written
 	 * @param tupleList

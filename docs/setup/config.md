@@ -42,7 +42,11 @@ The configuration files for the TaskManagers can be different, Flink does not as
 
 - `env.java.home`: The path to the Java installation to use (DEFAULT: system's default Java installation, if found). Needs to be specified if the startup scripts fail to automatically resolve the java home directory. Can be specified to point to a specific java installation or version. If this option is not specified, the startup scripts also evaluate the `$JAVA_HOME` environment variable.
 
-- `env.java.opts`: Set custom JVM options. This value is respected by Flink's start scripts, both JobManager and TaskManager, and Flink's YARN client. This can be used to set different garbage collectors or to include remote debuggers into the JVMs running Flink's services. Use `env.java.opts.jobmanager` and `env.java.opts.taskmanager` for JobManager or TaskManager-specific options, respectively.
+- `env.java.opts`: Set custom JVM options. This value is respected by Flink's start scripts, both JobManager and
+TaskManager, and Flink's YARN client. This can be used to set different garbage collectors or to include remote
+debuggers into the JVMs running Flink's services. Enclosing options in double quotes delays parameter substitution
+allowing access to variables from Flink's startup scripts. Use `env.java.opts.jobmanager` and `env.java.opts.taskmanager`
+for JobManager or TaskManager-specific options, respectively.
 
 - `env.java.opts.jobmanager`: JobManager-specific JVM options. These are used in addition to the regular `env.java.opts`.
 
@@ -148,7 +152,7 @@ Below is a list of currently first-class supported connectors or components by F
 
 - Zookeeper (for HA): see [here]({{site.baseurl}}/setup/jobmanager_high_availability.html#configuring-for-zookeeper-security) for details on Zookeeper security configuration to work with the Kerberos-based security configurations mentioned here.
 
-For more information on how Flink security internally setups Kerberos authentication, please see [here]({{site.baseurl}}/ops/security-kerberos.html). 
+For more information on how Flink security internally setups Kerberos authentication, please see [here]({{site.baseurl}}/ops/security-kerberos.html).
 
 ### Other
 
@@ -192,7 +196,7 @@ will be used under the directory specified by jobmanager.web.tmpdir.
 
 - `blob.service.ssl.enabled`: Flag to enable ssl for the blob client/server communication. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: true).
 
-- `restart-strategy`: Default [restart strategy]({{site.baseurl}}/dev/restart_strategies.html) to use in case no 
+- `restart-strategy`: Default [restart strategy]({{site.baseurl}}/dev/restart_strategies.html) to use in case no
 restart strategy has been specified for the job.
 The options are:
     - fixed delay strategy: `fixed-delay`.
@@ -205,7 +209,7 @@ The options are:
 Default value is 1, unless "fixed-delay" was activated by enabling checkpoints, in which case the default is `Integer.MAX_VALUE`.
 
 - `restart-strategy.fixed-delay.delay`: Delay between restart attempts, used if the default restart strategy is set to "fixed-delay".
-Default value is the `akka.ask.timeout`, unless "fixed-delay" was activated by enabling checkpoints, in which case 
+Default value is the `akka.ask.timeout`, unless "fixed-delay" was activated by enabling checkpoints, in which case
 the default is 10s.
 
 - `restart-strategy.failure-rate.max-failures-per-interval`: Maximum number of restarts in given time interval before failing a job in "failure-rate" strategy.
@@ -446,6 +450,8 @@ use the `env.java.opts` setting, which is the `%jvmopts%` variable in the String
 
 - `mesos.initial-tasks`: The initial workers to bring up when the master starts (**DEFAULT**: The number of workers specified at cluster startup).
 
+- `mesos.constraints.hard.hostattribute`: Constraints for task placement on mesos (**DEFAULT**: None).
+
 - `mesos.maximum-failed-tasks`: The maximum number of failed workers before the cluster fails (**DEFAULT**: Number of initial workers).
 May be set to -1 to disable this feature.
 
@@ -479,6 +485,8 @@ May be set to -1 to disable this feature.
 - `mesos.resourcemanager.tasks.container.type`: Type of the containerization used: "mesos" or "docker" (DEFAULT: mesos);
 
 - `mesos.resourcemanager.tasks.container.image.name`: Image name to use for the container (**NO DEFAULT**)
+
+- `mesos.resourcemanager.tasks.container.volumes`: A comma seperated list of [host_path:]container_path[:RO|RW]. This allows for mounting additional volumes into your container. (**NO DEFAULT**)
 
 - `high-availability.zookeeper.path.mesos-workers`: The ZooKeeper root path for persisting the Mesos worker information.
 
@@ -535,6 +543,8 @@ Previously this key was named `recovery.mode` and the default value was `standal
 ### Environment
 
 - `env.log.dir`: (Defaults to the `log` directory under Flink's home) Defines the directory where the Flink logs are saved. It has to be an absolute path.
+
+- `env.log.max`: (Default: `5`) The maximum number of old log files to keep.
 
 - `env.ssh.opts`: Additional command line options passed to SSH clients when starting or stopping JobManager, TaskManager, and Zookeeper services (start-cluster.sh, stop-cluster.sh, start-zookeeper-quorum.sh, stop-zookeeper-quorum.sh).
 

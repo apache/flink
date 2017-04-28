@@ -43,13 +43,13 @@ public class StreamTaskTimerTest {
 	@Test
 	public void testOpenCloseAndTimestamps() throws Exception {
 		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>();
-		
+
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
 				mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
-		
+
 		StreamMap<String, String> mapOperator = new StreamMap<>(new DummyMapFunction<String>());
 		streamConfig.setStreamOperator(mapOperator);
 
@@ -78,7 +78,7 @@ public class StreamTaskTimerTest {
 		assertEquals("Trigger timer thread did not properly shut down",
 				0, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
 	}
-	
+
 	@Test
 	public void checkScheduledTimestampe() {
 		try {
@@ -141,11 +141,11 @@ public class StreamTaskTimerTest {
 	}
 
 	private static class ValidatingProcessingTimeCallback implements ProcessingTimeCallback {
-		
+
 		static int numInSequence;
-		
+
 		private final AtomicReference<Throwable> errorRef;
-		
+
 		private final long expectedTimestamp;
 		private final int expectedInSequence;
 
@@ -167,9 +167,9 @@ public class StreamTaskTimerTest {
 			}
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	public static class DummyMapFunction<T> implements MapFunction<T, T> {
 		@Override
 		public T map(T value) {

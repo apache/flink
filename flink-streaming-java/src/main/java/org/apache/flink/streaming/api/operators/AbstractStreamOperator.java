@@ -18,6 +18,14 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.ConcurrentModificationException;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.flink.annotation.PublicEvolving;
@@ -28,8 +36,8 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -69,19 +77,10 @@ import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.ConcurrentModificationException;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
-
 /**
- * Base class for all stream operators. Operators that contain a user function should extend the class 
- * {@link AbstractUdfStreamOperator} instead (which is a specialized subclass of this class). 
- * 
+ * Base class for all stream operators. Operators that contain a user function should extend the class
+ * {@link AbstractUdfStreamOperator} instead (which is a specialized subclass of this class).
+ *
  * <p>For concrete implementations, one of the following two interfaces must also be implemented, to
  * mark the operator as unary or binary:
  * {@link OneInputStreamOperator} or {@link TwoInputStreamOperator}.
@@ -97,8 +96,8 @@ public abstract class AbstractStreamOperator<OUT>
 		implements StreamOperator<OUT>, Serializable, KeyContext {
 
 	private static final long serialVersionUID = 1L;
-	
-	/** The logger used by the operator class and its subclasses */
+
+	/** The logger used by the operator class and its subclasses. */
 	protected static final Logger LOG = LoggerFactory.getLogger(AbstractStreamOperator.class);
 
 	// ----------- configuration properties -------------
@@ -108,41 +107,53 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// ---------------- runtime fields ------------------
 
-	/** The task that contains this operator (and other operators in the same chain) */
+	/** The task that contains this operator (and other operators in the same chain). */
 	private transient StreamTask<?, ?> container;
-	
+
 	protected transient StreamConfig config;
 
 	protected transient Output<StreamRecord<OUT>> output;
 
-	/** The runtime context for UDFs */
+	/** The runtime context for UDFs. */
 	private transient StreamingRuntimeContext runtimeContext;
 
 	// ----------------- general state -------------------
 
-	/** The factory that give this operator access to checkpoint storage */
+	/** The factory that give this operator access to checkpoint storage. */
 	private transient CheckpointStreamFactory checkpointStreamFactory;
 
 	// ---------------- key/value state ------------------
 
-	/** key selector used to get the key for the state. Non-null only is the operator uses key/value state */
+	/**
+	 * {@code KeySelector} for extracting a key from an element being processed. This is used to
+	 * scope keyed state to a key. This is null if the operator is not a keyed operator.
+	 *
+	 * <p>This is for elements from the first input.
+	 */
 	private transient KeySelector<?, ?> stateKeySelector1;
+
+	/**
+	 * {@code KeySelector} for extracting a key from an element being processed. This is used to
+	 * scope keyed state to a key. This is null if the operator is not a keyed operator.
+	 *
+	 * <p>This is for elements from the second input.
+	 */
 	private transient KeySelector<?, ?> stateKeySelector2;
 
 	/** Backend for keyed state. This might be empty if we're not on a keyed stream. */
 	private transient AbstractKeyedStateBackend<?> keyedStateBackend;
 
-	/** Keyed state store view on the keyed backend */
+	/** Keyed state store view on the keyed backend. */
 	private transient DefaultKeyedStateStore keyedStateStore;
 
 	// ---------------- operator state ------------------
 
-	/** Operator state backend / store */
+	/** Operator state backend / store. */
 	private transient OperatorStateBackend operatorStateBackend;
 
 	// --------------- Metrics ---------------------------
 
-	/** Metric group for the operator */
+	/** Metric group for the operator. */
 	protected transient MetricGroup metrics;
 
 	protected transient LatencyGauge latencyGauge;
@@ -167,7 +178,7 @@ public abstract class AbstractStreamOperator<OUT>
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		this.container = containingTask;
 		this.config = config;
-		
+
 		this.metrics = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorName());
 		this.output = new CountingOutput(output, ((OperatorMetricGroup) this.metrics).getIOMetricGroup().getNumRecordsOutCounter());
 		if (config.isChainStart()) {
@@ -177,10 +188,10 @@ public abstract class AbstractStreamOperator<OUT>
 			((OperatorMetricGroup) this.metrics).getIOMetricGroup().reuseOutputMetricsForTask();
 		}
 		Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
-		int historySize = taskManagerConfig.getInteger(ConfigConstants.METRICS_LATENCY_HISTORY_SIZE, ConfigConstants.DEFAULT_METRICS_LATENCY_HISTORY_SIZE);
+		int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
 		if (historySize <= 0) {
-			LOG.warn("{} has been set to a value equal or below 0: {}. Using default.", ConfigConstants.METRICS_LATENCY_HISTORY_SIZE, historySize);
-			historySize = ConfigConstants.DEFAULT_METRICS_LATENCY_HISTORY_SIZE;
+			LOG.warn("{} has been set to a value equal or below 0: {}. Using default.", MetricOptions.LATENCY_HISTORY_SIZE, historySize);
+			historySize = MetricOptions.LATENCY_HISTORY_SIZE.defaultValue();
 		}
 
 		latencyGauge = this.metrics.gauge("latency", new LatencyGauge(historySize));
@@ -189,7 +200,7 @@ public abstract class AbstractStreamOperator<OUT>
 		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
 		stateKeySelector2 = config.getStatePartitioner(1, getUserCodeClassloader());
 	}
-	
+
 	@Override
 	public MetricGroup getMetricGroup() {
 		return metrics;
@@ -282,7 +293,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 * operator's initialization logic, e.g. state initialization.
 	 *
 	 * <p>The default implementation does nothing.
-	 * 
+	 *
 	 * @throws Exception An exception in this method causes the operator to fail.
 	 */
 	@Override
@@ -326,7 +337,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 * {@link OneInputStreamOperator#processElement(StreamRecord)}, or
 	 * {@link TwoInputStreamOperator#processElement1(StreamRecord)} and
 	 * {@link TwoInputStreamOperator#processElement2(StreamRecord)}.
-
+	 *
 	 * <p>The method is expected to flush all remaining buffered data. Exceptions during this flushing
 	 * of buffered should be propagated, in order to cause the operation to be recognized asa failed,
 	 * because the last data items are not processed properly.
@@ -335,12 +346,12 @@ public abstract class AbstractStreamOperator<OUT>
 	 */
 	@Override
 	public void close() throws Exception {}
-	
+
 	/**
 	 * This method is called at the very end of the operator's life, both in the case of a successful
 	 * completion of the operation, and in the case of a failure and canceling.
 	 *
-	 * This method is expected to make a thorough effort to release all resources
+	 * <p>This method is expected to make a thorough effort to release all resources
 	 * that the operator has acquired.
 	 */
 	@Override
@@ -527,21 +538,21 @@ public abstract class AbstractStreamOperator<OUT>
 	/**
 	 * Gets the execution config defined on the execution environment of the job to which this
 	 * operator belongs.
-	 * 
+	 *
 	 * @return The job's execution config.
 	 */
 	public ExecutionConfig getExecutionConfig() {
 		return container.getExecutionConfig();
 	}
-	
+
 	public StreamConfig getOperatorConfig() {
 		return config;
 	}
-	
+
 	public StreamTask<?, ?> getContainingTask() {
 		return container;
 	}
-	
+
 	public ClassLoader getUserCodeClassloader() {
 		return container.getUserCodeClassLoader();
 	}
@@ -560,7 +571,7 @@ public abstract class AbstractStreamOperator<OUT>
 			return getClass().getSimpleName();
 		}
 	}
-	
+
 	/**
 	 * Returns a context that allows the operator to query information about the execution and also
 	 * to interact with systems such as broadcast variables and managed state. This also allows
@@ -589,7 +600,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	/**
 	 * Creates a partitioned state handle, using the state backend configured for this task.
-	 * 
+	 *
 	 * @throws IllegalStateException Thrown, if the key/value state was already initialized.
 	 * @throws Exception Thrown, if the state backend cannot create the key/value state.
 	 */
@@ -614,10 +625,6 @@ public abstract class AbstractStreamOperator<OUT>
 
 	/**
 	 * Creates a partitioned state handle, using the state backend configured for this task.
-	 * 
-	 * TODO: NOTE: This method does a lot of work caching / retrieving states just to update the namespace.
-	 *       This method should be removed for the sake of namespaces being lazily fetched from the keyed
-	 *       state backend, or being set on the state directly.
 	 *
 	 * @throws IllegalStateException Thrown, if the key/value state was already initialized.
 	 * @throws Exception Thrown, if the state backend cannot create the key/value state.
@@ -626,6 +633,13 @@ public abstract class AbstractStreamOperator<OUT>
 			N namespace,
 			TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, ?> stateDescriptor) throws Exception {
+
+
+		/*
+	    TODO: NOTE: This method does a lot of work caching / retrieving states just to update the namespace.
+	    This method should be removed for the sake of namespaces being lazily fetched from the keyed
+	    state backend, or being set on the state directly.
+	    */
 
 		if (keyedStateStore != null) {
 			return keyedStateBackend.getPartitionedState(namespace, namespaceSerializer, stateDescriptor);
@@ -686,12 +700,12 @@ public abstract class AbstractStreamOperator<OUT>
 	// ------------------------------------------------------------------------
 	//  Context and chaining properties
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public final void setChainingStrategy(ChainingStrategy strategy) {
 		this.chainingStrategy = strategy;
 	}
-	
+
 	@Override
 	public final ChainingStrategy getChainingStrategy() {
 		return chainingStrategy;
@@ -772,7 +786,7 @@ public abstract class AbstractStreamOperator<OUT>
 					// ConcurrentModificationExceptions. To avoid unnecessary blocking
 					// of the reportLatency() method, we retry this operation until
 					// it succeeds.
-				} catch(ConcurrentModificationException ignore) {
+				} catch (ConcurrentModificationException ignore) {
 					LOG.debug("Unable to report latency statistics", ignore);
 				}
 			}
@@ -780,23 +794,25 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	/**
-	 * Identifier for a latency source
+	 * Identifier for a latency source.
 	 */
 	private static class LatencySourceDescriptor {
 		/**
-		 * A unique ID identifying a logical source in Flink
+		 * A unique ID identifying a logical source in Flink.
 		 */
 		private final int vertexID;
 
 		/**
-		 * Identifier for parallel subtasks of a logical source
+		 * Identifier for parallel subtasks of a logical source.
 		 */
 		private final int subtaskIndex;
 
 		/**
+		 * Creates a {@code LatencySourceDescriptor} from a given {@code LatencyMarker}.
 		 *
 		 * @param marker The latency marker to extract the LatencySourceDescriptor from.
-		 * @param ignoreSubtaskIndex Set to true to ignore the subtask index, to treat the latencies from all the parallel instances of a source as the same.
+		 * @param ignoreSubtaskIndex Set to true to ignore the subtask index, to treat the latencies
+		 *      from all the parallel instances of a source as the same.
 		 * @return A LatencySourceDescriptor for the given marker.
 		 */
 		public static LatencySourceDescriptor of(LatencyMarker marker, boolean ignoreSubtaskIndex) {
@@ -846,6 +862,9 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 	}
 
+	/**
+	 * Wrapping {@link Output} that updates metrics on the number of emitted elements.
+	 */
 	public class CountingOutput implements Output<StreamRecord<OUT>> {
 		private final Output<StreamRecord<OUT>> output;
 		private final Counter numRecordsOut;
@@ -891,8 +910,8 @@ public abstract class AbstractStreamOperator<OUT>
 	 * Returns an {@link InternalWatermarkCallbackService} which  allows to register a
 	 * {@link OnWatermarkCallback} and multiple keys, for which
 	 * the callback will be invoked every time a new {@link Watermark} is received.
-	 * <p>
-	 * <b>NOTE: </b> This service is only available to <b>keyed</b> operators.
+	 *
+	 * <p><b>NOTE: </b> This service is only available to <b>keyed</b> operators.
 	 */
 	public <K> InternalWatermarkCallbackService<K> getInternalWatermarkCallbackService() {
 		checkTimerServiceInitialization();

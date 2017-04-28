@@ -44,38 +44,41 @@ class QueryDecorrelationTest extends TableTestBase {
       "DataSetCalc",
       binaryNode(
         "DataSetJoin",
-        binaryNode(
-          "DataSetJoin",
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(0),
-            term("select", "empno", "ename", "job", "salary", "deptno"),
-            term("where", "<(deptno, 10)")
+        unaryNode(
+          "DataSetCalc",
+          binaryNode(
+            "DataSetJoin",
+            unaryNode(
+              "DataSetCalc",
+              batchTableNode(0),
+              term("select", "empno", "salary", "deptno"),
+              term("where", "<(deptno, 10)")
+            ),
+            unaryNode(
+              "DataSetCalc",
+              batchTableNode(1),
+              term("select", "deptno"),
+              term("where", "<(deptno, 15)")
+            ),
+            term("where", "=(deptno, deptno0)"),
+            term("join", "empno", "salary", "deptno", "deptno0"),
+            term("joinType", "InnerJoin")
           ),
-          unaryNode(
-            "DataSetCalc",
-            batchTableNode(1),
-            term("select", "deptno", "name"),
-            term("where", "<(deptno, 15)")
-          ),
-          term("where", "=(deptno, deptno0)"),
-          term("join", "empno", "ename", "job", "salary", "deptno", "deptno0", "name"),
-          term("joinType", "InnerJoin")
+          term("select", "empno", "salary")
         ),
         unaryNode(
           "DataSetAggregate",
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
-            term("select", "salary", "empno"),
+            term("select", "empno", "salary"),
             term("where", "IS NOT NULL(empno)")
           ),
           term("groupBy", "empno"),
           term("select", "empno", "AVG(salary) AS EXPR$0")
         ),
         term("where", "AND(=(empno, empno0), >(salary, EXPR$0))"),
-        term("join", "empno", "ename", "job", "salary", "deptno",
-          "deptno0", "name", "empno0", "EXPR$0"),
+        term("join", "empno", "salary", "empno0", "EXPR$0"),
         term("joinType", "InnerJoin")
       ),
       term("select", "empno")
@@ -105,13 +108,25 @@ class QueryDecorrelationTest extends TableTestBase {
           "DataSetCalc",
           binaryNode(
             "DataSetJoin",
-            binaryNode(
-              "DataSetJoin",
-              batchTableNode(0),
-              batchTableNode(1),
-              term("where", "=(deptno, deptno0)"),
-              term("join", "empno", "ename", "job", "salary", "deptno", "deptno0", "name"),
-              term("joinType", "InnerJoin")
+            unaryNode(
+              "DataSetCalc",
+              binaryNode(
+                "DataSetJoin",
+                unaryNode(
+                  "DataSetCalc",
+                  batchTableNode(0),
+                  term("select", "empno", "salary", "deptno")
+                ),
+                unaryNode(
+                  "DataSetCalc",
+                  batchTableNode(1),
+                  term("select", "deptno")
+                ),
+                term("where", "=(deptno, deptno0)"),
+                term("join", "empno", "salary", "deptno", "deptno0"),
+                term("joinType", "InnerJoin")
+              ),
+              term("select", "empno", "salary", "deptno0")
             ),
             unaryNode(
               "DataSetAggregate",
@@ -124,9 +139,8 @@ class QueryDecorrelationTest extends TableTestBase {
               term("groupBy", "deptno"),
               term("select", "deptno", "AVG(salary) AS EXPR$0")
             ),
-            term("where", "AND(=(deptno0, deptno1), >(salary, EXPR$0))"),
-            term("join", "empno", "ename", "job", "salary", "deptno", "deptno0",
-              "name", "deptno1", "EXPR$0"),
+            term("where", "AND(=(deptno0, deptno), >(salary, EXPR$0))"),
+            term("join", "empno", "salary", "deptno0", "deptno", "EXPR$0"),
             term("joinType", "InnerJoin")
           ),
           term("select", "empno")

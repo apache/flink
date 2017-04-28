@@ -17,7 +17,7 @@
  */
 package org.apache.flink.cep.scala
 
-import org.apache.flink.cep.pattern.{FollowedByPattern => JFollowedByPattern, Pattern => JPattern}
+import org.apache.flink.cep.pattern.{Pattern => JPattern}
 
 package object pattern {
   /**
@@ -31,7 +31,6 @@ package object pattern {
     */
   private[flink] def wrapPattern[T, F <: T](javaPattern: JPattern[T, F])
   : Option[Pattern[T, F]] = javaPattern match {
-    case f: JFollowedByPattern[T, F] => Some(FollowedByPattern[T, F](f))
     case p: JPattern[T, F] => Some(Pattern[T, F](p))
     case _ => None
   }

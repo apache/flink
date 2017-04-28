@@ -18,6 +18,9 @@
 
 package org.apache.flink.migration.streaming.runtime.streamrecord;
 
+import static java.util.Objects.requireNonNull;
+
+import java.io.IOException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -25,10 +28,10 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import java.io.IOException;
-
-import static java.util.Objects.requireNonNull;
-
+/**
+ * Legacy multiplexing {@link TypeSerializer} for stream records, watermarks and other stream
+ * elements.
+ */
 public class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<StreamElement> {
 
 

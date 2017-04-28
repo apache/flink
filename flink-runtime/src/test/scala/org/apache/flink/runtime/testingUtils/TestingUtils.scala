@@ -23,16 +23,18 @@ import java.util.{Collections, UUID}
 import java.util.concurrent._
 
 import akka.actor.{ActorRef, ActorSystem, Kill, Props}
-import akka.pattern.ask
+import akka.pattern.{Patterns, ask}
 import com.google.common.util.concurrent.MoreExecutors
 import com.typesafe.config.ConfigFactory
 import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobExecutionResult
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.{ConfigConstants, Configuration, HighAvailabilityOptions, TaskManagerOptions}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.JobClient
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.concurrent.{ScheduledExecutor, ScheduledExecutorServiceAdapter}
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
 import org.apache.flink.runtime.jobgraph.JobGraph
@@ -60,6 +62,8 @@ object TestingUtils {
   
   val TESTING_DURATION = 2 minute
 
+  val TESTING_TIMEOUT = 1 minute
+
   val DEFAULT_AKKA_ASK_TIMEOUT = "200 s"
 
   def getDefaultTestingActorSystemConfigString: String = {
@@ -76,6 +80,10 @@ object TestingUtils {
   }
 
   def getDefaultTestingActorSystemConfig = testConfig
+
+  def infiniteTime: Time = {
+    Time.milliseconds(Integer.MAX_VALUE);
+  }
   
 
   def startTestingCluster(numSlots: Int, numTMs: Int = 1,
@@ -105,11 +113,17 @@ object TestingUtils {
   def defaultExecutor: ScheduledExecutorService = {
     synchronized {
       if (sharedExecutorInstance == null || sharedExecutorInstance.isShutdown) {
-        sharedExecutorInstance = Executors.newSingleThreadScheduledExecutor()
+        sharedExecutorInstance = Executors.newSingleThreadScheduledExecutor();
       }
 
       sharedExecutorInstance
     }
+  }
+
+  def defaultScheduledExecutor: ScheduledExecutor = {
+    val scheduledExecutorService = defaultExecutor
+
+    new ScheduledExecutorServiceAdapter(scheduledExecutorService)
   }
 
   /** Returns an [[ExecutionContext]] which uses the current thread to execute the runnable.
@@ -340,7 +354,7 @@ object TestingUtils {
     }
   }
 
-  /** Stops the given actro by sending it a Kill message
+  /** Stops the given actor by sending it a Kill message
     *
     * @param actorGateway
     */
@@ -348,6 +362,56 @@ object TestingUtils {
     if (actorGateway != null) {
       stopActor(actorGateway.actor())
     }
+  }
+
+  def stopActorGracefully(actor: ActorRef): Unit = {
+    val gracefulStopFuture = Patterns.gracefulStop(actor, TestingUtils.TESTING_TIMEOUT)
+
+    Await.result(gracefulStopFuture, TestingUtils.TESTING_TIMEOUT)
+  }
+
+  def stopActorGracefully(actorGateway: ActorGateway): Unit = {
+    stopActorGracefully(actorGateway.actor())
+  }
+
+  def stopActorsGracefully(actors: ActorRef*): Unit = {
+    val gracefulStopFutures = actors.flatMap{
+      actor =>
+        Option(actor) match {
+          case Some(actorRef) => Some(Patterns.gracefulStop(actorRef, TestingUtils.TESTING_TIMEOUT))
+          case None => None
+        }
+    }
+
+    implicit val executionContext = defaultExecutionContext
+
+    val globalStopFuture = scala.concurrent.Future.sequence(gracefulStopFutures)
+
+    Await.result(globalStopFuture, TestingUtils.TESTING_TIMEOUT)
+  }
+
+  def stopActorsGracefully(actors: java.util.List[ActorRef]): Unit = {
+    import scala.collection.JavaConverters._
+
+    stopActorsGracefully(actors.asScala: _*)
+  }
+
+  def stopActorGatewaysGracefully(actorGateways: ActorGateway*): Unit = {
+    val actors = actorGateways.flatMap {
+      actorGateway =>
+        Option(actorGateway) match {
+          case Some(actorGateway) => Some(actorGateway.actor())
+          case None => None
+        }
+    }
+
+    stopActorsGracefully(actors: _*)
+  }
+
+  def stopActorGatewaysGracefully(actorGateways: java.util.List[ActorGateway]): Unit = {
+    import scala.collection.JavaConverters._
+
+    stopActorGatewaysGracefully(actorGateways.asScala: _*)
   }
 
   /** Creates a testing JobManager using the default recovery mode (standalone)

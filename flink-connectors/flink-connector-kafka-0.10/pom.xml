@@ -56,6 +56,15 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- streaming-java dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- Add Kafka 0.10.x as a dependency -->
 
 		<dependency>
@@ -151,7 +160,6 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-
 
 	</dependencies>
 

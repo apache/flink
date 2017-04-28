@@ -30,7 +30,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
  * from user elements and assigning them as the internal timestamp of the {@link StreamRecord}.
  *
  * @param <T> The type of the input elements
- * 
+ *
  * @deprecated Subsumed by {@link TimestampsAndPeriodicWatermarksOperator} and
  *             {@link TimestampsAndPunctuatedWatermarksOperator}.
  */

@@ -105,7 +105,7 @@ public abstract class ProcessFunction<I, O> extends AbstractRichFunction {
 
 		/**
 		 * Emits a record to the side output identified by the {@link OutputTag}.
-		 * 
+		 *
 		 * @param outputTag the {@code OutputTag} that identifies the side output to emit to.
 		 * @param value The record to emit.
 		 */

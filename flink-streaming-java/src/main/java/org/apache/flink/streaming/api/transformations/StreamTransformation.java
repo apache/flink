@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,9 @@
 package org.apache.flink.streaming.api.transformations;
 
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+import java.util.Collection;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -28,59 +31,50 @@ import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collection;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A {@code StreamTransformation} represents the operation that creates a
  * {@link org.apache.flink.streaming.api.datastream.DataStream}. Every
  * {@link org.apache.flink.streaming.api.datastream.DataStream} has an underlying
  * {@code StreamTransformation} that is the origin of said DataStream.
  *
- * <p>
- * API operations such as {@link org.apache.flink.streaming.api.datastream.DataStream#map} create
- * a tree of {@code StreamTransformation}s underneath. When the stream program is to be executed this
- * graph is translated to a {@link StreamGraph} using
+ * <p>API operations such as {@link org.apache.flink.streaming.api.datastream.DataStream#map} create
+ * a tree of {@code StreamTransformation}s underneath. When the stream program is to be executed
+ * this graph is translated to a {@link StreamGraph} using
  * {@link org.apache.flink.streaming.api.graph.StreamGraphGenerator}.
  *
- * <p>
- * A {@code StreamTransformation} does not necessarily correspond to a physical operation
+ * <p>A {@code StreamTransformation} does not necessarily correspond to a physical operation
  * at runtime. Some operations are only logical concepts. Examples of this are union,
  * split/select data stream, partitioning.
  *
- * <p>
- * The following graph of {@code StreamTransformations}:
- *
+ * <p>The following graph of {@code StreamTransformations}:
  * <pre>{@code
- *   Source              Source        
- *      +                   +           
- *      |                   |           
- *      v                   v           
- *  Rebalance          HashPartition    
- *      +                   +           
- *      |                   |           
- *      |                   |           
- *      +------>Union<------+           
- *                +                     
- *                |                     
- *                v                     
- *              Split                   
- *                +                     
- *                |                     
- *                v                     
- *              Select                  
- *                +                     
- *                v                     
- *               Map                    
- *                +                     
- *                |                     
- *                v                     
- *              Sink 
+ *   Source              Source
+ *      +                   +
+ *      |                   |
+ *      v                   v
+ *  Rebalance          HashPartition
+ *      +                   +
+ *      |                   |
+ *      |                   |
+ *      +------>Union<------+
+ *                +
+ *                |
+ *                v
+ *              Split
+ *                +
+ *                |
+ *                v
+ *              Select
+ *                +
+ *                v
+ *               Map
+ *                +
+ *                |
+ *                v
+ *              Sink
  * }</pre>
  *
- * Would result in this graph of operations at runtime:
- *
+ * <p>Would result in this graph of operations at runtime:
  * <pre>{@code
  *  Source              Source
  *    +                   +
@@ -93,7 +87,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *             Sink
  * }</pre>
  *
- * The information about partitioning, union, split/select end up being encoded in the edges
+ * <p>The information about partitioning, union, split/select end up being encoded in the edges
  * that connect the sources to the map operation.
  *
  * @param <T> The type of the elements that result from this {@code StreamTransformation}
@@ -191,15 +185,16 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Returns the parallelism of this {@code StreamTransformation}
+	 * Returns the parallelism of this {@code StreamTransformation}.
 	 */
 	public int getParallelism() {
 		return parallelism;
 	}
 
 	/**
-	 * Sets the parallelism of this {@code StreamTransformation}
-	 * @param parallelism The new parallelism to set on this {@code StreamTransformation}
+	 * Sets the parallelism of this {@code StreamTransformation}.
+	 *
+	 * @param parallelism The new parallelism to set on this {@code StreamTransformation}.
 	 */
 	public void setParallelism(int parallelism) {
 		Preconditions.checkArgument(parallelism > 0, "Parallelism must be bigger than zero.");
@@ -258,20 +253,22 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Sets an user provided hash for this operator. This will be used AS IS the create the JobVertexID.
-	 * <p/>
-	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when identifying an
-	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions).
-	 * <p/>
-	 * <p><strong>Important</strong>: this should be used as a workaround or for trouble shooting. The provided hash
-	 * needs to be unique per transformation and job. Otherwise, job submission will fail. Furthermore, you cannot
-	 * assign user-specified hash to intermediate nodes in an operator chain and trying so will let your job fail.
+	 * Sets an user provided hash for this operator. This will be used AS IS the create the
+	 * JobVertexID.
 	 *
-	 * <p>
-	 * A use case for this is in migration between Flink versions or changing the jobs in a way that changes the
-	 * automatically generated hashes. In this case, providing the previous hashes directly through this method (e.g.
-	 * obtained from old logs) can help to reestablish a lost mapping from states to their target operator.
-	 * <p/>
+	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when
+	 * identifying an operator through the default hash mechanics fails (e.g. because of changes
+	 * between Flink versions).
+	 *
+	 * <p><strong>Important</strong>: this should be used as a workaround or for trouble shooting.
+	 * The provided hash needs to be unique per transformation and job. Otherwise, job submission
+	 * will fail. Furthermore, you cannot assign user-specified hash to intermediate nodes in an
+	 * operator chain and trying so will let your job fail.
+	 *
+	 * <p>A use case for this is in migration between Flink versions or changing the jobs in a way
+	 * that changes the automatically generated hashes. In this case, providing the previous hashes
+	 * directly through this method (e.g. obtained from old logs) can help to reestablish a lost
+	 * mapping from states to their target operator.
 	 *
 	 * @param uidHash The user provided hash for this operator. This will become the JobVertexID, which is shown in the
 	 *                 logs and web ui.

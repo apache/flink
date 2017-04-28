@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
+import java.util.Iterator;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -29,12 +30,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * which slots are available and allocated, and what jobs (JobManagers) the allocated slots
  * have been allocated to.
  */
-public class SlotReport implements Serializable {
+public class SlotReport implements Serializable, Iterable<SlotStatus> {
 
 	private static final long serialVersionUID = -3150175198722481689L;
 
 	/** The slots status of the TaskManager */
-	private final List<SlotStatus> slotsStatus;
+	private final Collection<SlotStatus> slotsStatus;
 
 	public SlotReport() {
 		this(Collections.<SlotStatus>emptyList());
@@ -44,12 +45,12 @@ public class SlotReport implements Serializable {
 		this(Collections.singletonList(slotStatus));
 	}
 
-	public SlotReport(final List<SlotStatus> slotsStatus) {
+	public SlotReport(final Collection<SlotStatus> slotsStatus) {
 		this.slotsStatus = checkNotNull(slotsStatus);
 	}
 
-	public List<SlotStatus> getSlotsStatus() {
-		return slotsStatus;
+	@Override
+	public Iterator<SlotStatus> iterator() {
+		return slotsStatus.iterator();
 	}
-
 }

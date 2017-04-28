@@ -63,7 +63,7 @@ public class KeyMapPutTest {
 			int numContained = 0;
 			for (KeyMap.Entry<Integer, Integer> entry : map) {
 				numContained++;
-				
+
 				assertEquals(entry.getKey() * 2 + 1, entry.getValue().intValue());
 				assertFalse(bitset.get(entry.getKey()));
 				bitset.set(entry.getKey());
@@ -71,8 +71,8 @@ public class KeyMapPutTest {
 
 			assertEquals(numElements, numContained);
 			assertEquals(numElements, bitset.cardinality());
-			
-			
+
+
 			assertEquals(numElements, map.size());
 			assertEquals(numElements, map.traverseAndCountElements());
 			assertEquals(1 << 21, map.getCurrentTableCapacity());
@@ -105,13 +105,13 @@ public class KeyMapPutTest {
 				int expected = (i % 3 == 0) ? (2*i) : (2*i+1);
 				assertEquals(expected, map.get(i).intValue());
 			}
-			
+
 			assertEquals(numElements, map.size());
 			assertEquals(numElements, map.traverseAndCountElements());
 			assertEquals(1 << 21, map.getCurrentTableCapacity());
 			assertTrue(map.getLongestChainLength() <= 7);
 
-			
+
 			BitSet bitset = new BitSet();
 			int numContained = 0;
 			for (KeyMap.Entry<Integer, Integer> entry : map) {

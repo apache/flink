@@ -17,6 +17,17 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -60,18 +71,6 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.RunnableFuture;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicReference;
-
 /**
  * Base class for all streaming tasks. A task is the unit of local processing that is deployed
  * and executed by the TaskManagers. Each task runs one or more {@link StreamOperator}s which form
@@ -87,7 +86,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * produced by the operators at the ends of the operator chain. Note that the chain may fork and
  * thus have multiple ends.
  *
- * The life cycle of the task is set up as follows:
+ * <p>The life cycle of the task is set up as follows:
  * <pre>{@code
  *  -- setInitialState -> provides state of all operators in the chain
  *
@@ -105,7 +104,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *        +----> task specific cleanup()
  * }</pre>
  *
- * <p> The {@code StreamTask} has a lock object called {@code lock}. All calls to methods on a
+ * <p>The {@code StreamTask} has a lock object called {@code lock}. All calls to methods on a
  * {@code StreamOperator} must be synchronized on this lock object to ensure that no methods
  * are called concurrently.
  *
@@ -117,27 +116,27 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		extends AbstractInvokable
 		implements StatefulTask, AsyncExceptionHandler {
 
-	/** The thread group that holds all trigger timer threads */
+	/** The thread group that holds all trigger timer threads. */
 	public static final ThreadGroup TRIGGER_THREAD_GROUP = new ThreadGroup("Triggers");
 
-	/** The logger used by the StreamTask and its subclasses */
+	/** The logger used by the StreamTask and its subclasses. */
 	private static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
 
 	// ------------------------------------------------------------------------
 
 	/**
-	 * All interaction with the {@code StreamOperator} must be synchronized on this lock object to ensure that
-	 * we don't have concurrent method calls that void consistent checkpoints.
+	 * All interaction with the {@code StreamOperator} must be synchronized on this lock object to
+	 * ensure that we don't have concurrent method calls that void consistent checkpoints.
 	 */
 	private final Object lock = new Object();
 
-	/** the head operator that consumes the input streams of this task */
+	/** the head operator that consumes the input streams of this task. */
 	protected OP headOperator;
 
-	/** The chain of operators executed by this task */
+	/** The chain of operators executed by this task. */
 	protected OperatorChain<OUT, OP> operatorChain;
 
-	/** The configuration of this streaming task */
+	/** The configuration of this streaming task. */
 	private StreamConfig configuration;
 
 	/** Our state backend. We use this to create checkpoint streams and a keyed state backend. */
@@ -153,22 +152,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 */
 	private ProcessingTimeService timerService;
 
-	/** The map of user-defined accumulators of this task */
+	/** The map of user-defined accumulators of this task. */
 	private Map<String, Accumulator<?, ?>> accumulatorMap;
 
 	private TaskStateHandles restoreStateHandles;
 
-	/** The currently active background materialization threads */
+	/** The currently active background materialization threads. */
 	private final CloseableRegistry cancelables = new CloseableRegistry();
 
-	/** Flag to mark the task "in operation", in which case check
-	 * needs to be initialized to true, so that early cancel() before invoke() behaves correctly */
+	/**
+	 * Flag to mark the task "in operation", in which case check needs to be initialized to true,
+	 * so that early cancel() before invoke() behaves correctly.
+	 */
 	private volatile boolean isRunning;
 
-	/** Flag to mark this task as canceled */
+	/** Flag to mark this task as canceled. */
 	private volatile boolean canceled;
 
-	/** Thread pool for async snapshot workers */
+	/** Thread pool for async snapshot workers. */
 	private ExecutorService asyncOperationsThreadPool;
 
 	// ------------------------------------------------------------------------
@@ -363,11 +364,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	/**
-	 * Execute the operator-specific {@link StreamOperator#open()} method in each
-	 * of the operators in the chain of this {@link StreamTask}. </b> Opening happens
-	 * from <b>tail to head</b> operator in the chain, contrary to
-	 * {@link StreamOperator#close()} which happens <b>head to tail</b>
-	 * operator (see {@link #closeAllOperators()}.
+	 * Execute {@link StreamOperator#open()} of each operator in the chain of this
+	 * {@link StreamTask}. Opening happens from <b>tail to head</b> operator in the chain, contrary
+	 * to {@link StreamOperator#close()} which happens <b>head to tail</b>
+	 * (see {@link #closeAllOperators()}.
 	 */
 	private void openAllOperators() throws Exception {
 		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
@@ -378,10 +378,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	/**
-	 * Execute the operator-specific {@link StreamOperator#close()} method in each
-	 * of the operators in the chain of this {@link StreamTask}. </b> Closing happens
-	 * from <b>head to tail</b> operator in the chain, contrary to
-	 * {@link StreamOperator#open()} which happens <b>tail to head</b> operator
+	 * Execute {@link StreamOperator#close()} of each operator in the chain of this
+	 * {@link StreamTask}. Closing happens from <b>head to tail</b> operator in the chain,
+	 * contrary to {@link StreamOperator#open()} which happens <b>tail to head</b>
 	 * (see {@link #openAllOperators()}.
 	 */
 	private void closeAllOperators() throws Exception {
@@ -397,9 +396,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	/**
-	 * Execute the operator-specific {@link StreamOperator#dispose()} method in each
-	 * of the operators in the chain of this {@link StreamTask}. </b> Disposing happens
-	 * from <b>tail to head</b> operator in the chain.
+	 * Execute {@link StreamOperator#dispose()} of each operator in the chain of this
+	 * {@link StreamTask}. Disposing happens from <b>tail to head</b> operator in the chain.
 	 */
 	private void tryDisposeAllOperators() throws Exception {
 		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
@@ -416,11 +414,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	/**
-	 * Execute the operator-specific {@link StreamOperator#dispose()} method in each
-	 * of the operators in the chain of this {@link StreamTask}. </b> Disposing happens
-	 * from <b>tail to head</b> operator in the chain.
+	 * Execute @link StreamOperator#dispose()} of each operator in the chain of this
+	 * {@link StreamTask}. Disposing happens from <b>tail to head</b> operator in the chain.
 	 *
-	 * The difference with the {@link #tryDisposeAllOperators()} is that in case of an
+	 * <p>The difference with the {@link #tryDisposeAllOperators()} is that in case of an
 	 * exception, this method catches it and logs the message.
 	 */
 	private void disposeAllOperators() {
@@ -442,8 +439,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * The finalize method shuts down the timer. This is a fail-safe shutdown, in case the original
 	 * shutdown method was never called.
 	 *
-	 * <p>
-	 * This should not be relied upon! It will cause shutdown to happen much later than if manual
+	 * <p>This should not be relied upon! It will cause shutdown to happen much later than if manual
 	 * shutdown is attempted, and cause threads to linger for longer than needed.
 	 */
 	@Override
@@ -546,7 +542,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics);
 		}
 		catch (CancelTaskException e) {
-			LOG.info("Operator {} was cancelled while performing checkpoint {}.", 
+			LOG.info("Operator {} was cancelled while performing checkpoint {}.",
 					getName(), checkpointMetaData.getCheckpointId());
 			throw e;
 		}
@@ -818,7 +814,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * Handles an exception thrown by another thread (e.g. a TriggerTask),
 	 * other than the one executing the main task by failing the task entirely.
 	 *
-	 * In more detail, it marks task execution failed for an external reason
+	 * <p>In more detail, it marks task execution failed for an external reason
 	 * (a reason other than the task code itself throwing an exception). If the task
 	 * is already in a terminal state (such as FINISHED, CANCELED, FAILED), or if the
 	 * task is already canceling this does nothing. Otherwise it sets the state to

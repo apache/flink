@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,16 @@
 package org.apache.flink.streaming.api.windowing.evictors;
 
 import com.google.common.collect.Iterables;
+import java.util.Iterator;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
 
-import java.util.Iterator;
-
 /**
  * An {@link Evictor} that keeps elements based on a {@link DeltaFunction} and a threshold.
  *
- * <p>
- * Eviction starts from the first element of the buffer and removes all elements from the buffer
+ * <p>Eviction starts from the first element of the buffer and removes all elements from the buffer
  * which have a higher delta then the threshold.
  *
  * @param <W> The type of {@link Window Windows} on which this {@code Evictor} can operate.

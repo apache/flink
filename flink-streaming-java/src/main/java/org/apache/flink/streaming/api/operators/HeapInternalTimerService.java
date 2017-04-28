@@ -17,6 +17,14 @@
  */
 package org.apache.flink.streaming.api.operators;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.PriorityQueue;
+import java.util.Set;
+import java.util.concurrent.ScheduledFuture;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -27,15 +35,6 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
-
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.PriorityQueue;
-import java.util.Set;
-import java.util.concurrent.ScheduledFuture;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * {@link InternalTimerService} that stores timers on the Java heap.
@@ -59,7 +58,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	private final PriorityQueue<InternalTimer<K, N>> eventTimeTimersQueue;
 
 	/**
-	 * Information concerning the local key-group range
+	 * Information concerning the local key-group range.
 	 */
 	private final KeyGroupsList localKeyGroupRange;
 	private final int totalKeyGroups;

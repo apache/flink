@@ -208,6 +208,7 @@ public class CEPOperatorTest extends TestLogger {
 	 * Tests that the internal time of a CEP operator advances only given watermarks. See FLINK-5033
 	 */
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testKeyedAdvancingTimeWithoutElements() throws Exception {
 		final KeySelector<Event, Integer> keySelector = new TestKeySelector();
 
@@ -522,7 +523,7 @@ public class CEPOperatorTest extends TestLogger {
 							return value.getName().equals("start");
 						}
 					})
-					.followedBy("middle").subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
+					.followedByAny("middle").subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
 						private static final long serialVersionUID = 6215754202506583964L;
 
 						@Override
@@ -530,7 +531,7 @@ public class CEPOperatorTest extends TestLogger {
 							return value.getVolume() > 5.0;
 						}
 					})
-					.followedBy("end").where(new SimpleCondition<Event>() {
+					.followedByAny("end").where(new SimpleCondition<Event>() {
 						private static final long serialVersionUID = 7056763917392056548L;
 
 						@Override

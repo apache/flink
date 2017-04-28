@@ -60,19 +60,19 @@ import static org.mockito.Mockito.when;
 
 @SuppressWarnings("serial")
 public class StreamSourceOperatorTest {
-	
+
 	@Test
 	public void testEmitMaxWatermarkForFiniteSource() throws Exception {
 
 		// regular stream source operator
-		StreamSource<String, FiniteSource<String>> operator = 
+		StreamSource<String, FiniteSource<String>> operator =
 				new StreamSource<>(new FiniteSource<String>());
-		
+
 		final List<StreamElement> output = new ArrayList<>();
-		
+
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 		operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
-		
+
 		assertEquals(1, output.size());
 		assertEquals(Watermark.MAX_WATERMARK, output.get(0));
 	}
@@ -92,23 +92,23 @@ public class StreamSourceOperatorTest {
 
 		// run and exit
 		operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
-		
+
 		assertTrue(output.isEmpty());
 	}
-	
+
 	@Test
 	public void testNoMaxWatermarkOnAsyncCancel() throws Exception {
 
 		final List<StreamElement> output = new ArrayList<>();
 		final Thread runner = Thread.currentThread();
-		
+
 		// regular stream source operator
 		final StreamSource<String, InfiniteSource<String>> operator =
 				new StreamSource<>(new InfiniteSource<String>());
 
-		
+
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
-		
+
 		// trigger an async cancel in a bit
 		new Thread("canceler") {
 			@Override
@@ -120,7 +120,7 @@ public class StreamSourceOperatorTest {
 				runner.interrupt();
 			}
 		}.start();
-		
+
 		// run and wait to be canceled
 		try {
 			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
@@ -289,7 +289,7 @@ public class StreamSourceOperatorTest {
 
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setStateBackend(new MemoryStateBackend());
-		
+
 		cfg.setTimeCharacteristic(timeChar);
 
 		Environment env = new DummyEnvironment("MockTwoInputTask", 1, 0);
@@ -320,7 +320,7 @@ public class StreamSourceOperatorTest {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	private static final class FiniteSource<T> implements SourceFunction<T>, StoppableFunction {
 
 		@Override
@@ -336,7 +336,7 @@ public class StreamSourceOperatorTest {
 	private static final class InfiniteSource<T> implements SourceFunction<T>, StoppableFunction {
 
 		private volatile boolean running = true;
-		
+
 		@Override
 		public void run(SourceContext<T> ctx) throws Exception {
 			while (running) {

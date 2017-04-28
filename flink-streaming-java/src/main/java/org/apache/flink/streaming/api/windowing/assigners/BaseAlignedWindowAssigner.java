@@ -17,13 +17,12 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import java.util.Collection;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-
-import java.util.Collection;
 
 /**
  * A base {@link WindowAssigner} used to instantiate one of the deprecated
@@ -32,9 +31,8 @@ import java.util.Collection;
  * {@link org.apache.flink.streaming.runtime.operators.windowing.AggregatingProcessingTimeWindowOperator
  * AggregatingProcessingTimeWindowOperator}.
  *
- * <p>
- * For assigner that extend this one, the user can check the {@link TumblingAlignedProcessingTimeWindows}
- * and the {@link SlidingAlignedProcessingTimeWindows}.
+ * <p>For assigner that extend this one, the user can check the
+ * {@link TumblingAlignedProcessingTimeWindows} and the {@link SlidingAlignedProcessingTimeWindows}.
  * */
 public class BaseAlignedWindowAssigner extends WindowAssigner<Object, TimeWindow> {
 

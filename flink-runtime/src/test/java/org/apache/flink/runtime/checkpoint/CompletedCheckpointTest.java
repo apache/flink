@@ -23,6 +23,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.SharedStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.junit.Rule;
 import org.junit.Test;
@@ -30,10 +32,12 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -41,7 +45,7 @@ import static org.mockito.Mockito.verify;
 public class CompletedCheckpointTest {
 
 	@Rule
-	public TemporaryFolder tmpFolder = new TemporaryFolder();
+	public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	/**
 	 * Tests that persistent checkpoints discard their header file.
@@ -57,11 +61,14 @@ public class CompletedCheckpointTest {
 
 		// Verify discard call is forwarded to state
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(
-				new JobID(), 0, 0, 1, taskStates, CheckpointProperties.forStandardCheckpoint(),
+				new JobID(), 0, 0, 1,
+				taskStates,
+				Collections.<MasterState>emptyList(),
+				CheckpointProperties.forStandardCheckpoint(),
 				new FileStateHandle(new Path(file.toURI()), file.length()),
 				file.getAbsolutePath());
 
-		checkpoint.discard(JobStatus.FAILED);
+		checkpoint.discardOnShutdown(JobStatus.FAILED, new SharedStateRegistry());
 
 		assertEquals(false, file.exists());
 	}
@@ -77,13 +84,22 @@ public class CompletedCheckpointTest {
 
 		boolean discardSubsumed = true;
 		CheckpointProperties props = new CheckpointProperties(false, false, discardSubsumed, true, true, true, true);
+		
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(
-				new JobID(), 0, 0, 1, taskStates, props);
+				new JobID(), 0, 0, 1,
+				taskStates,
+				Collections.<MasterState>emptyList(),
+				props);
+
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+		checkpoint.registerSharedStates(sharedStateRegistry);
+		verify(state, times(1)).registerSharedStates(sharedStateRegistry);
 
 		// Subsume
-		checkpoint.subsume();
+		checkpoint.discardOnSubsume(sharedStateRegistry);
 
 		verify(state, times(1)).discardState();
+		verify(state, times(1)).unregisterSharedStates(sharedStateRegistry);
 	}
 
 	/**
@@ -108,21 +124,32 @@ public class CompletedCheckpointTest {
 			// Keep
 			CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
 			CompletedCheckpoint checkpoint = new CompletedCheckpoint(
-					new JobID(), 0, 0, 1, new HashMap<>(taskStates), props,
+					new JobID(), 0, 0, 1,
+					new HashMap<>(taskStates),
+					Collections.<MasterState>emptyList(),
+					props,
 					new FileStateHandle(new Path(file.toURI()), file.length()),
 					externalPath);
 
-			checkpoint.discard(status);
+			SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+			checkpoint.registerSharedStates(sharedStateRegistry);
+
+			checkpoint.discardOnShutdown(status, sharedStateRegistry);
 			verify(state, times(0)).discardState();
 			assertEquals(true, file.exists());
+			verify(state, times(0)).unregisterSharedStates(sharedStateRegistry);
 
 			// Discard
 			props = new CheckpointProperties(false, false, true, true, true, true, true);
 			checkpoint = new CompletedCheckpoint(
-					new JobID(), 0, 0, 1, new HashMap<>(taskStates), props);
+					new JobID(), 0, 0, 1,
+					new HashMap<>(taskStates),
+					Collections.<MasterState>emptyList(),
+					props);
 
-			checkpoint.discard(status);
+			checkpoint.discardOnShutdown(status, sharedStateRegistry);
 			verify(state, times(1)).discardState();
+			verify(state, times(1)).unregisterSharedStates(sharedStateRegistry);
 		}
 	}
 
@@ -141,12 +168,13 @@ public class CompletedCheckpointTest {
 			0,
 			1,
 			new HashMap<>(taskStates),
+			Collections.<MasterState>emptyList(),
 			CheckpointProperties.forStandardCheckpoint());
 
 		CompletedCheckpointStats.DiscardCallback callback = mock(CompletedCheckpointStats.DiscardCallback.class);
 		completed.setDiscardCallback(callback);
 
-		completed.discard(JobStatus.FINISHED);
+		completed.discardOnShutdown(JobStatus.FINISHED, new SharedStateRegistry());
 		verify(callback, times(1)).notifyDiscardedCheckpoint();
 	}
 

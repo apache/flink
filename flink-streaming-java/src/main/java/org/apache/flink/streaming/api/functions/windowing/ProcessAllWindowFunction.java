@@ -57,7 +57,7 @@ public abstract class ProcessAllWindowFunction<IN, OUT, W extends Window> implem
 	public void clear(Context context) throws Exception {}
 
 	/**
-	 * The context holding window metadata
+	 * The context holding window metadata.
 	 */
 	public abstract class Context {
 		/**

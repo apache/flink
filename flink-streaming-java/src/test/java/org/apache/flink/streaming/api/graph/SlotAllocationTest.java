@@ -39,7 +39,7 @@ import org.junit.Test;
  */
 @SuppressWarnings("serial")
 public class SlotAllocationTest extends TestLogger {
-	
+
 	@Test
 	public void testTwoPipelines() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

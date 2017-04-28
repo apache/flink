@@ -246,6 +246,13 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table_2.10</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
 		<!-- end optional Flink libraries -->
 	</dependencies>
 
@@ -345,6 +352,7 @@ under the License.
 								<excludes>
 									<exclude>org.apache.flink:flink-examples-batch</exclude>
 									<exclude>org.apache.flink:flink-examples-streaming</exclude>
+									<exclude>org.apache.flink:flink-examples-table</exclude>
 									<exclude>org.apache.flink:flink-python</exclude>
 									<exclude>org.slf4j:slf4j-log4j12</exclude>
 									<exclude>log4j:log4j</exclude>

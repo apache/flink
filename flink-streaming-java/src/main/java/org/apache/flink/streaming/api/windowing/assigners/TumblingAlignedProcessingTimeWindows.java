@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
  *
  * <p>Prior Flink versions used that operator automatically for simple processing time
  * windows (tumbling and sliding) when no custom trigger and no evictor was specified.
- * In the current Flink version, that operator is only used when programs explicitly 
+ * In the current Flink version, that operator is only used when programs explicitly
  * specify this window assigner. This is only intended for special cases where programs relied on
  * the better performance of the fast aligned window operator, and are willing to accept the lack
  * of support for various features as indicated below:

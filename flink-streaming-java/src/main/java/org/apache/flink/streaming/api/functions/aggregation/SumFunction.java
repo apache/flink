@@ -17,12 +17,14 @@
 
 package org.apache.flink.streaming.api.functions.aggregation;
 
+import java.io.Serializable;
 import org.apache.flink.annotation.Internal;
 
-import java.io.Serializable;
-
+/**
+ * Internal function for summing up contents of fields. This is used with {@link SumAggregator}.
+ */
 @Internal
-public abstract class SumFunction implements Serializable{
+public abstract class SumFunction implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -48,7 +50,7 @@ public abstract class SumFunction implements Serializable{
 		}
 	}
 
-	public static class IntSum extends SumFunction {
+	static class IntSum extends SumFunction {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -57,7 +59,7 @@ public abstract class SumFunction implements Serializable{
 		}
 	}
 
-	public static class LongSum extends SumFunction {
+	static class LongSum extends SumFunction {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -66,7 +68,7 @@ public abstract class SumFunction implements Serializable{
 		}
 	}
 
-	public static class DoubleSum extends SumFunction {
+	static class DoubleSum extends SumFunction {
 
 		private static final long serialVersionUID = 1L;
 
@@ -76,7 +78,7 @@ public abstract class SumFunction implements Serializable{
 		}
 	}
 
-	public static class ShortSum extends SumFunction {
+	static class ShortSum extends SumFunction {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -85,7 +87,7 @@ public abstract class SumFunction implements Serializable{
 		}
 	}
 
-	public static class FloatSum extends SumFunction {
+	static class FloatSum extends SumFunction {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -94,7 +96,7 @@ public abstract class SumFunction implements Serializable{
 		}
 	}
 
-	public static class ByteSum extends SumFunction {
+	static class ByteSum extends SumFunction {
 		private static final long serialVersionUID = 1L;
 
 		@Override

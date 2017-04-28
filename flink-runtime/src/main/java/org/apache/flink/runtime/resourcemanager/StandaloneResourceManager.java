@@ -23,9 +23,10 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
@@ -39,21 +40,23 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
 	public StandaloneResourceManager(
 			RpcService rpcService,
+			String resourceManagerEndpointId,
 			ResourceID resourceId,
 			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
-			SlotManagerFactory slotManagerFactory,
+			SlotManager slotManager,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
 			FatalErrorHandler fatalErrorHandler) {
 		super(
 			rpcService,
+			resourceManagerEndpointId,
 			resourceId,
 			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
-			slotManagerFactory,
+			slotManager,
 			metricRegistry,
 			jobLeaderIdService,
 			fatalErrorHandler);
@@ -70,6 +73,11 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
 	@Override
 	public void startNewWorker(ResourceProfile resourceProfile) {
+	}
+
+	@Override
+	public void stopWorker(InstanceID instanceId) {
+
 	}
 
 	@Override

@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.functions.windowing.delta.extractor.Extrac
  * extracting the data on which the delta is calculated from a more complex data
  * structure. For example in case you want to be able to run a delta only on one
  * field of a Tuple type or only on some fields from an array.
- * 
+ *
  * @param <DATA>
  *            The input data type. The input of this type will be passed to the
  *            extractor which will transform into a TO-object. The delta
@@ -37,10 +37,8 @@ import org.apache.flink.streaming.api.functions.windowing.delta.extractor.Extrac
 @PublicEvolving
 public abstract class ExtractionAwareDeltaFunction<DATA, TO> implements DeltaFunction<DATA> {
 
-	/**
-	 * Generated Version ID
-	 */
 	private static final long serialVersionUID = 6927486219702689554L;
+
 	private Extractor<DATA, TO> converter;
 
 	public ExtractionAwareDeltaFunction(Extractor<DATA, TO> converter) {
@@ -53,7 +51,7 @@ public abstract class ExtractionAwareDeltaFunction<DATA, TO> implements DeltaFun
 	 * with the extracted data. In case no extractor is set the input data gets
 	 * passes to {@link #getNestedDelta} as-is. The return value is just
 	 * forwarded from {@link #getNestedDelta}.
-	 * 
+	 *
 	 * @param oldDataPoint
 	 *            the older data point as raw data (before extraction).
 	 * @param newDataPoint
@@ -80,7 +78,7 @@ public abstract class ExtractionAwareDeltaFunction<DATA, TO> implements DeltaFun
 	 * result of the previously done extractions as input. Therefore, this
 	 * method only does the actual calculation of the delta but no data
 	 * extraction or conversion.
-	 * 
+	 *
 	 * @param oldDataPoint
 	 *            the older data point.
 	 * @param newDataPoint

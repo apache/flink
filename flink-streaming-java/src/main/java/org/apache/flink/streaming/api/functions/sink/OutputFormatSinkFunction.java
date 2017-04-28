@@ -35,16 +35,16 @@ import org.slf4j.LoggerFactory;
 /**
  * Simple implementation of the SinkFunction writing tuples in the specified
  * OutputFormat format.
- * 
+ *
  * @param <IN> Input type
  */
 @PublicEvolving
 public class OutputFormatSinkFunction<IN> extends RichSinkFunction<IN> implements InputTypeConfigurable {
-	
+
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(OutputFormatSinkFunction.class);
-	
+
 	private OutputFormat<IN> format;
 	private boolean cleanupCalled = false;
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,14 +17,6 @@
  */
 package org.apache.flink.streaming.api.windowing.windows;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
-import org.apache.flink.util.MathUtils;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -33,6 +25,13 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
+import org.apache.flink.util.MathUtils;
 
 /**
  * A {@link Window} that represents a time interval from {@code start} (inclusive) to
@@ -52,7 +51,7 @@ public class TimeWindow extends Window {
 	/**
 	 * Gets the starting timestamp of the window. This is the first timestamp that belongs
 	 * to this window.
-	 * 
+	 *
 	 * @return The starting timestamp of this window.
 	 */
 	public long getStart() {
@@ -62,7 +61,7 @@ public class TimeWindow extends Window {
 	/**
 	 * Gets the end timestamp of this window. The end timestamp is exclusive, meaning it
 	 * is the first timestamp that does not belong to this window any more.
-	 * 
+	 *
 	 * @return The exclusive end timestamp of this window.
 	 */
 	public long getEnd() {
@@ -71,12 +70,12 @@ public class TimeWindow extends Window {
 
 	/**
 	 * Gets the largest timestamp that still belongs to this window.
-	 * 
+	 *
 	 * <p>This timestamp is identical to {@code getEnd() - 1}.
-	 * 
+	 *
 	 * @return The largest timestamp that still belongs to this window.
-	 * 
-	 * @see #getEnd() 
+	 *
+	 * @see #getEnd()
 	 */
 	@Override
 	public long maxTimestamp() {

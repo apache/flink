@@ -115,6 +115,14 @@ public class TaskManagerOptions {
 		key("taskmanager.net.memory.extra-buffers-per-gate")
 			.defaultValue(8);
 
+	/**
+	 * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
+	 * lengths.
+	 */
+	public static final ConfigOption<Boolean> NETWORK_DETAILED_METRICS =
+			key("taskmanager.net.detailed-metrics")
+			.defaultValue(false);
+
 	// ------------------------------------------------------------------------
 	//  Task Options
 	// ------------------------------------------------------------------------
@@ -147,6 +155,15 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Long> TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT =
 			key("task.checkpoint.alignment.max-size")
 			.defaultValue(-1L);
+
+	/**
+	 * Whether the quarantine monitor for task managers shall be started. The quarantine monitor
+	 * shuts down the actor system if it detects that it has quarantined another actor system
+	 * or if it has been quarantined by another actor system.
+	 */
+	public static final ConfigOption<Boolean> EXIT_ON_FATAL_AKKA_ERROR =
+		key("taskmanager.exit-on-fatal-akka-error")
+		.defaultValue(false);
 
 	// ------------------------------------------------------------------------
 

@@ -23,8 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.leaderelection.LeaderContender;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -40,13 +38,8 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.FileNotFoundException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
-import static org.mockito.Mockito.*;
-
 
 public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 
@@ -93,29 +86,6 @@ public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 	// ------------------------------------------------------------------------
 	//  Tests
 	// ------------------------------------------------------------------------
-
-	@Test
-	public void testConstantResourceManagerName() throws Exception {
-		final Configuration flinkConfig = new Configuration();
-		flinkConfig.setString(YarnConfigOptions.APP_MASTER_RPC_ADDRESS, "localhost");
-		flinkConfig.setInteger(YarnConfigOptions.APP_MASTER_RPC_PORT, 1427);
-
-		YarnHighAvailabilityServices services1 = new YarnPreConfiguredMasterNonHaServices(flinkConfig, hadoopConfig);
-		YarnHighAvailabilityServices services2 = new YarnPreConfiguredMasterNonHaServices(flinkConfig, hadoopConfig);
-
-		try {
-			String rmName1 = services1.getResourceManagerEndpointName();
-			String rmName2 = services2.getResourceManagerEndpointName();
-
-			assertNotNull(rmName1);
-			assertNotNull(rmName2);
-			assertEquals(rmName1, rmName2);
-		}
-		finally {
-			services1.closeAndCleanupAllData();
-			services2.closeAndCleanupAllData();
-		}
-	}
 
 	@Test
 	public void testMissingRmConfiguration() throws Exception {

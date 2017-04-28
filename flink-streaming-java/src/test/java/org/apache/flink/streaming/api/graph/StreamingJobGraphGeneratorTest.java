@@ -90,7 +90,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		streamGraph.setJobName("test job");
 		JobGraph jobGraph = streamGraph.getJobGraph();
 		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
-		
+
 		assertEquals(2, jobGraph.getNumberOfVertices());
 		assertEquals(1, verticesSorted.get(0).getParallelism());
 		assertEquals(1, verticesSorted.get(1).getParallelism());

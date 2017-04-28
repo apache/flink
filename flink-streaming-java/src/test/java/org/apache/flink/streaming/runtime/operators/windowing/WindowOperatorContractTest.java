@@ -45,6 +45,8 @@ import java.util.List;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
@@ -2450,6 +2452,61 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		testHarness.processElement(new StreamRecord<>(0, 0L));
 	}
 
+	@Test
+	public void testEventTimeQuerying() throws Exception {
+		testCurrentTimeQuerying(new EventTimeAdaptor());
+	}
+
+	@Test
+	public void testProcessingTimeQuerying() throws Exception {
+		testCurrentTimeQuerying(new ProcessingTimeAdaptor());
+	}
+
+	public void testCurrentTimeQuerying(final TimeDomainAdaptor timeAdaptor) throws Exception {
+		WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
+		timeAdaptor.setIsEventTime(mockAssigner);
+		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
+		InternalWindowFunction<Iterable<Integer>, Void, Integer, TimeWindow> mockWindowFunction = mockWindowFunction();
+
+		final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Void> testHarness =
+				createWindowOperator(mockAssigner, mockTrigger, 20L, mockWindowFunction);
+
+		testHarness.open();
+
+		shouldFireOnElement(mockTrigger);
+
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+				.thenReturn(Arrays.asList(new TimeWindow(0, 20)));
+
+		doAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext)invocationOnMock.getArguments()[2];
+				timeAdaptor.verifyCorrectTime(testHarness, context);
+				return null;
+			}
+		}).when(mockWindowFunction).process(anyInt(), anyTimeWindow(), anyInternalWindowContext(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
+
+		doAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext)invocationOnMock.getArguments()[1];
+				timeAdaptor.verifyCorrectTime(testHarness, context);
+				return null;
+			}
+		}).when(mockWindowFunction).clear(anyTimeWindow(), anyInternalWindowContext());
+
+		timeAdaptor.advanceTime(testHarness, 10);
+
+		testHarness.processElement(new StreamRecord<>(0, 0L));
+
+		verify(mockWindowFunction, times(1)).process(anyInt(), anyTimeWindow(), anyInternalWindowContext(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
+
+		timeAdaptor.advanceTime(testHarness, 100);
+
+		verify(mockWindowFunction, times(1)).clear(anyTimeWindow(), anyInternalWindowContext());
+	}
+
 	protected abstract <W extends Window, OUT> KeyedOneInputStreamOperatorTestHarness<Integer, Integer, OUT> createWindowOperator(
 			WindowAssigner<Integer, W> assigner,
 			Trigger<Integer, W> trigger,
@@ -2495,6 +2552,10 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 				VerificationMode verificationMode,
 				Long time,
 				TimeWindow window) throws Exception;
+
+		void verifyCorrectTime(
+				OneInputStreamOperatorTestHarness testHarness,
+				InternalWindowFunction.InternalWindowContext context);
 	}
 
 	private static class EventTimeAdaptor implements TimeDomainAdaptor {
@@ -2588,6 +2649,13 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 						anyTriggerContext());
 			}
 		}
+
+		@Override
+		public void verifyCorrectTime(
+				OneInputStreamOperatorTestHarness testHarness,
+				InternalWindowFunction.InternalWindowContext context) {
+			assertEquals(testHarness.getCurrentWatermark(), context.currentWatermark());
+		}
 	}
 
 	private static class ProcessingTimeAdaptor implements TimeDomainAdaptor {
@@ -2680,6 +2748,13 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 						eq(window),
 						anyTriggerContext());
 			}
+		}
+
+		@Override
+		public void verifyCorrectTime(
+				OneInputStreamOperatorTestHarness testHarness,
+				InternalWindowFunction.InternalWindowContext context) {
+			assertEquals(testHarness.getProcessingTime(), context.currentProcessingTime());
 		}
 	}
 }

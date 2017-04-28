@@ -23,6 +23,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.util.typeutils.FieldAccessor;
 import org.apache.flink.streaming.util.typeutils.FieldAccessorFactory;
 
+/**
+ * An {@link AggregationFunction} that computes values based on comparisons of
+ * {@link Comparable Comparables}.
+ */
 @Internal
 public class ComparableAggregator<T> extends AggregationFunction<T> {
 
@@ -32,7 +36,7 @@ public class ComparableAggregator<T> extends AggregationFunction<T> {
 	private boolean byAggregate;
 	private boolean first;
 	private final FieldAccessor<T, Object> fieldAccessor;
-	
+
 	private ComparableAggregator(AggregationType aggregationType, FieldAccessor<T, Object> fieldAccessor, boolean first) {
 		this.comparator = Comparator.getForAggregation(aggregationType);
 		this.byAggregate = (aggregationType == AggregationType.MAXBY) || (aggregationType == AggregationType.MINBY);

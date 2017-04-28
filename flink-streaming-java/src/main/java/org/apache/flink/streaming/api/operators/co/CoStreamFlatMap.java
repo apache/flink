@@ -20,10 +20,14 @@ package org.apache.flink.streaming.api.operators.co;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+/**
+ * {@link org.apache.flink.streaming.api.operators.StreamOperator} for processing
+ * {@link CoFlatMapFunction CoFlatMapFunctions}.
+ */
 @Internal
 public class CoStreamFlatMap<IN1, IN2, OUT>
 		extends AbstractUdfStreamOperator<OUT, CoFlatMapFunction<IN1, IN2, OUT>>

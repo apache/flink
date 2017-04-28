@@ -28,11 +28,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.util.OutputTag;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -61,17 +59,18 @@ import org.apache.flink.streaming.runtime.tasks.StoppableSourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
+import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Class representing the streaming topology. It contains all the information
  * necessary to build the jobgraph for the execution.
- * 
+ *
  */
 @Internal
 public class StreamGraph extends StreamingPlan {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);
 
 	private String jobName = StreamExecutionEnvironment.DEFAULT_JOB_NAME;
@@ -79,7 +78,7 @@ public class StreamGraph extends StreamingPlan {
 	private final StreamExecutionEnvironment environment;
 	private final ExecutionConfig executionConfig;
 	private final CheckpointConfig checkpointConfig;
-	
+
 	private boolean chaining;
 
 	private Map<Integer, StreamNode> streamNodes;
@@ -118,8 +117,8 @@ public class StreamGraph extends StreamingPlan {
 		sources = new HashSet<>();
 		sinks = new HashSet<>();
 	}
-	
-	
+
+
 	public StreamExecutionEnvironment getEnvironment() {
 		return environment;
 	}
@@ -127,7 +126,7 @@ public class StreamGraph extends StreamingPlan {
 	public ExecutionConfig getExecutionConfig() {
 		return executionConfig;
 	}
-	
+
 	public CheckpointConfig getCheckpointConfig() {
 		return checkpointConfig;
 	}
@@ -153,14 +152,14 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	// Checkpointing
-	
+
 	public boolean isChainingEnabled() {
 		return chaining;
 	}
-	
+
 
 	public boolean isIterative() {
-		return!vertexIDtoLoopTimeout.isEmpty();
+		return !vertexIDtoLoopTimeout.isEmpty();
 	}
 
 	public <IN, OUT> void addSource(Integer vertexID,
@@ -277,7 +276,7 @@ public class StreamGraph extends StreamingPlan {
 	 * Adds a new virtual node that is used to connect a downstream vertex to only the outputs
 	 * with the selected names.
 	 *
-	 * When adding an edge from the virtual node to a downstream node the connection will be made
+	 * <p>When adding an edge from the virtual node to a downstream node the connection will be made
 	 * to the original node, only with the selected names given here.
 	 *
 	 * @param originalId ID of the node that should be connected to.
@@ -329,10 +328,10 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	/**
-	 * Adds a new virtual node that is used to connect a downstream vertex to an input with a certain
-	 * partitioning.
+	 * Adds a new virtual node that is used to connect a downstream vertex to an input with a
+	 * certain partitioning.
 	 *
-	 * When adding an edge from the virtual node to a downstream node the connection will be made
+	 * <p>When adding an edge from the virtual node to a downstream node the connection will be made
 	 * to the original node, but with the partitioning given here.
 	 *
 	 * @param originalId ID of the node that should be connected to.
