@@ -132,7 +132,8 @@ class DynamicSchema extends TableFunction[Row] {
   override def getResultType(
       arguments: java.util.List[AnyRef],
       typeInfos: java.util.List[Class[_]]): TypeInformation[Row] = {
-    assert(typeInfos.get(1).equals(Class.forName("java.lang.Integer")))
+    assert(typeInfos.get(1).isPrimitive)
+    assert(typeInfos.get(1).equals(325.getClass))
     val column = arguments.get(1).asInstanceOf[Int]
     val basicTypeInfos = Array.fill[TypeInformation[_]](column)(BasicTypeInfo.INT_TYPE_INFO)
     basicTypeInfos(0) = BasicTypeInfo.STRING_TYPE_INFO
@@ -234,37 +235,43 @@ class DynamicSchemaWithRexNodes extends TableFunction[Row] {
       throw new RuntimeException("The first column should be null")
     }
 
-    assert(typeInfos.get(1).equals(Class.forName("java.lang.Integer")))
+    assert(typeInfos.get(1).isPrimitive)
+    assert(typeInfos.get(1).equals(325.getClass))
     val i = arguments.get(1).asInstanceOf[Int]
     if (i <= 0) {
       throw new RuntimeException("The arguments should be greater than zero")
     }
 
-    assert(typeInfos.get(2).equals(Class.forName("java.lang.Integer")))
+    assert(typeInfos.get(2).isPrimitive)
+    assert(typeInfos.get(2).equals(325.getClass))
     val si = arguments.get(2).asInstanceOf[Int]
     if (si <= 0) {
       throw new RuntimeException("The arguments should be greater than zero")
     }
 
-    assert(typeInfos.get(3).equals(Class.forName("java.lang.Integer")))
+    assert(typeInfos.get(3).isPrimitive)
+    assert(typeInfos.get(3).equals(325.getClass))
     val bi = arguments.get(3).asInstanceOf[Int]
     if (bi <= 0) {
       throw new RuntimeException("The arguments should be greater than zero")
     }
 
-    assert(typeInfos.get(4).equals(Class.forName("java.lang.Double")))
+    assert(typeInfos.get(4).isPrimitive)
+    assert(typeInfos.get(4).equals(3.25.getClass))
     val float = arguments.get(4).asInstanceOf[Double]
     if (float <= 0) {
       throw new RuntimeException("The arguments should be greater than zero")
     }
 
-    assert(typeInfos.get(5).equals(Class.forName("java.lang.Double")))
+    assert(typeInfos.get(5).isPrimitive)
+    assert(typeInfos.get(5).equals(3.25.getClass))
     val real = arguments.get(5).asInstanceOf[Double]
     if (real <= 0) {
       throw new RuntimeException("The arguments should be greater than zero")
     }
 
-    assert(typeInfos.get(6).equals(Class.forName("java.lang.Double")))
+    assert(typeInfos.get(6).isPrimitive)
+    assert(typeInfos.get(6).equals(3.25.getClass))
     val d = arguments.get(6).asInstanceOf[Double]
     if (d <= 0) {
       throw new RuntimeException("The arguments should be greater than zero")

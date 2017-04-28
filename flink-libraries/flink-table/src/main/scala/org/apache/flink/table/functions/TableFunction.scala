@@ -133,12 +133,15 @@ abstract class TableFunction[T] extends UserDefinedFunction {
     * Only the literal arguments (constant values) are passed to the [[getResultType()]] method.
     * If non-literal arguments appear, it will pass nulls instead.
     *
+    * The argument types are also passed to the method. These argument types would allow to
+    * determine the return type based on the used eval() method.
+    *
     * @param arguments arguments of a function call (only literal arguments
     *                  are passed, nulls for non-literal ones)
-    * @param classes The type classes of the parameters.
+    * @param argTypes The classes of the arguments of the called eval() method.
     * @return [[TypeInformation]] of result type or null if Flink should determine the type
     */
   def getResultType(arguments: java.util.List[AnyRef],
-                    classes: java.util.List[Class[_]]): TypeInformation[T] = null
+                    argTypes: java.util.List[Class[_]]): TypeInformation[T] = null
 
 }

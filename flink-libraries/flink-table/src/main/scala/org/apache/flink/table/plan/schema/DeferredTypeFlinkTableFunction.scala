@@ -42,7 +42,7 @@ class DeferredTypeFlinkTableFunction(
     val implicitResultType: TypeInformation[_])
   extends FlinkTableFunction(tableFunction, evalMethod) {
 
-  val paramTypeInfos = evalMethod.getParameterTypes.toList
+  val argTypes = evalMethod.getParameterTypes.toList
 
   override def getResultType(arguments: util.List[AnyRef]): TypeInformation[_] = {
     determineResultType(arguments)
@@ -57,7 +57,7 @@ class DeferredTypeFlinkTableFunction(
   }
 
   private def determineResultType(arguments: util.List[AnyRef]): TypeInformation[_] = {
-    val resultType = tableFunction.getResultType(arguments, paramTypeInfos)
+    val resultType = tableFunction.getResultType(arguments, argTypes)
     if (resultType != null) {
       resultType
     } else {
