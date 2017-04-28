@@ -44,7 +44,7 @@ public class KafkaTopicPartitionState<KPH> {
 	private volatile long committedOffset;
 
 	// ------------------------------------------------------------------------
-	
+
 	public KafkaTopicPartitionState(KafkaTopicPartition partition, KPH kafkaPartitionHandle) {
 		this.partition = partition;
 		this.kafkaPartitionHandle = kafkaPartitionHandle;

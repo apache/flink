@@ -16,16 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka;
+package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.connectors.kafka.internal.Handover;
-import org.apache.flink.streaming.connectors.kafka.internal.Kafka010Fetcher;
-import org.apache.flink.streaming.connectors.kafka.internal.KafkaConsumerThread;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -72,11 +69,11 @@ import static org.powermock.api.mockito.PowerMockito.when;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /**
- * Unit tests for the {@link Kafka010Fetcher}.
+ * Unit tests for the {@link Kafka09Fetcher}.
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(KafkaConsumerThread.class)
-public class Kafka010FetcherTest {
+public class Kafka09FetcherTest {
 
 	@Test
 	public void testCommitDoesNotBlock() throws Exception {
@@ -91,10 +88,10 @@ public class Kafka010FetcherTest {
 
 		// ----- the mock consumer with blocking poll calls ----
 		final MultiShotLatch blockerLatch = new MultiShotLatch();
-
+		
 		KafkaConsumer<?, ?> mockConsumer = mock(KafkaConsumer.class);
 		when(mockConsumer.poll(anyLong())).thenAnswer(new Answer<ConsumerRecords<?, ?>>() {
-
+			
 			@Override
 			public ConsumerRecords<?, ?> answer(InvocationOnMock invocation) throws InterruptedException {
 				sync.trigger();
@@ -122,15 +119,15 @@ public class Kafka010FetcherTest {
 			Collections.singletonMap(new KafkaTopicPartition("test", 42), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
 		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
 
-		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
+		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
 				sourceContext,
 				partitionsWithInitialOffsets,
-				null, /* periodic assigner */
-				null, /* punctuated assigner */
+				null, /* periodic watermark extractor */
+				null, /* punctuated watermark extractor */
 				new TestProcessingTimeService(),
-				10,
-				getClass().getClassLoader(),
-				"taskname-with-subtask",
+				10, /* watermark interval */
+				this.getClass().getClassLoader(),
+				"task_name",
 				new UnregisteredMetricsGroup(),
 				schema,
 				new Properties(),
@@ -157,7 +154,7 @@ public class Kafka010FetcherTest {
 		sync.await();
 
 		// ----- trigger the offset commit -----
-
+		
 		final AtomicReference<Throwable> commitError = new AtomicReference<>();
 		final Thread committer = new Thread("committer runner") {
 			@Override
@@ -184,7 +181,6 @@ public class Kafka010FetcherTest {
 		if (fetcherError != null && !(fetcherError instanceof Handover.ClosedException)) {
 			throw new Exception("Exception in the fetcher", fetcherError);
 		}
-
 		final Throwable committerError = commitError.get();
 		if (committerError != null) {
 			throw new Exception("Exception in the committer", committerError);
@@ -193,11 +189,11 @@ public class Kafka010FetcherTest {
 
 	@Test
 	public void ensureOffsetsGetCommitted() throws Exception {
-
+		
 		// test data
 		final KafkaTopicPartition testPartition1 = new KafkaTopicPartition("test", 42);
 		final KafkaTopicPartition testPartition2 = new KafkaTopicPartition("another", 99);
-
+		
 		final Map<KafkaTopicPartition, Long> testCommitData1 = new HashMap<>();
 		testCommitData1.put(testPartition1, 11L);
 		testCommitData1.put(testPartition2, 18L);
@@ -207,6 +203,7 @@ public class Kafka010FetcherTest {
 		testCommitData2.put(testPartition2, 28L);
 
 		final BlockingQueue<Map<TopicPartition, OffsetAndMetadata>> commitStore = new LinkedBlockingQueue<>();
+
 
 		// ----- the mock consumer with poll(), wakeup(), and commit(A)sync calls ----
 
@@ -234,7 +231,7 @@ public class Kafka010FetcherTest {
 			@Override
 			public Void answer(InvocationOnMock invocation) {
 				@SuppressWarnings("unchecked")
-				Map<TopicPartition, OffsetAndMetadata> offsets =
+				Map<TopicPartition, OffsetAndMetadata> offsets = 
 						(Map<TopicPartition, OffsetAndMetadata>) invocation.getArguments()[0];
 
 				OffsetCommitCallback callback = (OffsetCommitCallback) invocation.getArguments()[1];
@@ -242,7 +239,7 @@ public class Kafka010FetcherTest {
 				commitStore.add(offsets);
 				callback.onComplete(offsets, null);
 
-				return null;
+				return null; 
 			}
 		}).when(mockConsumer).commitAsync(
 				Mockito.<Map<TopicPartition, OffsetAndMetadata>>any(), any(OffsetCommitCallback.class));
@@ -258,15 +255,15 @@ public class Kafka010FetcherTest {
 			Collections.singletonMap(new KafkaTopicPartition("test", 42), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
 		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
 
-		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
+		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
 				sourceContext,
 				partitionsWithInitialOffsets,
-				null, /* periodic assigner */
-				null, /* punctuated assigner */
+				null, /* periodic watermark extractor */
+				null, /* punctuated watermark extractor */
 				new TestProcessingTimeService(),
-				10,
-				getClass().getClassLoader(),
-				"taskname-with-subtask",
+				10, /* watermark interval */
+				this.getClass().getClassLoader(),
+				"task_name",
 				new UnregisteredMetricsGroup(),
 				schema,
 				new Properties(),
@@ -302,7 +299,7 @@ public class Kafka010FetcherTest {
 			}
 			else if (partition.topic().equals("another")) {
 				assertEquals(99, partition.partition());
-				assertEquals(18L, entry.getValue().offset());
+				assertEquals(17L, entry.getValue().offset());
 			}
 		}
 
@@ -319,10 +316,10 @@ public class Kafka010FetcherTest {
 			}
 			else if (partition.topic().equals("another")) {
 				assertEquals(99, partition.partition());
-				assertEquals(28L, entry.getValue().offset());
+				assertEquals(27L, entry.getValue().offset());
 			}
 		}
-
+		
 		// ----- test done, wait till the fetcher is done for a clean shutdown -----
 		fetcher.cancel();
 		fetcherRunner.join();
@@ -372,7 +369,7 @@ public class Kafka010FetcherTest {
 			Collections.singletonMap(new KafkaTopicPartition(topic, partition), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
 		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
 
-		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
+		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
 				sourceContext,
 				partitionsWithInitialOffsets,
 				null, /* periodic watermark extractor */
@@ -386,6 +383,7 @@ public class Kafka010FetcherTest {
 				new Properties(),
 				0L,
 				false);
+
 
 		// ----- run the fetcher -----
 
