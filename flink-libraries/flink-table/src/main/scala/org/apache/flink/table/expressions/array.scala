@@ -22,7 +22,7 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, PrimitiveArrayTypeInfo}
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
 import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
