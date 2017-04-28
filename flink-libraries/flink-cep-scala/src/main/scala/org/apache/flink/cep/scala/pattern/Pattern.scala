@@ -201,6 +201,17 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   }
 
   /**
+    * Appends a new pattern to the existing one. The new pattern enforces that there is no event
+    * matching this pattern right after the preceding matched event.
+    *
+    * @param name Name of the new pattern
+    * @return A new pattern which is appended to this one
+    */
+  def notNext(name: String): Pattern[T, T] = {
+    Pattern[T, T](jPattern.notNext(name))
+  }
+
+  /**
     * Appends a new pattern to the existing one. The new pattern enforces non-strict
     * temporal contiguity. This means that a matching event of this pattern and the
     * preceding matching event might be interleaved with other events which are ignored.
@@ -210,6 +221,19 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     */
   def followedBy(name: String): Pattern[T, T] = {
     Pattern[T, T](jPattern.followedBy(name))
+  }
+
+  /**
+    * Appends a new pattern to the existing one. The new pattern enforces that there is no event
+    * matching this pattern between the preceding pattern and succeeding this one.
+    *
+    * NOTE: There has to be other pattern after this one.
+    *
+    * @param name Name of the new pattern
+    * @return A new pattern which is appended to this one
+    */
+  def notFollowedBy(name : String) {
+    Pattern[T, T](jPattern.notFollowedBy(name))
   }
 
   /**

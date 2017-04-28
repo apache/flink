@@ -205,7 +205,18 @@ public class Pattern<T, F extends T> {
 	 * @return A new pattern which is appended to this one
 	 */
 	public Pattern<T, T> next(final String name) {
-		return new Pattern<T, T>(name, this, ConsumingStrategy.STRICT);
+		return new Pattern<>(name, this, ConsumingStrategy.STRICT);
+	}
+
+	/**
+	 * Appends a new pattern to the existing one. The new pattern enforces that there is no event matching this pattern
+	 * right after the preceding matched event.
+	 *
+	 * @param name Name of the new pattern
+	 * @return A new pattern which is appended to this one
+	 */
+	public Pattern<T, T> notNext(final String name) {
+		return new Pattern<>(name, this, ConsumingStrategy.NOT_NEXT);
 	}
 
 	/**
@@ -218,6 +229,19 @@ public class Pattern<T, F extends T> {
 	 */
 	public Pattern<T, T> followedBy(final String name) {
 		return new Pattern<>(name, this, ConsumingStrategy.SKIP_TILL_NEXT);
+	}
+
+	/**
+	 * Appends a new pattern to the existing one. The new pattern enforces that there is no event matching this pattern
+	 * between the preceding pattern and succeeding this one.
+	 *
+	 * <p><b>NOTE:</b> There has to be other pattern after this one.
+	 *
+	 * @param name Name of the new pattern
+	 * @return A new pattern which is appended to this one
+	 */
+	public Pattern<T, T> notFollowedBy(final String name) {
+		return new Pattern<>(name, this, ConsumingStrategy.NOT_FOLLOW);
 	}
 
 	/**

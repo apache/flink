@@ -87,6 +87,21 @@ public class NFACompilerTest extends TestLogger {
 		NFACompiler.compile(invalidPattern, Event.createTypeSerializer(), false);
 	}
 
+	@Test
+	public void testNFACompilerPatternEndsWithNotFollowedBy() {
+
+		// adjust the rule
+		expectedException.expect(MalformedPatternException.class);
+		expectedException.expectMessage("NotFollowedBy is not supported as a last part of a Pattern!");
+
+		Pattern<Event, ?> invalidPattern = Pattern.<Event>begin("start").where(new TestFilter())
+			.followedBy("middle").where(new TestFilter())
+			.notFollowedBy("end").where(new TestFilter());
+
+		// here we must have an exception because of the two "start" patterns with the same name.
+		NFACompiler.compile(invalidPattern, Event.createTypeSerializer(), false);
+	}
+
 	/**
 	 * A filter implementation to test invalid pattern specification with
 	 * duplicate pattern names. Check {@link #testNFACompilerUniquePatternName()}.

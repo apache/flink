@@ -51,6 +51,10 @@ public class State<T> implements Serializable {
 		stateTransitions = new ArrayList<>();
 	}
 
+	public StateType getStateType() {
+		return stateType;
+	}
+
 	public boolean isFinal() {
 		return stateType == StateType.Final;
 	}
@@ -69,7 +73,7 @@ public class State<T> implements Serializable {
 		this.stateType = StateType.Start;
 	}
 
-	private void addStateTransition(
+	public void addStateTransition(
 			final StateTransitionAction action,
 			final State<T> targetState,
 			final IterativeCondition<T> condition) {
@@ -130,13 +134,18 @@ public class State<T> implements Serializable {
 		return Objects.hash(name, stateType, stateTransitions);
 	}
 
+	public boolean isStop() {
+		return stateType == StateType.Stop;
+	}
+
 	/**
 	 * Set of valid state types.
 	 */
 	public enum StateType {
 		Start, // the state is a starting state for the NFA
 		Final, // the state is a final state for the NFA
-		Normal // the state is neither a start nor a final state
+		Normal, // the state is neither a start nor a final state
+		Stop
 	}
 
 	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {

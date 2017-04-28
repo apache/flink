@@ -127,6 +127,10 @@ public class ComputationState<T> {
 		return new ComputationState<>(nfa, currentState, previousState, event, timestamp, version, startTimestamp);
 	}
 
+	public boolean isStopState() {
+		return state.isStop();
+	}
+
 	/**
 	 * The context used when evaluating this computation state.
 	 */

@@ -120,7 +120,10 @@ public class Quantifier {
 	public enum ConsumingStrategy {
 		STRICT,
 		SKIP_TILL_NEXT,
-		SKIP_TILL_ANY
+		SKIP_TILL_ANY,
+
+		NOT_FOLLOW,
+		NOT_NEXT
 	}
 
 }
