@@ -133,7 +133,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			Environment env) throws Exception {
-		return getStateBackend().createKeyedStateBackend(
+
+		AbstractKeyedStateBackend<K> backend = getStateBackend().createKeyedStateBackend(
 				env,
 				new JobID(),
 				"test_op",
@@ -141,6 +142,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				numberOfKeyGroups,
 				keyGroupRange,
 				env.getTaskKvStateRegistry());
+
+		backend.restore(null);
+
+		return backend;
 	}
 
 	protected <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(TypeSerializer<K> keySerializer, KeyedStateHandle state) throws Exception {
@@ -2197,9 +2202,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		Assert.assertNotNull(stateHandle);
 
-		backend = createKeyedBackend(IntSerializer.INSTANCE);
+		backend = null;
+
 		try {
-			backend.restore(Collections.singleton(stateHandle));
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, stateHandle);
+
 			InternalValueState<VoidNamespace, Integer> valueState = backend.createValueState(
 					VoidNamespaceSerializer.INSTANCE,
 					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
@@ -2297,7 +2304,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	 * Returns the value by getting the serialized value and deserializing it
 	 * if it is not null.
 	 */
-	private static <V, K, N> V getSerializedValue(
+	protected static <V, K, N> V getSerializedValue(
 			InternalKvState<N> kvState,
 			K key,
 			TypeSerializer<K> keySerializer,
