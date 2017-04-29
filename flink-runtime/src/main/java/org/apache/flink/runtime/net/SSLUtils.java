@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.net;
 
-
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.net.ServerSocket;
 import java.security.KeyStore;
+import java.util.Arrays;
 
 /**
  * Common utilities to manage SSL transport settings
@@ -66,14 +67,21 @@ public class SSLUtils {
 	 */
 	public static void setSSLVerAndCipherSuites(ServerSocket socket, Configuration config) {
 		if (socket instanceof SSLServerSocket) {
-			((SSLServerSocket) socket).setEnabledProtocols(config.getString(
-				ConfigConstants.SECURITY_SSL_PROTOCOL,
-				ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL).split(","));
-			((SSLServerSocket) socket).setEnabledCipherSuites(config.getString(
-				ConfigConstants.SECURITY_SSL_ALGORITHMS,
-				ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS).split(","));
-		} else {
-			LOG.warn("Not a SSL socket, will skip setting tls version and cipher suites.");
+			final String[] protocols = config.getString(
+					ConfigConstants.SECURITY_SSL_PROTOCOL,
+					ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL).split(",");
+
+			final String[] cipherSuites = config.getString(
+					ConfigConstants.SECURITY_SSL_ALGORITHMS,
+					ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS).split(",");
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Configuring TLS version and cipher suites on SSL socket {} / {}",
+						Arrays.toString(protocols), Arrays.toString(cipherSuites));
+			}
+
+			((SSLServerSocket) socket).setEnabledProtocols(protocols);
+			((SSLServerSocket) socket).setEnabledCipherSuites(cipherSuites);
 		}
 	}
 
