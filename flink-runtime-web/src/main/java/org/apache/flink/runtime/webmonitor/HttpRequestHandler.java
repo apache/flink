@@ -204,9 +204,10 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 	private void logAccess(ChannelHandlerContext ctx, HttpRequest req) {
 		HttpHeaders headers = req.headers();
 		if (headers != null) {
-			LOG.info(ctx.channel().remoteAddress() + " - [" + new Date() + "] \""
-					+ req.getMethod().name() + " " + req.getUri() + " " + req.getProtocolVersion().text() + "\" "
-					+ getHeader(Names.REFERER, headers) + "\" \"" + getHeader(Names.USER_AGENT, headers) + "\" ");
+			LOG.info("%s - [%s] \"%s %s %s\" \"%s\" \"%s\"",
+				ctx.channel().remoteAddress(), new Date().toString(), req.getMethod().name(),
+				req.getUri(), req.getProtocolVersion().text(), getHeader(Names.REFERER, headers),
+				getHeader(Names.USER_AGENT, headers));
 		}
 	}
 
