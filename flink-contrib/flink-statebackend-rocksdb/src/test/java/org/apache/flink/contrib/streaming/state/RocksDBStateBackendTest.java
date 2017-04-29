@@ -32,7 +32,6 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -118,6 +117,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				2,
 				new KeyGroupRange(0, 1),
 				mock(TaskKvStateRegistry.class));
+
+		keyedStateBackend.restore(null);
 
 		testState1 = keyedStateBackend.getPartitionedState(
 				VoidNamespace.INSTANCE,

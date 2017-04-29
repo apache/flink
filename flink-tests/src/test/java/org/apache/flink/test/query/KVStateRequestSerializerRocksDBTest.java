@@ -120,6 +120,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 				1, new KeyGroupRange(0, 0),
 				new ExecutionConfig()
 			);
+		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
 		final InternalListState<VoidNamespace, Long> listState = longHeapKeyedStateBackend
@@ -156,6 +157,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 				1, new KeyGroupRange(0, 0),
 				new ExecutionConfig()
 			);
+		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
 		final InternalMapState<VoidNamespace, Long, String> mapState = (InternalMapState<VoidNamespace, Long, String>) 

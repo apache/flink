@@ -79,6 +79,12 @@ public class CheckpointOptions implements Serializable {
 
 	// ------------------------------------------------------------------------
 
+	private static final CheckpointOptions INCREMENTAL_CHECKPOINT = new CheckpointOptions(CheckpointType.INCREMENTAL_CHECKPOINT, null);
+
+	public static CheckpointOptions forIncrementalCheckpoint() {
+		return INCREMENTAL_CHECKPOINT;
+	}
+
 	private static final CheckpointOptions FULL_CHECKPOINT = new CheckpointOptions(CheckpointType.FULL_CHECKPOINT, null);
 
 	public static CheckpointOptions forFullCheckpoint() {
@@ -96,6 +102,9 @@ public class CheckpointOptions implements Serializable {
 	 *  The type of checkpoint to perform.
 	 */
 	public enum CheckpointType {
+
+		/** An incremental checkpoint. */
+		INCREMENTAL_CHECKPOINT,
 
 		/** A full checkpoint. */
 		FULL_CHECKPOINT,

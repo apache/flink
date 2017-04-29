@@ -357,6 +357,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@SuppressWarnings("deprecation")
 	@Override
 	public void restore(Collection<KeyedStateHandle> restoredState) throws Exception {
+		if (restoredState == null || restoredState.isEmpty()) {
+			return;
+		}
+
 		LOG.info("Initializing heap keyed state backend from snapshot.");
 
 		if (LOG.isDebugEnabled()) {
