@@ -212,6 +212,16 @@ public abstract class AbstractKeyedStateBackend<K>
 			MapStateDescriptor<UK, UV> stateDesc) throws Exception;
 
 	/**
+	 * Called when the checkpoint with the given ID is completed and acknowledged on the JobManager.
+	 *
+	 * @param checkpointId The ID of the checkpoint that has been completed.
+	 *
+	 * @throws Exception Exceptions during checkpoint acknowledgement may be forwarded and will cause
+	 *                   the program to fail and enter recovery.
+	 */
+	public abstract void notifyOfCompletedCheckpoint(long checkpointId) throws Exception;
+
+	/**
 	 * @see KeyedStateBackend
 	 */
 	@Override
