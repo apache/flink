@@ -24,8 +24,6 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
-
 /*
  * @see <a href="http://mathworld.wolfram.com/CompleteGraph.html">Complete Graph at Wolfram MathWorld</a>
  */
@@ -56,15 +54,15 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 	@Override
 	public Graph<LongValue, NullValue, NullValue> generate() {
-		ArrayList<Long> offsetList = new ArrayList<Long>();
+		CirculantGraph circulantGraph = new CirculantGraph(env, vertexCount);
 		long maxOffset = vertexCount / 2;
 
 		// add all the offset
 		for (long i = 0; i < maxOffset; i++) {
-			offsetList.add(maxOffset - i);
+			circulantGraph.addOffset(maxOffset - i);
 		}
 
-		return new CirculantGraph(env, vertexCount, offsetList)
+		return circulantGraph
 				.setParallelism(parallelism)
 				.generate();
 	}

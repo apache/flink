@@ -28,15 +28,15 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.junit.Test;
 
-import java.util.Arrays;
-
 public class CirculantGraphTest
 extends AbstractGraphTest {
 
 	@Test
 	public void testGraph()
 			throws Exception {
-		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, 10, Arrays.asList(4L, 5L))
+		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, 10)
+			.addOffset(4)
+			.addOffset(5)
 			.generate();
 
 		String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
@@ -53,8 +53,10 @@ extends AbstractGraphTest {
 			throws Exception {
 		int vertexCount = 10;
 
-		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, vertexCount, Arrays.asList(4L, 5L))
-			.generate();
+		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, 10)
+				.addOffset(4)
+				.addOffset(5)
+				.generate();
 
 		assertEquals(vertexCount, graph.numberOfVertices());
 		assertEquals(vertexCount * 3, graph.numberOfEdges());
@@ -71,9 +73,11 @@ extends AbstractGraphTest {
 			throws Exception {
 		int parallelism = 2;
 
-		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, 10, Arrays.asList(4L, 5L))
-			.setParallelism(parallelism)
-			.generate();
+		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, 10)
+				.addOffset(4)
+				.addOffset(5)
+				.setParallelism(parallelism)
+				.generate();
 
 		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue, NullValue>>());
 		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue, NullValue>>());

@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph.generator;
 
-import java.util.*;
-
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -32,6 +30,9 @@ import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.LongValueSequenceIterator;
 import org.apache.flink.util.Preconditions;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /*
  * @see <a href="http://mathworld.wolfram.com/CirculantGraph.html">Circulant Graph at Wolfram MathWorld</a>
@@ -49,39 +50,43 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	// Required configuration
 	private long vertexCount;
 
-	private List<Long> signedOffsetList = new ArrayList<Long>();
+	private Set<Long> signedOffsets = new HashSet<>();
 
 	/**
-	 * The {@link Graph} containing no edges.
+	 * An undirected {@link Graph} whose {@link Vertex} connects to targets appointed by an offset list.
 	 *
 	 * @param env the Flink execution environment
 	 * @param vertexCount number of vertices
 	 */
-	public CirculantGraph(ExecutionEnvironment env, long vertexCount, List<Long> offsetList) {
+	public CirculantGraph(ExecutionEnvironment env, long vertexCount) {
 		Preconditions.checkArgument(vertexCount >= MINIMUM_VERTEX_COUNT,
 			"Vertex count must be at least " + MINIMUM_VERTEX_COUNT);
 
-        if (offsetList != null && !offsetList.isEmpty()) {
-            Preconditions.checkArgument(new HashSet<>(offsetList).size() == offsetList.size(),
-                    "Offset must not be duplicated");
-
-            long maxOffset = vertexCount / 2;
-            for (long offset : offsetList) {
-                Preconditions.checkArgument(offset >= MINIMUM_OFFSET,
-                        "Offset must be at least " + MINIMUM_OFFSET);
-                Preconditions.checkArgument(offset <= maxOffset,
-                        "Offset must be at most " + maxOffset);
-
-                // add sign, ignore negative max offset when vertex count is even
-                signedOffsetList.add(offset);
-                if (!(vertexCount % 2 == 0 && offset == maxOffset)) {
-                    signedOffsetList.add(-offset);
-                }
-            }
-        }
-
 		this.env = env;
 		this.vertexCount = vertexCount;
+	}
+
+	/**
+	 * Required configuration for each offset of the graph.
+	 *
+	 * @param offset number of vertices; dimensions of size 1 are prohibited due to having no effect
+	 *             on the generated graph
+	 * @return this
+	 */
+	public CirculantGraph addOffset(long offset) {
+		long maxOffset = vertexCount / 2;
+		Preconditions.checkArgument(offset >= MINIMUM_OFFSET,
+			"Offset must be at least " + MINIMUM_OFFSET);
+		Preconditions.checkArgument(offset <= maxOffset,
+			"Offset must be at most " + maxOffset);
+
+		// add sign, ignore negative max offset when vertex count is even
+		signedOffsets.add(offset);
+		if (!(vertexCount % 2 == 0 && offset == maxOffset)) {
+			signedOffsets.add(-offset);
+		}
+
+		return this;
 	}
 
 	@Override
@@ -89,53 +94,49 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 		// Vertices
 		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
 
-        // Edges
-        LongValueSequenceIterator iterator = new LongValueSequenceIterator(0, this.vertexCount - 1);
+		// Edges
+		LongValueSequenceIterator iterator = new LongValueSequenceIterator(0, this.vertexCount - 1);
 
-        DataSet<Edge<LongValue, NullValue>> edges = env
-                .fromParallelCollection(iterator, LongValue.class)
-                .setParallelism(parallelism)
-                .name("Edge iterators")
-                .flatMap(new LinkVertexToOffset(vertexCount, signedOffsetList))
-                .setParallelism(parallelism)
-                .name("Circulant graph edges");
+		DataSet<Edge<LongValue, NullValue>> edges = env
+				.fromParallelCollection(iterator, LongValue.class)
+				.setParallelism(parallelism)
+				.name("Edge iterators")
+				.flatMap(new LinkVertexToOffsets(vertexCount, signedOffsets))
+				.setParallelism(parallelism)
+				.name("Circulant graph edges");
 
 		// Graph
 		return Graph.fromDataSet(vertices, edges, env);
 	}
 
-    @FunctionAnnotation.ForwardedFields("*->f0")
-    public class LinkVertexToOffset
-            implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
+	@FunctionAnnotation.ForwardedFields("*->f0")
+	private static class LinkVertexToOffsets
+			implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
 
-        private final long vertexCount;
+		private final long vertexCount;
 
-        private final List<Long> offsets;
+		private final Set<Long> offsets;
 
-        private LongValue target = new LongValue();
+		private LongValue target = new LongValue();
 
-        private Edge<LongValue, NullValue> edge = new Edge<>(null, target, NullValue.getInstance());
+		private Edge<LongValue, NullValue> edge = new Edge<>(null, target, NullValue.getInstance());
 
-        public LinkVertexToOffset(long vertexCount, List<Long> offsets) {
-            this.vertexCount = vertexCount;
-            this.offsets = offsets;
-        }
+		public LinkVertexToOffsets(long vertexCount, Set<Long> offsets) {
+			this.vertexCount = vertexCount;
+			this.offsets = offsets;
+		}
 
-        @Override
-        public void flatMap(LongValue source, Collector<Edge<LongValue, NullValue>> out)
-                throws Exception {
-            // empty graph
-            if (offsets == null || offsets.isEmpty()) {
-                return;
-            }
+		@Override
+		public void flatMap(LongValue source, Collector<Edge<LongValue, NullValue>> out)
+				throws Exception {
+			edge.f0 = source;
 
-            edge.f0 = source;
-
-            // link to offset vertex
-            for (long offset : offsets) {
-                target.setValue((source.getValue() + offset + vertexCount) % vertexCount);
-                out.collect(edge);
-            }
-        }
-    }
+			// link to offset vertex
+			long index = source.getValue();
+			for (long offset : offsets) {
+				target.setValue((index + offset + vertexCount) % vertexCount);
+				out.collect(edge);
+			}
+		}
+	}
 }

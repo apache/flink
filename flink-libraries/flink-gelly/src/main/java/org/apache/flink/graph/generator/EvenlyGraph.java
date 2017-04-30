@@ -25,8 +25,6 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
-
 /**
  * Every {@link Vertex} in the {@link EvenlyGraph} has the same degree.
  * there may exist multiple cases satisfy the condition above, so further vertices
@@ -74,20 +72,20 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 	@Override
 	public Graph<LongValue, NullValue, NullValue> generate() {
-		ArrayList<Long> offsetList = new ArrayList<Long>();
+		CirculantGraph circulantGraph = new CirculantGraph(env, vertexCount);
 		long maxOffset = vertexCount / 2;
 
 		// add max offset when vertex degree is even and vertex count is odd
 		if (vertexDegree % 2 == 1 && vertexCount % 2 == 0) {
-			offsetList.add(maxOffset);
+			circulantGraph.addOffset(maxOffset);
 		}
 
 		// add other offset nearby max offset
 		for (long i = 0; i < vertexDegree / 2; i++) {
-			offsetList.add(maxOffset - i - (vertexCount + 1) % 2);
+			circulantGraph.addOffset(maxOffset - i - (vertexCount + 1) % 2);
 		}
 
-		return new CirculantGraph(env, vertexCount, offsetList)
+		return circulantGraph
 				.setParallelism(parallelism)
 				.generate();
 	}
