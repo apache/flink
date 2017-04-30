@@ -69,8 +69,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	/**
 	 * Required configuration for each offset of the graph.
 	 *
-	 * @param offset number of vertices; dimensions of size 1 are prohibited due to having no effect
-	 *             on the generated graph
+	 * @param offset appoint the vertices' position should be linked by any vertex
 	 * @return this
 	 */
 	public CirculantGraph addOffset(long offset) {
