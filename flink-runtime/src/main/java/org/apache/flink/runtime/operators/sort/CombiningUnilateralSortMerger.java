@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
+import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
 import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
@@ -162,7 +163,8 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 		List<MemorySegment> sortReadMemory, List<MemorySegment> writeMemory, int maxFileHandles)
 	{
 		return new CombiningSpillingThread(exceptionHandler, queues, parentTask,
-			memoryManager, ioManager, serializerFactory.getSerializer(), comparator, sortReadMemory, writeMemory, maxFileHandles);
+				memoryManager, ioManager, serializerFactory.getSerializer(),
+				comparator, sortReadMemory, writeMemory, maxFileHandles, objectReuseEnabled);
 	}
 
 	// ------------------------------------------------------------------------
@@ -172,16 +174,20 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	protected class CombiningSpillingThread extends SpillingThread {
 		
 		private final TypeComparator<E> comparator2;
-		
+
+		private final boolean objectReuseEnabled;
+
 		public CombiningSpillingThread(ExceptionHandler<IOException> exceptionHandler, CircularQueues<E> queues,
 				AbstractInvokable parentTask, MemoryManager memManager, IOManager ioManager, 
 				TypeSerializer<E> serializer, TypeComparator<E> comparator, 
-				List<MemorySegment> sortReadMemory, List<MemorySegment> writeMemory, int maxNumFileHandles)
+				List<MemorySegment> sortReadMemory, List<MemorySegment> writeMemory, int maxNumFileHandles,
+				boolean objectReuseEnabled)
 		{
 			super(exceptionHandler, queues, parentTask, memManager, ioManager, serializer, comparator, 
 				sortReadMemory, writeMemory, maxNumFileHandles);
 			
 			this.comparator2 = comparator.duplicate();
+			this.objectReuseEnabled = objectReuseEnabled;
 		}
 
 		/**
@@ -315,7 +321,8 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 
 				// set up the combining helpers
 				final InMemorySorter<E> buffer = element.buffer;
-				final CombineValueIterator<E> iter = new CombineValueIterator<E>(buffer, this.serializer.createInstance());
+				final CombineValueIterator<E> iter = new CombineValueIterator<E>(
+						buffer, this.serializer.createInstance(), this.objectReuseEnabled);
 				final WriterCollector<E> collector = new WriterCollector<E>(output, this.serializer);
 
 				int i = 0;
@@ -454,7 +461,6 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 
 			// the list with the target iterators
 			final MergeIterator<E> mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses, null);
-			final ReusingKeyGroupedIterator<E> groupedIter = new ReusingKeyGroupedIterator<E>(mergeIterator, this.serializer, this.comparator2);
 
 			// create a new channel writer
 			final FileIOChannel.ID mergedChannelID = this.ioManager.createChannel();
@@ -469,8 +475,18 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 
 			// combine and write to disk
 			try {
-				while (groupedIter.nextKey()) {
-					combineStub.combine(groupedIter.getValues(), collector);
+				if (objectReuseEnabled) {
+					final ReusingKeyGroupedIterator<E> groupedIter = new ReusingKeyGroupedIterator<>(
+							mergeIterator, this.serializer, this.comparator2);
+					while (groupedIter.nextKey()) {
+						combineStub.combine(groupedIter.getValues(), collector);
+					}
+				} else {
+					final NonReusingKeyGroupedIterator<E> groupedIter = new NonReusingKeyGroupedIterator<>(
+							mergeIterator, this.comparator2);
+					while (groupedIter.nextKey()) {
+						combineStub.combine(groupedIter.getValues(), collector);
+					}
 				}
 			}
 			catch (Exception e) {
@@ -505,7 +521,9 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 		
 		private final InMemorySorter<E> buffer; // the buffer from which values are returned
 		
-		private E record;
+		private E recordReuse;
+
+		private final boolean objectReuseEnabled;
 
 		private int last; // the position of the last value to be returned
 
@@ -519,9 +537,10 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 		 * @param buffer
 		 *        The buffer to get the values from.
 		 */
-		public CombineValueIterator(InMemorySorter<E> buffer, E instance) {
+		public CombineValueIterator(InMemorySorter<E> buffer, E instance, boolean objectReuseEnabled) {
 			this.buffer = buffer;
-			this.record = instance;
+			this.recordReuse = instance;
+			this.objectReuseEnabled = objectReuseEnabled;
 		}
 
 		/**
@@ -547,9 +566,14 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 		public E next() {
 			if (this.position <= this.last) {
 				try {
-					this.record = this.buffer.getRecord(this.record, this.position);
+					E record;
+					if (objectReuseEnabled) {
+						record = this.buffer.getRecord(this.recordReuse, this.position);
+					} else {
+						record = this.buffer.getRecord(this.position);
+					}
 					this.position++;
-					return this.record;
+					return record;
 				}
 				catch (IOException ioex) {
 					LOG.error("Error retrieving a value from a buffer.", ioex);
