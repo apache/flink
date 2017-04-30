@@ -210,9 +210,9 @@ object FunctionCatalog {
     "atan" -> classOf[Atan],
     "degrees" -> classOf[Degrees],
     "radians" -> classOf[Radians],
-    "pi" -> classOf[Pi],
     "sign" -> classOf[Sign],
     "round" -> classOf[Round],
+    "pi" -> classOf[Pi],
 
     // temporal functions
     "extract" -> classOf[Extract],
@@ -369,9 +369,9 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.ATAN,
     SqlStdOperatorTable.DEGREES,
     SqlStdOperatorTable.RADIANS,
-    SqlStdOperatorTable.PI,
     SqlStdOperatorTable.SIGN,
     SqlStdOperatorTable.ROUND,
+    SqlStdOperatorTable.PI,
     // EXTENSIONS
     EventTimeExtractor,
     ProcTimeExtractor,

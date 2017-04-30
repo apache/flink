@@ -241,17 +241,7 @@ case class Radians(child: Expression) extends UnaryExpression {
   override def toString: String = s"radians($child)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(SqlStdOperatorTable.DEGREES, child.toRexNode)
-  }
-}
-
-case class Pi() extends LeafExpression {
-  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
-
-  override def toString: String = s"pi()"
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(SqlStdOperatorTable.PI)
+    relBuilder.call(SqlStdOperatorTable.RADIANS, child.toRexNode)
   }
 }
 
@@ -283,5 +273,15 @@ case class Round(left: Expression, right: Expression) extends BinaryExpression {
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.ROUND, left.toRexNode, right.toRexNode)
+  }
+}
+
+case class Pi() extends LeafExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override def toString: String = s"pi()"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.PI)
   }
 }
