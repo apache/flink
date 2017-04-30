@@ -28,9 +28,9 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.GenericInputFormat
-import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{AtomicType, PrimitiveArrayTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.TableConfig
@@ -1414,11 +1414,19 @@ class CodeGenerator(
         generateArray(this, resultType, operands)
 
       case ITEM =>
-        val array = operands.head
-        val index = operands(1)
-        requireArray(array)
-        requireInteger(index)
-        generateArrayElementAt(this, array, index)
+        operands.head.resultType match {
+          case _: ObjectArrayTypeInfo[_, _] | _: PrimitiveArrayTypeInfo[_] =>
+            val array = operands.head
+            val index = operands(1)
+            requireInteger(index)
+            generateArrayElementAt(this, array, index)
+
+          case map: MapTypeInfo[_, _] =>
+            val key = operands(1)
+            generateMapGet(this, operands.head, key)
+
+          case _ => throw new CodeGenException("Expect an array or a map.")
+        }
 
       case CARDINALITY =>
         val array = operands.head
