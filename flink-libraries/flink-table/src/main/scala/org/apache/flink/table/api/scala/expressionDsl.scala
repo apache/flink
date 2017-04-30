@@ -291,22 +291,22 @@ trait ImplicitExpressionOperations {
   def tan() = Tan(expr)
 
   /**
-    * Calculates the tangent of a given number.
+    * Calculates the cotangent of a given number.
     */
   def cot() = Cot(expr)
 
   /**
-    * Calculates the tangent of a given number.
+    * Calculates the arc sine of a given number.
     */
   def asin() = Asin(expr)
 
   /**
-    * Calculates the tangent of a given number.
+    * Calculates the arc cosine of a given number.
     */
   def acos() = Acos(expr)
 
   /**
-    * Calculates the tangent of a given number.
+    * Calculates the arc tangent of a given number.
     */
   def atan() = Atan(expr)
 
@@ -326,9 +326,9 @@ trait ImplicitExpressionOperations {
   def sign() = Sign(expr)
 
   /**
-    * Rounds the given number to the other value places right to the decimal point.
+    * Rounds the given number to integer places right to the decimal point.
     */
-  def round(other: Expression) = Round(expr, other)
+  def round(places: Expression) = Round(expr, places)
 
   // String operations
 
@@ -863,12 +863,12 @@ object array {
 }
 
 /**
-  * Returns pi.
+  * Returns a value that is closer than any other value to pi.
   */
 object pi {
 
   /**
-    * Returns pi.
+    * Returns a value that is closer than any other value to pi.
     */
   def apply(): Expression = {
     Pi()

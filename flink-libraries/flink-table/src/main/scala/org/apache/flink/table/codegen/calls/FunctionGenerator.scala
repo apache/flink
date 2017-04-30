@@ -179,6 +179,36 @@ object FunctionGenerator {
     DOUBLE_TYPE_INFO,
     BuiltInMethods.POWER_DEC)
 
+  addSqlFunction(
+    ABS,
+    Seq(DOUBLE_TYPE_INFO),
+    new MultiTypeMethodCallGen(BuiltInMethods.ABS))
+
+  addSqlFunction(
+    ABS,
+    Seq(BIG_DEC_TYPE_INFO),
+    new MultiTypeMethodCallGen(BuiltInMethods.ABS_DEC))
+
+  addSqlFunction(
+    FLOOR,
+    Seq(DOUBLE_TYPE_INFO),
+    new FloorCeilCallGen(BuiltInMethod.FLOOR.method))
+
+  addSqlFunction(
+    FLOOR,
+    Seq(BIG_DEC_TYPE_INFO),
+    new FloorCeilCallGen(BuiltInMethod.FLOOR.method))
+
+  addSqlFunction(
+    CEIL,
+    Seq(DOUBLE_TYPE_INFO),
+    new FloorCeilCallGen(BuiltInMethod.CEIL.method))
+
+  addSqlFunction(
+    CEIL,
+    Seq(BIG_DEC_TYPE_INFO),
+    new FloorCeilCallGen(BuiltInMethod.CEIL.method))
+
   addSqlFunctionMethod(
     SIN,
     Seq(DOUBLE_TYPE_INFO),
@@ -287,11 +317,6 @@ object FunctionGenerator {
     DOUBLE_TYPE_INFO,
     BuiltInMethods.RADIANS_DEC)
 
-  addSqlFunction(
-    PI,
-    Seq(),
-    new ConstantCallGen(DOUBLE_TYPE_INFO, Math.PI.toString))
-
   addSqlFunctionMethod(
     SIGN,
     Seq(DOUBLE_TYPE_INFO),
@@ -341,34 +366,9 @@ object FunctionGenerator {
     BuiltInMethods.ROUND_DOUBLE)
 
   addSqlFunction(
-    ABS,
-    Seq(DOUBLE_TYPE_INFO),
-    new MultiTypeMethodCallGen(BuiltInMethods.ABS))
-
-  addSqlFunction(
-    ABS,
-    Seq(BIG_DEC_TYPE_INFO),
-    new MultiTypeMethodCallGen(BuiltInMethods.ABS_DEC))
-
-  addSqlFunction(
-    FLOOR,
-    Seq(DOUBLE_TYPE_INFO),
-    new FloorCeilCallGen(BuiltInMethod.FLOOR.method))
-
-  addSqlFunction(
-    FLOOR,
-    Seq(BIG_DEC_TYPE_INFO),
-    new FloorCeilCallGen(BuiltInMethod.FLOOR.method))
-
-  addSqlFunction(
-    CEIL,
-    Seq(DOUBLE_TYPE_INFO),
-    new FloorCeilCallGen(BuiltInMethod.CEIL.method))
-
-  addSqlFunction(
-    CEIL,
-    Seq(BIG_DEC_TYPE_INFO),
-    new FloorCeilCallGen(BuiltInMethod.CEIL.method))
+    PI,
+    Seq(),
+    new ConstantCallGen(DOUBLE_TYPE_INFO, Math.PI.toString))
 
   // ----------------------------------------------------------------------------------------------
   // Temporal functions

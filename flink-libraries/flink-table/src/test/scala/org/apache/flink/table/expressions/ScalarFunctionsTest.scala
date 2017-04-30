@@ -1027,12 +1027,42 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   }
 
   @Test
-  def testPi(): Unit = {
+  def testRadians(): Unit = {
     testAllApis(
-      pi(),
-      "pi()",
-      "PI",
-      math.Pi.toString)
+      'f2.radians(),
+      "f2.radians()",
+      "RADIANS(f2)",
+      math.toRadians(42.toByte).toString)
+
+    testAllApis(
+      'f3.radians(),
+      "f3.radians()",
+      "RADIANS(f3)",
+      math.toRadians(43.toShort).toString)
+
+    testAllApis(
+      'f4.radians(),
+      "f4.radians()",
+      "RADIANS(f4)",
+      math.toRadians(44.toLong).toString)
+
+    testAllApis(
+      'f5.radians(),
+      "f5.radians()",
+      "RADIANS(f5)",
+      math.toRadians(4.5.toFloat).toString)
+
+    testAllApis(
+      'f6.radians(),
+      "f6.radians()",
+      "RADIANS(f6)",
+      math.toRadians(4.6).toString)
+
+    testAllApis(
+      'f15.radians(),
+      "radians(f15)",
+      "RADIANS(f15)",
+      math.toRadians(-1231.1231231321321321111).toString)
   }
 
   @Test
@@ -1075,7 +1105,15 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "f4.round(f32)",
       "ROUND(f4, f32)",
       40.toString)
+  }
 
+  @Test
+  def testPi(): Unit = {
+    testAllApis(
+      pi(),
+      "pi()",
+      "PI",
+      math.Pi.toString)
   }
 
   // ----------------------------------------------------------------------------------------------

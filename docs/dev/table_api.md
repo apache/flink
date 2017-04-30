@@ -1977,127 +1977,6 @@ BOOLEAN.isNotFalse
       </td>
     </tr>
 
-    <tr>
-      <td>
-        {% highlight java %}
-NUMERIC.sin()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the sine of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-NUMERIC.cos()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the cosine of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-NUMERIC.tan()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the tangent of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-NUMERIC.cot()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the tangent of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-NUMERIC.asin()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the tangent of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-NUMERIC.acos()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the tangent of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-NUMERIC.atan()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the tangent of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-NUMERIC.degrees()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Converts <i>numeric</i> from radians to degrees.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-NUMERIC.radians()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Converts <i>numeric</i> from degrees to radians.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-NUMERIC.sign()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the signum of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-NUMERIC.round(numeric2)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Rounds the given number to the other value places right to the decimal point.</p>
-      </td>
-    </tr>
-
   </tbody>
 </table>
 
@@ -2280,11 +2159,132 @@ NUMERIC.floor()
     <tr>
       <td>
         {% highlight java %}
+NUMERIC.sin()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.cos()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.tan()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.cot()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cotangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.asin()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.acos()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.atan()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.degrees()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from radians to degrees.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.radians()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from degrees to radians.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.sign()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the signum of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.round(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds the given number to <i>integer</i> places right to the decimal point.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 pi()
 {% endhighlight %}
       </td>
       <td>
-        <p> Returns pi.</p>
+        <p>Returns a value that is closer than any other value to pi.</p>
       </td>
     </tr>
     
@@ -3337,7 +3337,7 @@ NUMERIC.tan()
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the tangent of a given number.</p>
+        <p>Calculates the cotangent of a given number.</p>
       </td>
     </tr>
 
@@ -3348,7 +3348,7 @@ NUMERIC.cot()
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the tangent of a given number.</p>
+        <p>Calculates the arc sine of a given number.</p>
       </td>
     </tr>
 
@@ -3359,7 +3359,7 @@ NUMERIC.asin()
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the tangent of a given number.</p>
+        <p>Calculates the arc cosine of a given number.</p>
       </td>
     </tr>
 
@@ -3370,7 +3370,7 @@ NUMERIC.acos()
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the tangent of a given number.</p>
+        <p>Calculates the arc tangent of a given number.</p>
       </td>
     </tr>
 
@@ -3421,11 +3421,11 @@ NUMERIC.sign()
     <tr>
       <td>
         {% highlight scala %}
-NUMERIC.round(numeric2)
+NUMERIC.round(INT)
 {% endhighlight %}
       </td>
       <td>
-        <p>Rounds the given number to the other value places right to the decimal point.</p>
+        <p>Rounds the given number to <i>integer</i> places right to the decimal point.</p>
       </td>
     </tr>
 
@@ -3436,7 +3436,7 @@ pi()
 {% endhighlight %}
       </td>
       <td>
-        <p> Returns pi.</p>
+        <p>Returns a value that is closer than any other value to pi.</p>
       </td>
     </tr>
 
@@ -4436,138 +4436,6 @@ boolean IS NOT UNKNOWN
       </td>
     </tr>
 
-    <tr>
-      <td>
-        {% highlight text %}
-SIN(numeric)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the sine of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-COS(numeric)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the cosine of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-TAN(numeric)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the tangent of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-COT(numeric)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the tangent of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-ASIN(numeric)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the tangent of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-ACOS(numeric)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the tangent of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-ATAN(numeric)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the tangent of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-DEGREES(numeric)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Converts <i>numeric</i> from radians to degrees.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-RADIANS(numeric)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Converts <i>numeric</i> from degrees to radians.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-SIGN(numeric)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the signum of a given number.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-ROUND(numeric1, numeric2)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Rounds the given number to the other value places right to the decimal point.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-PI
-{% endhighlight %}
-      </td>
-      <td>
-        <p> Returns pi.</p>
-      </td>
-    </tr>
-
   </tbody>
 </table>
 
@@ -4727,6 +4595,7 @@ EXP(numeric)
       <td>
         {% highlight text %}
 CEIL(numeric)
+CEILING(numeric)
 {% endhighlight %}
       </td>
       <td>
@@ -4742,6 +4611,138 @@ FLOOR(numeric)
       </td>
       <td>
         <p>Rounds <i>numeric</i> down, and returns the largest number that is less than or equal to <i>numeric</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SIN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+COS(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+TAN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+COT(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cotangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ASIN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ACOS(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ATAN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+DEGREES(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from radians to degrees.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+RADIANS(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from degrees to radians.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SIGN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the signum of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ROUND(numeric, int)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds the given number to <i>integer</i> places right to the decimal point.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+PI()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a value that is closer than any other value to pi.</p>
       </td>
     </tr>
 

@@ -110,9 +110,10 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("ACOS(0.5)", "1.0471975511965979")
     testSqlApi("ATAN(0.5)", "0.4636476090008061")
     testSqlApi("DEGREES(0.5)", "28.64788975654116")
-    testSqlApi("PI", "3.141592653589793")
+    testSqlApi("RADIANS(0.5)", "0.008726646259971648")
     testSqlApi("SIGN(-1.1)", "-1")
     testSqlApi("ROUND(-12.345, 2)", "-12.35")
+    testSqlApi("PI", "3.141592653589793")
   }
 
   @Test

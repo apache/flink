@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
 
 /**
-  * Generates a function call which return a constant.
+  * Generates a function call which returns a constant.
   */
 class ConstantCallGen(
     targetType: TypeInformation[_],
