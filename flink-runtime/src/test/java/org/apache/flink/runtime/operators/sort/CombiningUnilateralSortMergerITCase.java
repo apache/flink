@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.sort;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -183,6 +184,42 @@ public class CombiningUnilateralSortMergerITCase {
 	}
 
 	@Test
+	public void testCombineSpillingDisableObjectReuse() throws Exception {
+		int noKeys = 100;
+		int noKeyCnt = 10000;
+
+		TestData.MockTuple2Reader<Tuple2<Integer, Integer>> reader = TestData.getIntIntTupleReader();
+
+		LOG.debug("initializing sortmerger");
+
+		MaterializedCountCombiner comb = new MaterializedCountCombiner();
+
+		// set maxNumFileHandles = 2 to trigger multiple channel merging
+		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
+				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
+				0.01, 2, 0.005f, true /* use large record handler */, false);
+
+		final Tuple2<Integer, Integer> rec = new Tuple2<>();
+
+		for (int i = 0; i < noKeyCnt; i++) {
+			rec.setField(i, 0);
+			for (int j = 0; j < noKeys; j++) {
+				rec.setField(j, 1);
+				reader.emit(rec);
+			}
+		}
+		reader.close();
+
+		MutableObjectIterator<Tuple2<Integer, Integer>> iterator = merger.getIterator();
+		Iterator<Integer> result = getReducingIterator(iterator, serializerFactory2.getSerializer(), comparator2.duplicate());
+		while (result.hasNext()) {
+			Assert.assertEquals(4950, result.next().intValue());
+		}
+
+		merger.close();
+	}
+
+	@Test
 	public void testSortAndValidate() throws Exception
 	{
 		final Hashtable<Integer, Integer> countTable = new Hashtable<>(KEY_MAX);
@@ -331,7 +368,39 @@ public class CombiningUnilateralSortMergerITCase {
 			closed = true;
 		}
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+
+	public static class MaterializedCountCombiner
+			extends RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
+			implements GroupCombineFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
+	{
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void combine(Iterable<Tuple2<Integer, Integer>> values, Collector<Tuple2<Integer, Integer>> out) {
+			ArrayList<Tuple2<Integer, Integer>> valueList = new ArrayList<>();
+			for (Tuple2<Integer, Integer> next : values) {
+				valueList.add(next);
+			}
+
+			int count = 0;
+			Tuple2<Integer, Integer> rec = new Tuple2<>();
+			for (Tuple2<Integer, Integer> tuple : valueList) {
+				rec.setField(tuple.f0, 0);
+				count += tuple.f1;
+			}
+			rec.setField(count, 1);
+			out.collect(rec);
+		}
+
+		@Override
+		public void reduce(Iterable<Tuple2<Integer, Integer>> values,
+				Collector<Tuple2<Integer, Integer>> out) throws Exception
+		{
+		}
+	}
+
 	private static Iterator<Integer> getReducingIterator(MutableObjectIterator<Tuple2<Integer, Integer>> data, TypeSerializer<Tuple2<Integer, Integer>> serializer, TypeComparator<Tuple2<Integer, Integer>>  comparator) {
 		
 		final ReusingKeyGroupedIterator<Tuple2<Integer, Integer>>  groupIter = new ReusingKeyGroupedIterator<> (data, serializer, comparator);
