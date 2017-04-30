@@ -164,6 +164,7 @@ public final class NonReusingKeyGroupedIterator<E> implements KeyGroupedIterator
 	 * 
 	 * @return Iterator over all values that belong to the current key.
 	 */
+	@Override
 	public ValuesIterator getValues() {
 		return this.valuesIterator;
 	}
