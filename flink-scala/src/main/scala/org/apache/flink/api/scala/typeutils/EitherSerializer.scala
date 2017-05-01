@@ -18,8 +18,9 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.core.memory.{DataOutputView, DataInputView}
+import org.apache.flink.api.common.typeutils.{ReconfigureResult, TypeSerializer, TypeSerializerConfigSnapshot, TypeSerializerUtil}
+import org.apache.flink.api.java.typeutils.runtime.EitherSerializerConfigSnapshot
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /**
  * Serializer for [[Either]].
@@ -103,5 +104,27 @@ class EitherSerializer[A, B, T <: Either[A, B]](
 
   override def hashCode(): Int = {
     31 * leftSerializer.hashCode() + rightSerializer.hashCode()
+  }
+
+  // --------------------------------------------------------------------------------------------
+  // Serializer configuration snapshotting & reconfiguring
+  // --------------------------------------------------------------------------------------------
+
+  override def snapshotConfiguration(): EitherSerializerConfigSnapshot = {
+    new EitherSerializerConfigSnapshot(
+      leftSerializer.snapshotConfiguration(),
+      rightSerializer.snapshotConfiguration())
+  }
+
+  override def reconfigure(configSnapshot: TypeSerializerConfigSnapshot): ReconfigureResult = {
+    configSnapshot match {
+      case eitherSerializerConfig: EitherSerializerConfigSnapshot =>
+        TypeSerializerUtil.reconfigureMultipleSerializers(
+          eitherSerializerConfig.getNestedSerializerConfigSnapshots,
+          leftSerializer,
+          rightSerializer
+        )
+      case _ => ReconfigureResult.INCOMPATIBLE
+    }
   }
 }

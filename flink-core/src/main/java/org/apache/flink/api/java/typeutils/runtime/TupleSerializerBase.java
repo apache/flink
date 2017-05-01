@@ -19,7 +19,10 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -114,5 +117,32 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof TupleSerializerBase;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public TupleSerializerConfigSnapshot<T> snapshotConfiguration() {
+		return new TupleSerializerConfigSnapshot<>(
+				tupleClass,
+				TypeSerializerUtil.snapshotConfigurations(fieldSerializers));
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof TupleSerializerConfigSnapshot) {
+			final TupleSerializerConfigSnapshot<T> config = (TupleSerializerConfigSnapshot<T>) configSnapshot;
+
+			if (tupleClass.equals(config.getTupleClass())
+					&& fieldSerializers.length == config.getNestedSerializerConfigSnapshots().length) {
+				return TypeSerializerUtil.reconfigureMultipleSerializers(
+						config.getNestedSerializerConfigSnapshots(), fieldSerializers);
+			}
+		}
+
+		return ReconfigureResult.INCOMPATIBLE;
 	}
 }

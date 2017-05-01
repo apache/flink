@@ -18,7 +18,12 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
+import org.apache.flink.api.common.typeutils.base.MapSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
@@ -38,7 +43,8 @@ import java.util.Map;
  * @param <K> The type of the keys in the map.
  * @param <V> The type of the values in the map.
  */
-public class HashMapSerializer<K, V> extends TypeSerializer<HashMap<K, V>> {
+@Internal
+public final class HashMapSerializer<K, V> extends TypeSerializer<HashMap<K, V>> {
 
 	private static final long serialVersionUID = -6885593032367050078L;
 	
@@ -189,5 +195,28 @@ public class HashMapSerializer<K, V> extends TypeSerializer<HashMap<K, V>> {
 	@Override
 	public int hashCode() {
 		return keySerializer.hashCode() * 31 + valueSerializer.hashCode();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		return new MapSerializerConfigSnapshot(
+				keySerializer.snapshotConfiguration(),
+				valueSerializer.snapshotConfiguration());
+	}
+
+	@Override
+	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof MapSerializerConfigSnapshot) {
+			return TypeSerializerUtil.reconfigureMultipleSerializers(
+					((MapSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots(),
+					keySerializer,
+					valueSerializer);
+		} else {
+			return ReconfigureResult.INCOMPATIBLE;
+		}
 	}
 }
