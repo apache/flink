@@ -31,8 +31,7 @@ public final class LongValueSerializer extends TypeSerializerSingleton<LongValue
 	private static final long serialVersionUID = 1L;
 	
 	public static final LongValueSerializer INSTANCE = new LongValueSerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -83,5 +82,11 @@ public final class LongValueSerializer extends TypeSerializerSingleton<LongValue
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof LongValueSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(LongSerializer.class.getCanonicalName());
 	}
 }

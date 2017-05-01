@@ -33,8 +33,7 @@ public final class StringValueSerializer extends TypeSerializerSingleton<StringV
 	private static final int HIGH_BIT = 0x1 << 7;
 	
 	public static final StringValueSerializer INSTANCE = new StringValueSerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -108,5 +107,11 @@ public final class StringValueSerializer extends TypeSerializerSingleton<StringV
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof StringValueSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(StringSerializer.class.getCanonicalName());
 	}
 }

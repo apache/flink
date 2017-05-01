@@ -36,8 +36,7 @@ public final class DoublePrimitiveArraySerializer extends TypeSerializerSingleto
 	private static final double[] EMPTY = new double[0];
 
 	public static final DoublePrimitiveArraySerializer INSTANCE = new DoublePrimitiveArraySerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;

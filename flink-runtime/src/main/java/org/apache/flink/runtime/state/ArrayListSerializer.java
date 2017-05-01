@@ -17,7 +17,10 @@
  */
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -131,5 +134,35 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	@Override
 	public int hashCode() {
 		return elementSerializer.hashCode();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		return new CollectionSerializerConfigSnapshot(elementSerializer.snapshotConfiguration());
+	}
+
+	@Override
+	protected MigrationStrategy<ArrayList<T>> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
+			MigrationStrategy<T> strategy = elementSerializer.getMigrationStrategyFor(
+				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+
+			if (strategy.requireMigration()) {
+				if (strategy.getFallbackDeserializer() != null) {
+					return MigrationStrategy.migrateWithFallbackDeserializer(
+						new ArrayListSerializer<>(strategy.getFallbackDeserializer()));
+				} else {
+					return MigrationStrategy.migrate();
+				}
+			} else {
+				return MigrationStrategy.noMigration();
+			}
+		} else {
+			return MigrationStrategy.migrate();
+		}
 	}
 }
