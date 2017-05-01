@@ -24,7 +24,10 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.typeutils.ForwardCompatibleSerializationFormatConfig;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -229,5 +232,15 @@ public class CheckpointingCustomKvStateProgram {
 			return obj instanceof CustomIntSerializer;
 		}
 
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			return ForwardCompatibleSerializationFormatConfig.INSTANCE;
+		}
+
+		@Override
+		public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+			throw new UnsupportedOperationException(
+					"This serializer is used only in tests. Assuming always compatible.");
+		}
 	}
 }

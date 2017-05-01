@@ -19,7 +19,10 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
@@ -34,6 +37,8 @@ import java.io.Serializable;
 final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 5067491650263321234L;
+
+	public static final JavaSerializationFormatConfig CONFIG = new JavaSerializationFormatConfig();
 
 	@Override
 	public boolean isImmutableType() {
@@ -111,4 +116,24 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 	public int hashCode() {
 		return getClass().hashCode();
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public JavaSerializationFormatConfig snapshotConfiguration() {
+		return CONFIG;
+	}
+
+	@Override
+	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof JavaSerializationFormatConfig) {
+			return ReconfigureResult.COMPATIBLE;
+		} else {
+			return ReconfigureResult.INCOMPATIBLE;
+		}
+	}
+
+	public static final class JavaSerializationFormatConfig extends ParameterlessTypeSerializerConfig {}
 }

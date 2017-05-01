@@ -206,6 +206,16 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 		}
 
 		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			throw new UnsupportedOperationException("This object is a dummy TypeSerializer.");
+		}
+
+		@Override
+		protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+			throw new UnsupportedOperationException("This object is a dummy TypeSerializer.");
+		}
+
+		@Override
 		public boolean canEqual(Object obj) {
 			return false;
 		}

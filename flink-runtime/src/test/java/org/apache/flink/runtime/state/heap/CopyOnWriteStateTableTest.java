@@ -19,7 +19,10 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeutils.ForwardCompatibleSerializationFormatConfig;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -648,6 +651,16 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 
 		public void disable() {
 			this.disabled = true;
+		}
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+			throw new UnsupportedOperationException();
 		}
 	}
 }
