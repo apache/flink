@@ -69,20 +69,24 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	/**
 	 * Required configuration for each offset of the graph.
 	 *
-	 * @param offset appoint the vertices' position should be linked by any vertex
+	 * @param startOffset first offset appointing the vertices' position should be linked by any vertex
+	 * @param length offset in [startOffset, startOffset + length) will be added
 	 * @return this
 	 */
-	public CirculantGraph addOffset(long offset) {
+	public CirculantGraph addOffsets(long startOffset, long length) {
 		long maxOffset = vertexCount / 2;
-		Preconditions.checkArgument(offset >= MINIMUM_OFFSET,
-			"Offset must be at least " + MINIMUM_OFFSET);
-		Preconditions.checkArgument(offset <= maxOffset,
-			"Offset must be at most " + maxOffset);
+		for (int i = 0; i < length; i++) {
+			long offset = startOffset + i;
+			Preconditions.checkArgument(offset >= MINIMUM_OFFSET,
+					"Offset must be at least " + MINIMUM_OFFSET);
+			Preconditions.checkArgument(offset <= maxOffset,
+					"Offset must be at most " + maxOffset);
 
-		// add sign, ignore negative max offset when vertex count is even
-		signedOffsets.add(offset);
-		if (!(vertexCount % 2 == 0 && offset == maxOffset)) {
-			signedOffsets.add(-offset);
+			// add sign, ignore negative max offset when vertex count is even
+			signedOffsets.add(offset);
+			if (!(vertexCount % 2 == 0 && offset == maxOffset)) {
+				signedOffsets.add(-offset);
+			}
 		}
 
 		return this;

@@ -77,13 +77,13 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 		// add max offset when vertex degree is even and vertex count is odd
 		if (vertexDegree % 2 == 1 && vertexCount % 2 == 0) {
-			circulantGraph.addOffset(maxOffset);
+			circulantGraph.addOffsets(maxOffset, 1);
 		}
 
 		// add other offset nearby max offset
-		for (long i = 0; i < vertexDegree / 2; i++) {
-			circulantGraph.addOffset(maxOffset - i - (vertexCount + 1) % 2);
-		}
+		long length = vertexDegree / 2;
+		final long startOffset = maxOffset - length + vertexCount % 2;
+		circulantGraph.addOffsets(startOffset, length);
 
 		return circulantGraph
 				.setParallelism(parallelism)
