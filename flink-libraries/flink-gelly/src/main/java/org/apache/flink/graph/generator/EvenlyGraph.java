@@ -20,19 +20,27 @@ package org.apache.flink.graph.generator;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 
-/*
- * @see <a href="http://mathworld.wolfram.com/CompleteGraph.html">Complete Graph at Wolfram MathWorld</a>
+/**
+ * Every {@link Vertex} in the {@link EvenlyGraph} has the same degree.
+ * there may exist multiple cases satisfy the condition above, so further vertices
+ * are chose to be linked.
+ * {@link EvenlyGraph} is a specific case of {@link CirculantGraph}.
+ * when vertex degree is 0, {@link EmptyGraph} will be generated.
+ * when vertex degree is vertex count - 1, {@link CompleteGraph} will be generated.
  */
-public class CompleteGraph
+public class EvenlyGraph
 extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
-	public static final int MINIMUM_VERTEX_COUNT = 2;
+	public static final int MINIMUM_VERTEX_COUNT = 1;
+
+	public static final int MINIMUM_VERTEX_DEGREE = 0;
 
 	// Required to create the DataSource
 	private final ExecutionEnvironment env;
@@ -40,18 +48,28 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	// Required configuration
 	private long vertexCount;
 
+	private long vertexDegree;
+
 	/**
-	 * An undirected {@link Graph} connecting every distinct pair of vertices.
+	 * An undirected {@link Graph} whose vertices have the same degree.
 	 *
 	 * @param env the Flink execution environment
 	 * @param vertexCount number of vertices
+	 * @param vertexDegree degree of vertices
 	 */
-	public CompleteGraph(ExecutionEnvironment env, long vertexCount) {
+	public EvenlyGraph(ExecutionEnvironment env, long vertexCount,  long vertexDegree) {
 		Preconditions.checkArgument(vertexCount >= MINIMUM_VERTEX_COUNT,
 			"Vertex count must be at least " + MINIMUM_VERTEX_COUNT);
+		Preconditions.checkArgument(vertexDegree >= MINIMUM_VERTEX_DEGREE,
+				"Vertex degree must be at least " + MINIMUM_VERTEX_DEGREE);
+		Preconditions.checkArgument(vertexDegree <= vertexCount - 1,
+				"Vertex degree must be at most " + (vertexCount - 1));
+		Preconditions.checkArgument(vertexCount % 2 == 0 || vertexDegree % 2 == 0,
+				"Vertex degree must be even when vertex count is odd number");
 
 		this.env = env;
 		this.vertexCount = vertexCount;
+		this.vertexDegree = vertexDegree;
 	}
 
 	@Override
@@ -59,9 +77,14 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 		ArrayList<Long> offsetList = new ArrayList<Long>();
 		long maxOffset = vertexCount / 2;
 
-		// add all the offset
-		for (long i = 0; i < maxOffset; i++) {
-			offsetList.add(maxOffset - i);
+		// add max offset when vertex degree is even and vertex count is odd
+		if (vertexDegree % 2 == 1 && vertexCount % 2 == 0) {
+			offsetList.add(maxOffset);
+		}
+
+		// add other offset nearby max offset
+		for (long i = 0; i < vertexDegree / 2; i++) {
+			offsetList.add(maxOffset - i - (vertexCount + 1) % 2);
 		}
 
 		return new CirculantGraph(env, vertexCount, offsetList)
