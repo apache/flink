@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
@@ -31,8 +32,8 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.LongValueSequenceIterator;
 import org.apache.flink.util.Preconditions;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 /*
  * @see <a href="http://mathworld.wolfram.com/CirculantGraph.html">Circulant Graph at Wolfram MathWorld</a>
@@ -50,7 +51,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	// Required configuration
 	private long vertexCount;
 
-	private Set<Long> signedOffsets = new HashSet<>();
+	private List<Tuple2<Long, Long>> startOffsetPairs = new ArrayList<>();
 
 	/**
 	 * An undirected {@link Graph} whose {@link Vertex} connects to targets appointed by an offset list.
@@ -81,13 +82,10 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 					"Offset must be at least " + MINIMUM_OFFSET);
 			Preconditions.checkArgument(offset <= maxOffset,
 					"Offset must be at most " + maxOffset);
-
-			// add sign, ignore negative max offset when vertex count is even
-			signedOffsets.add(offset);
-			if (!(vertexCount % 2 == 0 && offset == maxOffset)) {
-				signedOffsets.add(-offset);
-			}
 		}
+
+		// save startOffset and length pair
+		startOffsetPairs.add(new Tuple2<>(startOffset, length));
 
 		return this;
 	}
@@ -104,7 +102,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 				.fromParallelCollection(iterator, LongValue.class)
 				.setParallelism(parallelism)
 				.name("Edge iterators")
-				.flatMap(new LinkVertexToOffsets(vertexCount, signedOffsets))
+				.flatMap(new LinkVertexToOffsets(vertexCount, startOffsetPairs))
 				.setParallelism(parallelism)
 				.name("Circulant graph edges");
 
@@ -118,21 +116,39 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 		private final long vertexCount;
 
-		private final Set<Long> offsets;
+		private final List<Tuple2<Long, Long>> startOffsetPairs;
 
 		private LongValue target = new LongValue();
 
 		private Edge<LongValue, NullValue> edge = new Edge<>(null, target, NullValue.getInstance());
 
-		public LinkVertexToOffsets(long vertexCount, Set<Long> offsets) {
+		public LinkVertexToOffsets(long vertexCount, List<Tuple2<Long, Long>> startOffsetPairs) {
 			this.vertexCount = vertexCount;
-			this.offsets = offsets;
+			this.startOffsetPairs = startOffsetPairs;
 		}
 
 		@Override
 		public void flatMap(LongValue source, Collector<Edge<LongValue, NullValue>> out)
 				throws Exception {
 			edge.f0 = source;
+
+			// parse startOffsetPairs to offsets
+			List<Long> offsets = new ArrayList<>();
+			long maxOffset = vertexCount / 2;
+			for (Tuple2<Long, Long> offsetPair : startOffsetPairs) {
+				Long startOffset = offsetPair.f0;
+				Long length = offsetPair.f1;
+
+				for (int i = 0; i < length; i++) {
+					long offset = startOffset + i;
+
+					// add sign, ignore negative max offset when vertex count is even
+					offsets.add(offset);
+					if (!(vertexCount % 2 == 0 && offset == maxOffset)) {
+						offsets.add(-offset);
+					}
+				}
+			}
 
 			// link to offset vertex
 			long index = source.getValue();
