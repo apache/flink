@@ -21,6 +21,8 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 import java.util.Date;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -100,5 +102,23 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof DateSerializer;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public TimestampSerializationFormatConfigSnapshot snapshotConfiguration() {
+		return TimestampSerializationFormatConfigSnapshot.INSTANCE;
+	}
+
+	@Override
+	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof TimestampSerializationFormatConfigSnapshot) {
+			return ReconfigureResult.COMPATIBLE;
+		} else {
+			return ReconfigureResult.INCOMPATIBLE;
+		}
 	}
 }

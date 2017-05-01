@@ -21,6 +21,8 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.ByteValue;
@@ -83,5 +85,23 @@ public final class ByteValueSerializer extends TypeSerializerSingleton<ByteValue
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof ByteValueSerializer;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public PlainSerializationFormatConfigs.ByteSerializationFormatConfig snapshotConfiguration() {
+		return PlainSerializationFormatConfigs.BYTE;
+	}
+
+	@Override
+	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof PlainSerializationFormatConfigs.ByteSerializationFormatConfig) {
+			return ReconfigureResult.COMPATIBLE;
+		} else {
+			return ReconfigureResult.INCOMPATIBLE;
+		}
 	}
 }

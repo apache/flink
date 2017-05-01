@@ -19,6 +19,9 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -34,6 +37,8 @@ public final class BigIntSerializer extends TypeSerializerSingleton<BigInteger> 
 	private static final long serialVersionUID = 1L;
 
 	public static final BigIntSerializer INSTANCE = new BigIntSerializer();
+
+	public static final BigIntSerializationFormatConfig CONFIG = new BigIntSerializationFormatConfig();
 
 	@Override
 	public boolean isImmutableType() {
@@ -143,4 +148,24 @@ public final class BigIntSerializer extends TypeSerializerSingleton<BigInteger> 
 		}
 		return len == 0; // returns true if the copied record was null
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public BigIntSerializationFormatConfig snapshotConfiguration() {
+		return CONFIG;
+	}
+
+	@Override
+	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof BigIntSerializationFormatConfig) {
+			return ReconfigureResult.COMPATIBLE;
+		} else {
+			return ReconfigureResult.INCOMPATIBLE;
+		}
+	}
+
+	public static final class BigIntSerializationFormatConfig extends ParameterlessTypeSerializerConfig {}
 }

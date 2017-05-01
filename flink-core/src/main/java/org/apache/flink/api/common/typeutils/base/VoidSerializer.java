@@ -21,6 +21,8 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -83,5 +85,23 @@ public final class VoidSerializer extends TypeSerializerSingleton<Void> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof VoidSerializer;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public PlainSerializationFormatConfigs.VoidSerializationFormatConfig snapshotConfiguration() {
+		return PlainSerializationFormatConfigs.VOID;
+	}
+
+	@Override
+	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof PlainSerializationFormatConfigs.VoidSerializationFormatConfig) {
+			return ReconfigureResult.COMPATIBLE;
+		} else {
+			return ReconfigureResult.INCOMPATIBLE;
+		}
 	}
 }

@@ -21,6 +21,8 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -33,7 +35,6 @@ public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 	
 	private static final Short ZERO = Short.valueOf((short)0);
 
-	
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -82,5 +83,23 @@ public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof ShortSerializer;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public PlainSerializationFormatConfigs.ShortSerializationFormatConfig snapshotConfiguration() {
+		return PlainSerializationFormatConfigs.SHORT;
+	}
+
+	@Override
+	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof PlainSerializationFormatConfigs.ShortSerializationFormatConfig) {
+			return ReconfigureResult.COMPATIBLE;
+		} else {
+			return ReconfigureResult.INCOMPATIBLE;
+		}
 	}
 }

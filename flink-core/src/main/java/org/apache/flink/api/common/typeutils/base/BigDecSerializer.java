@@ -22,6 +22,9 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -34,6 +37,8 @@ public final class BigDecSerializer extends TypeSerializerSingleton<BigDecimal> 
 	private static final long serialVersionUID = 1L;
 
 	public static final BigDecSerializer INSTANCE = new BigDecSerializer();
+
+	public static final BigDecSerializationFormatConfig CONFIG = new BigDecSerializationFormatConfig();
 
 	@Override
 	public boolean isImmutableType() {
@@ -138,4 +143,24 @@ public final class BigDecSerializer extends TypeSerializerSingleton<BigDecimal> 
 		// default
 		return new BigDecimal(unscaledValue, scale);
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public BigDecSerializationFormatConfig snapshotConfiguration() {
+		return CONFIG;
+	}
+
+	@Override
+	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof BigDecSerializationFormatConfig) {
+			return ReconfigureResult.COMPATIBLE;
+		} else {
+			return ReconfigureResult.INCOMPATIBLE;
+		}
+	}
+
+	public static final class BigDecSerializationFormatConfig extends ParameterlessTypeSerializerConfig {}
 }
