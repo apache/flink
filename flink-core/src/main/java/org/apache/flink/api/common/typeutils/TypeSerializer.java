@@ -193,9 +193,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 *
 	 * @return snapshot of the serializer's current configuration.
 	 */
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
-		return null;
-	}
+	public abstract TypeSerializerConfigSnapshot snapshotConfiguration();
 
 	/**
 	 * Reconfigure this serializer with the configuration snapshot of a preceding serializer that was registered
@@ -224,9 +222,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 *
 	 * @return the result of the reconfiguration.
 	 */
-	protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		return null;
-	}
+	protected abstract ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot);
 
 	/**
 	 * Reconfigure this serializer with the configuration snapshot of a preceding serializer that was registered

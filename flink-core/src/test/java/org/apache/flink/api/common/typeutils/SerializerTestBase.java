@@ -31,6 +31,9 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 
@@ -84,6 +87,38 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			e.printStackTrace();
 			fail("Exception in test: " + e.getMessage());
 		}
+	}
+
+	@Test
+	public void testConfigSnapshotInstantiation() {
+		TypeSerializerConfigSnapshot configSnapshot = getSerializer().snapshotConfiguration();
+
+		InstantiationUtil.instantiate(configSnapshot.getClass());
+	}
+
+	@Test
+	public void testSnapshotConfigurationAndReconfigure() throws Exception {
+		final TypeSerializerConfigSnapshot configSnapshot = getSerializer().snapshotConfiguration();
+
+		byte[] serializedConfig;
+		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+			TypeSerializerUtil.writeSerializerConfigSnapshot(
+				new DataOutputViewStreamWrapper(out), configSnapshot);
+			serializedConfig = out.toByteArray();
+		}
+
+		TypeSerializerConfigSnapshot restoredConfig;
+		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
+			restoredConfig = TypeSerializerUtil.readSerializerConfigSnapshot(
+				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+		}
+
+		assertEquals(ReconfigureResult.COMPATIBLE, getSerializer().reconfigureWith(restoredConfig));
+
+		// also verify that the serializer's reconfigure implementation detects incompatibility
+		assertEquals(
+			ReconfigureResult.INCOMPATIBLE,
+			getSerializer().reconfigureWith(new TestIncompatibleSerializerConfigSnapshot()));
 	}
 	
 	@Test
@@ -475,6 +510,13 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 				int skipped = skipBytes(numBytes);
 				numBytes -= skipped;
 			}
+		}
+	}
+
+	public static final class TestIncompatibleSerializerConfigSnapshot extends TypeSerializerConfigSnapshot {
+		@Override
+		public int getVersion() {
+			return 0;
 		}
 	}
 }
