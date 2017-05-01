@@ -18,8 +18,8 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.core.memory.{DataOutputView, DataInputView}
+import org.apache.flink.api.common.typeutils.{ReconfigureResult, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /**
  * Serializer for cases where no serializer is required but the system still expects one. This
@@ -50,11 +50,16 @@ class NothingSerializer extends TypeSerializer[Any] {
   override def serialize(any: Any, target: DataOutputView): Unit =
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
-
   override def deserialize(source: DataInputView): Any =
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
   override def deserialize(reuse: Any, source: DataInputView): Any =
+    throw new RuntimeException("This must not be used. You encountered a bug.")
+
+  override def snapshotConfiguration(): TypeSerializerConfigSnapshot =
+    throw new RuntimeException("This must not be used. You encountered a bug.")
+
+  override def reconfigure(configSnapshot: TypeSerializerConfigSnapshot): ReconfigureResult =
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
   override def equals(obj: Any): Boolean = {

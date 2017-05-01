@@ -19,11 +19,12 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer.KryoSerializerConfigSnapshot
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
-import scala.util.{Success, Try, Failure}
+import scala.util.{Failure, Success, Try}
 
 /**
  * Serializer for [[scala.util.Try]].
@@ -98,4 +99,48 @@ class TrySerializer[A](
   override def hashCode(): Int = {
     31 * elemSerializer.hashCode() + executionConfig.hashCode()
   }
+
+  // --------------------------------------------------------------------------------------------
+  // Serializer configuration snapshotting & reconfiguring
+  // --------------------------------------------------------------------------------------------
+
+  override def snapshotConfiguration(): TypeSerializerConfigSnapshot = {
+    new TrySerializer.TrySerializerConfigSnapshot(
+        elemSerializer.snapshotConfiguration(),
+        throwableSerializer.snapshotConfiguration())
+  }
+
+  override protected def reconfigure(
+      configSnapshot: TypeSerializerConfigSnapshot): ReconfigureResult = {
+
+    configSnapshot match {
+      case trySerializerConfigSnapshot: TrySerializer.TrySerializerConfigSnapshot =>
+        TypeSerializerUtil.reconfigureMultipleSerializers(
+          trySerializerConfigSnapshot.getNestedSerializerConfigSnapshots,
+          elemSerializer,
+          throwableSerializer
+        )
+      case _ => ReconfigureResult.INCOMPATIBLE
+    }
+  }
+}
+
+object TrySerializer {
+
+  class TrySerializerConfigSnapshot(
+      private var elemSerializerConfigSnapshot: TypeSerializerConfigSnapshot,
+      private var throwableSerializerConfigSnapshot: KryoSerializerConfigSnapshot[Throwable])
+    extends CompositeTypeSerializerConfigSnapshot(
+      elemSerializerConfigSnapshot, throwableSerializerConfigSnapshot) {
+
+    /** This empty nullary constructor is required for deserializing the configuration. */
+    def this() = this(null, null)
+
+    override def getVersion: Int = TrySerializerConfigSnapshot.VERSION
+  }
+
+  object TrySerializerConfigSnapshot {
+    val VERSION = 1
+  }
+
 }

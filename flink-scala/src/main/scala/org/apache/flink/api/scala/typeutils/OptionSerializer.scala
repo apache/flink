@@ -18,8 +18,8 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.core.memory.{DataOutputView, DataInputView}
+import org.apache.flink.api.common.typeutils.{CompositeTypeSerializerConfigSnapshot, ReconfigureResult, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /**
  * Serializer for [[Option]].
@@ -95,4 +95,40 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
   override def hashCode(): Int = {
     elemSerializer.hashCode()
   }
+
+  // --------------------------------------------------------------------------------------------
+  // Serializer configuration snapshotting & reconfiguring
+  // --------------------------------------------------------------------------------------------
+
+  override def snapshotConfiguration(): OptionSerializer.OptionSerializerConfigSnapshot = {
+    new OptionSerializer.OptionSerializerConfigSnapshot(elemSerializer.snapshotConfiguration())
+  }
+
+  override protected def reconfigure(
+      configSnapshot: TypeSerializerConfigSnapshot): ReconfigureResult = {
+    configSnapshot match {
+      case optionSerializerConfigSnapshot: OptionSerializer.OptionSerializerConfigSnapshot =>
+        elemSerializer.reconfigureWith(
+          optionSerializerConfigSnapshot.getSingleNestedSerializerConfigSnapshot)
+      case _ => ReconfigureResult.INCOMPATIBLE
+    }
+  }
+}
+
+object OptionSerializer {
+
+  class OptionSerializerConfigSnapshot(
+      private var elemSerializerConfigSnapshot: TypeSerializerConfigSnapshot)
+    extends CompositeTypeSerializerConfigSnapshot(elemSerializerConfigSnapshot) {
+
+    /** This empty nullary constructor is required for deserializing the configuration. */
+    def this() = this(null)
+
+    override def getVersion: Int = OptionSerializerConfigSnapshot.VERSION
+  }
+
+  object OptionSerializerConfigSnapshot {
+    val VERSION = 1
+  }
+
 }

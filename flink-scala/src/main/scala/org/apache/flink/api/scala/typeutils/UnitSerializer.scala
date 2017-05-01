@@ -18,7 +18,8 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton
+import org.apache.flink.api.common.typeutils.{ReconfigureResult, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils.base.{PlainSerializationFormatConfigs, TypeSerializerSingleton}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 @Internal
@@ -56,5 +57,21 @@ class UnitSerializer extends TypeSerializerSingleton[Unit] {
 
   override def canEqual(obj: scala.Any): Boolean = {
     obj.isInstanceOf[UnitSerializer]
+  }
+
+  // --------------------------------------------------------------------------------------------
+  // Serializer configuration snapshotting & reconfiguring
+  // --------------------------------------------------------------------------------------------
+
+  override def snapshotConfiguration(): TypeSerializerConfigSnapshot = {
+    PlainSerializationFormatConfigs.VOID
+  }
+
+  override def reconfigure(configSnapshot: TypeSerializerConfigSnapshot): ReconfigureResult = {
+    configSnapshot match {
+      case voidFormatConfig: PlainSerializationFormatConfigs.VoidSerializationFormatConfig =>
+        ReconfigureResult.COMPATIBLE
+      case _ => ReconfigureResult.INCOMPATIBLE
+    }
   }
 }
