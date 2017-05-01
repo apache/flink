@@ -805,9 +805,6 @@ class Table(
     * @return A windowed table.
     */
   def window(window: Window): WindowedTable = {
-    if (window.alias.isEmpty) {
-      throw new ValidationException("An alias must be specified for the window.")
-    }
     new WindowedTable(this, window)
   }
 
@@ -936,7 +933,7 @@ class WindowedTable(
     * }}}
     */
   def groupBy(fields: Expression*): WindowGroupedTable = {
-    val fieldsWithoutWindow = fields.filterNot(window.alias.get.equals(_))
+    val fieldsWithoutWindow = fields.filterNot(window.alias.equals(_))
     if (fields.size != fieldsWithoutWindow.size + 1) {
       throw new ValidationException("GroupBy must contain exactly one window alias.")
     }

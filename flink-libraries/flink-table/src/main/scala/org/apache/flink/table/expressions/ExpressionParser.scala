@@ -92,6 +92,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val CURRENT_RANGE: Keyword = Keyword("current_range")
   lazy val UNBOUNDED_ROW: Keyword = Keyword("unbounded_row")
   lazy val UNBOUNDED_RANGE: Keyword = Keyword("unbounded_range")
+  lazy val ASIN: Keyword = Keyword("asin")
 
   def functionIdent: ExpressionParser.Parser[String] =
     not(ARRAY) ~ not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
@@ -315,11 +316,14 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val suffixAgg: PackratParser[Expression] =
     suffixSum | suffixMin | suffixMax | suffixCount | suffixAvg
 
+  lazy val suffixAsin: PackratParser[Expression] =
+    composite <~ "." ~ ASIN ~ opt("()") ^^ { e => Asin(e) }
+
   lazy val suffixed: PackratParser[Expression] =
     suffixTimeInterval | suffixRowInterval | suffixStart | suffixEnd | suffixAgg |
       suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs | suffixIf | suffixAsc |
       suffixDesc | suffixToDate | suffixToTimestamp | suffixToTime | suffixExtract |
-      suffixFloor | suffixCeil | suffixGet | suffixFlattening |
+      suffixFloor | suffixCeil | suffixGet | suffixFlattening | suffixAsin |
       suffixFunctionCall | suffixFunctionCallOneArg // function call must always be at the end
 
   // prefix operators
@@ -403,10 +407,13 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val prefixAgg: PackratParser[Expression] =
     prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg
 
+  lazy val prefixAsin: PackratParser[Expression] =
+    ASIN ~ "(" ~> composite <~ ")" ^^ { e => Asin(e) }
+
   lazy val prefixed: PackratParser[Expression] =
     prefixArray | prefixAgg | prefixStart | prefixEnd | prefixCast | prefixAs | prefixTrim |
       prefixTrimWithoutArgs | prefixIf | prefixExtract | prefixFloor | prefixCeil | prefixGet |
-      prefixFlattening | prefixFunctionCall |
+      prefixFlattening | prefixAsin | prefixFunctionCall |
       prefixFunctionCallOneArg // function call must always be at the end
 
   // over

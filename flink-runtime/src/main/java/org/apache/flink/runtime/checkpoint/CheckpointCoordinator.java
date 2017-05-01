@@ -36,12 +36,12 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -540,20 +540,6 @@ public class CheckpointCoordinator {
 				checkpoint.setStatsCallback(callback);
 			}
 
-			// trigger the master hooks for the checkpoint
-			try {
-				List<MasterState> masterStates = MasterHooks.triggerMasterHooks(masterHooks.values(),
-						checkpointID, timestamp, executor, Time.milliseconds(checkpointTimeout));
-
-				for (MasterState s : masterStates) {
-					checkpoint.addMasterState(s);
-				}
-			}
-			catch (FlinkException e) {
-				checkpoint.abortError(e);
-				return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
-			}
-
 			// schedule the timer that will clean up the expired checkpoints
 			final Runnable canceller = new Runnable() {
 				@Override
@@ -628,6 +614,13 @@ public class CheckpointCoordinator {
 						// checkpoint is already disposed!
 						cancellerHandle.cancel(false);
 					}
+
+					// trigger the master hooks for the checkpoint
+					final List<MasterState> masterStates = MasterHooks.triggerMasterHooks(masterHooks.values(),
+							checkpointID, timestamp, executor, Time.milliseconds(checkpointTimeout));
+					for (MasterState s : masterStates) {
+						checkpoint.addMasterState(s);
+					}
 				}
 				// end of lock scope
 
@@ -656,7 +649,7 @@ public class CheckpointCoordinator {
 				LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
 
 				if (!checkpoint.isDiscarded()) {
-					checkpoint.abortError(new Exception("Failed to trigger checkpoint"));
+					checkpoint.abortError(new Exception("Failed to trigger checkpoint", t));
 				}
 				return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
 			}
@@ -900,7 +893,7 @@ public class CheckpointCoordinator {
 		if (LOG.isDebugEnabled()) {
 			StringBuilder builder = new StringBuilder();
 			builder.append("Checkpoint state: ");
-			for (TaskState state : completedCheckpoint.getTaskStates().values()) {
+			for (OperatorState state : completedCheckpoint.getOperatorStates().values()) {
 				builder.append(state);
 				builder.append(", ");
 			}
@@ -1025,11 +1018,11 @@ public class CheckpointCoordinator {
 			LOG.info("Restoring from latest valid checkpoint: {}.", latest);
 
 			// re-assign the task states
-
-			final Map<JobVertexID, TaskState> taskStates = latest.getTaskStates();
+			final Map<OperatorID, OperatorState> operatorStates = latest.getOperatorStates();
 
 			StateAssignmentOperation stateAssignmentOperation =
-					new StateAssignmentOperation(LOG, tasks, taskStates, allowNonRestoredState);
+					new StateAssignmentOperation(tasks, operatorStates, allowNonRestoredState);
+
 			stateAssignmentOperation.assignStates();
 
 			// call master hooks for restore

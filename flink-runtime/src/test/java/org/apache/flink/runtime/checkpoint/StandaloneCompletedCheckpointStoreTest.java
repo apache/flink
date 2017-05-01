@@ -54,16 +54,16 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	public void testShutdownDiscardsCheckpoints() throws Exception {
 		AbstractCompletedCheckpointStore store = createCompletedCheckpoints(1);
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
-		Collection<TaskState> taskStates = checkpoint.getTaskStates().values();
+		Collection<OperatorState> operatorStates = checkpoint.getOperatorStates().values();
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
-		verifyCheckpointRegistered(taskStates, store.sharedStateRegistry);
+		verifyCheckpointRegistered(operatorStates, store.sharedStateRegistry);
 
 		store.shutdown(JobStatus.FINISHED);
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertTrue(checkpoint.isDiscarded());
-		verifyCheckpointDiscarded(taskStates);
+		verifyCheckpointDiscarded(operatorStates);
 	}
 
 	/**
@@ -74,7 +74,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	public void testSuspendDiscardsCheckpoints() throws Exception {
 		AbstractCompletedCheckpointStore store = createCompletedCheckpoints(1);
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
-		Collection<TaskState> taskStates = checkpoint.getTaskStates().values();
+		Collection<OperatorState> taskStates = checkpoint.getOperatorStates().values();
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
@@ -99,7 +99,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 		for (long i = 0; i <= numCheckpointsToRetain; ++i) {
 			CompletedCheckpoint checkpointToAdd = mock(CompletedCheckpoint.class);
 			doReturn(i).when(checkpointToAdd).getCheckpointID();
-			doReturn(Collections.emptyMap()).when(checkpointToAdd).getTaskStates();
+			doReturn(Collections.emptyMap()).when(checkpointToAdd).getOperatorStates();
 			doThrow(new IOException()).when(checkpointToAdd).discardOnSubsume(any(SharedStateRegistry.class));
 			
 			try {

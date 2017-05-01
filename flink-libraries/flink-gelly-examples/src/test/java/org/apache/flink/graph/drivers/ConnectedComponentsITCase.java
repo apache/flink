@@ -19,6 +19,8 @@
 package org.apache.flink.graph.drivers;
 
 import org.apache.flink.client.program.ProgramParametrizationException;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -27,8 +29,16 @@ import org.junit.runners.Parameterized;
 public class ConnectedComponentsITCase
 extends DriverBaseITCase {
 
-	public ConnectedComponentsITCase(TestExecutionMode mode) {
-		super(mode);
+	public ConnectedComponentsITCase(String idType, TestExecutionMode mode) {
+		super(idType, mode);
+	}
+
+	private String[] parameters(int scale, String output) {
+		return new String[] {
+			"--algorithm", "ConnectedComponents",
+			"--input", "RMatGraph", "--scale", Integer.toString(scale), "--type", idType, "--simplify", "undirected",
+				"--edge_factor", "1", "--a", "0.25", "--b", "0.25", "--c", "0.25", "--noise_enabled", "--noise", "1.0",
+			"--output", output};
 	}
 
 	@Test
@@ -42,24 +52,101 @@ extends DriverBaseITCase {
 	}
 
 	@Test
-	public void testHashWithRMatIntegerGraph() throws Exception {
-		String expected = "\\nChecksumHashCode 0x0000000000cdc7e7, count 838\\n";
+	public void testHashWithSmallRMatGraph() throws Exception {
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x0000000000033e88L;
+				break;
 
-		expectedOutput(
-			new String[]{"--algorithm", "ConnectedComponents",
-				"--input", "RMatGraph", "--type", "integer", "--simplify", "undirected", "--edge_factor", "1",
-					"--a", "0.25", "--b", "0.25", "--c", "0.25", "--noise_enabled", "--noise", "1.0",
-				"--output", "hash"},
-			expected);
+			case "long":
+				checksum = 0x0000000000057848L;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x000000000254a4c3L;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(parameters(7, "hash"), 106, checksum);
 	}
 
 	@Test
-	public void testPrintWithRMatIntegerGraph() throws Exception {
-		expectedCount(
-			new String[]{"--algorithm", "ConnectedComponents",
-				"--input", "RMatGraph", "--type", "integer", "--simplify", "undirected", "--edge_factor", "1",
-					"--a", "0.25", "--b", "0.25", "--c", "0.25", "--noise_enabled", "--noise", "1.0",
-				"--output", "print"},
-			838);
+	public void testHashWithLargeRMatGraph() throws Exception {
+		// computation is too large for collection mode
+		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
+
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+				return;
+
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x00000003094ffba2L;
+				break;
+
+			case "long":
+				checksum = 0x000000030b68e522L;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x00001839ad14edb1L;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(parameters(15, "hash"), 25572, checksum);
+	}
+
+	@Test
+	public void testPrintWithSmallRMatGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "integer":
+			case "nativeInteger":
+			case "long":
+			case "nativeLong":
+				checksum = 0x00000024edd0568dL;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x000000232d8bf58dL;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedOutputChecksum(parameters(7, "print"), new Checksum(106, checksum));
 	}
 }

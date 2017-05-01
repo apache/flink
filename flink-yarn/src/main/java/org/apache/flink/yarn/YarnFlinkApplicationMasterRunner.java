@@ -103,9 +103,6 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	@GuardedBy("lock")
 	private JobManagerRunner jobManagerRunner;
 
-	@GuardedBy("lock")
-	private JobGraph jobGraph;
-
 	// ------------------------------------------------------------------------
 	//  Program entry point
 	// ------------------------------------------------------------------------
@@ -208,7 +205,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 			resourceManagerConfiguration,
 			haServices,
 			heartbeatServices,
-			resourceManagerRuntimeServices.getSlotManagerFactory(),
+			resourceManagerRuntimeServices.getSlotManager(),
 			metricRegistry,
 			resourceManagerRuntimeServices.getJobLeaderIdService(),
 			this);
@@ -217,7 +214,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	private JobManagerRunner createJobManagerRunner(Configuration config) throws Exception{
 		// first get JobGraph from local resources
 		//TODO: generate the job graph from user's jar
-		jobGraph = loadJobGraph(config);
+		JobGraph jobGraph = loadJobGraph(config);
 
 		// now the JobManagerRunner
 		return new JobManagerRunner(
@@ -232,13 +229,6 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	}
 
 	protected void shutdown(ApplicationStatus status, String msg) {
-		// Need to clear the job state in the HA services before shutdown
-		try {
-			haServices.getRunningJobsRegistry().clearJob(jobGraph.getJobID());
-		}
-		catch (Throwable t) {
-			LOG.warn("Could not clear the job at the high-availability services", t);
-		}
 
 		synchronized (lock) {
 			if (jobManagerRunner != null) {

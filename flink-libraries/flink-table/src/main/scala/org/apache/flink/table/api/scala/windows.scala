@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.scala
 
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.api.{OverWindowPredefined, SessionWindow, SlideWithSize, TumblingWindow}
+import org.apache.flink.table.api.{TumbleWithSize, OverWindowWithOrderBy, SlideWithSize, SessionWithGap}
 
 /**
   * Helper object for creating a tumbling window. Tumbling windows are consecutive, non-overlapping
@@ -34,9 +34,9 @@ object Tumble {
     * elements in 5 minutes intervals.
     *
     * @param size the size of the window as time or row-count interval.
-    * @return a tumbling window
+    * @return a partially defined tumbling window
     */
-  def over(size: Expression): TumblingWindow = new TumblingWindow(size)
+  def over(size: Expression): TumbleWithSize = new TumbleWithSize(size)
 }
 
 /**
@@ -79,9 +79,9 @@ object Session {
     *
     * @param gap specifies how long (as interval of milliseconds) to wait for new data before
     *            closing the session window.
-    * @return a session window
+    * @return a partially defined session window
     */
-  def withGap(gap: Expression): SessionWindow = new SessionWindow(gap)
+  def withGap(gap: Expression): SessionWithGap = new SessionWithGap(gap)
 }
 
 /**
@@ -96,8 +96,8 @@ object Over {
     *
     * For batch tables, refer to a timestamp or long attribute.
     */
-  def orderBy(orderBy: Expression): OverWindowPredefined = {
-    new OverWindowPredefined(Seq[Expression](), orderBy)
+  def orderBy(orderBy: Expression): OverWindowWithOrderBy = {
+    new OverWindowWithOrderBy(Seq[Expression](), orderBy)
   }
 
   /**
@@ -120,7 +120,7 @@ case class PartitionedOver(partitionBy: Array[Expression]) {
     *
     * For batch tables, refer to a timestamp or long attribute.
     */
-  def orderBy(orderBy: Expression): OverWindowPredefined = {
-    new OverWindowPredefined(partitionBy, orderBy)
+  def orderBy(orderBy: Expression): OverWindowWithOrderBy = {
+    new OverWindowWithOrderBy(partitionBy, orderBy)
   }
 }

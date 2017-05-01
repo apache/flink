@@ -178,7 +178,13 @@ class JobManager(
   /** The resource manager actor responsible for allocating and managing task manager resources. */
   var currentResourceManager: Option[ActorRef] = None
 
+  var currentResourceManagerConnectionId: Long = 0
+
   val taskManagerMap = mutable.Map[ActorRef, InstanceID]()
+
+  val triggerResourceManagerReconnectInterval = new FiniteDuration(
+    flinkConfiguration.getLong(JobManagerOptions.RESOURCE_MANAGER_RECONNECT_INTERVAL),
+    TimeUnit.MILLISECONDS)
 
   /**
    * Run when the job manager is started. Simply logs an informational message.
@@ -216,7 +222,7 @@ class JobManager(
       case Some(group) =>
         instantiateMetrics(group)
       case None =>
-        log.warn("Could not instantiate JobManager metrics.")
+        log.warn("Could not instantiate JobManager metric group.")
     }
   }
 
@@ -337,6 +343,7 @@ class JobManager(
 
       // ditch current resource manager (if any)
       currentResourceManager = Option(msg.resourceManager())
+      currentResourceManagerConnectionId += 1
 
       val taskManagerResources = instanceManager.getAllRegisteredInstances.asScala.map(
         instance => instance.getTaskManagerID).toList.asJava
@@ -355,24 +362,25 @@ class JobManager(
       def reconnectRepeatedly(): Unit = {
         msg.resourceManager() ! decorateMessage(new TriggerRegistrationAtJobManager(self))
         // try again after some delay
-        context.system.scheduler.scheduleOnce(2 seconds) {
+        context.system.scheduler.scheduleOnce(triggerResourceManagerReconnectInterval) {
           self ! decorateMessage(msg)
         }(context.dispatcher)
       }
 
       currentResourceManager match {
-        case Some(rm) if rm.equals(msg.resourceManager()) =>
+        case Some(rm) if rm.equals(msg.resourceManager()) &&
+          currentResourceManagerConnectionId == msg.getConnectionId =>
           // we should ditch the current resource manager
           log.debug(s"Disconnecting resource manager $rm and forcing a reconnect.")
           currentResourceManager = None
           reconnectRepeatedly()
-        case Some(rm) =>
-          // we have registered with another ResourceManager in the meantime, stop sending
-          // TriggerRegistrationAtJobManager messages to the old ResourceManager
         case None =>
           log.warn(s"No resource manager ${msg.resourceManager()} connected. " +
             s"Telling old ResourceManager to register again.")
           reconnectRepeatedly()
+        case _ =>
+        // we have established a new connection to a ResourceManager in the meantime, stop sending
+        // TriggerRegistrationAtJobManager messages to the old ResourceManager
       }
 
     case msg @ RegisterTaskManager(
@@ -396,7 +404,10 @@ class JobManager(
                 case _ =>
                   log.warn("Failure while asking ResourceManager for RegisterResource. Retrying", t)
               }
-              self ! decorateMessage(new ReconnectResourceManager(rm))
+              self ! decorateMessage(
+                new ReconnectResourceManager(
+                  rm,
+                  currentResourceManagerConnectionId))
           }(context.dispatcher)
 
         case None =>

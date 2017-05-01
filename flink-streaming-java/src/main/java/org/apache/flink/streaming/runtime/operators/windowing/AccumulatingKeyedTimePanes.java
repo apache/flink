@@ -194,6 +194,16 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 		}
 
 		@Override
+		public long currentProcessingTime() {
+			throw new UnsupportedOperationException("current processing time is not supported in this context");
+		}
+
+		@Override
+		public long currentWatermark() {
+			throw new UnsupportedOperationException("current watermark is not supported in this context");
+		}
+
+		@Override
 		public KeyedStateStore windowState() {
 			return throwingStore;
 		}

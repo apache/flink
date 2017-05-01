@@ -16,18 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.pattern;
+package org.apache.flink.table.codegen.calls
+
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
 
 /**
- * Pattern operator which signifies that the there is a non-strict temporal contiguity between
- * itself and its preceding pattern operator. This means that there might be events in between
- * two matching events. These events are then simply ignored.
- *
- * @param <T> Base type of the events
- * @param <F> Subtype of T to which the operator is currently constrained
- */
-public class FollowedByPattern<T, F extends T> extends Pattern<T, F> {
-	FollowedByPattern(final String name, Pattern<T, ?> previous) {
-		super(name, previous);
-	}
+  * Generates a function call which returns a constant.
+  */
+class ConstantCallGen(
+    targetType: TypeInformation[_],
+    constantCode: String) extends CallGenerator {
+
+  override def generate(
+      codeGenerator: CodeGenerator,
+      operands: Seq[GeneratedExpression])
+    : GeneratedExpression = {
+    codeGenerator.generateNonNullLiteral(targetType, constantCode)
+  }
+
 }

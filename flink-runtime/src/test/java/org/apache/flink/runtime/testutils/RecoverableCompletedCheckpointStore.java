@@ -76,7 +76,7 @@ public class RecoverableCompletedCheckpointStore extends AbstractCompletedCheckp
 			suspended.clear();
 
 			for (CompletedCheckpoint checkpoint : checkpoints) {
-				sharedStateRegistry.unregisterAll(checkpoint.getTaskStates().values());
+				sharedStateRegistry.unregisterAll(checkpoint.getOperatorStates().values());
 				suspended.add(checkpoint);
 			}
 

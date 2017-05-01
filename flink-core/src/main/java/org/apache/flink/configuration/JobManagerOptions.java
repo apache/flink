@@ -72,6 +72,16 @@ public class JobManagerOptions {
 			.defaultValue(16)
 			.withDeprecatedKeys("job-manager.max-attempts-history-size");
 
+	/**
+	 * This option specifies the interval in order to trigger a resource manager reconnection if the connection
+	 * to the resource manager has been lost.
+	 *
+	 * This option is only intended for internal use.
+	 */
+	public static final ConfigOption<Long> RESOURCE_MANAGER_RECONNECT_INTERVAL =
+		key("jobmanager.resourcemanager.reconnect-interval")
+		.defaultValue(2000L);
+
 	// ------------------------------------------------------------------------
 	//  JobManager web UI
 	// ------------------------------------------------------------------------

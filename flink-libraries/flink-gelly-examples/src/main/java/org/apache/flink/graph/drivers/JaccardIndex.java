@@ -25,6 +25,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.drivers.output.CSV;
 import org.apache.flink.graph.drivers.output.Hash;
 import org.apache.flink.graph.drivers.output.Print;
+import org.apache.flink.graph.drivers.parameter.BooleanParameter;
 import org.apache.flink.graph.drivers.parameter.LongParameter;
 import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
 import org.apache.flink.types.CopyableValue;
@@ -57,6 +58,8 @@ implements CSV, Hash, Print {
 	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")
 		.setDefaultValue(PARALLELISM_DEFAULT);
 
+	private BooleanParameter mirrorResults = new BooleanParameter(this, "mirror_results");
+
 	@Override
 	public String getName() {
 		return this.getClass().getSimpleName();
@@ -88,6 +91,7 @@ implements CSV, Hash, Print {
 			.run(new org.apache.flink.graph.library.similarity.JaccardIndex<K, VV, EV>()
 				.setMinimumScore(minNumerator.getValue().intValue(), minDenominator.getValue().intValue())
 				.setMaximumScore(maxNumerator.getValue().intValue(), maxDenominator.getValue().intValue())
+				.setMirrorResults(mirrorResults.getValue())
 				.setLittleParallelism(lp));
 	}
 }

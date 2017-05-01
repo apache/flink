@@ -239,7 +239,7 @@ class FieldProjectionTest extends TableTestBase {
         ),
         term("window",
           EventTimeTumblingGroupWindow(
-            Some(WindowReference("w")),
+           WindowReference("w"),
             RowtimeAttribute(),
             5.millis)),
         term("select", "COUNT($f2) AS TMP_0", "SUM(a) AS TMP_1")
@@ -268,7 +268,7 @@ class FieldProjectionTest extends TableTestBase {
           term("groupBy", "b"),
           term("window",
             EventTimeTumblingGroupWindow(
-              Some(WindowReference("w")),
+             WindowReference("w"),
               RowtimeAttribute(),
               5.millis)),
           term("select", "b", "COUNT($f3) AS TMP_0", "SUM(a) AS TMP_1")

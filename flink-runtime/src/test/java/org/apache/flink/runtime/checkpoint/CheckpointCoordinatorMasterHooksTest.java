@@ -21,15 +21,20 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 
 import org.junit.Test;
+
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -46,6 +51,7 @@ import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest.mock
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -223,7 +229,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 		final CompletedCheckpoint checkpoint = new CompletedCheckpoint(
 				jid, checkpointId, 123L, 125L,
-				Collections.<JobVertexID, TaskState>emptyMap(),
+				Collections.<OperatorID, OperatorState>emptyMap(),
 				masterHookStates,
 				CheckpointProperties.forStandardCheckpoint(),
 				null,
@@ -277,7 +283,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 		final CompletedCheckpoint checkpoint = new CompletedCheckpoint(
 				jid, checkpointId, 123L, 125L,
-				Collections.<JobVertexID, TaskState>emptyMap(),
+				Collections.<OperatorID, OperatorState>emptyMap(),
 				masterHookStates,
 				CheckpointProperties.forStandardCheckpoint(),
 				null,
@@ -311,6 +317,47 @@ public class CheckpointCoordinatorMasterHooksTest {
 		verify(statefulHook, times(1)).restoreCheckpoint(eq(checkpointId), eq(state1));
 		verify(statelessHook, times(1)).restoreCheckpoint(eq(checkpointId), isNull(Void.class));
 	}
+
+	// ------------------------------------------------------------------------
+	//  failure scenarios
+	// ------------------------------------------------------------------------
+
+	/**
+	 * This test makes sure that the checkpoint is already registered by the time
+	 * that the hooks are called
+	 */
+	@Test
+	public void ensureRegisteredAtHookTime() throws Exception {
+		final String id = "id";
+
+		// create the checkpoint coordinator
+		final JobID jid = new JobID();
+		final ExecutionAttemptID execId = new ExecutionAttemptID();
+		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
+		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(jid, ackVertex);
+
+		final MasterTriggerRestoreHook<Void> hook = mockGeneric(MasterTriggerRestoreHook.class);
+		when(hook.getIdentifier()).thenReturn(id);
+		when(hook.triggerCheckpoint(anyLong(), anyLong(), any(Executor.class))).thenAnswer(
+				new Answer<Future<Void>>() {
+
+					@Override
+					public Future<Void> answer(InvocationOnMock invocation) throws Throwable {
+						assertEquals(1, cc.getNumberOfPendingCheckpoints());
+
+						long checkpointId = (Long) invocation.getArguments()[0];
+						assertNotNull(cc.getPendingCheckpoints().get(checkpointId));
+						return null;
+					}
+				}
+		);
+
+		cc.addMasterHook(hook);
+
+		// trigger a checkpoint
+		assertTrue(cc.triggerCheckpoint(System.currentTimeMillis(), false));
+	}
+
 
 	// ------------------------------------------------------------------------
 	//  failure scenarios

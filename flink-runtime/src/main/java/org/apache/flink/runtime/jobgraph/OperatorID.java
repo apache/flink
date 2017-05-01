@@ -16,18 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager.messages.jobmanager;
+package org.apache.flink.runtime.jobgraph;
 
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.util.AbstractID;
 
 /**
- * Acknowledgment by the ResourceManager for a SlotRequest from the JobManager
+ * A class for statistically unique operator IDs.
  */
-public class RMSlotRequestRegistered extends RMSlotRequestReply {
+public class OperatorID extends AbstractID {
 
-	private static final long serialVersionUID = 4760320859275256855L;
+	private static final long serialVersionUID = 1L;
 
-	public RMSlotRequestRegistered(AllocationID allocationID) {
-		super(allocationID);
+	public OperatorID() {
+		super();
+	}
+
+	public OperatorID(byte[] bytes) {
+		super(bytes);
+	}
+
+	public OperatorID(long lowerPart, long upperPart) {
+		super(lowerPart, upperPart);
+	}
+
+	public static OperatorID fromJobVertexID(JobVertexID id) {
+		return new OperatorID(id.getLowerPart(), id.getUpperPart());
 	}
 }

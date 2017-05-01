@@ -275,6 +275,61 @@ trait ImplicitExpressionOperations {
     */
   def ceil() = Ceil(expr)
 
+  /**
+    * Calculates the sine of a given number.
+    */
+  def sin() = Sin(expr)
+
+  /**
+    * Calculates the cosine of a given number.
+    */
+  def cos() = Cos(expr)
+
+  /**
+    * Calculates the tangent of a given number.
+    */
+  def tan() = Tan(expr)
+
+  /**
+    * Calculates the cotangent of a given number.
+    */
+  def cot() = Cot(expr)
+
+  /**
+    * Calculates the arc sine of a given number.
+    */
+  def asin() = Asin(expr)
+
+  /**
+    * Calculates the arc cosine of a given number.
+    */
+  def acos() = Acos(expr)
+
+  /**
+    * Calculates the arc tangent of a given number.
+    */
+  def atan() = Atan(expr)
+
+  /**
+    * Converts numeric from radians to degrees.
+    */
+  def degrees() = Degrees(expr)
+
+  /**
+    * Converts numeric from degrees to radians.
+    */
+  def radians() = Radians(expr)
+
+  /**
+    * Calculates the signum of a given number.
+    */
+  def sign() = Sign(expr)
+
+  /**
+    * Rounds the given number to integer places right to the decimal point.
+    */
+  def round(places: Expression) = Round(expr, places)
+
   // String operations
 
   /**
@@ -804,6 +859,19 @@ object array {
     */
   def apply(head: Expression, tail: Expression*): Expression = {
     ArrayConstructor(head +: tail.toSeq)
+  }
+}
+
+/**
+  * Returns a value that is closer than any other value to pi.
+  */
+object pi {
+
+  /**
+    * Returns a value that is closer than any other value to pi.
+    */
+  def apply(): Expression = {
+    Pi()
   }
 }
 

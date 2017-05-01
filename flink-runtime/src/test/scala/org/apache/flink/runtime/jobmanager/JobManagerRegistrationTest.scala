@@ -33,7 +33,8 @@ import org.apache.flink.runtime.jobmanager.JobManagerRegistrationTest.PlainForwa
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered, RegisterTaskManager}
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation
-import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenLeader
+import org.apache.flink.runtime.testingUtils.{TestingJobManager, TestingUtils}
 import org.apache.flink.runtime.testutils.TestingResourceManager
 import org.apache.flink.runtime.util.LeaderRetrievalUtils
 import org.junit.Assert.{assertNotEquals, assertNotNull}
@@ -41,6 +42,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -94,39 +96,44 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
         var id1: InstanceID = null
         var id2: InstanceID = null
 
+        // wait until the JobManager becomes the leader, otherwise the RegisterTaskManager messages
+        // are dropped
+        val leaderFuture = jm.ask(NotifyWhenLeader, TestingUtils.TESTING_TIMEOUT)
+        Await.ready(leaderFuture, TestingUtils.TESTING_TIMEOUT)
+
         // task manager 1
         within(10 seconds) {
-         jm.tell(
-           RegisterTaskManager(
-             resourceId1,
-             connectionInfo1,
-             hardwareDescription,
-             1),
-           new AkkaActorGateway(tm1, HighAvailabilityServices.DEFAULT_LEADER_ID))
+          jm.tell(
+            RegisterTaskManager(
+              resourceId1,
+              connectionInfo1,
+              hardwareDescription,
+              1),
+            new AkkaActorGateway(tm1, HighAvailabilityServices.DEFAULT_LEADER_ID))
 
-         val response = probe.expectMsgType[LeaderSessionMessage]
-         response match {
-           case LeaderSessionMessage(_, AcknowledgeRegistration(id, _)) => id1 = id
-           case _ => fail("Wrong response message: " + response)
-         }
-       }
+          val response = probe.expectMsgType[LeaderSessionMessage]
+          response match {
+            case LeaderSessionMessage(_, AcknowledgeRegistration(id, _)) => id1 = id
+            case _ => fail("Wrong response message: " + response)
+          }
+        }
 
         // task manager 2
         within(10 seconds) {
-         jm.tell(
-           RegisterTaskManager(
-             resourceId2,
-             connectionInfo2,
-             hardwareDescription,
-             1),
-           new AkkaActorGateway(tm2, HighAvailabilityServices.DEFAULT_LEADER_ID))
+          jm.tell(
+            RegisterTaskManager(
+              resourceId2,
+              connectionInfo2,
+              hardwareDescription,
+              1),
+            new AkkaActorGateway(tm2, HighAvailabilityServices.DEFAULT_LEADER_ID))
 
-         val response = probe.expectMsgType[LeaderSessionMessage]
-         response match {
-           case LeaderSessionMessage(leaderSessionID, AcknowledgeRegistration(id, _)) => id2 = id
-           case _ => fail("Wrong response message: " + response)
-         }
-       }
+          val response = probe.expectMsgType[LeaderSessionMessage]
+          response match {
+            case LeaderSessionMessage(leaderSessionID, AcknowledgeRegistration(id, _)) => id2 = id
+            case _ => fail("Wrong response message: " + response)
+          }
+        }
 
         assertNotNull(id1)
         assertNotNull(id2)
@@ -160,6 +167,11 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
         val connectionInfo = new TaskManagerLocation(resourceID, InetAddress.getLocalHost, 1)
         val hardwareDescription = HardwareDescription.extractFromSystem(10)
 
+        // wait until the JobManager becomes the leader, otherwise the RegisterTaskManager messages
+        // are dropped
+        val leaderFuture = jm.ask(NotifyWhenLeader, TestingUtils.TESTING_TIMEOUT)
+        Await.ready(leaderFuture, TestingUtils.TESTING_TIMEOUT)
+
         within(20 seconds) {
           jm.tell(
             RegisterTaskManager(
@@ -167,7 +179,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
               connectionInfo,
               hardwareDescription,
               1),
-              selfGateway)
+            selfGateway)
 
           jm.tell(
             RegisterTaskManager(
@@ -175,7 +187,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
               connectionInfo,
               hardwareDescription,
               1),
-              selfGateway)
+            selfGateway)
 
           jm.tell(
             RegisterTaskManager(
@@ -183,26 +195,26 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
               connectionInfo,
               hardwareDescription,
               1),
-              selfGateway)
+            selfGateway)
 
           probe.expectMsgType[LeaderSessionMessage] match {
             case LeaderSessionMessage(
-              HighAvailabilityServices.DEFAULT_LEADER_ID,
-              AcknowledgeRegistration(_, _)) =>
+            HighAvailabilityServices.DEFAULT_LEADER_ID,
+            AcknowledgeRegistration(_, _)) =>
             case m => fail("Wrong message type: " + m)
           }
 
           probe.expectMsgType[LeaderSessionMessage] match {
             case LeaderSessionMessage(
-              HighAvailabilityServices.DEFAULT_LEADER_ID,
-              AlreadyRegistered(_, _)) =>
+            HighAvailabilityServices.DEFAULT_LEADER_ID,
+            AlreadyRegistered(_, _)) =>
             case m => fail("Wrong message type: " + m)
           }
 
           probe.expectMsgType[LeaderSessionMessage] match {
             case LeaderSessionMessage(
-              HighAvailabilityServices.DEFAULT_LEADER_ID,
-              AlreadyRegistered(_, _)) =>
+            HighAvailabilityServices.DEFAULT_LEADER_ID,
+            AlreadyRegistered(_, _)) =>
             case m => fail("Wrong message type: " + m)
           }
         }
@@ -227,7 +239,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     // if there exists already one of these actors (e.g. JobManager has not been properly shutdown),
     // then this will fail the JobManager creation
     val props = JobManager.getJobManagerProps(
-      classOf[JobManager],
+      classOf[TestingJobManager],
       config,
       executor,
       executor,
@@ -249,7 +261,6 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
   }
 
   private def startTestingResourceManager(system: ActorSystem, jm: ActorRef): ActorGateway = {
-    val jobManagerURL = AkkaUtils.getAkkaURL(system, jm)
     val config = new Configuration()
     val rm: ActorRef = FlinkResourceManager.startResourceManagerActors(
       config,

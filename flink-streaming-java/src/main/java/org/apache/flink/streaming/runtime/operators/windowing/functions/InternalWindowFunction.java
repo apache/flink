@@ -55,6 +55,10 @@ public interface InternalWindowFunction<IN, OUT, KEY, W extends Window> extends 
 	 * for internal use.
 	 */
 	interface InternalWindowContext extends java.io.Serializable {
+		long currentProcessingTime();
+
+		long currentWatermark();
+
 		KeyedStateStore windowState();
 
 		KeyedStateStore globalState();

@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.MasterState;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.junit.Rule;
@@ -69,7 +70,10 @@ public class SavepointStoreTest {
 
 		// Store
 		String savepointDirectory = SavepointStore.createSavepointDirectory(root, new JobID());
-		SavepointV2 stored = new SavepointV2(1929292, CheckpointTestUtils.createTaskStates(4, 24));
+		SavepointV2 stored = new SavepointV2(
+			1929292,
+			CheckpointTestUtils.createOperatorStates(4, 24),
+			Collections.<MasterState>emptyList());
 		String path = SavepointStore.storeSavepoint(savepointDirectory, stored);
 
 		list = rootFile.listFiles();
@@ -80,7 +84,7 @@ public class SavepointStoreTest {
 		Savepoint loaded = SavepointStore.loadSavepoint(path, Thread.currentThread().getContextClassLoader());
 
 		assertEquals(stored.getCheckpointId(), loaded.getCheckpointId());
-		assertEquals(stored.getTaskStates(), loaded.getTaskStates());
+		assertEquals(stored.getOperatorStates(), loaded.getOperatorStates());
 		assertEquals(stored.getMasterStates(), loaded.getMasterStates());
 
 		loaded.dispose();
@@ -147,7 +151,10 @@ public class SavepointStoreTest {
 
 		// Savepoint v0
 		String savepointDirectory2 = SavepointStore.createSavepointDirectory(root, new JobID());
-		SavepointV2 savepoint = new SavepointV2(checkpointId, CheckpointTestUtils.createTaskStates(4, 32));
+		SavepointV2 savepoint = new SavepointV2(
+			checkpointId,
+			CheckpointTestUtils.createOperatorStates(4, 32),
+			Collections.<MasterState>emptyList());
 		String pathSavepoint = SavepointStore.storeSavepoint(savepointDirectory2, savepoint);
 
 		list = rootFile.listFiles();
@@ -205,7 +212,10 @@ public class SavepointStoreTest {
 		FileSystem fs = FileSystem.get(new Path(root).toUri());
 
 		// Store
-		SavepointV2 savepoint = new SavepointV2(1929292, CheckpointTestUtils.createTaskStates(4, 24));
+		SavepointV2 savepoint = new SavepointV2(
+			1929292,
+			CheckpointTestUtils.createOperatorStates(4, 24),
+			Collections.<MasterState>emptyList());
 
 		FileStateHandle store1 = SavepointStore.storeExternalizedCheckpointToHandle(root, savepoint);
 		fs.exists(store1.getFilePath());
@@ -263,6 +273,11 @@ public class SavepointStoreTest {
 		@Override
 		public Collection<MasterState> getMasterStates() {
 			return Collections.emptyList();
+		}
+
+		@Override
+		public Collection<OperatorState> getOperatorStates() {
+			return null;
 		}
 
 		@Override

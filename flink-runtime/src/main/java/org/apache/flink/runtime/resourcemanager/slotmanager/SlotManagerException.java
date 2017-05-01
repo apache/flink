@@ -16,15 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager;
+package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
+import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 
-public class TestingSlotManagerFactory implements SlotManagerFactory {
+public class SlotManagerException extends ResourceManagerException {
 
-	@Override
-	public SlotManager create(ResourceManagerServices rmServices) {
-		return new TestingSlotManager(rmServices);
+	private static final long serialVersionUID = -3723028616920379071L;
+
+	public SlotManagerException(String message) {
+		super(message);
+	}
+
+	public SlotManagerException(String message, Throwable cause) {
+		super(message, cause);
 	}
 }

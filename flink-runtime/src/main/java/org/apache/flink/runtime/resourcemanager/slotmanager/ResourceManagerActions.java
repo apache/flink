@@ -16,20 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager.messages.taskexecutor;
+package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 
-/**
- * Rejection by the TaskExecutor for a SlotRequest from the ResourceManager
- */
-public class TMSlotRequestRejected extends TMSlotRequestReply {
+public interface ResourceManagerActions {
 
-	private static final long serialVersionUID = 9049346740895325144L;
+	void releaseResource(InstanceID instanceId);
 
-	public TMSlotRequestRejected(InstanceID instanceID, ResourceID resourceID, AllocationID allocationID) {
-		super(instanceID, resourceID, allocationID);
-	}
+	void allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException;
+
+	void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause);
 }

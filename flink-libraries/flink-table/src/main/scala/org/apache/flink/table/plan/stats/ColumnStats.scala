@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.stats
 
-import java.lang.{Double, Long, Integer, Number}
+import java.lang.{Double, Long}
 
 /**
   * column statistics

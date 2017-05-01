@@ -21,11 +21,12 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.jobmaster.JobMaster;
@@ -44,6 +45,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 *
 	 * @param resourceManagerLeaderId The fencing token for the ResourceManager leader
 	 * @param jobMasterLeaderId The fencing token for the JobMaster leader
+	 * @param jobMasterResourceId   The resource ID of the JobMaster that registers
 	 * @param jobMasterAddress        The address of the JobMaster that registers
 	 * @param jobID                   The Job ID of the JobMaster that registers
 	 * @param timeout                 Timeout for the future to complete
@@ -52,10 +54,10 @@ public interface ResourceManagerGateway extends RpcGateway {
 	Future<RegistrationResponse> registerJobManager(
 		UUID resourceManagerLeaderId,
 		UUID jobMasterLeaderId,
+		ResourceID jobMasterResourceId,
 		String jobMasterAddress,
 		JobID jobID,
 		@RpcTimeout Time timeout);
-
 
 	/**
 	 * Requests a slot from the resource manager.
@@ -65,7 +67,7 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @param slotRequest The slot to request
 	 * @return The confirmation that the slot gets allocated
 	 */
-	Future<RMSlotRequestReply> requestSlot(
+	Future<Acknowledge> requestSlot(
 		UUID resourceManagerLeaderID,
 		UUID jobMasterLeaderID,
 		SlotRequest slotRequest,
@@ -95,11 +97,13 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @param resourceManagerLeaderId The ResourceManager leader id
 	 * @param instanceId TaskExecutor's instance id
 	 * @param slotID The SlotID of the freed slot
+	 * @param oldAllocationId to which the slot has been allocated
 	 */
 	void notifySlotAvailable(
 		UUID resourceManagerLeaderId,
 		InstanceID instanceId,
-		SlotID slotID);
+		SlotID slotID,
+		AllocationID oldAllocationId);
 
 	/**
 	 * Registers an infoMessage listener
@@ -139,10 +143,25 @@ public interface ResourceManagerGateway extends RpcGateway {
 	void heartbeatFromTaskManager(final ResourceID heartbeatOrigin);
 
 	/**
+	 * Sends the heartbeat to resource manager from job manager
+	 *
+	 * @param heartbeatOrigin unique id of the job manager
+	 */
+	void heartbeatFromJobManager(final ResourceID heartbeatOrigin);
+
+	/**
 	 * Disconnects a TaskManager specified by the given resourceID from the {@link ResourceManager}.
 	 *
 	 * @param resourceID identifying the TaskManager to disconnect
 	 * @param cause for the disconnection of the TaskManager
 	 */
 	void disconnectTaskManager(ResourceID resourceID, Exception cause);
+
+	/**
+	 * Disconnects a JobManager specified by the given resourceID from the {@link ResourceManager}.
+	 *
+	 * @param jobId JobID for which the JobManager was the leader
+	 * @param cause for the disconnection of the JobManager
+	 */
+	void disconnectJobManager(JobID jobId, Exception cause);
 }

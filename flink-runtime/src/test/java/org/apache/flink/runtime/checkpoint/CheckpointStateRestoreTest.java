@@ -26,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.ChainedStateHandle;
@@ -209,6 +210,8 @@ public class CheckpointStateRestoreTest {
 		JobVertexID jobVertexId1 = new JobVertexID();
 		JobVertexID jobVertexId2 = new JobVertexID();
 
+		OperatorID operatorId1 = OperatorID.fromJobVertexID(jobVertexId1);
+
 		// 1st JobVertex
 		ExecutionVertex vertex11 = mockExecutionVertex(mockExecution(), jobVertexId1, 0, 3);
 		ExecutionVertex vertex12 = mockExecutionVertex(mockExecution(), jobVertexId1, 1, 3);
@@ -239,20 +242,30 @@ public class CheckpointStateRestoreTest {
 			null,
 			Executors.directExecutor());
 
-		ChainedStateHandle<StreamStateHandle> serializedState = CheckpointCoordinatorTest
-				.generateChainedStateHandle(new SerializableObject());
+		StreamStateHandle serializedState = CheckpointCoordinatorTest
+				.generateChainedStateHandle(new SerializableObject())
+				.get(0);
 
 		// --- (2) Checkpoint misses state for a jobVertex (should work) ---
-		Map<JobVertexID, TaskState> checkpointTaskStates = new HashMap<>();
+		Map<OperatorID, OperatorState> checkpointTaskStates = new HashMap<>();
 		{
-			TaskState taskState = new TaskState(jobVertexId1, 3, 3, 1);
-			taskState.putState(0, new SubtaskState(serializedState, null, null, null, null));
-			taskState.putState(1, new SubtaskState(serializedState, null, null, null, null));
-			taskState.putState(2, new SubtaskState(serializedState, null, null, null, null));
+			OperatorState taskState = new OperatorState(operatorId1, 3, 3);
+			taskState.putState(0, new OperatorSubtaskState(serializedState, null, null, null, null));
+			taskState.putState(1, new OperatorSubtaskState(serializedState, null, null, null, null));
+			taskState.putState(2, new OperatorSubtaskState(serializedState, null, null, null, null));
 
-			checkpointTaskStates.put(jobVertexId1, taskState);
+			checkpointTaskStates.put(operatorId1, taskState);
 		}
-		CompletedCheckpoint checkpoint = new CompletedCheckpoint(new JobID(), 0, 1, 2, new HashMap<>(checkpointTaskStates));
+		CompletedCheckpoint checkpoint = new CompletedCheckpoint(
+			new JobID(),
+			0,
+			1,
+			2,
+			new HashMap<>(checkpointTaskStates),
+			Collections.<MasterState>emptyList(),
+			CheckpointProperties.forStandardCheckpoint(),
+			null,
+			null);
 
 		coord.getCheckpointStore().addCheckpoint(checkpoint);
 
@@ -261,16 +274,26 @@ public class CheckpointStateRestoreTest {
 
 		// --- (3) JobVertex missing for task state that is part of the checkpoint ---
 		JobVertexID newJobVertexID = new JobVertexID();
+		OperatorID newOperatorID = OperatorID.fromJobVertexID(newJobVertexID);
 
 		// There is no task for this
 		{
-			TaskState taskState = new TaskState(jobVertexId1, 1, 1, 1);
-			taskState.putState(0, new SubtaskState(serializedState, null, null, null, null));
+			OperatorState taskState = new OperatorState(newOperatorID, 1, 1);
+			taskState.putState(0, new OperatorSubtaskState(serializedState, null, null, null, null));
 
-			checkpointTaskStates.put(newJobVertexID, taskState);
+			checkpointTaskStates.put(newOperatorID, taskState);
 		}
 
-		checkpoint = new CompletedCheckpoint(new JobID(), 1, 2, 3, new HashMap<>(checkpointTaskStates));
+		checkpoint = new CompletedCheckpoint(
+			new JobID(),
+			1,
+			2,
+			3,
+			new HashMap<>(checkpointTaskStates),
+			Collections.<MasterState>emptyList(),
+			CheckpointProperties.forStandardCheckpoint(),
+			null,
+			null);
 
 		coord.getCheckpointStore().addCheckpoint(checkpoint);
 
@@ -314,6 +337,12 @@ public class CheckpointStateRestoreTest {
 		when(vertex.getMaxParallelism()).thenReturn(vertices.length);
 		when(vertex.getJobVertexId()).thenReturn(id);
 		when(vertex.getTaskVertices()).thenReturn(vertices);
+		when(vertex.getOperatorIDs()).thenReturn(Collections.singletonList(OperatorID.fromJobVertexID(id)));
+		when(vertex.getUserDefinedOperatorIDs()).thenReturn(Collections.<OperatorID>singletonList(null));
+
+		for (ExecutionVertex v : vertices) {
+			when(v.getJobVertex()).thenReturn(vertex);
+		}
 		return vertex;
 	}
 }

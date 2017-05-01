@@ -15,17 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.resourcemanager.slotmanager;
-
-import org.apache.flink.runtime.resourcemanager.ResourceManagerServices;
+package org.apache.flink.test.state.operator.restore;
 
 /**
- * Factory to create a SlotManager and provide it with dependencies.
+ * Enum to control function behavior for the different test stages.
+ * 
+ * {@link ExecutionMode#GENERATE} should be used when creating the 1.2 savepoint.
+ * {@link ExecutionMode#MIGRATE} should be used when migrating the 1.2 savepoint to 1.3.
+ * {@link ExecutionMode#RESTORE} should be used when restoring from the migrated 1.3 savepoint.
  */
-public interface SlotManagerFactory {
-
-	/**
-	 * Creates a SlotManager and provides it with ResourceManager services.
-	 */
-	SlotManager create(ResourceManagerServices rmServices);
+public enum ExecutionMode {
+	GENERATE,
+	MIGRATE,
+	RESTORE
 }

@@ -22,14 +22,13 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.expressions.{Expression, WindowReference}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
-abstract class LogicalWindow(val alias: Option[Expression]) extends Resolvable[LogicalWindow] {
+abstract class LogicalWindow(val alias: Expression) extends Resolvable[LogicalWindow] {
 
   def resolveExpressions(resolver: (Expression) => Expression): LogicalWindow = this
 
   def validate(tableEnv: TableEnvironment): ValidationResult = alias match {
-    case Some(WindowReference(_)) => ValidationSuccess
-    case Some(_) => ValidationFailure("Window reference for window expected.")
-    case None => ValidationSuccess
+    case WindowReference(_) => ValidationSuccess
+    case _ => ValidationFailure("Window reference for window expected.")
   }
 
   override def toString: String = getClass.getSimpleName

@@ -18,17 +18,28 @@
 
 package org.apache.flink.graph.drivers;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.client.program.ProgramParametrizationException;
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
 public class AdamicAdarITCase
-extends DriverBaseITCase {
+extends CopyableValueDriverBaseITCase {
 
-	public AdamicAdarITCase(TestExecutionMode mode) {
-		super(mode);
+	public AdamicAdarITCase(String idType, TestExecutionMode mode) {
+		super(idType, mode);
+	}
+
+	private String[] parameters(int scale, String output, String... additionalParameters) {
+		String[] parameters = new String[] {
+			"--algorithm", "AdamicAdar",
+			"--input", "RMatGraph", "--scale", Integer.toString(scale), "--type", idType, "--simplify", "undirected",
+			"--output", output};
+
+		return ArrayUtils.addAll(parameters, additionalParameters);
 	}
 
 	@Test
@@ -42,11 +53,12 @@ extends DriverBaseITCase {
 	}
 
 	@Test
-	public void testPrintWithRMatIntegerGraph() throws Exception {
+	public void testPrintWithRMatGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+
 		expectedCount(
-			new String[]{"--algorithm", "AdamicAdar",
-				"--input", "RMatGraph", "--type", "integer", "--simplify", "undirected",
-				"--output", "print"},
-			221628);
+			parameters(7, "print"),
+			5694);
 	}
 }
