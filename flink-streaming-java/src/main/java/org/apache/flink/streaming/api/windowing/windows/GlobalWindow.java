@@ -19,7 +19,10 @@ package org.apache.flink.streaming.api.windowing.windows;
 
 import java.io.IOException;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -63,6 +66,8 @@ public class GlobalWindow extends Window {
 	 */
 	public static class Serializer extends TypeSerializer<GlobalWindow> {
 		private static final long serialVersionUID = 1L;
+
+		private static final GlobalWindowSerializerConfigSnapshot CONFIG = new GlobalWindowSerializerConfigSnapshot();
 
 		@Override
 		public boolean isImmutableType() {
@@ -132,5 +137,28 @@ public class GlobalWindow extends Window {
 		public int hashCode() {
 			return 0;
 		}
+
+		// --------------------------------------------------------------------------------------------
+		// Serializer configuration snapshotting & reconfiguring
+		// --------------------------------------------------------------------------------------------
+
+		@Override
+		public GlobalWindowSerializerConfigSnapshot snapshotConfiguration() {
+			return CONFIG;
+		}
+
+		@Override
+		public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+			if (configSnapshot instanceof GlobalWindowSerializerConfigSnapshot) {
+				return ReconfigureResult.COMPATIBLE;
+			} else {
+				return ReconfigureResult.INCOMPATIBLE;
+			}
+		}
 	}
+
+	/**
+	 * A {@link TypeSerializerConfigSnapshot} specific to the {@link GlobalWindow} serializer.
+	 */
+	public static final class GlobalWindowSerializerConfigSnapshot extends ParameterlessTypeSerializerConfig {}
 }

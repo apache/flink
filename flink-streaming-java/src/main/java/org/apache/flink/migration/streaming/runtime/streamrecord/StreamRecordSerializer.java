@@ -20,7 +20,10 @@ package org.apache.flink.migration.streaming.runtime.streamrecord;
 
 import java.io.IOException;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -143,5 +146,44 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	@Override
 	public int hashCode() {
 		return typeSerializer.hashCode();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public StreamRecordSerializerConfigSnapshot snapshotConfiguration() {
+		return new StreamRecordSerializerConfigSnapshot(typeSerializer.snapshotConfiguration());
+	}
+
+	@Override
+	protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof StreamRecordSerializerConfigSnapshot) {
+			return typeSerializer.reconfigureWith(
+					((StreamRecordSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+		} else {
+			return ReconfigureResult.INCOMPATIBLE;
+		}
+	}
+
+	/**
+	 * Configuration snapshot specific to the {@link StreamRecordSerializer}.
+	 */
+	public static final class StreamRecordSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+
+		private static final int VERSION = 1;
+
+		/** This empty nullary constructor is required for deserializing the configuration. */
+		public StreamRecordSerializerConfigSnapshot() {}
+
+		public StreamRecordSerializerConfigSnapshot(TypeSerializerConfigSnapshot typeSerializerConfigSnapshot) {
+			super(typeSerializerConfigSnapshot);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
 	}
 }

@@ -22,7 +22,10 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -261,5 +264,48 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	@Override
 	public int hashCode() {
 		return typeSerializer.hashCode();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	//
+	// This serializer may be used by Flink internal operators that need to checkpoint
+	// buffered records. Therefore, it may be part of managed state and need to implement
+	// the configuration snapshot and reconfiguring methods.
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public StreamElementSerializerConfigSnapshot snapshotConfiguration() {
+		return new StreamElementSerializerConfigSnapshot(typeSerializer.snapshotConfiguration());
+	}
+
+	@Override
+	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof StreamElementSerializerConfigSnapshot) {
+			return typeSerializer.reconfigureWith(
+					((StreamElementSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+		} else {
+			return ReconfigureResult.INCOMPATIBLE;
+		}
+	}
+
+	/**
+	 * Configuration snapshot specific to the {@link StreamElementSerializer}.
+	 */
+	public static final class StreamElementSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+
+		private static final int VERSION = 1;
+
+		/** This empty nullary constructor is required for deserializing the configuration. */
+		public StreamElementSerializerConfigSnapshot() {}
+
+		public StreamElementSerializerConfigSnapshot(TypeSerializerConfigSnapshot typeSerializerConfigSnapshot) {
+			super(typeSerializerConfigSnapshot);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
 	}
 }

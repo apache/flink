@@ -26,7 +26,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -133,6 +136,8 @@ public class TimeWindow extends Window {
 	public static class Serializer extends TypeSerializer<TimeWindow> {
 		private static final long serialVersionUID = 1L;
 
+		private static final TimeWindowSerializerConfig CONFIG = new TimeWindowSerializerConfig();
+
 		@Override
 		public boolean isImmutableType() {
 			return true;
@@ -201,7 +206,30 @@ public class TimeWindow extends Window {
 		public int hashCode() {
 			return 0;
 		}
+
+		// --------------------------------------------------------------------------------------------
+		// Serializer configuration snapshotting & reconfiguring
+		// --------------------------------------------------------------------------------------------
+
+		@Override
+		public TimeWindowSerializerConfig snapshotConfiguration() {
+			return CONFIG;
+		}
+
+		@Override
+		public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+			if (configSnapshot instanceof TimeWindowSerializerConfig) {
+				return ReconfigureResult.COMPATIBLE;
+			} else {
+				return ReconfigureResult.INCOMPATIBLE;
+			}
+		}
 	}
+
+	/**
+	 * A {@link TypeSerializerConfigSnapshot} specific to the {@link TimeWindow} serializer.
+	 */
+	public static final class TimeWindowSerializerConfig extends ParameterlessTypeSerializerConfig {}
 
 	// ------------------------------------------------------------------------
 	//  Utilities
