@@ -21,6 +21,24 @@ package org.apache.flink.cep.nfa;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.LinkedHashMultimap;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
+import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
+import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
+import org.apache.flink.cep.NonDuplicatingTypeSerializer;
+import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -43,20 +61,6 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
-import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
-import org.apache.flink.cep.NonDuplicatingTypeSerializer;
-import org.apache.flink.cep.nfa.compiler.NFACompiler;
-import org.apache.flink.cep.pattern.conditions.IterativeCondition;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.util.Preconditions;
 
 /**
  * Non-deterministic finite automaton implementation.
@@ -863,6 +867,8 @@ public class NFA<T> implements Serializable {
 
 		private static final long serialVersionUID = 1L;
 
+		private static final NFASerializerConfigSnapshot CONFIG = new NFASerializerConfigSnapshot();
+
 		@Override
 		public boolean isImmutableType() {
 			return false;
@@ -957,5 +963,25 @@ public class NFA<T> implements Serializable {
 		public int hashCode() {
 			return getClass().hashCode();
 		}
+
+		// --------------------------------------------------------------------------------------------
+		// Serializer configuration snapshotting & reconfiguring
+		// --------------------------------------------------------------------------------------------
+
+		@Override
+		public NFASerializerConfigSnapshot snapshotConfiguration() {
+			return CONFIG;
+		}
+
+		@Override
+		protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+			if (configSnapshot instanceof NFASerializerConfigSnapshot) {
+				return ReconfigureResult.COMPATIBLE;
+			} else {
+				return ReconfigureResult.INCOMPATIBLE;
+			}
+		}
 	}
+
+	public static final class NFASerializerConfigSnapshot extends ParameterlessTypeSerializerConfig {}
 }
