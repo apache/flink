@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -127,6 +128,11 @@ public class StreamingJobGraphGenerator {
 		setSlotSharing();
 
 		configureCheckpointing();
+
+		// add registered cache file into job configuration
+		for (Tuple2<String, DistributedCache.DistributedCacheEntry> e : streamGraph.getEnvironment().getCacheFile()) {
+			DistributedCache.writeFileInfoToConfig(e.f0, e.f1, jobGraph.getJobConfiguration());
+		}
 
 		// set the ExecutionConfig last when it has been finalized
 		jobGraph.setExecutionConfig(streamGraph.getExecutionConfig());
