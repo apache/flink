@@ -29,7 +29,8 @@ import java.util.Properties;
 /**
  * A cassandra  {@link AppendStreamTableSink}.
  */
-class CassandraTableSink implements AppendStreamTableSink<Row> {
+public class CassandraTableSink implements AppendStreamTableSink<Row> {
+
 	private final ClusterBuilder builder;
 	private final String cql;
 	private String[] fieldNames;

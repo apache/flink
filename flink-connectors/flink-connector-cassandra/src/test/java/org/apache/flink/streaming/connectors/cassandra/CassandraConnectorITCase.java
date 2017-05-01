@@ -313,7 +313,9 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 			expected.add(i);
 		}
 
-		ArrayList<Integer> actual = new ArrayList<>();ResultSet result = session.execute(injectTableName(SELECT_DATA_QUERY));
+		ArrayList<Integer> actual = new ArrayList<>();
+		ResultSet result = session.execute(injectTableName(SELECT_DATA_QUERY));
+
 		for (com.datastax.driver.core.Row s : result) {
 			actual.add(s.getInt("counter"));
 		}
@@ -401,11 +403,11 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		DataStreamSource<Row> source = env.fromCollection(rowCollection);
 
 		new CassandraSink.CassandraRowSinkBuilder(source, source.getType(),
-			source.getType().createSerializer(source.getExecutionEnvironment().getConfig())).setQuery(INSERT_DATA_QUERY).setClusterBuilder(builder).build();
+			source.getType().createSerializer(source.getExecutionEnvironment().getConfig())).setQuery(injectTableName(INSERT_DATA_QUERY)).setClusterBuilder(builder).build();
 
 		env.execute();
 
-		ResultSet rs = session.execute(SELECT_DATA_QUERY);
+		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
 		Assert.assertEquals(20, rs.all().size());
 	}
 
@@ -438,13 +440,13 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 			protected Cluster buildCluster(Cluster.Builder builder) {
 				return builder.addContactPointsWithPorts(new InetSocketAddress(HOST, PORT)).build();
 			}
-		}, INSERT_DATA_QUERY, new Properties());
+		}, injectTableName(INSERT_DATA_QUERY), new Properties());
 		CassandraTableSink newCassandrTableSink = cassandraTableSink.configure(FIELD_NAMES, FIELD_TYPES);
 
 		newCassandrTableSink.emitDataStream(source);
 
 		env.execute();
-		ResultSet rs = session.execute(SELECT_DATA_QUERY);
+		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
 		Assert.assertEquals(20, rs.all().size());
 	}
 
@@ -452,17 +454,17 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	public void testCassandraTableSinkE2E() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(4);
-		StreamTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+		StreamTableEnvironment tEnv = StreamTableEnvironment.getTableEnvironment(env);
 
 		DataStreamSource<Row> source = env.fromCollection(rowCollection);
 
 		tEnv.registerDataStreamInternal("testFlinkTable", source);
 
 		tEnv.sql("select * from testFlinkTable").writeToSink(
-			new CassandraTableSink(builder, INSERT_DATA_QUERY, new Properties()));
+			new CassandraTableSink(builder, injectTableName(INSERT_DATA_QUERY), new Properties()));
 
 		env.execute();
-		ResultSet rs = session.execute(SELECT_DATA_QUERY);
+		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
 		Assert.assertEquals(20, rs.all().size());
 	}
 
