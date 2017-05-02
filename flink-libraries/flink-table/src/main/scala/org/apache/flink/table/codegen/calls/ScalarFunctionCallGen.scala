@@ -44,10 +44,10 @@ class ScalarFunctionCallGen(
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
     // determine function method and result class
-    val matchingMethod = getEvalMethod(scalarFunction, signature)
+    val matchingMethod = getUserDefinedMethod(scalarFunction, "eval", typeInfoToClass(signature))
       .getOrElse(throw new CodeGenException("No matching signature found."))
     val matchingSignature = matchingMethod.getParameterTypes
-    val resultClass = getResultTypeClass(scalarFunction, matchingSignature)
+    val resultClass = getResultTypeClassOfScalaFunction(scalarFunction, matchingSignature)
 
     // zip for variable signatures
     var paramToOperands = matchingSignature.zip(operands)

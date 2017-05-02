@@ -23,8 +23,8 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
-import org.apache.flink.table.functions.{EventTimeExtractor, RowTime, ScalarFunction, TableFunction, _}
+import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.functions.{AggregateFunction, EventTimeExtractor, RowTime, ScalarFunction, TableFunction, _}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -96,6 +96,15 @@ class FunctionCatalog {
         val typeInfo = tableSqlFunction.getRowTypeInfo
         val function = tableSqlFunction.getTableFunction
         TableFunctionCall(name, function, children, typeInfo)
+
+      // user-defined aggregate function call
+      case af if classOf[AggregateFunction[_, _]].isAssignableFrom(af) =>
+        val aggregateFunction = sqlFunctions
+          .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[AggSqlFunction])
+          .getOrElse(throw ValidationException(s"Undefined table function: $name"))
+          .asInstanceOf[AggSqlFunction]
+        val function = aggregateFunction.getFunction
+        UDAGGFunctionCall(function, children)
 
       // general expression call
       case expression if classOf[Expression].isAssignableFrom(expression) =>

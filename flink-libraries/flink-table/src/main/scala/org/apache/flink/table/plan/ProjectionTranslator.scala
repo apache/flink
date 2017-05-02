@@ -303,6 +303,11 @@ object ProjectionTranslator {
         (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
       }
 
+    case aggfc @ UDAGGFunctionCall(clazz, args) =>
+      args.foldLeft(fieldReferences) {
+        (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
+      }
+
     // array constructor
     case c @ ArrayConstructor(args) =>
       args.foldLeft(fieldReferences) {
