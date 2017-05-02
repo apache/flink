@@ -102,7 +102,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	// ------------------------------------------------------------------------
 
 	@BeforeClass
-	public void setup() throws Exception {
+	public static void setup() throws Exception {
 		cluster = TestBaseUtils.startCluster(
 			1,
 			DEFAULT_PARALLELISM,
@@ -112,7 +112,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	}
 
 	@AfterClass
-	public void teardown() throws Exception {
+	public static void teardown() throws Exception {
 		stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
 
 		TestEnvironment.unsetAsContext();
