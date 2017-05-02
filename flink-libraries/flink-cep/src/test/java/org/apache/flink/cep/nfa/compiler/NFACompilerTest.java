@@ -164,6 +164,26 @@ public class NFACompilerTest extends TestLogger {
 		assertEquals(0, endingState.getStateTransitions().size());
 	}
 
+	@Test
+	public void testNoUnnecessaryStateCopiesCreated() {
+		final Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(startFilter)
+			.notFollowedBy("not").where(startFilter)
+			.followedBy("oneOrMore").where(startFilter).oneOrMore()
+			.followedBy("end").where(endFilter);
+
+		final NFACompiler.NFAFactoryCompiler<Event> nfaFactoryCompiler = new NFACompiler.NFAFactoryCompiler<>(pattern);
+		nfaFactoryCompiler.compileFactory();
+
+		int endStateCount = 0;
+		for (State<Event> state : nfaFactoryCompiler.getStates()) {
+			if (state.getName().equals("end")) {
+				endStateCount++;
+			}
+		}
+
+		assertEquals(1, endStateCount);
+	}
+
 	private <T> Set<Tuple2<String, StateTransitionAction>> unfoldTransitions(final State<T> state) {
 		final Set<Tuple2<String, StateTransitionAction>> transitions = new HashSet<>();
 		for (StateTransition<T> transition : state.getStateTransitions()) {

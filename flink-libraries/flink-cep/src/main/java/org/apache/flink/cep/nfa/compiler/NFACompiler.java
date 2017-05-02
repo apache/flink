@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.NFA;
@@ -102,14 +103,15 @@ public class NFACompiler {
 	 *
 	 * @param <T>
 	 */
-	private static class NFAFactoryCompiler<T> {
+	@VisibleForTesting
+	static class NFAFactoryCompiler<T> {
 
 		private final Set<String> usedNames = new HashSet<>();
 		private final List<State<T>> states = new ArrayList<>();
 
 		private long windowTime = 0;
-		private Pattern<T, ?> followingPattern;
 		private Pattern<T, ?> currentPattern;
+		private Pattern<T, ?> previousPattern;
 
 		NFAFactoryCompiler(final Pattern<T, ?> pattern) {
 			this.currentPattern = pattern;
@@ -216,7 +218,7 @@ public class NFACompiler {
 					lastSink = convertPattern(lastSink);
 				}
 
-				followingPattern = currentPattern;
+				previousPattern = currentPattern;
 				currentPattern = currentPattern.getPrevious();
 
 				final Time currentWindowTime = currentPattern.getWindowTime();
@@ -271,7 +273,10 @@ public class NFACompiler {
 		private State<T> copyWithoutTransitiveNots(final State<T> sinkState) {
 			final List<Tuple2<IterativeCondition<T>, String>> currentNotCondition = getCurrentNotCondition();
 
-			if (currentNotCondition.isEmpty()) {
+			if (currentNotCondition.isEmpty() ||
+				!currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
+				//we do not create an alternative path if we are NOT in an OPTIONAL state or there is no NOTs prior to
+				//the optional state
 				return sinkState;
 			}
 
@@ -316,17 +321,17 @@ public class NFACompiler {
 			}
 		}
 
-		private Map<IterativeCondition<T>, State<T>> stopStates = new HashMap<>();
+		private Map<String, State<T>> stopStates = new HashMap<>();
 		private State<T> createStopState(final IterativeCondition<T> notCondition, final String name) {
-
 			// We should not duplicate the notStates. All states from which we can stop should point to the same one.
-			State<T> stopState = stopStates.get(notCondition);
+			State<T> stopState = stopStates.get(name);
 			if (stopState == null) {
 				stopState = new State<>(name, State.StateType.Stop);
 				states.add(stopState);
 				stopState.addTake(notCondition);
-				stopStates.put(notCondition, stopState);
+				stopStates.put(name, stopState);
 			}
+
 			return stopState;
 		}
 
@@ -393,6 +398,7 @@ public class NFACompiler {
 			State<T> lastSink = copyWithoutTransitiveNots(sinkState);
 			for (int i = 0; i < times - 1; i++) {
 				lastSink = createSingletonState(lastSink, getInnerIgnoreCondition(currentPattern), false);
+				addStopStateToLooping(lastSink);
 			}
 
 			final IterativeCondition<T> currentFilterFunction = (IterativeCondition<T>) currentPattern.getCondition();
@@ -412,6 +418,7 @@ public class NFACompiler {
 				ignoreState.addTake(lastSink, currentFilterFunction);
 				ignoreState.addIgnore(ignoreCondition);
 				singletonState.addIgnore(ignoreState, ignoreCondition);
+				addStopStates(ignoreState);
 			}
 			return singletonState;
 		}
@@ -463,7 +470,6 @@ public class NFACompiler {
 					ignoreState.addTake(sink, currentFilterFunction);
 					ignoreState.addIgnore(ignoreCondition);
 					addStopStates(ignoreState);
-					addStopStateToLooping(ignoreState);
 				} else {
 					ignoreState = singletonState;
 				}
@@ -528,12 +534,12 @@ public class NFACompiler {
 		}
 
 		private void addStopStateToLooping(final State<T> loopingState) {
-			if (followingPattern != null &&
-				followingPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
-					final IterativeCondition<T> notCondition = (IterativeCondition<T>) followingPattern.getCondition();
+			if (previousPattern != null &&
+				previousPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
+					final IterativeCondition<T> notCondition = (IterativeCondition<T>) previousPattern.getCondition();
 					final State<T> stopState = createStopState(
 						notCondition,
-						followingPattern.getName());
+						previousPattern.getName());
 					loopingState.addProceed(stopState, notCondition);
 			}
 		}
