@@ -282,6 +282,7 @@ public class Pattern<T, F extends T> {
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> oneOrMore() {
+		checkIfNoNotPattern();
 		checkIfQuantifierApplied();
 		this.quantifier = Quantifier.ONE_OR_MORE(quantifier.getConsumingStrategy());
 		return this;
@@ -296,6 +297,7 @@ public class Pattern<T, F extends T> {
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> times(int times) {
+		checkIfNoNotPattern();
 		checkIfQuantifierApplied();
 		Preconditions.checkArgument(times > 0, "You should give a positive number greater than 0.");
 		this.quantifier = Quantifier.TIMES(quantifier.getConsumingStrategy());
@@ -358,6 +360,13 @@ public class Pattern<T, F extends T> {
 	public Pattern<T, F> consecutive() {
 		quantifier.consecutive();
 		return this;
+	}
+
+	private void checkIfNoNotPattern() {
+		if (quantifier.getConsumingStrategy() == ConsumingStrategy.NOT_FOLLOW ||
+				quantifier.getConsumingStrategy() == ConsumingStrategy.NOT_NEXT) {
+			throw new MalformedPatternException("Option not applicable to NOT pattern");
+		}
 	}
 
 	private void checkIfQuantifierApplied() {
