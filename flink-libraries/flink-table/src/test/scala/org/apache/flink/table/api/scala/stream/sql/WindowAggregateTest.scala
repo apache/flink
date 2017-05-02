@@ -18,7 +18,8 @@
 package org.apache.flink.table.api.scala.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.logical.{EventTimeTumblingGroupWindow, ProcessingTimeSessionGroupWindow, ProcessingTimeSlidingGroupWindow}
 import org.apache.flink.table.utils.TableTestUtil._
@@ -33,9 +34,9 @@ class WindowAggregateTest extends TableTestBase {
   def testNonPartitionedProcessingTimeBoundedWindow() = {
 
     val sqlQuery = "SELECT a, Count(c) OVER (ORDER BY procTime()" +
-      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) AS countA " +
-      "FROM MyTable"
-      val expected =
+      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) AS countA FROM MyTable"
+
+    val expected =
       unaryNode(
         "DataStreamCalc",
         unaryNode(
@@ -84,10 +85,11 @@ class WindowAggregateTest extends TableTestBase {
 
   @Test
   def testTumbleFunction() = {
+    streamUtil.tEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
 
     val sql =
       "SELECT " +
-        "  COUNT(*), " +
+        "  COUNT(*), weightedAvg(c, a) AS wAvg, " +
         "  TUMBLE_START(rowtime(), INTERVAL '15' MINUTE), " +
         "  TUMBLE_END(rowtime(), INTERVAL '15' MINUTE)" +
         "FROM MyTable " +
@@ -97,23 +99,25 @@ class WindowAggregateTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "1970-01-01 00:00:00 AS $f0")
-          ),
+          streamTableNode(0),
           term("window", EventTimeTumblingGroupWindow('w$, 'rowtime, 900000.millis)),
-          term("select", "COUNT(*) AS EXPR$0, start('w$) AS w$start, end('w$) AS w$end")
+          term("select",
+            "COUNT(*) AS EXPR$0, " +
+              "weightedAvg(c, a) AS wAvg, " +
+              "start('w$) AS w$start, " +
+              "end('w$) AS w$end")
         ),
-        term("select", "EXPR$0, CAST(w$start) AS w$start, CAST(w$end) AS w$end")
+        term("select", "EXPR$0, wAvg, CAST(w$start) AS w$start, CAST(w$end) AS w$end")
       )
     streamUtil.verifySql(sql, expected)
   }
 
   @Test
   def testHoppingFunction() = {
+    streamUtil.tEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
+
     val sql =
-      "SELECT COUNT(*), " +
+      "SELECT COUNT(*), weightedAvg(c, a) AS wAvg, " +
         "  HOP_START(proctime(), INTERVAL '15' MINUTE, INTERVAL '1' HOUR), " +
         "  HOP_END(proctime(), INTERVAL '15' MINUTE, INTERVAL '1' HOUR) " +
         "FROM MyTable " +
@@ -123,25 +127,27 @@ class WindowAggregateTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "1970-01-01 00:00:00 AS $f0")
-          ),
+          streamTableNode(0),
           term("window", ProcessingTimeSlidingGroupWindow('w$,
             3600000.millis, 900000.millis)),
-          term("select", "COUNT(*) AS EXPR$0, start('w$) AS w$start, end('w$) AS w$end")
+          term("select",
+            "COUNT(*) AS EXPR$0, " +
+              "weightedAvg(c, a) AS wAvg, " +
+              "start('w$) AS w$start, " +
+              "end('w$) AS w$end")
         ),
-        term("select", "EXPR$0, CAST(w$start) AS w$start, CAST(w$end) AS w$end")
+        term("select", "EXPR$0, wAvg, CAST(w$start) AS w$start, CAST(w$end) AS w$end")
       )
     streamUtil.verifySql(sql, expected)
   }
 
   @Test
   def testSessionFunction() = {
+    streamUtil.tEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
+
     val sql =
       "SELECT " +
-        "  COUNT(*), " +
+        "  COUNT(*), weightedAvg(c, a) AS wAvg, " +
         "  SESSION_START(proctime(), INTERVAL '15' MINUTE), " +
         "  SESSION_END(proctime(), INTERVAL '15' MINUTE) " +
         "FROM MyTable " +
@@ -151,15 +157,15 @@ class WindowAggregateTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "1970-01-01 00:00:00 AS $f0")
-          ),
+          streamTableNode(0),
           term("window", ProcessingTimeSessionGroupWindow('w$, 900000.millis)),
-          term("select", "COUNT(*) AS EXPR$0, start('w$) AS w$start, end('w$) AS w$end")
+          term("select",
+            "COUNT(*) AS EXPR$0, " +
+              "weightedAvg(c, a) AS wAvg, " +
+              "start('w$) AS w$start, " +
+              "end('w$) AS w$end")
         ),
-        term("select", "EXPR$0, CAST(w$start) AS w$start, CAST(w$end) AS w$end")
+        term("select", "EXPR$0, wAvg, CAST(w$start) AS w$start, CAST(w$end) AS w$end")
       )
     streamUtil.verifySql(sql, expected)
   }
@@ -213,6 +219,18 @@ class WindowAggregateTest extends TableTestBase {
     val sql = "SELECT COUNT(*) FROM MyTable GROUP BY FLOOR(localTimestamp TO HOUR)"
     val expected = ""
     streamUtil.verifySql(sql, expected)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testWindowUdAggInvalidArgs(): Unit = {
+    streamUtil.tEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
+
+    val sqlQuery =
+      "SELECT SUM(a) AS sumA, weightedAvg(a, b) AS wAvg " +
+        "FROM MyTable " +
+        "GROUP BY TUMBLE(proctime(), INTERVAL '2' HOUR, TIME '10:00:00')"
+
+    streamUtil.verifySql(sqlQuery, "n/a")
   }
 
   @Test

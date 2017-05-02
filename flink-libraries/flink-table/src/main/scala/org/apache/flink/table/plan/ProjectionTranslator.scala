@@ -303,6 +303,11 @@ object ProjectionTranslator {
         (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
       }
 
+    case aggfc @ AggFunctionCall(clazz, args) =>
+      args.foldLeft(fieldReferences) {
+        (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
+      }
+
     // array constructor
     case c @ ArrayConstructor(args) =>
       args.foldLeft(fieldReferences) {
@@ -327,4 +332,56 @@ object ProjectionTranslator {
       }
   }
 
+  /**
+    * Find and replace UDAGG function Call to AggFunctionCall
+    *
+    * @param field    the expression to check
+    * @param tableEnv the TableEnvironment
+    * @return an expression with correct AggFunctionCall type for UDAGG functions
+    */
+  def replaceAggFunctionCall(field: Expression, tableEnv: TableEnvironment): Expression = {
+    field match {
+      case l: LeafExpression => l
+
+      case u: UnaryExpression =>
+        val c = replaceAggFunctionCall(u.child, tableEnv)
+        u.makeCopy(Array(c))
+
+      case b: BinaryExpression =>
+        val l = replaceAggFunctionCall(b.left, tableEnv)
+        val r = replaceAggFunctionCall(b.right, tableEnv)
+        b.makeCopy(Array(l, r))
+
+      // Functions calls
+      case c @ Call(name, args) =>
+        val function = tableEnv.getFunctionCatalog.lookupFunction(name, args)
+        if (function.isInstanceOf[AggFunctionCall]) {
+          function
+        } else {
+          val newArgs =
+            args.map(
+            (exp: Expression) =>
+              replaceAggFunctionCall(exp, tableEnv))
+          c.makeCopy(Array(name, newArgs))
+        }
+
+      // Scala functions
+      case sfc @ ScalarFunctionCall(clazz, args) =>
+        val newArgs: Seq[Expression] =
+          args.map(
+            (exp: Expression) =>
+              replaceAggFunctionCall(exp, tableEnv))
+        sfc.makeCopy(Array(clazz, newArgs))
+
+      // Array constructor
+      case c @ ArrayConstructor(args) =>
+        val newArgs =
+          c.elements
+            .map((exp: Expression) => replaceAggFunctionCall(exp, tableEnv))
+        c.makeCopy(Array(newArgs))
+
+      // Other expressions
+      case e: Expression => e
+    }
+  }
 }

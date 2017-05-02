@@ -122,6 +122,12 @@ class DataStreamAggregate(
       false,
       inputDS.getType)
 
+    val needMerge = window match {
+      case ProcessingTimeSessionGroupWindow(_, _) => true
+      case EventTimeSessionGroupWindow(_, _, _) => true
+      case _ => false
+    }
+
     // grouped / keyed aggregation
     if (grouping.length > 0) {
       val windowFunction = AggregateUtil.createAggregationGroupWindowFunction(
@@ -141,7 +147,8 @@ class DataStreamAggregate(
           generator,
           namedAggregates,
           inputType,
-          rowRelDataType)
+          rowRelDataType,
+          needMerge)
 
       windowedStream
         .aggregate(aggFunction, windowFunction, accumulatorRowType, aggResultRowType, rowTypeInfo)
@@ -163,7 +170,8 @@ class DataStreamAggregate(
           generator,
           namedAggregates,
           inputType,
-          rowRelDataType)
+          rowRelDataType,
+          needMerge)
 
       windowedStream
         .aggregate(aggFunction, windowFunction, accumulatorRowType, aggResultRowType, rowTypeInfo)

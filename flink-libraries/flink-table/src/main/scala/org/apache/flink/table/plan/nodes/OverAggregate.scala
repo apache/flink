@@ -88,7 +88,7 @@ trait OverAggregate {
     val aggStrings = namedAggregates.map(_.getKey).map(
       a => s"${a.getAggregation}(${
         if (a.getArgList.size() > 0) {
-          inFields(a.getArgList.get(0))
+          a.getArgList.asScala.map(inFields(_)).mkString(", ")
         } else {
           "*"
         }

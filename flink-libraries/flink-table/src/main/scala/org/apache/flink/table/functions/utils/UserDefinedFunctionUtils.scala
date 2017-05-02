@@ -25,15 +25,16 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.commons.codec.binary.Base64
 import com.google.common.primitives.Primitives
-import org.apache.calcite.sql.SqlFunction
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.{SqlCallBinding, SqlFunction}
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.logical._
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
 
@@ -69,52 +70,89 @@ object UserDefinedFunctionUtils {
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Utilities for eval methods
+  // Utilities for user-defined methods
   // ----------------------------------------------------------------------------------------------
 
   /**
-    * Returns signatures matching the given signature of [[TypeInformation]].
+    * Returns signatures of eval methods matching the given signature of [[TypeInformation]].
     * Elements of the signature can be null (act as a wildcard).
     */
-  def getSignature(
-      function: UserDefinedFunction,
-      signature: Seq[TypeInformation[_]])
+  def getEvalMethodSignature(
+    function: UserDefinedFunction,
+    signature: Seq[TypeInformation[_]])
     : Option[Array[Class[_]]] = {
-    getEvalMethod(function, signature).map(_.getParameterTypes)
+    getUserDefinedMethod(function, "eval", typeInfoToClass(signature)).map(_.getParameterTypes)
   }
 
   /**
-    * Returns eval method matching the given signature of [[TypeInformation]].
+    * Returns signatures of accumulate methods matching the given signature of [[TypeInformation]].
+    * Elements of the signature can be null (act as a wildcard).
     */
-  def getEvalMethod(
-      function: UserDefinedFunction,
+  def getAccumulateMethodSignature(
+      function: AggregateFunction[_, _],
       signature: Seq[TypeInformation[_]])
-    : Option[Method] = {
-    // We compare the raw Java classes not the TypeInformation.
-    // TypeInformation does not matter during runtime (e.g. within a MapFunction).
-    val actualSignature = typeInfoToClass(signature)
-    val evalMethods = checkAndExtractEvalMethods(function)
+  : Option[Array[Class[_]]] = {
+    val accType = TypeExtractor.createTypeInfo(
+      function, classOf[AggregateFunction[_, _]], function.getClass, 1)
+    val input = (Array(accType) ++ signature).toSeq
+    getUserDefinedMethod(
+      function,
+      "accumulate",
+      typeInfoToClass(input)).map(_.getParameterTypes)
+  }
 
-    val filtered = evalMethods
-      // go over all eval methods and filter out matching methods
+  def getParameterTypes(
+      function: UserDefinedFunction,
+      signature: Array[Class[_]]): Array[TypeInformation[_]] = {
+    signature.map { c =>
+      try {
+        TypeExtractor.getForClass(c)
+      } catch {
+        case ite: InvalidTypesException =>
+          throw new ValidationException(
+            s"Parameter types of function '${function.getClass.getCanonicalName}' cannot be " +
+              s"automatically determined. Please provide type information manually.")
+      }
+    }
+  }
+
+  /**
+    * Returns user defined method matching the given name and signature.
+    *
+    * @param function        function instance
+    * @param methodName      method name
+    * @param methodSignature an array of raw Java classes. We compare the raw Java classes not the
+    *                        TypeInformation. TypeInformation does not matter during runtime (e.g.
+    *                        within a MapFunction)
+    */
+  def getUserDefinedMethod(
+      function: UserDefinedFunction,
+      methodName: String,
+      methodSignature: Array[Class[_]])
+    : Option[Method] = {
+
+    val methods = checkAndExtractMethods(function, methodName)
+
+    val filtered = methods
+      // go over all the methods and filter out matching methods
       .filter {
         case cur if !cur.isVarArgs =>
           val signatures = cur.getParameterTypes
           // match parameters of signature to actual parameters
-          actualSignature.length == signatures.length &&
+          methodSignature.length == signatures.length &&
             signatures.zipWithIndex.forall { case (clazz, i) =>
-              parameterTypeEquals(actualSignature(i), clazz)
+              parameterTypeEquals(methodSignature(i), clazz)
           }
         case cur if cur.isVarArgs =>
           val signatures = cur.getParameterTypes
-          actualSignature.zipWithIndex.forall {
+          methodSignature.zipWithIndex.forall {
             // non-varargs
             case (clazz, i) if i < signatures.length - 1  =>
               parameterTypeEquals(clazz, signatures(i))
             // varargs
             case (clazz, i) if i >= signatures.length - 1 =>
               parameterTypeEquals(clazz, signatures.last.getComponentType)
-          } || (actualSignature.isEmpty && signatures.length == 1) // empty varargs
+          } || (methodSignature.isEmpty && signatures.length == 1) // empty varargs
     }
 
     // if there is a fixed method, compiler will call this method preferentially
@@ -126,19 +164,21 @@ object UserDefinedFunctionUtils {
 
     // check if there is a Scala varargs annotation
     if (found.isEmpty &&
-      evalMethods.exists { evalMethod =>
-        val signatures = evalMethod.getParameterTypes
+      methods.exists { method =>
+        val signatures = method.getParameterTypes
         signatures.zipWithIndex.forall {
           case (clazz, i) if i < signatures.length - 1 =>
-            parameterTypeEquals(actualSignature(i), clazz)
+            parameterTypeEquals(methodSignature(i), clazz)
           case (clazz, i) if i == signatures.length - 1 =>
             clazz.getName.equals("scala.collection.Seq")
         }
       }) {
-      throw new ValidationException("Scala-style variable arguments in 'eval' methods are not " +
-        "supported. Please add a @scala.annotation.varargs annotation.")
+      throw new ValidationException(
+        s"Scala-style variable arguments in '${methodName}' methods are not supported. Please " +
+          s"add a @scala.annotation.varargs annotation.")
     } else if (found.length > 1) {
-      throw new ValidationException("Found multiple 'eval' methods which match the signature.")
+      throw new ValidationException(
+        "Found multiple '${methodName}' methods which match the signature.")
     }
     found.headOption
   }
@@ -157,16 +197,18 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Extracts "eval" methods and throws a [[ValidationException]] if no implementation
+    * Extracts methods and throws a [[ValidationException]] if no implementation
     * can be found, or implementation does not match the requirements.
     */
-  def checkAndExtractEvalMethods(function: UserDefinedFunction): Array[Method] = {
+  def checkAndExtractMethods(
+      function: UserDefinedFunction,
+      methodName: String): Array[Method] = {
     val methods = function
       .getClass
-      .getDeclaredMethods
+      .getMethods
       .filter { m =>
         val modifiers = m.getModifiers
-        m.getName == "eval" &&
+        m.getName == methodName &&
           Modifier.isPublic(modifiers) &&
           !Modifier.isAbstract(modifiers) &&
           !(function.isInstanceOf[TableFunction[_]] && Modifier.isStatic(modifiers))
@@ -175,15 +217,17 @@ object UserDefinedFunctionUtils {
     if (methods.isEmpty) {
       throw new ValidationException(
         s"Function class '${function.getClass.getCanonicalName}' does not implement at least " +
-          s"one method named 'eval' which is public, not abstract and " +
+          s"one method named '${methodName}' which is public, not abstract and " +
           s"(in case of table functions) not static.")
     }
 
     methods
   }
 
-  def getSignatures(function: UserDefinedFunction): Array[Array[Class[_]]] = {
-    checkAndExtractEvalMethods(function).map(_.getParameterTypes)
+  def getMethodSignatures(
+      function: UserDefinedFunction,
+      methodName: String): Array[Array[Class[_]]] = {
+    checkAndExtractMethods(function, methodName).map(_.getParameterTypes)
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -222,7 +266,7 @@ object UserDefinedFunctionUtils {
       typeFactory: FlinkTypeFactory)
     : Seq[SqlFunction] = {
     val (fieldNames, fieldIndexes, _) = UserDefinedFunctionUtils.getFieldInfo(resultType)
-    val evalMethods = checkAndExtractEvalMethods(tableFunction)
+    val evalMethods = checkAndExtractMethods(tableFunction, "eval")
 
     evalMethods.map { method =>
       val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames, method)
@@ -230,29 +274,75 @@ object UserDefinedFunctionUtils {
     }
   }
 
+  /**
+    * Create [[SqlFunction]] for an [[AggregateFunction]]
+    *
+    * @param name function name
+    * @param aggFunction aggregate function
+    * @param typeFactory type factory
+    * @return the TableSqlFunction
+    */
+  def createAggregateSqlFunction(
+      name: String,
+      aggFunction: AggregateFunction[_, _],
+      typeInfo: TypeInformation[_],
+      typeFactory: FlinkTypeFactory)
+  : SqlFunction = {
+    //check if a qualified accumulate method exists before create Sql function
+    checkAndExtractMethods(aggFunction, "accumulate")
+    val resultType: TypeInformation[_] = getResultTypeOfAggregateFunction(aggFunction, typeInfo)
+    AggSqlFunction(name, aggFunction, resultType, typeFactory)
+  }
+
   // ----------------------------------------------------------------------------------------------
-  // Utilities for scalar functions
+  // Utilities for user-defined functions
   // ----------------------------------------------------------------------------------------------
+
+  /**
+    * Internal method of AggregateFunction#getResultType() that does some pre-checking and uses
+    * [[TypeExtractor]] as default return type inference.
+    */
+  def getResultTypeOfAggregateFunction(
+      aggregateFunction: AggregateFunction[_, _],
+      extractedType: TypeInformation[_] = null)
+    : TypeInformation[_] = {
+
+    val resultType = try {
+      val method: Method = aggregateFunction.getClass.getMethod("getResultType")
+      method.invoke(aggregateFunction).asInstanceOf[TypeInformation[_]]
+    } catch {
+      case _: NoSuchMethodException => null
+      case ite: Throwable => throw new TableException("Unexpected exception:", ite)
+    }
+    if (resultType != null) {
+      resultType
+    } else if(extractedType != null) {
+      extractedType
+    } else {
+      TypeExtractor
+        .createTypeInfo(aggregateFunction,
+                        classOf[AggregateFunction[_, _]],
+                        aggregateFunction.getClass,
+                        0)
+        .asInstanceOf[TypeInformation[_]]
+    }
+  }
 
   /**
     * Internal method of [[ScalarFunction#getResultType()]] that does some pre-checking and uses
     * [[TypeExtractor]] as default return type inference.
     */
-  def getResultType(
+  def getResultTypeOfScalarFunction(
       function: ScalarFunction,
       signature: Array[Class[_]])
     : TypeInformation[_] = {
-    // find method for signature
-    val evalMethod = checkAndExtractEvalMethods(function)
-      .find(m => signature.sameElements(m.getParameterTypes))
-      .getOrElse(throw new ValidationException("Given signature is invalid."))
 
     val userDefinedTypeInfo = function.getResultType(signature)
     if (userDefinedTypeInfo != null) {
       userDefinedTypeInfo
     } else {
       try {
-        TypeExtractor.getForClass(evalMethod.getReturnType)
+        TypeExtractor.getForClass(getResultTypeClassOfScalarFunction(function, signature))
       } catch {
         case ite: InvalidTypesException =>
           throw new ValidationException(
@@ -265,12 +355,12 @@ object UserDefinedFunctionUtils {
   /**
     * Returns the return type of the evaluation method matching the given signature.
     */
-  def getResultTypeClass(
+  def getResultTypeClassOfScalarFunction(
       function: ScalarFunction,
       signature: Array[Class[_]])
     : Class[_] = {
     // find method for signature
-    val evalMethod = checkAndExtractEvalMethods(function)
+    val evalMethod = checkAndExtractMethods(function, "eval")
       .find(m => signature.sameElements(m.getParameterTypes))
       .getOrElse(throw new IllegalArgumentException("Given signature is invalid."))
     evalMethod.getReturnType
@@ -317,16 +407,16 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Prints all eval methods signatures of a class.
+    * Prints all signatures of methods with given name in a class.
     */
-  def signaturesToString(function: UserDefinedFunction): String = {
-    getSignatures(function).map(signatureToString).mkString(", ")
+  def signaturesToString(function: UserDefinedFunction, name: String): String = {
+    getMethodSignatures(function, name).map(signatureToString).mkString(", ")
   }
 
   /**
     * Extracts type classes of [[TypeInformation]] in a null-aware way.
     */
-  private def typeInfoToClass(typeInfos: Seq[TypeInformation[_]]): Array[Class[_]] =
+  def typeInfoToClass(typeInfos: Seq[TypeInformation[_]]): Array[Class[_]] =
   typeInfos.map { typeInfo =>
     if (typeInfo == null) {
       null
@@ -392,5 +482,17 @@ object UserDefinedFunctionUtils {
     val functionCall: LogicalTableFunctionCall = unwrap(ExpressionParser.parseExpression(udtf))
       .as(alias).toLogicalTableFunctionCall(child = null)
     functionCall
+  }
+
+  def getOperandTypeInfo(callBinding: SqlCallBinding): Seq[TypeInformation[_]] = {
+    val operandTypes = for (i <- 0 until callBinding.getOperandCount)
+      yield callBinding.getOperandType(i)
+    operandTypes.map { operandType =>
+      if (operandType.getSqlTypeName == SqlTypeName.NULL) {
+        null
+      } else {
+        FlinkTypeFactory.toTypeInfo(operandType)
+      }
+    }
   }
 }
