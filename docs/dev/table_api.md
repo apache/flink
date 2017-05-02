@@ -1099,14 +1099,14 @@ Temporal intervals can be represented as number of months (`Types.INTERVAL_MONTH
 
 The Table API is a declarative API to define queries on batch and streaming tables. Projection, selection, and union operations can be applied both on streaming and batch tables without additional semantics. Aggregations on (possibly) infinite streaming tables, however, can only be computed on finite groups of records. Window aggregates group rows into finite groups based on time or row-count intervals and evaluate aggregation functions once per group. For batch tables, windows are a convenient shortcut to group records by time intervals.
 
-Windows are defined using the `window(w: Window)` clause and require an alias, which is specified using the `as` clause. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute. 
+Windows are defined using the `window(w: Window)` clause and the window must have an alias. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute. 
 The following example shows how to define a window aggregation on a table.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .window([Window w].as("w"))  // define window with alias w
+  .window([WindowWithoutAlias w].as("w"))  // define window with alias w
   .groupBy("w")  // group the table by window w
   .select("b.sum");  // aggregate
 {% endhighlight %}
@@ -1115,7 +1115,7 @@ Table table = input
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .window([w: Window] as 'w)  // define window with alias w
+  .window([w: WindowWithoutAlias] as 'w)  // define window with alias w
   .groupBy('w)   // group the table by window w
   .select('b.sum)  // aggregate
 {% endhighlight %}
@@ -1129,7 +1129,7 @@ The following example shows how to define a window aggregation with additional g
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .window([Window w].as("w"))  // define window with alias w
+  .window([WindowWithoutAlias w].as("w"))  // define window with alias w
   .groupBy("w, a")  // group the table by attribute a and window w 
   .select("a, b.sum");  // aggregate
 {% endhighlight %}
@@ -1138,7 +1138,7 @@ Table table = input
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .window([w: Window] as 'w) // define window with alias w
+  .window([w: WindowWithoutAlias] as 'w) // define window with alias w
   .groupBy('w, 'a)  // group the table by attribute a and window w 
   .select('a, 'b.sum)  // aggregate
 {% endhighlight %}
@@ -1151,7 +1151,7 @@ The `Window` parameter defines how rows are mapped to windows. `Window` is not a
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .window([Window w].as("w"))  // define window with alias w
+  .window([WindowWithoutAlias w].as("w"))  // define window with alias w
   .groupBy("w, a")  // group the table by attribute a and window w 
   .select("a, w.start, w.end, b.count"); // aggregate and add window start and end timestamps
 {% endhighlight %}
@@ -1160,7 +1160,7 @@ Table table = input
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .window([w: Window] as 'w)  // define window with alias w
+  .window([w: WindowWithoutAlias] as 'w)  // define window with alias w
   .groupBy('w, 'a)  // group the table by attribute a and window w 
   .select('a, 'w.start, 'w.end, 'b.count) // aggregate and add window start and end timestamps
 {% endhighlight %}
@@ -1485,14 +1485,14 @@ Joins, set operations, and non-windowed aggregations are not supported yet.
 
 {% top %}
 
-### Group Windows
+### Windows
 
-Group windows are defined in the `GROUP BY` clause of a SQL query. Just like queries with regular `GROUP BY` clauses, queries with a `GROUP BY` clause that includes a group window function compute a single result row per group. The following group windows functions are supported for SQL on batch and streaming tables.
+Windows are defined in the `GROUP BY` clause of a SQL query. Just like queries with regular `GROUP BY` clauses, queries with a `GROUP BY` clause that includes a window function compute a single result row per group. The following windows functions are supported for SQL on batch and streaming tables.
 
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 30%">Group Window Function</th>
+      <th class="text-left" style="width: 30%">Window Function</th>
       <th class="text-left">Description</th>
     </tr>
   </thead>
@@ -1513,11 +1513,11 @@ Group windows are defined in the `GROUP BY` clause of a SQL query. Just like que
   </tbody>
 </table>
 
-For SQL queries on streaming tables, the `time_attr` argument of the group window function must be one of the `rowtime()` or `proctime()` time-indicators, which distinguish between event or processing time, respectively. For SQL on batch tables, the `time_attr` argument of the group window function must be an attribute of type `TIMESTAMP`. 
+For SQL queries on streaming tables, the `time_attr` argument of the window function must be one of the `rowtime()` or `proctime()` time-indicators, which distinguish between event or processing time, respectively. For SQL on batch tables, the `time_attr` argument of the window function must be an attribute of type `TIMESTAMP`. 
 
-#### Selecting Group Window Start and End Timestamps
+#### Selecting Window Start and End Timestamps
 
-The start and end timestamps of group windows can be selected with the following auxiliary functions:
+The start and end timestamps of windows can be selected with the following auxiliary functions:
 
 <table class="table table-bordered">
   <thead>
@@ -1547,9 +1547,9 @@ The start and end timestamps of group windows can be selected with the following
   </tbody>
 </table>
 
-Note that the auxiliary functions must be called with exactly same arguments as the group window function in the `GROUP BY` clause.
+Note that the auxiliary functions must be called with exactly same arguments as the window function in the `GROUP BY` clause.
 
-The following examples show how to specify SQL queries with group windows on streaming tables. 
+The following examples show how to specify SQL queries with windows on streaming tables. 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
