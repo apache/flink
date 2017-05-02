@@ -34,6 +34,7 @@ import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobClientMessages.JobManagerActorRef;
 import org.apache.flink.runtime.messages.JobClientMessages.JobManagerLeaderAddress;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -287,7 +288,8 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 				System.out.println(message.toString());
 			}
 		} else {
-			LOG.info(message.toString(), message.error());
+			Throwable error = SerializedThrowable.get(message.error(), getClass().getClassLoader());
+			LOG.info(message.toString(), error);
 			if (sysoutUpdates) {
 				System.out.println(message.toString());
 				message.error().printStackTrace(System.out);
