@@ -106,6 +106,7 @@ public class YarnClusterClientV2 extends ClusterClient {
 			}
 		}
 		catch (Exception e) {
+			yarnClient.stop();
 			throw new ProgramInvocationException("Fail to submit the job", e.getCause());
 		}
 	}
