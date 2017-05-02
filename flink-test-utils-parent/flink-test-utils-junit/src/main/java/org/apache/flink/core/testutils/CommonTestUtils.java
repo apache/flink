@@ -97,6 +97,27 @@ public class CommonTestUtils {
 	}
 
 	/**
+	 * Permanently blocks the current thread. The thread cannot be woken
+	 * up via {@link Thread#interrupt()}.
+	 */
+	public static void blockForeverNonInterruptibly() {
+		final Object lock = new Object();
+		//noinspection InfiniteLoopStatement
+		while (true) {
+			try {
+				//noinspection SynchronizationOnLocalVariableOrMethodParameter
+				synchronized (lock) {
+					lock.wait();
+				}
+			} catch (InterruptedException ignored) {}
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Preconditions on the test environment
+	// ------------------------------------------------------------------------
+
+	/**
 	 * Checks whether this code runs in a Java 8 (Java 1.8) JVM. If not, this throws a
 	 * {@link AssumptionViolatedException}, which causes JUnit to skip the test that
 	 * called this method.
@@ -116,6 +137,10 @@ public class CommonTestUtils {
 			fail("Cannot determine Java version: " + e.getMessage());
 		}
 	}
+
+	// ------------------------------------------------------------------------
+	//  Manipulation of environment
+	// ------------------------------------------------------------------------
 
 	public static void setEnv(Map<String, String> newenv) {
 		setEnv(newenv, true);

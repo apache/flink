@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -38,7 +39,10 @@ public class TaskManagerRuntimeInfo implements java.io.Serializable {
 
 	/** list of temporary file directories */
 	private final String[] tmpDirectories;
-	
+
+	/** Flag that signals whether to halt the JVM if an OutOfMemoryError is thrown */
+	private final boolean exitJvmOnOutOfMemory;
+
 	/**
 	 * Creates a runtime info.
 	 * 
@@ -49,18 +53,30 @@ public class TaskManagerRuntimeInfo implements java.io.Serializable {
 	public TaskManagerRuntimeInfo(String hostname, Configuration configuration, String tmpDirectory) {
 		this(hostname, configuration, new String[] { tmpDirectory });
 	}
-	
+
 	/**
 	 * Creates a runtime info.
 	 * @param hostname The host name of the interface that the TaskManager uses to communicate.
 	 * @param configuration The configuration that the TaskManager was started with.
-	 * @param tmpDirectories The list of temporary file directories.   
+	 * @param tmpDirectories The list of temporary file directories.
 	 */
 	public TaskManagerRuntimeInfo(String hostname, Configuration configuration, String[] tmpDirectories) {
+		this(hostname, configuration, tmpDirectories, configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY));
+	}
+
+	/**
+	 * Creates a runtime info.
+	 * @param hostname The host name of the interface that the TaskManager uses to communicate.
+	 * @param configuration The configuration that the TaskManager was started with.
+	 * @param tmpDirectories The list of temporary file directories.
+	 * @param exitJvmOnOutOfMemory True to terminate the JVM on an OutOfMemoryError, false otherwise.
+	 */
+	public TaskManagerRuntimeInfo(String hostname, Configuration configuration, String[] tmpDirectories, boolean exitJvmOnOutOfMemory) {
 		checkArgument(tmpDirectories.length > 0);
 		this.hostname = checkNotNull(hostname);
 		this.configuration = checkNotNull(configuration);
 		this.tmpDirectories = tmpDirectories;
+		this.exitJvmOnOutOfMemory = exitJvmOnOutOfMemory;
 		
 	}
 
@@ -86,5 +102,15 @@ public class TaskManagerRuntimeInfo implements java.io.Serializable {
 	 */
 	public String[] getTmpDirectories() {
 		return tmpDirectories;
+	}
+
+	/**
+	 * Checks whether the TaskManager should exit the JVM when the task thread throws
+	 * an OutOfMemoryError.
+	 *
+	 * @return True to terminate the JVM on an OutOfMemoryError, false otherwise.
+	 */
+	public boolean shouldExitJvmOnOutOfMemoryError() {
+		return exitJvmOnOutOfMemory;
 	}
 }

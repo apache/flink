@@ -295,6 +295,15 @@ public abstract class TestJvmProcess {
 		}
 	}
 
+	public void waitFor() throws InterruptedException {
+		Process process = this.process;
+		if (process != null) {
+			process.waitFor();
+		} else {
+			throw new IllegalStateException("process not started");
+		}
+	}
+
 	// ---------------------------------------------------------------------------------------------
 	// File based synchronization utilities
 	// ---------------------------------------------------------------------------------------------

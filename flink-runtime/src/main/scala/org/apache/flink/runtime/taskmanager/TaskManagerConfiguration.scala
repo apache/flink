@@ -20,7 +20,7 @@ package org.apache.flink.runtime.taskmanager
 
 import java.util.concurrent.TimeUnit
 
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, TaskManagerOptions}
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -33,7 +33,8 @@ case class TaskManagerConfiguration(
     configuration: Configuration,
     initialRegistrationPause: FiniteDuration,
     maxRegistrationPause: FiniteDuration,
-    refusedRegistrationPause: FiniteDuration) {
+    refusedRegistrationPause: FiniteDuration,
+    exitJvmOnOutOfMemory: Boolean) {
 
   def this(
       tmpDirPaths: Array[String],
@@ -51,6 +52,7 @@ case class TaskManagerConfiguration(
       configuration,
       FiniteDuration(500, TimeUnit.MILLISECONDS),
       FiniteDuration(30, TimeUnit.SECONDS),
-      FiniteDuration(10, TimeUnit.SECONDS))
+      FiniteDuration(10, TimeUnit.SECONDS),
+      configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY))
   }
 }
