@@ -536,6 +536,66 @@ public class FlinkFutureTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that a chain of dependent futures will be completed exceptionally if the initial future
+	 * is completed exceptionally.
+	 */
+	@Test(timeout = 10000)
+	public void testChainedFutureExceptionalCompletion() throws ExecutionException, InterruptedException {
+		final FlinkCompletableFuture<String> future = new FlinkCompletableFuture<>();
+
+		Future<String> apply = future.thenApplyAsync(new ApplyFunction<String, String>() {
+			@Override
+			public String apply(String value) {
+				return value;
+			}
+		}, executor);
+
+		Future<Throwable> applyException = apply.exceptionallyAsync(new ApplyFunction<Throwable, Throwable>() {
+			@Override
+			public Throwable apply(Throwable value) {
+				return value;
+			}
+		}, executor);
+
+		Future<Void> accept1 = future.thenAcceptAsync(new AcceptFunction<String>() {
+			@Override
+			public void accept(String value) {
+				// noop
+			}
+		}, executor);
+
+		Future<Throwable> accept1Exception = accept1.exceptionallyAsync(new ApplyFunction<Throwable, Throwable>() {
+			@Override
+			public Throwable apply(Throwable value) {
+				return value;
+			}
+		}, executor);
+
+		Future<Void> accept2 = future.thenAcceptAsync(new AcceptFunction<String>() {
+			@Override
+			public void accept(String value) {
+				// noop
+			}
+		}, executor);
+
+		Future<Throwable> accept2Exception = accept2.exceptionallyAsync(new ApplyFunction<Throwable, Throwable>() {
+			@Override
+			public Throwable apply(Throwable value) {
+				return value;
+			}
+		}, executor);
+
+		TestException testException = new TestException("test");
+
+		// fail the initial future
+		future.completeExceptionally(testException);
+
+		assertEquals(testException, applyException.get());
+		assertEquals(testException, accept1Exception.get());
+		assertEquals(testException, accept2Exception.get());
+	}
+
 	private static class TestException extends RuntimeException {
 
 		private static final long serialVersionUID = -1274022962838535130L;

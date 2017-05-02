@@ -25,18 +25,18 @@ import java.util.List;
 
 /**
  * Mock context that collects elements in a List.
- * 
+ *
  * @param <T> Type of the collected elements.
  */
 public class ListSourceContext<T> implements SourceFunction.SourceContext<T> {
-	
+
 	private final Object lock = new Object();
-	
+
 	private final List<T> target;
 
 	private final long delay;
-	
-	
+
+
 	public ListSourceContext(List<T> target) {
 		this(target, 0L);
 	}
@@ -49,7 +49,7 @@ public class ListSourceContext<T> implements SourceFunction.SourceContext<T> {
 	@Override
 	public void collect(T element) {
 		target.add(element);
-		
+
 		if (delay > 0) {
 			try {
 				Thread.sleep(delay);

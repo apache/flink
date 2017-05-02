@@ -104,7 +104,7 @@ extends AsmTestBase {
 	public void testWithRMatGraph()
 			throws Exception {
 		DataSet<Result<LongValue>> pr = new PageRank<LongValue, NullValue, NullValue>(DAMPING_FACTOR, 0.000001)
-			.run(directedRMatGraph);
+			.run(directedRMatGraph(10, 16));
 
 		Map<Long, Result<LongValue>> results = new HashMap<>();
 		for (Result<LongValue> result :  new Collect<Result<LongValue>>().run(pr).execute()) {

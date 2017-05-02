@@ -72,7 +72,7 @@ extends AsmTestBase {
 	@Test
 	public void testRMatGraph()
 			throws Exception {
-		DataSet<Result<LongValue>> tl = directedRMatGraph
+		DataSet<Result<LongValue>> tl = directedRMatGraph(10, 16)
 			.run(new TriangleListing<LongValue, NullValue, NullValue>()
 				.setSortTriangleVertices(true));
 

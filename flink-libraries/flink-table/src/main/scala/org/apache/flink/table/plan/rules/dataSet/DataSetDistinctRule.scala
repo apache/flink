@@ -18,22 +18,22 @@
 
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.flink.table.plan.nodes.dataset.{DataSetConvention, DataSetDistinct}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetDistinct
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalAggregate
 
 class DataSetDistinctRule
   extends ConverterRule(
-      classOf[LogicalAggregate],
-      Convention.NONE,
-      DataSetConvention.INSTANCE,
-      "DataSetDistinctRule")
-  {
+    classOf[FlinkLogicalAggregate],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
+    "DataSetDistinctRule") {
 
     override def matches(call: RelOptRuleCall): Boolean = {
-      val agg: LogicalAggregate = call.rel(0).asInstanceOf[LogicalAggregate]
+      val agg: FlinkLogicalAggregate = call.rel(0).asInstanceOf[FlinkLogicalAggregate]
 
       // only accept distinct
       agg.getAggCallList.isEmpty &&
@@ -43,9 +43,9 @@ class DataSetDistinctRule
     }
 
     def convert(rel: RelNode): RelNode = {
-      val agg: LogicalAggregate = rel.asInstanceOf[LogicalAggregate]
-      val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-      val convInput: RelNode = RelOptRule.convert(agg.getInput, DataSetConvention.INSTANCE)
+      val agg: FlinkLogicalAggregate = rel.asInstanceOf[FlinkLogicalAggregate]
+      val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
+      val convInput: RelNode = RelOptRule.convert(agg.getInput, FlinkConventions.DATASET)
 
       new DataSetDistinct(
         rel.getCluster,

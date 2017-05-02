@@ -30,6 +30,9 @@ import org.apache.sling.commons.json.JSONArray;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
 
+/**
+ * Helper class for generating a JSON representation from a {@link StreamGraph}.
+ */
 @Internal
 public class JSONGenerator {
 

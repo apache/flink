@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,26 +18,24 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-
 import java.util.Collection;
 import java.util.List;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 /**
  * This transformation represents a selection of only certain upstream elements. This must
  * follow a {@link org.apache.flink.streaming.api.transformations.SplitTransformation} that
  * splits elements into several logical streams with assigned names.
  *
- * <p>
- * This does not create a physical operation, it only affects how upstream operations are
+ * <p>This does not create a physical operation, it only affects how upstream operations are
  * connected to downstream operations.
  *
  * @param <T> The type of the elements that result from this {@code SelectTransformation}
  */
 @Internal
 public class SelectTransformation<T> extends StreamTransformation<T> {
-	
+
 	private final StreamTransformation<T> input;
 	private final List<String> selectedNames;
 

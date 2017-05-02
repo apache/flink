@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.annotation.Internal;
-
 import static java.util.Objects.requireNonNull;
+
+import org.apache.flink.annotation.Internal;
 
 /**
  * A special exception that signifies that the cause exception came from a chained operator.
@@ -37,12 +37,12 @@ public class ExceptionInChainedOperatorException extends RuntimeException {
 	public ExceptionInChainedOperatorException(String message, Throwable cause) {
 		super(message, requireNonNull(cause));
 	}
-	
+
 	public Throwable getOriginalCause() {
 		Throwable ex = this;
 		do {
 			ex = ex.getCause();
 		} while (ex instanceof ExceptionInChainedOperatorException);
-		return ex; 
+		return ex;
 	}
 }

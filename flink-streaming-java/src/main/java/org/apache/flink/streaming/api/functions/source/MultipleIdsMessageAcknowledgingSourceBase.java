@@ -18,6 +18,11 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.List;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -26,21 +31,17 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.Iterator;
-import java.util.List;
-
 /**
  * Abstract base class for data sources that receive elements from a message queue and
  * acknowledge them back by IDs. In contrast to {@link MessageAcknowledgingSourceBase}, this source
  * handles two types of ids:
  *
- * 1) Session ids
- * 2) Unique message ids
+ * <ol>
+ *   <li>Session ids
+ *   <li>Unique message ids
+ * </ol>
  *
- * Session ids are used to acknowledge messages in a session. When a checkpoint is restored,
+ * <p>Session ids are used to acknowledge messages in a session. When a checkpoint is restored,
  * unacknowledged messages are redelivered. Duplicates are detected using the unique message ids
  * which are checkpointed.
  *

@@ -18,18 +18,16 @@
 
 package org.apache.flink.table
 
-import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
-import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment, TableException}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, TupleTypeInfo, TypeExtractor}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.expressions.{Alias, UnresolvedFieldReference}
-import org.apache.flink.table.sinks.TableSink
-import org.apache.flink.table.sources.TableSource
-import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.table.utils.TableTestUtil.{batchTableNode, term, unaryNode, binaryNode, streamTableNode}
+import org.apache.flink.table.utils.{MockTableEnvironment, TableTestBase}
+import org.apache.flink.table.utils.TableTestUtil.{batchTableNode, binaryNode, streamTableNode, term, unaryNode}
+import org.apache.flink.types.Row
 import org.junit.Test
 import org.junit.Assert.assertEquals
 
@@ -47,6 +45,8 @@ class TableEnvironmentTest extends TableTestBase {
   val pojoType = TypeExtractor.createTypeInfo(classOf[PojoClass])
 
   val atomicType = INT_TYPE_INFO
+
+  val genericRowType = new GenericTypeInfo[Row](classOf[Row])
 
   @Test
   def testGetFieldInfoTuple(): Unit = {
@@ -78,6 +78,11 @@ class TableEnvironmentTest extends TableTestBase {
 
     fieldInfo._1.zip(Array("f0")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0)).foreach(x => assertEquals(x._2, x._1))
+  }
+
+  @Test(expected = classOf[TableException])
+  def testGetFieldInfoGenericRow(): Unit = {
+    tEnv.getFieldInfo(genericRowType)
   }
 
   @Test
@@ -280,11 +285,15 @@ class TableEnvironmentTest extends TableTestBase {
       ))
   }
 
+  @Test(expected = classOf[TableException])
+  def testGetFieldInfoGenericRowAlias(): Unit = {
+    tEnv.getFieldInfo(genericRowType, Array(UnresolvedFieldReference("first")))
+  }
+
   @Test
   def testSqlWithoutRegisteringForBatchTables(): Unit = {
     val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]("tableName", 'a, 'b, 'c)
-    util.tEnv.unregisterTable("tableName")
 
     val sqlTable = util.tEnv.sql(s"SELECT a, b, c FROM $table WHERE b > 12")
 
@@ -323,7 +332,6 @@ class TableEnvironmentTest extends TableTestBase {
   def testSqlWithoutRegisteringForStreamTables(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]("tableName", 'a, 'b, 'c)
-    util.tEnv.unregisterTable("tableName")
 
     val sqlTable = util.tEnv.sql(s"SELECT a, b, c FROM $table WHERE b > 12")
 
@@ -337,30 +345,18 @@ class TableEnvironmentTest extends TableTestBase {
 
     val table2 = util.addTable[(Long, Int, String)]('d, 'e, 'f)
 
-    val sqlTable2 = util.tEnv.sql(s"SELECT d, e, f FROM $table2 UNION SELECT a, b, c FROM $table")
+    val sqlTable2 = util.tEnv.sql(s"SELECT d, e, f FROM $table2 " +
+        s"UNION ALL SELECT a, b, c FROM $table")
 
     val expected2 = binaryNode(
       "DataStreamUnion",
       streamTableNode(1),
       streamTableNode(0),
-      term("union", "d, e, f"))
+      term("union all", "d, e, f"))
 
     util.verifyTable(sqlTable2, expected2)
   }
 
-}
-
-class MockTableEnvironment extends TableEnvironment(new TableConfig) {
-
-  override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = ???
-
-  override protected def checkValidTableName(name: String): Unit = ???
-
-  override protected def getBuiltInNormRuleSet: RuleSet = ???
-
-  override protected def getBuiltInOptRuleSet: RuleSet = ???
-
-  override def registerTableSource(name: String, tableSource: TableSource[_]) = ???
 }
 
 case class CClass(cf1: Int, cf2: String, cf3: Double)

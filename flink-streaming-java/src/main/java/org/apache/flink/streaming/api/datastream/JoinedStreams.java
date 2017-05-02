@@ -17,8 +17,10 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.PublicEvolving;
+import static java.util.Objects.requireNonNull;
+
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -33,23 +35,17 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
-import static java.util.Objects.requireNonNull;
-
 /**
  *{@code JoinedStreams} represents two {@link DataStream DataStreams} that have been joined.
  * A streaming join operation is evaluated over elements in a window.
  *
- * <p>
- * To finalize the join operation you also need to specify a {@link KeySelector} for
+ * <p>To finalize the join operation you also need to specify a {@link KeySelector} for
  * both the first and second input and a {@link WindowAssigner}.
  *
- * <p>
- * Note: Right now, the the join is being evaluated in memory so you need to ensure that the number
+ * <p>Note: Right now, the the join is being evaluated in memory so you need to ensure that the number
  * of elements per key does not get too high. Otherwise the JVM might crash.
  *
- * <p>
- * Example:
- *
+ * <p>Example:
  * <pre> {@code
  * DataStream<Tuple2<String, Integer>> one = ...;
  * DataStream<Tuple2<String, Integer>> twp = ...;
@@ -64,10 +60,10 @@ import static java.util.Objects.requireNonNull;
 @Public
 public class JoinedStreams<T1, T2> {
 
-	/** The first input stream */
+	/** The first input stream. */
 	private final DataStream<T1> input1;
 
-	/** The second input stream */
+	/** The second input stream. */
 	private final DataStream<T2> input2;
 
 	/**
@@ -143,7 +139,7 @@ public class JoinedStreams<T1, T2> {
 			}
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -157,7 +153,7 @@ public class JoinedStreams<T1, T2> {
 	 */
 	@Public
 	public static class WithWindow<T1, T2, KEY, W extends Window> {
-		
+
 		private final DataStream<T1> input1;
 		private final DataStream<T2> input2;
 
@@ -180,16 +176,16 @@ public class JoinedStreams<T1, T2> {
 				WindowAssigner<? super TaggedUnion<T1, T2>, W> windowAssigner,
 				Trigger<? super TaggedUnion<T1, T2>, ? super W> trigger,
 				Evictor<? super TaggedUnion<T1, T2>, ? super W> evictor) {
-			
+
 			this.input1 = requireNonNull(input1);
 			this.input2 = requireNonNull(input2);
 
 			this.keySelector1 = requireNonNull(keySelector1);
 			this.keySelector2 = requireNonNull(keySelector2);
 			this.keyType = requireNonNull(keyType);
-			
+
 			this.windowAssigner = requireNonNull(windowAssigner);
-			
+
 			this.trigger = trigger;
 			this.evictor = evictor;
 		}
@@ -206,8 +202,7 @@ public class JoinedStreams<T1, T2> {
 		/**
 		 * Sets the {@code Evictor} that should be used to evict elements from a window before emission.
 		 *
-		 * <p>
-		 * Note: When using an evictor window performance will degrade significantly, since
+		 * <p>Note: When using an evictor window performance will degrade significantly, since
 		 * pre-aggregation of window results cannot be used.
 		 */
 		@PublicEvolving
@@ -219,7 +214,7 @@ public class JoinedStreams<T1, T2> {
 		/**
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
-		 * 
+		 *
 		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
 		 * Due to binary backwards compatibility, this cannot be altered. Use the {@link #with(JoinFunction)}
 		 * method to set an operator-specific parallelism.
@@ -245,7 +240,7 @@ public class JoinedStreams<T1, T2> {
 		 * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(JoinFunction)}
 		 * method has the wrong return type and hence does not allow one to set an operator-specific
 		 * parallelism
-		 * 
+		 *
 		 * @deprecated This method will be removed once the {@link #apply(JoinFunction)} method is fixed
 		 *             in the next major version of Flink (2.0).
 		 */
@@ -258,7 +253,7 @@ public class JoinedStreams<T1, T2> {
 		/**
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
-		 * 
+		 *
 		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
 		 * Due to binary backwards compatibility, this cannot be altered. Use the
 		 * {@link #with(JoinFunction, TypeInformation)}, method to set an operator-specific parallelism.
@@ -298,7 +293,7 @@ public class JoinedStreams<T1, T2> {
 		/**
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
-		 * 
+		 *
 		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
 		 * Due to binary backwards compatibility, this cannot be altered. Use the
 		 * {@link #with(FlatJoinFunction)}, method to set an operator-specific parallelism.
@@ -324,7 +319,7 @@ public class JoinedStreams<T1, T2> {
 		 * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(FlatJoinFunction)}
 		 * method has the wrong return type and hence does not allow one to set an operator-specific
 		 * parallelism.
-		 * 
+		 *
 		 * @deprecated This method will be removed once the {@link #apply(FlatJoinFunction)}
 		 *             method is fixed in the next major version of Flink (2.0).
 		 */
@@ -337,7 +332,7 @@ public class JoinedStreams<T1, T2> {
 		/**
 		 * Completes the join operation with the user function that is executed
 		 * for each combination of elements with the same key in a window.
-		 * 
+		 *
 		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
 		 * Due to binary backwards compatibility, this cannot be altered. Use the
 		 * {@link #with(JoinFunction, TypeInformation)}, method to set an operator-specific parallelism.
@@ -363,7 +358,7 @@ public class JoinedStreams<T1, T2> {
 		 * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(FlatJoinFunction, TypeInformation)}
 		 * method has the wrong return type and hence does not allow one to set an operator-specific
 		 * parallelism
-		 * 
+		 *
 		 * @deprecated This method will be removed once the {@link #apply(JoinFunction, TypeInformation)}
 		 *             method is fixed in the next major version of Flink (2.0).
 		 */
@@ -373,7 +368,7 @@ public class JoinedStreams<T1, T2> {
 			return (SingleOutputStreamOperator<T>) apply(function, resultType);
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Implementation of the functions
 	// ------------------------------------------------------------------------

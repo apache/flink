@@ -13,6 +13,8 @@
 package org.apache.flink.python.api.streaming.plan;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.python.api.PythonOptions;
 import org.apache.flink.python.api.streaming.util.StreamPrinter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,10 +24,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 
-import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON2_BINARY_PATH;
-import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON3_BINARY_PATH;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON_PLAN_NAME;
-import static org.apache.flink.python.api.PythonPlanBinder.usePython3;
 
 /**
  * Generic class to exchange data during the plan phase.
@@ -33,6 +32,7 @@ import static org.apache.flink.python.api.PythonPlanBinder.usePython3;
 public class PythonPlanStreamer {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(PythonPlanStreamer.class);
+	private final Configuration config;
 
 	protected PythonPlanSender sender;
 	protected PythonPlanReceiver receiver;
@@ -40,6 +40,10 @@ public class PythonPlanStreamer {
 	private Process process;
 	private ServerSocket server;
 	private Socket socket;
+	
+	public PythonPlanStreamer(Configuration config) {
+		this.config = config;
+	}
 
 	public Object getRecord() throws IOException {
 		return getRecord(false);
@@ -54,23 +58,11 @@ public class PythonPlanStreamer {
 	}
 
 	public void open(String tmpPath, String args) throws IOException {
-		server = new ServerSocket(0);
-		server.setSoTimeout(50);
 		startPython(tmpPath, args);
-		while (true) {
-			try {
-				socket = server.accept();
-				break;
-			} catch (SocketTimeoutException ignored) {
-				checkPythonProcessHealth();
-			}
-		}
-		sender = new PythonPlanSender(socket.getOutputStream());
-		receiver = new PythonPlanReceiver(socket.getInputStream());
 	}
 
 	private void startPython(String tmpPath, String args) throws IOException {
-		String pythonBinaryPath = usePython3 ? FLINK_PYTHON3_BINARY_PATH : FLINK_PYTHON2_BINARY_PATH;
+		String pythonBinaryPath = config.getString(PythonOptions.PYTHON_BINARY_PATH);
 
 		try {
 			Runtime.getRuntime().exec(pythonBinaryPath);
@@ -79,19 +71,49 @@ public class PythonPlanStreamer {
 		}
 		process = Runtime.getRuntime().exec(pythonBinaryPath + " -B " + tmpPath + FLINK_PYTHON_PLAN_NAME + args);
 
-		new StreamPrinter(process.getInputStream()).start();
-		new StreamPrinter(process.getErrorStream()).start();
+		new Thread(new StreamPrinter(process.getInputStream())).start();
+		new Thread(new StreamPrinter(process.getErrorStream())).start();
 
-		try {
-			Thread.sleep(2000);
-		} catch (InterruptedException ignored) {
-		}
-
-		checkPythonProcessHealth();
+		server = new ServerSocket(0);
+		server.setSoTimeout(50);
 
 		process.getOutputStream().write("plan\n".getBytes(ConfigConstants.DEFAULT_CHARSET));
-		process.getOutputStream().write((server.getLocalPort() + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
 		process.getOutputStream().flush();
+	}
+
+	public boolean preparePlanMode() throws IOException {
+		try {
+			process.getOutputStream().write((server.getLocalPort() + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+			process.getOutputStream().flush();
+		} catch (IOException ignored) {
+			// the python process most likely shutdown in the meantime
+			return false;
+		}
+		while (true) {
+			try {		
+				socket = server.accept();
+				sender = new PythonPlanSender(socket.getOutputStream());
+				receiver = new PythonPlanReceiver(socket.getInputStream());
+				return true;
+			} catch (SocketTimeoutException ignored) {
+				switch(checkPythonProcessHealth()) {
+					case RUNNING:
+						continue;
+					case STOPPED:
+						return false;
+					case FAILED:
+						throw new RuntimeException("Plan file caused an error. Check log-files for details.");
+				}
+			}
+		}
+	}
+	
+	public void finishPlanMode() {
+		try {
+			socket.close();
+		} catch (IOException e) {
+			LOG.error("Failed to close socket.", e);
+		}
 	}
 
 	public void close() {
@@ -102,22 +124,29 @@ public class PythonPlanStreamer {
 			process.destroy();
 		} finally {
 			try {
-				socket.close();
+				server.close();
 			} catch (IOException e) {
 				LOG.error("Failed to close socket.", e);
 			}
 		}
 	}
 
-	private void checkPythonProcessHealth() {
+	private ProcessState checkPythonProcessHealth() {
 		try {
 			int value = process.exitValue();
 			if (value != 0) {
-				throw new RuntimeException("Plan file caused an error. Check log-files for details.");
+				return ProcessState.FAILED;
 			} else {
-				throw new RuntimeException("Plan file exited prematurely without an error.");
+				return ProcessState.STOPPED;
 			}
 		} catch (IllegalThreadStateException ignored) {//Process still running
+			return ProcessState.RUNNING;
 		}
+	}
+	
+	private enum ProcessState {
+		RUNNING,
+		FAILED,
+		STOPPED
 	}
 }

@@ -43,6 +43,7 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyM
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -56,7 +57,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 @SuppressWarnings("deprecation")
-public class NonReusingSortMergeInnerJoinIteratorITCase {
+public class NonReusingSortMergeInnerJoinIteratorITCase extends TestLogger {
 	
 	// total memory
 	private static final int MEMORY_SIZE = 1024 * 1024 * 16;

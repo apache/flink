@@ -73,7 +73,7 @@ extends AsmTestBase {
 		Result expectedResult = new Result(902, 297.152607);
 
 		Result averageClusteringCoefficient = new AverageClusteringCoefficient<LongValue, NullValue, NullValue>()
-			.run(directedRMatGraph)
+			.run(directedRMatGraph(10, 16))
 			.execute();
 
 		assertEquals(expectedResult.getNumberOfVertices(), averageClusteringCoefficient.getNumberOfVertices());

@@ -570,7 +570,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 								queued.getFuture().complete(newSlot);
 							}
 							catch (Throwable t) {
-								LOG.error("Error calling allocation future for task " + vertex.getSimpleName(), t);
+								LOG.error("Error calling allocation future for task " + vertex.getTaskNameWithSubtaskIndex(), t);
 								task.getTaskToExecute().fail(t);
 							}
 						}

@@ -18,13 +18,12 @@
 
 package org.apache.flink.table.plan.nodes.datastream
 
-import org.apache.calcite.rel.RelNode
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
-import org.apache.flink.table.plan.nodes.FlinkRel
+import org.apache.flink.table.plan.nodes.FlinkRelNode
 import org.apache.flink.types.Row
 
-trait DataStreamRel extends RelNode with FlinkRel {
+trait DataStreamRel extends FlinkRelNode {
 
   /**
     * Translates the FlinkRelNode into a Flink operator.

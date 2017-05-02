@@ -17,14 +17,13 @@
  */
 package org.apache.flink.streaming.util;
 
+import java.io.File;
+import java.net.URI;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
-import java.io.File;
-import java.net.URI;
 
 /**
  * Utility for copying from a HDFS {@link FileSystem} to the local file system.

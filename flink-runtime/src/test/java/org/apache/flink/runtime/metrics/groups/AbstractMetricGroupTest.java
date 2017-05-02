@@ -19,6 +19,7 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
@@ -77,8 +78,8 @@ public class AbstractMetricGroupTest {
 	@Test
 	public void testScopeCachingForMultipleReporters() throws Exception {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "A.B.C.D");
-		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1,test2");
+		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
+		config.setString(MetricOptions.REPORTERS_LIST, "test1,test2");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
@@ -166,7 +167,7 @@ public class AbstractMetricGroupTest {
 	@Test
 	public void testScopeGenerationWithoutReporters() {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "A.B.C.D");
+		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
 		MetricRegistry testRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 		try {

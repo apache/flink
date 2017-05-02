@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
@@ -29,7 +30,7 @@ import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.Neighbor;
 import org.apache.flink.graph.gsa.SumFunction;
-import org.apache.flink.graph.utils.NullValueEdgeMapper;
+import org.apache.flink.graph.utils.GraphUtils.MapTo;
 import org.apache.flink.types.NullValue;
 
 /**
@@ -73,7 +74,7 @@ public class GSAConnectedComponents<K, VV extends Comparable<VV>, EV>
 		TypeInformation<VV> valueTypeInfo = ((TupleTypeInfo<?>) graph.getVertices().getType()).getTypeAt(1);
 
 		Graph<K, VV, NullValue> undirectedGraph = graph
-			.mapEdges(new NullValueEdgeMapper<K, EV>())
+			.mapEdges(new MapTo<Edge<K, EV>, NullValue>(NullValue.getInstance()))
 			.getUndirected();
 
 		return undirectedGraph.runGatherSumApplyIteration(
@@ -87,7 +88,6 @@ public class GSAConnectedComponents<K, VV extends Comparable<VV>, EV>
 	//  Connected Components UDFs
 	// --------------------------------------------------------------------------------------------
 
-	@SuppressWarnings("serial")
 	private static final class GatherNeighborIds<VV extends Comparable<VV>>
 		extends GatherFunction<VV, NullValue, VV>
 		implements ResultTypeQueryable<VV> {
@@ -108,7 +108,6 @@ public class GSAConnectedComponents<K, VV extends Comparable<VV>, EV>
 		}
 	}
 
-	@SuppressWarnings("serial")
 	private static final class SelectMinId<VV extends Comparable<VV>>
 		extends SumFunction<VV, NullValue, VV>
 		implements ResultTypeQueryable<VV> {
@@ -129,7 +128,6 @@ public class GSAConnectedComponents<K, VV extends Comparable<VV>, EV>
 		}
 	}
 
-	@SuppressWarnings("serial")
 	private static final class UpdateComponentId<K, VV extends Comparable<VV>>
 		extends ApplyFunction<K, VV, VV>
 		implements ResultTypeQueryable<VV> {

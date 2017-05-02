@@ -37,6 +37,7 @@ import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -58,6 +59,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 @SuppressWarnings("deprecation")
 public class MigrationV0ToV1Test {
@@ -154,9 +156,15 @@ public class MigrationV0ToV1Test {
 					}
 
 					//check keyed state
-					KeyGroupsStateHandle keyGroupsStateHandle = subtaskState.getManagedKeyedState();
+					KeyedStateHandle keyedStateHandle = subtaskState.getManagedKeyedState();
+
 					if (t % 3 != 0) {
-						assertEquals(1, keyGroupsStateHandle.getNumberOfKeyGroups());
+
+						assertTrue(keyedStateHandle instanceof KeyGroupsStateHandle);
+
+						KeyGroupsStateHandle keyGroupsStateHandle = (KeyGroupsStateHandle) keyedStateHandle;
+
+						assertEquals(1, keyGroupsStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
 						assertEquals(p, keyGroupsStateHandle.getGroupRangeOffsets().getKeyGroupRange().getStartKeyGroup());
 
 						ByteStreamStateHandle stateHandle =
@@ -172,7 +180,7 @@ public class MigrationV0ToV1Test {
 							assertEquals(p, data[1]);
 						}
 					} else {
-						assertEquals(null, keyGroupsStateHandle);
+						assertEquals(null, keyedStateHandle);
 					}
 				}
 

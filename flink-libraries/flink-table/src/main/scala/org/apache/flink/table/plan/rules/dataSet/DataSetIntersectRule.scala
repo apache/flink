@@ -18,26 +18,26 @@
 
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalIntersect
-import org.apache.flink.table.plan.nodes.dataset.{DataSetIntersect, DataSetConvention}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetIntersect
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalIntersect
 
 class DataSetIntersectRule
   extends ConverterRule(
-    classOf[LogicalIntersect],
-    Convention.NONE,
-    DataSetConvention.INSTANCE,
-    "DataSetIntersectRule")
-{
+    classOf[FlinkLogicalIntersect],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
+    "DataSetIntersectRule") {
 
   def convert(rel: RelNode): RelNode = {
 
-    val intersect: LogicalIntersect = rel.asInstanceOf[LogicalIntersect]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val convLeft: RelNode = RelOptRule.convert(intersect.getInput(0), DataSetConvention.INSTANCE)
-    val convRight: RelNode = RelOptRule.convert(intersect.getInput(1), DataSetConvention.INSTANCE)
+    val intersect: FlinkLogicalIntersect = rel.asInstanceOf[FlinkLogicalIntersect]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
+    val convLeft: RelNode = RelOptRule.convert(intersect.getInput(0), FlinkConventions.DATASET)
+    val convRight: RelNode = RelOptRule.convert(intersect.getInput(1), FlinkConventions.DATASET)
 
     new DataSetIntersect(
       rel.getCluster,

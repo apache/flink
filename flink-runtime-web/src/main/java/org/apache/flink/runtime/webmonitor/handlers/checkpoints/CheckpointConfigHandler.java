@@ -21,7 +21,7 @@ package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractExecutionGraphRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JsonFactory;
@@ -69,7 +69,7 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphRequestHandle
 	private static String createCheckpointConfigJson(AccessExecutionGraph graph) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-		JobSnapshottingSettings settings = graph.getJobSnapshottingSettings();
+		JobCheckpointingSettings settings = graph.getJobCheckpointingSettings();
 
 		if (settings == null) {
 			return "{}";

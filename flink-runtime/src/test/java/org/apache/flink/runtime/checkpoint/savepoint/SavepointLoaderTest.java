@@ -20,14 +20,17 @@ package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.checkpoint.MasterState;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -53,29 +56,30 @@ public class SavepointLoaderTest {
 
 		int parallelism = 128128;
 		long checkpointId = Integer.MAX_VALUE + 123123L;
-		JobVertexID vertexId = new JobVertexID();
+		JobVertexID jobVertexID = new JobVertexID();
+		OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);
 
-		TaskState state = mock(TaskState.class);
+		OperatorState state = mock(OperatorState.class);
 		when(state.getParallelism()).thenReturn(parallelism);
-		when(state.getJobVertexID()).thenReturn(vertexId);
+		when(state.getOperatorID()).thenReturn(operatorID);
 		when(state.getMaxParallelism()).thenReturn(parallelism);
-		when(state.getChainLength()).thenReturn(1);
 
-		Map<JobVertexID, TaskState> taskStates = new HashMap<>();
-		taskStates.put(vertexId, state);
+		Map<OperatorID, OperatorState> taskStates = new HashMap<>();
+		taskStates.put(operatorID, state);
 
 		JobID jobId = new JobID();
 
 		// Store savepoint
-		SavepointV1 savepoint = new SavepointV1(checkpointId, taskStates.values());
+		SavepointV2 savepoint = new SavepointV2(checkpointId, taskStates.values(), Collections.<MasterState>emptyList());
 		String path = SavepointStore.storeSavepoint(tmp.getAbsolutePath(), savepoint);
 
 		ExecutionJobVertex vertex = mock(ExecutionJobVertex.class);
 		when(vertex.getParallelism()).thenReturn(parallelism);
 		when(vertex.getMaxParallelism()).thenReturn(parallelism);
+		when(vertex.getOperatorIDs()).thenReturn(Collections.singletonList(operatorID));
 
 		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();
-		tasks.put(vertexId, vertex);
+		tasks.put(jobVertexID, vertex);
 
 		ClassLoader ucl = Thread.currentThread().getContextClassLoader();
 
@@ -97,7 +101,7 @@ public class SavepointLoaderTest {
 		}
 
 		// 3) Load and validate: missing vertex
-		assertNotNull(tasks.remove(vertexId));
+		assertNotNull(tasks.remove(jobVertexID));
 
 		try {
 			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, false);

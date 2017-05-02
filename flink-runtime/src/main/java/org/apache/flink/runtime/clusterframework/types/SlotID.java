@@ -24,7 +24,11 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Unique identifier for a slot which located in TaskManager.
+ * Unique identifier for a slot on a TaskManager. This ID is constant across the
+ * life time of the TaskManager.
+ * 
+ * <p>In contrast, the {@link AllocationID} represents the a slot allocation and changes
+ * every time the slot is allocated by a JobManager.
  */
 public class SlotID implements ResourceIDRetrievable, Serializable {
 
@@ -66,10 +70,7 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
 
 		SlotID slotID = (SlotID) o;
 
-		if (slotNumber != slotID.slotNumber) {
-			return false;
-		}
-		return resourceId.equals(slotID.resourceId);
+		return slotNumber == slotID.slotNumber && resourceId.equals(slotID.resourceId);
 	}
 
 	@Override
@@ -82,14 +83,5 @@ public class SlotID implements ResourceIDRetrievable, Serializable {
 	@Override
 	public String toString() {
 		return resourceId + "_" + slotNumber;
-	}
-
-	/**
-	 * Generate a random slot id.
-	 *
-	 * @return A random slot id.
-	 */
-	public static SlotID generate() {
-		return new SlotID(ResourceID.generate(), 0);
 	}
 }

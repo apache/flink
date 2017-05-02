@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,20 +17,19 @@
  */
 package org.apache.flink.streaming.api.windowing.evictors;
 
+import java.io.Serializable;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
 
-import java.io.Serializable;
-
 /**
- * An {@code Evictor} can remove elements from a pane before/after the evaluation of WindowFunction and
- * after the window evaluation gets triggered by a {@link org.apache.flink.streaming.api.windowing.triggers.Trigger}
+ * An {@code Evictor} can remove elements from a pane before/after the evaluation of WindowFunction
+ * and after the window evaluation gets triggered by a
+ * {@link org.apache.flink.streaming.api.windowing.triggers.Trigger}
  *
- * <p>
- * A pane is the bucket of elements that have the same key (assigned by the
+ * <p>A pane is the bucket of elements that have the same key (assigned by the
  * {@link org.apache.flink.api.java.functions.KeySelector}) and same {@link Window}. An element can
  * be in multiple panes of it was assigned to multiple windows by the
  * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. These panes all
@@ -64,7 +63,7 @@ public interface Evictor<T, W extends Window> extends Serializable {
 
 
 	/**
-	 * A context object that is given to {@link Evictor} methods
+	 * A context object that is given to {@link Evictor} methods.
 	 */
 	interface EvictorContext {
 

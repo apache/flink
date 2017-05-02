@@ -264,6 +264,11 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			return f0;
 		}
 
+		@Override
+		public void setVertexId0(T value) {
+			f0 = value;
+		}
+
 		/**
 		 * Get the vertex degree.
 		 *

@@ -18,18 +18,20 @@
 
 package org.apache.flink.table.plan.cost
 
+import java.lang.Double
+
+import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.metadata.{ReflectiveRelMetadataProvider, RelMdRowCount, RelMetadataProvider, RelMetadataQuery}
 import org.apache.calcite.util.BuiltInMethod
-import org.apache.flink.table.plan.nodes.dataset.{DataSetCalc, DataSetSort}
-import java.lang.Double
+import org.apache.flink.table.plan.nodes.dataset.DataSetSort
 
 object FlinkRelMdRowCount extends RelMdRowCount {
 
-    val SOURCE: RelMetadataProvider = ReflectiveRelMetadataProvider.reflectiveSource(
-      BuiltInMethod.ROW_COUNT.method,
-      this)
+  val SOURCE: RelMetadataProvider = ReflectiveRelMetadataProvider.reflectiveSource(
+    BuiltInMethod.ROW_COUNT.method,
+    this)
 
-    def getRowCount(rel: DataSetCalc, mq: RelMetadataQuery): Double = rel.estimateRowCount(mq)
+  override def getRowCount(rel: Calc, mq: RelMetadataQuery): Double = rel.estimateRowCount(mq)
 
-    def getRowCount(rel: DataSetSort, mq: RelMetadataQuery): Double = rel.estimateRowCount(mq)
+  def getRowCount(rel: DataSetSort, mq: RelMetadataQuery): Double = rel.estimateRowCount(mq)
 }

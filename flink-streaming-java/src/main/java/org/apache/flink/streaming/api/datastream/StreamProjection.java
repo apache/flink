@@ -49,6 +49,10 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.operators.StreamProject;
 import org.apache.flink.util.Preconditions;
 
+/**
+ * The result of {@link DataStream#project(int...)}. This can be used to add more fields to the
+ * projection.
+ */
 @PublicEvolving
 public class StreamProjection<IN> {
 
@@ -59,15 +63,15 @@ public class StreamProjection<IN> {
 		if (!dataStream.getType().isTupleType()) {
 			throw new RuntimeException("Only Tuple DataStreams can be projected");
 		}
-		if(fieldIndexes.length == 0) {
+		if (fieldIndexes.length == 0) {
 			throw new IllegalArgumentException("project() needs to select at least one (1) field.");
-		} else if(fieldIndexes.length > Tuple.MAX_ARITY - 1) {
+		} else if (fieldIndexes.length > Tuple.MAX_ARITY - 1) {
 			throw new IllegalArgumentException(
 					"project() may select only up to (" + (Tuple.MAX_ARITY - 1) + ") fields.");
 		}
 
 		int maxFieldIndex = (dataStream.getType()).getArity();
-		for(int i = 0; i < fieldIndexes.length; i++) {
+		for (int i = 0; i < fieldIndexes.length; i++) {
 			Preconditions.checkElementIndex(fieldIndexes[i], maxFieldIndex);
 		}
 
@@ -77,7 +81,7 @@ public class StreamProjection<IN> {
 
 	/**
 	 * Chooses a projectTupleX according to the length of
-	 * {@link org.apache.flink.streaming.api.datastream.StreamProjection#fieldIndexes}
+	 * {@link org.apache.flink.streaming.api.datastream.StreamProjection#fieldIndexes}.
 	 *
 	 * @return The projected DataStream.
 	 * @see org.apache.flink.api.java.operators.ProjectOperator.Projection

@@ -1079,7 +1079,7 @@ public class CliFrontend {
 		// do action
 		switch (action) {
 			case ACTION_RUN:
-				return CliFrontend.this.run(params);
+				return run(params);
 			case ACTION_LIST:
 				return list(params);
 			case ACTION_INFO:

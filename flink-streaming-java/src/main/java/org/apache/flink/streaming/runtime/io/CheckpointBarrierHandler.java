@@ -18,11 +18,10 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import java.io.IOException;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-
-import java.io.IOException;
 
 /**
  * The CheckpointBarrierHandler reacts to checkpoint barrier arriving from the input channels.
@@ -36,28 +35,28 @@ public interface CheckpointBarrierHandler {
 	 * Returns the next {@link BufferOrEvent} that the operator may consume.
 	 * This call blocks until the next BufferOrEvent is available, or until the stream
 	 * has been determined to be finished.
-	 * 
+	 *
 	 * @return The next BufferOrEvent, or {@code null}, if the stream is finished.
-	 * 
+	 *
 	 * @throws IOException Thrown if the network or local disk I/O fails.
-	 * 
+	 *
 	 * @throws InterruptedException Thrown if the thread is interrupted while blocking during
 	 *                              waiting for the next BufferOrEvent to become available.
-	 * @throws Exception Thrown in case that a checkpoint fails that is started as the result of receiving 
-	 *                   the last checkpoint barrier 
+	 * @throws Exception Thrown in case that a checkpoint fails that is started as the result of receiving
+	 *                   the last checkpoint barrier
 	 */
 	BufferOrEvent getNextNonBlocked() throws Exception;
 
 	/**
 	 * Registers the task be notified once all checkpoint barriers have been received for a checkpoint.
-	 * 
+	 *
 	 * @param task The task to notify
 	 */
 	void registerCheckpointEventHandler(StatefulTask task);
 
 	/**
 	 * Cleans up all internally held resources.
-	 * 
+	 *
 	 * @throws IOException Thrown if the cleanup of I/O resources failed.
 	 */
 	void cleanup() throws IOException;
@@ -72,7 +71,7 @@ public interface CheckpointBarrierHandler {
 	 * Gets the time that the latest alignment took, in nanoseconds.
 	 * If there is currently an alignment in progress, it will return the time spent in the
 	 * current alignment so far.
-	 * 
+	 *
 	 * @return The duration in nanoseconds
 	 */
 	long getAlignmentDurationNanos();

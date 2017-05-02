@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -32,6 +34,12 @@ import java.util.UUID;
  * Container class for JobManager specific communication utils used by the {@link TaskExecutor}.
  */
 public class JobManagerConnection {
+
+	// Job id related with the job manager
+	private final JobID jobID;
+
+	// The unique id used for identifying the job manager
+	private final ResourceID resourceID;
 
 	// Job master leader session id
 	private final UUID leaderId;
@@ -55,6 +63,8 @@ public class JobManagerConnection {
 	private final PartitionProducerStateChecker partitionStateChecker;
 
 	public JobManagerConnection(
+		JobID jobID,
+		ResourceID resourceID,
 		JobMasterGateway jobMasterGateway,
 		UUID leaderId,
 		TaskManagerActions taskManagerActions,
@@ -62,6 +72,8 @@ public class JobManagerConnection {
 		LibraryCacheManager libraryCacheManager,
 		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
 		PartitionProducerStateChecker partitionStateChecker) {
+		this.jobID = Preconditions.checkNotNull(jobID);
+		this.resourceID = Preconditions.checkNotNull(resourceID);
 		this.leaderId = Preconditions.checkNotNull(leaderId);
 		this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
 		this.taskManagerActions = Preconditions.checkNotNull(taskManagerActions);
@@ -69,6 +81,14 @@ public class JobManagerConnection {
 		this.libraryCacheManager = Preconditions.checkNotNull(libraryCacheManager);
 		this.resultPartitionConsumableNotifier = Preconditions.checkNotNull(resultPartitionConsumableNotifier);
 		this.partitionStateChecker = Preconditions.checkNotNull(partitionStateChecker);
+	}
+
+	public JobID getJobID() {
+		return jobID;
+	}
+
+	public ResourceID getResourceID() {
+		return resourceID;
 	}
 
 	public UUID getLeaderId() {

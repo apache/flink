@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,7 +27,8 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.windowing.ReduceIterableWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ReduceApplyWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -89,7 +90,8 @@ public class EvictingWindowOperatorTest {
 			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
 			CountTrigger.of(TRIGGER_COUNT),
 			CountEvictor.of(WINDOW_SIZE,EVICT_AFTER),
-			0);
+			0,
+			null /* late data output tag */);
 
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
@@ -169,7 +171,8 @@ public class EvictingWindowOperatorTest {
 			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
 			CountTrigger.of(TRIGGER_COUNT),
 			TimeEvictor.of(Time.seconds(2), EVICT_AFTER),
-			0);
+			0,
+			null /* late data output tag */);
 
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
@@ -243,7 +246,8 @@ public class EvictingWindowOperatorTest {
 			new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>(closeCalled)),
 			CountTrigger.of(TRIGGER_COUNT),
 			TimeEvictor.of(Time.seconds(2)),
-			0);
+			0,
+			null /* late data output tag */);
 
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
@@ -319,7 +323,8 @@ public class EvictingWindowOperatorTest {
 			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
 			CountTrigger.of(TRIGGER_COUNT),
 			TimeEvictor.of(Time.seconds(2), EVICT_AFTER),
-			0);
+			0,
+			null /* late data output tag */);
 
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
@@ -398,7 +403,8 @@ public class EvictingWindowOperatorTest {
 					return newDataPoint.f1 - oldDataPoint.f1;
 				}
 			}, EVICT_AFTER),
-			0);
+			0,
+			null /* late data output tag */);
 
 
 
@@ -475,7 +481,8 @@ public class EvictingWindowOperatorTest {
 					return newDataPoint.f1 - oldDataPoint.f1;
 				}
 			}, EVICT_AFTER),
-			0);
+			0,
+			null /* late data output tag */);
 
 
 
@@ -540,10 +547,15 @@ public class EvictingWindowOperatorTest {
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
-				new InternalIterableWindowFunction<>(new ReduceIterableWindowFunction<String, GlobalWindow, Tuple2<String, Integer>>(new SumReducer())),
+				new InternalIterableWindowFunction<>(
+						new ReduceApplyWindowFunction<>(
+								new SumReducer(),
+								// on some versions of Java we seem to need the explicit type
+								new PassThroughWindowFunction<String, GlobalWindow, Tuple2<String, Integer>>())),
 				CountTrigger.of(WINDOW_SLIDE),
 				CountEvictor.of(WINDOW_SIZE),
-				0);
+				0,
+				null /* late data output tag */);
 
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
@@ -615,7 +627,8 @@ public class EvictingWindowOperatorTest {
 			new InternalIterableWindowFunction<>(new RichSumReducer<GlobalWindow>(closeCalled)),
 			CountTrigger.of(WINDOW_SLIDE),
 			CountEvictor.of(WINDOW_SIZE),
-			0);
+			0,
+			null /* late data output tag */);
 
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
@@ -686,7 +699,8 @@ public class EvictingWindowOperatorTest {
 			new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>(closeCalled)),
 			EventTimeTrigger.create(),
 			CountEvictor.of(WINDOW_SIZE),
-			0);
+			0,
+			null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);

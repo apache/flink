@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing.functions;
 
+import java.util.Collections;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -24,8 +25,6 @@ import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
-
-import java.util.Collections;
 
 /**
  * Internal window function for wrapping a {@link ProcessWindowFunction} that takes an
@@ -46,30 +45,36 @@ public final class InternalAggregateProcessWindowFunction<T, ACC, V, R, K, W ext
 
 	private final AggregateFunction<T, ACC, V> aggFunction;
 
+	private final InternalProcessWindowContext<V, R, K, W> ctx;
+
 	public InternalAggregateProcessWindowFunction(
 			AggregateFunction<T, ACC, V> aggFunction,
 			ProcessWindowFunction<V, R, K, W> windowFunction) {
 		super(windowFunction);
 		this.aggFunction = aggFunction;
+		this.ctx = new InternalProcessWindowContext<>(windowFunction);
 	}
-	
-	@Override
-	public void apply(K key, final W window, Iterable<T> input, Collector<R> out) throws Exception {
-		ProcessWindowFunction<V, R, K, W> wrappedFunction = this.wrappedFunction;
-		ProcessWindowFunction<V, R, K, W>.Context context = wrappedFunction.new Context() {
-			@Override
-			public W window() {
-				return window;
-			}
-		};
 
+	@Override
+	public void process(K key, final W window, final InternalWindowContext context, Iterable<T> input, Collector<R> out) throws Exception {
 		final ACC acc = aggFunction.createAccumulator();
 
 		for (T val : input) {
 			aggFunction.add(val, acc);
 		}
 
-		wrappedFunction.process(key, context, Collections.singletonList(aggFunction.getResult(acc)), out);
+		this.ctx.window = window;
+		this.ctx.internalContext = context;
+		ProcessWindowFunction<V, R, K, W> wrappedFunction = this.wrappedFunction;
+		wrappedFunction.process(key, ctx, Collections.singletonList(aggFunction.getResult(acc)), out);
+	}
+
+	@Override
+	public void clear(final W window, final InternalWindowContext context) throws Exception {
+		this.ctx.window = window;
+		this.ctx.internalContext = context;
+		ProcessWindowFunction<V, R, K, W> wrappedFunction = this.wrappedFunction;
+		wrappedFunction.clear(ctx);
 	}
 
 	@Override

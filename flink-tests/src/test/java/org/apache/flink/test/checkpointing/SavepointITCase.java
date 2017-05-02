@@ -23,9 +23,8 @@ import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
-import java.io.FileNotFoundException;
-import java.util.concurrent.CountDownLatch;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -33,27 +32,32 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
-import org.apache.flink.runtime.checkpoint.TaskState;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1;
+import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
-import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
@@ -88,25 +92,29 @@ import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.getDisposeSavepointSuccess;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
  * Integration test for triggering and resuming from savepoints.
  */
+@SuppressWarnings("serial")
 public class SavepointITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointITCase.class);
@@ -197,7 +205,7 @@ public class SavepointITCase extends TestLogger {
 			LOG.info("Requesting the savepoint.");
 			Future<Object> savepointFuture = jobManager.ask(new RequestSavepoint(savepointPath), deadline.timeLeft());
 
-			SavepointV1 savepoint = (SavepointV1) ((ResponseSavepoint) Await.result(savepointFuture, deadline.timeLeft())).savepoint();
+			SavepointV2 savepoint = (SavepointV2) ((ResponseSavepoint) Await.result(savepointFuture, deadline.timeLeft())).savepoint();
 			LOG.info("Retrieved savepoint: " + savepointPath + ".");
 
 			// Shut down the Flink cluster (thereby canceling the job)
@@ -307,30 +315,43 @@ public class SavepointITCase extends TestLogger {
 				};
 			}};
 
+			ExecutionGraph graph = (ExecutionGraph) ((JobManagerMessages.JobFound) Await.result(jobManager.ask(new JobManagerMessages.RequestJob(jobId), deadline.timeLeft()), deadline.timeLeft())).executionGraph();
+
 			// - Verification START -------------------------------------------
 
 			String errMsg = "Error during gathering of TaskDeploymentDescriptors";
-			assertNull(errMsg, error[0]);
+			if (error[0] != null) {
+				throw new RuntimeException(error[0]);
+			}
+
+			Map<OperatorID, Tuple2<Integer, ExecutionJobVertex>> operatorToJobVertexMapping = new HashMap<>();
+			for (ExecutionJobVertex task : graph.getVerticesTopologically()) {
+				List<OperatorID> operatorIDs = task.getOperatorIDs();
+				for (int x = 0; x < operatorIDs.size(); x++) {
+					operatorToJobVertexMapping.put(operatorIDs.get(x), new Tuple2<>(x, task));
+				}
+			}
 
 			// Verify that all tasks, which are part of the savepoint
 			// have a matching task deployment descriptor.
-			for (TaskState taskState : savepoint.getTaskStates()) {
-				Collection<TaskDeploymentDescriptor> taskTdds = tdds.get(taskState.getJobVertexID());
+			for (OperatorState operatorState : savepoint.getOperatorStates()) {
+				Tuple2<Integer, ExecutionJobVertex> chainIndexAndJobVertex = operatorToJobVertexMapping.get(operatorState.getOperatorID());
+				Collection<TaskDeploymentDescriptor> taskTdds = tdds.get(chainIndexAndJobVertex.f1.getJobVertexId());
 
 				errMsg = "Missing task for savepoint state for operator "
-					+ taskState.getJobVertexID() + ".";
+					+ operatorState.getOperatorID() + ".";
 				assertTrue(errMsg, taskTdds.size() > 0);
 
-				assertEquals(taskState.getNumberCollectedStates(), taskTdds.size());
+				assertEquals(operatorState.getNumberCollectedStates(), taskTdds.size());
 
 				for (TaskDeploymentDescriptor tdd : taskTdds) {
-					SubtaskState subtaskState = taskState.getState(tdd.getSubtaskIndex());
+					OperatorSubtaskState subtaskState = operatorState.getState(tdd.getSubtaskIndex());
 
 					assertNotNull(subtaskState);
 
 					errMsg = "Initial operator state mismatch.";
 					assertEquals(errMsg, subtaskState.getLegacyOperatorState(),
-						tdd.getTaskStateHandles().getLegacyOperatorState());
+						tdd.getTaskStateHandles().getLegacyOperatorState().get(chainIndexAndJobVertex.f0));
 				}
 			}
 
@@ -357,15 +378,13 @@ public class SavepointITCase extends TestLogger {
 			// The checkpoint files
 			List<File> checkpointFiles = new ArrayList<>();
 
-			for (TaskState stateForTaskGroup : savepoint.getTaskStates()) {
-				for (SubtaskState subtaskState : stateForTaskGroup.getStates()) {
-					ChainedStateHandle<StreamStateHandle> streamTaskState = subtaskState.getLegacyOperatorState();
+			for (OperatorState stateForTaskGroup : savepoint.getOperatorStates()) {
+				for (OperatorSubtaskState subtaskState : stateForTaskGroup.getStates()) {
+					StreamStateHandle streamTaskState = subtaskState.getLegacyOperatorState();
 
-					for (int i = 0; i < streamTaskState.getLength(); i++) {
-						if (streamTaskState.get(i) != null) {
-							FileStateHandle fileStateHandle = (FileStateHandle) streamTaskState.get(i);
-							checkpointFiles.add(new File(fileStateHandle.getFilePath().toUri()));
-						}
+					if (streamTaskState != null) {
+						FileStateHandle fileStateHandle = (FileStateHandle) streamTaskState;
+						checkpointFiles.add(new File(fileStateHandle.getFilePath().toUri()));
 					}
 				}
 			}
@@ -458,6 +477,152 @@ public class SavepointITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * FLINK-5985
+	 *
+	 * This test ensures we can restore from a savepoint under modifications to the job graph that only concern
+	 * stateless operators.
+	 */
+	@Test
+	public void testCanRestoreWithModifiedStatelessOperators() throws Exception {
+
+		// Config
+		int numTaskManagers = 2;
+		int numSlotsPerTaskManager = 2;
+		int parallelism = 2;
+
+		// Test deadline
+		final Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
+
+		final File tmpDir = CommonTestUtils.createTempDirectory();
+		final File savepointDir = new File(tmpDir, "savepoints");
+
+		TestingCluster flink = null;
+		String savepointPath;
+		try {
+			// Flink configuration
+			final Configuration config = new Configuration();
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
+			config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
+					savepointDir.toURI().toString());
+
+			LOG.info("Flink configuration: " + config + ".");
+
+			// Start Flink
+			flink = new TestingCluster(config);
+			LOG.info("Starting Flink cluster.");
+			flink.start(true);
+
+			// Retrieve the job manager
+			LOG.info("Retrieving JobManager.");
+			ActorGateway jobManager = Await.result(
+					flink.leaderGateway().future(),
+					deadline.timeLeft());
+			LOG.info("JobManager: " + jobManager + ".");
+
+			final StatefulCounter statefulCounter = new StatefulCounter();
+			StatefulCounter.resetForTest(parallelism);
+
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(parallelism);
+			env.addSource(new InfiniteTestSource())
+					.shuffle()
+					.map(new MapFunction<Integer, Integer>() {
+
+						@Override
+						public Integer map(Integer value) throws Exception {
+							return 4 * value;
+						}
+					})
+					.shuffle()
+					.map(statefulCounter).uid("statefulCounter")
+					.shuffle()
+					.map(new MapFunction<Integer, Integer>() {
+
+						@Override
+						public Integer map(Integer value) throws Exception {
+							return 2 * value;
+						}
+					})
+					.addSink(new DiscardingSink<Integer>());
+
+			JobGraph originalJobGraph = env.getStreamGraph().getJobGraph();
+
+			JobSubmissionResult submissionResult = flink.submitJobDetached(originalJobGraph);
+			JobID jobID = submissionResult.getJobID();
+
+			// wait for the Tasks to be ready
+			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
+			Future<Object> savepointPathFuture = jobManager.ask(new TriggerSavepoint(jobID, Option.<String>empty()), deadline.timeLeft());
+			savepointPath = ((TriggerSavepointSuccess) Await.result(savepointPathFuture, deadline.timeLeft())).savepointPath();
+			Future<Object> savepointFuture = jobManager.ask(new RequestSavepoint(savepointPath), deadline.timeLeft());
+
+			((ResponseSavepoint) Await.result(savepointFuture, deadline.timeLeft())).savepoint();
+			LOG.info("Retrieved savepoint: " + savepointPath + ".");
+
+			// Shut down the Flink cluster (thereby canceling the job)
+			LOG.info("Shutting down Flink cluster.");
+			flink.shutdown();
+			flink.awaitTermination();
+
+		} finally {
+			flink.shutdown();
+			flink.awaitTermination();
+		}
+
+		try {
+			LOG.info("Restarting Flink cluster.");
+			flink.start(true);
+
+			// Retrieve the job manager
+			LOG.info("Retrieving JobManager.");
+			ActorGateway jobManager = Await.result(flink.leaderGateway().future(), deadline.timeLeft());
+			LOG.info("JobManager: " + jobManager + ".");
+
+			// Reset static test helpers
+			StatefulCounter.resetForTest(parallelism);
+
+			// Gather all task deployment descriptors
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(parallelism);
+
+			// generate a modified job graph that adds a stateless op
+			env.addSource(new InfiniteTestSource())
+					.shuffle()
+					.map(new StatefulCounter()).uid("statefulCounter")
+					.shuffle()
+					.map(new MapFunction<Integer, Integer>() {
+
+						@Override
+						public Integer map(Integer value) throws Exception {
+							return value;
+						}
+					})
+					.addSink(new DiscardingSink<Integer>());
+
+			JobGraph modifiedJobGraph = env.getStreamGraph().getJobGraph();
+
+			// Set the savepoint path
+			modifiedJobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
+
+			LOG.info("Resubmitting job " + modifiedJobGraph.getJobID() + " with " +
+					"savepoint path " + savepointPath + " in detached mode.");
+
+			// Submit the job
+			flink.submitJobDetached(modifiedJobGraph);
+			// Await state is restored
+			StatefulCounter.getRestoreLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
+			// Await some progress after restore
+			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+		} finally {
+			flink.shutdown();
+			flink.awaitTermination();
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	// Test program
 	// ------------------------------------------------------------------------
@@ -497,6 +662,7 @@ public class SavepointITCase extends TestLogger {
 				synchronized (ctx.getCheckpointLock()) {
 					ctx.collect(1);
 				}
+				Thread.sleep(1);
 			}
 		}
 
@@ -634,7 +800,7 @@ public class SavepointITCase extends TestLogger {
 
 		Configuration config = new Configuration();
 		config.addAll(jobGraph.getJobConfiguration());
-		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, -1L);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2 * jobGraph.getMaximumParallelism());
 		final File checkpointDir = new File(tmpDir, "checkpoints");
 		final File savepointDir = new File(tmpDir, "savepoints");

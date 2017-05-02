@@ -18,12 +18,11 @@
 
 package org.apache.flink.streaming.api.functions.windowing;
 
+import java.io.Serializable;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
-
-import java.io.Serializable;
 
 /**
  * Base interface for functions that are evaluated over non-keyed windows.

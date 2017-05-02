@@ -80,7 +80,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@ForwardedFields("*->f0")
-	public class LinkVertexToCenter
+	private static class LinkVertexToCenter
 	implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
 
 		private LongValue center = new LongValue(0);

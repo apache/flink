@@ -62,7 +62,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		Checksum checksum = undirectedRMatGraph
+		Checksum checksum = undirectedRMatGraph(10, 16)
 			.run(new MaximumDegree<LongValue, NullValue, NullValue>(16))
 			.run(new ChecksumHashCode<LongValue, NullValue, NullValue>())
 			.execute();

@@ -28,28 +28,31 @@ import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 
+/**
+ * A {@link StreamTask} for executing a {@link TwoInputStreamOperator}.
+ */
 @Internal
 public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputStreamOperator<IN1, IN2, OUT>> {
 
 	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
-	
+
 	private volatile boolean running = true;
 
 	@Override
 	public void init() throws Exception {
 		StreamConfig configuration = getConfiguration();
 		ClassLoader userClassLoader = getUserCodeClassLoader();
-		
+
 		TypeSerializer<IN1> inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
 		TypeSerializer<IN2> inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
-	
+
 		int numberOfInputs = configuration.getNumberOfInputs();
-	
+
 		ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
 		ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
-	
+
 		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
-	
+
 		for (int i = 0; i < numberOfInputs; i++) {
 			int inputType = inEdges.get(i).getTypeNumber();
 			InputGate reader = getEnvironment().getInputGate(i);

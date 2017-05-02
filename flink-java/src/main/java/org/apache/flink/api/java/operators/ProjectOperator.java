@@ -71,7 +71,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		return ppo;
 	}
 	/**
-	 * Deprecated method only kept for compatibility.
+	 * @deprecated Deprecated method only kept for compatibility.
 	 */
 	@SuppressWarnings("unchecked")
 	@Deprecated

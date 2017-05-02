@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
 import java.net.InetAddress;
 
@@ -234,6 +235,10 @@ public class NettyConfig {
 		return config.getBoolean(ConfigConstants.TASK_MANAGER_DATA_SSL_ENABLED,
 				ConfigConstants.DEFAULT_TASK_MANAGER_DATA_SSL_ENABLED)
 			&& SSLUtils.getSSLEnabled(config);
+	}
+
+	public void setSSLVerAndCipherSuites(SSLEngine engine) {
+		SSLUtils.setSSLVerAndCipherSuites(engine, config);
 	}
 
 	public void setSSLVerifyHostname(SSLParameters sslParams) {

@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.checkpoint.MasterState;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.junit.Rule;
@@ -68,7 +70,10 @@ public class SavepointStoreTest {
 
 		// Store
 		String savepointDirectory = SavepointStore.createSavepointDirectory(root, new JobID());
-		SavepointV1 stored = new SavepointV1(1929292, SavepointV1Test.createTaskStates(4, 24));
+		SavepointV2 stored = new SavepointV2(
+			1929292,
+			CheckpointTestUtils.createOperatorStates(4, 24),
+			Collections.<MasterState>emptyList());
 		String path = SavepointStore.storeSavepoint(savepointDirectory, stored);
 
 		list = rootFile.listFiles();
@@ -77,7 +82,10 @@ public class SavepointStoreTest {
 
 		// Load
 		Savepoint loaded = SavepointStore.loadSavepoint(path, Thread.currentThread().getContextClassLoader());
-		assertEquals(stored, loaded);
+
+		assertEquals(stored.getCheckpointId(), loaded.getCheckpointId());
+		assertEquals(stored.getOperatorStates(), loaded.getOperatorStates());
+		assertEquals(stored.getMasterStates(), loaded.getMasterStates());
 
 		loaded.dispose();
 
@@ -126,8 +134,8 @@ public class SavepointStoreTest {
 		File rootFile = new File(root);
 
 		// New savepoint type for test
-		int version = ThreadLocalRandom.current().nextInt();
-		long checkpointId = ThreadLocalRandom.current().nextLong();
+		int version = ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE); // make this a positive number
+		long checkpointId = ThreadLocalRandom.current().nextLong(Long.MAX_VALUE); // make this a positive number
 
 		// Add serializer
 		serializers.put(version, NewSavepointSerializer.INSTANCE);
@@ -143,7 +151,10 @@ public class SavepointStoreTest {
 
 		// Savepoint v0
 		String savepointDirectory2 = SavepointStore.createSavepointDirectory(root, new JobID());
-		Savepoint savepoint = new SavepointV1(checkpointId, SavepointV1Test.createTaskStates(4, 32));
+		SavepointV2 savepoint = new SavepointV2(
+			checkpointId,
+			CheckpointTestUtils.createOperatorStates(4, 32),
+			Collections.<MasterState>emptyList());
 		String pathSavepoint = SavepointStore.storeSavepoint(savepointDirectory2, savepoint);
 
 		list = rootFile.listFiles();
@@ -156,7 +167,9 @@ public class SavepointStoreTest {
 		assertEquals(newSavepoint, loaded);
 
 		loaded = SavepointStore.loadSavepoint(pathSavepoint, Thread.currentThread().getContextClassLoader());
-		assertEquals(savepoint, loaded);
+		assertEquals(savepoint.getCheckpointId(), loaded.getCheckpointId());
+		assertEquals(savepoint.getTaskStates(), loaded.getTaskStates());
+		assertEquals(savepoint.getMasterStates(), loaded.getMasterStates());
 	}
 
 	/**
@@ -199,7 +212,10 @@ public class SavepointStoreTest {
 		FileSystem fs = FileSystem.get(new Path(root).toUri());
 
 		// Store
-		SavepointV1 savepoint = new SavepointV1(1929292, SavepointV1Test.createTaskStates(4, 24));
+		SavepointV2 savepoint = new SavepointV2(
+			1929292,
+			CheckpointTestUtils.createOperatorStates(4, 24),
+			Collections.<MasterState>emptyList());
 
 		FileStateHandle store1 = SavepointStore.storeExternalizedCheckpointToHandle(root, savepoint);
 		fs.exists(store1.getFilePath());
@@ -251,7 +267,17 @@ public class SavepointStoreTest {
 
 		@Override
 		public Collection<TaskState> getTaskStates() {
-			return Collections.EMPTY_LIST;
+			return Collections.emptyList();
+		}
+
+		@Override
+		public Collection<MasterState> getMasterStates() {
+			return Collections.emptyList();
+		}
+
+		@Override
+		public Collection<OperatorState> getOperatorStates() {
+			return null;
 		}
 
 		@Override

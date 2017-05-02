@@ -80,8 +80,7 @@ public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	/**
 	 * Creates an event-time trigger that fires once the watermark passes the end of the window.
 	 *
-	 * <p>
-	 * Once the trigger fires all elements are discarded. Elements that arrive late immediately
+	 * <p>Once the trigger fires all elements are discarded. Elements that arrive late immediately
 	 * trigger window evaluation with just this one element.
 	 */
 	public static EventTimeTrigger create() {

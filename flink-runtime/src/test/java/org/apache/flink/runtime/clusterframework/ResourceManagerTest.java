@@ -20,6 +20,8 @@ package org.apache.flink.runtime.clusterframework;
 
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -30,26 +32,56 @@ import org.apache.flink.runtime.clusterframework.messages.RemoveResource;
 import org.apache.flink.runtime.clusterframework.messages.ResourceRemoved;
 import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
+import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.rpc.TestingSerialRpcService;
+import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
+import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import scala.Option;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.*;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 /**
  * General tests for the resource manager component.
  */
-public class ResourceManagerTest {
+public class ResourceManagerTest extends TestLogger {
 
 	private static ActorSystem system;
 
@@ -334,5 +366,195 @@ public class ResourceManagerTest {
 
 		}};
 		}};
+	}
+
+	@Test
+	public void testHeartbeatTimeoutWithTaskExecutor() throws Exception {
+		final String taskManagerAddress = "tm";
+		final ResourceID taskManagerResourceID = new ResourceID(taskManagerAddress);
+		final ResourceID resourceManagerResourceID = ResourceID.generate();
+		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
+
+		final TestingSerialRpcService rpcService = new TestingSerialRpcService();
+		rpcService.registerGateway(taskManagerAddress, taskExecutorGateway);
+
+		final ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.seconds(5L),
+			Time.seconds(5L));
+
+		final TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
+		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
+		highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
+
+		final long heartbeatInterval = 1L;
+		final long heartbeatTimeout = 5L;
+		final ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
+		final HeartbeatServices heartbeatServices = new TestingHeartbeatServices(heartbeatInterval, heartbeatTimeout, scheduledExecutor);
+
+		final MetricRegistry metricRegistry = mock(MetricRegistry.class);
+		final JobLeaderIdService jobLeaderIdService = mock(JobLeaderIdService.class);
+		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
+		final SlotManager slotManager = new SlotManager(
+			rpcService.getScheduledExecutor(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime());
+
+		try {
+			final StandaloneResourceManager resourceManager = new StandaloneResourceManager(
+				rpcService,
+				FlinkResourceManager.RESOURCE_MANAGER_NAME,
+				resourceManagerResourceID,
+				resourceManagerConfiguration,
+				highAvailabilityServices,
+				heartbeatServices,
+				slotManager,
+				metricRegistry,
+				jobLeaderIdService,
+				testingFatalErrorHandler);
+
+			resourceManager.start();
+
+			final UUID rmLeaderSessionId = UUID.randomUUID();
+			rmLeaderElectionService.isLeader(rmLeaderSessionId);
+
+			final SlotReport slotReport = new SlotReport();
+			// test registration response successful and it will trigger monitor heartbeat target, schedule heartbeat request at interval time
+			Future<RegistrationResponse> successfulFuture = resourceManager.registerTaskExecutor(
+				rmLeaderSessionId,
+				taskManagerAddress,
+				taskManagerResourceID,
+				slotReport);
+			RegistrationResponse response = successfulFuture.get(5, TimeUnit.SECONDS);
+			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
+
+			ArgumentCaptor<Runnable> heartbeatRunnableCaptor = ArgumentCaptor.forClass(Runnable.class);
+			verify(scheduledExecutor, times(2)).scheduleAtFixedRate(
+				heartbeatRunnableCaptor.capture(),
+				eq(0L),
+				eq(heartbeatInterval),
+				eq(TimeUnit.MILLISECONDS));
+
+			List<Runnable> heartbeatRunnable = heartbeatRunnableCaptor.getAllValues();
+
+			ArgumentCaptor<Runnable> timeoutRunnableCaptor = ArgumentCaptor.forClass(Runnable.class);
+			verify(scheduledExecutor).schedule(timeoutRunnableCaptor.capture(), eq(heartbeatTimeout), eq(TimeUnit.MILLISECONDS));
+
+			Runnable timeoutRunnable = timeoutRunnableCaptor.getValue();
+
+			// run all the heartbeat requests
+			for (Runnable runnable : heartbeatRunnable) {
+				runnable.run();
+			}
+
+			verify(taskExecutorGateway, times(1)).heartbeatFromResourceManager(eq(resourceManagerResourceID));
+
+			// run the timeout runnable to simulate a heartbeat timeout
+			timeoutRunnable.run();
+
+			verify(taskExecutorGateway).disconnectResourceManager(any(TimeoutException.class));
+
+		} finally {
+			rpcService.stopService();
+		}
+	}
+
+	@Test
+	public void testHeartbeatTimeoutWithJobManager() throws Exception {
+		final String jobMasterAddress = "jm";
+		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
+		final ResourceID rmResourceId = ResourceID.generate();
+		final UUID rmLeaderId = UUID.randomUUID();
+		final UUID jmLeaderId = UUID.randomUUID();
+		final JobID jobId = new JobID();
+
+		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
+
+		final TestingSerialRpcService rpcService = new TestingSerialRpcService();
+		rpcService.registerGateway(jobMasterAddress, jobMasterGateway);
+
+		final ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.seconds(5L),
+			Time.seconds(5L));
+
+		final TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
+		final TestingLeaderRetrievalService jmLeaderRetrievalService = new TestingLeaderRetrievalService(jobMasterAddress, jmLeaderId);
+		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
+		highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
+		highAvailabilityServices.setJobMasterLeaderRetriever(jobId, jmLeaderRetrievalService);
+
+		final long heartbeatInterval = 1L;
+		final long heartbeatTimeout = 5L;
+		final ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
+		final HeartbeatServices heartbeatServices = new TestingHeartbeatServices(heartbeatInterval, heartbeatTimeout, scheduledExecutor);
+
+		final MetricRegistry metricRegistry = mock(MetricRegistry.class);
+		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
+			highAvailabilityServices,
+			rpcService.getScheduledExecutor(),
+			Time.minutes(5L));
+		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
+		final SlotManager slotManager = new SlotManager(
+			TestingUtils.defaultScheduledExecutor(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime());
+
+		try {
+			final StandaloneResourceManager resourceManager = new StandaloneResourceManager(
+				rpcService,
+				FlinkResourceManager.RESOURCE_MANAGER_NAME,
+				rmResourceId,
+				resourceManagerConfiguration,
+				highAvailabilityServices,
+				heartbeatServices,
+				slotManager,
+				metricRegistry,
+				jobLeaderIdService,
+				testingFatalErrorHandler);
+
+			resourceManager.start();
+
+			rmLeaderElectionService.isLeader(rmLeaderId);
+
+			// test registration response successful and it will trigger monitor heartbeat target, schedule heartbeat request at interval time
+			Future<RegistrationResponse> successfulFuture = resourceManager.registerJobManager(
+				rmLeaderId,
+				jmLeaderId,
+				jmResourceId,
+				jobMasterAddress,
+				jobId);
+			RegistrationResponse response = successfulFuture.get(5, TimeUnit.SECONDS);
+			assertTrue(response instanceof JobMasterRegistrationSuccess);
+
+			ArgumentCaptor<Runnable> heartbeatRunnableCaptor = ArgumentCaptor.forClass(Runnable.class);
+			verify(scheduledExecutor, times(2)).scheduleAtFixedRate(
+				heartbeatRunnableCaptor.capture(),
+				eq(0L),
+				eq(heartbeatInterval),
+				eq(TimeUnit.MILLISECONDS));
+
+			List<Runnable> heartbeatRunnable = heartbeatRunnableCaptor.getAllValues();
+
+			ArgumentCaptor<Runnable> timeoutRunnableCaptor = ArgumentCaptor.forClass(Runnable.class);
+			verify(scheduledExecutor).schedule(timeoutRunnableCaptor.capture(), eq(heartbeatTimeout), eq(TimeUnit.MILLISECONDS));
+
+			Runnable timeoutRunnable = timeoutRunnableCaptor.getValue();
+
+			// run all the heartbeat requests
+			for (Runnable runnable : heartbeatRunnable) {
+				runnable.run();
+			}
+
+			verify(jobMasterGateway, times(1)).heartbeatFromResourceManager(eq(rmResourceId));
+
+			// run the timeout runnable to simulate a heartbeat timeout
+			timeoutRunnable.run();
+
+			verify(jobMasterGateway).disconnectResourceManager(eq(jmLeaderId), eq(rmLeaderId), any(TimeoutException.class));
+
+		} finally {
+			rpcService.stopService();
+		}
 	}
 }

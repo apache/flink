@@ -34,9 +34,6 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public class ConcatenatedExtract<FROM, OVER, TO> implements Extractor<FROM, TO> {
 
-	/**
-	 * auto-generated id
-	 */
 	private static final long serialVersionUID = -7807197760725651752L;
 
 	private Extractor<FROM, OVER> e1;
@@ -44,7 +41,7 @@ public class ConcatenatedExtract<FROM, OVER, TO> implements Extractor<FROM, TO> 
 
 	/**
 	 * Combines two extractors which will be executed one after each other.
-	 * 
+	 *
 	 * @param e1
 	 *            First extractor: This extractor gets applied to the input data
 	 *            first. Its output as then passed as input to the second

@@ -270,6 +270,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 			new StreamNode(null, 1, null, null, null, null, null),
 			0,
 			Collections.<String>emptyList(),
+			null,
 			null
 		)));
 
@@ -281,6 +282,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 			new StreamNode(null, 2, null, null, null, null, null),
 			0,
 			Collections.<String>emptyList(),
+			null,
 			null
 		)));
 
@@ -290,7 +292,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 			new StreamNode(null, 3, null, null, null, null, null),
 			0,
 			Collections.<String>emptyList(),
-			new BroadcastPartitioner<Object>()));
+			new BroadcastPartitioner<Object>(),
+			null));
 
 		tailOperatorConfig.setStreamOperator(tailOperator);
 		tailOperatorConfig.setTypeSerializerIn1(StringSerializer.INSTANCE);
@@ -641,6 +644,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 				),
 				0,
 				Collections.<String>emptyList(),
+				null,
 				null
 			);
 
@@ -717,7 +721,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		public void open() throws Exception {
 			super.open();
 
-			ListState<Integer> partitionableState = getOperatorStateBackend().getOperatorState(TEST_DESCRIPTOR);
+			ListState<Integer> partitionableState = getOperatorStateBackend().getListState(TEST_DESCRIPTOR);
 
 			if (numberSnapshotCalls == 0) {
 				for (Integer v : partitionableState.get()) {
@@ -738,7 +742,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		@Override
 		public void snapshotState(StateSnapshotContext context) throws Exception {
 			ListState<Integer> partitionableState =
-					getOperatorStateBackend().getOperatorState(TEST_DESCRIPTOR);
+					getOperatorStateBackend().getListState(TEST_DESCRIPTOR);
 			partitionableState.clear();
 
 			partitionableState.add(42);

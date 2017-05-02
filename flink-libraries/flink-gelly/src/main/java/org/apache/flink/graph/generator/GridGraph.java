@@ -107,7 +107,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@ForwardedFields("*->f0")
-	public class LinkVertexToNeighbors
+	private static class LinkVertexToNeighbors
 	implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
 
 		private long vertexCount;

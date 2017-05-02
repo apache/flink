@@ -20,7 +20,12 @@ package org.apache.flink.graph.utils;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.graph.asm.translate.TranslateFunction;
 import org.apache.flink.types.LongValue;
 
 import static org.apache.flink.api.java.typeutils.ValueTypeInfo.LONG_VALUE_TYPE_INFO;
@@ -48,7 +53,22 @@ public class GraphUtils {
 	 *
 	 * @param <T> element type
 	 */
+	@ForwardedFields("*")
 	public static final class IdentityMapper<T>
+	implements MapFunction<T, T> {
+		public T map(T value) {
+			return value;
+		}
+	}
+
+	/**
+	 * The identity mapper returns the input as output.
+	 *
+	 * This does not forward fields and is used to break an operator chain.
+	 *
+	 * @param <T> element type
+	 */
+	public static final class NonForwardingIdentityMapper<T>
 	implements MapFunction<T, T> {
 		public T map(T value) {
 			return value;
@@ -62,7 +82,7 @@ public class GraphUtils {
 	 * @param <O> output type
 	 */
 	public static class MapTo<I, O>
-	implements MapFunction<I, O> {
+	implements MapFunction<I, O>, ResultTypeQueryable<O>, TranslateFunction<I, O> {
 		private final O value;
 
 		/**
@@ -75,8 +95,19 @@ public class GraphUtils {
 		}
 
 		@Override
-		public O map(I o) throws Exception {
+		public O map(I input) throws Exception {
 			return value;
+		}
+
+		@Override
+		public O translate(I input, O reuse)
+				throws Exception {
+			return value;
+		}
+
+		@Override
+		public TypeInformation<O> getProducedType() {
+			return (TypeInformation<O>)TypeExtractor.createTypeInfo(value.getClass());
 		}
 	}
 

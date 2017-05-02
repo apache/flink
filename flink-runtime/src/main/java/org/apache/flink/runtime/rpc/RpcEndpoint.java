@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -63,6 +64,9 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	/** RPC service to be used to start the RPC server and to obtain rpc gateways */
 	private final RpcService rpcService;
 
+	/** Unique identifier for this rpc endpoint */
+	private final String endpointId;
+
 	/** Class of the self gateway */
 	private final Class<C> selfGatewayType;
 
@@ -79,10 +83,12 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	/**
 	 * Initializes the RPC endpoint.
 	 * 
-	 * @param rpcService The RPC server that dispatches calls to this RPC endpoint. 
+	 * @param rpcService The RPC server that dispatches calls to this RPC endpoint.
+	 * @param endpointId Unique identifier for this endpoint
 	 */
-	protected RpcEndpoint(final RpcService rpcService) {
+	protected RpcEndpoint(final RpcService rpcService, final String endpointId) {
 		this.rpcService = checkNotNull(rpcService, "rpcService");
+		this.endpointId = checkNotNull(endpointId, "endpointId");
 
 		// IMPORTANT: Don't change order of selfGatewayType and self because rpcService.startServer
 		// requires that selfGatewayType has been initialized
@@ -93,6 +99,15 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	}
 
 	/**
+	 * Initializes the RPC endpoint with a random endpoint id.
+	 *
+	 * @param rpcService The RPC server that dispatches calls to this RPC endpoint.
+	 */
+	protected RpcEndpoint(final RpcService rpcService) {
+		this(rpcService, UUID.randomUUID().toString());
+	}
+
+	/**
 	 * Returns the class of the self gateway type.
 	 *
 	 * @return Class of the self gateway type
@@ -100,7 +115,16 @@ public abstract class RpcEndpoint<C extends RpcGateway> {
 	public final Class<C> getSelfGatewayType() {
 		return selfGatewayType;
 	}
-	
+
+	/**
+	 * Returns the rpc endpoint's identifier.
+	 *
+	 * @return Rpc endpoint's identifier.
+	 */
+	public String getEndpointId() {
+		return endpointId;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Start & Shutdown
 	// ------------------------------------------------------------------------

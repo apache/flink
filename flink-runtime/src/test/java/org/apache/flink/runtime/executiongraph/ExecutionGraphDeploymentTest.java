@@ -61,7 +61,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -359,7 +359,7 @@ public class ExecutionGraphDeploymentTest {
 			Collections.sort(execList, new Comparator<Execution>() {
 				@Override
 				public int compare(Execution o1, Execution o2) {
-					return o1.getVertex().getSimpleName().compareTo(o2.getVertex().getSimpleName());
+					return o1.getVertex().getTaskNameWithSubtaskIndex().compareTo(o2.getVertex().getTaskNameWithSubtaskIndex());
 				}
 			});
 
@@ -559,7 +559,7 @@ public class ExecutionGraphDeploymentTest {
 
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test");
-		jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+		jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
 			Collections.<JobVertexID>emptyList(),
 			Collections.<JobVertexID>emptyList(),
 			Collections.<JobVertexID>emptyList(),

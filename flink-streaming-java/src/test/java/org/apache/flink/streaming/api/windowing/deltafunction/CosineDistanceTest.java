@@ -23,11 +23,11 @@ import org.apache.flink.streaming.api.functions.windowing.delta.CosineDistance;
 import org.junit.Test;
 
 public class CosineDistanceTest {
-	
+
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testCosineDistance() {
-		
+
 		//Reference calculated using wolfram alpha
 		double[][][] testdata={
 				{{0,0,0},{0,0,0}},
@@ -51,14 +51,14 @@ public class CosineDistanceTest {
 				0.016130,
 				0
 		};
-		
+
 		for (int i = 0; i < testdata.length; i++) {
 			assertEquals("Wrong result for inputs " + arrayToString(testdata[i][0]) + " and "
 					+ arrayToString(testdata[i][0]), referenceSolutions[i],
 					new CosineDistance().getDelta(testdata[i][0], testdata[i][1]), 0.000001);
 		}
 	}
-	
+
 	private String arrayToString(double[] in){
 		if (in.length==0) return "{}";
 		String result="{";

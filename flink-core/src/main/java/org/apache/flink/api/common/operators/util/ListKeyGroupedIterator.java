@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.util.TraversableOnceException;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -78,6 +79,7 @@ public final class ListKeyGroupedIterator<E> {
 			this.comparator.setReference(this.lookahead);
 			this.valuesIterator.next = this.lookahead;
 			this.lookahead = null;
+			this.valuesIterator.iteratorAvailable = true;
 			return true;
 		}
 
@@ -96,6 +98,7 @@ public final class ListKeyGroupedIterator<E> {
 						// the keys do not match, so we have a new group. store the current key
 						this.comparator.setReference(next);
 						this.valuesIterator.next = next;
+						this.valuesIterator.iteratorAvailable = true;
 						return true;
 					}
 				}
@@ -160,7 +163,9 @@ public final class ListKeyGroupedIterator<E> {
 	public final class ValuesIterator implements Iterator<E>, Iterable<E> {
 
 		private E next;
-		
+
+		private boolean iteratorAvailable = true;
+
 		private final TypeSerializer<E> serializer;
 
 		private ValuesIterator(E first, TypeSerializer<E> serializer) {
@@ -191,7 +196,12 @@ public final class ListKeyGroupedIterator<E> {
 
 		@Override
 		public Iterator<E> iterator() {
-			return this;
+			if (iteratorAvailable) {
+				iteratorAvailable = false;
+				return this;
+			} else {
+				throw new TraversableOnceException();
+			}
 		}
 
 		public E getCurrent() {

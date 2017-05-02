@@ -21,11 +21,15 @@ package org.apache.flink.cep.pattern;
 import org.apache.flink.api.common.functions.FilterFunction;
 
 /**
- * A filter function which combines two filter functions with a logical or. Thus, the filter
+ * @deprecated This is only used when migrating from an older Flink version.
+ * Use the {@link org.apache.flink.cep.pattern.conditions.OrCondition} instead.
+ *
+ * <p>A filter function which combines two filter functions with a logical or. Thus, the filter
  * function only returns true, iff at least one of the filter functions holds true.
  *
  * @param <T> Type of the element to filter
  */
+@Deprecated
 public class OrFilterFunction<T> implements FilterFunction<T> {
 	private static final long serialVersionUID = -2109562093871155005L;
 

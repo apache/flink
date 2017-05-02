@@ -28,6 +28,7 @@ import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.util.NetUtils;
 
+import org.apache.flink.util.Preconditions;
 import org.jboss.netty.channel.ChannelException;
 
 import org.slf4j.Logger;
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -46,6 +48,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class RpcServiceUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RpcServiceUtils.class);
+
+	private static final AtomicLong nextNameOffset = new AtomicLong(0L);
 
 	// ------------------------------------------------------------------------
 	//  RPC instantiation
@@ -105,7 +109,7 @@ public class RpcServiceUtils {
 	 * @param hostname     The hostname or address where the target RPC service is listening.
 	 * @param port         The port where the target RPC service is listening.
 	 * @param endpointName The name of the RPC endpoint.
-	 * @param config       Teh configuration from which to deduce further settings.
+	 * @param config       The configuration from which to deduce further settings.
 	 *
 	 * @return The RPC URL of the specified RPC endpoint.
 	 */
@@ -142,6 +146,25 @@ public class RpcServiceUtils {
 		final String hostPort = NetUtils.hostAndPortToUrlString(hostname, port);
 
 		return String.format("%s://flink@%s/user/%s", protocol, hostPort, endpointName);
+	}
+
+	/**
+	 * Creates a random name of the form prefix_X, where X is an increasing number.
+	 *
+	 * @param prefix Prefix string to prepend to the monotonically increasing name offset number
+	 * @return A random name of the form prefix_X where X is an increasing number
+	 */
+	public static String createRandomName(String prefix) {
+		Preconditions.checkNotNull(prefix, "Prefix must not be null.");
+
+		long nameOffset;
+
+		// obtain the next name offset by incrementing it atomically
+		do {
+			nameOffset = nextNameOffset.get();
+		} while (!nextNameOffset.compareAndSet(nameOffset, nameOffset + 1L));
+
+		return prefix + '_' + nameOffset;
 	}
 
 	// ------------------------------------------------------------------------

@@ -27,9 +27,6 @@ import org.apache.flink.api.java.tuple.Tuple;
 @Internal
 public class ArrayFromTuple implements Extractor<Tuple, Object[]> {
 
-	/**
-	 * Auto generated version id
-	 */
 	private static final long serialVersionUID = -6076121226427616818L;
 	int[] order = null;
 
@@ -44,7 +41,7 @@ public class ArrayFromTuple implements Extractor<Tuple, Object[]> {
 	/**
 	 * Using this constructor the extractor will combine the fields as specified
 	 * in the indexes parameter in an object array.
-	 * 
+	 *
 	 * @param indexes
 	 *            the field ids (enumerated from 0)
 	 */

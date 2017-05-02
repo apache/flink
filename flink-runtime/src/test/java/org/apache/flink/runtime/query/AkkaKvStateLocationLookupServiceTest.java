@@ -26,12 +26,14 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.query.AkkaKvStateLocationLookupService.LookupRetryStrategy;
 import org.apache.flink.runtime.query.AkkaKvStateLocationLookupService.LookupRetryStrategyFactory;
 import org.apache.flink.runtime.query.KvStateMessage.LookupKvStateLocation;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -51,7 +53,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class AkkaKvStateLocationLookupServiceTest {
+public class AkkaKvStateLocationLookupServiceTest extends TestLogger {
 
 	/** The default timeout. */
 	private static final FiniteDuration TIMEOUT = new FiniteDuration(10, TimeUnit.SECONDS);
@@ -77,7 +79,9 @@ public class AkkaKvStateLocationLookupServiceTest {
 	 */
 	@Test
 	public void testNoJobManagerRegistered() throws Exception {
-		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService();
+		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService(
+			null,
+			null);
 		Queue<LookupKvStateLocation> received = new LinkedBlockingQueue<>();
 
 		AkkaKvStateLocationLookupService lookupService = new AkkaKvStateLocationLookupService(
@@ -108,7 +112,7 @@ public class AkkaKvStateLocationLookupServiceTest {
 		//
 		// Leader registration => communicate with new leader
 		//
-		UUID leaderSessionId = null;
+		UUID leaderSessionId = HighAvailabilityServices.DEFAULT_LEADER_ID;
 		KvStateLocation expected = new KvStateLocation(new JobID(), new JobVertexID(), 8282, "tea");
 
 		ActorRef testActor = LookupResponseActor.create(received, leaderSessionId, expected);
@@ -154,7 +158,9 @@ public class AkkaKvStateLocationLookupServiceTest {
 	 */
 	@Test
 	public void testLeaderSessionIdChange() throws Exception {
-		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService();
+		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService(
+			"localhost",
+			HighAvailabilityServices.DEFAULT_LEADER_ID);
 		Queue<LookupKvStateLocation> received = new LinkedBlockingQueue<>();
 
 		AkkaKvStateLocationLookupService lookupService = new AkkaKvStateLocationLookupService(
@@ -216,7 +222,9 @@ public class AkkaKvStateLocationLookupServiceTest {
 					}
 				};
 
-		final TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService();
+		final TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService(
+			null,
+			null);
 
 		AkkaKvStateLocationLookupService lookupService = new AkkaKvStateLocationLookupService(
 				leaderRetrievalService,
@@ -268,7 +276,7 @@ public class AkkaKvStateLocationLookupServiceTest {
 
 			@Override
 			public boolean tryRetry() {
-				leaderRetrievalService.notifyListener(testActorAddress, null);
+				leaderRetrievalService.notifyListener(testActorAddress, HighAvailabilityServices.DEFAULT_LEADER_ID);
 				return true;
 			}
 		});
@@ -279,7 +287,9 @@ public class AkkaKvStateLocationLookupServiceTest {
 
 	@Test
 	public void testUnexpectedResponseType() throws Exception {
-		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService();
+		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService(
+			"localhost",
+			HighAvailabilityServices.DEFAULT_LEADER_ID);
 		Queue<LookupKvStateLocation> received = new LinkedBlockingQueue<>();
 
 		AkkaKvStateLocationLookupService lookupService = new AkkaKvStateLocationLookupService(

@@ -42,11 +42,13 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.NetUtils;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -54,6 +56,7 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.UUID;
@@ -68,7 +71,7 @@ import static org.mockito.Mockito.when;
 /**
  * Simple and maybe stupid test to check the {@link ClusterClient} class.
  */
-public class ClientTest {
+public class ClientTest extends TestLogger {
 
 	private PackagedProgram program;
 
@@ -217,27 +220,21 @@ public class ClientTest {
 	 * This test verifies correct that the correct exception is thrown when the job submission fails.
 	 */
 	@Test
-	public void shouldSubmitToJobClientFails() {
+	public void shouldSubmitToJobClientFails() throws IOException {
+		jobManagerSystem.actorOf(Props.create(FailureReturningActor.class), JobManager.JOB_MANAGER_NAME());
+
+		ClusterClient out = new StandaloneClusterClient(config);
+		out.setDetached(true);
+
 		try {
-			jobManagerSystem.actorOf(Props.create(FailureReturningActor.class), JobManager.JOB_MANAGER_NAME());
-
-			ClusterClient out = new StandaloneClusterClient(config);
-			out.setDetached(true);
-
-			try {
-				out.run(program.getPlanWithJars(), 1);
-				fail("This should fail with an exception");
-			}
-			catch (ProgramInvocationException e) {
-				// bam!
-			}
-			catch (Exception e) {
-				fail("wrong exception " + e);
-			}
+			out.run(program.getPlanWithJars(), 1);
+			fail("This should fail with an exception");
+		}
+		catch (ProgramInvocationException e) {
+			// bam!
 		}
 		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+			fail("wrong exception " + e);
 		}
 	}
 
@@ -308,7 +305,7 @@ public class ClientTest {
 
 	public static class SuccessReturningActor extends FlinkUntypedActor {
 
-		private UUID leaderSessionID = null;
+		private UUID leaderSessionID = HighAvailabilityServices.DEFAULT_LEADER_ID;
 
 		@Override
 		public void handleMessage(Object message) {
@@ -338,7 +335,7 @@ public class ClientTest {
 
 	public static class FailureReturningActor extends FlinkUntypedActor {
 
-		private UUID leaderSessionID = null;
+		private UUID leaderSessionID = HighAvailabilityServices.DEFAULT_LEADER_ID;
 
 		@Override
 		public void handleMessage(Object message) {

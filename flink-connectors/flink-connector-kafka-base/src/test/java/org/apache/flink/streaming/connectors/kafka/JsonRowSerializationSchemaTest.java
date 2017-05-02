@@ -16,6 +16,8 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.Types;
 import org.apache.flink.types.Row;
 import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JsonRowSerializationSchema;
@@ -26,10 +28,11 @@ import java.io.IOException;
 import static org.junit.Assert.assertEquals;
 
 public class JsonRowSerializationSchemaTest {
+
 	@Test
 	public void testRowSerialization() throws IOException {
 		String[] fieldNames = new String[] {"f1", "f2", "f3"};
-		Class[] fieldTypes = new Class[] {Integer.class, Boolean.class, String.class};
+		TypeInformation<?>[] fieldTypes = new TypeInformation<?>[] { Types.INT(), Types.BOOLEAN(), Types.STRING() };
 		Row row = new Row(3);
 		row.setField(0, 1);
 		row.setField(1, true);
@@ -42,14 +45,17 @@ public class JsonRowSerializationSchemaTest {
 	@Test
 	public void testSerializationOfTwoRows() throws IOException {
 		String[] fieldNames = new String[] {"f1", "f2", "f3"};
-		Class[] fieldTypes = new Class[] {Integer.class, Boolean.class, String.class};
+		TypeInformation<Row> row = Types.ROW(
+			fieldNames,
+			new TypeInformation<?>[] { Types.INT(), Types.BOOLEAN(), Types.STRING() }
+		);
 		Row row1 = new Row(3);
 		row1.setField(0, 1);
 		row1.setField(1, true);
 		row1.setField(2, "str");
 
 		JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(fieldNames);
-		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(fieldNames, fieldTypes);
+		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(row);
 
 		byte[] bytes = serializationSchema.serialize(row1);
 		assertEqualRows(row1, deserializationSchema.deserialize(bytes));
@@ -78,9 +84,9 @@ public class JsonRowSerializationSchemaTest {
 		serializationSchema.serialize(row);
 	}
 
-	private Row serializeAndDeserialize(String[] fieldNames, Class[] fieldTypes, Row row) throws IOException {
+	private Row serializeAndDeserialize(String[] fieldNames, TypeInformation<?>[] fieldTypes, Row row) throws IOException {
 		JsonRowSerializationSchema serializationSchema = new JsonRowSerializationSchema(fieldNames);
-		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(fieldNames, fieldTypes);
+		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(Types.ROW(fieldNames, fieldTypes));
 
 		byte[] bytes = serializationSchema.serialize(row);
 		return deserializationSchema.deserialize(bytes);

@@ -83,6 +83,11 @@ public abstract class ResultSubpartition {
 
 	abstract public boolean isReleased();
 
-	abstract public int getNumberOfQueuedBuffers();
+	/**
+	 * Makes a best effort to get the current size of the queue.
+	 * This method must not acquire locks or interfere with the task and network threads in
+	 * any way.
+	 */
+	abstract public int unsynchronizedGetNumberOfQueuedBuffers();
 
 }

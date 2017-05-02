@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -50,11 +52,12 @@ public class StandaloneLeaderRetrievalService implements LeaderRetrievalService 
 	 * The leaderId will be null.
 	 *
 	 * @param leaderAddress The leader's pre-configured address
+	 * @deprecated Use {@link #StandaloneLeaderRetrievalService(String, UUID)} instead
 	 */
 	@Deprecated
 	public StandaloneLeaderRetrievalService(String leaderAddress) {
 		this.leaderAddress = checkNotNull(leaderAddress);
-		this.leaderId = null;
+		this.leaderId = HighAvailabilityServices.DEFAULT_LEADER_ID;
 	}
 
 	/**

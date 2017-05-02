@@ -30,6 +30,11 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Special {@link StreamExecutionEnvironment} that will be used in cases where the CLI client or
+ * testing utilities create a {@link StreamExecutionEnvironment} that should be used when
+ * {@link StreamExecutionEnvironment#getExecutionEnvironment()} is called.
+ */
 @PublicEvolving
 public class StreamContextEnvironment extends StreamExecutionEnvironment {
 

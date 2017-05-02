@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -567,7 +568,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				final ActorRef taskManager = taskManagerGateway.actor();
 
 				final UUID falseLeaderSessionID = UUID.randomUUID();
-				final UUID trueLeaderSessionID = null;
+				final UUID trueLeaderSessionID = HighAvailabilityServices.DEFAULT_LEADER_ID;
 
 				new Within(timeout) {
 

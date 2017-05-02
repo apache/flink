@@ -19,12 +19,16 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 /**
  * Interface for {@link StreamOperator StreamOperators} that can restore from a Flink 1.1
  * legacy snapshot that was done using the {@link StreamCheckpointedOperator} interface.
+ *
+ * @deprecated {@link Checkpointed} has been deprecated as well. This class can be
+ * removed when we remove that interface.
  */
 @Deprecated
 public interface CheckpointedRestoringOperator {

@@ -18,17 +18,16 @@
 
 package org.apache.flink.streaming.api.functions;
 
+import javax.annotation.Nullable;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
-
-import javax.annotation.Nullable;
 
 /**
  * The {@code AssignerWithPeriodicWatermarks} assigns event time timestamps to elements,
  * and generates low watermarks that signal event time progress within the stream.
  * These timestamps and watermarks are used by functions and operators that operate
  * on event time, for example event time windows.
- * 
+ *
  * <p>Use this class to generate watermarks in a periodical interval.
  * At most every {@code i} milliseconds (configured via
  * {@link ExecutionConfig#getAutoWatermarkInterval()}), the system will call the
@@ -45,9 +44,9 @@ import javax.annotation.Nullable;
  * milliseconds since the Epoch (midnight, January 1, 1970 UTC).
  * A watermark with a certain value {@code t} indicates that no elements with event
  * timestamps {@code x}, where {@code x} is lower or equal to {@code t}, will occur any more.
- * 
+ *
  * @param <T> The type of the elements to which this assigner assigns timestamps.
- * 
+ *
  * @see org.apache.flink.streaming.api.watermark.Watermark
  */
 public interface AssignerWithPeriodicWatermarks<T> extends TimestampAssigner<T> {
@@ -56,7 +55,7 @@ public interface AssignerWithPeriodicWatermarks<T> extends TimestampAssigner<T> 
 	 * Returns the current watermark. This method is periodically called by the
 	 * system to retrieve the current watermark. The method may return {@code null} to
 	 * indicate that no new Watermark is available.
-	 * 
+	 *
 	 * <p>The returned watermark will be emitted only if it is non-null and its timestamp
 	 * is larger than that of the previously emitted watermark (to preserve the contract of
 	 * ascending watermarks). If the current watermark is still

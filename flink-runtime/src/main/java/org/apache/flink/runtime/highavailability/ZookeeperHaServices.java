@@ -112,16 +112,6 @@ public class ZookeeperHaServices implements HighAvailabilityServices {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public String getResourceManagerEndpointName() {
-		// since the resource manager name must be dynamic, we return null here
-		return null;
-	}
-
-	// ------------------------------------------------------------------------
-	//  Services
-	// ------------------------------------------------------------------------
-
-	@Override
 	public LeaderRetrievalService getResourceManagerLeaderRetriever() {
 		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, RESOURCE_MANAGER_LEADER_PATH);
 	}

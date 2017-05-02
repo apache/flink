@@ -20,6 +20,7 @@ package org.apache.flink.metrics.jmx;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.metrics.reporter.MetricReporter;
@@ -94,7 +95,7 @@ public class JMXReporterTest extends TestLogger {
 	@Test
 	public void testPortConflictHandling() throws Exception {
 		Configuration cfg = new Configuration();
-		cfg.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1,test2");
+		cfg.setString(MetricOptions.REPORTERS_LIST, "test1,test2");
 
 		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1.port", "9020-9035");
@@ -154,7 +155,7 @@ public class JMXReporterTest extends TestLogger {
 		Configuration cfg = new Configuration();
 		cfg.setString(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter.class.getName());
 
-		cfg.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1,test2");
+		cfg.setString(MetricOptions.REPORTERS_LIST, "test1,test2");
 
 		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1.port", "9040-9055");
@@ -230,7 +231,7 @@ public class JMXReporterTest extends TestLogger {
 
 		try {
 			Configuration config = new Configuration();
-			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "jmx_test");
+			config.setString(MetricOptions.REPORTERS_LIST, "jmx_test");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "jmx_test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 
 			registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
@@ -280,7 +281,7 @@ public class JMXReporterTest extends TestLogger {
 
 		try {
 			Configuration config = new Configuration();
-			config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "jmx_test");
+			config.setString(MetricOptions.REPORTERS_LIST, "jmx_test");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "jmx_test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 
 			registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));

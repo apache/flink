@@ -18,14 +18,13 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import org.apache.flink.annotation.PublicEvolving;
+import java.io.Serializable;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.TimestampAssigner;
 import org.apache.flink.streaming.api.watermark.Watermark;
-
-import java.io.Serializable;
 
 /**
  * Base interface for all stream data sources in Flink. The contract of a stream source
@@ -69,25 +68,23 @@ import java.io.Serializable;
  *
  *
  * <h3>Timestamps and watermarks:</h3>
- * 
  * Sources may assign timestamps to elements and may manually emit watermarks.
- * However, these are only interpreted if the streaming program runs on 
- * {@link TimeCharacteristic#EventTime}. On other time characteristics 
+ * However, these are only interpreted if the streaming program runs on
+ * {@link TimeCharacteristic#EventTime}. On other time characteristics
  * ({@link TimeCharacteristic#IngestionTime} and {@link TimeCharacteristic#ProcessingTime}),
  * the watermarks from the source function are ignored.
  *
  * <h3>Gracefully Stopping Functions</h3>
- * 
  * Functions may additionally implement the {@link org.apache.flink.api.common.functions.StoppableFunction}
  * interface. "Stopping" a function, in contrast to "canceling" means a graceful exit that leaves the
  * state and the emitted elements in a consistent state.
- * 
+ *
  * <p>When a source is stopped, the executing thread is not interrupted, but expected to leave the
  * {@link #run(SourceContext)} method in reasonable time on its own, preserving the atomicity
- * of state updates and element emission. 
- * 
+ * of state updates and element emission.
+ *
  * @param <T> The type of the elements produced by this source.
- * 
+ *
  * @see org.apache.flink.api.common.functions.StoppableFunction
  * @see org.apache.flink.streaming.api.TimeCharacteristic
  */
@@ -97,7 +94,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 	/**
 	 * Starts the source. Implementations can use the {@link SourceContext} emit
 	 * elements.
-	 * 
+	 *
 	 * <p>Sources that implement {@link org.apache.flink.streaming.api.checkpoint.Checkpointed}
 	 * must lock on the checkpoint lock (using a synchronized block) before updating internal
 	 * state and emitting elements, to make both an atomic operation:
@@ -134,10 +131,10 @@ public interface SourceFunction<T> extends Function, Serializable {
 	 * Cancels the source. Most sources will have a while loop inside the
 	 * {@link #run(SourceContext)} method. The implementation needs to ensure that the
 	 * source will break out of that loop after this method is called.
-	 * 
+	 *
 	 * <p>A typical pattern is to have an {@code "volatile boolean isRunning"} flag that is set to
 	 * {@code false} in this method. That flag is checked in the loop condition.
-	 * 
+	 *
 	 * <p>When a source is canceled, the executing thread will also be interrupted
 	 * (via {@link Thread#interrupt()}). The interruption happens strictly after this
 	 * method has been called, so any interruption handler can rely on the fact that
@@ -150,7 +147,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 	// ------------------------------------------------------------------------
 	//  source context
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Interface that source functions use to emit elements, and possibly watermarks.
 	 *
@@ -162,7 +159,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 		/**
 		 * Emits one element from the source, without attaching a timestamp. In most cases,
 		 * this is the default way of emitting elements.
-		 * 
+		 *
 		 * <p>The timestamp that the element will get assigned depends on the time characteristic of
 		 * the streaming program:
 		 * <ul>
@@ -205,7 +202,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 		 * Emits the given {@link Watermark}. A Watermark of value {@code t} declares that no
 		 * elements with a timestamp {@code t' <= t} will occur any more. If further such
 		 * elements will be emitted, those elements are considered <i>late</i>.
-		 * 
+		 *
 		 * <p>This method is only relevant when running on {@link TimeCharacteristic#EventTime}.
 		 * On {@link TimeCharacteristic#ProcessingTime},Watermarks will be ignored. On
 		 * {@link TimeCharacteristic#IngestionTime}, the Watermarks will be replaced by the
@@ -235,8 +232,8 @@ public interface SourceFunction<T> extends Function, Serializable {
 		 * Returns the checkpoint lock. Please refer to the class-level comment in
 		 * {@link SourceFunction} for details about how to write a consistent checkpointed
 		 * source.
-		 * 
-		 * @return The object to use as the lock 
+		 *
+		 * @return The object to use as the lock
 		 */
 		Object getCheckpointLock();
 

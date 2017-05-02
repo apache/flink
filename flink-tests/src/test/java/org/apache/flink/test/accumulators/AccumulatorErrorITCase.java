@@ -27,8 +27,10 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -42,7 +44,7 @@ import static org.junit.Assert.fail;
  *  a) throw errors during runtime
  *  b) is not compatible with existing accumulator
  */
-public class AccumulatorErrorITCase {
+public class AccumulatorErrorITCase extends TestLogger {
 
 	private static LocalFlinkMiniCluster cluster;
 
@@ -52,7 +54,7 @@ public class AccumulatorErrorITCase {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 3);
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
+			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 12L);
 			cluster = new LocalFlinkMiniCluster(config, false);
 
 			cluster.start();

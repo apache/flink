@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
@@ -63,6 +65,9 @@ public class MiniClusterJobDispatcher {
 	/** services for discovery, leader election, and recovery */
 	private final HighAvailabilityServices haServices;
 
+	/** services for heartbeating */
+	private final HeartbeatServices heartbeatServices;
+
 	/** all the services that the JobManager needs, such as BLOB service, factories, etc */
 	private final JobManagerServices jobManagerServices;
 
@@ -94,8 +99,9 @@ public class MiniClusterJobDispatcher {
 			Configuration config,
 			RpcService rpcService,
 			HighAvailabilityServices haServices,
+			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry) throws Exception {
-		this(config, haServices, metricRegistry, 1, new RpcService[] { rpcService });
+		this(config, haServices, heartbeatServices, metricRegistry, 1, new RpcService[] { rpcService });
 	}
 
 	/**
@@ -113,6 +119,7 @@ public class MiniClusterJobDispatcher {
 	public MiniClusterJobDispatcher(
 			Configuration config,
 			HighAvailabilityServices haServices,
+			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
 			int numJobManagers,
 			RpcService[] rpcServices) throws Exception {
@@ -123,6 +130,7 @@ public class MiniClusterJobDispatcher {
 		this.configuration = checkNotNull(config);
 		this.rpcServices = rpcServices;
 		this.haServices = checkNotNull(haServices);
+		this.heartbeatServices = checkNotNull(heartbeatServices);
 		this.metricRegistry = checkNotNull(metricRegistry);
 		this.numJobManagers = numJobManagers;
 
@@ -232,9 +240,17 @@ public class MiniClusterJobDispatcher {
 		JobManagerRunner[] runners = new JobManagerRunner[numJobManagers];
 		for (int i = 0; i < numJobManagers; i++) {
 			try {
-				runners[i] = new JobManagerRunner(job, configuration,
-						rpcServices[i], haServices, jobManagerServices, metricRegistry, 
-						onCompletion, errorHandler);
+				runners[i] = new JobManagerRunner(
+					ResourceID.generate(),
+					job,
+					configuration,
+					rpcServices[i],
+					haServices,
+					heartbeatServices,
+					jobManagerServices,
+					metricRegistry,
+					onCompletion,
+					errorHandler);
 				runners[i].start();
 			}
 			catch (Throwable t) {

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
@@ -41,13 +42,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Serializer for {@link SavepointV1} instances.
- * <p>
- * <p>In contrast to previous savepoint versions, this serializer makes sure
- * that no default Java serialization is used for serialization. Therefore, we
- * don't rely on any involved Java classes to stay the same.
+ * Deserializer for checkpoints written in format {@code 1} (Flink 1.2.x format)
+ * 
+ * <p>In contrast to the previous versions, this serializer makes sure that no Java
+ * serialization is used for serialization. Therefore, we don't rely on any involved 
+ * classes to stay the same.
  */
-class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
+class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 
 	private static final byte NULL_HANDLE = 0;
 	private static final byte BYTE_STREAM_STATE_HANDLE = 1;
@@ -62,39 +63,12 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 	}
 
 	@Override
-	public void serialize(SavepointV1 savepoint, DataOutputStream dos) throws IOException {
-		try {
-			dos.writeLong(savepoint.getCheckpointId());
-
-			Collection<TaskState> taskStates = savepoint.getTaskStates();
-			dos.writeInt(taskStates.size());
-
-			for (TaskState taskState : savepoint.getTaskStates()) {
-				// Vertex ID
-				dos.writeLong(taskState.getJobVertexID().getLowerPart());
-				dos.writeLong(taskState.getJobVertexID().getUpperPart());
-
-				// Parallelism
-				int parallelism = taskState.getParallelism();
-				dos.writeInt(parallelism);
-				dos.writeInt(taskState.getMaxParallelism());
-				dos.writeInt(taskState.getChainLength());
-
-				// Sub task states
-				Map<Integer, SubtaskState> subtaskStateMap = taskState.getSubtaskStates();
-				dos.writeInt(subtaskStateMap.size());
-				for (Map.Entry<Integer, SubtaskState> entry : subtaskStateMap.entrySet()) {
-					dos.writeInt(entry.getKey());
-					serializeSubtaskState(entry.getValue(), dos);
-				}
-			}
-		} catch (Exception e) {
-			throw new IOException(e);
-		}
+	public void serialize(SavepointV2 savepoint, DataOutputStream dos) throws IOException {
+		throw new UnsupportedOperationException("This serializer is read-only and only exists for backwards compatibility");
 	}
 
 	@Override
-	public SavepointV1 deserialize(DataInputStream dis, ClassLoader cl) throws IOException {
+	public SavepointV2 deserialize(DataInputStream dis, ClassLoader cl) throws IOException {
 		long checkpointId = dis.readLong();
 
 		// Task states
@@ -121,7 +95,34 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 			}
 		}
 
-		return new SavepointV1(checkpointId, taskStates);
+		return new SavepointV2(checkpointId, taskStates);
+	}
+
+	public void serializeOld(SavepointV1 savepoint, DataOutputStream dos) throws IOException {
+		dos.writeLong(savepoint.getCheckpointId());
+
+		Collection<TaskState> taskStates = savepoint.getTaskStates();
+		dos.writeInt(taskStates.size());
+
+		for (TaskState taskState : savepoint.getTaskStates()) {
+			// Vertex ID
+			dos.writeLong(taskState.getJobVertexID().getLowerPart());
+			dos.writeLong(taskState.getJobVertexID().getUpperPart());
+
+			// Parallelism
+			int parallelism = taskState.getParallelism();
+			dos.writeInt(parallelism);
+			dos.writeInt(taskState.getMaxParallelism());
+			dos.writeInt(taskState.getChainLength());
+
+			// Sub task states
+			Map<Integer, SubtaskState> subtaskStateMap = taskState.getSubtaskStates();
+			dos.writeInt(subtaskStateMap.size());
+			for (Map.Entry<Integer, SubtaskState> entry : subtaskStateMap.entrySet()) {
+				dos.writeInt(entry.getKey());
+				serializeSubtaskState(entry.getValue(), dos);
+			}
+		}
 	}
 
 	private static void serializeSubtaskState(SubtaskState subtaskState, DataOutputStream dos) throws IOException {
@@ -155,11 +156,11 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 			serializeOperatorStateHandle(stateHandle, dos);
 		}
 
-		KeyGroupsStateHandle keyedStateBackend = subtaskState.getManagedKeyedState();
-		serializeKeyGroupStateHandle(keyedStateBackend, dos);
+		KeyedStateHandle keyedStateBackend = subtaskState.getManagedKeyedState();
+		serializeKeyedStateHandle(keyedStateBackend, dos);
 
-		KeyGroupsStateHandle keyedStateStream = subtaskState.getRawKeyedState();
-		serializeKeyGroupStateHandle(keyedStateStream, dos);
+		KeyedStateHandle keyedStateStream = subtaskState.getRawKeyedState();
+		serializeKeyedStateHandle(keyedStateStream, dos);
 	}
 
 	private static SubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
@@ -188,9 +189,9 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 			operatorStateStream.add(streamStateHandle);
 		}
 
-		KeyGroupsStateHandle keyedStateBackend = deserializeKeyGroupStateHandle(dis);
+		KeyedStateHandle keyedStateBackend = deserializeKeyedStateHandle(dis);
 
-		KeyGroupsStateHandle keyedStateStream = deserializeKeyGroupStateHandle(dis);
+		KeyedStateHandle keyedStateStream = deserializeKeyedStateHandle(dis);
 
 		ChainedStateHandle<StreamStateHandle> nonPartitionableStateChain =
 				new ChainedStateHandle<>(nonPartitionableState);
@@ -209,23 +210,27 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 				keyedStateStream);
 	}
 
-	private static void serializeKeyGroupStateHandle(
-			KeyGroupsStateHandle stateHandle, DataOutputStream dos) throws IOException {
+	private static void serializeKeyedStateHandle(
+			KeyedStateHandle stateHandle, DataOutputStream dos) throws IOException {
 
-		if (stateHandle != null) {
-			dos.writeByte(KEY_GROUPS_HANDLE);
-			dos.writeInt(stateHandle.getGroupRangeOffsets().getKeyGroupRange().getStartKeyGroup());
-			dos.writeInt(stateHandle.getNumberOfKeyGroups());
-			for (int keyGroup : stateHandle.keyGroups()) {
-				dos.writeLong(stateHandle.getOffsetForKeyGroup(keyGroup));
-			}
-			serializeStreamStateHandle(stateHandle.getDelegateStateHandle(), dos);
-		} else {
+		if (stateHandle == null) {
 			dos.writeByte(NULL_HANDLE);
+		} else if (stateHandle instanceof KeyGroupsStateHandle) {
+			KeyGroupsStateHandle keyGroupsStateHandle = (KeyGroupsStateHandle) stateHandle;
+
+			dos.writeByte(KEY_GROUPS_HANDLE);
+			dos.writeInt(keyGroupsStateHandle.getKeyGroupRange().getStartKeyGroup());
+			dos.writeInt(keyGroupsStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
+			for (int keyGroup : keyGroupsStateHandle.getKeyGroupRange()) {
+				dos.writeLong(keyGroupsStateHandle.getOffsetForKeyGroup(keyGroup));
+			}
+			serializeStreamStateHandle(keyGroupsStateHandle.getDelegateStateHandle(), dos);
+		} else {
+			throw new IllegalStateException("Unknown KeyedStateHandle type: " + stateHandle.getClass());
 		}
 	}
 
-	private static KeyGroupsStateHandle deserializeKeyGroupStateHandle(DataInputStream dis) throws IOException {
+	private static KeyedStateHandle deserializeKeyedStateHandle(DataInputStream dis) throws IOException {
 		final int type = dis.readByte();
 		if (NULL_HANDLE == type) {
 			return null;
@@ -237,11 +242,12 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 			for (int i = 0; i < numKeyGroups; ++i) {
 				offsets[i] = dis.readLong();
 			}
-			KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(keyGroupRange, offsets);
+			KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(
+				keyGroupRange, offsets);
 			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis);
 			return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
 		} else {
-			throw new IllegalStateException("Reading invalid KeyGroupsStateHandle, type: " + type);
+			throw new IllegalStateException("Reading invalid KeyedStateHandle, type: " + type);
 		}
 	}
 

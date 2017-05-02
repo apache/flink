@@ -18,13 +18,14 @@
 
 package org.apache.flink.streaming.api.checkpoint;
 
-import org.apache.flink.annotation.PublicEvolving;
-
 import java.io.Serializable;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * This deprecated interface contains the methods for restoring from the legacy checkpointing mechanism of state.
  * @param <T> type of the restored state.
+ *
+ * @deprecated Please use {@link CheckpointedFunction} or {@link ListCheckpointed} after restoring your legacy state.
  */
 @Deprecated
 @PublicEvolving
@@ -33,7 +34,7 @@ public interface CheckpointedRestoring<T extends Serializable> {
 	 * Restores the state of the function or operator to that of a previous checkpoint.
 	 * This method is invoked when a function is executed as part of a recovery run.
 	 *
-	 * Note that restoreState() is called before open().
+	 * <p>Note that restoreState() is called before open().
 	 *
 	 * @param state The state to be restored.
 	 */
