@@ -10,12 +10,17 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.streaming.plan;
+
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.python.api.types.CustomTypeWrapper;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import org.apache.flink.api.java.tuple.Tuple;
+
 import static org.apache.flink.python.api.streaming.data.PythonReceiver.createTuple;
 import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_BOOLEAN;
 import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_BYTE;
@@ -26,9 +31,6 @@ import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE
 import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_LONG;
 import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_NULL;
 import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_STRING;
-
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.python.api.types.CustomTypeWrapper;
 
 /**
  * Instances of this class can be used to receive data from the plan process.
@@ -82,7 +84,7 @@ public class PythonPlanReceiver {
 	}
 
 	private abstract static class Deserializer<T> {
-		
+
 		public T deserialize() throws IOException {
 			return deserialize(false);
 		}

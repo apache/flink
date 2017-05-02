@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.python.api.streaming.data;
 
 import org.junit.Assert;
@@ -24,6 +25,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
+/**
+ * Tests for the SingleElementPushBackIterator.
+ */
 public class SingleElementPushBackIteratorTest {
 
 	@Test

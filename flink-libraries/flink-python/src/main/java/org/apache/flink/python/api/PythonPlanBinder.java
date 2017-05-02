@@ -10,6 +10,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api;
 
 import org.apache.flink.api.common.JobExecutionResult;
@@ -44,6 +45,7 @@ import org.apache.flink.python.api.functions.util.StringTupleDeserializerMap;
 import org.apache.flink.python.api.streaming.plan.PythonPlanStreamer;
 import org.apache.flink.python.api.util.SetCache;
 import org.apache.flink.runtime.filecache.FileCache;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,9 +106,9 @@ public class PythonPlanBinder {
 		tmpPlanFilesDir = configuredPlanTmpPath != null
 			? configuredPlanTmpPath
 			: System.getProperty("java.io.tmpdir") + File.separator + "flink_plan_" + UUID.randomUUID();
-		
+
 		tmpDistributedDir = new Path(globalConfig.getString(PythonOptions.DC_TMP_DIR));
-		
+
 		String flinkRootDir = System.getenv("FLINK_ROOT_DIR");
 		pythonLibraryPath = flinkRootDir != null
 				//command-line

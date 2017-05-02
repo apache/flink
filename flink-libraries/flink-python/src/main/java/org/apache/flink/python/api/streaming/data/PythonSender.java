@@ -10,6 +10,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.streaming.data;
 
 import org.apache.flink.api.java.tuple.Tuple;
@@ -41,7 +42,7 @@ public abstract class PythonSender implements Serializable {
 	private transient MappedByteBuffer fileBuffer;
 
 	private final long mappedFileSizeBytes;
-	
+
 	private final Configuration config;
 
 	protected PythonSender(Configuration config) {
@@ -59,7 +60,6 @@ public abstract class PythonSender implements Serializable {
 		outputFile.createNewFile();
 		outputRAF = new RandomAccessFile(outputFile, "rw");
 
-		
 		outputRAF.setLength(mappedFileSizeBytes);
 		outputRAF.seek(mappedFileSizeBytes - 1);
 		outputRAF.writeByte(0);
@@ -125,16 +125,29 @@ public abstract class PythonSender implements Serializable {
 		throw new IllegalArgumentException("This object can't be serialized: " + value);
 	}
 
+	/**
+	 * Interface for all serializers used by {@link PythonSender} classes to write container objects.
+	 *
+	 * <p>These serializers must be kept in sync with the python counterparts.
+	 *
+	 * @param <T> input type
+	 */
 	protected abstract static class Serializer<T> {
 		protected ByteBuffer buffer;
 
+		/**
+		 * Serializes the given value into a {@link ByteBuffer}.
+		 *
+		 * @param value value to serialize
+		 * @return ByteBuffer containing serialized record
+		 */
 		public ByteBuffer serialize(T value) {
 			serializeInternal(value);
 			buffer.flip();
 			return buffer;
 		}
 
-		public abstract void serializeInternal(T value);
+		protected abstract void serializeInternal(T value);
 	}
 
 	private static class ArraySerializer extends Serializer<byte[]> {

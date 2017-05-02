@@ -10,7 +10,14 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.streaming.data;
+
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.python.api.PythonOptions;
+import org.apache.flink.util.Collector;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,12 +25,6 @@ import java.io.RandomAccessFile;
 import java.io.Serializable;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple2;
-
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.api.PythonOptions;
-import org.apache.flink.util.Collector;
 
 /**
  * This class is used to read data from memory-mapped files.

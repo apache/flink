@@ -10,15 +10,16 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.functions.util;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-/*
-Utility function to extract the value from a Key-Value Tuple.
-*/
+/**
+ * Utility function to extract the value from a Key-Value Tuple.
+ */
 @ForwardedFields("f1->*")
 public class KeyDiscarder <T> implements MapFunction<Tuple2<T, byte[]>, byte[]> {
 	@Override
