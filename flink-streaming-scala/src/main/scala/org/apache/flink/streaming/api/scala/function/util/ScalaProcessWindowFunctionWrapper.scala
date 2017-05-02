@@ -53,6 +53,10 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
     val ctx = new func.Context {
       override def window = context.window
 
+      override def currentProcessingTime = context.currentProcessingTime
+
+      override def currentWatermark = context.currentWatermark
+
       override def windowState = context.windowState()
 
       override def globalState = context.globalState()
@@ -63,6 +67,10 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
   override def clear(context: JProcessWindowFunction[IN, OUT, KEY, W]#Context): Unit = {
     val ctx = new func.Context {
       override def window = context.window
+
+      override def currentProcessingTime = context.currentProcessingTime
+
+      override def currentWatermark = context.currentWatermark
 
       override def windowState = context.windowState()
 

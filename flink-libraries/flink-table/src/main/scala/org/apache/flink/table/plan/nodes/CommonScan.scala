@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.nodes
 
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.runtime.MapRunner

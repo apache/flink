@@ -18,18 +18,18 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.sql.ResultSet;
-
 import org.apache.flink.api.java.io.jdbc.split.GenericParameterValuesProvider;
 import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
 import org.apache.flink.api.java.io.jdbc.split.ParameterValuesProvider;
-import org.apache.flink.types.Row;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.types.Row;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.sql.ResultSet;
 
 public class JDBCInputFormatTest extends JDBCTestBase {
 
@@ -39,6 +39,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 	public void tearDown() throws IOException {
 		if (jdbcInputFormat != null) {
 			jdbcInputFormat.close();
+			jdbcInputFormat.closeInputFormat();
 		}
 		jdbcInputFormat = null;
 	}
@@ -96,7 +97,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 	}
 
 	@Test
-	public void testJDBCInputFormatWithoutParallelism() throws IOException, InstantiationException, IllegalAccessException {
+	public void testJDBCInputFormatWithoutParallelism() throws IOException {
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
@@ -112,33 +113,21 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		int recordCount = 0;
 		while (!jdbcInputFormat.reachedEnd()) {
 			Row next = jdbcInputFormat.nextRecord(row);
-			if (next == null) {
-				break;
-			}
-			
-			if(next.getField(0)!=null) { Assert.assertEquals("Field 0 should be int", Integer.class, next.getField(0).getClass());}
-			if(next.getField(1)!=null) { Assert.assertEquals("Field 1 should be String", String.class, next.getField(1).getClass());}
-			if(next.getField(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, next.getField(2).getClass());}
-			if(next.getField(3)!=null) { Assert.assertEquals("Field 3 should be float", Double.class, next.getField(3).getClass());}
-			if(next.getField(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, next.getField(4).getClass());}
 
-			for (int x = 0; x < 5; x++) {
-				if(testData[recordCount][x]!=null) {
-					Assert.assertEquals(testData[recordCount][x], next.getField(x));
-				}
-			}
+			assertEquals(TEST_DATA[recordCount], next);
+
 			recordCount++;
 		}
 		jdbcInputFormat.close();
 		jdbcInputFormat.closeInputFormat();
-		Assert.assertEquals(testData.length, recordCount);
+		Assert.assertEquals(TEST_DATA.length, recordCount);
 	}
 	
 	@Test
-	public void testJDBCInputFormatWithParallelismAndNumericColumnSplitting() throws IOException, InstantiationException, IllegalAccessException {
+	public void testJDBCInputFormatWithParallelismAndNumericColumnSplitting() throws IOException {
 		final int fetchSize = 1;
-		final Long min = new Long(JDBCTestBase.testData[0][0] + "");
-		final Long max = new Long(JDBCTestBase.testData[JDBCTestBase.testData.length - fetchSize][0] + "");
+		final long min = TEST_DATA[0].id;
+		final long max = TEST_DATA[TEST_DATA.length - fetchSize].id;
 		ParameterValuesProvider pramProvider = new NumericBetweenParametersProvider(fetchSize, min, max);
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
@@ -152,40 +141,65 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		jdbcInputFormat.openInputFormat();
 		InputSplit[] splits = jdbcInputFormat.createInputSplits(1);
 		//this query exploit parallelism (1 split for every id)
-		Assert.assertEquals(testData.length, splits.length);
+		Assert.assertEquals(TEST_DATA.length, splits.length);
 		int recordCount = 0;
 		Row row =  new Row(5);
-		for (int i = 0; i < splits.length; i++) {
-			jdbcInputFormat.open(splits[i]);
+		for (InputSplit split : splits) {
+			jdbcInputFormat.open(split);
 			while (!jdbcInputFormat.reachedEnd()) {
 				Row next = jdbcInputFormat.nextRecord(row);
-				if (next == null) {
-					break;
-				}
-				if(next.getField(0)!=null) { Assert.assertEquals("Field 0 should be int", Integer.class, next.getField(0).getClass());}
-				if(next.getField(1)!=null) { Assert.assertEquals("Field 1 should be String", String.class, next.getField(1).getClass());}
-				if(next.getField(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, next.getField(2).getClass());}
-				if(next.getField(3)!=null) { Assert.assertEquals("Field 3 should be float", Double.class, next.getField(3).getClass());}
-				if(next.getField(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, next.getField(4).getClass());}
 
-				for (int x = 0; x < 5; x++) {
-					if(testData[recordCount][x]!=null) {
-						Assert.assertEquals(testData[recordCount][x], next.getField(x));
-					}
-				}
+				assertEquals(TEST_DATA[recordCount], next);
+
 				recordCount++;
 			}
 			jdbcInputFormat.close();
 		}
 		jdbcInputFormat.closeInputFormat();
-		Assert.assertEquals(testData.length, recordCount);
+		Assert.assertEquals(TEST_DATA.length, recordCount);
+	}
+
+	@Test
+	public void testJDBCInputFormatWithoutParallelismAndNumericColumnSplitting() throws IOException {
+		final long min = TEST_DATA[0].id;
+		final long max = TEST_DATA[TEST_DATA.length - 1].id;
+		final long fetchSize = max + 1;//generate a single split
+		ParameterValuesProvider pramProvider = new NumericBetweenParametersProvider(fetchSize, min, max);
+		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+				.setDrivername(DRIVER_CLASS)
+				.setDBUrl(DB_URL)
+				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS_SPLIT_BY_ID)
+				.setRowTypeInfo(rowTypeInfo)
+				.setParametersProvider(pramProvider)
+				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
+				.finish();
+
+		jdbcInputFormat.openInputFormat();
+		InputSplit[] splits = jdbcInputFormat.createInputSplits(1);
+		//assert that a single split was generated
+		Assert.assertEquals(1, splits.length);
+		int recordCount = 0;
+		Row row =  new Row(5);
+		for (InputSplit split : splits) {
+			jdbcInputFormat.open(split);
+			while (!jdbcInputFormat.reachedEnd()) {
+				Row next = jdbcInputFormat.nextRecord(row);
+
+				assertEquals(TEST_DATA[recordCount], next);
+
+				recordCount++;
+			}
+			jdbcInputFormat.close();
+		}
+		jdbcInputFormat.closeInputFormat();
+		Assert.assertEquals(TEST_DATA.length, recordCount);
 	}
 	
 	@Test
-	public void testJDBCInputFormatWithParallelismAndGenericSplitting() throws IOException, InstantiationException, IllegalAccessException {
+	public void testJDBCInputFormatWithParallelismAndGenericSplitting() throws IOException {
 		Serializable[][] queryParameters = new String[2][1];
-		queryParameters[0] = new String[]{"Kumar"};
-		queryParameters[1] = new String[]{"Tan Ah Teck"};
+		queryParameters[0] = new String[]{TEST_DATA[3].author};
+		queryParameters[1] = new String[]{TEST_DATA[0].author};
 		ParameterValuesProvider paramProvider = new GenericParameterValuesProvider(queryParameters);
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
@@ -195,35 +209,38 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setParametersProvider(paramProvider)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
+
 		jdbcInputFormat.openInputFormat();
 		InputSplit[] splits = jdbcInputFormat.createInputSplits(1);
 		//this query exploit parallelism (1 split for every queryParameters row)
 		Assert.assertEquals(queryParameters.length, splits.length);
-		int recordCount = 0;
-		Row row =  new Row(5);
-		for (int i = 0; i < splits.length; i++) {
-			jdbcInputFormat.open(splits[i]);
-			while (!jdbcInputFormat.reachedEnd()) {
-				Row next = jdbcInputFormat.nextRecord(row);
-				if (next == null) {
-					break;
-				}
-				if(next.getField(0)!=null) { Assert.assertEquals("Field 0 should be int", Integer.class, next.getField(0).getClass());}
-				if(next.getField(1)!=null) { Assert.assertEquals("Field 1 should be String", String.class, next.getField(1).getClass());}
-				if(next.getField(2)!=null) { Assert.assertEquals("Field 2 should be String", String.class, next.getField(2).getClass());}
-				if(next.getField(3)!=null) { Assert.assertEquals("Field 3 should be float", Double.class, next.getField(3).getClass());}
-				if(next.getField(4)!=null) { Assert.assertEquals("Field 4 should be int", Integer.class, next.getField(4).getClass());}
 
-				recordCount++;
-			}
-			jdbcInputFormat.close();
-		}
-		Assert.assertEquals(3, recordCount);
+		verifySplit(splits[0], TEST_DATA[3].id);
+		verifySplit(splits[1], TEST_DATA[0].id + TEST_DATA[1].id);
+
 		jdbcInputFormat.closeInputFormat();
+	}
+
+	private void verifySplit(InputSplit split, int expectedIDSum) throws IOException {
+		int sum = 0;
+
+		Row row =  new Row(5);
+		jdbcInputFormat.open(split);
+		while (!jdbcInputFormat.reachedEnd()) {
+			row = jdbcInputFormat.nextRecord(row);
+
+			int id = ((int) row.getField(0));
+			int testDataIndex = id - 1001;
+			
+			assertEquals(TEST_DATA[testDataIndex], row);
+			sum += id;
+		}
+		
+		Assert.assertEquals(expectedIDSum, sum);
 	}
 	
 	@Test
-	public void testEmptyResults() throws IOException, InstantiationException, IllegalAccessException {
+	public void testEmptyResults() throws IOException {
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
@@ -231,17 +248,22 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setRowTypeInfo(rowTypeInfo)
 				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
-		jdbcInputFormat.openInputFormat();
-		jdbcInputFormat.open(null);
-		Row row = new Row(5);
-		int recordsCnt = 0;
-		while (!jdbcInputFormat.reachedEnd()) {
-			Assert.assertNull(jdbcInputFormat.nextRecord(row));
-			recordsCnt++;
+		try {
+			jdbcInputFormat.openInputFormat();
+			jdbcInputFormat.open(null);
+			Assert.assertTrue(jdbcInputFormat.reachedEnd());
+		} finally {
+			jdbcInputFormat.close();
+			jdbcInputFormat.closeInputFormat();
 		}
-		jdbcInputFormat.close();
-		jdbcInputFormat.closeInputFormat();
-		Assert.assertEquals(0, recordsCnt);
+	}
+
+	private static void assertEquals(TestEntry expected, Row actual) {
+		Assert.assertEquals(expected.id, actual.getField(0));
+		Assert.assertEquals(expected.title, actual.getField(1));
+		Assert.assertEquals(expected.author, actual.getField(2));
+		Assert.assertEquals(expected.price, actual.getField(3));
+		Assert.assertEquals(expected.qty, actual.getField(4));
 	}
 
 }

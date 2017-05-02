@@ -177,12 +177,13 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 	}
 
 	@Override
-	public void scheduleRunAsync(Runnable runnable, long delay) {
+	public void scheduleRunAsync(Runnable runnable, long delayMillis) {
 		checkNotNull(runnable, "runnable");
-		checkArgument(delay >= 0, "delay must be zero or greater");
-		
+		checkArgument(delayMillis >= 0, "delay must be zero or greater");
+
 		if (isLocal) {
-			rpcEndpoint.tell(new RunAsync(runnable, delay), ActorRef.noSender());
+			long atTimeNanos = delayMillis == 0 ? 0 : System.nanoTime() + (delayMillis * 1_000_000);
+			rpcEndpoint.tell(new RunAsync(runnable, atTimeNanos), ActorRef.noSender());
 		} else {
 			throw new RuntimeException("Trying to send a Runnable to a remote actor at " +
 				rpcEndpoint.path() + ". This is not supported.");

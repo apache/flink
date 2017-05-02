@@ -68,7 +68,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // register the DataSet cust as table "Customers" with fields derived from the dataset
-tableEnv.registerDataSet("Customers", cust)
+tableEnv.registerDataSet("Customers", cust);
 
 // register the DataSet ord as table "Orders" with fields user, product, and amount
 tableEnv.registerDataSet("Orders", ord, "user, product, amount");
@@ -102,7 +102,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // register the DataStream cust as table "Customers" with fields derived from the datastream
-tableEnv.registerDataStream("Customers", cust)
+tableEnv.registerDataStream("Customers", cust);
 
 // register the DataStream ord as table "Orders" with fields user, product, and amount
 tableEnv.registerDataStream("Orders", ord, "user, product, amount");
@@ -140,10 +140,10 @@ BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 Table custT = tableEnv
   .toTable(custDs, "name, zipcode")
   .where("zipcode = '12345'")
-  .select("name")
+  .select("name");
 
 // register the Table custT as table "custNames"
-tableEnv.registerTable("custNames", custT)
+tableEnv.registerTable("custNames", custT);
 {% endhighlight %}
 </div>
 
@@ -178,10 +178,10 @@ An external table is registered in a `TableEnvironment` using a `TableSource` as
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
-TableSource custTS = new CsvTableSource("/path/to/file", ...)
+TableSource custTS = new CsvTableSource("/path/to/file", ...);
 
 // register a `TableSource` as external table "Customers"
-tableEnv.registerTableSource("Customers", custTS)
+tableEnv.registerTableSource("Customers", custTS);
 {% endhighlight %}
 </div>
 
@@ -202,7 +202,7 @@ tableEnv.registerTableSource("Customers", custTS)
 
 A `TableSource` can provide access to data stored in various storage systems such as databases (MySQL, HBase, ...), file formats (CSV, Apache Parquet, Avro, ORC, ...), or messaging systems (Apache Kafka, RabbitMQ, ...).
 
-Currently, Flink provides the `CsvTableSource` to read CSV files and the `Kafka08JsonTableSource`/`Kafka09JsonTableSource` to read JSON objects from Kafka.
+Currently, Flink provides the `CsvTableSource` to read CSV files and various `TableSources` to read JSON or Avro objects from Kafka.
 A custom `TableSource` can be defined by implementing the `BatchTableSource` or `StreamTableSource` interface.
 
 ### Available Table Sources
@@ -210,7 +210,11 @@ A custom `TableSource` can be defined by implementing the `BatchTableSource` or 
 | **Class name** | **Maven dependency** | **Batch?** | **Streaming?** | **Description**
 | `CsvTableSouce` | `flink-table` | Y | Y | A simple source for CSV files.
 | `Kafka08JsonTableSource` | `flink-connector-kafka-0.8` | N | Y | A Kafka 0.8 source for JSON data.
+| `Kafka08AvroTableSource` | `flink-connector-kafka-0.8` | N | Y | A Kafka 0.8 source for Avro data.
 | `Kafka09JsonTableSource` | `flink-connector-kafka-0.9` | N | Y | A Kafka 0.9 source for JSON data.
+| `Kafka09AvroTableSource` | `flink-connector-kafka-0.9` | N | Y | A Kafka 0.9 source for Avro data.
+| `Kafka010JsonTableSource` | `flink-connector-kafka-0.10` | N | Y | A Kafka 0.10 source for JSON data.
+| `Kafka010AvroTableSource` | `flink-connector-kafka-0.10` | N | Y | A Kafka 0.10 source for Avro data.
 
 All sources that come with the `flink-table` dependency can be directly used by your Table programs. For all other table sources, you have to add the respective dependency in addition to the `flink-table` dependency.
 
@@ -218,22 +222,42 @@ All sources that come with the `flink-table` dependency can be directly used by 
 
 To use the Kafka JSON source, you have to add the Kafka connector dependency to your project:
 
-  - `flink-connector-kafka-0.8` for Kafka 0.8, and
-  - `flink-connector-kafka-0.9` for Kafka 0.9, respectively.
+  - `flink-connector-kafka-0.8` for Kafka 0.8,
+  - `flink-connector-kafka-0.9` for Kafka 0.9, or
+  - `flink-connector-kafka-0.10` for Kafka 0.10, respectively.
 
 You can then create the source as follows (example for Kafka 0.8):
-
-```java
-// The JSON field names and types
-String[] fieldNames =  new String[] { "id", "name", "score"};
-Class<?>[] fieldTypes = new Class<?>[] { Integer.class, String.class, Double.class };
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// specify JSON field names and types
+TypeInformation<Row> typeInfo = Types.ROW(
+  new String[] { "id", "name", "score" },
+  new TypeInformation<?>[] { Types.INT(), Types.STRING(), Types.DOUBLE() }
+);
 
 KafkaJsonTableSource kafkaTableSource = new Kafka08JsonTableSource(
     kafkaTopic,
     kafkaProperties,
-    fieldNames,
-    fieldTypes);
-```
+    typeInfo);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// specify JSON field names and types
+val typeInfo = Types.ROW(
+  Array("id", "name", "score"),
+  Array(Types.INT, Types.STRING, Types.DOUBLE)
+)
+
+val kafkaTableSource = new Kafka08JsonTableSource(
+    kafkaTopic,
+    kafkaProperties,
+    typeInfo)
+{% endhighlight %}
+</div>
+</div>
 
 By default, a missing JSON field does not fail the source. You can configure this via:
 
@@ -248,6 +272,43 @@ You can work with the Table as explained in the rest of the Table API guide:
 tableEnvironment.registerTableSource("kafka-source", kafkaTableSource);
 Table result = tableEnvironment.ingest("kafka-source");
 ```
+
+#### KafkaAvroTableSource
+
+The `KafkaAvroTableSource` allows you to read Avro's `SpecificRecord` objects from Kafka.
+
+To use the Kafka Avro source, you have to add the Kafka connector dependency to your project:
+
+  - `flink-connector-kafka-0.8` for Kafka 0.8,
+  - `flink-connector-kafka-0.9` for Kafka 0.9, or
+  - `flink-connector-kafka-0.10` for Kafka 0.10, respectively.
+
+You can then create the source as follows (example for Kafka 0.8):
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// pass the generated Avro class to the TableSource
+Class<? extends SpecificRecord> clazz = MyAvroType.class; 
+
+KafkaAvroTableSource kafkaTableSource = new Kafka08AvroTableSource(
+    kafkaTopic,
+    kafkaProperties,
+    clazz);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// pass the generated Avro class to the TableSource
+val clazz = classOf[MyAvroType]
+
+val kafkaTableSource = new Kafka08AvroTableSource(
+    kafkaTopic,
+    kafkaProperties,
+    clazz)
+{% endhighlight %}
+</div>
+</div>
 
 #### CsvTableSource
 
@@ -1047,7 +1108,7 @@ The following example shows how to define a window aggregation on a table.
 Table table = input
   .window([Window w].as("w"))  // define window with alias w
   .groupBy("w")  // group the table by window w
-  .select("b.sum")  // aggregate
+  .select("b.sum");  // aggregate
 {% endhighlight %}
 </div>
 
@@ -1070,7 +1131,7 @@ The following example shows how to define a window aggregation with additional g
 Table table = input
   .window([Window w].as("w"))  // define window with alias w
   .groupBy("w, a")  // group the table by attribute a and window w 
-  .select("a, b.sum")  // aggregate
+  .select("a, b.sum");  // aggregate
 {% endhighlight %}
 </div>
 
@@ -1092,7 +1153,7 @@ The `Window` parameter defines how rows are mapped to windows. `Window` is not a
 Table table = input
   .window([Window w].as("w"))  // define window with alias w
   .groupBy("w, a")  // group the table by attribute a and window w 
-  .select("a, w.start, w.end, b.count") // aggregate and add window start and end timestamps
+  .select("a, w.start, w.end, b.count"); // aggregate and add window start and end timestamps
 {% endhighlight %}
 </div>
 
@@ -1144,13 +1205,13 @@ Tumbling windows are defined by using the `Tumble` class as follows:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // Tumbling Event-time Window
-.window(Tumble.over("10.minutes").on("rowtime").as("w"))
+.window(Tumble.over("10.minutes").on("rowtime").as("w"));
 
 // Tumbling Processing-time Window
-.window(Tumble.over("10.minutes").as("w"))
+.window(Tumble.over("10.minutes").as("w"));
 
 // Tumbling Row-count Window
-.window(Tumble.over("10.rows").as("w"))
+.window(Tumble.over("10.rows").as("w"));
 {% endhighlight %}
 </div>
 
@@ -1211,13 +1272,13 @@ Sliding windows are defined by using the `Slide` class as follows:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // Sliding Event-time Window
-.window(Slide.over("10.minutes").every("5.minutes").on("rowtime").as("w"))
+.window(Slide.over("10.minutes").every("5.minutes").on("rowtime").as("w"));
 
 // Sliding Processing-time window
-.window(Slide.over("10.minutes").every("5.minutes").as("w"))
+.window(Slide.over("10.minutes").every("5.minutes").as("w"));
 
 // Sliding Row-count window
-.window(Slide.over("10.rows").every("5.rows").as("w"))
+.window(Slide.over("10.rows").every("5.rows").as("w"));
 {% endhighlight %}
 </div>
 
@@ -1273,10 +1334,10 @@ A session window is defined by using the `Session` class as follows:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // Session Event-time Window
-.window(Session.withGap("10.minutes").on("rowtime").as("w"))
+.window(Session.withGap("10.minutes").on("rowtime").as("w"));
 
 // Session Processing-time Window
-.window(Session.withGap("10.minutes").as("w"))
+.window(Session.withGap("10.minutes").as("w"));
 {% endhighlight %}
 </div>
 
@@ -1684,6 +1745,9 @@ The Table API is built on top of Flink's DataSet and DataStream API. Internally,
 | `Types.TIMESTAMP`      | `TIMESTAMP(3)`              | `java.sql.Timestamp`   |
 | `Types.INTERVAL_MONTHS`| `INTERVAL YEAR TO MONTH`    | `java.lang.Integer`    |
 | `Types.INTERVAL_MILLIS`| `INTERVAL DAY TO SECOND(3)` | `java.lang.Long`       |
+| `Types.PRIMITIVE_ARRAY`| `ARRAY`                     | e.g. `int[]`           |
+| `Types.OBJECT_ARRAY`   | `ARRAY`                     | e.g. `java.lang.Byte[]`|
+| `Types.MAP`            | `MAP`                       | `java.util.HashMap`    |
 
 
 Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and array types (object or primitive arrays) can be fields of a row. 
@@ -2093,6 +2157,138 @@ NUMERIC.floor()
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.sin()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.cos()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.tan()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.cot()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cotangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.asin()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.acos()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.atan()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.degrees()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from radians to degrees.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.radians()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from degrees to radians.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.sign()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the signum of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.round(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds the given number to <i>integer</i> places right to the decimal point.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+pi()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a value that is closer than any other value to pi.</p>
+      </td>
+    </tr>
+    
   </tbody>
 </table>
 
@@ -3110,6 +3306,138 @@ NUMERIC.floor()
       </td>
       <td>
         <p>Calculates the largest integer less than or equal to a given number.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.sin()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.cos()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.tan()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cotangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.cot()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.asin()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.acos()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.atan()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.degrees()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from radians to degrees.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.radians()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from degrees to radians.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.sign()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the signum of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.round(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds the given number to <i>integer</i> places right to the decimal point.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+pi()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a value that is closer than any other value to pi.</p>
       </td>
     </tr>
 
@@ -4268,6 +4596,7 @@ EXP(numeric)
       <td>
         {% highlight text %}
 CEIL(numeric)
+CEILING(numeric)
 {% endhighlight %}
       </td>
       <td>
@@ -4283,6 +4612,138 @@ FLOOR(numeric)
       </td>
       <td>
         <p>Rounds <i>numeric</i> down, and returns the largest number that is less than or equal to <i>numeric</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SIN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+COS(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+TAN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+COT(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cotangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ASIN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ACOS(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ATAN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+DEGREES(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from radians to degrees.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+RADIANS(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from degrees to radians.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SIGN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the signum of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ROUND(numeric, int)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds the given number to <i>integer</i> places right to the decimal point.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+PI()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a value that is closer than any other value to pi.</p>
       </td>
     </tr>
 
@@ -5007,7 +5468,7 @@ public class HashCode extends ScalarFunction {
 BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // register the function
-tableEnv.registerFunction("hashCode", new HashCode(10))
+tableEnv.registerFunction("hashCode", new HashCode(10));
 
 // use the function in Java Table API
 myTable.select("string, string.hashCode(), hashCode(string)");
@@ -5249,7 +5710,7 @@ conf.setString("hashcode_factor", "31");
 env.getConfig().setGlobalJobParameters(conf);
 
 // register the function
-tableEnv.registerFunction("hashCode", new HashCode())
+tableEnv.registerFunction("hashCode", new HashCode());
 
 // use the function in Java Table API
 myTable.select("string, string.hashCode(), hashCode(string)");

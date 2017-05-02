@@ -20,13 +20,11 @@ package org.apache.flink.streaming.util.serialization;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.types.Row;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.util.Preconditions;
-
 import java.io.IOException;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Deserialization schema from JSON to {@link Row}.
@@ -37,6 +35,9 @@ import java.io.IOException;
  * <p>Failure during deserialization are forwarded as wrapped IOExceptions.
  */
 public class JsonRowDeserializationSchema implements DeserializationSchema<Row> {
+
+	/** Type information describing the result type. */
+	private final TypeInformation<Row> typeInfo;
 
 	/** Field names to parse. Indices match fieldTypes indices. */
 	private final String[] fieldNames;
@@ -51,35 +52,17 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	private boolean failOnMissingField;
 
 	/**
-	 * Creates a JSON deserialization schema for the given fields and type classes.
-	 *
-	 * @param fieldNames Names of JSON fields to parse.
-	 * @param fieldTypes Type classes to parse JSON fields as.
-	 */
-	public JsonRowDeserializationSchema(String[] fieldNames, Class<?>[] fieldTypes) {
-		this.fieldNames = Preconditions.checkNotNull(fieldNames, "Field names");
-
-		this.fieldTypes = new TypeInformation[fieldTypes.length];
-		for (int i = 0; i < fieldTypes.length; i++) {
-			this.fieldTypes[i] = TypeExtractor.getForClass(fieldTypes[i]);
-		}
-
-		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
-				"Number of provided field names and types does not match.");
-	}
-
-	/**
 	 * Creates a JSON deserialization schema for the given fields and types.
 	 *
-	 * @param fieldNames Names of JSON fields to parse.
-	 * @param fieldTypes Types to parse JSON fields as.
+	 * @param typeInfo   Type information describing the result type. The field names are used
+	 *                   to parse the JSON file and so are the types.
 	 */
-	public JsonRowDeserializationSchema(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		this.fieldNames = Preconditions.checkNotNull(fieldNames, "Field names");
-		this.fieldTypes = Preconditions.checkNotNull(fieldTypes, "Field types");
+	public JsonRowDeserializationSchema(TypeInformation<Row> typeInfo) {
+		Preconditions.checkNotNull(typeInfo, "Type information");
+		this.typeInfo = typeInfo;
 
-		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
-				"Number of provided field names and types does not match.");
+		this.fieldNames = ((RowTypeInfo) typeInfo).getFieldNames();
+		this.fieldTypes = ((RowTypeInfo) typeInfo).getFieldTypes();
 	}
 
 	@Override
@@ -118,7 +101,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
 	@Override
 	public TypeInformation<Row> getProducedType() {
-		return new RowTypeInfo(fieldTypes);
+		return typeInfo;
 	}
 
 	/**

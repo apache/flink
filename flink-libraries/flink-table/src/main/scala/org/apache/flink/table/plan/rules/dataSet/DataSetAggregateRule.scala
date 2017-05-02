@@ -18,22 +18,24 @@
 
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.flink.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention, DataSetUnion}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.{DataSetAggregate, DataSetUnion}
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalAggregate
+
 import scala.collection.JavaConversions._
 
 class DataSetAggregateRule
   extends ConverterRule(
-    classOf[LogicalAggregate],
-    Convention.NONE,
-    DataSetConvention.INSTANCE,
+    classOf[FlinkLogicalAggregate],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
     "DataSetAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val agg: LogicalAggregate = call.rel(0).asInstanceOf[LogicalAggregate]
+    val agg: FlinkLogicalAggregate = call.rel(0).asInstanceOf[FlinkLogicalAggregate]
 
     // for non-grouped agg sets we attach null row to source data
     // we need to apply DataSetAggregateWithNullValuesRule
@@ -56,9 +58,9 @@ class DataSetAggregateRule
   }
 
   override def convert(rel: RelNode): RelNode = {
-    val agg: LogicalAggregate = rel.asInstanceOf[LogicalAggregate]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val convInput: RelNode = RelOptRule.convert(agg.getInput, DataSetConvention.INSTANCE)
+    val agg: FlinkLogicalAggregate = rel.asInstanceOf[FlinkLogicalAggregate]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
+    val convInput: RelNode = RelOptRule.convert(agg.getInput, FlinkConventions.DATASET)
 
     if (agg.indicator) {
         agg.groupSets.map(set =>

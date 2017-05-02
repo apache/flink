@@ -17,9 +17,9 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
@@ -80,19 +80,17 @@ public class DataStreamSink<T> {
 
 	/**
 	 * Sets an user provided hash for this operator. This will be used AS IS the create the JobVertexID.
-	 * <p/>
+	 *
 	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when identifying an
 	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions).
-	 * <p/>
+	 *
 	 * <p><strong>Important</strong>: this should be used as a workaround or for trouble shooting. The provided hash
 	 * needs to be unique per transformation and job. Otherwise, job submission will fail. Furthermore, you cannot
 	 * assign user-specified hash to intermediate nodes in an operator chain and trying so will let your job fail.
 	 *
-	 * <p>
-	 * A use case for this is in migration between Flink versions or changing the jobs in a way that changes the
+	 * <p>A use case for this is in migration between Flink versions or changing the jobs in a way that changes the
 	 * automatically generated hashes. In this case, providing the previous hashes directly through this method (e.g.
 	 * obtained from old logs) can help to reestablish a lost mapping from states to their target operator.
-	 * <p/>
 	 *
 	 * @param uidHash The user provided hash for this operator. This will become the JobVertexID, which is shown in the
 	 *                 logs and web ui.
@@ -158,8 +156,7 @@ public class DataStreamSink<T> {
 	 * Turns off chaining for this operator so thread co-location will not be
 	 * used as an optimization.
 	 *
-	 * <p>
-	 * Chaining can be turned off for the whole
+	 * <p>Chaining can be turned off for the whole
 	 * job by {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#disableOperatorChaining()}
 	 * however it is not advised for performance considerations.
 	 *

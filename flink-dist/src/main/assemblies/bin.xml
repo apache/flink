@@ -54,6 +54,7 @@ under the License.
 			<fileMode>0644</fileMode>
 		</file>
 
+		<!-- copy the config file -->
 		<file>
 			<source>src/main/resources/flink-conf.yaml</source>
 			<outputDirectory>conf</outputDirectory>
@@ -170,6 +171,20 @@ under the License.
 			<excludes>
 				<exclude>flink-examples-streaming*.jar</exclude>
 				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+
+		<!-- copy jar files of the gelly examples -->
+		<fileSet>
+			<directory>../flink-libraries/flink-gelly-examples/target</directory>
+			<outputDirectory>examples/gelly</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>original-*.jar</exclude>
+				<exclude>*-tests.jar</exclude>
 			</excludes>
 		</fileSet>
 

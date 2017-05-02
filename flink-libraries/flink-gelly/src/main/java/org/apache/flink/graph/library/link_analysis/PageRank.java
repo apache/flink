@@ -508,8 +508,14 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
 
+		@Override
 		public T getVertexId0() {
 			return f0;
+		}
+
+		@Override
+		public void setVertexId0(T value) {
+			f0 = value;
 		}
 
 		/**

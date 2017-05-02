@@ -45,9 +45,9 @@ public abstract class BoundedOutOfOrdernessTimestampExtractor<T> implements Assi
 	private final long maxOutOfOrderness;
 
 	public BoundedOutOfOrdernessTimestampExtractor(Time maxOutOfOrderness) {
-		if(maxOutOfOrderness.toMilliseconds() < 0) {
+		if (maxOutOfOrderness.toMilliseconds() < 0) {
 			throw new RuntimeException("Tried to set the maximum allowed " +
-				"lateness to "+ maxOutOfOrderness +". This parameter cannot be negative.");
+				"lateness to " + maxOutOfOrderness + ". This parameter cannot be negative.");
 		}
 		this.maxOutOfOrderness = maxOutOfOrderness.toMilliseconds();
 		this.currentMaxTimestamp = Long.MIN_VALUE + this.maxOutOfOrderness;
@@ -69,7 +69,7 @@ public abstract class BoundedOutOfOrdernessTimestampExtractor<T> implements Assi
 	public final Watermark getCurrentWatermark() {
 		// this guarantees that the watermark never goes backwards.
 		long potentialWM = currentMaxTimestamp - maxOutOfOrderness;
-		if(potentialWM >= lastEmittedWatermark) {
+		if (potentialWM >= lastEmittedWatermark) {
 			lastEmittedWatermark = potentialWM;
 		}
 		return new Watermark(lastEmittedWatermark);
@@ -78,7 +78,7 @@ public abstract class BoundedOutOfOrdernessTimestampExtractor<T> implements Assi
 	@Override
 	public final long extractTimestamp(T element, long previousElementTimestamp) {
 		long timestamp = extractTimestamp(element);
-		if(timestamp > currentMaxTimestamp) {
+		if (timestamp > currentMaxTimestamp) {
 			currentMaxTimestamp = timestamp;
 		}
 		return timestamp;

@@ -32,7 +32,7 @@ public enum TriggerResult {
 
 	/**
 	 * {@code FIRE_AND_PURGE} evaluates the window function and emits the window
-	 * result. 
+	 * result.
 	 */
 	FIRE_AND_PURGE(true, true),
 
@@ -49,7 +49,7 @@ public enum TriggerResult {
 	PURGE(false, true);
 
 	// ------------------------------------------------------------------------
-	
+
 	private final boolean fire;
 	private final boolean purge;
 

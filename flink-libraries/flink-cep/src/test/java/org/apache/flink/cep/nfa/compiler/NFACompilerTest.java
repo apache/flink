@@ -149,45 +149,6 @@ public class NFACompilerTest extends TestLogger {
 		assertEquals(0, endingState.getStateTransitions().size());
 	}
 
-	@Test
-	public void testNFACompilerWithKleeneStar() {
-
-		Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(startFilter)
-			.followedBy("middle").subtype(SubEvent.class).zeroOrMore()
-			.followedBy("end").where(endFilter);
-
-		NFA<Event> nfa = NFACompiler.compile(pattern, serializer, false);
-
-		Set<State<Event>> states = nfa.getStates();
-		assertEquals(5, states.size());
-
-
-		Set<Tuple2<String, Set<Tuple2<String, StateTransitionAction>>>> stateMap = new HashSet<>();
-		for (State<Event> state : states) {
-			stateMap.add(Tuple2.of(state.getName(), unfoldTransitions(state)));
-		}
-
-		assertEquals(stateMap, newHashSet(
-			Tuple2.of("start", newHashSet(Tuple2.of("middle", StateTransitionAction.TAKE))),
-			Tuple2.of("middle", newHashSet(
-				Tuple2.of("middle", StateTransitionAction.IGNORE),
-				Tuple2.of("middle", StateTransitionAction.TAKE)
-			)),
-		    Tuple2.of("middle", newHashSet(
-			    Tuple2.of("middle", StateTransitionAction.IGNORE),
-			    Tuple2.of("middle", StateTransitionAction.TAKE),
-			    Tuple2.of("end", StateTransitionAction.PROCEED)
-		    )),
-			Tuple2.of("end", newHashSet(
-				Tuple2.of(NFACompiler.ENDING_STATE_NAME, StateTransitionAction.TAKE),
-				Tuple2.of("end", StateTransitionAction.IGNORE)
-			)),
-		    Tuple2.of(NFACompiler.ENDING_STATE_NAME, Sets.newHashSet())
-		));
-
-	}
-
-
 	private <T> Set<Tuple2<String, StateTransitionAction>> unfoldTransitions(final State<T> state) {
 		final Set<Tuple2<String, StateTransitionAction>> transitions = new HashSet<>();
 		for (StateTransition<T> transition : state.getStateTransitions()) {

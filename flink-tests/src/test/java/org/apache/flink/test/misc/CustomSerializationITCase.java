@@ -30,6 +30,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.types.Value;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -40,7 +41,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
-public class CustomSerializationITCase {
+public class CustomSerializationITCase extends TestLogger {
 
 	private static final int PARLLELISM = 5;
 	

@@ -40,6 +40,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -222,11 +223,11 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 			checkpointsPath,
 			stateSotrage,
 			Executors.directExecutor());
-		
-		
+
 		for (long i = 0; i <= numCheckpointsToRetain; ++i) {
 			CompletedCheckpoint checkpointToAdd = mock(CompletedCheckpoint.class);
 			doReturn(i).when(checkpointToAdd).getCheckpointID();
+			doReturn(Collections.emptyMap()).when(checkpointToAdd).getOperatorStates();
 			
 			try {
 				zooKeeperCompletedCheckpointStore.addCheckpoint(checkpointToAdd);

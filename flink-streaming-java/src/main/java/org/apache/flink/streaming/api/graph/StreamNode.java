@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
@@ -28,10 +31,6 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * Class representing the operators in the streaming programs, with all their properties.
  */
@@ -40,7 +39,7 @@ public class StreamNode implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	transient private StreamExecutionEnvironment env;
+	private transient StreamExecutionEnvironment env;
 
 	private final int id;
 	private Integer parallelism = null;
@@ -54,8 +53,8 @@ public class StreamNode implements Serializable {
 	private Long bufferTimeout = null;
 	private final String operatorName;
 	private String slotSharingGroup;
-	private KeySelector<?,?> statePartitioner1;
-	private KeySelector<?,?> statePartitioner2;
+	private KeySelector<?, ?> statePartitioner1;
+	private KeySelector<?, ?> statePartitioner2;
 	private TypeSerializer<?> stateKeySerializer;
 
 	private transient StreamOperator<?> operator;

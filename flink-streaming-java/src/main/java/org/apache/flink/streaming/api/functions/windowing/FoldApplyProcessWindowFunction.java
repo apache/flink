@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,6 +17,10 @@
  */
 package org.apache.flink.streaming.api.functions.windowing;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Collections;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
@@ -31,11 +35,11 @@ import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.Collections;
-
+/**
+ * Internal {@link ProcessWindowFunction} that is used for implementing a fold on a window
+ * configuration that only allows {@link ProcessWindowFunction} and cannot directly execute a
+ * {@link FoldFunction}.
+ */
 @Internal
 public class FoldApplyProcessWindowFunction<K, W extends Window, T, ACC, R>
 	extends RichProcessWindowFunction<T, R, K, W>
@@ -96,16 +100,14 @@ public class FoldApplyProcessWindowFunction<K, W extends Window, T, ACC, R>
 		}
 
 		this.ctx.window = context.window();
-		this.ctx.windowState = context.windowState();
-		this.ctx.globalState = context.globalState();
+		this.ctx.context = context;
 		windowFunction.process(key, ctx, Collections.singletonList(result), out);
 	}
 
 	@Override
 	public void clear(final Context context) throws Exception{
 		this.ctx.window = context.window();
-		this.ctx.windowState = context.windowState();
-		this.ctx.globalState = context.globalState();
+		this.ctx.context = context;
 		windowFunction.clear(ctx);
 	}
 

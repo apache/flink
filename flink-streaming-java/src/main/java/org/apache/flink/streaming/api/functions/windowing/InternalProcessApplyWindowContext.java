@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  *
  * @param <IN> The type of the input value.
  * @param <OUT> The type of the output value.
- * @param <KEY> The type of the window key. 
+ * @param <KEY> The type of the window key.
  * @param <W> The type of the window.
  */
 @Internal
@@ -34,8 +34,7 @@ public class InternalProcessApplyWindowContext<IN, OUT, KEY, W extends Window>
 	extends ProcessWindowFunction<IN, OUT, KEY, W>.Context {
 
 	W window;
-	KeyedStateStore windowState;
-	KeyedStateStore globalState;
+	ProcessWindowFunction.Context context;
 
 	InternalProcessApplyWindowContext(ProcessWindowFunction<IN, OUT, KEY, W> function) {
 		function.super();
@@ -47,12 +46,21 @@ public class InternalProcessApplyWindowContext<IN, OUT, KEY, W extends Window>
 	}
 
 	@Override
+	public long currentProcessingTime() {
+		return context.currentProcessingTime();
+	}
+
+	@Override
+	public long currentWatermark() {
+		return context.currentWatermark();
+	}
+
 	public KeyedStateStore windowState() {
-		return windowState;
+		return context.windowState();
 	}
 
 	@Override
 	public KeyedStateStore globalState() {
-		return globalState;
+		return context.globalState();
 	}
 }

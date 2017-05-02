@@ -54,6 +54,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkFor
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
+import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.RelTable
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks.TableSink
@@ -149,21 +150,41 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
-    * Returns the optimization rule set for this environment
+    * Returns the logical optimization rule set for this environment
     * including a custom RuleSet configuration.
     */
-  protected def getOptRuleSet: RuleSet = {
+  protected def getLogicalOptRuleSet: RuleSet = {
     val calciteConfig = config.getCalciteConfig
-    calciteConfig.getOptRuleSet match {
+    calciteConfig.getLogicalOptRuleSet match {
 
       case None =>
-        getBuiltInOptRuleSet
+        getBuiltInLogicalOptRuleSet
 
       case Some(ruleSet) =>
-        if (calciteConfig.replacesOptRuleSet) {
+        if (calciteConfig.replacesLogicalOptRuleSet) {
           ruleSet
         } else {
-          RuleSets.ofList((getBuiltInOptRuleSet.asScala ++ ruleSet.asScala).asJava)
+          RuleSets.ofList((getBuiltInLogicalOptRuleSet.asScala ++ ruleSet.asScala).asJava)
+        }
+    }
+  }
+
+  /**
+    * Returns the physical optimization rule set for this environment
+    * including a custom RuleSet configuration.
+    */
+  protected def getPhysicalOptRuleSet: RuleSet = {
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getPhysicalOptRuleSet match {
+
+      case None =>
+        getBuiltInPhysicalOptRuleSet
+
+      case Some(ruleSet) =>
+        if (calciteConfig.replacesPhysicalOptRuleSet) {
+          ruleSet
+        } else {
+          RuleSets.ofList((getBuiltInPhysicalOptRuleSet.asScala ++ ruleSet.asScala).asJava)
         }
     }
   }
@@ -194,9 +215,16 @@ abstract class TableEnvironment(val config: TableConfig) {
   protected def getBuiltInNormRuleSet: RuleSet
 
   /**
-    * Returns the built-in optimization rules that are defined by the environment.
+    * Returns the built-in logical optimization rules that are defined by the environment.
     */
-  protected def getBuiltInOptRuleSet: RuleSet
+  protected def getBuiltInLogicalOptRuleSet: RuleSet = {
+    FlinkRuleSets.LOGICAL_OPT_RULES
+  }
+
+  /**
+    * Returns the built-in physical optimization rules that are defined by the environment.
+    */
+  protected def getBuiltInPhysicalOptRuleSet: RuleSet
 
   /**
     * run HEP planner
@@ -537,7 +565,14 @@ abstract class TableEnvironment(val config: TableConfig) {
     */
   protected[flink] def getFieldInfo[A](inputType: TypeInformation[A]):
   (Array[String], Array[Int]) = {
-    (TableEnvironment.getFieldNames(inputType), TableEnvironment.getFieldIndices(inputType))
+
+    if (inputType.isInstanceOf[GenericTypeInfo[A]] && inputType.getTypeClass == classOf[Row]) {
+      throw new TableException(
+        "An input of GenericTypeInfo<Row> cannot be converted to Table. " +
+          "Please specify the type of the input with a RowTypeInfo.")
+    } else {
+      (TableEnvironment.getFieldNames(inputType), TableEnvironment.getFieldIndices(inputType))
+    }
   }
 
   /**
@@ -556,6 +591,10 @@ abstract class TableEnvironment(val config: TableConfig) {
     TableEnvironment.validateType(inputType)
 
     val indexedNames: Array[(Int, String)] = inputType match {
+      case g: GenericTypeInfo[A] if g.getTypeClass == classOf[Row] =>
+        throw new TableException(
+          "An input of GenericTypeInfo<Row> cannot be converted to Table. " +
+            "Please specify the type of the input with a RowTypeInfo.")
       case a: AtomicType[A] =>
         if (exprs.length != 1) {
           throw new TableException("Table of atomic type can only have a single field.")

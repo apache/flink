@@ -35,11 +35,12 @@ import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class SuccessAfterNetworkBuffersFailureITCase {
+public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 	
 	
 	@Test
@@ -51,7 +52,7 @@ public class SuccessAfterNetworkBuffersFailureITCase {
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 80L);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
-			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 840);
+			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 640);
 			
 			cluster = new LocalFlinkMiniCluster(config, false);
 

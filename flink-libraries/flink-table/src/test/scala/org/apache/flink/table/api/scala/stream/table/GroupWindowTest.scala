@@ -195,7 +195,7 @@ class GroupWindowTest extends TableTestBase {
           term(
             "window",
             ProcessingTimeTumblingGroupWindow(
-              Some(WindowReference("w1")),
+              WindowReference("w1"),
               50.milli)),
           term("select", "string", "COUNT(int) AS TMP_0")
         ),
@@ -204,7 +204,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         ProcessingTimeSlidingGroupWindow(
-          Some(WindowReference("w2")),
+          WindowReference("w2"),
           20.milli, 10.milli)),
       term("select", "COUNT(string) AS TMP_1")
     )
@@ -232,7 +232,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         ProcessingTimeTumblingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           50.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
@@ -261,7 +261,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         ProcessingTimeTumblingGroupWindow(
-          Some(WindowReference("w")), 2.rows)),
+          WindowReference("w"), 2.rows)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
@@ -289,7 +289,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         EventTimeTumblingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           RowtimeAttribute(),
           5.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
@@ -316,7 +316,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         EventTimeTumblingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           RowtimeAttribute(), 2.rows)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
@@ -345,7 +345,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         ProcessingTimeSlidingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           50.milli, 50.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
@@ -374,7 +374,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         ProcessingTimeSlidingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           2.rows, 1.rows)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
@@ -403,7 +403,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         EventTimeSlidingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           RowtimeAttribute(), 8.milli, 10.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
@@ -429,7 +429,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         EventTimeSlidingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           RowtimeAttribute(), 2.rows, 1.rows)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
@@ -458,7 +458,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         EventTimeSessionGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           RowtimeAttribute(), 7.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
@@ -487,7 +487,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         ProcessingTimeTumblingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           50.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
@@ -515,7 +515,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         ProcessingTimeTumblingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           2.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -543,7 +543,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         EventTimeTumblingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           RowtimeAttribute(), 5.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -572,7 +572,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         EventTimeTumblingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           RowtimeAttribute(), 2.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -601,7 +601,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         ProcessingTimeSlidingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           50.milli, 50.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -629,7 +629,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         ProcessingTimeSlidingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           2.rows, 1.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -657,7 +657,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         EventTimeSlidingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           RowtimeAttribute(), 8.milli, 10.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -686,7 +686,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         EventTimeSlidingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           RowtimeAttribute(), 2.rows, 1.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -714,7 +714,7 @@ class GroupWindowTest extends TableTestBase {
       term(
         "window",
         EventTimeSessionGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           RowtimeAttribute(), 7.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
@@ -742,7 +742,7 @@ class GroupWindowTest extends TableTestBase {
       term("groupBy", "string"),
       term("window",
         EventTimeTumblingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           RowtimeAttribute(),
           5.milli)),
       term("select",
@@ -775,7 +775,7 @@ class GroupWindowTest extends TableTestBase {
       term("groupBy", "string"),
       term("window",
         EventTimeSlidingGroupWindow(
-          Some(WindowReference("w")),
+          WindowReference("w"),
           RowtimeAttribute(),
           10.milli,
           5.milli)),
@@ -811,7 +811,7 @@ class GroupWindowTest extends TableTestBase {
         term("groupBy", "string"),
         term("window",
           EventTimeSessionGroupWindow(
-            Some(WindowReference("w")),
+            WindowReference("w"),
             RowtimeAttribute(),
             3.milli)),
         term("select",
@@ -849,7 +849,7 @@ class GroupWindowTest extends TableTestBase {
         term("groupBy", "string"),
         term("window",
           EventTimeTumblingGroupWindow(
-            Some(WindowReference("w")),
+            WindowReference("w"),
             RowtimeAttribute(),
             5.millis)),
         term("select",

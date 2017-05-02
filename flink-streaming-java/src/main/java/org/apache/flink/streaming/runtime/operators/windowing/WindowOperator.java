@@ -18,8 +18,16 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.apache.commons.math3.util.ArithmeticUtils;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.PriorityQueue;
+import org.apache.commons.math3.util.ArithmeticUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.AppendingState;
@@ -37,7 +45,6 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.util.OutputTag;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -55,13 +62,13 @@ import org.apache.flink.runtime.state.internal.InternalAppendingState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
 import org.apache.flink.streaming.api.datastream.LegacyWindowOperatorType;
-import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.windowing.assigners.BaseAlignedWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
@@ -72,31 +79,20 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.List;
-import java.util.PriorityQueue;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An operator that implements the logic for windowing based on a {@link WindowAssigner} and
  * {@link Trigger}.
  *
- * <p>
- * When an element arrives it gets assigned a key using a {@link KeySelector} and it gets
+ * <p>When an element arrives it gets assigned a key using a {@link KeySelector} and it gets
  * assigned to zero or more windows using a {@link WindowAssigner}. Based on this, the element
  * is put into panes. A pane is the bucket of elements that have the same key and same
  * {@code Window}. An element can be in multiple panes if it was assigned to multiple windows by the
  * {@code WindowAssigner}.
  *
- * <p>
- * Each pane gets its own instance of the provided {@code Trigger}. This trigger determines when
+ * <p>Each pane gets its own instance of the provided {@code Trigger}. This trigger determines when
  * the contents of the pane should be processed to emit results. When a trigger fires,
  * the given {@link InternalWindowFunction} is invoked to produce the results that are emitted for
  * the pane to which the {@code Trigger} belongs.
@@ -161,10 +157,13 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	private transient InternalMergingState<W, IN, ACC> windowMergingState;
 
-	/** The state that holds the merging window metadata (the sets that describe what is merged) */
+	/** The state that holds the merging window metadata (the sets that describe what is merged). */
 	private transient InternalListState<VoidNamespace, Tuple2<W, W>> mergingSetsState;
 
-	/** This is given to the {@code InternalWindowFunction} for emitting elements with a given timestamp. */
+	/**
+	 * This is given to the {@code InternalWindowFunction} for emitting elements with a given
+	 * timestamp.
+	 */
 	protected transient TimestampedCollector<OUT> timestampedCollector;
 
 	protected transient Context triggerContext = new Context(null, null);
@@ -275,7 +274,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				getInternalTimerService("window-timers", windowSerializer, this);
 
 		triggerContext = new Context(null, null);
-		processContext = new WindowContext( null);
+		processContext = new WindowContext(null);
 
 		windowAssignerContext = new WindowAssigner.WindowAssignerContext() {
 			@Override
@@ -310,7 +309,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 			final TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>(
 					typedTuple,
-					new TypeSerializer[] {windowSerializer, windowSerializer} );
+					new TypeSerializer[] {windowSerializer, windowSerializer});
 
 			final ListStateDescriptor<Tuple2<W, W>> mergingSetsStateDescriptor =
 					new ListStateDescriptor<>("merging-window-set", tupleSerializer);
@@ -599,7 +598,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	/**
-	 * Write skipped late arriving element to SideOutput
+	 * Write skipped late arriving element to SideOutput.
 	 *
 	 * @param element skipped late arriving element to side output
 	 */
@@ -815,6 +814,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		public void clear() throws Exception {
 			userFunction.clear(window, this);
+		}
+
+		@Override
+		public long currentProcessingTime() {
+			return internalTimerService.currentProcessingTime();
+		}
+
+		@Override
+		public long currentWatermark() {
+			return internalTimerService.currentWatermark();
 		}
 
 		@Override
@@ -1203,7 +1212,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		// just to read all the rest, although we do not really use this information.
 		int numProcessingTimeTimerTimestamp = in.readInt();
-		for (int i = 0; i< numProcessingTimeTimerTimestamp; i++) {
+		for (int i = 0; i < numProcessingTimeTimerTimestamp; i++) {
 			in.readLong();
 			in.readInt();
 		}

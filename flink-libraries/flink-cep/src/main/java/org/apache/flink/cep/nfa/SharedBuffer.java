@@ -274,7 +274,6 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	public void release(final K key, final V value, final long timestamp) {
 		SharedBufferEntry<K, V> entry = get(key, value, timestamp);
 		if (entry != null) {
-			entry.decreaseReferenceCounter();
 			internalRemove(entry);
 		}
 	}
@@ -493,13 +492,13 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 		while (!entriesToRemove.isEmpty()) {
 			SharedBufferEntry<K, V> currentEntry = entriesToRemove.pop();
+			currentEntry.decreaseReferenceCounter();
 
 			if (currentEntry.getReferenceCounter() == 0) {
 				currentEntry.remove();
 
-				for (SharedBufferEdge<K, V> edge: currentEntry.getEdges()) {
+				for (SharedBufferEdge<K, V> edge : currentEntry.getEdges()) {
 					if (edge.getTarget() != null) {
-						edge.getTarget().decreaseReferenceCounter();
 						entriesToRemove.push(edge.getTarget());
 					}
 				}

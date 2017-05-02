@@ -25,7 +25,9 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 
 import java.io.IOException;
@@ -86,6 +88,17 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	public MemoryStateBackend(int maxStateSize, boolean asynchronousSnapshots) {
 		this.maxStateSize = maxStateSize;
 		this.asynchronousSnapshots = asynchronousSnapshots;
+	}
+
+	@Override
+	public OperatorStateBackend createOperatorStateBackend(
+		Environment env,
+		String operatorIdentifier) throws Exception {
+
+		return new DefaultOperatorStateBackend(
+			env.getUserClassLoader(),
+			env.getExecutionConfig(),
+			asynchronousSnapshots);
 	}
 
 	@Override

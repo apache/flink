@@ -57,7 +57,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * Tests for the barrier buffer's maximum limit of buffered/spilled bytes 
+ * Tests for the barrier buffer's maximum limit of buffered/spilled bytes
  */
 public class BarrierBufferAlignmentLimitTest {
 
@@ -96,7 +96,7 @@ public class BarrierBufferAlignmentLimitTest {
 				/*  2 */ createBuffer(0, 42), createBuffer(2, 111),
 
 				// starting a checkpoint
-				/*  4 */ createBarrier(7, 1), 
+				/*  4 */ createBarrier(7, 1),
 				/*  5 */ createBuffer(1, 100), createBuffer(2, 200), createBuffer(1, 300), createBuffer(0, 50),
 				/*  9 */ createBarrier(7, 0),
 				/* 10 */ createBuffer(2, 100), createBuffer(0, 100), createBuffer(1, 200), createBuffer(0, 200),
@@ -106,7 +106,7 @@ public class BarrierBufferAlignmentLimitTest {
 
 				// additional data
 				/* 15 */ createBuffer(0, 100), createBuffer(1, 100), createBuffer(2, 100),
-				
+
 				// checkpoint completes - this should not result in a "completion notification"
 				/* 18 */ createBarrier(7, 2),
 
@@ -173,7 +173,7 @@ public class BarrierBufferAlignmentLimitTest {
 	 *   - an alignment starts
 	 *   - barriers from a second checkpoint queue before the first completes
 	 *   - together they are larger than the threshold
-	 *   - after the first checkpoint (with second checkpoint data queued) aborts, the second completes 
+	 *   - after the first checkpoint (with second checkpoint data queued) aborts, the second completes
 	 */
 	@Test
 	public void testAlignmentLimitWithQueuedAlignments() throws Exception {
@@ -182,8 +182,8 @@ public class BarrierBufferAlignmentLimitTest {
 				/*  0 */ createBuffer(1, 100), createBuffer(2, 70),
 
 				// starting a checkpoint
-				/*  2 */ createBarrier(3, 2), 
-				/*  3 */ createBuffer(1, 100), createBuffer(2, 100), 
+				/*  2 */ createBarrier(3, 2),
+				/*  3 */ createBuffer(1, 100), createBuffer(2, 100),
 				/*  5 */ createBarrier(3, 0),
 				/*  6 */ createBuffer(0, 100), createBuffer(1, 100),
 
@@ -239,7 +239,7 @@ public class BarrierBufferAlignmentLimitTest {
 		startTs = System.nanoTime();
 		check(sequence[12], buffer.getNextNonBlocked());
 
-		// only checkpoint 4 is pending now - the last checkpoint 3 barrier will not trigger success 
+		// only checkpoint 4 is pending now - the last checkpoint 3 barrier will not trigger success
 		check(sequence[17], buffer.getNextNonBlocked());
 
 		// checkpoint 4 completed - check and validate buffered replay

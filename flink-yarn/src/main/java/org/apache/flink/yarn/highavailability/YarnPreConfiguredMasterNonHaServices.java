@@ -21,6 +21,7 @@ package org.apache.flink.yarn.highavailability;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -107,7 +108,7 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 			}
 
 			this.resourceManagerRpcUrl = RpcServiceUtils.getRpcUrl(
-					rmHost, rmPort, RESOURCE_MANAGER_RPC_ENDPOINT_NAME, config);
+					rmHost, rmPort, FlinkResourceManager.RESOURCE_MANAGER_NAME, config);
 
 			// all well!
 			successful = true;

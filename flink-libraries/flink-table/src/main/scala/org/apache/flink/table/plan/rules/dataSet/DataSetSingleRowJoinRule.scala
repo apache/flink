@@ -19,22 +19,23 @@
 package org.apache.flink.table.plan.rules.dataSet
 
 import org.apache.calcite.plan.volcano.RelSubset
-import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rel.logical._
-import org.apache.flink.table.plan.nodes.dataset.{DataSetConvention, DataSetSingleRowJoin}
+import org.apache.calcite.rel.core._
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetSingleRowJoin
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 
 class DataSetSingleRowJoinRule
   extends ConverterRule(
-      classOf[LogicalJoin],
-      Convention.NONE,
-      DataSetConvention.INSTANCE,
-      "DataSetSingleRowJoinRule") {
+    classOf[FlinkLogicalJoin],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
+    "DataSetSingleRowJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val join = call.rel(0).asInstanceOf[LogicalJoin]
+    val join = call.rel(0).asInstanceOf[FlinkLogicalJoin]
 
     if (isInnerJoin(join)) {
       isSingleRow(join.getRight) || isSingleRow(join.getLeft)
@@ -43,7 +44,7 @@ class DataSetSingleRowJoinRule
     }
   }
 
-  private def isInnerJoin(join: LogicalJoin) = {
+  private def isInnerJoin(join: FlinkLogicalJoin) = {
     join.getJoinType == JoinRelType.INNER
   }
 
@@ -54,19 +55,19 @@ class DataSetSingleRowJoinRule
   private def isSingleRow(node: RelNode): Boolean = {
     node match {
       case ss: RelSubset => isSingleRow(ss.getOriginal)
-      case lp: LogicalProject => isSingleRow(lp.getInput)
-      case lf: LogicalFilter => isSingleRow(lf.getInput)
-      case lc: LogicalCalc => isSingleRow(lc.getInput)
-      case la: LogicalAggregate => la.getGroupSet.isEmpty
+      case lp: Project => isSingleRow(lp.getInput)
+      case lf: Filter => isSingleRow(lf.getInput)
+      case lc: Calc => isSingleRow(lc.getInput)
+      case la: Aggregate => la.getGroupSet.isEmpty
       case _ => false
     }
   }
 
   override def convert(rel: RelNode): RelNode = {
-    val join = rel.asInstanceOf[LogicalJoin]
-    val traitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val dataSetLeftNode = RelOptRule.convert(join.getLeft, DataSetConvention.INSTANCE)
-    val dataSetRightNode = RelOptRule.convert(join.getRight, DataSetConvention.INSTANCE)
+    val join = rel.asInstanceOf[FlinkLogicalJoin]
+    val traitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
+    val dataSetLeftNode = RelOptRule.convert(join.getLeft, FlinkConventions.DATASET)
+    val dataSetRightNode = RelOptRule.convert(join.getRight, FlinkConventions.DATASET)
     val leftIsSingle = isSingleRow(join.getLeft)
 
     new DataSetSingleRowJoin(

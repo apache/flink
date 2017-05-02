@@ -28,9 +28,9 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.GenericInputFormat
-import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{AtomicType, PrimitiveArrayTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.TableConfig
@@ -250,57 +250,90 @@ class CodeGenerator(
     * @param aggregates  All aggregate functions
     * @param aggFields   Indexes of the input fields for all aggregate functions
     * @param aggMapping  The mapping of aggregates to output fields
+    * @param partialResults A flag defining whether final or partial results (accumulators) are set
+    *                       to the output row.
     * @param fwdMapping  The mapping of input fields to output fields
+    * @param mergeMapping An optional mapping to specify the accumulators to merge. If not set, we
+    *                     assume that both rows have the accumulators at the same position.
+    * @param constantFlags An optional parameter to define where to set constant boolean flags in
+    *                      the output row.
     * @param outputArity The number of fields in the output row.
     *
     * @return A GeneratedAggregationsFunction
     */
   def generateAggregations(
-     name: String,
-     generator: CodeGenerator,
-     inputType: RelDataType,
-     aggregates: Array[AggregateFunction[_ <: Any]],
-     aggFields: Array[Array[Int]],
-     aggMapping: Array[Int],
-     fwdMapping: Array[(Int, Int)],
-     outputArity: Int)
+      name: String,
+      generator: CodeGenerator,
+      inputType: RelDataType,
+      aggregates: Array[AggregateFunction[_ <: Any, _ <: Any]],
+      aggFields: Array[Array[Int]],
+      aggMapping: Array[Int],
+      partialResults: Boolean,
+      fwdMapping: Array[Int],
+      mergeMapping: Option[Array[Int]],
+      constantFlags: Option[Array[(Int, Boolean)]],
+      outputArity: Int,
+      needRetract: Boolean,
+      needMerge: Boolean)
   : GeneratedAggregationsFunction = {
 
-    def generateSetAggregationResults(
-      accTypes: Array[String],
-      aggs: Array[String],
-      aggMapping: Array[Int]): String = {
+    // get unique function name
+    val funcName = newName(name)
+    // register UDAGGs
+    val aggs = aggregates.map(a => generator.addReusableFunction(a))
+    // get java types of accumulators
+    val accTypes = aggregates.map { a =>
+      a.getClass.getMethod("createAccumulator").getReturnType.getCanonicalName
+    }
+
+    // get java types of input fields
+    val javaTypes = inputType.getFieldList
+      .map(f => FlinkTypeFactory.toTypeInfo(f.getType))
+      .map(t => t.getTypeClass.getCanonicalName)
+    // get parameter lists for aggregation functions
+    val parameters = aggFields.map {inFields =>
+      val fields = for (f <- inFields) yield s"(${javaTypes(f)}) input.getField($f)"
+      fields.mkString(", ")
+    }
+
+    def genSetAggregationResults: String = {
 
       val sig: String =
         j"""
-            |  public void setAggregationResults(
-            |    org.apache.flink.types.Row accs,
-            |    org.apache.flink.types.Row output)""".stripMargin
+           |  public final void setAggregationResults(
+           |    org.apache.flink.types.Row accs,
+           |    org.apache.flink.types.Row output)""".stripMargin
 
       val setAggs: String = {
         for (i <- aggs.indices) yield
-          j"""
-             |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
-             |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
-             |
-             |    output.setField(
-             |      ${aggMapping(i)},
-             |      baseClass$i.getValue((${accTypes(i)}) accs.getField($i)));""".stripMargin
+
+          if (partialResults) {
+            j"""
+               |    output.setField(
+               |      ${aggMapping(i)},
+               |      (${accTypes(i)}) accs.getField($i));""".stripMargin
+          } else {
+            j"""
+               |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
+               |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
+               |
+               |    output.setField(
+               |      ${aggMapping(i)},
+               |      baseClass$i.getValue((${accTypes(i)}) accs.getField($i)));""".stripMargin
+          }
       }.mkString("\n")
 
-      j"""$sig {
+      j"""
+         |$sig {
          |$setAggs
          |  }""".stripMargin
     }
 
-    def generateAccumulate(
-     accTypes: Array[String],
-     aggs: Array[String],
-     parameters: Array[String]): String = {
+    def genAccumulate: String = {
 
       val sig: String =
         j"""
-            |  public void accumulate(
+            |  public final void accumulate(
             |    org.apache.flink.types.Row accs,
             |    org.apache.flink.types.Row input)""".stripMargin
 
@@ -317,14 +350,11 @@ class CodeGenerator(
          |  }""".stripMargin
     }
 
-    def generateRetract(
-      accTypes: Array[String],
-      aggs: Array[String],
-      parameters: Array[String]): String = {
+    def genRetract: String = {
 
       val sig: String =
         j"""
-            |  public void retract(
+            |  public final void retract(
             |    org.apache.flink.types.Row accs,
             |    org.apache.flink.types.Row input)""".stripMargin
 
@@ -336,17 +366,23 @@ class CodeGenerator(
              |      ${parameters(i)});""".stripMargin
       }.mkString("\n")
 
-      j"""$sig {
-         |$retract
-         |  }""".stripMargin
+      if (needRetract) {
+        j"""
+           |$sig {
+           |$retract
+           |  }""".stripMargin
+      } else {
+        j"""
+           |$sig {
+           |  }""".stripMargin
+      }
     }
 
-    def generateCreateAccumulators(
-        aggs: Array[String]): String = {
+    def genCreateAccumulators: String = {
 
       val sig: String =
         j"""
-           |  public org.apache.flink.types.Row createAccumulators()
+           |  public final org.apache.flink.types.Row createAccumulators()
            |    """.stripMargin
       val init: String =
         j"""
@@ -373,22 +409,24 @@ class CodeGenerator(
          |  }""".stripMargin
     }
 
-    def generateSetForwardedFields(
-        forwardMapping: Array[(Int, Int)]): String = {
+    def genSetForwardedFields: String = {
 
       val sig: String =
         j"""
-           |  public void setForwardedFields(
+           |  public final void setForwardedFields(
            |    org.apache.flink.types.Row input,
            |    org.apache.flink.types.Row output)
            |    """.stripMargin
+
       val forward: String = {
-        for (i <- forwardMapping.indices) yield
-          j"""
-             |    output.setField(
-             |      ${forwardMapping(i)._1},
-             |      input.getField(${forwardMapping(i)._2}));"""
-            .stripMargin
+        for (i <- fwdMapping.indices if fwdMapping(i) >= 0) yield
+          {
+            j"""
+               |    output.setField(
+               |      $i,
+               |      input.getField(${fwdMapping(i)}));"""
+              .stripMargin
+          }
       }.mkString("\n")
 
       j"""$sig {
@@ -396,38 +434,113 @@ class CodeGenerator(
          |  }""".stripMargin
     }
 
-    def generateCreateOutputRow(outputArity: Int): String = {
+    def genSetConstantFlags: String = {
+
+      val sig: String =
+        j"""
+           |  public final void setConstantFlags(org.apache.flink.types.Row output)
+           |    """.stripMargin
+
+      val setFlags: String = if (constantFlags.isDefined) {
+        {
+          for (cf <- constantFlags.get) yield {
+            j"""
+               |    output.setField(${cf._1}, ${if (cf._2) "true" else "false"});"""
+              .stripMargin
+          }
+        }.mkString("\n")
+      } else {
+        ""
+      }
+
+      j"""$sig {
+         |$setFlags
+         |  }""".stripMargin
+    }
+
+    def genCreateOutputRow: String = {
       j"""
-         |  public org.apache.flink.types.Row createOutputRow() {
+         |  public final org.apache.flink.types.Row createOutputRow() {
          |    return new org.apache.flink.types.Row($outputArity);
          |  }""".stripMargin
     }
 
-    // get unique function name
-    val funcName = newName(name)
-    // register UDAGGs
-    val aggs = aggregates.map(a => generator.addReusableFunction(a))
-    // get java types of accumulators
-    val accTypes = aggregates.map { a =>
-      a.getClass.getMethod("createAccumulator").getReturnType.getCanonicalName
+    def genMergeAccumulatorsPair: String = {
+
+      val mapping = mergeMapping.getOrElse(aggs.indices.toArray)
+
+      val sig: String =
+        j"""
+           |  public final org.apache.flink.types.Row mergeAccumulatorsPair(
+           |    org.apache.flink.types.Row a,
+           |    org.apache.flink.types.Row b)
+           """.stripMargin
+      val merge: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    ${accTypes(i)} aAcc$i = (${accTypes(i)}) a.getField($i);
+             |    ${accTypes(i)} bAcc$i = (${accTypes(i)}) b.getField(${mapping(i)});
+             |    accIt$i.setElement(bAcc$i);
+             |    ${aggs(i)}.merge(aAcc$i, accIt$i);
+             |    a.setField($i, aAcc$i);
+             """.stripMargin
+      }.mkString("\n")
+      val ret: String =
+        j"""
+           |      return a;
+           """.stripMargin
+
+      if (needMerge) {
+        j"""
+           |$sig {
+           |$merge
+           |$ret
+           |  }""".stripMargin
+      } else {
+        j"""
+           |$sig {
+           |$ret
+           |  }""".stripMargin
+      }
     }
 
-    // get java types of input fields
-    val javaTypes = inputType.getFieldList
-      .map(f => FlinkTypeFactory.toTypeInfo(f.getType))
-      .map(t => t.getTypeClass.getCanonicalName)
-    // get parameter lists for aggregation functions
-    val parameters = aggFields.map {inFields =>
-      val fields = for (f <- inFields) yield s"(${javaTypes(f)}) input.getField($f)"
-      fields.mkString(", ")
+    def genMergeList: String = {
+      {
+        val singleIterableClass = "org.apache.flink.table.runtime.aggregate.SingleElementIterable"
+        for (i <- accTypes.indices) yield
+          j"""
+             |    private final $singleIterableClass<${accTypes(i)}> accIt$i =
+             |      new $singleIterableClass<${accTypes(i)}>();
+             """.stripMargin
+      }.mkString("\n")
+    }
+
+    def genResetAccumulator: String = {
+
+      val sig: String =
+        j"""
+           |  public final void resetAccumulator(
+           |    org.apache.flink.types.Row accs)""".stripMargin
+
+      val reset: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    ${aggs(i)}.resetAccumulator(
+             |      ((${accTypes(i)}) accs.getField($i)));""".stripMargin
+      }.mkString("\n")
+
+      j"""$sig {
+         |$reset
+         |  }""".stripMargin
     }
 
     var funcCode =
       j"""
-         |public class $funcName
+         |public final class $funcName
          |  extends org.apache.flink.table.runtime.aggregate.GeneratedAggregations {
          |
          |  ${reuseMemberCode()}
+         |  $genMergeList
          |  public $funcName() throws Exception {
          |    ${reuseInitCode()}
          |  }
@@ -435,12 +548,15 @@ class CodeGenerator(
          |
          """.stripMargin
 
-    funcCode += generateSetAggregationResults(accTypes, aggs, aggMapping) + "\n"
-    funcCode += generateAccumulate(accTypes, aggs, parameters) + "\n"
-    funcCode += generateRetract(accTypes, aggs, parameters) + "\n"
-    funcCode += generateCreateAccumulators(aggs) + "\n"
-    funcCode += generateSetForwardedFields(fwdMapping) + "\n"
-    funcCode += generateCreateOutputRow(outputArity) + "\n"
+    funcCode += genSetAggregationResults + "\n"
+    funcCode += genAccumulate + "\n"
+    funcCode += genRetract + "\n"
+    funcCode += genCreateAccumulators + "\n"
+    funcCode += genSetForwardedFields + "\n"
+    funcCode += genSetConstantFlags + "\n"
+    funcCode += genCreateOutputRow + "\n"
+    funcCode += genMergeAccumulatorsPair + "\n"
+    funcCode += genResetAccumulator + "\n"
     funcCode += "}"
 
     GeneratedAggregationsFunction(funcName, funcCode)
@@ -1298,11 +1414,19 @@ class CodeGenerator(
         generateArray(this, resultType, operands)
 
       case ITEM =>
-        val array = operands.head
-        val index = operands(1)
-        requireArray(array)
-        requireInteger(index)
-        generateArrayElementAt(this, array, index)
+        operands.head.resultType match {
+          case _: ObjectArrayTypeInfo[_, _] | _: PrimitiveArrayTypeInfo[_] =>
+            val array = operands.head
+            val index = operands(1)
+            requireInteger(index)
+            generateArrayElementAt(this, array, index)
+
+          case map: MapTypeInfo[_, _] =>
+            val key = operands(1)
+            generateMapGet(this, operands.head, key)
+
+          case _ => throw new CodeGenException("Expect an array or a map.")
+        }
 
       case CARDINALITY =>
         val array = operands.head

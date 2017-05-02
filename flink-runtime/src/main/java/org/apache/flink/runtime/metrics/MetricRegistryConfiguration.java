@@ -22,7 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
-import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -101,13 +101,13 @@ public class MetricRegistryConfiguration {
 
 		char delim;
 		try {
-			delim = configuration.getString(ConfigConstants.METRICS_SCOPE_DELIMITER, ".").charAt(0);
+			delim = configuration.getString(MetricOptions.SCOPE_DELIMITER).charAt(0);
 		} catch (Exception e) {
 			LOG.warn("Failed to parse delimiter, using default delimiter.", e);
 			delim = '.';
 		}
 
-		final String definedReporters = configuration.getString(ConfigConstants.METRICS_REPORTERS_LIST, null);
+		final String definedReporters = configuration.getString(MetricOptions.REPORTERS_LIST);
 		List<Tuple2<String, Configuration>> reporterConfigurations;
 
 		if (definedReporters == null) {
@@ -136,18 +136,12 @@ public class MetricRegistryConfiguration {
 	 * @return Scope formats extracted from the given configuration
 	 */
 	static ScopeFormats createScopeConfig(Configuration configuration) {
-		String jmFormat = configuration.getString(
-			ConfigConstants.METRICS_SCOPE_NAMING_JM, ScopeFormat.DEFAULT_SCOPE_JOBMANAGER_GROUP);
-		String jmJobFormat = configuration.getString(
-			ConfigConstants.METRICS_SCOPE_NAMING_JM_JOB, ScopeFormat.DEFAULT_SCOPE_JOBMANAGER_JOB_GROUP);
-		String tmFormat = configuration.getString(
-			ConfigConstants.METRICS_SCOPE_NAMING_TM, ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_GROUP);
-		String tmJobFormat = configuration.getString(
-			ConfigConstants.METRICS_SCOPE_NAMING_TM_JOB, ScopeFormat.DEFAULT_SCOPE_TASKMANAGER_JOB_GROUP);
-		String taskFormat = configuration.getString(
-			ConfigConstants.METRICS_SCOPE_NAMING_TASK, ScopeFormat.DEFAULT_SCOPE_TASK_GROUP);
-		String operatorFormat = configuration.getString(
-			ConfigConstants.METRICS_SCOPE_NAMING_OPERATOR, ScopeFormat.DEFAULT_SCOPE_OPERATOR_GROUP);
+		String jmFormat = configuration.getString(MetricOptions.SCOPE_NAMING_JM);
+		String jmJobFormat = configuration.getString(MetricOptions.SCOPE_NAMING_JM_JOB);
+		String tmFormat = configuration.getString(MetricOptions.SCOPE_NAMING_TM);
+		String tmJobFormat = configuration.getString(MetricOptions.SCOPE_NAMING_TM_JOB);
+		String taskFormat = configuration.getString(MetricOptions.SCOPE_NAMING_TASK);
+		String operatorFormat = configuration.getString(MetricOptions.SCOPE_NAMING_OPERATOR);
 
 		return new ScopeFormats(jmFormat, jmJobFormat, tmFormat, tmJobFormat, taskFormat, operatorFormat);
 	}

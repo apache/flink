@@ -17,10 +17,8 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.Preconditions;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
-import javax.annotation.Nonnull;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Delayed;
@@ -31,8 +29,9 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import javax.annotation.Nonnull;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A {@link ProcessingTimeService} which assigns as current processing time the result of calling
@@ -49,10 +48,10 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	/** The containing task that owns this time service provider. */
 	private final AsyncExceptionHandler task;
 
-	/** The lock that timers acquire upon triggering */
+	/** The lock that timers acquire upon triggering. */
 	private final Object checkpointLock;
 
-	/** The executor service that schedules and calls the triggers of this task*/
+	/** The executor service that schedules and calls the triggers of this task. */
 	private final ScheduledThreadPoolExecutor timerService;
 
 	private final AtomicInteger status;
@@ -92,7 +91,8 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	}
 
 	/**
-	 * Registers a task to be executed no sooner than time {@code timestamp}, but without strong guarantees of order
+	 * Registers a task to be executed no sooner than time {@code timestamp}, but without strong
+	 * guarantees of order.
 	 *
 	 * @param timestamp Time when the task is to be enabled (in processing time)
 	 * @param target    The task to be executed
@@ -168,9 +168,8 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 
 	@Override
 	public void shutdownService() {
-		if (status.compareAndSet(STATUS_ALIVE, STATUS_SHUTDOWN) || 
-				status.compareAndSet(STATUS_QUIESCED, STATUS_SHUTDOWN))
-		{
+		if (status.compareAndSet(STATUS_ALIVE, STATUS_SHUTDOWN) ||
+				status.compareAndSet(STATUS_QUIESCED, STATUS_SHUTDOWN)) {
 			timerService.shutdownNow();
 		}
 	}

@@ -27,7 +27,7 @@ import java.io.Serializable;
 import java.util.Collection;
 
 public class CollectingSourceContext<T extends Serializable> implements SourceFunction.SourceContext<T> {
-	
+
 	private final Object lock;
 	private final Collection<T> collection;
 

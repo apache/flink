@@ -25,15 +25,15 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class KeyMapPutIfAbsentTest {
-	
+
 	@Test
 	public void testPutIfAbsentUniqueKeysAndGrowth() {
 		try {
 			KeyMap<Integer, Integer> map = new KeyMap<>();
 			IntegerFactory factory = new IntegerFactory();
-			
+
 			final int numElements = 1000000;
-			
+
 			for (int i = 0; i < numElements; i++) {
 				factory.set(2 * i + 1);
 				map.putIfAbsent(i, factory);
@@ -43,7 +43,7 @@ public class KeyMapPutIfAbsentTest {
 				assertTrue(map.getCurrentTableCapacity() > map.getRehashThreshold());
 				assertTrue(map.size() <= map.getRehashThreshold());
 			}
-			
+
 			assertEquals(numElements, map.size());
 			assertEquals(numElements, map.traverseAndCountElements());
 			assertEquals(1 << 21, map.getCurrentTableCapacity());
@@ -51,7 +51,7 @@ public class KeyMapPutIfAbsentTest {
 			for (int i = 0; i < numElements; i++) {
 				assertEquals(2 * i + 1, map.get(i).intValue());
 			}
-			
+
 			for (int i = numElements - 1; i >= 0; i--) {
 				assertEquals(2 * i + 1, map.get(i).intValue());
 			}
@@ -66,13 +66,13 @@ public class KeyMapPutIfAbsentTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testPutIfAbsentDuplicateKeysAndGrowth() {
 		try {
 			KeyMap<Integer, Integer> map = new KeyMap<>();
 			IntegerFactory factory = new IntegerFactory();
-			
+
 			final int numElements = 1000000;
 
 			for (int i = 0; i < numElements; i++) {
@@ -102,13 +102,13 @@ public class KeyMapPutIfAbsentTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	private static class IntegerFactory implements KeyMap.LazyFactory<Integer> {
-		
+
 		private Integer toCreate;
-		
+
 		public void set(Integer toCreate) {
 			this.toCreate = toCreate;
 		}

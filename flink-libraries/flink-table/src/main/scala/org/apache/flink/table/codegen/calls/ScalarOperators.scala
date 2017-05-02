@@ -22,9 +22,9 @@ import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, PrimitiveArrayTypeInfo, SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.codegen.CodeGenUtils._
-import org.apache.flink.table.codegen.{CodeGenerator, CodeGenException, GeneratedExpression}
+import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 
@@ -909,6 +909,36 @@ object ScalarOperators {
     generateUnaryOperatorIfNotNull(nullCheck, INT_TYPE_INFO, array) {
       (operandTerm) => s"${array.resultTerm}.length"
     }
+  }
+
+  def generateMapGet(
+      codeGenerator: CodeGenerator,
+      map: GeneratedExpression,
+      key: GeneratedExpression)
+  : GeneratedExpression = {
+
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+    val ty = map.resultType.asInstanceOf[MapTypeInfo[_,_]]
+    val resultType = ty.getValueTypeInfo
+    val resultTypeTerm = boxedTypeTermForTypeInfo(ty.getValueTypeInfo)
+    val accessCode = if (codeGenerator.nullCheck) {
+          s"""
+             |${map.code}
+             |${key.code}
+             |boolean $nullTerm = (${map.nullTerm} || ${key.nullTerm});
+             |$resultTypeTerm $resultTerm = $nullTerm ?
+             |  null : ($resultTypeTerm) ${map.resultTerm}.get(${key.resultTerm});
+             |""".stripMargin
+        } else {
+          s"""
+             |${map.code}
+             |${key.code}
+             |$resultTypeTerm $resultTerm = ($resultTypeTerm)
+             | ${map.resultTerm}.get(${key.resultTerm});
+             |""".stripMargin
+        }
+    GeneratedExpression(resultTerm, nullTerm, accessCode, resultType)
   }
 
   // ----------------------------------------------------------------------------------------------

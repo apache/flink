@@ -156,6 +156,19 @@ under the License.
 		</dependency>
 
 		<!--
+			The following dependencies are packaged in 'examples/'
+			The scope of these dependencies needs to be 'provided' so that
+			they are not included into the 'flink-dist' uber jar.
+		-->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-gelly-examples_2.10</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!--
 			The following dependencies are packaged in 'opt/' 
 			The scope of these dependencies needs to be 'provided' so that
 			they are not included into the 'flink-dist' uber jar.
@@ -222,14 +235,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-gelly-examples_2.10</artifactId>
+			<artifactId>flink-ml_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-ml_2.10</artifactId>
+			<artifactId>flink-table_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -332,6 +345,7 @@ under the License.
 								<excludes>
 									<exclude>org.apache.flink:flink-examples-batch</exclude>
 									<exclude>org.apache.flink:flink-examples-streaming</exclude>
+									<exclude>org.apache.flink:flink-examples-table</exclude>
 									<exclude>org.apache.flink:flink-python</exclude>
 									<exclude>org.slf4j:slf4j-log4j12</exclude>
 									<exclude>log4j:log4j</exclude>

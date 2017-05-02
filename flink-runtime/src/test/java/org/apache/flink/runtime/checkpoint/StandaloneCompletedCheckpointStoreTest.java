@@ -19,14 +19,18 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.powermock.api.mockito.PowerMockito.doReturn;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -37,7 +41,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointStoreTest {
 
 	@Override
-	protected CompletedCheckpointStore createCompletedCheckpoints(
+	protected AbstractCompletedCheckpointStore createCompletedCheckpoints(
 			int maxNumberOfCheckpointsToRetain) throws Exception {
 
 		return new StandaloneCompletedCheckpointStore(maxNumberOfCheckpointsToRetain);
@@ -48,16 +52,18 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	 */
 	@Test
 	public void testShutdownDiscardsCheckpoints() throws Exception {
-		CompletedCheckpointStore store = createCompletedCheckpoints(1);
+		AbstractCompletedCheckpointStore store = createCompletedCheckpoints(1);
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
+		Collection<OperatorState> operatorStates = checkpoint.getOperatorStates().values();
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
+		verifyCheckpointRegistered(operatorStates, store.sharedStateRegistry);
 
 		store.shutdown(JobStatus.FINISHED);
-
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertTrue(checkpoint.isDiscarded());
+		verifyCheckpointDiscarded(operatorStates);
 	}
 
 	/**
@@ -66,16 +72,18 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	 */
 	@Test
 	public void testSuspendDiscardsCheckpoints() throws Exception {
-		CompletedCheckpointStore store = createCompletedCheckpoints(1);
+		AbstractCompletedCheckpointStore store = createCompletedCheckpoints(1);
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
+		Collection<OperatorState> taskStates = checkpoint.getOperatorStates().values();
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
+		verifyCheckpointRegistered(taskStates, store.sharedStateRegistry);
 
 		store.shutdown(JobStatus.SUSPENDED);
-
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertTrue(checkpoint.isDiscarded());
+		verifyCheckpointDiscarded(taskStates);
 	}
 	
 	/**
@@ -91,7 +99,8 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 		for (long i = 0; i <= numCheckpointsToRetain; ++i) {
 			CompletedCheckpoint checkpointToAdd = mock(CompletedCheckpoint.class);
 			doReturn(i).when(checkpointToAdd).getCheckpointID();
-			doThrow(new IOException()).when(checkpointToAdd).subsume();
+			doReturn(Collections.emptyMap()).when(checkpointToAdd).getOperatorStates();
+			doThrow(new IOException()).when(checkpointToAdd).discardOnSubsume(any(SharedStateRegistry.class));
 			
 			try {
 				store.addCheckpoint(checkpointToAdd);

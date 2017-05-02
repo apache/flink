@@ -106,7 +106,7 @@ object Func10 extends ScalarFunction {
   }
 
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
-    Types.TIMESTAMP
+    Types.SQL_TIMESTAMP
   }
 }
 

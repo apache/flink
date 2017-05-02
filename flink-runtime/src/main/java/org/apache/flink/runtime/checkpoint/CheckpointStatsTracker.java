@@ -31,7 +31,7 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 
 /**
  * Tracker for checkpoint statistics.
@@ -67,7 +67,7 @@ public class CheckpointStatsTracker {
 	private final int totalSubtaskCount;
 
 	/** Snapshotting settings created from the CheckpointConfig. */
-	private final JobSnapshottingSettings jobSnapshottingSettings;
+	private final JobCheckpointingSettings jobCheckpointingSettings;
 
 	/** Checkpoint counts. */
 	private final CheckpointStatsCounts counts = new CheckpointStatsCounts();
@@ -104,19 +104,19 @@ public class CheckpointStatsTracker {
 	 *
 	 * @param numRememberedCheckpoints Maximum number of checkpoints to remember, including in progress ones.
 	 * @param jobVertices Job vertices involved in the checkpoints.
-	 * @param jobSnapshottingSettings Snapshotting settings created from the CheckpointConfig.
+	 * @param jobCheckpointingSettings Snapshotting settings created from the CheckpointConfig.
 	 * @param metricGroup Metric group for exposed metrics
 	 */
 	public CheckpointStatsTracker(
 		int numRememberedCheckpoints,
 		List<ExecutionJobVertex> jobVertices,
-		JobSnapshottingSettings jobSnapshottingSettings,
+		JobCheckpointingSettings jobCheckpointingSettings,
 		MetricGroup metricGroup) {
 
 		checkArgument(numRememberedCheckpoints >= 0, "Negative number of remembered checkpoints");
 		this.history = new CheckpointStatsHistory(numRememberedCheckpoints);
 		this.jobVertices = checkNotNull(jobVertices, "JobVertices");
-		this.jobSnapshottingSettings = checkNotNull(jobSnapshottingSettings);
+		this.jobCheckpointingSettings = checkNotNull(jobCheckpointingSettings);
 
 		// Compute the total subtask count. We do this here in order to only
 		// do it once.
@@ -143,8 +143,8 @@ public class CheckpointStatsTracker {
 	 *
 	 * @return The job's snapshotting settings.
 	 */
-	public JobSnapshottingSettings getSnapshottingSettings() {
-		return jobSnapshottingSettings;
+	public JobCheckpointingSettings getSnapshottingSettings() {
+		return jobCheckpointingSettings;
 	}
 
 	/**

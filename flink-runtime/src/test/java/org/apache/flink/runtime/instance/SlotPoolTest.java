@@ -78,7 +78,9 @@ public class SlotPoolTest extends TestLogger {
 
 		mainThreadValidatorUtil.enterMainThread();
 
-		slotPool.start(UUID.randomUUID());
+		final String jobManagerAddress = "foobar";
+
+		slotPool.start(UUID.randomUUID(), jobManagerAddress);
 
 		this.resourceManagerGateway = mock(ResourceManagerGateway.class);
 		when(resourceManagerGateway

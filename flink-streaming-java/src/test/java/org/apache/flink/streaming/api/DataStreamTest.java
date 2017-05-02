@@ -252,9 +252,9 @@ public class DataStreamTest {
 
 					@Override
 					public void flatMap2(Long value, Collector<Long> out) throws Exception {}
-					
+
 				}).name("testCoFlatMap")
-				
+
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(10)))
 				.fold(0L, new FoldFunction<Long, Long>() {
@@ -848,7 +848,7 @@ public class DataStreamTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void sinkKeyTest() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

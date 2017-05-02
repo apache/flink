@@ -123,9 +123,9 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		TaskExecutorMetricsInitializer.instantiateStatusMetrics(taskManagerMetricGroup, taskManagerServices.getNetworkEnvironment());
 
 		this.taskManager = new TaskExecutor(
+			rpcService,
 			taskManagerConfiguration,
 			taskManagerServices.getTaskManagerLocation(),
-			rpcService,
 			taskManagerServices.getMemoryManager(),
 			taskManagerServices.getIOManager(),
 			taskManagerServices.getNetworkEnvironment(),

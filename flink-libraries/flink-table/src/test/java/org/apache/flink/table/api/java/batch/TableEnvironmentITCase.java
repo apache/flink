@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.calcite.tools.RuleSets;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
@@ -45,6 +46,8 @@ import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import static org.junit.Assert.assertTrue;
 
 @RunWith(Parameterized.class)
 public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
@@ -375,6 +378,34 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 	}
 
 	@Test(expected = TableException.class)
+	public void testGenericRow() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		// use null value the enforce GenericType
+		DataSet<Row> dataSet = env.fromElements(Row.of(1, 2L, "Hello", null));
+		assertTrue(dataSet.getType() instanceof GenericTypeInfo);
+		assertTrue(dataSet.getType().getTypeClass().equals(Row.class));
+
+		// Must fail. Cannot import DataSet<Row> with GenericTypeInfo.
+		tableEnv.fromDataSet(dataSet);
+	}
+
+	@Test(expected = TableException.class)
+	public void testGenericRowWithAlias() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		// use null value the enforce GenericType
+		DataSet<Row> dataSet = env.fromElements(Row.of((Integer)null));
+		assertTrue(dataSet.getType() instanceof GenericTypeInfo);
+		assertTrue(dataSet.getType().getTypeClass().equals(Row.class));
+
+		// Must fail. Cannot import DataSet<Row> with GenericTypeInfo.
+		tableEnv.fromDataSet(dataSet, "nullField");
+	}
+
+	@Test(expected = TableException.class)
 	public void testAsWithToFewFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
@@ -443,7 +474,10 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
-		CalciteConfig cc = new CalciteConfigBuilder().replaceOptRuleSet(RuleSets.ofList()).build();
+		CalciteConfig cc = new CalciteConfigBuilder()
+				.replaceLogicalOptRuleSet(RuleSets.ofList())
+				.replacePhysicalOptRuleSet(RuleSets.ofList())
+				.build();
 		tableEnv.getConfig().setCalciteConfig(cc);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);

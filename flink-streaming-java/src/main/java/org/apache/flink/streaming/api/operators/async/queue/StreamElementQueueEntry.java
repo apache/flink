@@ -18,13 +18,12 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
+import java.util.concurrent.Executor;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.util.Preconditions;
-
-import java.util.concurrent.Executor;
 
 /**
  * Entry class for the {@link StreamElementQueue}. The stream element queue entry stores the
@@ -36,7 +35,6 @@ import java.util.concurrent.Executor;
 @Internal
 public abstract class StreamElementQueueEntry<T> implements AsyncResult {
 
-	/** Stream element */
 	private final StreamElement streamElement;
 
 	public StreamElementQueueEntry(StreamElement streamElement) {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import java.util.ArrayList;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -31,18 +32,19 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
-import org.apache.flink.util.UnionIterator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.UnionIterator;
 
-import java.util.ArrayList;
-
+/**
+ * Key/value map organized in panes for accumulating windows (with a window function).
+ */
 @Internal
 public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyedTimePanes<Type, Key, ArrayList<Type>, Result> {
-	
+
 	private final KeySelector<Type, Key> keySelector;
 
 	private final KeyMap.LazyFactory<ArrayList<Type>> listFactory = getListFactory();
@@ -52,11 +54,13 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 	private final AccumulatingKeyedTimePanesContext context;
 
 	/**
-	 * IMPORTANT: This value needs to start at one, so it is fresher than the value that new entries have (zero) */
-	private long evaluationPass = 1L;   
+	 * IMPORTANT: This value needs to start at one, so it is fresher than the value that new entries
+	 * have (zero).
+	 */
+	private long evaluationPass = 1L;
 
 	// ------------------------------------------------------------------------
-	
+
 	public AccumulatingKeyedTimePanes(KeySelector<Type, Key> keySelector, InternalWindowFunction<Iterable<Type>, Result, Key, Window> function) {
 		this.keySelector = keySelector;
 		this.function = function;
@@ -74,8 +78,7 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 
 	@Override
 	public void evaluateWindow(Collector<Result> out, final TimeWindow window,
-								AbstractStreamOperator<Result> operator) throws Exception
-	{
+								AbstractStreamOperator<Result> operator) throws Exception {
 		if (previousPanes.isEmpty()) {
 			// optimized path for single pane case (tumbling window)
 			for (KeyMap.Entry<Key, ArrayList<Type>> entry : latestPane) {
@@ -92,28 +95,28 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 					function, window, out, operator, context);
 			traverseAllPanes(evaluator, evaluationPass);
 		}
-		
+
 		evaluationPass++;
 	}
 
 	// ------------------------------------------------------------------------
 	//  Running a window function in a map traversal
 	// ------------------------------------------------------------------------
-	
+
 	static final class WindowFunctionTraversal<Key, Type, Result> implements KeyMap.TraversalEvaluator<Key, ArrayList<Type>> {
 
 		private final InternalWindowFunction<Iterable<Type>, Result, Key, Window> function;
-		
+
 		private final UnionIterator<Type> unionIterator;
-		
+
 		private final Collector<Result> out;
 
 		private final TimeWindow window;
-		
+
 		private final AbstractStreamOperator<Result> contextOperator;
 
 		private Key currentKey;
-		
+
 		private AccumulatingKeyedTimePanesContext context;
 
 		WindowFunctionTraversal(InternalWindowFunction<Iterable<Type>, Result, Key, Window> function, TimeWindow window,
@@ -145,11 +148,11 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 			function.process(currentKey, window, context, unionIterator, out);
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Lazy factory for lists (put if absent)
 	// ------------------------------------------------------------------------
-	
+
 	@SuppressWarnings("unchecked")
 	private static <V> KeyMap.LazyFactory<ArrayList<V>> getListFactory() {
 		return (KeyMap.LazyFactory<ArrayList<V>>) LIST_FACTORY;
@@ -188,6 +191,16 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 
 		public AccumulatingKeyedTimePanesContext() {
 			this.throwingStore = new ThrowingKeyedStateStore();
+		}
+
+		@Override
+		public long currentProcessingTime() {
+			throw new UnsupportedOperationException("current processing time is not supported in this context");
+		}
+
+		@Override
+		public long currentWatermark() {
+			throw new UnsupportedOperationException("current watermark is not supported in this context");
 		}
 
 		@Override

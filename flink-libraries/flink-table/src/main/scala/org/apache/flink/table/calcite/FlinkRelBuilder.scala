@@ -18,13 +18,12 @@
 
 package org.apache.flink.table.calcite
 
-import java.util.Collections
-
-import org.apache.calcite.plan.volcano.VolcanoPlanner
 import java.lang.Iterable
+import java.util.Collections
 
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
+import org.apache.calcite.plan.volcano.VolcanoPlanner
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rex.RexBuilder

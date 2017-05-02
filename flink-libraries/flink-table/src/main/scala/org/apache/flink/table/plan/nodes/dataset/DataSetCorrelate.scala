@@ -19,7 +19,6 @@ package org.apache.flink.table.plan.nodes.dataset
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode}
@@ -29,6 +28,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.types.Row
 
 /**
@@ -38,7 +38,7 @@ class DataSetCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputNode: RelNode,
-    scan: LogicalTableFunctionScan,
+    scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
     relRowType: RelDataType,
     joinRowType: RelDataType,
@@ -92,7 +92,7 @@ class DataSetCorrelate(
     // we do not need to specify input type
     val inputDS = inputNode.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
-    val funcRel = scan.asInstanceOf[LogicalTableFunctionScan]
+    val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     val pojoFieldMapping = sqlFunction.getPojoFieldMapping

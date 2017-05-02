@@ -58,12 +58,29 @@ public class JobManagerOptions {
 		.defaultValue(6123);
 
 	/**
+	 * JVM heap size (in megabytes) for the JobManager
+	 */
+	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY =
+		key("jobmanager.heap.mb")
+		.defaultValue(1024);
+
+	/**
 	 * The maximum number of prior execution attempts kept in history.
 	 */
 	public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE =
 		key("jobmanager.execution.attempts-history-size")
 			.defaultValue(16)
 			.withDeprecatedKeys("job-manager.max-attempts-history-size");
+
+	/**
+	 * This option specifies the interval in order to trigger a resource manager reconnection if the connection
+	 * to the resource manager has been lost.
+	 *
+	 * This option is only intended for internal use.
+	 */
+	public static final ConfigOption<Long> RESOURCE_MANAGER_RECONNECT_INTERVAL =
+		key("jobmanager.resourcemanager.reconnect-interval")
+		.defaultValue(2000L);
 
 	// ------------------------------------------------------------------------
 	//  JobManager web UI

@@ -18,11 +18,11 @@
 
 package org.apache.flink.streaming.runtime.streamstatus;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.watermark.Watermark;
-
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.watermark.Watermark;
 
 /**
  * A {@code StatusWatermarkValve} embodies the logic of how {@link Watermark} and {@link StreamStatus} are propagated to
@@ -49,13 +49,16 @@ public class StatusWatermarkValve {
 	//	Runtime state for watermark & stream status output determination
 	// ------------------------------------------------------------------------
 
-	/** Array of current status of all input channels. Changes as watermarks & stream statuses are fed into the valve */
+	/**
+	 * Array of current status of all input channels. Changes as watermarks & stream statuses are
+	 * fed into the valve.
+	 */
 	private final InputChannelStatus[] channelStatuses;
 
-	/** The last watermark emitted from the valve */
+	/** The last watermark emitted from the valve. */
 	private long lastOutputWatermark;
 
-	/** The last stream status emitted from the valve */
+	/** The last stream status emitted from the valve. */
 	private StreamStatus lastOutputStreamStatus;
 
 	/**
@@ -172,20 +175,25 @@ public class StatusWatermarkValve {
 	}
 
 	/**
-	 * An {@code InputChannelStatus} keeps track of an input channel's last watermark, stream status, and whether or not
-	 * the channel's current watermark is aligned with the overall watermark output from the valve.
+	 * An {@code InputChannelStatus} keeps track of an input channel's last watermark, stream
+	 * status, and whether or not the channel's current watermark is aligned with the overall
+	 * watermark output from the valve.
 	 *
-	 * There are 2 situations where a channel's watermark is not considered aligned:
-	 *  - the current stream status of the channel is idle
-	 *  - the stream status has resumed to be active, but the watermark of the channel hasn't caught up to the
-	 *    last output watermark from the valve yet.
+	 * <p>There are 2 situations where a channel's watermark is not considered aligned:
+	 * <ul>
+	 *   <li>the current stream status of the channel is idle
+	 *   <li>the stream status has resumed to be active, but the watermark of the channel hasn't
+	 *   caught up to thelast output watermark from the valve yet.
+	 * </ul>
 	 */
 	private static class InputChannelStatus {
 		private long watermark;
 		private StreamStatus streamStatus;
 		private boolean isWatermarkAligned;
 
-		/** Utility to check if at least one channel in a given array of input channels is active */
+		/**
+		 * Utility to check if at least one channel in a given array of input channels is active.
+		 */
 		private static boolean hasActiveChannels(InputChannelStatus[] channelStatuses) {
 			for (InputChannelStatus status : channelStatuses) {
 				if (status.streamStatus.isActive()) {

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -46,14 +47,15 @@ import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultSlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.TestLogger;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
@@ -72,7 +74,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class TaskExecutorITCase {
+public class TaskExecutorITCase extends TestLogger {
 
 	@Test
 	public void testSlotAllocation() throws Exception {
@@ -88,6 +90,7 @@ public class TaskExecutorITCase {
 		final String jmAddress = "jm";
 		final UUID jmLeaderId = UUID.randomUUID();
 		final ResourceID rmResourceId = new ResourceID(rmAddress);
+		final ResourceID jmResourceId = new ResourceID(jmAddress);
 		final JobID jobId = new JobID();
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
 
@@ -99,7 +102,6 @@ public class TaskExecutorITCase {
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
 			Time.milliseconds(500L),
 			Time.milliseconds(500L));
-		SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			testingHAServices,
 			rpcService.getScheduledExecutor(),
@@ -118,21 +120,28 @@ public class TaskExecutorITCase {
 		final TaskSlotTable taskSlotTable = new TaskSlotTable(Arrays.asList(resourceProfile), new TimerService<AllocationID>(scheduledExecutorService, 100L));
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
+		final SlotManager slotManager = new SlotManager(
+			rpcService.getScheduledExecutor(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime());
 
 		ResourceManager<ResourceID> resourceManager = new StandaloneResourceManager(
-			rpcService, rmResourceId,
+			rpcService,
+			FlinkResourceManager.RESOURCE_MANAGER_NAME,
+			rmResourceId,
 			resourceManagerConfiguration,
 			testingHAServices,
 			heartbeatServices,
-			slotManagerFactory,
+			slotManager,
 			metricRegistry,
 			jobLeaderIdService,
 			testingFatalErrorHandler);
 
 		TaskExecutor taskExecutor = new TaskExecutor(
+			rpcService,
 			taskManagerConfiguration,
 			taskManagerLocation,
-			rpcService,
 			memoryManager,
 			ioManager,
 			networkEnvironment,
@@ -163,7 +172,7 @@ public class TaskExecutorITCase {
 		rpcService.registerGateway(jmAddress, jmGateway);
 
 		final AllocationID allocationId = new AllocationID();
-		final SlotRequest slotRequest = new SlotRequest(jobId, allocationId, resourceProfile);
+		final SlotRequest slotRequest = new SlotRequest(jobId, allocationId, resourceProfile, jmAddress);
 		final SlotOffer slotOffer = new SlotOffer(allocationId, 0, resourceProfile);
 
 		try {
@@ -176,7 +185,12 @@ public class TaskExecutorITCase {
 			// notify the TM about the new RM leader
 			rmLeaderRetrievalService.notifyListener(rmAddress, rmLeaderId);
 
-			Future<RegistrationResponse> registrationResponseFuture = resourceManager.registerJobManager(rmLeaderId, jmLeaderId, jmAddress, jobId);
+			Future<RegistrationResponse> registrationResponseFuture = resourceManager.registerJobManager(
+				rmLeaderId,
+				jmLeaderId,
+				jmResourceId,
+				jmAddress,
+				jobId);
 
 			RegistrationResponse registrationResponse = registrationResponseFuture.get();
 

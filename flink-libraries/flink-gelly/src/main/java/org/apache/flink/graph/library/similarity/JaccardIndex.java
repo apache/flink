@@ -78,7 +78,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	private int maximumScoreNumerator = 1;
 
-	private int maximumScoreDenominator = 0;
+	private int maximumScoreDenominator = 1;
+
+	private boolean mirrorResults;
 
 	private int littleParallelism = PARALLELISM_DEFAULT;
 
@@ -121,7 +123,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	/**
-	 * Filter out Jaccard Index scores greater than or equal to the given maximum fraction.
+	 * Filter out Jaccard Index scores greater than the given maximum fraction.
 	 *
 	 * @param numerator numerator of the maximum score
 	 * @param denominator denominator of the maximum score
@@ -136,6 +138,20 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		this.unboundedScores = false;
 		this.maximumScoreNumerator = numerator;
 		this.maximumScoreDenominator = denominator;
+
+		return this;
+	}
+
+	/**
+	 * By default only one result is output for each pair of vertices. When
+	 * mirroring a second result with the vertex order flipped is output for
+	 * each pair of vertices.
+	 *
+	 * @param mirrorResults whether output results should be mirrored
+	 * @return this
+	 */
+	public JaccardIndex<K, VV, EV> setMirrorResults(boolean mirrorResults) {
+		this.mirrorResults = mirrorResults;
 
 		return this;
 	}
@@ -176,7 +192,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			minimumScoreNumerator != rhs.minimumScoreNumerator ||
 			minimumScoreDenominator != rhs.minimumScoreDenominator ||
 			maximumScoreNumerator != rhs.maximumScoreNumerator ||
-			maximumScoreDenominator != rhs.maximumScoreDenominator) {
+			maximumScoreDenominator != rhs.maximumScoreDenominator ||
+			mirrorResults != rhs.mirrorResults) {
 			return false;
 		}
 
@@ -230,12 +247,20 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.name("Generate group pairs");
 
 		// t, u, intersection, union
-		return twoPaths
+		DataSet<Result<K>> scores = twoPaths
 			.groupBy(0, 1)
 			.reduceGroup(new ComputeScores<K>(unboundedScores,
 					minimumScoreNumerator, minimumScoreDenominator,
 					maximumScoreNumerator, maximumScoreDenominator))
 				.name("Compute scores");
+
+		if (mirrorResults) {
+			scores = scores
+				.flatMap(new MirrorResult<K, Result<K>>())
+					.name("Mirror results");
+		}
+
+		return scores;
 	}
 
 	/**
@@ -253,6 +278,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * number of groups and {@link GenerateGroups} emits each edge into each group.
 	 *
 	 * @param <T> ID type
+	 * @param <ET> edge value type
 	 */
 	@ForwardedFields("0->1; 1->2")
 	private static class GenerateGroupSpans<T, ET>
@@ -439,13 +465,34 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 			if (unboundedScores ||
 					(count * minimumScoreDenominator >= distinctNeighbors * minimumScoreNumerator
-						&& count * maximumScoreDenominator < distinctNeighbors * maximumScoreNumerator)) {
+						&& count * maximumScoreDenominator <= distinctNeighbors * maximumScoreNumerator)) {
 				output.f0 = edge.f0;
 				output.f1 = edge.f1;
 				output.f2.setValue(count);
 				output.f3.setValue(distinctNeighbors);
 				out.collect(output);
 			}
+		}
+	}
+
+	/**
+	 * Output each input and a second result with the vertex order flipped.
+	 *
+	 * @param <T> ID type
+	 * @param <RT> result type
+	 */
+	private static class MirrorResult<T, RT extends BinaryResult<T>>
+	implements FlatMapFunction<RT, RT> {
+		@Override
+		public void flatMap(RT value, Collector<RT> out)
+				throws Exception {
+			out.collect(value);
+
+			T tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			out.collect(value);
 		}
 	}
 
@@ -472,8 +519,18 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		}
 
 		@Override
+		public void setVertexId0(T value) {
+			f0 = value;
+		}
+
+		@Override
 		public T getVertexId1() {
 			return f1;
+		}
+
+		@Override
+		public void setVertexId1(T value) {
+			f1 = value;
 		}
 
 		/**

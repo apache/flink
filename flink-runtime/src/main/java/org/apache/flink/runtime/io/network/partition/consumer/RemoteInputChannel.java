@@ -30,7 +30,6 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -54,7 +53,7 @@ public class RemoteInputChannel extends InputChannel {
 	 * The received buffers. Received buffers are enqueued by the network I/O thread and the queue
 	 * is consumed by the receiving task thread.
 	 */
-	private final Queue<Buffer> receivedBuffers = new ArrayDeque<>();
+	private final ArrayDeque<Buffer> receivedBuffers = new ArrayDeque<>();
 
 	/**
 	 * Flag indicating whether this channel has been released. Either called by the receiving task
@@ -217,6 +216,10 @@ public class RemoteInputChannel extends InputChannel {
 		synchronized (receivedBuffers) {
 			return receivedBuffers.size();
 		}
+	}
+
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		return Math.max(0, receivedBuffers.size());
 	}
 
 	public InputChannelID getInputChannelId() {

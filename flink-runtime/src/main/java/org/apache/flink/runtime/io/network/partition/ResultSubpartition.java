@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 
 import java.io.IOException;
 
@@ -77,12 +76,17 @@ public abstract class ResultSubpartition {
 
 	abstract public void release() throws IOException;
 
-	abstract public ResultSubpartitionView createReadView(BufferProvider bufferProvider, BufferAvailabilityListener availabilityListener) throws IOException;
+	abstract public ResultSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException;
 
 	abstract int releaseMemory() throws IOException;
 
 	abstract public boolean isReleased();
 
-	abstract public int getNumberOfQueuedBuffers();
+	/**
+	 * Makes a best effort to get the current size of the queue.
+	 * This method must not acquire locks or interfere with the task and network threads in
+	 * any way.
+	 */
+	abstract public int unsynchronizedGetNumberOfQueuedBuffers();
 
 }

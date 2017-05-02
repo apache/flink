@@ -104,7 +104,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		DataSet<Vertex<LongValue, LongValue>> degreeOnSourceId = undirectedRMatGraph
+		DataSet<Vertex<LongValue, LongValue>> degreeOnSourceId = undirectedRMatGraph(10, 16)
 			.run(new VertexDegree<LongValue, NullValue, NullValue>());
 
 		Checksum checksumOnSourceId = new ChecksumHashCode<Vertex<LongValue, LongValue>>()
@@ -114,7 +114,7 @@ extends AsmTestBase {
 		assertEquals(902, checksumOnSourceId.getCount());
 		assertEquals(0x0000000000e1fb30L, checksumOnSourceId.getChecksum());
 
-		DataSet<Vertex<LongValue, LongValue>> degreeOnTargetId = undirectedRMatGraph
+		DataSet<Vertex<LongValue, LongValue>> degreeOnTargetId = undirectedRMatGraph(10, 16)
 			.run(new VertexDegree<LongValue, NullValue, NullValue>()
 				.setReduceOnTargetId(true));
 

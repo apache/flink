@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.stream.table.AggregationsITCase.TimestampWithEqualWatermark
+import org.apache.flink.table.api.scala.stream.table.AggregationsITCase.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.api.scala.stream.utils.StreamITCase
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -72,26 +72,38 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
 
   @Test
   def testEventTimeSessionGroupWindowOverTime(): Unit = {
+    //To verify the "merge" functionality, we create this test with the following characteristics:
+    // 1. set the Parallelism to 1, and have the test data out of order
+    // 2. create a waterMark with 10ms offset to delay the window emission by 10ms
+    val sessionWindowTestdata = List(
+      (1L, 1, "Hello"),
+      (2L, 2, "Hello"),
+      (8L, 8, "Hello"),
+      (9L, 9, "Hello World"),
+      (4L, 4, "Hello"),
+      (16L, 16, "Hello"))
+
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env
-      .fromCollection(data)
-      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+      .fromCollection(sessionWindowTestdata)
+      .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset(10L))
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
-      .window(Session withGap 7.milli on 'rowtime as 'w)
+      .window(Session withGap 5.milli on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .select('string, 'int.count)
+      .select('string, 'int.count, 'int.sum)
 
     val results = windowedTable.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = Seq("Hello world,1", "Hello world,1", "Hello,2", "Hi,1")
+    val expected = Seq("Hello World,1,9", "Hello,1,16", "Hello,4,15")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -127,7 +139,7 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
 
     val stream = env
       .fromCollection(data)
-      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+      .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset(0L))
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
     val windowedTable = table
@@ -149,13 +161,14 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
 }
 
 object AggregationsITCase {
-  class TimestampWithEqualWatermark extends AssignerWithPunctuatedWatermarks[(Long, Int, String)] {
+  class TimestampAndWatermarkWithOffset(
+    offset: Long) extends AssignerWithPunctuatedWatermarks[(Long, Int, String)] {
 
     override def checkAndGetNextWatermark(
         lastElement: (Long, Int, String),
         extractedTimestamp: Long)
       : Watermark = {
-      new Watermark(extractedTimestamp)
+      new Watermark(extractedTimestamp - offset)
     }
 
     override def extractTimestamp(

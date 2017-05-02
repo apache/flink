@@ -91,12 +91,9 @@ public abstract class AbstractStateBackend implements StateBackend, java.io.Seri
 			TaskKvStateRegistry kvStateRegistry) throws IOException;
 
 	@Override
-	public OperatorStateBackend createOperatorStateBackend(
+	public abstract OperatorStateBackend createOperatorStateBackend(
 			Environment env,
-			String operatorIdentifier) throws Exception {
-
-		return new DefaultOperatorStateBackend(env.getUserClassLoader(), env.getExecutionConfig());
-	}
+			String operatorIdentifier) throws Exception;
 
 	// ------------------------------------------------------------------------
 	//  Loading the state backend from a configuration 

@@ -25,11 +25,14 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 
+/**
+ * A {@link StreamTask} for executing a {@link OneInputStreamOperator}.
+ */
 @Internal
 public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamOperator<IN, OUT>> {
 
 	private StreamInputProcessor<IN> inputProcessor;
-	
+
 	private volatile boolean running = true;
 
 	@Override

@@ -36,6 +36,9 @@ public class ValueArrayTypeInfoFactory<T> extends TypeInfoFactory<ValueArray<T>>
 
 	@Override
 	public TypeInformation<ValueArray<T>> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParameters) {
-		return new ValueArrayTypeInfo(genericParameters.get("T"));
+		@SuppressWarnings("unchecked")
+		TypeInformation<ValueArray<T>> typeInfo = new ValueArrayTypeInfo(genericParameters.get("T"));
+
+		return typeInfo;
 	}
 }

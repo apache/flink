@@ -29,6 +29,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.runtime.aggregate.{AggregateUtil, DataSetPreAggFunction}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
@@ -89,18 +90,24 @@ class DataSetAggregate(
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
+    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+
+    val generator = new CodeGenerator(
+      tableEnv.getConfig,
+      false,
+      inputDS.getType)
+
     val (
       preAgg: Option[DataSetPreAggFunction],
       preAggType: Option[TypeInformation[Row]],
       finalAgg: GroupReduceFunction[Row, Row]
       ) = AggregateUtil.createDataSetAggregateFunctions(
+        generator,
         namedAggregates,
         inputType,
         rowRelDataType,
         grouping,
         inGroupingSet)
-
-    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val aggString = aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)
 

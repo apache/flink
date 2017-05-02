@@ -34,6 +34,7 @@ import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 import org.apache.flink.util.Collector;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -51,7 +52,7 @@ import static org.junit.Assert.*;
  * test cluster.
  */
 @SuppressWarnings("serial")
-public class MiscellaneousIssuesITCase {
+public class MiscellaneousIssuesITCase extends TestLogger {
 
 	private static LocalFlinkMiniCluster cluster;
 	

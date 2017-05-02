@@ -222,6 +222,10 @@ When running Flink with Marathon, the whole Flink cluster including the job mana
 
 `mesos.initial-tasks`: The initial workers to bring up when the master starts (**DEFAULT**: The number of workers specified at cluster startup).
 
+`mesos.constraints.hard.hostattribute`: Constraints for task placement on mesos based on agent attributes (**DEFAULT**: None).
+Takes a comma-separated list of key:value pairs corresponding to the attributes exposed by the target
+mesos agents.  Example: `az:eu-west-1a,series:t2`
+
 `mesos.maximum-failed-tasks`: The maximum number of failed workers before the cluster fails (**DEFAULT**: Number of initial workers).
 May be set to -1 to disable this feature.
 
@@ -257,3 +261,5 @@ May be set to -1 to disable this feature.
 `mesos.resourcemanager.tasks.container.type`: Type of the containerization used: "mesos" or "docker" (DEFAULT: mesos);
 
 `mesos.resourcemanager.tasks.container.image.name`: Image name to use for the container (**NO DEFAULT**)
+
+`mesos.resourcemanager.tasks.container.volumes`: A comma seperated list of [host_path:]container_path[:RO|RW]. This allows for mounting additional volumes into your container. (**NO DEFAULT**)

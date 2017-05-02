@@ -21,7 +21,6 @@ package org.apache.flink.graph.drivers.input;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.drivers.parameter.LongParameter;
-import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
@@ -31,8 +30,7 @@ import static org.apache.flink.graph.generator.EmptyGraph.MINIMUM_VERTEX_COUNT;
  * Generate an {@link org.apache.flink.graph.generator.EmptyGraph}.
  */
 public class EmptyGraph
-extends ParameterizedBase
-implements Input<LongValue, NullValue, NullValue> {
+extends GeneratedGraph<LongValue> {
 
 	private LongParameter vertexCount = new LongParameter(this, "vertex_count")
 		.setMinimumValue(MINIMUM_VERTEX_COUNT);
@@ -44,11 +42,16 @@ implements Input<LongValue, NullValue, NullValue> {
 
 	@Override
 	public String getIdentity() {
-		return getName() + " (" + vertexCount + ")";
+		return getTypeName() + " " + getName() + " (" + vertexCount + ")";
 	}
 
 	@Override
-	public Graph<LongValue, NullValue, NullValue> create(ExecutionEnvironment env) {
+	protected long vertexCount() {
+		return vertexCount.getValue();
+	}
+
+	@Override
+	public Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) {
 		return new org.apache.flink.graph.generator.EmptyGraph(env, vertexCount.getValue())
 			.generate();
 	}

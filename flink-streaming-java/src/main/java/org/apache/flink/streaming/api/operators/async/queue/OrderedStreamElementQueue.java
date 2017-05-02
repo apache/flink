@@ -18,19 +18,18 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.streaming.api.operators.async.OperatorActions;
-import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.concurrent.AcceptFunction;
+import org.apache.flink.streaming.api.operators.async.OperatorActions;
+import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Ordered {@link StreamElementQueue} implementation. The ordered stream element queue emits
@@ -43,21 +42,21 @@ public class OrderedStreamElementQueue implements StreamElementQueue {
 
 	private static final Logger LOG = LoggerFactory.getLogger(OrderedStreamElementQueue.class);
 
-	/** Capacity of this queue */
+	/** Capacity of this queue. */
 	private final int capacity;
 
-	/** Executor to run the onCompletion callback */
+	/** Executor to run the onCompletion callback. */
 	private final Executor executor;
 
-	/** Operator actions to signal a failure to the operator */
+	/** Operator actions to signal a failure to the operator. */
 	private final OperatorActions operatorActions;
 
-	/** Lock and conditions for the blocking queue */
+	/** Lock and conditions for the blocking queue. */
 	private final ReentrantLock lock;
 	private final Condition notFull;
 	private final Condition headIsCompleted;
 
-	/** Queue for the inserted StreamElementQueueEntries */
+	/** Queue for the inserted StreamElementQueueEntries. */
 	private final ArrayDeque<StreamElementQueueEntry<?>> queue;
 
 	public OrderedStreamElementQueue(

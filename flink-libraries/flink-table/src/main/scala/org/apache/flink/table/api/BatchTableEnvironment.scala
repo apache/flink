@@ -32,7 +32,8 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.plan.nodes.dataset.{DataSetConvention, DataSetRel}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{DataSetTable, TableSourceTable}
 import org.apache.flink.table.sinks.{BatchTableSink, TableSink}
@@ -206,7 +207,7 @@ abstract class BatchTableEnvironment(
   /**
     * Returns the built-in optimization rules that are defined by the environment.
     */
-  protected def getBuiltInOptRuleSet: RuleSet = FlinkRuleSets.DATASET_OPT_RULES
+  protected def getBuiltInPhysicalOptRuleSet: RuleSet = FlinkRuleSets.DATASET_OPT_RULES
 
   /**
     * Generates the optimized [[RelNode]] tree from the original relational node tree.
@@ -228,15 +229,24 @@ abstract class BatchTableEnvironment(
     }
 
     // 3. optimize the logical Flink plan
-    val optRuleSet = getOptRuleSet
-    val flinkOutputProps = relNode.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
-    val optimizedPlan = if (optRuleSet.iterator().hasNext) {
-      runVolcanoPlanner(optRuleSet, normalizedPlan, flinkOutputProps)
+    val logicalOptRuleSet = getLogicalOptRuleSet
+    val logicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val logicalPlan = if (logicalOptRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(logicalOptRuleSet, normalizedPlan, logicalOutputProps)
     } else {
       normalizedPlan
     }
 
-    optimizedPlan
+    // 4. optimize the physical Flink plan
+    val physicalOptRuleSet = getPhysicalOptRuleSet
+    val physicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.DATASET).simplify()
+    val physicalPlan = if (physicalOptRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(physicalOptRuleSet, logicalPlan, physicalOutputProps)
+    } else {
+      logicalPlan
+    }
+
+    physicalPlan
   }
 
   /**

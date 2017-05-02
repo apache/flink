@@ -296,37 +296,44 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			sendError(ctx, NOT_FOUND);
 			return;
 		}
-		long fileLength = raf.length();
 
-		HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-		setContentTypeHeader(response, file);
+		try {
+			long fileLength = raf.length();
 
-		// since the log and out files are rapidly changing, we don't want to browser to cache them
-		if (!(requestPath.contains("log") || requestPath.contains("out"))) {
-			setDateAndCacheHeaders(response, file);
-		}
-		if (HttpHeaders.isKeepAlive(request)) {
-			response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
-		}
-		HttpHeaders.setContentLength(response, fileLength);
+			HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+			setContentTypeHeader(response, file);
 
-		// write the initial line and the header.
-		ctx.write(response);
+			// since the log and out files are rapidly changing, we don't want to browser to cache them
+			if (!(requestPath.contains("log") || requestPath.contains("out"))) {
+				setDateAndCacheHeaders(response, file);
+			}
+			if (HttpHeaders.isKeepAlive(request)) {
+				response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+			}
+			HttpHeaders.setContentLength(response, fileLength);
 
-		// write the content.
-		ChannelFuture lastContentFuture;
-		if (ctx.pipeline().get(SslHandler.class) == null) {
-			ctx.write(new DefaultFileRegion(raf.getChannel(), 0, fileLength), ctx.newProgressivePromise());
-			lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
-		} else {
-			lastContentFuture = ctx.writeAndFlush(new HttpChunkedInput(new ChunkedFile(raf, 0, fileLength, 8192)),
-				ctx.newProgressivePromise());
-			// HttpChunkedInput will write the end marker (LastHttpContent) for us.
-		}
+			// write the initial line and the header.
+			ctx.write(response);
 
-		// close the connection, if no keep-alive is needed
-		if (!HttpHeaders.isKeepAlive(request)) {
-			lastContentFuture.addListener(ChannelFutureListener.CLOSE);
+			// write the content.
+			ChannelFuture lastContentFuture;
+			if (ctx.pipeline().get(SslHandler.class) == null) {
+				ctx.write(new DefaultFileRegion(raf.getChannel(), 0, fileLength), ctx.newProgressivePromise());
+				lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+			} else {
+				lastContentFuture = ctx.writeAndFlush(new HttpChunkedInput(new ChunkedFile(raf, 0, fileLength, 8192)),
+					ctx.newProgressivePromise());
+				// HttpChunkedInput will write the end marker (LastHttpContent) for us.
+			}
+
+			// close the connection, if no keep-alive is needed
+			if (!HttpHeaders.isKeepAlive(request)) {
+				lastContentFuture.addListener(ChannelFutureListener.CLOSE);
+			}
+		} catch (Exception e) {
+			raf.close();
+			logger.error("Failed to serve file.", e);
+			sendError(ctx, INTERNAL_SERVER_ERROR);
 		}
 	}
 

@@ -132,7 +132,9 @@ public class LocalExecutor extends PlanExecutor {
 
 	@Override
 	public boolean isRunning() {
-		return flink != null;
+		synchronized (lock) {
+			return flink != null;
+		}
 	}
 
 	/**
@@ -218,10 +220,12 @@ public class LocalExecutor extends PlanExecutor {
 
 	@Override
 	public void endSession(JobID jobID) throws Exception {
-		LocalFlinkMiniCluster flink = this.flink;
-		if (flink != null) {
-			ActorGateway leaderGateway = flink.getLeaderGateway(AkkaUtils.getDefaultTimeoutAsFiniteDuration());
-			leaderGateway.tell(new JobManagerMessages.RemoveCachedJob(jobID));
+		synchronized (LocalExecutor.class) {
+			LocalFlinkMiniCluster flink = this.flink;
+			if (flink != null) {
+				ActorGateway leaderGateway = flink.getLeaderGateway(AkkaUtils.getDefaultTimeoutAsFiniteDuration());
+				leaderGateway.tell(new JobManagerMessages.RemoveCachedJob(jobID));
+			}
 		}
 	}
 

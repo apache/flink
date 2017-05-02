@@ -17,6 +17,10 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Stack;
+import java.util.UUID;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
@@ -46,8 +50,8 @@ import org.apache.flink.streaming.api.functions.query.QueryableAppendingStateOpe
 import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperator;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -68,20 +72,14 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Stack;
-import java.util.UUID;
-
 /**
  * A {@code KeyedStream} represents a {@link DataStream} on which operator state is
  * partitioned by key using a provided {@link KeySelector}. Typical operations supported by a
  * {@code DataStream} are also possible on a {@code KeyedStream}, with the exception of
  * partitioning methods such as shuffle, forward and keyBy.
  *
- * <p>
- * Reduce-style operations, such as {@link #reduce}, {@link #sum} and {@link #fold} work on elements
- * that have the same key.
+ * <p>Reduce-style operations, such as {@link #reduce}, {@link #sum} and {@link #fold} work on
+ * elements that have the same key.
  *
  * @param <T> The type of the elements in the Keyed Stream.
  * @param <KEY> The type of the key in the Keyed Stream.
@@ -89,16 +87,18 @@ import java.util.UUID;
 @Public
 public class KeyedStream<T, KEY> extends DataStream<T> {
 
-	/** The key selector that can get the key by which the stream if partitioned from the elements */
+	/**
+	 * The key selector that can get the key by which the stream if partitioned from the elements.
+	 */
 	private final KeySelector<T, KEY> keySelector;
 
-	/** The type of the key by which the stream is partitioned */
+	/** The type of the key by which the stream is partitioned. */
 	private final TypeInformation<KEY> keyType;
-	
+
 	/**
 	 * Creates a new {@link KeyedStream} using the given {@link KeySelector}
 	 * to partition operator state by key.
-	 * 
+	 *
 	 * @param dataStream
 	 *            Base stream of data
 	 * @param keySelector
@@ -147,10 +147,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			if (!validateKeyTypeIsHashable(typeInfo)) {
 				unsupportedTypes.add(typeInfo);
 			}
-			
+
 			if (typeInfo instanceof TupleTypeInfoBase) {
 				for (int i = 0; i < typeInfo.getArity(); i++) {
-					stack.push(((TupleTypeInfoBase) typeInfo).getTypeAt(i));	
+					stack.push(((TupleTypeInfoBase) typeInfo).getTypeAt(i));
 				}
 			}
 		}
@@ -204,7 +204,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	/**
-	 * Gets the type of the key by which the stream is partitioned. 
+	 * Gets the type of the key by which the stream is partitioned.
 	 * @return The type of the key by which the stream is partitioned.
 	 */
 	@Internal
@@ -220,22 +220,22 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	// ------------------------------------------------------------------------
 	//  basic transformations
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> transform(String operatorName,
 			TypeInformation<R> outTypeInfo, OneInputStreamOperator<T, R> operator) {
 
-		SingleOutputStreamOperator<R> returnStream = super.transform(operatorName, outTypeInfo,operator);
+		SingleOutputStreamOperator<R> returnStream = super.transform(operatorName, outTypeInfo, operator);
 
 		// inject the key selector and key type
 		OneInputTransformation<T, R> transform = (OneInputTransformation<T, R>) returnStream.getTransformation();
 		transform.setStateKeySelector(keySelector);
 		transform.setStateKeyType(keyType);
-		
+
 		return returnStream;
 	}
-	
+
 	@Override
 	public DataStreamSink<T> addSink(SinkFunction<T> sinkFunction) {
 		DataStreamSink<T> result = super.addSink(sinkFunction);
@@ -313,8 +313,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	/**
 	 * Windows this {@code KeyedStream} into tumbling time windows.
 	 *
-	 * <p>
-	 * This is a shortcut for either {@code .window(TumblingEventTimeWindows.of(size))} or
+	 * <p>This is a shortcut for either {@code .window(TumblingEventTimeWindows.of(size))} or
 	 * {@code .window(TumblingProcessingTimeWindows.of(size))} depending on the time characteristic
 	 * set using
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
@@ -332,10 +331,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	/**
 	 * Windows this {@code KeyedStream} into sliding time windows.
 	 *
-	 * <p>
-	 * This is a shortcut for either {@code .window(SlidingEventTimeWindows.of(size, slide))} or
-	 * {@code .window(SlidingProcessingTimeWindows.of(size, slide))} depending on the time characteristic
-	 * set using
+	 * <p>This is a shortcut for either {@code .window(SlidingEventTimeWindows.of(size, slide))} or
+	 * {@code .window(SlidingProcessingTimeWindows.of(size, slide))} depending on the time
+	 * characteristic set using
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
 	 * @param size The size of the window.
@@ -374,10 +372,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * over a key grouped stream. Elements are put into windows by a {@link WindowAssigner}. The
 	 * grouping of elements is done both by key and by window.
 	 *
-	 * <p>
-	 * A {@link org.apache.flink.streaming.api.windowing.triggers.Trigger} can be defined to specify
-	 * when windows are evaluated. However, {@code WindowAssigners} have a default {@code Trigger}
-	 * that is used if a {@code Trigger} is not specified.
+	 * <p>A {@link org.apache.flink.streaming.api.windowing.triggers.Trigger} can be defined to
+	 * specify when windows are evaluated. However, {@code WindowAssigners} have a default
+	 * {@code Trigger} that is used if a {@code Trigger} is not specified.
 	 *
 	 * @param assigner The {@code WindowAssigner} that assigns elements to windows.
 	 * @return The trigger windows data stream.

@@ -17,9 +17,10 @@
  */
 package org.apache.flink.table.functions.aggfunctions
 
+import java.lang.reflect.Method
 import java.math.BigDecimal
 import java.util.{ArrayList => JArrayList, List => JList}
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -29,14 +30,18 @@ import org.junit.Test
   *
   * @tparam T the type for the aggregation result
   */
-abstract class AggFunctionTestBase[T] {
+abstract class AggFunctionTestBase[T, ACC] {
   def inputValueSets: Seq[Seq[_]]
 
   def expectedResults: Seq[T]
 
-  def aggregator: AggregateFunction[T]
+  def aggregator: AggregateFunction[T, ACC]
 
-  def supportRetraction: Boolean = true
+  val accType = aggregator.getClass.getMethod("createAccumulator").getReturnType
+
+  def accumulateFunc: Method = aggregator.getClass.getMethod("accumulate", accType, classOf[Any])
+
+  def retractFunc: Method = null
 
   @Test
   // test aggregate and retract functions without partial merge
@@ -47,52 +52,55 @@ abstract class AggFunctionTestBase[T] {
       val result = aggregator.getValue(accumulator)
       validateResult[T](expected, result)
 
-      if (supportRetraction) {
+      if (ifMethodExistInFunction("retract", aggregator)) {
         retractVals(accumulator, vals)
         val expectedAccum = aggregator.createAccumulator()
         //The two accumulators should be exactly same
-        validateResult[Accumulator](expectedAccum, accumulator)
+        validateResult[ACC](expectedAccum, accumulator)
       }
     }
   }
 
   @Test
-  // test aggregate functions with partial merge
   def testAggregateWithMerge(): Unit = {
 
     if (ifMethodExistInFunction("merge", aggregator)) {
+      val mergeFunc =
+        aggregator.getClass.getMethod("merge", accType, classOf[java.lang.Iterable[ACC]])
       // iterate over input sets
       for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
         //equally split the vals sequence into two sequences
         val (firstVals, secondVals) = vals.splitAt(vals.length / 2)
 
         //1. verify merge with accumulate
-        val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
-        accumulators.add(accumulateVals(firstVals))
+        val accumulators: JList[ACC] = new JArrayList[ACC]()
         accumulators.add(accumulateVals(secondVals))
 
-        val accumulator = aggregator.merge(accumulators)
-        val result = aggregator.getValue(accumulator)
+        val acc = accumulateVals(firstVals)
+
+        mergeFunc.invoke(aggregator, acc.asInstanceOf[Object], accumulators)
+        val result = aggregator.getValue(acc)
         validateResult[T](expected, result)
 
         //2. verify merge with accumulate & retract
-        if (supportRetraction) {
-          retractVals(accumulator, vals)
+        if (ifMethodExistInFunction("retract", aggregator)) {
+          retractVals(acc, vals)
           val expectedAccum = aggregator.createAccumulator()
           //The two accumulators should be exactly same
-          validateResult[Accumulator](expectedAccum, accumulator)
+          validateResult[ACC](expectedAccum, acc)
         }
       }
 
       // iterate over input sets
       for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
         //3. test partial merge with an empty accumulator
-        val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
-        accumulators.add(accumulateVals(vals))
+        val accumulators: JList[ACC] = new JArrayList[ACC]()
         accumulators.add(aggregator.createAccumulator())
 
-        val accumulator = aggregator.merge(accumulators)
-        val result = aggregator.getValue(accumulator)
+        val acc = accumulateVals(vals)
+
+        mergeFunc.invoke(aggregator, acc.asInstanceOf[Object], accumulators)
+        val result = aggregator.getValue(acc)
         validateResult[T](expected, result)
       }
     }
@@ -103,13 +111,14 @@ abstract class AggFunctionTestBase[T] {
   def testResetAccumulator(): Unit = {
 
     if (ifMethodExistInFunction("resetAccumulator", aggregator)) {
+      val resetAccFunc = aggregator.getClass.getMethod("resetAccumulator", accType)
       // iterate over input sets
       for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
         val accumulator = accumulateVals(vals)
-        aggregator.resetAccumulator(accumulator)
+        resetAccFunc.invoke(aggregator, accumulator.asInstanceOf[Object])
         val expectedAccum = aggregator.createAccumulator()
         //The accumulator after reset should be exactly same as the new accumulator
-        validateResult[Accumulator](expectedAccum, accumulator)
+        validateResult[ACC](expectedAccum, accumulator)
       }
     }
   }
@@ -130,13 +139,18 @@ abstract class AggFunctionTestBase[T] {
     }
   }
 
-  private def accumulateVals(vals: Seq[_]): Accumulator = {
+  private def accumulateVals(vals: Seq[_]): ACC = {
     val accumulator = aggregator.createAccumulator()
-    vals.foreach(v => aggregator.accumulate(accumulator, v))
+    vals.foreach(
+      v =>
+        accumulateFunc.invoke(aggregator, accumulator.asInstanceOf[Object], v.asInstanceOf[Object])
+    )
     accumulator
   }
 
-  private def retractVals(accumulator:Accumulator, vals: Seq[_]) = {
-    vals.foreach(v => aggregator.retract(accumulator, v))
+  private def retractVals(accumulator:ACC, vals: Seq[_]) = {
+    vals.foreach(
+      v => retractFunc.invoke(aggregator, accumulator.asInstanceOf[Object], v.asInstanceOf[Object])
+    )
   }
 }
