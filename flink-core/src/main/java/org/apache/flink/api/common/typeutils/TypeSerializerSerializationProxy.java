@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InvalidClassException;
 import java.util.Arrays;
 
 @Internal
@@ -97,7 +98,7 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 		in.readFully(buffer);
 		try {
 			typeSerializer = InstantiationUtil.deserializeObject(buffer, userClassLoader);
-		} catch (ClassNotFoundException e) {
+		} catch (ClassNotFoundException | InvalidClassException e) {
 			if (ignoreClassNotFound) {
 				// we create a dummy so that all the information is not lost when we get a new checkpoint before receiving
 				// a proper typeserializer from the user
