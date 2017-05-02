@@ -10,12 +10,14 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.streaming.plan;
+
+import org.apache.flink.python.api.streaming.util.SerializationUtils;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import org.apache.flink.python.api.streaming.util.SerializationUtils;
 
 /**
  * Instances of this class can be used to send data to the plan process.

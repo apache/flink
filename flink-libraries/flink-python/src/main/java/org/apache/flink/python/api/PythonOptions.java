@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.python.api;
 
 import org.apache.flink.configuration.ConfigOption;
@@ -40,8 +41,8 @@ public class PythonOptions {
 	 * The config parameter defining the size of the memory-mapped files, in kb.
 	 * This value must be large enough to ensure that the largest serialized record can be written completely into
 	 * the file.
-	 * 
-	 * Every task will allocate 2 memory-files, each with this size.
+	 *
+	 * <p>Every task will allocate 2 memory-files, each with this size.
 	 */
 	public static final ConfigOption<Long> MMAP_FILE_SIZE =
 		key("python.mmap.size.kb")

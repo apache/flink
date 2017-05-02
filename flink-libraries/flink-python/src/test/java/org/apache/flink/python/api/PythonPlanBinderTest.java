@@ -10,6 +10,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api;
 
 import org.apache.flink.configuration.Configuration;
@@ -23,8 +24,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for the PythonPlanBinder.
+ */
 public class PythonPlanBinderTest extends JavaProgramTestBase {
-	
+
 	@Override
 	protected boolean skipCollectionExecution() {
 		return true;
