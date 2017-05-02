@@ -20,13 +20,14 @@ package org.apache.flink.metrics.datadog;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,12 +37,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-
 /**
- * Metric Reporter for Datadog
+ * Metric Reporter for Datadog.
  *
- * Variables in metrics scope will be sent to Datadog as tags
- * */
+ * <p>Variables in metrics scope will be sent to Datadog as tags.
+ */
 public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpReporter.class);
 	private static final String HOST_VARIABLE = "<host>";
@@ -146,20 +146,20 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	}
 
 	/**
-	 * Get config tags from config 'metrics.reporter.dghttp.tags'
-	 * */
+	 * Get config tags from config 'metrics.reporter.dghttp.tags'.
+	 */
 	private List<String> getTagsFromConfig(String str) {
 		return Arrays.asList(str.split(","));
 	}
 
 	/**
-	 * Get tags from MetricGroup#getAllVariables(), excluding 'host'
-	 * */
+	 * Get tags from MetricGroup#getAllVariables(), excluding 'host'.
+	 */
 	private List<String> getTagsFromMetricGroup(MetricGroup metricGroup) {
 		List<String> tags = new ArrayList<>();
 
 		for (Map.Entry<String, String> entry: metricGroup.getAllVariables().entrySet()) {
-			if(!entry.getKey().equals(HOST_VARIABLE)) {
+			if (!entry.getKey().equals(HOST_VARIABLE)) {
 				tags.add(getVariableName(entry.getKey()) + ":" + entry.getValue());
 			}
 		}
@@ -167,23 +167,20 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		return tags;
 	}
 
-	/**
-	 * Get host from MetricGroup#getAllVariables() if it exists; returns Null otherwise
-	 * */
 	private String getHostFromMetricGroup(MetricGroup metricGroup) {
 		return metricGroup.getAllVariables().get(HOST_VARIABLE);
 	}
 
 	/**
-	 * Given "<xxx>", return "xxx"
-	 * */
+	 * Removes leading and trailing angle brackets.
+	 */
 	private String getVariableName(String str) {
 		return str.substring(1, str.length() - 1);
 	}
 
 	/**
-	 * Compact metrics in batch, serialize them, and send to Datadog via HTTP
-	 * */
+	 * Compact metrics in batch, serialize them, and send to Datadog via HTTP.
+	 */
 	static class DatadogHttpRequest {
 		private final DSeries series;
 

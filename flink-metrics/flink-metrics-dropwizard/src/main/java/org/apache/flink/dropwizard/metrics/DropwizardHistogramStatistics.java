@@ -18,8 +18,9 @@
 
 package org.apache.flink.dropwizard.metrics;
 
-import com.codahale.metrics.Snapshot;
 import org.apache.flink.metrics.HistogramStatistics;
+
+import com.codahale.metrics.Snapshot;
 
 /**
  * Dropwizard histogram statistics implementation returned by {@link DropwizardHistogramWrapper}.

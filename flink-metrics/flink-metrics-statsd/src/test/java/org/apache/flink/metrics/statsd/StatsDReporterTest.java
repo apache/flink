@@ -25,10 +25,10 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
-import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
@@ -36,6 +36,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -53,6 +54,9 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the StatsDReporter.
+ */
 public class StatsDReporterTest extends TestLogger {
 
 	@Test
@@ -124,7 +128,7 @@ public class StatsDReporterTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that histograms are properly reported via the StatsD reporter
+	 * Tests that histograms are properly reported via the StatsD reporter.
 	 */
 	@Test
 	public void testStatsDHistogramReporting() throws Exception {
@@ -198,7 +202,7 @@ public class StatsDReporterTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that meters are properly reported via the StatsD reporter
+	 * Tests that meters are properly reported via the StatsD reporter.
 	 */
 	@Test
 	public void testStatsDMetersReporting() throws Exception {
@@ -241,7 +245,6 @@ public class StatsDReporterTest extends TestLogger {
 
 			Set<String> lines = receiver.getLines();
 
-
 			assertEquals(expectedLines, lines);
 
 		} finally {
@@ -260,7 +263,7 @@ public class StatsDReporterTest extends TestLogger {
 	}
 
 	/**
-	 * Testing StatsDReporter which disables the socket creation
+	 * Testing StatsDReporter which disables the socket creation.
 	 */
 	public static class TestingStatsDReporter extends StatsDReporter {
 		@Override
@@ -273,7 +276,7 @@ public class StatsDReporterTest extends TestLogger {
 		}
 	}
 
-	public static class TestingHistogram implements Histogram {
+	private static class TestingHistogram implements Histogram {
 
 		@Override
 		public void update(long value) {
@@ -326,7 +329,7 @@ public class StatsDReporterTest extends TestLogger {
 		}
 	}
 
-	public static class DatagramSocketReceiver implements Runnable {
+	private static class DatagramSocketReceiver implements Runnable {
 		private static final Object obj = new Object();
 
 		private final DatagramSocket socket;

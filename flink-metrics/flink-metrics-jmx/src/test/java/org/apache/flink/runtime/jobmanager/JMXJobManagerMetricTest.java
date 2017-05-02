@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.configuration.ConfigConstants;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
+
 import org.junit.Assert;
 import org.junit.Test;
 import scala.concurrent.Await;
@@ -38,6 +40,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
+
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.Set;
@@ -45,6 +48,9 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests to verify JMX reporter functionality on the JobManager.
+ */
 public class JMXJobManagerMetricTest {
 	/**
 	 * Tests that metrics registered on the JobManager are actually accessible via JMX.
@@ -102,6 +108,9 @@ public class JMXJobManagerMetricTest {
 		}
 	}
 
+	/**
+	 * Utility to block/unblock a task.
+	 */
 	public static class BlockingInvokable extends AbstractInvokable {
 		private static boolean blocking = true;
 		private static final Object lock = new Object();

@@ -18,14 +18,13 @@
 
 package org.apache.flink.metrics.datadog;
 
-
 import org.apache.flink.metrics.Gauge;
 
 import java.util.List;
 
 /**
- * Mapping of gauge between Flink and Datadog
- * */
+ * Mapping of gauge between Flink and Datadog.
+ */
 public class DGauge extends DMetric {
 	private final Gauge<Number> gauge;
 
@@ -36,8 +35,8 @@ public class DGauge extends DMetric {
 
 	/**
 	 * Visibility of this method must not be changed
-	 * since we deliberately not map it to json object in a Datadog-defined format
-	 * */
+	 * since we deliberately not map it to json object in a Datadog-defined format.
+	 */
 	@Override
 	public Number getMetricValue() {
 		return gauge.getValue();

@@ -15,10 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.dropwizard.metrics;
 
 import org.apache.flink.metrics.Counter;
 
+/**
+ * A wrapper that allows a Flink counter to be used as a DropWizard counter.
+ */
 public class FlinkCounterWrapper extends com.codahale.metrics.Counter {
 	private final Counter counter;
 

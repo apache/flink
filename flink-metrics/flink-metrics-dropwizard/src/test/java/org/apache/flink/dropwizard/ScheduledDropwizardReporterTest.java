@@ -18,7 +18,6 @@
 
 package org.apache.flink.dropwizard;
 
-import com.codahale.metrics.ScheduledReporter;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -40,6 +39,8 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.util.AbstractID;
+
+import com.codahale.metrics.ScheduledReporter;
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
@@ -49,6 +50,9 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the ScheduledDropwizardReporter.
+ */
 public class ScheduledDropwizardReporterTest {
 
 	@Test
@@ -199,7 +203,6 @@ public class ScheduledDropwizardReporterTest {
 		assertEquals(1, rep.getGauges().size());
 		assertEquals(1, rep.registry.getGauges().size());
 
-
 		rep.notifyOfRemovedMetric(c, "counter", mp);
 		assertEquals(0, rep.getCounters().size());
 		assertEquals(0, rep.registry.getCounters().size());
@@ -217,6 +220,9 @@ public class ScheduledDropwizardReporterTest {
 		assertEquals(0, rep.registry.getGauges().size());
 	}
 
+	/**
+	 * Dummy test reporter.
+	 */
 	public static class TestingScheduledDropwizardReporter extends ScheduledDropwizardReporter {
 
 		@Override

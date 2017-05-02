@@ -22,13 +22,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Json serialization between Flink and Datadog
- **/
+ * Json serialization between Flink and Datadog.
+ */
 public class DSeries {
 	/**
 	 * Names of series field and its getters must not be changed
-	 * since they are mapped to json objects in a Datadog-defined format
-	 * */
+	 * since they are mapped to json objects in a Datadog-defined format.
+	 */
 	private List<DMetric> series;
 
 	public DSeries() {

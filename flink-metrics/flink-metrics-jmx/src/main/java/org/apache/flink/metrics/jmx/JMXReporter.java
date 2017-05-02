@@ -30,6 +30,7 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.util.NetUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +43,7 @@ import javax.management.ObjectName;
 import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
+
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.MalformedURLException;
@@ -57,7 +59,7 @@ import java.util.Map;
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via JMX.
  *
- * Largely based on the JmxReporter class of the dropwizard metrics library
+ * <p>Largely based on the JmxReporter class of the dropwizard metrics library
  * https://github.com/dropwizard/metrics/blob/master/metrics-core/src/main/java/io/dropwizard/metrics/JmxReporter.java
  */
 public class JMXReporter implements MetricReporter {
@@ -77,18 +79,15 @@ public class JMXReporter implements MetricReporter {
 
 	// ------------------------------------------------------------------------
 
-	/** The server where the management beans are registered and deregistered */
+	/** The server where the management beans are registered and deregistered. */
 	private final MBeanServer mBeanServer;
 
-	/** The names under which the registered metrics have been added to the MBeanServer */ 
+	/** The names under which the registered metrics have been added to the MBeanServer. */
 	private final Map<Metric, ObjectName> registeredMetrics;
 
 	/** The server to which JMX clients connect to. ALlows for better control over port usage. */
 	private JMXServer jmxServer;
 
-	/**
-	 * Creates a new JMXReporter
-	 */
 	public JMXReporter() {
 		this.mBeanServer = ManagementFactory.getPlatformMBeanServer();
 		this.registeredMetrics = new HashMap<>();
@@ -140,7 +139,7 @@ public class JMXReporter implements MetricReporter {
 			}
 		}
 	}
-	
+
 	public int getPort() {
 		if (jmxServer == null) {
 			throw new NullPointerException("No server was opened. Did you specify a port?");
@@ -220,7 +219,7 @@ public class JMXReporter implements MetricReporter {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Utilities 
+	//  Utilities
 	// ------------------------------------------------------------------------
 
 	static Hashtable<String, String> generateJmxTable(Map<String, String> variables) {
@@ -239,9 +238,9 @@ public class JMXReporter implements MetricReporter {
 	 * Lightweight method to replace unsupported characters.
 	 * If the string does not contain any unsupported characters, this method creates no
 	 * new string (and in fact no new objects at all).
-	 * 
+	 *
 	 * <p>Replacements:
-	 * 
+	 *
 	 * <ul>
 	 *     <li>{@code "} is removed</li>
 	 *     <li>{@code space} is replaced by {@code _} (underscore)</li>
@@ -252,7 +251,7 @@ public class JMXReporter implements MetricReporter {
 		char[] chars = null;
 		final int strLen = str.length();
 		int pos = 0;
-		
+
 		for (int i = 0; i < strLen; i++) {
 			final char c = str.charAt(i);
 			switch (c) {
@@ -271,7 +270,7 @@ public class JMXReporter implements MetricReporter {
 					}
 					chars[pos++] = '_';
 					break;
-				
+
 				case ',':
 				case '=':
 				case ';':
@@ -292,18 +291,24 @@ public class JMXReporter implements MetricReporter {
 					pos++;
 			}
 		}
-		
+
 		return chars == null ? str : new String(chars, 0, pos);
 	}
 
 	// ------------------------------------------------------------------------
-	//  Interfaces and base classes for JMX beans 
+	//  Interfaces and base classes for JMX beans
 	// ------------------------------------------------------------------------
 
+	/**
+	 * The common MBean interface for all metrics.
+	 */
 	public interface MetricMBean {}
 
 	private abstract static class AbstractBean implements MetricMBean {}
 
+	/**
+	 * The MBean interface for an exposed counter.
+	 */
 	public interface JmxCounterMBean extends MetricMBean {
 		long getCount();
 	}
@@ -321,6 +326,9 @@ public class JMXReporter implements MetricReporter {
 		}
 	}
 
+	/**
+	 * The MBean interface for an exposed gauge.
+	 */
 	public interface JmxGaugeMBean extends MetricMBean {
 		Object getValue();
 	}
@@ -339,6 +347,9 @@ public class JMXReporter implements MetricReporter {
 		}
 	}
 
+	/**
+	 * The MBean interface for an exposed histogram.
+	 */
 	public interface JmxHistogramMBean extends MetricMBean {
 		long getCount();
 
@@ -427,6 +438,9 @@ public class JMXReporter implements MetricReporter {
 		}
 	}
 
+	/**
+	 * The MBean interface for an exposed meter.
+	 */
 	public interface JmxMeterMBean extends MetricMBean {
 		double getRate();
 
@@ -455,9 +469,9 @@ public class JMXReporter implements MetricReporter {
 	/**
 	 * JMX Server implementation that JMX clients can connect to.
 	 *
-	 * Heavily based on j256 simplejmx project
+	 * <p>Heavily based on j256 simplejmx project
 	 *
-	 * https://github.com/j256/simplejmx/blob/master/src/main/java/com/j256/simplejmx/server/JmxServer.java
+	 * <p>https://github.com/j256/simplejmx/blob/master/src/main/java/com/j256/simplejmx/server/JmxServer.java
 	 */
 	private static class JMXServer {
 		private Registry rmiRegistry;

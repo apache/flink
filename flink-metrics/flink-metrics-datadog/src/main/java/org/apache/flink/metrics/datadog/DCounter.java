@@ -23,8 +23,8 @@ import org.apache.flink.metrics.Counter;
 import java.util.List;
 
 /**
- * Mapping of counter between Flink and Datadog
- * */
+ * Mapping of counter between Flink and Datadog.
+ */
 public class DCounter extends DMetric {
 	private final Counter counter;
 
@@ -35,8 +35,8 @@ public class DCounter extends DMetric {
 
 	/**
 	 * Visibility of this method must not be changed
-	 * since we deliberately not map it to json object in a Datadog-defined format
-	 * */
+	 * since we deliberately not map it to json object in a Datadog-defined format.
+	 */
 	@Override
 	public Number getMetricValue() {
 		return counter.getCount();

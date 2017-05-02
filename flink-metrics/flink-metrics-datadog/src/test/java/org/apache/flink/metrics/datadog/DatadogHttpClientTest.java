@@ -18,13 +18,13 @@
 
 package org.apache.flink.metrics.datadog;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -35,165 +35,164 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-@RunWith(Enclosed.class)
+/**
+ * Tests for the DatadogHttpClient.
+ */
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(DMetric.class)
 public class DatadogHttpClientTest {
-	public static class TestApiKey {
-		@Test(expected = IllegalArgumentException.class)
-		public void testClientWithEmptyKey() {
-			new DatadogHttpClient("");
-		}
 
-		@Test(expected = IllegalArgumentException.class)
-		public void testClientWithNullKey() {
-			new DatadogHttpClient(null);
-		}
+	private static List<String> tags = Arrays.asList("tag1", "tag2");
+
+	private static final long MOCKED_SYSTEM_MILLIS = 123L;
+
+	@Before
+	public void mockSystemMillis() {
+		PowerMockito.mockStatic(DMetric.class);
+		PowerMockito.when(DMetric.getUnixEpochTimestamp()).thenReturn(MOCKED_SYSTEM_MILLIS);
 	}
 
-	@RunWith(PowerMockRunner.class)
-	@PrepareForTest(DMetric.class)
-	public static class TestSerialization {
-		private static List<String> tags = Arrays.asList("tag1", "tag2");
+	@Test(expected = IllegalArgumentException.class)
+	public void testClientWithEmptyKey() {
+		new DatadogHttpClient("");
+	}
 
-		private static final long MOCKED_SYSTEM_MILLIS = 123L;
+	@Test(expected = IllegalArgumentException.class)
+	public void testClientWithNullKey() {
+		new DatadogHttpClient(null);
+	}
 
-		@Before
-		public void mockSystemMillis() {
-			PowerMockito.mockStatic(DMetric.class);
-			PowerMockito.when(DMetric.getUnixEpochTimestamp()).thenReturn(MOCKED_SYSTEM_MILLIS);
-		}
+	@Test
+	public void serializeGauge() throws JsonProcessingException {
 
-		@Test
-		public void serializeGauge() throws JsonProcessingException {
+		DGauge g = new DGauge(new Gauge<Number>() {
+			@Override
+			public Number getValue() {
+				return 1;
+			}
+		}, "testCounter", "localhost", tags);
 
-			DGauge g = new DGauge(new Gauge<Number>() {
-				@Override
-				public Number getValue() {
-					return 1;
-				}
-			}, "testCounter", "localhost", tags);
+		assertEquals(
+			"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
+			DatadogHttpClient.serialize(g));
+	}
 
-			assertEquals(
-				"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
-				DatadogHttpClient.serialize(g));
-		}
+	@Test
+	public void serializeGaugeWithoutHost() throws JsonProcessingException {
 
-		@Test
-		public void serializeGaugeWithoutHost() throws JsonProcessingException {
+		DGauge g = new DGauge(new Gauge<Number>() {
+			@Override
+			public Number getValue() {
+				return 1;
+			}
+		}, "testCounter", null, tags);
 
-			DGauge g = new DGauge(new Gauge<Number>() {
-				@Override
-				public Number getValue() {
-					return 1;
-				}
-			}, "testCounter", null, tags);
+		assertEquals(
+			"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
+			DatadogHttpClient.serialize(g));
+	}
 
-			assertEquals(
-				"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
-				DatadogHttpClient.serialize(g));
-		}
+	@Test
+	public void serializeCounter() throws JsonProcessingException {
+		DCounter c = new DCounter(new Counter() {
+			@Override
+			public void inc() {}
 
-		@Test
-		public void serializeCounter() throws JsonProcessingException {
-			DCounter c = new DCounter(new Counter() {
-				@Override
-				public void inc() {}
+			@Override
+			public void inc(long n) {}
 
-				@Override
-				public void inc(long n) {}
+			@Override
+			public void dec() {}
 
-				@Override
-				public void dec() {}
+			@Override
+			public void dec(long n) {}
 
-				@Override
-				public void dec(long n) {}
+			@Override
+			public long getCount() {
+				return 1;
+			}
+		}, "testCounter", "localhost", tags);
 
-				@Override
-				public long getCount() {
-					return 1;
-				}
-			}, "testCounter", "localhost", tags);
+		assertEquals(
+			"{\"metric\":\"testCounter\",\"type\":\"counter\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
+			DatadogHttpClient.serialize(c));
+	}
 
-			assertEquals(
-				"{\"metric\":\"testCounter\",\"type\":\"counter\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
-				DatadogHttpClient.serialize(c));
-		}
+	@Test
+	public void serializeCounterWithoutHost() throws JsonProcessingException {
+		DCounter c = new DCounter(new Counter() {
+			@Override
+			public void inc() {}
 
-		@Test
-		public void serializeCounterWithoutHost() throws JsonProcessingException {
-			DCounter c = new DCounter(new Counter() {
-				@Override
-				public void inc() {}
+			@Override
+			public void inc(long n) {}
 
-				@Override
-				public void inc(long n) {}
+			@Override
+			public void dec() {}
 
-				@Override
-				public void dec() {}
+			@Override
+			public void dec(long n) {}
 
-				@Override
-				public void dec(long n) {}
+			@Override
+			public long getCount() {
+				return 1;
+			}
+		}, "testCounter", null, tags);
 
-				@Override
-				public long getCount() {
-					return 1;
-				}
-			}, "testCounter", null, tags);
+		assertEquals(
+			"{\"metric\":\"testCounter\",\"type\":\"counter\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
+			DatadogHttpClient.serialize(c));
+	}
 
-			assertEquals(
-				"{\"metric\":\"testCounter\",\"type\":\"counter\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
-				DatadogHttpClient.serialize(c));
-		}
+	@Test
+	public void serializeMeter() throws JsonProcessingException {
 
-		@Test
-		public void serializeMeter() throws JsonProcessingException {
+		DMeter m = new DMeter(new Meter() {
+			@Override
+			public void markEvent() {}
 
-			DMeter m = new DMeter(new Meter() {
-				@Override
-				public void markEvent() {}
+			@Override
+			public void markEvent(long n) {}
 
-				@Override
-				public void markEvent(long n) {}
+			@Override
+			public double getRate() {
+				return 1;
+			}
 
-				@Override
-				public double getRate() {
-					return 1;
-				}
+			@Override
+			public long getCount() {
+				return 0;
+			}
+		}, "testMeter", "localhost", tags);
 
-				@Override
-				public long getCount() {
-					return 0;
-				}
-			}, "testMeter","localhost", tags);
+		assertEquals(
+			"{\"metric\":\"testMeter\",\"type\":\"gauge\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1.0]]}",
+			DatadogHttpClient.serialize(m));
+	}
 
-			assertEquals(
-				"{\"metric\":\"testMeter\",\"type\":\"gauge\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1.0]]}",
-				DatadogHttpClient.serialize(m));
-		}
+	@Test
+	public void serializeMeterWithoutHost() throws JsonProcessingException {
 
-		@Test
-		public void serializeMeterWithoutHost() throws JsonProcessingException {
+		DMeter m = new DMeter(new Meter() {
+			@Override
+			public void markEvent() {}
 
-			DMeter m = new DMeter(new Meter() {
-				@Override
-				public void markEvent() {}
+			@Override
+			public void markEvent(long n) {}
 
-				@Override
-				public void markEvent(long n) {}
+			@Override
+			public double getRate() {
+				return 1;
+			}
 
-				@Override
-				public double getRate() {
-					return 1;
-				}
+			@Override
+			public long getCount() {
+				return 0;
+			}
+		}, "testMeter", null, tags);
 
-				@Override
-				public long getCount() {
-					return 0;
-				}
-			}, "testMeter", null, tags);
-
-			assertEquals(
-				"{\"metric\":\"testMeter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1.0]]}",
-				DatadogHttpClient.serialize(m));
-		}
+		assertEquals(
+			"{\"metric\":\"testMeter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1.0]]}",
+			DatadogHttpClient.serialize(m));
 	}
 }
