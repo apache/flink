@@ -49,7 +49,7 @@ public class CollectionTestEnvironment extends CollectionEnvironment {
 		return result;
 	}
 
-	protected void setAsContext() {
+	public void setAsContext() {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
@@ -59,5 +59,9 @@ public class CollectionTestEnvironment extends CollectionEnvironment {
 		};
 
 		initializeContextEnvironment(factory);
+	}
+
+	public static void unsetAsContext() {
+		resetContextEnvironment();
 	}
 }

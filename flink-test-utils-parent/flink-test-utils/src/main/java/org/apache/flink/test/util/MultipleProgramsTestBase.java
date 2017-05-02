@@ -80,10 +80,9 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	
 	protected final TestExecutionMode mode;
 
-	
 	public MultipleProgramsTestBase(TestExecutionMode mode) {
 		this.mode = mode;
-		
+
 		switch(mode){
 			case CLUSTER:
 				new TestEnvironment(cluster, 4, false).setAsContext();
@@ -95,6 +94,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 				new CollectionTestEnvironment().setAsContext();
 				break;
 		}
+
 	}
 
 	// ------------------------------------------------------------------------
@@ -102,7 +102,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	// ------------------------------------------------------------------------
 
 	@BeforeClass
-	public static void setup() throws Exception {
+	public void setup() throws Exception {
 		cluster = TestBaseUtils.startCluster(
 			1,
 			DEFAULT_PARALLELISM,
@@ -112,8 +112,11 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	}
 
 	@AfterClass
-	public static void teardown() throws Exception {
+	public void teardown() throws Exception {
 		stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
+
+		TestEnvironment.unsetAsContext();
+		CollectionTestEnvironment.unsetAsContext();
 	}
 	
 	// ------------------------------------------------------------------------
