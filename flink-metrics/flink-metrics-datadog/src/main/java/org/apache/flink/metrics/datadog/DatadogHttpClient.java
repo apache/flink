@@ -23,15 +23,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.Response;
 import okhttp3.RequestBody;
+import okhttp3.Response;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Http client talking to Datadog
- * */
+ * Http client talking to Datadog.
+ */
 public class DatadogHttpClient{
 	private static final String SERIES_URL_FORMAT = "https://app.datadoghq.com/api/v1/series?api_key=%s";
 	private static final String VALIDATE_URL_FORMAT = "https://app.datadoghq.com/api/v1/validate?api_key=%s";
@@ -69,7 +69,7 @@ public class DatadogHttpClient{
 				throw new IllegalArgumentException(
 					String.format("API key: %s is invalid", apiKey));
 			}
-		} catch(IOException e) {
+		} catch (IOException e) {
 			throw new IllegalStateException("Failed contacting Datadog to validate API key", e);
 		}
 	}

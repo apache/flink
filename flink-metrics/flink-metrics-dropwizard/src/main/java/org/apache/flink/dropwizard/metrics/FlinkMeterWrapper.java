@@ -18,8 +18,9 @@
 
 package org.apache.flink.dropwizard.metrics;
 
-import com.codahale.metrics.Clock;
 import org.apache.flink.metrics.Meter;
+
+import com.codahale.metrics.Clock;
 
 /**
  * Wrapper to use a Flink {@link Meter} as a Dropwizard {@link com.codahale.metrics.Meter}.

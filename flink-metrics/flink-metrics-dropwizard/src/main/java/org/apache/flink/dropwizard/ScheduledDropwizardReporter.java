@@ -18,9 +18,6 @@
 
 package org.apache.flink.dropwizard;
 
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.Reporter;
-import com.codahale.metrics.ScheduledReporter;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
@@ -39,6 +36,11 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Reporter;
+import com.codahale.metrics.ScheduledReporter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -161,7 +163,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
 		synchronized (this) {
 			String fullName;
-			
+
 			if (metric instanceof Counter) {
 				fullName = counters.remove(metric);
 			} else if (metric instanceof Gauge) {
@@ -173,7 +175,7 @@ public abstract class ScheduledDropwizardReporter implements MetricReporter, Sch
 			} else {
 				fullName = null;
 			}
-			
+
 			if (fullName != null) {
 				registry.remove(fullName);
 			}

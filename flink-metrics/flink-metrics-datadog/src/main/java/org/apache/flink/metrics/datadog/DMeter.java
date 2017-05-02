@@ -23,10 +23,10 @@ import org.apache.flink.metrics.Meter;
 import java.util.List;
 
 /**
- * Mapping of meter between Flink and Datadog
+ * Mapping of meter between Flink and Datadog.
  *
- * Only consider rate of the meter, due to Datadog HTTP API's limited support of meter
- * */
+ * <p>Only consider rate of the meter, due to Datadog HTTP API's limited support of meter
+ */
 public class DMeter extends DMetric {
 	private final Meter meter;
 

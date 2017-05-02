@@ -18,8 +18,9 @@
 
 package org.apache.flink.dropwizard.metrics;
 
-import com.codahale.metrics.Snapshot;
 import org.apache.flink.metrics.Histogram;
+
+import com.codahale.metrics.Snapshot;
 
 /**
  * Wrapper to use a Flink {@link Histogram} as a Dropwizard {@link com.codahale.metrics.Histogram}.

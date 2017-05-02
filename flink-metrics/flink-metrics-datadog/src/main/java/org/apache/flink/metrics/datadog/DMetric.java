@@ -25,16 +25,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Abstract metric of Datadog for serialization
- * */
+ * Abstract metric of Datadog for serialization.
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public abstract class DMetric {
 	private static final long MILLIS_TO_SEC = 1000L;
 
 	/**
 	 * Names of metric/type/tags field and their getters must not be changed
-	 * since they are mapped to json objects in a Datadog-defined format
-	 * */
+	 * since they are mapped to json objects in a Datadog-defined format.
+	 */
 	private final String metric; // Metric name
 	private final MetricType type;
 	private final String host;
