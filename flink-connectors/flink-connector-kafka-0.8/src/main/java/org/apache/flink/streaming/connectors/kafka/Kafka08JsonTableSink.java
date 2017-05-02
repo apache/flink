@@ -36,7 +36,6 @@ public class Kafka08JsonTableSink extends KafkaJsonTableSink {
 	 * @param properties properties to connect to Kafka
 	 * @param partitioner Kafka partitioner
 	 */
-	@Deprecated
 	public Kafka08JsonTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner) {
 		super(topic, properties, partitioner);
 	}
@@ -52,7 +51,6 @@ public class Kafka08JsonTableSink extends KafkaJsonTableSink {
 		super(topic, properties, partitioner);
 	}
 
-	@Deprecated
 	@Override
 	protected FlinkKafkaProducerBase<Row> createKafkaProducer(String topic, Properties properties, SerializationSchema<Row> serializationSchema, KafkaPartitioner<Row> partitioner) {
 		return new FlinkKafkaProducer08<>(topic, serializationSchema, properties, partitioner);

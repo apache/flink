@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.partitioner;
 /**
  * Delegate for KafkaPartitioner
  * @param <T>
+ * @deprecated Delegate for {@link KafkaPartitioner}, use {@link FlinkKafkaPartitioner} instead
  */
 @Deprecated
 public class FlinkKafkaDelegatePartitioner<T> extends FlinkKafkaPartitioner<T> {

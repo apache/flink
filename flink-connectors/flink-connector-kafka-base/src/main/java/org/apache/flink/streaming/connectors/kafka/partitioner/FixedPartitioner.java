@@ -48,7 +48,7 @@ import java.io.Serializable;
  *  Not all Kafka partitions contain data
  *  To avoid such an unbalanced partitioning, use a round-robin kafka partitioner. (note that this will
  *  cause a lot of network connections between all the Flink instances and all the Kafka brokers
- *  Use {@link FlinkFixedPartitioner} instead.
+ *  @deprecated Use {@link FlinkFixedPartitioner} instead.
  *
  */
 @Deprecated

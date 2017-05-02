@@ -51,6 +51,7 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 	 * @param topic                 Kafka topic to write to.
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param partitioner           Partitioner to select Kafka partition for each item
+	 * @deprecated Use {@link KafkaTableSink#KafkaTableSink(String, Properties, FlinkKafkaPartitioner)} instead
 	 */
 	@Deprecated
 	public KafkaTableSink(
@@ -60,6 +61,13 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 		this(topic, properties, new FlinkKafkaDelegatePartitioner<Row>(partitioner));
 	}
 
+	/**
+	 * Creates KafkaTableSink
+	 * 
+	 * @param topic                 Kafka topic to write to.
+	 * @param properties            Properties for the Kafka consumer.
+	 * @param partitioner           Partitioner to select Kafka partition for each item
+	 */
 	public KafkaTableSink(
 			String topic,
 			Properties properties,
@@ -77,6 +85,7 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 	 * @param serializationSchema Serialization schema to use to create Kafka records.
 	 * @param partitioner         Partitioner to select Kafka partition.
 	 * @return The version-specific Kafka producer
+	 * @deprecated Use {@link KafkaTableSink#createKafkaProducer(String, Properties, SerializationSchema, FlinkKafkaPartitioner)} instead
 	 */
 	@Deprecated
 	protected abstract FlinkKafkaProducerBase<Row> createKafkaProducer(
