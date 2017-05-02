@@ -21,7 +21,8 @@ package org.apache.flink.table.api.scala.batch.sql
 import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.utils.TableTestBase
@@ -83,6 +84,33 @@ class WindowAggregateTest extends TableTestBase {
       )
 
     util.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testTumbleWindowWithUdAgg() = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+
+    val weightedAvg = new WeightedAvgWithMerge
+    util.tEnv.registerFunction("weightedAvg", weightedAvg)
+
+    val sql = "SELECT weightedAvg(b, a) AS wAvg " +
+      "FROM T " +
+      "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
+
+    val expected =
+      unaryNode(
+        "DataSetWindowAggregate",
+        unaryNode(
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "ts, b, a")
+        ),
+        term("window", EventTimeTumblingGroupWindow('w$, 'ts, 240000.millis)),
+        term("select", "weightedAvg(b, a) AS wAvg")
+      )
+
+    util.verifySql(sql, expected)
   }
 
   @Test
@@ -280,4 +308,17 @@ class WindowAggregateTest extends TableTestBase {
     util.verifySql(sql, "n/a")
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testTumbleWindowWithInvalidUdAggArgs() = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+
+    val weightedAvg = new WeightedAvgWithMerge
+    util.tEnv.registerFunction("weightedAvg", weightedAvg)
+
+    val sql = "SELECT weightedAvg(c, a) AS wAvg " +
+      "FROM T " +
+      "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
+    util.verifySql(sql, "n/a")
+  }
 }

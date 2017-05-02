@@ -23,6 +23,9 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMergeAndReset
+import org.apache.flink.table.api.scala.batch.utils.LogicalPlanFormatUtils
+import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.junit._
 
 class AggregationsStringExpressionTest extends TableTestBase {
@@ -288,6 +291,61 @@ class AggregationsStringExpressionTest extends TableTestBase {
       _1.varSamp, _2.varSamp, _3.varSamp, _4.varSamp""")
 
     verifyTableEquals(resScala, resJava)
+  }
+
+  @Test
+  def testAggregateWithUDAGG(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+
+    val myCnt = new CountAggFunction
+    tEnv.registerFunction("myCnt", myCnt)
+    val myWeightedAvg = new WeightedAvgWithMergeAndReset
+    tEnv.registerFunction("myWeightedAvg", myWeightedAvg)
+
+    val t1 = t.select(myCnt('a) as 'aCnt, myWeightedAvg('b, 'a) as 'wAvg)
+    val t2 = t.select("myCnt(a) as aCnt, myWeightedAvg(b, a) as wAvg")
+
+    val lPlan1 = t1.logicalPlan
+    val lPlan2 = t2.logicalPlan
+
+    val x = LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString)
+    val y = LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString)
+
+    Assert.assertEquals(
+      "Logical Plans do not match",
+      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
+      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+  }
+
+  @Test
+  def testGroupedAggregateWithUDAGG(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+
+    val myCnt = new CountAggFunction
+    tEnv.registerFunction("myCnt", myCnt)
+    val myWeightedAvg = new WeightedAvgWithMergeAndReset
+    tEnv.registerFunction("myWeightedAvg", myWeightedAvg)
+
+    val t1 = t.groupBy('b)
+      .select('b, myCnt('a) + 9 as 'aCnt, myWeightedAvg('b, 'a) * 2 as 'wAvg, myWeightedAvg('a, 'a))
+    val t2 = t.groupBy("b")
+      .select("b, myCnt(a) + 9 as aCnt, myWeightedAvg(b, a) * 2 as wAvg, myWeightedAvg(a, a)")
+
+    val lPlan1 = t1.logicalPlan
+    val lPlan2 = t2.logicalPlan
+
+    Assert.assertEquals(
+      "Logical Plans do not match",
+      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
+      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
   }
 
 }

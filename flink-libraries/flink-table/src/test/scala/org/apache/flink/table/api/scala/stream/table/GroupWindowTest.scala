@@ -19,8 +19,8 @@
 package org.apache.flink.table.api.scala.stream.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.expressions.{RowtimeAttribute, WindowReference}
 import org.apache.flink.table.plan.logical._
@@ -113,6 +113,18 @@ class GroupWindowTest extends TableTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
+  def testTumbleUdAggWithInvalidArgs(): Unit = {
+    val util = streamTestUtil()
+    val weightedAvg = new WeightedAvgWithMerge
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    table
+      .window(Tumble over 2.hours on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .select('string, weightedAvg('string, 'int)) // invalid UDAGG args
+  }
+
+  @Test(expected = classOf[ValidationException])
   def testInvalidSlidingSize(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
@@ -132,6 +144,18 @@ class GroupWindowTest extends TableTestBase {
       .window(Slide over 12.rows every 1.minute as 'w) // row and time intervals may not be mixed
       .groupBy('w, 'string)
       .select('string, 'int.count)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testSlideUdAggWithInvalidArgs(): Unit = {
+    val util = streamTestUtil()
+    val weightedAvg = new WeightedAvgWithMerge
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    table
+      .window(Slide over 2.hours every 30.minutes on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .select('string, weightedAvg('string, 'int)) // invalid UDAGG args
   }
 
   @Test(expected = classOf[ValidationException])
@@ -165,6 +189,18 @@ class GroupWindowTest extends TableTestBase {
       .window(Session withGap 100.milli as 'string) // field name "string" is already present
       .groupBy('string)
       .select('string, 'int.count)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testSessionUdAggWithInvalidArgs(): Unit = {
+    val util = streamTestUtil()
+    val weightedAvg = new WeightedAvgWithMerge
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    table
+      .window(Session withGap 2.hours on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .select('string, weightedAvg('string, 'int)) // invalid UDAGG args
   }
 
   @Test
@@ -325,6 +361,34 @@ class GroupWindowTest extends TableTestBase {
   }
 
   @Test
+  def testEventTimeTumblingGroupWindowWithUdAgg(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    val weightedAvg = new WeightedAvgWithMerge
+
+    val windowedTable = table
+      .window(Tumble over 5.milli on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .select('string, weightedAvg('long, 'int))
+
+    val expected = unaryNode(
+      "DataStreamAggregate",
+      streamTableNode(0),
+      term("groupBy", "string"),
+      term(
+        "window",
+        EventTimeTumblingGroupWindow(
+          WindowReference("w"),
+          RowtimeAttribute(),
+          5.milli)),
+      term("select", "string", "WeightedAvgWithMerge(long, int) AS TMP_0")
+    )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test
   def testProcessingTimeSlidingGroupWindowOverTime(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
@@ -438,6 +502,33 @@ class GroupWindowTest extends TableTestBase {
   }
 
   @Test
+  def testEventTimeSlidingGroupWindowWithUdAgg(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    val weightedAvg = new WeightedAvgWithMerge
+
+    val windowedTable = table
+      .window(Slide over 8.milli every 10.milli on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .select('string, weightedAvg('long, 'int))
+
+    val expected = unaryNode(
+      "DataStreamAggregate",
+      streamTableNode(0),
+      term("groupBy", "string"),
+      term(
+        "window",
+        EventTimeSlidingGroupWindow(
+          WindowReference("w"),
+          RowtimeAttribute(), 8.milli, 10.milli)),
+      term("select", "string", "WeightedAvgWithMerge(long, int) AS TMP_0")
+    )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test
   def testEventTimeSessionGroupWindowOverTime(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
@@ -461,6 +552,33 @@ class GroupWindowTest extends TableTestBase {
           WindowReference("w"),
           RowtimeAttribute(), 7.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
+    )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test
+  def testEventTimeSessionGroupWindowWithUdAgg(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    val weightedAvg = new WeightedAvgWithMerge
+
+    val windowedTable = table
+      .window(Session withGap 7.milli on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .select('string, weightedAvg('long, 'int))
+
+    val expected = unaryNode(
+      "DataStreamAggregate",
+      streamTableNode(0),
+      term("groupBy", "string"),
+      term(
+        "window",
+        EventTimeSessionGroupWindow(
+          WindowReference("w"),
+          RowtimeAttribute(), 7.milli)),
+      term("select", "string", "WeightedAvgWithMerge(long, int) AS TMP_0")
     )
 
     util.verifyTable(windowedTable, expected)
