@@ -31,8 +31,8 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducerBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironment;
-import org.apache.flink.streaming.connectors.kafka.partitioner.FixedPartitioner;
-import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
@@ -107,10 +107,10 @@ public class DataGenerators {
 		testServer.produceIntoKafka(stream, topic,
 				new KeyedSerializationSchemaWrapper<>(new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, env.getConfig())),
 				props,
-				new KafkaPartitioner<Integer>() {
+				new FlinkKafkaPartitioner<Integer>() {
 					@Override
-					public int partition(Integer next, byte[] serializedKey, byte[] serializedValue, int numPartitions) {
-						return next % numPartitions;
+					public int partition(Integer next, byte[] serializedKey, byte[] serializedValue, String topic, int[] partitions) {
+						return next % partitions.length;
 					}
 				});
 
@@ -149,7 +149,7 @@ public class DataGenerators {
 						topic,
 						new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()),
 						producerProperties,
-						new FixedPartitioner<String>());
+						new FlinkFixedPartitioner<String>());
 
 				OneInputStreamOperatorTestHarness<String, Object> testHarness =
 						new OneInputStreamOperatorTestHarness<>(sink);
