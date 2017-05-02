@@ -209,7 +209,6 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     util.verifySql(sqlQuery, expected)
   }
 
-
   @Test
   def testScalarFunction(): Unit = {
     val util = batchTestUtil()
@@ -233,6 +232,42 @@ class UserDefinedTableFunctionTest extends TableTestBase {
       term("select", "c", "f0 AS s")
     )
 
+    util.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testDynamicSchemaWithSQL(): Unit = {
+    val util = batchTestUtil()
+    val funcDyna0 = new DynamicSchema0
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addFunction("funcDyna0", funcDyna0)
+    val sqlQuery = "SELECT c,name,len0,len1,name1,len10 FROM MyTable JOIN " +
+      "LATERAL TABLE(funcDyna0(c, 'string,int,int')) AS T1(name,len0,len1) ON TRUE JOIN " +
+      "LATERAL TABLE(funcDyna0(c, 'string,int')) AS T2(name1,len10) ON TRUE"
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      unaryNode(
+        "DataSetCorrelate",
+        unaryNode(
+          "DataSetCorrelate",
+          batchTableNode(0),
+          term("invocation", "funcDyna0($cor0.c, 'string,int,int')"),
+          term("function", funcDyna0.getClass.getCanonicalName),
+          term("rowType",
+            "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0, " +
+              "INTEGER f1, INTEGER f2)"),
+          term("joinType", "INNER")
+        ),
+        term("invocation", "funcDyna0($cor1.c, 'string,int')"),
+        term("function", funcDyna0.getClass.getCanonicalName),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0, " +
+            "INTEGER f1, INTEGER f2, VARCHAR(2147483647) f00, INTEGER f10)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "c", "f0 AS name", "f1 AS len0", "f2 AS len1", "f00 AS name1", "f10 AS len10")
+    )
     util.verifySql(sqlQuery, expected)
   }
 }

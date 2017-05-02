@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.api.scala.stream.table
 
+import java.sql.Timestamp
+
 import org.apache.flink.api.scala._
 import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -358,6 +360,247 @@ class UserDefinedTableFunctionTest extends TableTestBase {
         term("joinType", "INNER")
     )
 
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testDynamicSchema(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val funcDyn = util.addFunction("funcDyn", new DynamicSchema)
+    val result = table
+      .join(funcDyn('c, 1) as 'name)
+      .select('c, 'name)
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", s"${funcDyn.functionIdentifier}($$2, 1)"),
+        term("function", funcDyn),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "c", "name")
+    )
+    util.verifyTable(result, expected)
+
+    val result1 = table
+      .join(funcDyn('c, 2) as ('name, 'len0))
+      .select('c, 'name, 'len0)
+    val expected1 = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", s"${funcDyn.functionIdentifier}($$2, 2)"),
+        term("function", funcDyn),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, " +
+            "INTEGER len0)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "c", "name", "len0")
+    )
+    util.verifyTable(result1, expected1)
+
+    val result2 = table
+      .join(funcDyn('c, 3) as ('name, 'len0, 'len1))
+      .select('c, 'name, 'len0, 'len1)
+    val expected2 = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", s"${funcDyn.functionIdentifier}($$2, 3)"),
+        term("function", funcDyn),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, " +
+            "INTEGER len0, INTEGER len1)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "c", "name", "len0", "len1")
+    )
+    util.verifyTable(result2, expected2)
+
+    val result3 = table
+      .join(funcDyn('c, 3) as ('name, 'len0, 'len1))
+      .select('c, 'name, 'len0, 'len1)
+      .join(funcDyn('c, 2) as ('name1, 'len10))
+      .select('c, 'name, 'len0, 'len1, 'name1, 'len10)
+    val expected3 = unaryNode(
+      "DataStreamCorrelate",
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamCorrelate",
+          streamTableNode(0),
+          term("invocation", s"${funcDyn.functionIdentifier}($$2, 3)"),
+          term("function", funcDyn),
+          term("rowType",
+            "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, " +
+              "INTEGER len0, INTEGER len1)"),
+          term("joinType", "INNER")
+        ),
+        term("select", "c", "name", "len0", "len1")
+      ),
+      term("invocation", s"${funcDyn.functionIdentifier}($$0, 2)"),
+      term("function", funcDyn),
+      term("rowType",
+        "RecordType(VARCHAR(2147483647) c, VARCHAR(2147483647) name, " +
+          "INTEGER len0, INTEGER len1, VARCHAR(2147483647) name1, INTEGER len10)"),
+      term("joinType", "INNER")
+    )
+    util.verifyTable(result3, expected3)
+
+    val funcDyn1 = new DynamicSchema1
+    val result4 = table.join(funcDyn1("string") as 'col)
+      .select('col)
+    val expected4 = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", s"${funcDyn1.functionIdentifier}('string')"),
+        term("function", funcDyn1),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) col)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "col")
+    )
+    util.verifyTable(result4, expected4)
+
+    val result5 = table.join(funcDyn1("int") as 'col)
+      .select('col)
+    val expected5 = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", s"${funcDyn1.functionIdentifier}('int')"),
+        term("function", funcDyn1),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER col)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "col")
+    )
+    util.verifyTable(result5, expected5)
+
+    val result6 = table.join(funcDyn1("double") as 'col)
+      .select('col)
+    val expected6 = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", s"${funcDyn1.functionIdentifier}('double')"),
+        term("function", funcDyn1),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DOUBLE col)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "col")
+    )
+    util.verifyTable(result6, expected6)
+
+    val result7 = table.join(funcDyn1("boolean") as 'col)
+      .select('col)
+    val expected7 = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", s"${funcDyn1.functionIdentifier}('boolean')"),
+        term("function", funcDyn1),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, BOOLEAN col)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "col")
+    )
+    util.verifyTable(result7, expected7)
+
+    val result8 = table.join(funcDyn1("timestamp") as 'col)
+      .select('col)
+    val expected8 = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", s"${funcDyn1.functionIdentifier}('timestamp')"),
+        term("function", funcDyn1),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, TIMESTAMP(3) col)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "col")
+    )
+    util.verifyTable(result8, expected8)
+  }
+
+  @Test
+  def testDynamicSchemaWithExpressionParser(): Unit = {
+    val util = streamTestUtil()
+    val in = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val funcDyna0 = util.addFunction("funcDyna0", new DynamicSchema0)
+    val result = in.join("funcDyna0(c, 'string,int,int') as (name, len0, len1)")
+      .join("funcDyna0(c, 'string,int') as (name1, len10)")
+      .select("c,name,len0,len1,name1,len10")
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        unaryNode(
+          "DataStreamCorrelate",
+          streamTableNode(0),
+          term("invocation", s"${funcDyna0.functionIdentifier}($$2, 'string,int,int')"),
+          term("function", funcDyna0),
+          term("rowType",
+            "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name," +
+              " INTEGER len0, INTEGER len1)"),
+          term("joinType", "INNER")
+        ),
+        term("invocation", s"${funcDyna0.functionIdentifier}($$2, 'string,int')"),
+        term("function", funcDyna0),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, " +
+            "VARCHAR(2147483647) name, INTEGER len0, INTEGER len1, " +
+            "VARCHAR(2147483647) name1, INTEGER len10)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "c", "name", "len0", "len1", "name1", "len10")
+    )
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testDynamicSchemaWithRexNodes: Unit = {
+    val util = streamTestUtil()
+    val in = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val funcDyn = util.addFunction("funcDyn", new DynamicSchemaWithRexNodes)
+    val result = in
+      .join(funcDyn('c, 1, 2, 3, 4.0, 5.0, 6.0, true, new Timestamp(888))
+        as ('name, 'c1, 'c2, 'c3, 'c4, 'c5, 'c6, 'c7, 'c8))
+      .select('name, 'c1, 'c2, 'c3, 'c4, 'c5, 'c6, 'c7, 'c8)
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", s"${funcDyn.functionIdentifier}($$2, 1, 2, 3, 4.0E0, 5.0E0, 6.0E0, " +
+          s"true, 1970-01-01 08:00:00.888)"),
+        term("function", funcDyn),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, " +
+            "INTEGER c1, INTEGER c2, INTEGER c3, DOUBLE c4, DOUBLE c5, DOUBLE c6, BOOLEAN c7, " +
+            "TIMESTAMP(3) c8)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "name", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8")
+    )
     util.verifyTable(result, expected)
   }
 
