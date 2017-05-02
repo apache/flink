@@ -19,7 +19,9 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.runners.Parameterized;
 
@@ -80,10 +82,16 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	
 	protected final TestExecutionMode mode;
 
-	
 	public MultipleProgramsTestBase(TestExecutionMode mode) {
 		this.mode = mode;
-		
+	}
+
+	// ------------------------------------------------------------------------
+	//  Environment setup & teardown
+	// ------------------------------------------------------------------------
+
+	@Before
+	public void setupEnvironment() {
 		switch(mode){
 			case CLUSTER:
 				new TestEnvironment(cluster, 4, false).setAsContext();
@@ -93,6 +101,19 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 				break;
 			case COLLECTION:
 				new CollectionTestEnvironment().setAsContext();
+				break;
+		}
+	}
+
+	@After
+	public void teardownEnvironment() {
+		switch(mode) {
+			case CLUSTER:
+			case CLUSTER_OBJECT_REUSE:
+				TestEnvironment.unsetAsContext();
+				break;
+			case COLLECTION:
+				CollectionTestEnvironment.unsetAsContext();
 				break;
 		}
 	}
