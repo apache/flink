@@ -32,6 +32,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
@@ -210,18 +211,10 @@ public class MesosApplicationMasterRunner {
 		try {
 			// ------- (1) load and parse / validate all configurations -------
 
-			final String appMasterHostname;
-			//We will use JM RPC address property if it is supplied through configuration
-			final String jmRpcAddress = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-			if(jmRpcAddress != null) {
-				LOG.info("JM RPC address from Flink configuration file: {} ", jmRpcAddress);
-				appMasterHostname = jmRpcAddress;
-			} else {
-				// Note that we use the "appMasterHostname" given by the system, to make sure
-				// we use the hostnames consistently throughout akka.
-				// for akka "localhost" and "localhost.localdomain" are different actors.
-				appMasterHostname = InetAddress.getLocalHost().getHostName();
-			}
+			final String appMasterHostname = config.getString(
+				JobManagerOptions.ADDRESS,
+				InetAddress.getLocalHost().getHostName());
+
 			LOG.info("App Master Hostname to use: {}", appMasterHostname);
 
 			// Mesos configuration

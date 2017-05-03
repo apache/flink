@@ -34,11 +34,13 @@ import org.apache.flink.util.Preconditions;
 import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
 
 import static org.apache.flink.mesos.Utils.variable;
 import static org.apache.flink.mesos.Utils.range;
@@ -200,9 +202,15 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		final StringBuilder jvmArgs = new StringBuilder();
 
 		//configure task manager hostname property if hostname override property is supplied
-		if(params.getTaskManagerHostname().isDefined()) {
-			final String taskManagerHostName = params.getTaskManagerHostname().get().replace("_TASK",taskID.getValue());
-			dynamicProperties.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, taskManagerHostName);
+		Option<String> taskManagerHostnameOption = params.getTaskManagerHostname();
+
+		if(taskManagerHostnameOption.isDefined()) {
+			// replace the TASK_ID pattern by the actual task id value of the Mesos task
+			final String taskManagerHostname = MesosTaskManagerParameters.TASK_ID_PATTERN
+				.matcher(taskManagerHostnameOption.get())
+				.replaceAll(Matcher.quoteReplacement(taskID.getValue()));
+
+			dynamicProperties.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, taskManagerHostname);
 		}
 
 		// use the assigned ports for the TM
@@ -251,13 +259,12 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		env.addVariables(variable(MesosConfigKeys.ENV_FRAMEWORK_NAME, mesosConfiguration.frameworkInfo().getName()));
 
 		// build the launch command w/ dynamic application properties
-		StringBuilder launchCommand = new StringBuilder();
-		if(params.bootstrapCommand().isDefined()) {
-			launchCommand.append(params.bootstrapCommand().get()).append(" && ");
-		}
-		launchCommand.append("$FLINK_HOME/bin/mesos-taskmanager.sh ");
-		launchCommand.append(ContainerSpecification.formatSystemProperties(dynamicProperties));
-		cmd.setValue(launchCommand.toString());
+		Option<String> bootstrapCmdOption = params.bootstrapCommand();
+
+		final String bootstrapCommand = bootstrapCmdOption.isDefined() ? bootstrapCmdOption.get() + " && " : "";
+		final String launchCommand = bootstrapCommand + "$FLINK_HOME/bin/mesos-taskmanager.sh " + ContainerSpecification.formatSystemProperties(dynamicProperties);
+
+		cmd.setValue(launchCommand);
 
 		// build the container info
 		Protos.ContainerInfo.Builder containerInfo = Protos.ContainerInfo.newBuilder();

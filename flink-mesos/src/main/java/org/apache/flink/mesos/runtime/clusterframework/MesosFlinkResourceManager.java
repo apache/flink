@@ -669,8 +669,13 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 	private LaunchableMesosWorker createLaunchableMesosWorker(Protos.TaskID taskID) {
 		LaunchableMesosWorker launchable =
-			new LaunchableMesosWorker(artifactResolver, taskManagerParameters, taskManagerContainerSpec,
-					taskID, mesosConfig);
+			new LaunchableMesosWorker(
+				artifactResolver,
+				taskManagerParameters,
+				taskManagerContainerSpec,
+				taskID,
+				mesosConfig);
+
 		return launchable;
 	}
 
