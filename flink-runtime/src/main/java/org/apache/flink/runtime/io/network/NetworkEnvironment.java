@@ -287,7 +287,7 @@ public class NetworkEnvironment {
 
 			try {
 				LOG.debug("Starting network connection manager");
-				connectionManager.start(resultPartitionManager, taskEventDispatcher, networkBufferPool);
+				connectionManager.start(resultPartitionManager, taskEventDispatcher);
 			}
 			catch (IOException t) {
 				throw new IOException("Failed to instantiate network connection manager.", t);

@@ -42,7 +42,6 @@ import static org.junit.Assert.*;
 
 public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 	
-	
 	@Test
 	public void testSuccessfulProgramAfterFailure() {
 		LocalFlinkMiniCluster cluster = null;
@@ -52,7 +51,7 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 80L);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
-			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 840);
+			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 800);
 			
 			cluster = new LocalFlinkMiniCluster(config, false);
 
