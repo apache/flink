@@ -179,6 +179,12 @@ object FunctionGenerator {
     DOUBLE_TYPE_INFO,
     BuiltInMethods.POWER_DEC)
 
+  addSqlFunctionMethod(
+    POWER,
+    Seq(BIG_DEC_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.POWER_DEC_DEC)
+
   addSqlFunction(
     ABS,
     Seq(DOUBLE_TYPE_INFO),

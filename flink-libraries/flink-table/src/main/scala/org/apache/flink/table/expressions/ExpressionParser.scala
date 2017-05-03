@@ -58,10 +58,10 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val START: Keyword = Keyword("start")
   lazy val END: Keyword = Keyword("end")
   lazy val SUM0: Keyword = Keyword("sum0")
-  lazy val STDDEV_POP: Keyword = Keyword("stddev_pop")
-  lazy val STDDEV_SAMP: Keyword = Keyword("stddev_samp")
-  lazy val VAR_POP: Keyword = Keyword("var_pop")
-  lazy val VAR_SAMP: Keyword = Keyword("var_samp")
+  lazy val STDDEV_POP: Keyword = Keyword("stddevPop")
+  lazy val STDDEV_SAMP: Keyword = Keyword("stddevSamp")
+  lazy val VAR_POP: Keyword = Keyword("varPop")
+  lazy val VAR_SAMP: Keyword = Keyword("varSamp")
   lazy val CAST: Keyword = Keyword("cast")
   lazy val NULL: Keyword = Keyword("Null")
   lazy val IF: Keyword = Keyword("?")
@@ -100,8 +100,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val ASIN: Keyword = Keyword("asin")
 
   def functionIdent: ExpressionParser.Parser[String] =
-    not(ARRAY) ~ not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~ not(STDDEV_POP) ~
-      not(STDDEV_SAMP) ~ not(VAR_SAMP) ~ not(VAR_POP) ~
+    not(ARRAY) ~ not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
+      not(SUM0) ~ not(STDDEV_POP) ~ not(STDDEV_SAMP) ~ not(VAR_POP) ~ not(VAR_SAMP) ~
       not(SUM) ~ not(START) ~ not(END)~ not(CAST) ~ not(NULL) ~ not(IF) ~
       not(CURRENT_ROW) ~ not(UNBOUNDED_ROW) ~ not(CURRENT_RANGE) ~ not(UNBOUNDED_RANGE) ~>
       super.ident
@@ -214,6 +214,18 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val suffixSum0: PackratParser[Expression] =
     composite <~ "." ~ SUM0 ~ opt("()") ^^ { e => Sum0(e) }
 
+  lazy val suffixStddevPop: PackratParser[Expression] =
+    composite <~ "." ~ STDDEV_POP ~ opt("()") ^^ { e => StddevPop(e) }
+
+  lazy val suffixStddevSamp: PackratParser[Expression] =
+    composite <~ "." ~ STDDEV_SAMP ~ opt("()") ^^ { e => StddevSamp(e) }
+
+  lazy val suffixVarSamp: PackratParser[Expression] =
+    composite <~ "." ~ VAR_SAMP ~ opt("()") ^^ { e => VarSamp(e) }
+
+  lazy val suffixVarPop: PackratParser[Expression] =
+    composite <~ "." ~ VAR_POP ~ opt("()") ^^ { e => VarPop(e) }
+
   lazy val suffixMin: PackratParser[Expression] =
     composite <~ "." ~ MIN ~ opt("()") ^^ { e => Min(e) }
 
@@ -232,17 +244,6 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val suffixEnd: PackratParser[Expression] =
     composite <~ "." ~ END ~ opt("()") ^^ { e => WindowEnd(e) }
 
-  lazy val suffixStddevPop: PackratParser[Expression] =
-    composite <~ "." ~ STDDEV_POP ~ opt("()") ^^ { e => StddevPop(e) }
-
-  lazy val suffixStddevSamp: PackratParser[Expression] =
-    composite <~ "." ~ STDDEV_SAMP ~ opt("()") ^^ { e => StddevSamp(e) }
-
-  lazy val suffixVarSamp: PackratParser[Expression] =
-    composite <~ "." ~ VAR_SAMP ~ opt("()") ^^ { e => VarSamp(e) }
-
-  lazy val suffixVarPop: PackratParser[Expression] =
-    composite <~ "." ~ VAR_POP ~ opt("()") ^^ { e => VarPop(e) }
   lazy val suffixCast: PackratParser[Expression] =
     composite ~ "." ~ CAST ~ "(" ~ dataType ~ ")" ^^ {
     case e ~ _ ~ _ ~ _ ~ dt ~ _ => Cast(e, dt)
@@ -334,15 +335,15 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     composite <~ "." ~ FLATTEN ~ opt("()") ^^ { e => Flattening(e) }
 
   lazy val suffixAgg: PackratParser[Expression] =
-    suffixSum | suffixMin | suffixMax | suffixCount | suffixAvg
+    suffixSum0 | suffixStddevPop | suffixStddevSamp | suffixVarPop | suffixVarSamp |
+      suffixSum | suffixMin | suffixMax | suffixCount | suffixAvg
 
   lazy val suffixAsin: PackratParser[Expression] =
     composite <~ "." ~ ASIN ~ opt("()") ^^ { e => Asin(e) }
 
   lazy val suffixed: PackratParser[Expression] =
-    suffixTimeInterval | suffixRowInterval | suffixStart | suffixSum0 | suffixEnd | suffixAgg |
+    suffixTimeInterval | suffixRowInterval | suffixStart | suffixEnd | suffixAgg |
       suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs | suffixIf | suffixAsc |
-      suffixStddevPop | suffixStddevSamp | suffixVarPop | suffixVarSamp |
       suffixDesc | suffixToDate | suffixToTimestamp | suffixToTime | suffixExtract |
       suffixFloor | suffixCeil | suffixGet | suffixFlattening | suffixAsin |
       suffixFunctionCall | suffixFunctionCallOneArg // function call must always be at the end
@@ -357,6 +358,18 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val prefixSum0: PackratParser[Expression] =
     SUM0 ~ "(" ~> expression <~ ")" ^^ { e => Sum0(e) }
+
+  lazy val prefixStddevPop: PackratParser[Expression] =
+    STDDEV_POP ~ "(" ~> expression <~ ")" ^^ { e => StddevPop(e) }
+
+  lazy val prefixStddevSamp: PackratParser[Expression] =
+    STDDEV_SAMP ~ "(" ~> expression <~ ")" ^^ { e => StddevSamp(e) }
+
+  lazy val prefixVarPop: PackratParser[Expression] =
+    VAR_POP ~ "(" ~> expression <~ ")" ^^ { e => VarPop(e) }
+
+  lazy val prefixVarSamp: PackratParser[Expression] =
+    VAR_SAMP ~ "(" ~> expression <~ ")" ^^ { e => VarSamp(e) }
 
   lazy val prefixMin: PackratParser[Expression] =
     MIN ~ "(" ~> expression <~ ")" ^^ { e => Min(e) }
@@ -376,17 +389,6 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val prefixEnd: PackratParser[Expression] =
     END ~ "(" ~> expression <~ ")" ^^ { e => WindowEnd(e) }
 
-  lazy val prefixStddevPop: PackratParser[Expression] =
-    STDDEV_POP ~ "(" ~> expression <~ ")" ^^ { e => StddevPop(e) }
-
-  lazy val prefixStddevSamp: PackratParser[Expression] =
-    STDDEV_SAMP ~ "(" ~> expression <~ ")" ^^ { e => StddevSamp(e) }
-
-  lazy val prefixVarSamp: PackratParser[Expression] =
-    VAR_SAMP ~ "(" ~> expression <~ ")" ^^ { e => VarSamp(e) }
-
-  lazy val prefixVarPop: PackratParser[Expression] =
-    VAR_POP ~ "(" ~> expression <~ ")" ^^ { e => VarPop(e) }
   lazy val prefixCast: PackratParser[Expression] =
     CAST ~ "(" ~ expression ~ "," ~ dataType ~ ")" ^^ {
     case _ ~ _ ~ e ~ _ ~ dt ~ _ => Cast(e, dt)
@@ -440,15 +442,14 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     FLATTEN ~ "(" ~> composite <~ ")" ^^ { e => Flattening(e) }
 
   lazy val prefixAgg: PackratParser[Expression] =
-    prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg
+    prefixSum0 | prefixStddevPop | prefixStddevSamp | prefixVarPop | prefixVarSamp |
+      prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg
 
   lazy val prefixAsin: PackratParser[Expression] =
     ASIN ~ "(" ~> composite <~ ")" ^^ { e => Asin(e) }
 
   lazy val prefixed: PackratParser[Expression] =
-    prefixArray | prefixSum | prefixSum0 | prefixAgg | prefixStart | prefixEnd |
-      prefixCast | prefixAs | prefixTrim | prefixStddevPop | prefixStddevSamp | prefixVarSamp |
-      prefixVarPop |
+    prefixArray | prefixAgg | prefixStart | prefixEnd | prefixCast | prefixAs | prefixTrim |
       prefixTrimWithoutArgs | prefixIf | prefixExtract | prefixFloor | prefixCeil | prefixGet |
       prefixFlattening | prefixAsin | prefixFunctionCall |
       prefixFunctionCallOneArg // function call must always be at the end

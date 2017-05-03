@@ -170,10 +170,10 @@ object FunctionCatalog {
     "min" -> classOf[Min],
     "sum" -> classOf[Sum],
     "sum0" -> classOf[Sum0],
-    "stddev_pop" -> classOf[StddevPop],
-    "stddev_samp" -> classOf[StddevSamp],
-    "var_pop" -> classOf[VarPop],
-    "var_samp" -> classOf[VarSamp],
+    "stddevPop" -> classOf[StddevPop],
+    "stddevSamp" -> classOf[StddevSamp],
+    "varPop" -> classOf[VarPop],
+    "varSamp" -> classOf[VarSamp],
 
     // string functions
     "charLength" -> classOf[CharLength],

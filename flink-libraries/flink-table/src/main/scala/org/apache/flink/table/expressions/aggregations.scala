@@ -19,13 +19,13 @@ package org.apache.flink.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlAggFunction
-import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.SqlKind._
+import org.apache.calcite.sql.fun._
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
-import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.typeutils.TypeCheckUtils
 
 abstract sealed class Aggregation extends UnaryExpression {
 
@@ -75,8 +75,11 @@ case class Sum0(child: Expression) extends Aggregation {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput =
+  override private[flink] def validateInput() =
     TypeCheckUtils.assertNumericExpr(child.resultType, "sum0")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) =
+    new SqlSumEmptyIsZeroAggFunction()
 }
 
 case class Min(child: Expression) extends Aggregation {
@@ -153,8 +156,11 @@ case class StddevPop(child: Expression) extends Aggregation {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput =
+  override private[flink] def validateInput() =
     TypeCheckUtils.assertNumericExpr(child.resultType, "stddev_pop")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) =
+    new SqlAvgAggFunction(STDDEV_POP)
 }
 
 case class StddevSamp(child: Expression) extends Aggregation {
@@ -166,8 +172,11 @@ case class StddevSamp(child: Expression) extends Aggregation {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput =
+  override private[flink] def validateInput() =
     TypeCheckUtils.assertNumericExpr(child.resultType, "stddev_samp")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) =
+    new SqlAvgAggFunction(STDDEV_SAMP)
 }
 
 case class VarPop(child: Expression) extends Aggregation {
@@ -179,8 +188,11 @@ case class VarPop(child: Expression) extends Aggregation {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput =
+  override private[flink] def validateInput() =
     TypeCheckUtils.assertNumericExpr(child.resultType, "var_pop")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) =
+    new SqlAvgAggFunction(VAR_POP)
 }
 
 case class VarSamp(child: Expression) extends Aggregation {
@@ -192,6 +204,9 @@ case class VarSamp(child: Expression) extends Aggregation {
 
   override private[flink] def resultType = child.resultType
 
-  override private[flink] def validateInput =
+  override private[flink] def validateInput() =
     TypeCheckUtils.assertNumericExpr(child.resultType, "var_samp")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) =
+    new SqlAvgAggFunction(VAR_SAMP)
 }
