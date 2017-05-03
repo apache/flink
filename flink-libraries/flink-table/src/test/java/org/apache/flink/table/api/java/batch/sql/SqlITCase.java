@@ -18,16 +18,16 @@
 
 package org.apache.flink.table.api.java.batch.sql;
 
+import com.google.common.collect.Lists;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.typeutils.MapTypeInfo;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
@@ -180,11 +180,55 @@ public class SqlITCase extends TableProgramsCollectionTestBase {
 			assertTrue(0 <= r3 && r3 < 10);
 			assertEquals("" + expectedRandom2.nextInt(10), "" + r4);
 		}
-  }
-  
-  @Test
+	}
+
+	@Test
+	public void testRandAndRandIntegerWithField() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+		tableEnv.registerDataSet("t", ds, "a, b, c");
+
+		String sqlQuery = "SELECT a, b, RAND(a) AS r1, " +
+			"RAND_INTEGER(a) AS r2, RAND_INTEGER(a, 10) AS r3, RAND_INTEGER(4, a) AS r4, " +
+			"RAND_INTEGER(a, CAST(b AS INT)) AS r5 FROM t ORDER BY a";
+		Table result = tableEnv.sql(sqlQuery);
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+
+		List<Integer> aValues = Lists.newArrayList(1, 2, 3);
+		List<Long> bValues = Lists.newArrayList(1L, 2L, 2L);
+		Random expectedRandom4 = new Random(4);
+		assertEquals(3, results.size());
+		for (int i = 0; i < 3; ++i) {
+			Row row = results.get(i);
+			int a = aValues.get(i);
+			Long b = bValues.get(i);
+			assertEquals(a, row.getField(0));
+			assertEquals(b, row.getField(1));
+			double expectedR1 = new Random(a).nextDouble();
+			double r1 = (double) row.getField(2);
+			int r2 = (int) row.getField(3);
+			int expectedR3 = new Random(a).nextInt(10);
+			int r3 = (int) row.getField(4);
+			int expectedR4 = expectedRandom4.nextInt(a);
+			int r4 = (int) row.getField(5);
+			int expectedR5 = new Random(a).nextInt(b.intValue());
+			int r5 = (int) row.getField(6);
+
+			assertEquals("" + expectedR1, "" + r1);
+			assertTrue(0 <= r2 && r2 < a);
+			assertEquals(expectedR3, r3);
+			assertEquals(expectedR4, r4);
+			assertEquals(expectedR5, r5);
+		}
+	}
+
+	@Test
 	public void testMap() throws Exception {
-    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		List<Tuple2<Integer, Map<String, String>>> rows = new ArrayList<>();

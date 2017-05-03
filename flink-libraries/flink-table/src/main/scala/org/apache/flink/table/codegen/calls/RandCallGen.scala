@@ -20,6 +20,8 @@ package org.apache.flink.table.codegen.calls
 
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
 
@@ -42,8 +44,14 @@ class RandCallGen(method: BuiltInMethod) extends CallGenerator {
         }
       case BuiltInMethod.RAND_SEED =>
         assert(operands.size == 1)
-        val randField = codeGenerator.addReusableRandom(operands.head)
-        generateCallIfArgsNotNull(codeGenerator.nullCheck, DOUBLE_TYPE_INFO, Seq.empty) {
+        val (randField, newOperands) = if (operands.head.code.isEmpty) {
+          val (randField, initRandomExpr) = genInitRandomExpression(operands.head)
+          (randField, Seq(initRandomExpr))
+        } else {
+          val randField = codeGenerator.addReusableRandom(operands.head)
+          (randField, Seq.empty)
+        }
+        generateCallIfArgsNotNull(codeGenerator.nullCheck, DOUBLE_TYPE_INFO, newOperands) {
           _ => s"""$randField.nextDouble()""".stripMargin
         }
       case BuiltInMethod.RAND_INTEGER =>
@@ -54,11 +62,38 @@ class RandCallGen(method: BuiltInMethod) extends CallGenerator {
         }
       case BuiltInMethod.RAND_INTEGER_SEED =>
         assert(operands.size == 2)
-        val randField = codeGenerator.addReusableRandom(operands.head)
-        generateCallIfArgsNotNull(codeGenerator.nullCheck, INT_TYPE_INFO, Seq(operands(1))) {
-          (terms) => s"""$randField.nextInt(${terms.head})""".stripMargin
+        val (randField, newOperands) = if (operands.head.code.isEmpty) {
+          val (randField, initRandomExpr) = genInitRandomExpression(operands.head)
+          (randField, Seq(initRandomExpr, operands(1)))
+        } else {
+          val randField = codeGenerator.addReusableRandom(operands.head)
+          (randField, Seq(operands(1)))
+        }
+        generateCallIfArgsNotNull(codeGenerator.nullCheck, INT_TYPE_INFO, newOperands) {
+          (terms) => s"""$randField.nextInt(${terms.last})""".stripMargin
         }
     }
+  }
+
+  private def genInitRandomExpression(
+    seedExpr: GeneratedExpression): (String, GeneratedExpression) = {
+    val randField = newName("random")
+    val initRandomCode =
+      s"""
+         |java.util.Random $randField;
+         |if(!${seedExpr.nullTerm}) {
+         |  $randField = new java.util.Random(${seedExpr.resultTerm});
+         |}
+         |else {
+         |  $randField = new java.util.Random();
+         |}
+         |""".stripMargin
+    val initRandomExpr = GeneratedExpression(
+      randField,
+      GeneratedExpression.NEVER_NULL,
+      initRandomCode,
+      TypeInformation.of(classOf[java.util.Random]))
+    (randField, initRandomExpr)
   }
 
 }

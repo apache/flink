@@ -1552,12 +1552,19 @@ class ScalarFunctionsTest extends ExpressionTestBase {
 
   @Test
   def testRand(): Unit = {
-    val random = new java.util.Random(1)
+    val random1 = new java.util.Random(1)
     testAllApis(
       rand(1),
       "rand(1)",
       "RAND(1)",
-      "" + random.nextDouble())
+      "" + random1.nextDouble())
+
+    val random2 = new java.util.Random(3)
+    testAllApis(
+      rand('f7),
+      "rand(f7)",
+      "RAND(f7)",
+      "" + random2.nextDouble())
   }
 
   @Test(expected = classOf[ValidationException])
@@ -1592,12 +1599,19 @@ class ScalarFunctionsTest extends ExpressionTestBase {
 
   @Test
   def testRandInteger(): Unit = {
-    val random = new java.util.Random(1)
+    val random1 = new java.util.Random(1)
     testAllApis(
       rand_integer(1, 10),
       "rand_integer(1, 10)",
       "RAND_INTEGER(1, 10)",
-      "" + random.nextInt(10))
+      "" + random1.nextInt(10))
+
+    val random2 = new java.util.Random(3)
+    testAllApis(
+      rand_integer('f7, 'f4.cast(Types.INT)),
+      "rand_integer(f7, f4.cast(INT))",
+      "RAND_INTEGER(f7, CAST(f4 AS INT))",
+      "" + random2.nextInt(44))
   }
 
   // ----------------------------------------------------------------------------------------------
