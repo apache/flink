@@ -883,6 +883,8 @@ object rand_integer {
       case _ =>
         throw new ValidationException("Invalid arguments for rand_integer([seed, ] bound).")
     }
+  }
+}
 
 /**
   * Returns a value that is closer than any other value to pi.
