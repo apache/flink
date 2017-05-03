@@ -170,7 +170,7 @@ case class Limit(offset: Int, fetch: Int = -1, child: LogicalNode) extends Unary
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
       failValidation(s"Limit on stream tables is currently not supported.")
     }
-    if (!child.validate(tableEnv).isInstanceOf[Sort]) {
+    if (!child.isInstanceOf[Sort]) {
       failValidation(s"Limit operator must be preceded by an OrderBy operator.")
     }
     if (offset < 0) {
@@ -662,11 +662,19 @@ case class LogicalTableFunctionCall(
     child: LogicalNode)
   extends UnaryNode {
 
-  private val (_, fieldIndexes, fieldTypes) = getFieldInfo(resultType)
+  private val (generatedNames, fieldIndexes, fieldTypes) = getFieldInfo(resultType)
   private var evalMethod: Method = _
 
-  override def output: Seq[Attribute] = fieldNames.zip(fieldTypes).map {
-    case (n, t) => ResolvedFieldReference(n, t)
+  override def output: Seq[Attribute] = {
+    if (fieldNames.isEmpty) {
+      generatedNames.zip(fieldTypes).map {
+        case (n, t) => ResolvedFieldReference(n, t)
+      }
+    } else {
+      fieldNames.zip(fieldTypes).map {
+        case (n, t) => ResolvedFieldReference(n, t)
+      }
+    }
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
@@ -691,7 +699,11 @@ case class LogicalTableFunctionCall(
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     val fieldIndexes = getFieldInfo(resultType)._2
-    val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames, evalMethod)
+    val function = new FlinkTableFunctionImpl(
+      resultType,
+      fieldIndexes,
+      if (fieldNames.isEmpty) generatedNames else fieldNames, evalMethod
+    )
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val sqlFunction = TableSqlFunction(
       tableFunction.functionIdentifier,
