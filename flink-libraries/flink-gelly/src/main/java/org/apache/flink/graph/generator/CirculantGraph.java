@@ -76,13 +76,11 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	 */
 	public CirculantGraph addOffsets(long startOffset, long length) {
 		long maxOffset = vertexCount / 2;
-		for (int i = 0; i < length; i++) {
-			long offset = startOffset + i;
-			Preconditions.checkArgument(offset >= MINIMUM_OFFSET,
-					"Offset must be at least " + MINIMUM_OFFSET);
-			Preconditions.checkArgument(offset <= maxOffset,
-					"Offset must be at most " + maxOffset);
-		}
+
+		Preconditions.checkArgument(startOffset >= MINIMUM_OFFSET,
+			"Offset must be at least " + MINIMUM_OFFSET);
+		Preconditions.checkArgument(startOffset + length - 1 <= maxOffset,
+			"Offset must be at most " + maxOffset);
 
 		// save startOffset and length pair
 		startOffsetPairs.add(new Tuple2<>(startOffset, length));
@@ -132,9 +130,9 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 				throws Exception {
 			edge.f0 = source;
 
-			// parse startOffsetPairs to offsets
-			List<Long> offsets = new ArrayList<>();
+			long index = source.getValue();
 			long maxOffset = vertexCount / 2;
+
 			for (Tuple2<Long, Long> offsetPair : startOffsetPairs) {
 				Long startOffset = offsetPair.f0;
 				Long length = offsetPair.f1;
@@ -142,19 +140,16 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 				for (int i = 0; i < length; i++) {
 					long offset = startOffset + i;
 
-					// add sign, ignore negative max offset when vertex count is even
-					offsets.add(offset);
+					// add positive offset
+					target.setValue((index + offset + vertexCount) % vertexCount);
+					out.collect(edge);
+
+					// add negative offset, ignore negative max offset when vertex count is even
 					if (!(vertexCount % 2 == 0 && offset == maxOffset)) {
-						offsets.add(-offset);
+						target.setValue((index - offset + vertexCount) % vertexCount);
+						out.collect(edge);
 					}
 				}
-			}
-
-			// link to offset vertex
-			long index = source.getValue();
-			for (long offset : offsets) {
-				target.setValue((index + offset + vertexCount) % vertexCount);
-				out.collect(edge);
 			}
 		}
 	}
