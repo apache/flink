@@ -42,7 +42,7 @@ import org.apache.flink.util.Collector;
  */
 @Internal
 public class FoldApplyProcessAllWindowFunction<W extends Window, T, ACC, R>
-	extends RichProcessAllWindowFunction<T, R, W>
+	extends ProcessAllWindowFunction<T, R, W>
 	implements OutputTypeConfigurable<R> {
 
 	private static final long serialVersionUID = 1L;
