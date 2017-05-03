@@ -70,10 +70,10 @@ import static org.junit.Assert.fail;
  * <p>For regenerating the binary snapshot file you have to run the commented out portion
  * of each test on a checkout of the Flink 1.1 branch.
  */
-public class WindowOperatorMigrationTest {
+public class WindowOperatorFrom11MigrationTest {
 
 	private static String getResourceFilename(String filename) {
-		ClassLoader cl = WindowOperatorMigrationTest.class.getClassLoader();
+		ClassLoader cl = WindowOperatorFrom11MigrationTest.class.getClassLoader();
 		URL resource = cl.getResource(filename);
 		if (resource == null) {
 			throw new NullPointerException("Missing snapshot resource.");
