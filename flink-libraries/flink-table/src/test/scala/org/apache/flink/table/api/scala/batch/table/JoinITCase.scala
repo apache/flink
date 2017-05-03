@@ -24,8 +24,9 @@ import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableC
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.types.Row
-import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
+import org.apache.flink.table.api.{TableEnvironment, ValidationException}
 import org.apache.flink.table.expressions.Literal
+import org.apache.flink.table.utils.TableFunc2
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
@@ -51,6 +52,21 @@ class JoinITCase(
 
     val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n"
     val results = joinT.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testUDTFJoinOnTuples(): Unit = {
+    /*
+     * UDTF Join on tuples
+     */
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val ds1 = CollectionDataSets.getTupleDataSetForUDTF(env).toTable(tEnv, 'a)
+    val func2 = new TableFunc2
+    val joinDs = ds1.join(func2('a) as ('name, 'len))
+    val results = joinDs.toDataSet[Row].collect()
+    val expected = "hi#world,hi,2\n" + "hi#world,world,5\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

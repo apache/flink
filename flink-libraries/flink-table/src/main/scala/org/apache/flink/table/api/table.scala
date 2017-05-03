@@ -21,8 +21,9 @@ import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Ordering, UnresolvedAlias, UnresolvedFieldReference}
 import org.apache.flink.table.plan.logical.Minus
-import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Ordering, TableFunctionCall, UnresolvedAlias}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.sinks.TableSink
@@ -64,7 +65,16 @@ class Table(
     private[flink] val tableEnv: TableEnvironment,
     private[flink] val logicalPlan: LogicalNode) {
 
-  private val tableSchema: TableSchema = new TableSchema(
+  /**
+    * this constructor is for Java user to create a [[Table]] with a String in table function form
+    * @param tableEnv
+    * @param tableFunction A String represent a TableFunction Call e.g "split(c)"
+    */
+  def this(tableEnv: TableEnvironment, tableFunction: String) {
+    this(tableEnv, UserDefinedFunctionUtils.createLogicalFunctionCall(tableEnv, tableFunction))
+  }
+
+  private lazy val tableSchema: TableSchema = new TableSchema(
     logicalPlan.output.map(_.name).toArray,
     logicalPlan.output.map(_.resultType).toArray)
 
@@ -93,6 +103,11 @@ class Table(
     * }}}
     */
   def select(fields: Expression*): Table = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
+
     val expandedFields = expandProjectList(fields, logicalPlan, tableEnv)
     val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, tableEnv)
     if (propNames.nonEmpty) {
@@ -143,7 +158,35 @@ class Table(
     * }}}
     */
   def as(fields: Expression*): Table = {
-    new Table(tableEnv, AliasNode(fields, logicalPlan).validate(tableEnv))
+    /**
+      * if this Table is constructed by a TableFunctionCall. e.g split('c)
+      * then we merge Alias into it's LogicalTableFunctionCall to avoid
+      * several special cases during the validation
+      */
+    logicalPlan match {
+      case functionCall: LogicalTableFunctionCall if functionCall.child == null => {
+        if (fields.length != functionCall.output.length) {
+          throw new ValidationException(
+            "List of column aliases must have same degree as TableFunction's output")
+        }
+        if (!fields.forall(_.isInstanceOf[UnresolvedFieldReference])) {
+          throw new ValidationException(
+            "Alias field must be an instance of UnresolvedFieldReference"
+          )
+        }
+        new Table(
+          tableEnv,
+          new LogicalTableFunctionCall(
+            functionCall.functionName,
+            functionCall.tableFunction,
+            functionCall.parameters,
+            functionCall.resultType,
+            fields.map(_.asInstanceOf[UnresolvedFieldReference].name).toArray,
+            functionCall.child)
+        )
+      }
+      case _ => new Table(tableEnv, AliasNode(fields, logicalPlan).validate(tableEnv))
+    }
   }
 
   /**
@@ -172,6 +215,10 @@ class Table(
     * }}}
     */
   def filter(predicate: Expression): Table = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
     new Table(tableEnv, Filter(predicate, logicalPlan).validate(tableEnv))
   }
 
@@ -229,6 +276,10 @@ class Table(
     * }}}
     */
   def groupBy(fields: Expression*): GroupedTable = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
     new GroupedTable(this, fields)
   }
 
@@ -257,6 +308,10 @@ class Table(
     * }}}
     */
   def distinct(): Table = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
     new Table(tableEnv, Distinct(logicalPlan).validate(tableEnv))
   }
 
@@ -307,6 +362,41 @@ class Table(
     */
   def join(right: Table, joinPredicate: Expression): Table = {
     join(right, Some(joinPredicate), JoinType.INNER)
+  }
+
+  /**
+    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
+    * to an SQL left outer join with ON TRUE, but it works with a table function. Each row of the
+    * outer table is joined with each row produced by the table function call and that the outer
+    * row is padded with nulls if the table function returns an empty table.
+    *
+    * Scala Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction[String] {
+    *     def eval(str: String): Unit = {
+    *       str.split("#").foreach(collect)
+    *     }
+    *   }
+    *
+    *   val split = new MySplitUDTF()
+    *   table.leftOuterJoin(split('c) as ('s)).select('a,'b,'c,'s)
+    * }}}
+    *
+    * Java Example:
+    * {{{
+    *   class MySplitUDTF extends TableFunction<String> {
+    *     public void eval(String str) {
+    *       str.split("#").forEach(this::collect);
+    *     }
+    *   }
+    *
+    *   TableFunction<String> split = new MySplitUDTF();
+    *   tableEnv.registerFunction("split", split);
+    *   table.leftOuterJoin(new Table(tableEnv, "split(c)").as("s"))).select("a, b, c, s");
+    * }}}
+    */
+  def leftOuterJoin(right: Table): Table = {
+    join(right, None, JoinType.LEFT_OUTER)
   }
 
   /**
@@ -417,13 +507,45 @@ class Table(
   }
 
   private def join(right: Table, joinPredicate: Option[Expression], joinType: JoinType): Table = {
-    // check that right table belongs to the same TableEnvironment
-    if (right.tableEnv != this.tableEnv) {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias. e.g table.join(split('c) as ('a, 'b))")
+    }
+
+    // check that the TableEnvironment of right table is not null
+    // and right table belongs to the same TableEnvironment
+    if (right.tableEnv != null && right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be joined.")
     }
+
+    val isRightTableATableFunctionCall = UserDefinedFunctionUtils
+      .verifyTableFunctionCallExistence(right)
+    // if right plan has an unresolved LogicalTableFunctionCall, correlated shall be true
+    val correlated = isRightTableATableFunctionCall
+    // all join functions converge into this, do validation here
+    if ((joinType != JoinType.INNER && joinType != JoinType.LEFT_OUTER) &&
+      isRightTableATableFunctionCall) {
+        throw new ValidationException(
+          "TableFunctions are currently supported for join and leftOuterJoin.")
+      }
+
+    val newRightPlan = if (isRightTableATableFunctionCall) {
+      val udtf = right.logicalPlan.asInstanceOf[LogicalTableFunctionCall]
+      new LogicalTableFunctionCall(
+        udtf.functionName,
+        udtf.tableFunction,
+        udtf.parameters,
+        udtf.resultType,
+        udtf.fieldNames,
+        this.logicalPlan
+      ).validate(tableEnv)
+    } else {
+      right.logicalPlan
+    }
+
     new Table(
       tableEnv,
-      Join(this.logicalPlan, right.logicalPlan, joinType, joinPredicate, correlated = false)
+      Join(this.logicalPlan, newRightPlan, joinType, joinPredicate, correlated)
         .validate(tableEnv))
   }
 
@@ -442,11 +564,22 @@ class Table(
     * }}}
     */
   def minus(right: Table): Table = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(right)) {
+      throw new ValidationException(
+        "TableFunctions are currently only supported for join and leftOuterJoin.")
+    }
+
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
+
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
+
     new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = false)
       .validate(tableEnv))
   }
@@ -467,11 +600,22 @@ class Table(
     * }}}
     */
   def minusAll(right: Table): Table = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(right)) {
+      throw new ValidationException(
+        "TableFunctions are currently only supported for join and leftOuterJoin.")
+    }
+
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
+
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
+
     new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = true)
       .validate(tableEnv))
   }
@@ -489,10 +633,21 @@ class Table(
     * }}}
     */
   def union(right: Table): Table = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(right)) {
+      throw new ValidationException(
+        "TableFunctions are currently only supported for join and leftOuterJoin.")
+    }
+
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
+
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
+
     new Table(tableEnv, Union(logicalPlan, right.logicalPlan, all = false).validate(tableEnv))
   }
 
@@ -509,10 +664,21 @@ class Table(
     * }}}
     */
   def unionAll(right: Table): Table = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(right)) {
+      throw new ValidationException(
+        "TableFunctions are currently only supported for join and leftOuterJoin.")
+    }
+
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
+
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException("Only tables from the same TableEnvironment can be unioned.")
     }
+
     new Table(tableEnv, Union(logicalPlan, right.logicalPlan, all = true).validate(tableEnv))
   }
 
@@ -531,11 +697,22 @@ class Table(
     * }}}
     */
   def intersect(right: Table): Table = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(right)) {
+      throw new ValidationException(
+        "TableFunctions are currently only supported for join and leftOuterJoin.")
+    }
+
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
+
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException(
         "Only tables from the same TableEnvironment can be intersected.")
     }
+
     new Table(tableEnv, Intersect(logicalPlan, right.logicalPlan, all = false).validate(tableEnv))
   }
 
@@ -554,11 +731,22 @@ class Table(
     * }}}
     */
   def intersectAll(right: Table): Table = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(right)) {
+      throw new ValidationException(
+        "TableFunctions are currently only supported for join and leftOuterJoin.")
+    }
+
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
+
     // check that right table belongs to the same TableEnvironment
     if (right.tableEnv != this.tableEnv) {
       throw new ValidationException(
         "Only tables from the same TableEnvironment can be intersected.")
     }
+
     new Table(tableEnv, Intersect(logicalPlan, right.logicalPlan, all = true).validate(tableEnv))
   }
 
@@ -573,6 +761,11 @@ class Table(
     * }}}
     */
   def orderBy(fields: Expression*): Table = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
+
     val order: Seq[Ordering] = fields.map {
       case o: Ordering => o
       case e => Asc(e)
@@ -610,6 +803,11 @@ class Table(
     * @param offset number of records to skip
     */
   def limit(offset: Int): Table = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
+
     new Table(tableEnv, Limit(offset = offset, child = logicalPlan).validate(tableEnv))
   }
 
@@ -629,137 +827,12 @@ class Table(
     * @param fetch number of records to be returned
     */
   def limit(offset: Int, fetch: Int): Table = {
-    new Table(tableEnv, Limit(offset, fetch, logicalPlan).validate(tableEnv))
-  }
-
-  /**
-    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
-    * to an SQL cross join, but it works with a table function. It returns rows from the outer
-    * table (table on the left of the operator) that produces matching values from the table
-    * function (which is defined in the expression on the right side of the operator).
-    *
-    * Example:
-    *
-    * {{{
-    *   class MySplitUDTF extends TableFunction[String] {
-    *     def eval(str: String): Unit = {
-    *       str.split("#").foreach(collect)
-    *     }
-    *   }
-    *
-    *   val split = new MySplitUDTF()
-    *   table.join(split('c) as ('s)).select('a,'b,'c,'s)
-    * }}}
-    */
-  def join(udtf: Expression): Table = {
-    joinUdtfInternal(udtf, JoinType.INNER)
-  }
-
-  /**
-    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
-    * to an SQL cross join, but it works with a table function. It returns rows from the outer
-    * table (table on the left of the operator) that produces matching values from the table
-    * function (which is defined in the expression on the right side of the operator).
-    *
-    * Example:
-    *
-    * {{{
-    *   class MySplitUDTF extends TableFunction<String> {
-    *     public void eval(String str) {
-    *       str.split("#").forEach(this::collect);
-    *     }
-    *   }
-    *
-    *   TableFunction<String> split = new MySplitUDTF();
-    *   tableEnv.registerFunction("split", split);
-    *
-    *   table.join("split(c) as (s)").select("a, b, c, s");
-    * }}}
-    */
-  def join(udtf: String): Table = {
-    joinUdtfInternal(udtf, JoinType.INNER)
-  }
-
-  /**
-    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
-    * to an SQL left outer join with ON TRUE, but it works with a table function. It returns all
-    * the rows from the outer table (table on the left of the operator), and rows that do not match
-    * the condition from the table function (which is defined in the expression on the right
-    * side of the operator). Rows with no matching condition are filled with null values.
-    *
-    * Example:
-    *
-    * {{{
-    *   class MySplitUDTF extends TableFunction[String] {
-    *     def eval(str: String): Unit = {
-    *       str.split("#").foreach(collect)
-    *     }
-    *   }
-    *
-    *   val split = new MySplitUDTF()
-    *   table.leftOuterJoin(split('c) as ('s)).select('a,'b,'c,'s)
-    * }}}
-    */
-  def leftOuterJoin(udtf: Expression): Table = {
-    joinUdtfInternal(udtf, JoinType.LEFT_OUTER)
-  }
-
-  /**
-    * Joins this [[Table]] to a user-defined [[org.apache.calcite.schema.TableFunction]]. Similar
-    * to an SQL left outer join with ON TRUE, but it works with a table function. It returns all
-    * the rows from the outer table (table on the left of the operator), and rows that do not match
-    * the condition from the table function (which is defined in the expression on the right
-    * side of the operator). Rows with no matching condition are filled with null values.
-    *
-    * Example:
-    *
-    * {{{
-    *   class MySplitUDTF extends TableFunction<String> {
-    *     public void eval(String str) {
-    *       str.split("#").forEach(this::collect);
-    *     }
-    *   }
-    *
-    *   TableFunction<String> split = new MySplitUDTF();
-    *   tableEnv.registerFunction("split", split);
-    *
-    *   table.leftOuterJoin("split(c) as (s)").select("a, b, c, s");
-    * }}}
-    */
-  def leftOuterJoin(udtf: String): Table = {
-    joinUdtfInternal(udtf, JoinType.LEFT_OUTER)
-  }
-
-  private def joinUdtfInternal(udtfString: String, joinType: JoinType): Table = {
-    val udtf = ExpressionParser.parseExpression(udtfString)
-    joinUdtfInternal(udtf, joinType)
-  }
-
-  private def joinUdtfInternal(udtf: Expression, joinType: JoinType): Table = {
-    var alias: Option[Seq[String]] = None
-
-    // unwrap an Expression until we get a TableFunctionCall
-    def unwrap(expr: Expression): TableFunctionCall = expr match {
-      case Alias(child, name, extraNames) =>
-        alias = Some(Seq(name) ++ extraNames)
-        unwrap(child)
-      case Call(name, args) =>
-        val function = tableEnv.getFunctionCatalog.lookupFunction(name, args)
-        unwrap(function)
-      case c: TableFunctionCall => c
-      case _ =>
-        throw new TableException(
-          "Cross/Outer Apply operators only accept expressions that define table functions.")
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
     }
 
-    val call = unwrap(udtf)
-      .as(alias)
-      .toLogicalTableFunctionCall(this.logicalPlan)
-      .validate(tableEnv)
-
-    new Table(
-      tableEnv,
-      Join(this.logicalPlan, call, joinType, None, correlated = true).validate(tableEnv))
+    new Table(tableEnv, Limit(offset, fetch, logicalPlan).validate(tableEnv))
   }
 
   /**
@@ -773,6 +846,10 @@ class Table(
     * @tparam T The data type that the [[TableSink]] expects.
     */
   def writeToSink[T](sink: TableSink[T]): Unit = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
 
     // get schema information of table
     val rowType = getRelNode.getRowType
@@ -805,6 +882,11 @@ class Table(
     * @return A windowed table.
     */
   def window(window: Window): WindowedTable = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(this)) {
+      throw new ValidationException(
+        "TableFunctions can only be followed by Alias.")
+    }
+
     new WindowedTable(this, window)
   }
 

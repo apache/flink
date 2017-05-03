@@ -49,11 +49,11 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer}
-import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
+import org.apache.flink.table.expressions.{Alias, Call, Expression, ExpressionParser, TableFunctionCall, UnresolvedFieldReference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
-import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
+import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode, LogicalTableFunctionCall}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.RelTable
 import org.apache.flink.table.runtime.MapRunner
@@ -79,7 +79,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   private val rootSchema: SchemaPlus = internalSchema.plus()
 
   // Table API/SQL function catalog
-  private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuiltIns
+  private[flink] val functionCatalog: FunctionCatalog = FunctionCatalog.withBuiltIns
 
   // the configuration to create a Calcite planner
   private lazy val frameworkConfig: FrameworkConfig = Frameworks
