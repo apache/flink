@@ -195,8 +195,11 @@ public abstract class AbstractKeyedStateBackend<K>
 	 *
 	 * @param <N> The type of the namespace.
 	 * @param <T> Type of the values folded into the state
-	 * @param <ACC> Type of the value in the state	 *
+	 * @param <ACC> Type of the value in the state
+	 *
+	 * @deprecated will be removed in a future version
 	 */
+	@Deprecated
 	protected abstract <N, T, ACC> InternalFoldingState<N, T, ACC> createFoldingState(
 			TypeSerializer<N> namespaceSerializer,
 			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception;
