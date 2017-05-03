@@ -58,7 +58,7 @@ class DSetUDAGGITCase(configMode: TableConfigMode)
     (7000L, 7, 7d, 7f, new BigDecimal("7"), "Hi"),
     (8000L, 8, 8d, 8f, new BigDecimal("8"), "Hello"),
     (9000L, 9, 9d, 9f, new BigDecimal("9"), "Hello"),
-    (4000L, 4, 4d, 4f, new BigDecimal("4"), "Hello"),
+    (6000L, 6, 6d, 6f, new BigDecimal("6"), "Hello"),
     (10000L, 10, 10d, 10f, new BigDecimal("10"), "Hi"),
     (11000L, 11, 11d, 11f, new BigDecimal("11"), "Hi"),
     (12000L, 12, 12d, 12f, new BigDecimal("12"), "Hi"),
@@ -86,7 +86,7 @@ class DSetUDAGGITCase(configMode: TableConfigMode)
 
     val results = windowedTable.toDataSet[Row].collect()
     val expected = "Hi,2,11.0,5545,5\n" + "Hi,2,17.0,8764,8\n" + "Hi,2,23.0,11521,11\n" +
-      "Hello,2,3.0,1666,1\n" + "Hello,2,7.0,3571,3\n" + "Hello,2,17.0,8529,8"
+      "Hello,2,3.0,1666,1\n" + "Hello,2,9.0,5000,5\n" + "Hello,2,17.0,8529,8"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -114,7 +114,7 @@ class DSetUDAGGITCase(configMode: TableConfigMode)
 
     val results = windowedTable.toDataSet[Row].collect()
     val expected = "1,12.0,12000,12\n" + "1,16.0,16000,16\n" + "2,3.0,1666,1\n" +
-      "3,12.0,4166,4\n" + "3,21.0,7095,7\n" + "3,30.0,10066,10"
+      "2,8.0,4250,4\n" + "3,30.0,10066,10\n" + "4,27.0,6851,6"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -136,7 +136,7 @@ class DSetUDAGGITCase(configMode: TableConfigMode)
         "GROUP BY s"
 
     val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
-    val expected = "Hello,7,43.0,10023,10\n" + "Hi,6,51.0,9313,9\n"
+    val expected = "Hello,7,45.0,10022,10\n" + "Hi,6,51.0,9313,9\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -153,37 +153,40 @@ class DSetUDAGGITCase(configMode: TableConfigMode)
     val env = mock(classOf[ScalaExecutionEnv])
     val tableEnv = TableEnvironment.getTableEnvironment(env)
     val in1 = ds.toTable(tableEnv).as("int, long, string")
-
     // Java environment
     val javaEnv = mock(classOf[JavaExecutionEnv])
     val javaTableEnv = TableEnvironment.getTableEnvironment(javaEnv)
     val in2 = javaTableEnv.fromDataSet(jDs).as("int, long, string")
 
-    // Java API
+    // Register function for Java environment
     javaTableEnv.registerFunction("myCountFun", new CountAggFunction)
     javaTableEnv.registerFunction("weightAvgFun", new WeightedAvg)
+    // Register function for Scala environment
+    val myCountFun = new CountAggFunction
+    val weightAvgFun = new WeightedAvg
+
     var javaTable = in2
+    var scalaTable = in1
+    val helper = new TableTestBase
+
+    // Java API
+    javaTable = in2
       .groupBy("string")
       .select(
         "string, " +
         "myCountFun(string), " +
         "int.sum, " +
         "weightAvgFun(long, int), " +
-        "weightAvgFun(int, int)")
-
+        "weightAvgFun(int, int) * 2")
     // Scala API
-    val myCountFun = new CountAggFunction
-    val weightAvgFun = new WeightedAvg
-    var scalaTable = in1
+    scalaTable = in1
       .groupBy('string)
       .select(
         'string,
         myCountFun('string),
         'int.sum,
         weightAvgFun('long, 'int),
-        weightAvgFun('int, 'int))
-
-    val helper = new TableTestBase
+        weightAvgFun('int, 'int) * 2)
     helper.verifyTableEquals(scalaTable, javaTable)
   }
 }

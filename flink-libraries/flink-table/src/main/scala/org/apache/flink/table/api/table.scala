@@ -129,6 +129,8 @@ class Table(
     */
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    //get the correct expression for UDAGGFunctionCall
+    val input = fieldExprs.map(replaceUDAGGFunctionCall(_, tableEnv))
     select(fieldExprs: _*)
   }
 
@@ -911,20 +913,8 @@ class GroupedTable(
     */
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
-
     //get the correct expression for UDAGGFunctionCall
-    val input: Seq[Expression] = fieldExprs.zipWithIndex.map {
-      case (Call(name, args), idx) => {
-        val function = table.tableEnv.getFunctionCatalog.lookupFunction(name, args)
-        if (function.isInstanceOf[UDAGGFunctionCall]) {
-          function
-        } else {
-          fieldExprs(idx)
-        }
-      }
-      case (_, idx) => fieldExprs(idx)
-    }
-
+    val input = fieldExprs.map(replaceUDAGGFunctionCall(_, table.tableEnv))
     select(input: _*)
   }
 }
@@ -1000,20 +990,8 @@ class OverWindowedTable(
 
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
-
     //get the correct expression for UDAGGFunctionCall
-    val input: Seq[Expression] = fieldExprs.zipWithIndex.map {
-      case (Call(name, args), idx) => {
-        val function = table.tableEnv.getFunctionCatalog.lookupFunction(name, args)
-        if (function.isInstanceOf[UDAGGFunctionCall]) {
-          function
-        } else {
-          fieldExprs(idx)
-        }
-      }
-      case (_, idx) => fieldExprs(idx)
-    }
-
+    val input = fieldExprs.map(replaceUDAGGFunctionCall(_, table.tableEnv))
     select(input: _*)
   }
 }
@@ -1074,20 +1052,8 @@ class WindowGroupedTable(
     */
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
-
     //get the correct expression for UDAGGFunctionCall
-    val input: Seq[Expression] = fieldExprs.zipWithIndex.map {
-      case (Call(name, args), idx) => {
-        val function = table.tableEnv.getFunctionCatalog.lookupFunction(name, args)
-        if (function.isInstanceOf[UDAGGFunctionCall]) {
-          function
-        } else {
-          fieldExprs(idx)
-        }
-      }
-      case (_, idx) => fieldExprs(idx)
-    }
-
+    val input = fieldExprs.map(replaceUDAGGFunctionCall(_, table.tableEnv))
     select(input: _*)
   }
 

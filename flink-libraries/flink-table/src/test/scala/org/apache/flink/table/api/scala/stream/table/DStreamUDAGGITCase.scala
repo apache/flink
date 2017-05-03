@@ -30,12 +30,12 @@ import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaExecutionEnv}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment => ScalaExecutionEnv}
 import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge, WeightedAvgWithRetract}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.stream.table.DStreamUDAGGITCase.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.api.scala.stream.utils.StreamITCase
 import org.apache.flink.table.api.{SlidingWindow, TableEnvironment, Types}
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -61,7 +61,7 @@ class DStreamUDAGGITCase
     (7000L, 7, 7d, 7f, new BigDecimal("7"), "Hi"),
     (8000L, 8, 8d, 8f, new BigDecimal("8"), "Hello"),
     (9000L, 9, 9d, 9f, new BigDecimal("9"), "Hello"),
-    (4000L, 4, 4d, 4f, new BigDecimal("4"), "Hello"),
+    (6000L, 6, 6d, 6f, new BigDecimal("6"), "Hello"),
     (10000L, 10, 10d, 10f, new BigDecimal("10"), "Hi"),
     (11000L, 11, 11d, 11f, new BigDecimal("11"), "Hi"),
     (12000L, 12, 12d, 12f, new BigDecimal("12"), "Hi"),
@@ -97,7 +97,7 @@ class DStreamUDAGGITCase
 
     val expected = Seq(
       "Hello,2,3.0,1666,1", "Hi,2,11.0,5545,5", "Hello,4,14.0,5571,5",
-      "Hello,4,24.0,7083,7", "Hi,4,28.0,7500,7", "Hi,4,40.0,10350,10")
+      "Hello,4,26.0,7307,7", "Hi,4,28.0,7500,7", "Hi,4,40.0,10350,10")
     assertEquals(expected, StreamITCase.testResults)
   }
 
@@ -119,7 +119,7 @@ class DStreamUDAGGITCase
     val table = stream.toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
 
     val windowedTable = table
-      .window(Session withGap 5.second on 'rowtime as 'w)
+      .window(Session withGap 3.second on 'rowtime as 'w)
       .groupBy('w, 'string)
       .select(
         'string,
@@ -132,7 +132,7 @@ class DStreamUDAGGITCase
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = Seq("Hello,6,27.0,6481,6", "Hi,6,51.0,9313,9", "Hello,1,16.0,16000,16")
+    val expected = Seq("Hello,6,29.0,6724,6", "Hi,6,51.0,9313,9", "Hello,1,16.0,16000,16")
     assertEquals(expected, StreamITCase.testResults)
   }
 
@@ -169,9 +169,9 @@ class DStreamUDAGGITCase
     val expected = Seq(
       "Hello,1.0,1,1.0,1000,1", "Hello,2.0,2,3.0,1666,1", "Hello,3.0,3,6.0,2333,2",
       "Hi,5.0,1,5.0,5000,5", "Hi,6.0,2,11.0,5545,5", "Hi,7.0,3,18.0,6111,6",
-      "Hello,8.0,4,14.0,5571,5", "Hello,9.0,5,23.0,6913,6", "Hello,4.0,6,27.0,6481,6",
+      "Hello,8.0,4,14.0,5571,5", "Hello,9.0,5,23.0,6913,6", "Hello,6.0,6,29.0,6724,6",
       "Hi,10.0,4,28.0,7500,7", "Hi,11.0,5,39.0,8487,8", "Hi,12.0,6,51.0,9313,9",
-      "Hello,16.0,7,43.0,10023,10")
+      "Hello,16.0,7,45.0,10022,10")
     assertEquals(expected, StreamITCase.testResults)
   }
 
@@ -205,9 +205,9 @@ class DStreamUDAGGITCase
     val expected = Seq(
       "Hello,1.0,1,1.0,1000,1", "Hello,2.0,2,3.0,1666,1", "Hello,3.0,3,6.0,2333,2",
       "Hi,5.0,1,5.0,5000,5", "Hi,6.0,2,11.0,5545,5", "Hi,7.0,3,18.0,6111,6",
-      "Hello,8.0,4,14.0,5571,5", "Hello,9.0,5,23.0,6913,6", "Hello,4.0,6,27.0,6481,6",
+      "Hello,8.0,4,14.0,5571,5", "Hello,9.0,5,23.0,6913,6", "Hello,6.0,6,29.0,6724,6",
       "Hi,10.0,4,28.0,7500,7", "Hi,11.0,5,39.0,8487,8", "Hi,12.0,6,51.0,9313,9",
-      "Hello,16.0,7,43.0,10023,10")
+      "Hello,16.0,7,45.0,10022,10")
     assertEquals(expected, StreamITCase.testResults)
   }
 
@@ -222,7 +222,7 @@ class DStreamUDAGGITCase
     StreamITCase.clear
     val stream = env
       .fromCollection(data)
-      .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset(10000))
+      .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset(0))
       .map(t => (t._4, t._1, t._2, t._3, t._6))
     val table = stream.toTable(tEnv, 'f, 'l, 'i, 'd, 's)
 
@@ -239,7 +239,7 @@ class DStreamUDAGGITCase
     env.execute()
 
     val expected = Seq(
-      "Hello,4,10.0", "Hi,3,18.0", "Hello,2,17.0", "Hi,3,33.0", "Hello,1,16.0")
+      "Hello,3,6.0", "Hi,3,18.0", "Hello,3,23.0", "Hi,3,33.0", "Hello,1,16.0")
     assertEquals(expected, StreamITCase.testResults)
   }
 
@@ -251,38 +251,47 @@ class DStreamUDAGGITCase
     val typeInfo = new RowTypeInfo(Seq(Types.INT, Types.LONG, Types.STRING): _*)
     when(ds.javaStream).thenReturn(jDs)
     when(jDs.getType).thenReturn(typeInfo)
+
     // Scala environment
     val env = mock(classOf[ScalaExecutionEnv])
     val tableEnv = TableEnvironment.getTableEnvironment(env)
     val in1 = ds.toTable(tableEnv).as('int, 'long, 'string)
-
     // Java environment
     val javaEnv = mock(classOf[JavaExecutionEnv])
     val javaTableEnv = TableEnvironment.getTableEnvironment(javaEnv)
     val in2 = javaTableEnv.fromDataStream(jDs).as("int, long, string")
 
-    // Java API
+    // Register function for Java environment
     javaTableEnv.registerFunction("myCountFun", new CountAggFunction)
     javaTableEnv.registerFunction("weightAvgFun", new WeightedAvg)
-    var javaTable = in2.window((new SlidingWindow(4.rows, 2.rows)).as("w"))
+    // Register function for Scala environment
+    val myCountFun = new CountAggFunction
+    val weightAvgFun = new WeightedAvg
+
+    val helper = new TableTestBase
+    var javaTable = in2
+    var scalaTable = in1
+
+    // Java API
+    javaTable = in2
+      .window((new SlidingWindow(4.rows, 2.rows)).as("w"))
       .groupBy("w, string")
       .select(
         "string, " +
         "myCountFun(string), " +
         "int.sum, " +
         "weightAvgFun(long, int), " +
-        "weightAvgFun(int, int)")
-
+        "weightAvgFun(int, int) * 2")
     // Scala API
-    val myCountFun = new CountAggFunction
-    val weightAvgFun = new WeightedAvg
-    var scalaTable = in1.window(Slide over 4.rows every 2.rows as 'w)
+    scalaTable = in1
+      .window(Slide over 4.rows every 2.rows as 'w)
       .groupBy('w, 'string)
       .select(
-        'string, myCountFun('string), 'int.sum, weightAvgFun('long, 'int),
-        weightAvgFun('int, 'int))
-
-    val helper = new TableTestBase
+        'string,
+        myCountFun('string),
+        'int.sum,
+        weightAvgFun('long, 'int),
+        weightAvgFun('int, 'int) * 2)
     helper.verifyTableEquals(scalaTable, javaTable)
   }
 }

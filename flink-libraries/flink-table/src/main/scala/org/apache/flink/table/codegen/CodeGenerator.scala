@@ -45,7 +45,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.runtime.TableFunctionCollector
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, checkAndExtractMethods}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkAndExtractMethods, getUserDefinedMethod, signatureToString}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -288,8 +288,7 @@ class CodeGenerator(
     val aggs = aggregates.map(a => generator.addReusableFunction(a))
     // get java types of accumulators
     val accTypeClasses = aggregates.map { a =>
-      val accType = TypeExtractor.createTypeInfo(a, classOf[AggregateFunction[_, _]], a.getClass, 1)
-      accType.getTypeClass
+      a.getClass.getMethod("createAccumulator").getReturnType
     }
     val accTypes = accTypeClasses.map(_.getCanonicalName)
 
@@ -314,7 +313,8 @@ class CodeGenerator(
           .getOrElse(
             throw new CodeGenException(
               s"No matching accumulate method found for aggregate " +
-                s"'${a.getClass.getCanonicalName}'.")
+                s"'${a.getClass.getCanonicalName}'" +
+                s"with parameters '${signatureToString(methodSignaturesList(i))}'.")
           )
 
         if (needRetract) {
@@ -322,7 +322,8 @@ class CodeGenerator(
             .getOrElse(
               throw new CodeGenException(
                 s"No matching retract method found for aggregate " +
-                  s"'${a.getClass.getCanonicalName}'.")
+                  s"'${a.getClass.getCanonicalName}'" +
+                  s"with parameters '${signatureToString(methodSignaturesList(i))}'.")
             )
         }
 
