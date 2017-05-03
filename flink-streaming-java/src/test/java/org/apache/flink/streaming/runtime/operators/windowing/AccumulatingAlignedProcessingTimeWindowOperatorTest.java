@@ -1038,7 +1038,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	// ------------------------------------------------------------------------
 
-	private static class StatefulFunction extends RichProcessWindowFunction<Integer, Integer, Integer, TimeWindow> {
+	private static class StatefulFunction extends ProcessWindowFunction<Integer, Integer, Integer, TimeWindow> {
 
 		// we use a concurrent map here even though there is no concurrency, to
 		// get "volatile" style access to entries

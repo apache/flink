@@ -18,11 +18,7 @@
 
 package org.apache.flink.streaming.api.scala.function
 
-import java.beans.Transient
-
 import org.apache.flink.annotation.Public
-import org.apache.flink.api.common.functions.{IterationRuntimeContext, RichFunction, RuntimeContext}
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.windowing.windows.Window
 
 /**
@@ -32,55 +28,12 @@ import org.apache.flink.streaming.api.windowing.windows.Window
   * @tparam IN The type of the input value.
   * @tparam OUT The type of the output value.
   * @tparam W The type of the window.
+  *
+  * @deprecated use [[ProcessAllWindowFunction]] instead
   */
 @Public
+@Deprecated
 abstract class RichProcessAllWindowFunction[IN, OUT, W <: Window]
-    extends ProcessAllWindowFunction[IN, OUT, W]
-    with RichFunction {
-
-  @Transient
-  private var runtimeContext: RuntimeContext = null
-
-  // --------------------------------------------------------------------------------------------
-  //  Runtime context access
-  // --------------------------------------------------------------------------------------------
-
-  override def setRuntimeContext(t: RuntimeContext) {
-    this.runtimeContext = t
-  }
-
-  override def getRuntimeContext: RuntimeContext = {
-    if (this.runtimeContext != null) {
-      this.runtimeContext
-    }
-    else {
-      throw new IllegalStateException("The runtime context has not been initialized.")
-    }
-  }
-
-  override def getIterationRuntimeContext: IterationRuntimeContext = {
-    if (this.runtimeContext == null) {
-      throw new IllegalStateException("The runtime context has not been initialized.")
-    }
-    else {
-      this.runtimeContext match {
-        case iterationRuntimeContext: IterationRuntimeContext => iterationRuntimeContext
-        case _ =>
-          throw new IllegalStateException("This stub is not part of an iteration step function.")
-      }
-    }
-  }
-
-  // --------------------------------------------------------------------------------------------
-  //  Default life cycle methods
-  // --------------------------------------------------------------------------------------------
-
-  @throws[Exception]
-  override def open(parameters: Configuration) {
-  }
-
-  @throws[Exception]
-  override def close() {
-  }
+    extends ProcessAllWindowFunction[IN, OUT, W] {
 }
 

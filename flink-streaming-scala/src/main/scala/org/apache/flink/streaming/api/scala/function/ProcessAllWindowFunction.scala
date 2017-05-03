@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.scala.function
 import java.io.Serializable
 
 import org.apache.flink.annotation.PublicEvolving
-import org.apache.flink.api.common.functions.Function
+import org.apache.flink.api.common.functions.{AbstractRichFunction, Function}
 import org.apache.flink.api.common.state.KeyedStateStore
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
@@ -35,7 +35,9 @@ import org.apache.flink.util.Collector
   * @tparam W The type of the window.
   */
 @PublicEvolving
-abstract class ProcessAllWindowFunction[IN, OUT, W <: Window] extends Function with Serializable {
+abstract class ProcessAllWindowFunction[IN, OUT, W <: Window]
+    extends AbstractRichFunction
+    with Serializable {
   /**
     * Evaluates the window and outputs none or several elements.
     *
