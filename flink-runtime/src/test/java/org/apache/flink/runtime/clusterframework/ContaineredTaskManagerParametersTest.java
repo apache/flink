@@ -19,30 +19,42 @@
 package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-import static org.apache.flink.configuration.ConfigConstants.TASK_MANAGER_MEMORY_OFF_HEAP_KEY;
-import static org.apache.flink.configuration.TaskManagerOptions.MANAGED_MEMORY_SIZE;
+import static org.apache.flink.configuration.TaskManagerOptions.MEMORY_OFF_HEAP;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class ContaineredTaskManagerParametersTest {
-	private static final long CONTAINER_MEMORY = 8192;
+public class ContaineredTaskManagerParametersTest extends TestLogger {
+	private static final long CONTAINER_MEMORY = 8192L;
 
+	/**
+	 * This tests that per default the off heap memory is set to -1.
+	 */
 	@Test
-	public void testDefaultOffHeapMemory() {
+	public void testOffHeapMemoryWithDefaultConfiguration() {
 		Configuration conf = new Configuration();
+
 		ContaineredTaskManagerParameters params =
 			ContaineredTaskManagerParameters.create(conf, CONTAINER_MEMORY, 1);
-		assertEquals(-1, params.taskManagerDirectMemoryLimitMB());
+		assertEquals(-1L, params.taskManagerDirectMemoryLimitMB());
 	}
 
+	/**
+	 * This tests that when using off heap memory the sum of on and off heap memory does not exceeds the container
+	 * maximum.
+	 */
 	@Test
 	public void testTotalMemoryDoesNotExceedContainerMemory() {
 		Configuration conf = new Configuration();
-		conf.setBoolean(MANAGED_MEMORY_SIZE.key(), true);
+		conf.setBoolean(MEMORY_OFF_HEAP, true);
+
 		ContaineredTaskManagerParameters params =
 			ContaineredTaskManagerParameters.create(conf, CONTAINER_MEMORY, 1);
+
+		assertTrue(params.taskManagerDirectMemoryLimitMB() > 0L);
+
 		assertTrue(params.taskManagerHeapSizeMB() +
 			params.taskManagerDirectMemoryLimitMB() <= CONTAINER_MEMORY);
 	}
