@@ -18,9 +18,12 @@
 
 package org.apache.flink.cep.pattern;
 
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
+import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy;
+import org.apache.flink.cep.pattern.conditions.OrCondition;
+import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.pattern.conditions.SubtypeCondition;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -56,8 +59,8 @@ public class PatternTest extends TestLogger {
 		assertNotNull(previous2 = previous.getPrevious());
 		assertNull(previous2.getPrevious());
 
-		assertTrue(pattern instanceof FollowedByPattern);
-		assertTrue(previous instanceof FollowedByPattern);
+		assertEquals(ConsumingStrategy.SKIP_TILL_NEXT, pattern.getQuantifier().getConsumingStrategy());
+		assertEquals(ConsumingStrategy.SKIP_TILL_NEXT, previous.getQuantifier().getConsumingStrategy());
 
 		assertEquals(pattern.getName(), "end");
 		assertEquals(previous.getName(), "next");
@@ -66,14 +69,14 @@ public class PatternTest extends TestLogger {
 
 	@Test
 	public void testStrictContiguityWithCondition() {
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").next("next").where(new FilterFunction<Event>() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").next("next").where(new SimpleCondition<Event>() {
 			private static final long serialVersionUID = -7657256242101104925L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("foobar");
 			}
-		}).next("end").where(new FilterFunction<Event>() {
+		}).next("end").where(new SimpleCondition<Event>() {
 			private static final long serialVersionUID = -7597452389191504189L;
 
 			@Override
@@ -89,9 +92,9 @@ public class PatternTest extends TestLogger {
 		assertNotNull(previous2 = previous.getPrevious());
 		assertNull(previous2.getPrevious());
 
-		assertNotNull(pattern.getFilterFunction());
-		assertNotNull(previous.getFilterFunction());
-		assertNull(previous2.getFilterFunction());
+		assertNotNull(pattern.getCondition());
+		assertNotNull(previous.getCondition());
+		assertNull(previous2.getCondition());
 
 		assertEquals(pattern.getName(), "end");
 		assertEquals(previous.getName(), "next");
@@ -109,8 +112,8 @@ public class PatternTest extends TestLogger {
 		assertNotNull(previous2 = previous.getPrevious());
 		assertNull(previous2.getPrevious());
 
-		assertNotNull(previous.getFilterFunction());
-		assertTrue(previous.getFilterFunction() instanceof SubtypeFilterFunction);
+		assertNotNull(previous.getCondition());
+		assertTrue(previous.getCondition() instanceof SubtypeCondition);
 
 		assertEquals(pattern.getName(), "end");
 		assertEquals(previous.getName(), "subevent");
@@ -119,7 +122,7 @@ public class PatternTest extends TestLogger {
 
 	@Test
 	public void testPatternWithSubtypingAndFilter() {
-		Pattern<Event, Event> pattern = Pattern.<Event>begin("start").next("subevent").subtype(SubEvent.class).where(new FilterFunction<SubEvent>() {
+		Pattern<Event, Event> pattern = Pattern.<Event>begin("start").next("subevent").subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
 			private static final long serialVersionUID = -4118591291880230304L;
 
 			@Override
@@ -135,8 +138,8 @@ public class PatternTest extends TestLogger {
 		assertNotNull(previous2 = previous.getPrevious());
 		assertNull(previous2.getPrevious());
 
-		assertTrue(pattern instanceof FollowedByPattern);
-		assertNotNull(previous.getFilterFunction());
+		assertEquals(ConsumingStrategy.SKIP_TILL_NEXT, pattern.getQuantifier().getConsumingStrategy());
+		assertNotNull(previous.getCondition());
 
 		assertEquals(pattern.getName(), "end");
 		assertEquals(previous.getName(), "subevent");
@@ -145,21 +148,21 @@ public class PatternTest extends TestLogger {
 
 	@Test
 	public void testPatternWithOrFilter() {
-		Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+		Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
 			private static final long serialVersionUID = 3518061453394250543L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return false;
 			}
-		}).or(new FilterFunction<Event>() {
+		}).or(new SimpleCondition<Event>() {
 			private static final long serialVersionUID = 947463545810023841L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return false;
 			}
-		}).next("or").or(new FilterFunction<Event>() {
+		}).next("or").or(new SimpleCondition<Event>() {
 			private static final long serialVersionUID = -2775487887505922250L;
 
 			@Override
@@ -175,13 +178,77 @@ public class PatternTest extends TestLogger {
 		assertNotNull(previous2 = previous.getPrevious());
 		assertNull(previous2.getPrevious());
 
-		assertTrue(pattern instanceof FollowedByPattern);
-		assertFalse(previous.getFilterFunction() instanceof OrFilterFunction);
-		assertTrue(previous2.getFilterFunction() instanceof OrFilterFunction);
+		assertEquals(ConsumingStrategy.SKIP_TILL_NEXT, pattern.getQuantifier().getConsumingStrategy());
+		assertFalse(previous.getCondition() instanceof OrCondition);
+		assertTrue(previous2.getCondition() instanceof OrCondition);
 
 		assertEquals(pattern.getName(), "end");
 		assertEquals(previous.getName(), "or");
 		assertEquals(previous2.getName(), "start");
 	}
 
+	@Test(expected = MalformedPatternException.class)
+	public void testPatternCanHaveQuantifierSpecifiedOnce1() throws Exception {
+
+		Pattern.begin("start").where(new SimpleCondition<Object>() {
+			private static final long serialVersionUID = 8876425689668531458L;
+
+			@Override
+			public boolean filter(Object value) throws Exception {
+				return true;
+			}
+		}).oneOrMore().oneOrMore().optional();
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testPatternCanHaveQuantifierSpecifiedOnce2() throws Exception {
+
+		Pattern.begin("start").where(new SimpleCondition<Object>() {
+			private static final long serialVersionUID = 8311890695733430258L;
+
+			@Override
+			public boolean filter(Object value) throws Exception {
+				return true;
+			}
+		}).oneOrMore().optional().times(1);
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testPatternCanHaveQuantifierSpecifiedOnce3() throws Exception {
+
+		Pattern.begin("start").where(new SimpleCondition<Object>() {
+			private static final long serialVersionUID = 8093713196099078214L;
+
+			@Override
+			public boolean filter(Object value) throws Exception {
+				return true;
+			}
+		}).times(1).oneOrMore();
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testPatternCanHaveQuantifierSpecifiedOnce4() throws Exception {
+
+		Pattern.begin("start").where(new SimpleCondition<Object>() {
+			private static final long serialVersionUID = -2995187062849334113L;
+
+			@Override
+			public boolean filter(Object value) throws Exception {
+				return true;
+			}
+		}).oneOrMore().oneOrMore();
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testPatternCanHaveQuantifierSpecifiedOnce5() throws Exception {
+
+		Pattern.begin("start").where(new SimpleCondition<Object>() {
+			private static final long serialVersionUID = -2205071036073867531L;
+
+			@Override
+			public boolean filter(Object value) throws Exception {
+				return true;
+			}
+		}).oneOrMore().oneOrMore().optional();
+	}
 }

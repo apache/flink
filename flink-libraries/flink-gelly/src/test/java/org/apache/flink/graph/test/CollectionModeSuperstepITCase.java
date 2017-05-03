@@ -28,11 +28,12 @@ import org.apache.flink.graph.spargel.GatherFunction;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.ScatterFunction;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
 @SuppressWarnings("serial")
-public class CollectionModeSuperstepITCase {
+public class CollectionModeSuperstepITCase extends TestLogger {
 
 	/**
 	 * Dummy iteration to test that the supersteps are correctly incremented

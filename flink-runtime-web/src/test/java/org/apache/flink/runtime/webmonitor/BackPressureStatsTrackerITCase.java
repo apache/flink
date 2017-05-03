@@ -28,6 +28,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -108,7 +109,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 			//
 			// 1) Consume all buffers at first (no buffers for the test task)
 			//
-			testBufferPool = networkBufferPool.createBufferPool(1, false);
+			testBufferPool = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
 			final List<Buffer> buffers = new ArrayList<>();
 			while (true) {
 				Buffer buffer = testBufferPool.requestBuffer();
@@ -138,7 +139,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 					@Override
 					protected void run() {
 						try {
-							ActorGateway testActor = new AkkaActorGateway(getTestActor(), null);
+							ActorGateway testActor = new AkkaActorGateway(getTestActor(), HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 							// Submit the job and wait until it is running
 							JobClient.submitJobDetached(

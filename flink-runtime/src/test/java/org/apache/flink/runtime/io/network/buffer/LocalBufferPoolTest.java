@@ -328,6 +328,64 @@ public class LocalBufferPoolTest {
 		}
 	}
 
+	@Test
+	public void testBoundedBuffer() throws Exception {
+		localBufferPool.lazyDestroy();
+
+		localBufferPool = new LocalBufferPool(networkBufferPool, 1, 2);
+		assertEquals(0, localBufferPool.getNumberOfAvailableMemorySegments());
+		assertEquals(2, localBufferPool.getMaxNumberOfMemorySegments());
+
+		Buffer buffer1, buffer2;
+
+		// check min number of buffers:
+		localBufferPool.setNumBuffers(1);
+		assertEquals(0, localBufferPool.getNumberOfAvailableMemorySegments());
+		assertNotNull(buffer1 = localBufferPool.requestBuffer());
+		assertEquals(0, localBufferPool.getNumberOfAvailableMemorySegments());
+		assertNull(localBufferPool.requestBuffer());
+		assertEquals(0, localBufferPool.getNumberOfAvailableMemorySegments());
+		buffer1.recycle();
+		assertEquals(1, localBufferPool.getNumberOfAvailableMemorySegments());
+
+		// check max number of buffers:
+		localBufferPool.setNumBuffers(2);
+		assertEquals(1, localBufferPool.getNumberOfAvailableMemorySegments());
+		assertNotNull(buffer1 = localBufferPool.requestBuffer());
+		assertEquals(0, localBufferPool.getNumberOfAvailableMemorySegments());
+		assertNotNull(buffer2 = localBufferPool.requestBuffer());
+		assertEquals(0, localBufferPool.getNumberOfAvailableMemorySegments());
+		assertNull(localBufferPool.requestBuffer());
+		assertEquals(0, localBufferPool.getNumberOfAvailableMemorySegments());
+		buffer1.recycle();
+		assertEquals(1, localBufferPool.getNumberOfAvailableMemorySegments());
+		buffer2.recycle();
+		assertEquals(2, localBufferPool.getNumberOfAvailableMemorySegments());
+
+		// try to set too large buffer size:
+		localBufferPool.setNumBuffers(3);
+		assertEquals(2, localBufferPool.getNumberOfAvailableMemorySegments());
+		assertNotNull(buffer1 = localBufferPool.requestBuffer());
+		assertEquals(1, localBufferPool.getNumberOfAvailableMemorySegments());
+		assertNotNull(buffer2 = localBufferPool.requestBuffer());
+		assertEquals(0, localBufferPool.getNumberOfAvailableMemorySegments());
+		assertNull(localBufferPool.requestBuffer());
+		assertEquals(0, localBufferPool.getNumberOfAvailableMemorySegments());
+		buffer1.recycle();
+		assertEquals(1, localBufferPool.getNumberOfAvailableMemorySegments());
+		buffer2.recycle();
+		assertEquals(2, localBufferPool.getNumberOfAvailableMemorySegments());
+
+		// decrease size again
+		localBufferPool.setNumBuffers(1);
+		assertEquals(1, localBufferPool.getNumberOfAvailableMemorySegments());
+		assertNotNull(buffer1 = localBufferPool.requestBuffer());
+		assertEquals(0, localBufferPool.getNumberOfAvailableMemorySegments());
+		assertNull(localBufferPool.requestBuffer());
+		buffer1.recycle();
+		assertEquals(1, localBufferPool.getNumberOfAvailableMemorySegments());
+	}
+
 	// ------------------------------------------------------------------------
 	// Helpers
 	// ------------------------------------------------------------------------

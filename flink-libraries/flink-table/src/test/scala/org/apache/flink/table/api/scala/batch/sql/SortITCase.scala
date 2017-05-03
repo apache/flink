@@ -25,6 +25,7 @@ import org.apache.flink.table.api.scala.batch.utils.SortTestUtils._
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsClusterTestBase
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.{TableEnvironment, TableException}
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
@@ -32,9 +33,11 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
-class SortITCase(configMode: TableConfigMode) extends TableProgramsClusterTestBase(configMode) {
+class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
+    extends TableProgramsClusterTestBase(mode, configMode) {
 
   private def getExecutionEnvironment = {
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -59,7 +62,12 @@ class SortITCase(configMode: TableConfigMode) extends TableProgramsClusterTestBa
 
     val expected = sortExpectedly(tupleDataSetStrings)
     // squash all rows inside a partition into one element
-    val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
+    val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => {
+      // the rows need to be copied in object reuse mode
+      val copied = new mutable.ArrayBuffer[Row]
+      rows.foreach(r => copied += Row.copy(r))
+      Seq(copied)
+    }).collect()
 
     def rowOrdering = Ordering.by((r : Row) => {
       // ordering for this tuple will fall into the previous defined tupleOrdering,
@@ -91,7 +99,12 @@ class SortITCase(configMode: TableConfigMode) extends TableProgramsClusterTestBa
 
     val expected = sortExpectedly(tupleDataSetStrings, 2, 21)
     // squash all rows inside a partition into one element
-    val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
+    val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => {
+      // the rows need to be copied in object reuse mode
+      val copied = new mutable.ArrayBuffer[Row]
+      rows.foreach(r => copied += Row.copy(r))
+      Seq(copied)
+    }).collect()
 
     val result = results.
         filterNot(_.isEmpty)
@@ -117,7 +130,12 @@ class SortITCase(configMode: TableConfigMode) extends TableProgramsClusterTestBa
 
     val expected = sortExpectedly(tupleDataSetStrings, 2, 7)
     // squash all rows inside a partition into one element
-    val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
+    val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => {
+      // the rows need to be copied in object reuse mode
+      val copied = new mutable.ArrayBuffer[Row]
+      rows.foreach(r => copied += Row.copy(r))
+      Seq(copied)
+    }).collect()
 
     val result = results
       .filterNot(_.isEmpty)
@@ -143,7 +161,12 @@ class SortITCase(configMode: TableConfigMode) extends TableProgramsClusterTestBa
 
     val expected = sortExpectedly(tupleDataSetStrings, 0, 5)
     // squash all rows inside a partition into one element
-    val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
+    val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => {
+      // the rows need to be copied in object reuse mode
+      val copied = new mutable.ArrayBuffer[Row]
+      rows.foreach(r => copied += Row.copy(r))
+      Seq(copied)
+    }).collect()
 
     def rowOrdering = Ordering.by((r : Row) => {
       // ordering for this tuple will fall into the previous defined tupleOrdering,

@@ -149,8 +149,7 @@ Apart from setting up Flink, no additional work is required. The python package 
 
 The Python API was tested on Linux/Windows systems that have Python 2.7 or 3.4 installed.
 
-By default Flink will start python processes by calling "python" or "python3", depending on which start-script
-was used. By setting the "python.binary.python[2/3]" key in the flink-conf.yaml you can modify this behaviour to use a binary of your choice.
+By default Flink will start python processes by calling "python". By setting the "python.binary.path" key in the flink-conf.yaml you can modify this behaviour to use a binary of your choice.
 
 {% top %}
 
@@ -624,12 +623,11 @@ Executing Plans
 ---------------
 
 To run the plan with Flink, go to your Flink distribution, and run the pyflink.sh script from the /bin folder.
-use pyflink2.sh for python 2.7, and pyflink3.sh for python 3.4. The script containing the plan has to be passed
-as the first argument, followed by a number of additional python packages, and finally, separated by - additional
-arguments that will be fed to the script.
+The script containing the plan has to be passed as the first argument, followed by a number of additional python
+packages, and finally, separated by - additional arguments that will be fed to the script.
 
 {% highlight python %}
-./bin/pyflink<2/3>.sh <Script>[ <pathToPackage1>[ <pathToPackageX]][ - <param1>[ <paramX>]]
+./bin/pyflink.sh <Script>[ <pathToPackage1>[ <pathToPackageX]][ - <param1>[ <paramX>]]
 {% endhighlight %}
 
 {% top %}

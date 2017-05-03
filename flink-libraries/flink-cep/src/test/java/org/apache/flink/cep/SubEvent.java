@@ -31,6 +31,18 @@ public class SubEvent extends Event {
 	}
 
 	@Override
+	public boolean equals(Object obj) {
+		return obj instanceof SubEvent &&
+				super.equals(obj) &&
+				((SubEvent) obj).volume == volume;
+	}
+
+	@Override
+	public int hashCode() {
+		return super.hashCode() + (int) volume;
+	}
+
+	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 

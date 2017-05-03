@@ -20,6 +20,7 @@ package org.apache.flink.api.common.io;
 
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -269,7 +270,7 @@ public class FileInputFormatTest {
 			File luigiFile = temporaryFolder.newFile("_luigi");
 			File success = temporaryFolder.newFile("_SUCCESS");
 
-			createTempFiles(contents.getBytes(), child1, child2, luigiFile, success);
+			createTempFiles(contents.getBytes(ConfigConstants.DEFAULT_CHARSET), child1, child2, luigiFile, success);
 
 			// test that only the valid files are accepted
 			
@@ -308,7 +309,7 @@ public class FileInputFormatTest {
 
 			File[] files = { child1, child2 };
 
-			createTempFiles(contents.getBytes(), files);
+			createTempFiles(contents.getBytes(ConfigConstants.DEFAULT_CHARSET), files);
 
 			// test that only the valid files are accepted
 
@@ -345,7 +346,7 @@ public class FileInputFormatTest {
 
 		File child1 = temporaryFolder.newFile("dataFile1.txt");
 		File child2 = temporaryFolder.newFile("another_file.bin");
-		createTempFiles(contents.getBytes(), child1, child2);
+		createTempFiles(contents.getBytes(ConfigConstants.DEFAULT_CHARSET), child1, child2);
 
 		// test that only the valid files are accepted
 

@@ -18,14 +18,13 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,9 +49,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * this state, different reader variants are returned (see
  * {@link SpillableSubpartitionView} and {@link SpilledSubpartitionView}).
  *
- * <p>Since the network buffer pool size is usually quite small (default is
- * {@link ConfigConstants#DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS}), most
- * spillable partitions will be spilled for real-world data sets.
+ * <p>Since the network buffer pool size for outgoing partitions is usually
+ * quite small, e.g. via the {@link TaskManagerOptions#NETWORK_BUFFERS_PER_CHANNEL}
+ * and {@link TaskManagerOptions#NETWORK_EXTRA_BUFFERS_PER_GATE} parameters
+ * for bounded channels or from the default value of
+ * {@link TaskManagerOptions#NETWORK_NUM_BUFFERS}, most spillable partitions
+ * will be spilled for real-world data sets.
  */
 class SpillableSubpartition extends ResultSubpartition {
 
@@ -161,7 +163,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public ResultSubpartitionView createReadView(BufferProvider bufferProvider, BufferAvailabilityListener availabilityListener) throws IOException {
+	public ResultSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
 		synchronized (buffers) {
 			if (!isFinished) {
 				throw new IllegalStateException("Subpartition has not been finished yet, " +
@@ -177,7 +179,7 @@ class SpillableSubpartition extends ResultSubpartition {
 			if (spillWriter != null) {
 				readView = new SpilledSubpartitionView(
 					this,
-					bufferProvider.getMemorySegmentSize(),
+					parent.getBufferProvider().getMemorySegmentSize(),
 					spillWriter,
 					getTotalNumberOfBuffers(),
 					availabilityListener);
@@ -186,7 +188,7 @@ class SpillableSubpartition extends ResultSubpartition {
 					this,
 					buffers,
 					ioManager,
-					bufferProvider.getMemorySegmentSize(),
+					parent.getBufferProvider().getMemorySegmentSize(),
 					availabilityListener);
 			}
 
@@ -234,8 +236,9 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public int getNumberOfQueuedBuffers() {
-		return buffers.size();
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		// since we do not synchronize, the size may actually be lower than 0!
+		return Math.max(buffers.size(), 0);
 	}
 
 	@Override

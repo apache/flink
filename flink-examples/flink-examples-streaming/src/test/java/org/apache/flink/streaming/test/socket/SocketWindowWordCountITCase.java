@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.test.socket;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 
 import org.apache.flink.test.testdata.WordCountData;
@@ -62,7 +63,7 @@ public class SocketWindowWordCountITCase extends StreamingMultipleProgramsTestBa
 						new String[] { "--port", String.valueOf(serverPort) });
 
 				if (errorMessages.size() != 0) {
-					fail("Found error message: " + new String(errorMessages.toByteArray()));
+					fail("Found error message: " + new String(errorMessages.toByteArray(), ConfigConstants.DEFAULT_CHARSET));
 				}
 				
 				serverThread.join();
@@ -101,7 +102,7 @@ public class SocketWindowWordCountITCase extends StreamingMultipleProgramsTestBa
 						new String[] { "--port", String.valueOf(serverPort) });
 
 				if (errorMessages.size() != 0) {
-					fail("Found error message: " + new String(errorMessages.toByteArray()));
+					fail("Found error message: " + new String(errorMessages.toByteArray(), ConfigConstants.DEFAULT_CHARSET));
 				}
 				
 				serverThread.join();

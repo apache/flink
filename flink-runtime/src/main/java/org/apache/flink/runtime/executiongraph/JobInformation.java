@@ -93,4 +93,12 @@ public class JobInformation implements Serializable {
 	public Collection<URL> getRequiredClasspathURLs() {
 		return requiredClasspathURLs;
 	}
+
+	// ------------------------------------------------------------------------
+
+
+	@Override
+	public String toString() {
+		return "JobInformation for '" + jobName + "' (" + jobId + ')';
+	}
 }

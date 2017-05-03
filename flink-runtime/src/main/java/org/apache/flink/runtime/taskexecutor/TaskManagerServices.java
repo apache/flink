@@ -201,7 +201,7 @@ public class TaskManagerServices {
 		final List<ResourceProfile> resourceProfiles = new ArrayList<>(taskManagerServicesConfiguration.getNumberOfSlots());
 
 		for (int i = 0; i < taskManagerServicesConfiguration.getNumberOfSlots(); i++) {
-			resourceProfiles.add(new ResourceProfile(1.0, 42L));
+			resourceProfiles.add(new ResourceProfile(1.0, 42));
 		}
 
 		final TimerService<AllocationID> timerService = new TimerService<>(
@@ -370,7 +370,9 @@ public class TaskManagerServices {
 			kvStateServer,
 			networkEnvironmentConfiguration.ioMode(),
 			networkEnvironmentConfiguration.partitionRequestInitialBackoff(),
-			networkEnvironmentConfiguration.partitionRequestMaxBackoff());
+			networkEnvironmentConfiguration.partitionRequestMaxBackoff(),
+			networkEnvironmentConfiguration.networkBuffersPerChannel(),
+			networkEnvironmentConfiguration.extraNetworkBuffersPerGate());
 	}
 
 	/**

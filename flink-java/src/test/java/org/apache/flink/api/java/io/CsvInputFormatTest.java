@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -79,7 +80,7 @@ public class CsvInputFormatTest {
 		tempFile.deleteOnExit();
 
 		try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile)) {
-			fileOutputStream.write(fileContent.getBytes());
+			fileOutputStream.write(fileContent.getBytes(ConfigConstants.DEFAULT_CHARSET));
 		}
 
 		// fix the number of blocks and the size of each one.
@@ -430,7 +431,7 @@ public class CsvInputFormatTest {
 			assertEquals("", result.f0);
 			assertEquals("", result.f1);
 			assertEquals("", result.f2);
-			
+
 			result = format.nextRecord(result);
 			assertNull(result);
 			assertTrue(format.reachedEnd());
@@ -438,6 +439,57 @@ public class CsvInputFormatTest {
 		catch (Exception ex) {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
 		}
+	}
+
+	@Test
+	public void testTailingEmptyFields() throws Exception {
+		final String fileContent = "aa,bb,cc\n" + // ok
+				"aa,bb,\n" +  // the last field is empty
+				"aa,,\n" +    // the last two fields are empty
+				",,\n" +      // all fields are empty
+				"aa,bb";      // row too short
+		final FileInputSplit split = createTempFile(fileContent);
+
+		final TupleTypeInfo<Tuple3<String, String, String>> typeInfo =
+				TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
+		final CsvInputFormat<Tuple3<String, String, String>> format =
+				new TupleCsvInputFormat<Tuple3<String, String, String>>(PATH, typeInfo);
+
+		format.setFieldDelimiter(",");
+
+		format.configure(new Configuration());
+		format.open(split);
+
+		Tuple3<String, String, String> result = new Tuple3<String, String, String>();
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("aa", result.f0);
+		assertEquals("bb", result.f1);
+		assertEquals("cc", result.f2);
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("aa", result.f0);
+		assertEquals("bb", result.f1);
+		assertEquals("", result.f2);
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("aa", result.f0);
+		assertEquals("", result.f1);
+		assertEquals("", result.f2);
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("", result.f0);
+		assertEquals("", result.f1);
+		assertEquals("", result.f2);
+
+		try {
+			format.nextRecord(result);
+			fail("Parse Exception was not thrown! (Row too short)");
+		} catch (ParseException e) {}
 	}
 
 	@Test
@@ -742,7 +794,8 @@ public class CsvInputFormatTest {
 		for (Object[] failure : failures) {
 			String input = (String) failure[0];
 
-			int result = stringParser.parseField(input.getBytes(), 0, input.length(), new byte[]{'|'}, null);
+			int result = stringParser.parseField(input.getBytes(ConfigConstants.DEFAULT_CHARSET), 0,
+				input.length(), new byte[]{'|'}, null);
 
 			assertThat(result, is(-1));
 			assertThat(stringParser.getErrorState(), is(failure[1]));
@@ -954,6 +1007,34 @@ public class CsvInputFormatTest {
 		assertEquals("BBB", item.field2);
 		assertEquals(Double.valueOf(1.123), item.field3);
 		assertEquals("AAA", item.field4);
+	}
+
+	@Test
+	public void testPojoTypeWithTrailingEmptyFields() throws Exception {
+		final String fileContent = "123,,3.123,,\n456,BBB,3.23,,";
+		final FileInputSplit split = createTempFile(fileContent);
+
+		@SuppressWarnings("unchecked")
+		PojoTypeInfo<PrivatePojoItem> typeInfo = (PojoTypeInfo<PrivatePojoItem>) TypeExtractor.createTypeInfo(PrivatePojoItem.class);
+		CsvInputFormat<PrivatePojoItem> inputFormat = new PojoCsvInputFormat<PrivatePojoItem>(PATH, typeInfo);
+
+		inputFormat.configure(new Configuration());
+		inputFormat.open(split);
+
+		PrivatePojoItem item = new PrivatePojoItem();
+		inputFormat.nextRecord(item);
+
+		assertEquals(123, item.field1);
+		assertEquals("", item.field2);
+		assertEquals(Double.valueOf(3.123), item.field3);
+		assertEquals("", item.field4);
+
+		inputFormat.nextRecord(item);
+
+		assertEquals(456, item.field1);
+		assertEquals("BBB", item.field2);
+		assertEquals(Double.valueOf(3.23), item.field3);
+		assertEquals("", item.field4);
 	}
 
 	@Test

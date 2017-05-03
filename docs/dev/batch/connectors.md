@@ -87,7 +87,15 @@ This section shows some examples for connecting Flink to other systems.
 ## Avro support in Flink
 
 Flink has extensive build-in support for [Apache Avro](http://avro.apache.org/). This allows to easily read from Avro files with Flink.
-Also, the serialization framework of Flink is able to handle classes generated from Avro schemas.
+Also, the serialization framework of Flink is able to handle classes generated from Avro schemas. Be sure to include the Flink Avro dependency to the pom.xml of your project.
+
+~~~xml
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-avro{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+~~~
 
 In order to read data from an Avro file, you have to specify an `AvroInputFormat`.
 

@@ -20,6 +20,8 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.decline.AlignmentLimitExceededException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -55,7 +57,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * Tests for the barrier buffer's maximum limit of buffered/spilled bytes 
+ * Tests for the barrier buffer's maximum limit of buffered/spilled bytes
  */
 public class BarrierBufferAlignmentLimitTest {
 
@@ -94,7 +96,7 @@ public class BarrierBufferAlignmentLimitTest {
 				/*  2 */ createBuffer(0, 42), createBuffer(2, 111),
 
 				// starting a checkpoint
-				/*  4 */ createBarrier(7, 1), 
+				/*  4 */ createBarrier(7, 1),
 				/*  5 */ createBuffer(1, 100), createBuffer(2, 200), createBuffer(1, 300), createBuffer(0, 50),
 				/*  9 */ createBarrier(7, 0),
 				/* 10 */ createBuffer(2, 100), createBuffer(0, 100), createBuffer(1, 200), createBuffer(0, 200),
@@ -104,7 +106,7 @@ public class BarrierBufferAlignmentLimitTest {
 
 				// additional data
 				/* 15 */ createBuffer(0, 100), createBuffer(1, 100), createBuffer(2, 100),
-				
+
 				// checkpoint completes - this should not result in a "completion notification"
 				/* 18 */ createBarrier(7, 2),
 
@@ -154,7 +156,10 @@ public class BarrierBufferAlignmentLimitTest {
 		check(sequence[21], buffer.getNextNonBlocked());
 
 		// no call for a completed checkpoint must have happened
-		verify(toNotify, times(0)).triggerCheckpointOnBarrier(any(CheckpointMetaData.class));
+		verify(toNotify, times(0)).triggerCheckpointOnBarrier(
+			any(CheckpointMetaData.class),
+			any(CheckpointOptions.class),
+			any(CheckpointMetrics.class));
 
 		assertNull(buffer.getNextNonBlocked());
 		assertNull(buffer.getNextNonBlocked());
@@ -168,7 +173,7 @@ public class BarrierBufferAlignmentLimitTest {
 	 *   - an alignment starts
 	 *   - barriers from a second checkpoint queue before the first completes
 	 *   - together they are larger than the threshold
-	 *   - after the first checkpoint (with second checkpoint data queued) aborts, the second completes 
+	 *   - after the first checkpoint (with second checkpoint data queued) aborts, the second completes
 	 */
 	@Test
 	public void testAlignmentLimitWithQueuedAlignments() throws Exception {
@@ -177,8 +182,8 @@ public class BarrierBufferAlignmentLimitTest {
 				/*  0 */ createBuffer(1, 100), createBuffer(2, 70),
 
 				// starting a checkpoint
-				/*  2 */ createBarrier(3, 2), 
-				/*  3 */ createBuffer(1, 100), createBuffer(2, 100), 
+				/*  2 */ createBarrier(3, 2),
+				/*  3 */ createBuffer(1, 100), createBuffer(2, 100),
 				/*  5 */ createBarrier(3, 0),
 				/*  6 */ createBuffer(0, 100), createBuffer(1, 100),
 
@@ -234,13 +239,14 @@ public class BarrierBufferAlignmentLimitTest {
 		startTs = System.nanoTime();
 		check(sequence[12], buffer.getNextNonBlocked());
 
-		// only checkpoint 4 is pending now - the last checkpoint 3 barrier will not trigger success 
+		// only checkpoint 4 is pending now - the last checkpoint 3 barrier will not trigger success
 		check(sequence[17], buffer.getNextNonBlocked());
 
 		// checkpoint 4 completed - check and validate buffered replay
 		check(sequence[9], buffer.getNextNonBlocked());
 		validateAlignmentTime(startTs, buffer);
-		verify(toNotify, times(1)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(4L)));
+		verify(toNotify, times(1)).triggerCheckpointOnBarrier(
+			argThat(new CheckpointMatcher(4L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 
 		check(sequence[10], buffer.getNextNonBlocked());
 		check(sequence[15], buffer.getNextNonBlocked());
@@ -252,7 +258,8 @@ public class BarrierBufferAlignmentLimitTest {
 		check(sequence[21], buffer.getNextNonBlocked());
 
 		// only checkpoint 4 was successfully completed, not checkpoint 3
-		verify(toNotify, times(0)).triggerCheckpointOnBarrier(argThat(new CheckpointMatcher(3L)));
+		verify(toNotify, times(0)).triggerCheckpointOnBarrier(
+			argThat(new CheckpointMatcher(3L)), any(CheckpointOptions.class), any(CheckpointMetrics.class));
 
 		assertNull(buffer.getNextNonBlocked());
 		assertNull(buffer.getNextNonBlocked());
@@ -282,7 +289,7 @@ public class BarrierBufferAlignmentLimitTest {
 	}
 
 	private static BufferOrEvent createBarrier(long id, int channel) {
-		return new BufferOrEvent(new CheckpointBarrier(id, System.currentTimeMillis()), channel);
+		return new BufferOrEvent(new CheckpointBarrier(id, System.currentTimeMillis(), CheckpointOptions.forFullCheckpoint()), channel);
 	}
 
 	private static void check(BufferOrEvent expected, BufferOrEvent present) {

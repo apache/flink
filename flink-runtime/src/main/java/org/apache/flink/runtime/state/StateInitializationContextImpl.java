@@ -27,9 +27,11 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
@@ -55,7 +57,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 			boolean restored,
 			OperatorStateStore operatorStateStore,
 			KeyedStateStore keyedStateStore,
-			Collection<KeyGroupsStateHandle> keyGroupsStateHandles,
+			Collection<KeyedStateHandle> keyedStateHandles,
 			Collection<OperatorStateHandle> operatorStateHandles,
 			CloseableRegistry closableRegistry) {
 
@@ -64,7 +66,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		this.operatorStateStore = operatorStateStore;
 		this.keyedStateStore = keyedStateStore;
 		this.operatorStateHandles = operatorStateHandles;
-		this.keyGroupsStateHandles = keyGroupsStateHandles;
+		this.keyGroupsStateHandles = transform(keyedStateHandles);
 
 		this.keyedStateIterable = keyGroupsStateHandles == null ?
 				null
@@ -136,6 +138,26 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		IOUtils.closeQuietly(closableRegistry);
 	}
 
+	private static Collection<KeyGroupsStateHandle> transform(Collection<KeyedStateHandle> keyedStateHandles) {
+		if (keyedStateHandles == null) {
+			return null;
+		}
+
+		List<KeyGroupsStateHandle> keyGroupsStateHandles = new ArrayList<>();
+
+		for (KeyedStateHandle keyedStateHandle : keyedStateHandles) {
+			if (! (keyedStateHandle instanceof KeyGroupsStateHandle)) {
+				throw new IllegalStateException("Unexpected state handle type, " +
+					"expected: " + KeyGroupsStateHandle.class +
+					", but found: " + keyedStateHandle.getClass() + ".");
+			}
+
+			keyGroupsStateHandles.add((KeyGroupsStateHandle) keyedStateHandle);
+		}
+
+		return keyGroupsStateHandles;
+	}
+
 	private static class KeyGroupStreamIterator
 			extends AbstractStateStreamIterator<KeyGroupStatePartitionStreamProvider, KeyGroupsStateHandle> {
 
@@ -159,7 +181,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 
 			while (stateHandleIterator.hasNext()) {
 				currentStateHandle = stateHandleIterator.next();
-				if (currentStateHandle.getNumberOfKeyGroups() > 0) {
+				if (currentStateHandle.getKeyGroupRange().getNumberOfKeyGroups() > 0) {
 					currentOffsetsIterator = currentStateHandle.getGroupRangeOffsets().iterator();
 
 					return true;

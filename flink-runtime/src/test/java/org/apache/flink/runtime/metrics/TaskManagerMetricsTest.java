@@ -25,6 +25,7 @@ import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -109,7 +110,11 @@ public class TaskManagerMetricsTest {
 						expectMsgEquals(TaskManagerMessages.getRegisteredAtJobManagerMessage());
 
 						// trigger re-registration of TM; this should include a disconnect from the current JM
-						taskManager.tell(new TaskManagerMessages.JobManagerLeaderAddress(jobManager.path().toString(), null), jobManager);
+						taskManager.tell(
+							new TaskManagerMessages.JobManagerLeaderAddress(
+								jobManager.path().toString(),
+								HighAvailabilityServices.DEFAULT_LEADER_ID),
+							jobManager);
 
 						// wait for re-registration to be completed
 						taskManager.tell(TaskManagerMessages.getNotifyWhenRegisteredAtJobManagerMessage(),

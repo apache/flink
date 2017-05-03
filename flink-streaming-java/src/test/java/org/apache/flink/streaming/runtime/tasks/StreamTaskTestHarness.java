@@ -45,6 +45,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Test harness for testing a {@link StreamTask}.
@@ -83,7 +84,7 @@ public class StreamTaskTestHarness<OUT> {
 	private TypeSerializer<OUT> outputSerializer;
 	private TypeSerializer<StreamElement> outputStreamRecordSerializer;
 
-	private ConcurrentLinkedQueue<Object> outputList;
+	private LinkedBlockingQueue<Object> outputList;
 
 	protected TaskThread taskThread;
 
@@ -106,9 +107,6 @@ public class StreamTaskTestHarness<OUT> {
 		this.executionConfig = new ExecutionConfig();
 
 		streamConfig = new StreamConfig(taskConfig);
-		streamConfig.setChainStart();
-		streamConfig.setBufferTimeout(0);
-		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		outputSerializer = outputType.createSerializer(executionConfig);
 		outputStreamRecordSerializer = new StreamElementSerializer<OUT>(outputSerializer);
@@ -128,12 +126,26 @@ public class StreamTaskTestHarness<OUT> {
 
 	@SuppressWarnings("unchecked")
 	private void initializeOutput() {
-		outputList = new ConcurrentLinkedQueue<Object>();
-
+		outputList = new LinkedBlockingQueue<Object>();
 		mockEnv.addOutput(outputList, outputStreamRecordSerializer);
+	}
 
+	/**
+	 * Users of the test harness can call this utility method to setup the stream config
+	 * if there will only be a single operator to be tested. The method will setup the
+	 * outgoing network connection for the operator.
+	 *
+	 * For more advanced test cases such as testing chains of multiple operators with the harness,
+	 * please manually configure the stream config.
+	 */
+	public void setupOutputForSingletonOperatorChain() {
+		streamConfig.setChainStart();
+		streamConfig.setBufferTimeout(0);
+		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		streamConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
 		streamConfig.setNumberOfOutputs(1);
+		streamConfig.setTypeSerializerOut(outputSerializer);
+		streamConfig.setVertexID(0);
 
 		StreamOperator<OUT> dummyOperator = new AbstractStreamOperator<OUT>() {
 			private static final long serialVersionUID = 1L;
@@ -143,12 +155,10 @@ public class StreamTaskTestHarness<OUT> {
 		StreamNode sourceVertexDummy = new StreamNode(null, 0, "group", dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
 		StreamNode targetVertexDummy = new StreamNode(null, 1, "group", dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
 
-		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>()));
+		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>(), null /* output tag */));
+
 		streamConfig.setOutEdgesInOrder(outEdgesInOrder);
 		streamConfig.setNonChainedOutputs(outEdgesInOrder);
-		streamConfig.setTypeSerializerOut(outputSerializer);
-		streamConfig.setVertexID(0);
-
 	}
 
 	public StreamMockEnvironment createEnvironment() {
@@ -256,7 +266,7 @@ public class StreamTaskTestHarness<OUT> {
 	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getRawElementsFromOutput(java.util.Queue)}}
 	 * to extract only the StreamRecords.
 	 */
-	public ConcurrentLinkedQueue<Object> getOutput() {
+	public LinkedBlockingQueue<Object> getOutput() {
 		return outputList;
 	}
 
@@ -330,9 +340,6 @@ public class StreamTaskTestHarness<OUT> {
 					allEmpty = false;
 				}
 			}
-			try {
-				Thread.sleep(10);
-			} catch (InterruptedException ignored) {}
 
 			if (allEmpty) {
 				break;

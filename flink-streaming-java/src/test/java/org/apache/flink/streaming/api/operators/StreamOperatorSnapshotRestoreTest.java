@@ -19,9 +19,11 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -169,8 +171,13 @@ public class StreamOperatorSnapshotRestoreTest {
 
 			Assert.assertEquals(verifyRestore, context.isRestored());
 
-			keyedState = context.getKeyedStateStore().getState(new ValueStateDescriptor<>("managed-keyed", Integer.class, 0));
-			opState = context.getOperatorStateStore().getSerializableListState("managed-op-state");
+			keyedState = context
+					.getKeyedStateStore()
+					.getState(new ValueStateDescriptor<>("managed-keyed", Integer.class, 0));
+
+			opState = context
+					.getOperatorStateStore()
+					.getListState(new ListStateDescriptor<>("managed-op-state", IntSerializer.INSTANCE));
 
 			if (context.isRestored()) {
 				// check restored raw keyed state

@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import kafka.api.OffsetRequest;
 import kafka.cluster.Broker;
 import kafka.common.ErrorMapping;
 import kafka.javaapi.PartitionMetadata;
@@ -28,6 +27,7 @@ import kafka.javaapi.consumer.SimpleConsumer;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.Kafka08Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
@@ -46,9 +46,10 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.channels.ClosedChannelException;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 
@@ -111,12 +112,6 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 
 	/** The properties to parametrize the Kafka consumer and ZooKeeper client */ 
 	private final Properties kafkaProperties;
-
-	/** The behavior when encountering an invalid offset (see {@link OffsetRequest}) */
-	private final long invalidOffsetBehavior;
-
-	/** The interval in which to automatically commit (-1 if deactivated) */
-	private final long autoCommitInterval;
 
 	// ------------------------------------------------------------------------
 
@@ -188,24 +183,35 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		// validate the zookeeper properties
 		validateZooKeeperConfig(props);
 
-		this.invalidOffsetBehavior = getInvalidOffsetBehavior(props);
-		this.autoCommitInterval = PropertiesUtil.getLong(props, "auto.commit.interval.ms", 60000);
+		// eagerly check for invalid "auto.offset.reset" values before launching the job
+		validateAutoOffsetResetValue(props);
 	}
 
 	@Override
 	protected AbstractFetcher<T, ?> createFetcher(
 			SourceContext<T> sourceContext,
-			List<KafkaTopicPartition> thisSubtaskPartitions,
+			Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
-			StreamingRuntimeContext runtimeContext) throws Exception {
+			StreamingRuntimeContext runtimeContext,
+			OffsetCommitMode offsetCommitMode) throws Exception {
 
-		boolean useMetrics = !Boolean.valueOf(kafkaProperties.getProperty(KEY_DISABLE_METRICS, "false"));
+		boolean useMetrics = !PropertiesUtil.getBoolean(kafkaProperties, KEY_DISABLE_METRICS, false);
 
-		return new Kafka08Fetcher<>(sourceContext, thisSubtaskPartitions,
-				watermarksPeriodic, watermarksPunctuated,
-				runtimeContext, deserializer, kafkaProperties,
-				invalidOffsetBehavior, autoCommitInterval, useMetrics);
+		long autoCommitInterval = (offsetCommitMode == OffsetCommitMode.KAFKA_PERIODIC)
+				? PropertiesUtil.getLong(kafkaProperties, "auto.commit.interval.ms", 60000)
+				: -1; // this disables the periodic offset committer thread in the fetcher
+
+		return new Kafka08Fetcher<>(
+				sourceContext,
+				assignedPartitionsWithInitialOffsets,
+				watermarksPeriodic,
+				watermarksPunctuated,
+				runtimeContext,
+				deserializer,
+				kafkaProperties,
+				autoCommitInterval,
+				useMetrics);
 	}
 
 	@Override
@@ -225,6 +231,12 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		}
 
 		return partitionInfos;
+	}
+
+	@Override
+	protected boolean getIsAutoCommitEnabled() {
+		return PropertiesUtil.getBoolean(kafkaProperties, "auto.commit.enable", true) &&
+				PropertiesUtil.getLong(kafkaProperties, "auto.commit.interval.ms", 60000) > 0;
 	}
 
 	// ------------------------------------------------------------------------
@@ -384,16 +396,19 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		}
 	}
 
-	private static long getInvalidOffsetBehavior(Properties config) {
+	/**
+	 * Check for invalid "auto.offset.reset" values. Should be called in constructor for eager checking before submitting
+	 * the job. Note that 'none' is also considered invalid, as we don't want to deliberately throw an exception
+	 * right after a task is started.
+	 *
+	 * @param config kafka consumer properties to check
+	 */
+	private static void validateAutoOffsetResetValue(Properties config) {
 		final String val = config.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "largest");
-		if (val.equals("none")) {
+		if (!(val.equals("largest") || val.equals("latest") || val.equals("earliest") || val.equals("smallest"))) {
+			// largest/smallest is kafka 0.8, latest/earliest is kafka 0.9
 			throw new IllegalArgumentException("Cannot use '" + ConsumerConfig.AUTO_OFFSET_RESET_CONFIG
-					+ "' value 'none'. Possible values: 'latest', 'largest', or 'earliest'.");
-		}
-		else if (val.equals("largest") || val.equals("latest")) { // largest is kafka 0.8, latest is kafka 0.9
-			return OffsetRequest.LatestTime();
-		} else {
-			return OffsetRequest.EarliestTime();
+				+ "' value '" + val + "'. Possible values: 'latest', 'largest', 'earliest', or 'smallest'.");
 		}
 	}
 }

@@ -22,12 +22,11 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -176,7 +175,7 @@ public class KryoClearedBufferTest {
 
 			byte[] tempBuffer = new byte[numBytes];
 
-			source.read(tempBuffer);
+			source.readFully(tempBuffer);
 
 			System.arraycopy(tempBuffer, 0, buffer, position, numBytes);
 
@@ -262,7 +261,7 @@ public class KryoClearedBufferTest {
 
 		@Override
 		public void writeBytes(String s) throws IOException {
-			byte[] sBuffer = s.getBytes();
+			byte[] sBuffer = s.getBytes(ConfigConstants.DEFAULT_CHARSET);
 			checkSize(sBuffer.length);
 			System.arraycopy(sBuffer, 0, buffer, position, sBuffer.length);
 			position += sBuffer.length;
@@ -270,7 +269,7 @@ public class KryoClearedBufferTest {
 
 		@Override
 		public void writeChars(String s) throws IOException {
-			byte[] sBuffer = s.getBytes();
+			byte[] sBuffer = s.getBytes(ConfigConstants.DEFAULT_CHARSET);
 			checkSize(sBuffer.length);
 			System.arraycopy(sBuffer, 0, buffer, position, sBuffer.length);
 			position += sBuffer.length;
@@ -278,7 +277,7 @@ public class KryoClearedBufferTest {
 
 		@Override
 		public void writeUTF(String s) throws IOException {
-			byte[] sBuffer = s.getBytes();
+			byte[] sBuffer = s.getBytes(ConfigConstants.DEFAULT_CHARSET);
 			checkSize(sBuffer.length);
 			System.arraycopy(sBuffer, 0, buffer, position, sBuffer.length);
 			position += sBuffer.length;

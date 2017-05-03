@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import java.util.List;
+import java.util.Map;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
@@ -27,6 +29,8 @@ import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -39,9 +43,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
 
-import java.util.List;
-import java.util.Map;
-
 /**
  * Implementation of the {@link org.apache.flink.api.common.functions.RuntimeContext},
  * for streaming operators.
@@ -49,10 +50,10 @@ import java.util.Map;
 @PublicEvolving
 public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
-	/** The operator to which this function belongs */
+	/** The operator to which this function belongs. */
 	private final AbstractStreamOperator<?> operator;
 
-	/** The task environment running the operator */
+	/** The task environment running the operator. */
 	private final Environment taskEnvironment;
 
 	private final StreamConfig streamConfig;
@@ -137,6 +138,13 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		return keyedStateStore.getFoldingState(stateProperties);
 	}
 
+	@Override
+	public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
+		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
+		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+		return keyedStateStore.getMapState(stateProperties);
+	}
+
 	private KeyedStateStore checkPreconditionsAndGetKeyedStateStore(StateDescriptor<?, ?> stateDescriptor) {
 		Preconditions.checkNotNull(stateDescriptor, "The state properties must not be null");
 		KeyedStateStore keyedStateStore = operator.getKeyedStateStore();
@@ -148,6 +156,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
 	/**
 	 * Returns true if checkpointing is enabled for the running job.
+	 *
 	 * @return true if checkpointing is enabled.
 	 */
 	public boolean isCheckpointingEnabled() {
@@ -155,7 +164,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	}
 
 	/**
-	 * Returns the checkpointing mode
+	 * Returns the checkpointing mode.
+	 *
 	 * @return checkpointing mode
 	 */
 	public CheckpointingMode getCheckpointMode() {
@@ -163,7 +173,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	}
 
 	/**
-	 * Returns the buffer timeout of the job
+	 * Returns the buffer timeout of the job.
+	 *
 	 * @return buffer timeout (in milliseconds)
 	 */
 	public long getBufferTimeout() {

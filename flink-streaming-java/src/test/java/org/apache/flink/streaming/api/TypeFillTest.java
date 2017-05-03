@@ -46,7 +46,7 @@ public class TypeFillTest {
 			env.addSource(new TestSource<Integer>()).print();
 			fail();
 		} catch (Exception ignored) {}
-		
+
 
 		DataStream<Long> source = env.generateSequence(1, 10);
 
@@ -54,17 +54,17 @@ public class TypeFillTest {
 			source.map(new TestMap<Long, Long>()).print();
 			fail();
 		} catch (Exception ignored) {}
-		
+
 		try {
 			source.flatMap(new TestFlatMap<Long, Long>()).print();
 			fail();
 		} catch (Exception ignored) {}
-		
+
 		try {
 			source.connect(source).map(new TestCoMap<Long, Long, Integer>()).print();
 			fail();
 		} catch (Exception ignored) {}
-		
+
 		try {
 			source.connect(source).flatMap(new TestCoFlatMap<Long, Long, Integer>()).print();
 			fail();
@@ -76,7 +76,7 @@ public class TypeFillTest {
 		source.connect(source).map(new TestCoMap<Long, Long, Integer>()).returns(BasicTypeInfo.INT_TYPE_INFO).print();
 		source.connect(source).flatMap(new TestCoFlatMap<Long, Long, Integer>())
 				.returns(BasicTypeInfo.INT_TYPE_INFO).print();
-		
+
 		assertEquals(BasicTypeInfo.LONG_TYPE_INFO,
 				source.map(new TestMap<Long, Long>()).returns(Long.class).getType());
 

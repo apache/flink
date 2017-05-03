@@ -48,7 +48,7 @@ public class StreamMapTest {
 			return "+" + (value + 1);
 		}
 	}
-	
+
 	@Test
 	public void testMap() throws Exception {
 		StreamMap<Integer, String> operator = new StreamMap<Integer, String>(new Map());

@@ -23,8 +23,8 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
-import org.apache.flink.table.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
+import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.functions.{EventTimeExtractor, RowTime, ScalarFunction, TableFunction, _}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -81,10 +81,11 @@ class FunctionCatalog {
 
       // user-defined scalar function call
       case sf if classOf[ScalarFunction].isAssignableFrom(sf) =>
-        Try(UserDefinedFunctionUtils.instantiate(sf.asInstanceOf[Class[ScalarFunction]])) match {
-          case Success(scalarFunction) => ScalarFunctionCall(scalarFunction, children)
-          case Failure(e) => throw ValidationException(e.getMessage)
-        }
+        val scalarSqlFunction = sqlFunctions
+          .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[ScalarSqlFunction])
+          .getOrElse(throw ValidationException(s"Undefined scalar function: $name"))
+          .asInstanceOf[ScalarSqlFunction]
+        ScalarFunctionCall(scalarSqlFunction.getScalarFunction, children)
 
       // user-defined table function call
       case tf if classOf[TableFunction[_]].isAssignableFrom(tf) =>
@@ -105,7 +106,7 @@ class FunctionCatalog {
               case Success(expr) => expr
               case Failure(e) => throw new ValidationException(e.getMessage)
             }
-          case Failure(e) =>
+          case Failure(_) =>
             val childrenClass = Seq.fill(children.length)(classOf[Expression])
             // try to find a constructor matching the exact number of children
             Try(funcClass.getDeclaredConstructor(childrenClass: _*)) match {
@@ -114,7 +115,7 @@ class FunctionCatalog {
                   case Success(expr) => expr
                   case Failure(exception) => throw ValidationException(exception.getMessage)
                 }
-              case Failure(exception) =>
+              case Failure(_) =>
                 throw ValidationException(s"Invalid number of arguments for function $funcClass")
             }
         }
@@ -139,13 +140,28 @@ class FunctionCatalog {
 object FunctionCatalog {
 
   val builtInFunctions: Map[String, Class[_]] = Map(
+
+//    SqlStdOperatorTable.AS,
+//    SqlStdOperatorTable.DIVIDE_INTEGER,
+//    SqlStdOperatorTable.DOT,
+
     // logic
+    "and" -> classOf[And],
+    "or" -> classOf[Or],
+    "not" -> classOf[Not],
+    "equals" -> classOf[EqualTo],
+    "greaterThan" -> classOf[GreaterThan],
+    "greaterThanOrEqual" -> classOf[GreaterThanOrEqual],
+    "lessThan" -> classOf[LessThan],
+    "lessThanOrEqual" -> classOf[LessThanOrEqual],
+    "notEquals" -> classOf[NotEqualTo],
     "isNull" -> classOf[IsNull],
     "isNotNull" -> classOf[IsNotNull],
     "isTrue" -> classOf[IsTrue],
     "isFalse" -> classOf[IsFalse],
     "isNotTrue" -> classOf[IsNotTrue],
     "isNotFalse" -> classOf[IsNotFalse],
+    "if" -> classOf[If],
 
     // aggregate functions
     "avg" -> classOf[Avg],
@@ -153,20 +169,33 @@ object FunctionCatalog {
     "max" -> classOf[Max],
     "min" -> classOf[Min],
     "sum" -> classOf[Sum],
+    "sum0" -> classOf[Sum0],
+    "stddevPop" -> classOf[StddevPop],
+    "stddevSamp" -> classOf[StddevSamp],
+    "varPop" -> classOf[VarPop],
+    "varSamp" -> classOf[VarSamp],
 
     // string functions
     "charLength" -> classOf[CharLength],
     "initCap" -> classOf[InitCap],
     "like" -> classOf[Like],
+    "concat" -> classOf[Plus],
+    "lower" -> classOf[Lower],
     "lowerCase" -> classOf[Lower],
     "similar" -> classOf[Similar],
     "substring" -> classOf[Substring],
     "trim" -> classOf[Trim],
+    // duplicate functions for calcite
+    "upper" -> classOf[Upper],
     "upperCase" -> classOf[Upper],
     "position" -> classOf[Position],
     "overlay" -> classOf[Overlay],
 
     // math functions
+    "plus" -> classOf[Plus],
+    "minus" -> classOf[Minus],
+    "divide" -> classOf[Div],
+    "times" -> classOf[Mul],
     "abs" -> classOf[Abs],
     "ceil" -> classOf[Ceil],
     "exp" -> classOf[Exp],
@@ -176,6 +205,19 @@ object FunctionCatalog {
     "power" -> classOf[Power],
     "mod" -> classOf[Mod],
     "sqrt" -> classOf[Sqrt],
+    "minusPrefix" -> classOf[UnaryMinus],
+    "sin" -> classOf[Sin],
+    "cos" -> classOf[Cos],
+    "tan" -> classOf[Tan],
+    "cot" -> classOf[Cot],
+    "asin" -> classOf[Asin],
+    "acos" -> classOf[Acos],
+    "atan" -> classOf[Atan],
+    "degrees" -> classOf[Degrees],
+    "radians" -> classOf[Radians],
+    "sign" -> classOf[Sign],
+    "round" -> classOf[Round],
+    "pi" -> classOf[Pi],
 
     // temporal functions
     "extract" -> classOf[Extract],
@@ -186,15 +228,20 @@ object FunctionCatalog {
     "localTimestamp" -> classOf[LocalTimestamp],
     "quarter" -> classOf[Quarter],
     "temporalOverlaps" -> classOf[TemporalOverlaps],
+    "dateTimePlus" -> classOf[Plus],
 
     // array
     "cardinality" -> classOf[ArrayCardinality],
     "at" -> classOf[ArrayElementAt],
-    "element" -> classOf[ArrayElement]
+    "element" -> classOf[ArrayElement],
 
     // TODO implement function overloading here
     // "floor" -> classOf[TemporalFloor]
     // "ceil" -> classOf[TemporalCeil]
+
+    // extensions to support streaming query
+    "rowtime" -> classOf[RowTime],
+    "proctime" -> classOf[ProcTime]
   )
 
   /**
@@ -263,10 +310,15 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.GROUPING_ID,
     // AGGREGATE OPERATORS
     SqlStdOperatorTable.SUM,
+    SqlStdOperatorTable.SUM0,
     SqlStdOperatorTable.COUNT,
     SqlStdOperatorTable.MIN,
     SqlStdOperatorTable.MAX,
     SqlStdOperatorTable.AVG,
+    SqlStdOperatorTable.STDDEV_POP,
+    SqlStdOperatorTable.STDDEV_SAMP,
+    SqlStdOperatorTable.VAR_POP,
+    SqlStdOperatorTable.VAR_SAMP,
     // ARRAY OPERATORS
     SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR,
     SqlStdOperatorTable.ITEM,
@@ -317,7 +369,31 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.EXTRACT,
     SqlStdOperatorTable.QUARTER,
     SqlStdOperatorTable.SCALAR_QUERY,
-    SqlStdOperatorTable.EXISTS
+    SqlStdOperatorTable.EXISTS,
+    SqlStdOperatorTable.SIN,
+    SqlStdOperatorTable.COS,
+    SqlStdOperatorTable.TAN,
+    SqlStdOperatorTable.COT,
+    SqlStdOperatorTable.ASIN,
+    SqlStdOperatorTable.ACOS,
+    SqlStdOperatorTable.ATAN,
+    SqlStdOperatorTable.DEGREES,
+    SqlStdOperatorTable.RADIANS,
+    SqlStdOperatorTable.SIGN,
+    SqlStdOperatorTable.ROUND,
+    SqlStdOperatorTable.PI,
+    // EXTENSIONS
+    EventTimeExtractor,
+    ProcTimeExtractor,
+    SqlStdOperatorTable.TUMBLE,
+    SqlStdOperatorTable.TUMBLE_START,
+    SqlStdOperatorTable.TUMBLE_END,
+    SqlStdOperatorTable.HOP,
+    SqlStdOperatorTable.HOP_START,
+    SqlStdOperatorTable.HOP_END,
+    SqlStdOperatorTable.SESSION,
+    SqlStdOperatorTable.SESSION_START,
+    SqlStdOperatorTable.SESSION_END
   )
 
   builtInSqlOperators.foreach(register)

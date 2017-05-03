@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,9 +24,8 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 /**
  * A trigger that can turn any {@link Trigger} into a purging {@code Trigger}.
  *
- * <p>
- * When the nested trigger fires, this will return a {@code FIRE_AND_PURGE}
- * {@link TriggerResult}
+ * <p>When the nested trigger fires, this will return a {@code FIRE_AND_PURGE}
+ * {@link TriggerResult}.
  *
  * @param <T> The type of elements on which this trigger can operate.
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.

@@ -18,14 +18,19 @@
 
 package org.apache.flink.runtime.metrics;
 
+import akka.actor.ActorNotFound;
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestReporter;
@@ -33,11 +38,15 @@ import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
+import scala.concurrent.Await;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class MetricRegistryTest extends TestLogger {
 
@@ -61,7 +70,7 @@ public class MetricRegistryTest extends TestLogger {
 	public void testReporterInstantiation() {
 		Configuration config = new Configuration();
 
-		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+		config.setString(MetricOptions.REPORTERS_LIST, "test");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
 
 		MetricRegistry metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
@@ -89,7 +98,7 @@ public class MetricRegistryTest extends TestLogger {
 	public void testMultipleReporterInstantiation() {
 		Configuration config = new Configuration();
 
-		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1, test2,test3");
+		config.setString(MetricOptions.REPORTERS_LIST, "test1, test2,test3");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter11.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter12.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test3." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter13.class.getName());
@@ -139,7 +148,7 @@ public class MetricRegistryTest extends TestLogger {
 	public void testReporterArgumentForwarding() {
 		Configuration config = new Configuration();
 
-		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+		config.setString(MetricOptions.REPORTERS_LIST, "test");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg1", "hello");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg2", "world");
@@ -164,7 +173,7 @@ public class MetricRegistryTest extends TestLogger {
 	public void testReporterScheduling() throws InterruptedException {
 		Configuration config = new Configuration();
 
-		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test");
+		config.setString(MetricOptions.REPORTERS_LIST, "test");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter3.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg1", "hello");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "50 MILLISECONDS");
@@ -207,7 +216,7 @@ public class MetricRegistryTest extends TestLogger {
 	@Test
 	public void testReporterNotifications() {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1,test2");
+		config.setString(MetricOptions.REPORTERS_LIST, "test1,test2");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter6.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter7.class.getName());
 
@@ -270,10 +279,10 @@ public class MetricRegistryTest extends TestLogger {
 	public void testScopeConfig() {
 		Configuration config = new Configuration();
 
-		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "A");
-		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM_JOB, "B");
-		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "C");
-		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_OPERATOR, "D");
+		config.setString(MetricOptions.SCOPE_NAMING_TM, "A");
+		config.setString(MetricOptions.SCOPE_NAMING_TM_JOB, "B");
+		config.setString(MetricOptions.SCOPE_NAMING_TASK, "C");
+		config.setString(MetricOptions.SCOPE_NAMING_OPERATOR, "D");
 
 		ScopeFormats scopeConfig = MetricRegistryConfiguration.createScopeConfig(config);
 
@@ -286,8 +295,8 @@ public class MetricRegistryTest extends TestLogger {
 	@Test
 	public void testConfigurableDelimiter() {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_SCOPE_DELIMITER, "_");
-		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "A.B.C.D.E");
+		config.setString(MetricOptions.SCOPE_DELIMITER, "_");
+		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D.E");
 
 		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
@@ -300,7 +309,7 @@ public class MetricRegistryTest extends TestLogger {
 	@Test
 	public void testConfigurableDelimiterForReporters() {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1,test2,test3");
+		config.setString(MetricOptions.REPORTERS_LIST, "test1,test2,test3");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "_");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
@@ -323,7 +332,7 @@ public class MetricRegistryTest extends TestLogger {
 	@Test
 	public void testConfigurableDelimiterForReportersInGroup() {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_REPORTERS_LIST, "test1,test2,test3,test4");
+		config.setString(MetricOptions.REPORTERS_LIST, "test1,test2,test3,test4");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "_");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter8.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
@@ -331,7 +340,7 @@ public class MetricRegistryTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test3." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "AA");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test3." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter8.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test4." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter8.class.getName());
-		config.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "A.B");
+		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B");
 
 		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 		List<MetricReporter> reporters = registry.getReporters();
@@ -346,6 +355,32 @@ public class MetricRegistryTest extends TestLogger {
 		registry.shutdown();
 		assertEquals(4, TestReporter8.numCorrectDelimitersForRegister);
 		assertEquals(4, TestReporter8.numCorrectDelimitersForUnregister);
+	}
+
+	/**
+	 * Tests that the query actor will be stopped when the MetricRegistry is shut down.
+	 */
+	@Test
+	public void testQueryActorShutdown() throws Exception {
+		final FiniteDuration timeout = new FiniteDuration(10L, TimeUnit.SECONDS);
+
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+
+		final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
+
+		registry.startQueryService(actorSystem, null);
+
+		ActorRef queryServiceActor = registry.getQueryService();
+
+		registry.shutdown();
+
+		try {
+			Await.result(actorSystem.actorSelection(queryServiceActor.path()).resolveOne(timeout), timeout);
+
+			fail("The query actor should be terminated resulting in a ActorNotFound exception.");
+		} catch (ActorNotFound e) {
+			// we expect the query actor to be shut down
+		}
 	}
 
 	public static class TestReporter8 extends TestReporter {

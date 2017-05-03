@@ -32,10 +32,9 @@ import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.parser.{SqlParser, SqlParseException => CSqlParseException}
 import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.sql.{SqlNode, SqlOperatorTable}
-import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
+import org.apache.calcite.sql2rel.{RelDecorrelator, SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 import org.apache.flink.table.api.{SqlParserException, TableException, ValidationException}
-import org.apache.flink.table.calcite.sql2rel.FlinkRelDecorrelator
 
 import scala.collection.JavaConversions._
 
@@ -99,7 +98,7 @@ class FlinkPlannerImpl(
     try {
       assert(validatedSqlNode != null)
       val rexBuilder: RexBuilder = createRexBuilder
-      val cluster: RelOptCluster = RelOptCluster.create(planner, rexBuilder)
+      val cluster: RelOptCluster = FlinkRelOptClusterFactory.create(planner, rexBuilder)
       val config = SqlToRelConverter.configBuilder()
         .withTrimUnusedFields(false).withConvertTableAccess(false).build()
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
@@ -108,7 +107,7 @@ class FlinkPlannerImpl(
       // we disable automatic flattening in order to let composite types pass without modification
       // we might enable it again once Calcite has better support for structured types
       // root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
-      root = root.withRel(FlinkRelDecorrelator.decorrelateQuery(root.rel))
+      root = root.withRel(RelDecorrelator.decorrelateQuery(root.rel))
       root
     } catch {
       case e: RelConversionException => throw TableException(e.getMessage)
@@ -140,14 +139,14 @@ class FlinkPlannerImpl(
       validator.setIdentifierExpansion(true)
       val validatedSqlNode: SqlNode = validator.validate(sqlNode)
       val rexBuilder: RexBuilder = createRexBuilder
-      val cluster: RelOptCluster = RelOptCluster.create(planner, rexBuilder)
+      val cluster: RelOptCluster = FlinkRelOptClusterFactory.create(planner, rexBuilder)
       val config: SqlToRelConverter.Config = SqlToRelConverter.configBuilder
         .withTrimUnusedFields(false).withConvertTableAccess(false).build
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
         new ViewExpanderImpl, validator, catalogReader, cluster, convertletTable, config)
       root = sqlToRelConverter.convertQuery(validatedSqlNode, true, false)
       root = root.withRel(sqlToRelConverter.flattenTypes(root.rel, true))
-      root = root.withRel(FlinkRelDecorrelator.decorrelateQuery(root.rel))
+      root = root.withRel(RelDecorrelator.decorrelateQuery(root.rel))
       FlinkPlannerImpl.this.root
     }
   }

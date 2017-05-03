@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FutureUtil;
 
 import java.util.concurrent.RunnableFuture;
@@ -42,26 +43,22 @@ public class StateUtil {
 			Iterable<? extends StateObject> handlesToDiscard) throws Exception {
 
 		if (handlesToDiscard != null) {
-
-			Exception suppressedExceptions = null;
+			Exception exception = null;
 
 			for (StateObject state : handlesToDiscard) {
 
 				if (state != null) {
 					try {
 						state.discardState();
-					} catch (Exception ex) {
-						//best effort to still cleanup other states and deliver exceptions in the end
-						if (suppressedExceptions == null) {
-							suppressedExceptions = new Exception(ex);
-						}
-						suppressedExceptions.addSuppressed(ex);
+					}
+					catch (Exception ex) {
+						exception = ExceptionUtils.firstOrSuppressed(ex, exception);
 					}
 				}
 			}
 
-			if (suppressedExceptions != null) {
-				throw suppressedExceptions;
+			if (exception != null) {
+				throw exception;
 			}
 		}
 	}

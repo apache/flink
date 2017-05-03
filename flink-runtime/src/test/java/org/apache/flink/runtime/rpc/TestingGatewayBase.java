@@ -68,6 +68,11 @@ public abstract class TestingGatewayBase implements RpcGateway {
 		return address;
 	}
 
+	@Override
+	public String getHostname() {
+		return address;
+	}
+
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------

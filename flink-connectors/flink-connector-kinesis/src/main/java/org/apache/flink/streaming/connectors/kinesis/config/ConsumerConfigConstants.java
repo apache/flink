@@ -56,8 +56,11 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The initial position to start reading Kinesis streams from (LATEST is used if not set) */
 	public static final String STREAM_INITIAL_POSITION = "flink.stream.initpos";
 
-	/** The initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION */
+	/** The initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION) */
 	public static final String STREAM_INITIAL_TIMESTAMP = "flink.stream.initpos.timestamp";
+
+	/** The date format of initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION) */
+	public static final String STREAM_TIMESTAMP_DATE_FORMAT = "flink.stream.initpos.timestamp.format";
 
 	/** The base backoff time between each describeStream attempt */
 	public static final String STREAM_DESCRIBE_BACKOFF_BASE = "flink.stream.describe.backoff.base";
@@ -106,6 +109,8 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	// ------------------------------------------------------------------------
 
 	public static final String DEFAULT_STREAM_INITIAL_POSITION = InitialPosition.LATEST.toString();
+
+	public static final String DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
 
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE = 1000L;
 

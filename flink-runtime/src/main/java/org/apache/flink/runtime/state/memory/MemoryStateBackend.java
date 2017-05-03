@@ -25,7 +25,9 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 
 import java.io.IOException;
@@ -45,6 +47,9 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	/** The maximal size that the snapshotted memory state may have */
 	private final int maxStateSize;
 
+	/** Switch to chose between synchronous and asynchronous snapshots */
+	private final boolean asynchronousSnapshots;
+
 	/**
 	 * Creates a new memory state backend that accepts states whose serialized forms are
 	 * up to the default state size (5 MB).
@@ -60,7 +65,40 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	 * @param maxStateSize The maximal size of the serialized state
 	 */
 	public MemoryStateBackend(int maxStateSize) {
+		this(maxStateSize, false);
+	}
+
+	/**
+	 * Creates a new memory state backend that accepts states whose serialized forms are
+	 * up to the default state size (5 MB).
+	 *
+	 * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
+	 */
+	public MemoryStateBackend(boolean asynchronousSnapshots) {
+		this(DEFAULT_MAX_STATE_SIZE, asynchronousSnapshots);
+	}
+
+	/**
+	 * Creates a new memory state backend that accepts states whose serialized forms are
+	 * up to the given number of bytes.
+	 *
+	 * @param maxStateSize The maximal size of the serialized state
+	 * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
+	 */
+	public MemoryStateBackend(int maxStateSize, boolean asynchronousSnapshots) {
 		this.maxStateSize = maxStateSize;
+		this.asynchronousSnapshots = asynchronousSnapshots;
+	}
+
+	@Override
+	public OperatorStateBackend createOperatorStateBackend(
+		Environment env,
+		String operatorIdentifier) throws Exception {
+
+		return new DefaultOperatorStateBackend(
+			env.getUserClassLoader(),
+			env.getExecutionConfig(),
+			asynchronousSnapshots);
 	}
 
 	@Override
@@ -75,19 +113,30 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
+	public CheckpointStreamFactory createSavepointStreamFactory(
+			JobID jobId,
+			String operatorIdentifier,
+			String targetLocation) throws IOException {
+
+		return new MemCheckpointStreamFactory(maxStateSize);
+	}
+
+	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
 			Environment env, JobID jobID,
 			String operatorIdentifier,
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws IOException {
+			TaskKvStateRegistry kvStateRegistry) {
 
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
 				keySerializer,
 				env.getUserClassLoader(),
 				numberOfKeyGroups,
-				keyGroupRange);
+				keyGroupRange,
+				asynchronousSnapshots,
+				env.getExecutionConfig());
 	}
 }

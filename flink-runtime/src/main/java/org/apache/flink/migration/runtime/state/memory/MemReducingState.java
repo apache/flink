@@ -29,8 +29,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <V> The type of the values in the list state.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public class MemReducingState<K, N, V> {
 
 	public static class Snapshot<K, N, V> extends AbstractMemStateSnapshot<K, N, V, ReducingState<V>, ReducingStateDescriptor<V>> {

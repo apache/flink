@@ -620,6 +620,7 @@ val output = input.groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
         for (t <- in) {
           if (prev == null || prev != t)
             out.collect(t)
+            prev = t
         }
     }
 

@@ -22,13 +22,15 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.functions.FunctionAnnotation;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeTargetDegree;
+import org.apache.flink.graph.asm.result.BinaryResult;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
@@ -48,11 +50,11 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * is computed as the number of shared neighbors divided by the number of
  * distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all
  * neighbors are shared).
- * <br/>
+ * <p>
  * This implementation produces similarity scores for each pair of vertices
  * in the graph with at least one shared neighbor; equivalently, this is the
  * set of all non-zero Jaccard Similarity coefficients.
- * <br/>
+ * <p>
  * The input graph must be a simple, undirected graph containing no duplicate
  * edges or self-loops.
  *
@@ -76,7 +78,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	private int maximumScoreNumerator = 1;
 
-	private int maximumScoreDenominator = 0;
+	private int maximumScoreDenominator = 1;
+
+	private boolean mirrorResults;
 
 	private int littleParallelism = PARALLELISM_DEFAULT;
 
@@ -119,7 +123,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	/**
-	 * Filter out Jaccard Index scores greater than or equal to the given maximum fraction.
+	 * Filter out Jaccard Index scores greater than the given maximum fraction.
 	 *
 	 * @param numerator numerator of the maximum score
 	 * @param denominator denominator of the maximum score
@@ -134,6 +138,20 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		this.unboundedScores = false;
 		this.maximumScoreNumerator = numerator;
 		this.maximumScoreDenominator = denominator;
+
+		return this;
+	}
+
+	/**
+	 * By default only one result is output for each pair of vertices. When
+	 * mirroring a second result with the vertex order flipped is output for
+	 * each pair of vertices.
+	 *
+	 * @param mirrorResults whether output results should be mirrored
+	 * @return this
+	 */
+	public JaccardIndex<K, VV, EV> setMirrorResults(boolean mirrorResults) {
+		this.mirrorResults = mirrorResults;
 
 		return this;
 	}
@@ -174,7 +192,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			minimumScoreNumerator != rhs.minimumScoreNumerator ||
 			minimumScoreDenominator != rhs.minimumScoreDenominator ||
 			maximumScoreNumerator != rhs.maximumScoreNumerator ||
-			maximumScoreDenominator != rhs.maximumScoreDenominator) {
+			maximumScoreDenominator != rhs.maximumScoreDenominator ||
+			mirrorResults != rhs.mirrorResults) {
 			return false;
 		}
 
@@ -228,22 +247,30 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.name("Generate group pairs");
 
 		// t, u, intersection, union
-		return twoPaths
+		DataSet<Result<K>> scores = twoPaths
 			.groupBy(0, 1)
 			.reduceGroup(new ComputeScores<K>(unboundedScores,
 					minimumScoreNumerator, minimumScoreDenominator,
 					maximumScoreNumerator, maximumScoreDenominator))
 				.name("Compute scores");
+
+		if (mirrorResults) {
+			scores = scores
+				.flatMap(new MirrorResult<K, Result<K>>())
+					.name("Mirror results");
+		}
+
+		return scores;
 	}
 
 	/**
 	 * This is the first of three operations implementing a self-join to generate
 	 * the full neighbor pairing for each vertex. The number of neighbor pairs
 	 * is (n choose 2) which is quadratic in the vertex degree.
-	 * <br/>
+	 * <p>
 	 * The third operation, {@link GenerateGroupPairs}, processes groups of size
 	 * {@link #groupSize} and emits {@code O(groupSize * deg(vertex))} pairs.
-	 * <br/>
+	 * <p>
 	 * This input to the third operation is still quadratic in the vertex degree.
 	 * Two prior operations, {@link GenerateGroupSpans} and {@link GenerateGroups},
 	 * each emit datasets linear in the vertex degree, with a forced rebalance
@@ -251,8 +278,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * number of groups and {@link GenerateGroups} emits each edge into each group.
 	 *
 	 * @param <T> ID type
+	 * @param <ET> edge value type
 	 */
-	@FunctionAnnotation.ForwardedFields("0->1; 1->2")
+	@ForwardedFields("0->1; 1->2")
 	private static class GenerateGroupSpans<T, ET>
 	implements GroupReduceFunction<Edge<T, Tuple2<ET, LongValue>>, Tuple4<IntValue, T, T, IntValue>> {
 		private final int groupSize;
@@ -301,7 +329,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @see GenerateGroupSpans
 	 */
-	@FunctionAnnotation.ForwardedFields("1; 2; 3")
+	@ForwardedFields("1; 2; 3")
 	private static class GenerateGroups<T>
 	implements FlatMapFunction<Tuple4<IntValue, T, T, IntValue>, Tuple4<IntValue, T, T, IntValue>> {
 		@Override
@@ -318,7 +346,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	/**
 	 * Emits the two-path for all neighbor pairs in this group.
-	 * <br/>
+	 * <p>
 	 * The first {@link #groupSize} vertices are emitted pairwise. Following
 	 * vertices are only paired with vertices from this initial group.
 	 *
@@ -397,7 +425,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("0; 1")
+	@ForwardedFields("0; 1")
 	private static class ComputeScores<T>
 	implements GroupReduceFunction<Tuple3<T, T, IntValue>, Result<T>> {
 		private boolean unboundedScores;
@@ -437,13 +465,34 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 			if (unboundedScores ||
 					(count * minimumScoreDenominator >= distinctNeighbors * minimumScoreNumerator
-						&& count * maximumScoreDenominator < distinctNeighbors * maximumScoreNumerator)) {
+						&& count * maximumScoreDenominator <= distinctNeighbors * maximumScoreNumerator)) {
 				output.f0 = edge.f0;
 				output.f1 = edge.f1;
-				output.f2.f0.setValue(count);
-				output.f2.f1.setValue(distinctNeighbors);
+				output.f2.setValue(count);
+				output.f3.setValue(distinctNeighbors);
 				out.collect(output);
 			}
+		}
+	}
+
+	/**
+	 * Output each input and a second result with the vertex order flipped.
+	 *
+	 * @param <T> ID type
+	 * @param <RT> result type
+	 */
+	private static class MirrorResult<T, RT extends BinaryResult<T>>
+	implements FlatMapFunction<RT, RT> {
+		@Override
+		public void flatMap(RT value, Collector<RT> out)
+				throws Exception {
+			out.collect(value);
+
+			T tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			out.collect(value);
 		}
 	}
 
@@ -453,13 +502,35 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Edge<T, Tuple2<IntValue, IntValue>> {
+	extends Tuple4<T, T, IntValue, IntValue>
+	implements PrintableResult, BinaryResult<T>, Comparable<Result<T>> {
 		public static final int HASH_SEED = 0x731f73e7;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
 
 		public Result() {
-			f2 = new Tuple2<>(new IntValue(), new IntValue());
+			f2 = new IntValue();
+			f3 = new IntValue();
+		}
+
+		@Override
+		public T getVertexId0() {
+			return f0;
+		}
+
+		@Override
+		public void setVertexId0(T value) {
+			f0 = value;
+		}
+
+		@Override
+		public T getVertexId1() {
+			return f1;
+		}
+
+		@Override
+		public void setVertexId1(T value) {
+			f1 = value;
 		}
 
 		/**
@@ -468,7 +539,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return shared neighbor count
 		 */
 		public IntValue getSharedNeighborCount() {
-			return f2.f0;
+			return f2;
 		}
 
 		/**
@@ -477,7 +548,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return distinct neighbor count
 		 */
 		public IntValue getDistinctNeighborCount() {
-			return f2.f1;
+			return f3;
 		}
 
 		/**
@@ -491,8 +562,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			return getSharedNeighborCount().getValue() / (double) getDistinctNeighborCount().getValue();
 		}
 
-		public String toVerboseString() {
-			return "Vertex IDs: (" + f0 + ", " + f1
+		public String toPrintableString() {
+			return "Vertex IDs: (" + getVertexId0() + ", " + getVertexId1()
 				+ "), number of shared neighbors: " + getSharedNeighborCount()
 				+ ", number of distinct neighbors: " + getDistinctNeighborCount()
 				+ ", jaccard index score: " + getJaccardIndexScore();
@@ -503,9 +574,20 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			return hasher.reset()
 				.hash(f0.hashCode())
 				.hash(f1.hashCode())
-				.hash(f2.f0.getValue())
-				.hash(f2.f1.getValue())
+				.hash(f2.getValue())
+				.hash(f3.getValue())
 				.hash();
+		}
+
+		@Override
+		public int compareTo(Result<T> o) {
+			// exact comparison of a/b with x/y using only integer math:
+			// a/b <?> x/y == a*y <?> b*x
+
+			long ay = getSharedNeighborCount().getValue() * (long)o.getDistinctNeighborCount().getValue();
+			long bx = getDistinctNeighborCount().getValue() * (long)o.getSharedNeighborCount().getValue();
+
+			return Long.compare(ay, bx);
 		}
 	}
 }

@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Ignore;
 
 import org.slf4j.Logger;
@@ -42,7 +44,7 @@ import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 @Ignore
-public class NetworkStackThroughputITCase {
+public class NetworkStackThroughputITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NetworkStackThroughputITCase.class);
 
@@ -129,11 +131,14 @@ public class NetworkStackThroughputITCase {
 			consumer.getConfiguration().setBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, isSlowReceiver);
 
 			if (useForwarder) {
-				forwarder.connectNewDataSetAsInput(producer, DistributionPattern.ALL_TO_ALL);
-				consumer.connectNewDataSetAsInput(forwarder, DistributionPattern.ALL_TO_ALL);
+				forwarder.connectNewDataSetAsInput(producer, DistributionPattern.ALL_TO_ALL,
+					ResultPartitionType.PIPELINED);
+				consumer.connectNewDataSetAsInput(forwarder, DistributionPattern.ALL_TO_ALL,
+					ResultPartitionType.PIPELINED);
 			}
 			else {
-				consumer.connectNewDataSetAsInput(producer, DistributionPattern.ALL_TO_ALL);
+				consumer.connectNewDataSetAsInput(producer, DistributionPattern.ALL_TO_ALL,
+					ResultPartitionType.PIPELINED);
 			}
 
 			return jobGraph;

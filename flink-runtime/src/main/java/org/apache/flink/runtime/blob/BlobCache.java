@@ -20,12 +20,12 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.util.FileUtils;
-
+import org.apache.flink.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -35,10 +35,17 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * The BLOB cache implements a local cache for content-addressable BLOBs. When requesting BLOBs through the
- * {@link BlobCache#getURL} methods, the BLOB cache will first attempt serve the file from its local cache. Only if the
- * local cache does not contain the desired BLOB, the BLOB cache will try to download it from the BLOB server.
+ * The BLOB cache implements a local cache for content-addressable BLOBs.
+ *
+ * <p>When requesting BLOBs through the {@link BlobCache#getURL} methods, the
+ * BLOB cache will first attempt to serve the file from its local cache. Only if
+ * the local cache does not contain the desired BLOB, the BLOB cache will try to
+ * download it from a distributed file system (if available) or the BLOB
+ * server.</p>
  */
 public final class BlobCache implements BlobService {
 
@@ -47,7 +54,11 @@ public final class BlobCache implements BlobService {
 
 	private final InetSocketAddress serverAddress;
 
+	/** Root directory for local file storage */
 	private final File storageDir;
+
+	/** Blob store for distributed file storage, e.g. in HA */
+	private final BlobStore blobStore;
 
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
@@ -60,15 +71,62 @@ public final class BlobCache implements BlobService {
 	/** Configuration for the blob client like ssl parameters required to connect to the blob server */
 	private final Configuration blobClientConfig;
 
+	/**
+	 * Instantiates a new BLOB cache.
+	 *
+	 * @param serverAddress
+	 * 		address of the {@link BlobServer} to use for fetching files from
+	 * @param blobClientConfig
+	 * 		global configuration
+	 *
+	 * @throws IOException
+	 * 		thrown if the (local or distributed) file storage cannot be created or
+	 * 		is not usable
+	 */
+	public BlobCache(InetSocketAddress serverAddress,
+			Configuration blobClientConfig) throws IOException {
+		this(serverAddress, blobClientConfig,
+			BlobUtils.createBlobStoreFromConfig(blobClientConfig));
+	}
 
-	public BlobCache(InetSocketAddress serverAddress, Configuration blobClientConfig) {
-		if (serverAddress == null || blobClientConfig == null) {
-			throw new NullPointerException();
-		}
+	/**
+	 * Instantiates a new BLOB cache.
+	 *
+	 * @param serverAddress
+	 * 		address of the {@link BlobServer} to use for fetching files from
+	 * @param blobClientConfig
+	 * 		global configuration
+	 * 	@param haServices
+	 * 		high availability services able to create a distributed blob store
+	 *
+	 * @throws IOException
+	 * 		thrown if the (local or distributed) file storage cannot be created or
+	 * 		is not usable
+	 */
+	public BlobCache(InetSocketAddress serverAddress,
+		Configuration blobClientConfig, HighAvailabilityServices haServices) throws IOException {
+		this(serverAddress, blobClientConfig, haServices.createBlobStore());
+	}
 
-		this.serverAddress = serverAddress;
-
-		this.blobClientConfig = blobClientConfig;
+	/**
+	 * Instantiates a new BLOB cache.
+	 *
+	 * @param serverAddress
+	 * 		address of the {@link BlobServer} to use for fetching files from
+	 * @param blobClientConfig
+	 * 		global configuration
+	 * @param blobStore
+	 * 		(distributed) blob store file system to retrieve files from first
+	 *
+	 * @throws IOException
+	 * 		thrown if the (local or distributed) file storage cannot be created or is not usable
+	 */
+	private BlobCache(
+			final InetSocketAddress serverAddress, final Configuration blobClientConfig,
+			final BlobStore blobStore) throws IOException {
+		this.serverAddress = checkNotNull(serverAddress);
+		this.blobClientConfig = checkNotNull(blobClientConfig);
+		this.blobStore = blobStore;
 
 		// configure and create the storage directory
 		String storageDirectory = blobClientConfig.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
@@ -101,92 +159,101 @@ public final class BlobCache implements BlobService {
 	 * @throws IOException Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
 	 */
 	public URL getURL(final BlobKey requiredBlob) throws IOException {
-		if (requiredBlob == null) {
-			throw new IllegalArgumentException("BLOB key cannot be null.");
-		}
+		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
 
 		final File localJarFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
 
-		if (!localJarFile.exists()) {
-
-			final byte[] buf = new byte[BlobServerProtocol.BUFFER_SIZE];
-
-			// loop over retries
-			int attempt = 0;
-			while (true) {
-
-				if (attempt == 0) {
-					LOG.info("Downloading {} from {}", requiredBlob, serverAddress);
-				} else {
-					LOG.info("Downloading {} from {} (retry {})", requiredBlob, serverAddress, attempt);
-				}
-
-				try {
-					BlobClient bc = null;
-					InputStream is = null;
-					OutputStream os = null;
-
-					try {
-						bc = new BlobClient(serverAddress, blobClientConfig);
-						is = bc.get(requiredBlob);
-						os = new FileOutputStream(localJarFile);
-
-						while (true) {
-							final int read = is.read(buf);
-							if (read < 0) {
-								break;
-							}
-							os.write(buf, 0, read);
-						}
-
-						// we do explicitly not use a finally block, because we want the closing
-						// in the regular case to throw exceptions and cause the writing to fail.
-						// But, the closing on exception should not throw further exceptions and
-						// let us keep the root exception
-						os.close();
-						os = null;
-						is.close();
-						is = null;
-						bc.close();
-						bc = null;
-
-						// success, we finished
-						break;
-					}
-					catch (Throwable t) {
-						// we use "catch (Throwable)" to keep the root exception. Otherwise that exception
-						// it would be replaced by any exception thrown in the finally block
-						closeSilently(os);
-						closeSilently(is);
-						closeSilently(bc);
-
-						if (t instanceof IOException) {
-							throw (IOException) t;
-						} else {
-							throw new IOException(t.getMessage(), t);
-						}
-					}
-				}
-				catch (IOException e) {
-					String message = "Failed to fetch BLOB " + requiredBlob + " from " + serverAddress +
-						" and store it under " + localJarFile.getAbsolutePath();
-					if (attempt < numFetchRetries) {
-						attempt++;
-						if (LOG.isDebugEnabled()) {
-							LOG.debug(message + " Retrying...", e);
-						} else {
-							LOG.error(message + " Retrying...");
-						}
-					}
-					else {
-						LOG.error(message + " No retries left.", e);
-						throw new IOException(message, e);
-					}
-				}
-			} // end loop over retries
+		if (localJarFile.exists()) {
+			return localJarFile.toURI().toURL();
 		}
 
-		return localJarFile.toURI().toURL();
+		// first try the distributed blob store (if available)
+		try {
+			blobStore.get(requiredBlob, localJarFile);
+		} catch (Exception e) {
+			LOG.info("Failed to copy from blob store. Downloading from BLOB server instead.", e);
+		}
+
+		if (localJarFile.exists()) {
+			return localJarFile.toURI().toURL();
+		}
+
+		// fallback: download from the BlobServer
+		final byte[] buf = new byte[BlobServerProtocol.BUFFER_SIZE];
+
+		// loop over retries
+		int attempt = 0;
+		while (true) {
+
+			if (attempt == 0) {
+				LOG.info("Downloading {} from {}", requiredBlob, serverAddress);
+			} else {
+				LOG.info("Downloading {} from {} (retry {})", requiredBlob, serverAddress, attempt);
+			}
+
+			try {
+				BlobClient bc = null;
+				InputStream is = null;
+				OutputStream os = null;
+
+				try {
+					bc = new BlobClient(serverAddress, blobClientConfig);
+					is = bc.get(requiredBlob);
+					os = new FileOutputStream(localJarFile);
+
+					while (true) {
+						final int read = is.read(buf);
+						if (read < 0) {
+							break;
+						}
+						os.write(buf, 0, read);
+					}
+
+					// we do explicitly not use a finally block, because we want the closing
+					// in the regular case to throw exceptions and cause the writing to fail.
+					// But, the closing on exception should not throw further exceptions and
+					// let us keep the root exception
+					os.close();
+					os = null;
+					is.close();
+					is = null;
+					bc.close();
+					bc = null;
+
+					// success, we finished
+					return localJarFile.toURI().toURL();
+				}
+				catch (Throwable t) {
+					// we use "catch (Throwable)" to keep the root exception. Otherwise that exception
+					// it would be replaced by any exception thrown in the finally block
+					IOUtils.closeQuietly(os);
+					IOUtils.closeQuietly(is);
+					IOUtils.closeQuietly(bc);
+
+					if (t instanceof IOException) {
+						throw (IOException) t;
+					} else {
+						throw new IOException(t.getMessage(), t);
+					}
+				}
+			}
+			catch (IOException e) {
+				String message = "Failed to fetch BLOB " + requiredBlob + " from " + serverAddress +
+					" and store it under " + localJarFile.getAbsolutePath();
+				if (attempt < numFetchRetries) {
+					attempt++;
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(message + " Retrying...", e);
+					} else {
+						LOG.error(message + " Retrying...");
+					}
+				}
+				else {
+					LOG.error(message + " No retries left.", e);
+					throw new IOException(message, e);
+				}
+			}
+		} // end loop over retries
 	}
 
 	/**
@@ -202,17 +269,22 @@ public final class BlobCache implements BlobService {
 	}
 
 	/**
-	 * Deletes the file associated with the given key from the BLOB cache and BLOB server.
+	 * Deletes the file associated with the given key from the BLOB cache and
+	 * BLOB server.
+	 *
 	 * @param key referring to the file to be deleted
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while transferring the request to
+	 *         the BLOB server or if the BLOB server cannot delete the file
 	 */
 	public void deleteGlobal(BlobKey key) throws IOException {
-		BlobClient bc = createClient();
-		try {
-			delete(key);
+		// delete locally
+		delete(key);
+		// then delete on the BLOB server
+		// (don't use the distributed storage directly - this way the blob
+		// server is aware of the delete operation, too)
+		try (BlobClient bc = createClient()) {
 			bc.delete(key);
-		}
-		finally {
-			bc.close();
 		}
 	}
 
@@ -258,19 +330,4 @@ public final class BlobCache implements BlobService {
 		return this.storageDir;
 	}
 
-	// ------------------------------------------------------------------------
-	//  Miscellaneous
-	// ------------------------------------------------------------------------
-
-	private void closeSilently(Closeable closeable) {
-		if (closeable != null) {
-			try {
-				closeable.close();
-			} catch (Throwable t) {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Error while closing resource after BLOB transfer.", t);
-				}
-			}
-		}
-	}
 }

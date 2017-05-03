@@ -23,7 +23,6 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -43,6 +43,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -58,17 +59,17 @@ import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
 public class RescalePartitionerTest extends TestLogger {
-	
+
 	private RescalePartitioner<Tuple> distributePartitioner;
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>(null);
 	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(
 			null);
-	
+
 	@Before
 	public void setPartitioner() {
 		distributePartitioner = new RescalePartitioner<Tuple>();
 	}
-	
+
 	@Test
 	public void testSelectChannelsLength() {
 		sd.setInstance(streamRecord);
@@ -76,7 +77,7 @@ public class RescalePartitionerTest extends TestLogger {
 		assertEquals(1, distributePartitioner.selectChannels(sd, 2).length);
 		assertEquals(1, distributePartitioner.selectChannels(sd, 1024).length);
 	}
-	
+
 	@Test
 	public void testSelectChannelsInterval() {
 		sd.setInstance(streamRecord);
@@ -148,8 +149,8 @@ public class RescalePartitionerTest extends TestLogger {
 			new NoRestartStrategy(),
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(),
-			ExecutionGraph.class.getClassLoader(),
-			new UnregisteredMetricsGroup());
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			ExecutionGraph.class.getClassLoader());
 		try {
 			eg.attachJobGraph(jobVertices);
 		}

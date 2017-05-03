@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager.slots;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -160,12 +161,14 @@ public interface TaskManagerGateway {
 	 * @param jobId identifying the job to which the task belongs
 	 * @param checkpointId of the checkpoint to trigger
 	 * @param timestamp of the checkpoint to trigger
+	 * @param checkpointOptions of the checkpoint to trigger
 	 */
 	void triggerCheckpoint(
 		ExecutionAttemptID executionAttemptID,
 		JobID jobId,
 		long checkpointId,
-		long timestamp);
+		long timestamp,
+		CheckpointOptions checkpointOptions);
 
 	/**
 	 * Request the task manager log from the task manager.

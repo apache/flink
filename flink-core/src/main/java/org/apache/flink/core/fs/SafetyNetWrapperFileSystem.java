@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingProxy;
 
@@ -29,9 +30,10 @@ import java.net.URI;
  * {@link ClosingFSDataInputStream} or {@link ClosingFSDataOutputStream} and (ii) registers them to
  * a {@link SafetyNetCloseableRegistry}.
  *
- * Streams obtained by this are therefore managed by the {@link SafetyNetCloseableRegistry} to prevent resource leaks
- * from unclosed streams.
+ * <p>Streams obtained by this are therefore managed by the {@link SafetyNetCloseableRegistry} to
+ * prevent resource leaks from unclosed streams.
  */
+@Internal
 public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingProxy<FileSystem> {
 
 	private final SafetyNetCloseableRegistry registry;
@@ -118,7 +120,7 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
-	public FSDataOutputStream create(Path f, boolean overwrite) throws IOException {
+	public FSDataOutputStream create(Path f, WriteMode overwrite) throws IOException {
 		FSDataOutputStream innerStream = unsafeFileSystem.create(f, overwrite);
 		return ClosingFSDataOutputStream.wrapSafe(innerStream, registry, String.valueOf(f));
 	}

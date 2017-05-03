@@ -42,10 +42,7 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static org.apache.flink.util.Preconditions.checkState;
 
 class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 
@@ -53,7 +50,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 
 	private final ConcurrentMap<InputChannelID, RemoteInputChannel> inputChannels = new ConcurrentHashMap<InputChannelID, RemoteInputChannel>();
 
-	private final AtomicBoolean channelError = new AtomicBoolean(false);
+	private final AtomicReference<Throwable> channelError = new AtomicReference<Throwable>();
 
 	private final BufferListenerTask bufferListener = new BufferListenerTask();
 
@@ -73,8 +70,8 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	// Input channel/receiver registration
 	// ------------------------------------------------------------------------
 
-	void addInputChannel(RemoteInputChannel listener) {
-		checkState(!channelError.get(), "There has been an error in the channel.");
+	void addInputChannel(RemoteInputChannel listener) throws IOException {
+		checkError();
 
 		if (!inputChannels.containsKey(listener.getInputChannelId())) {
 			inputChannels.put(listener.getInputChannelId(), listener);
@@ -172,7 +169,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	}
 
 	private void notifyAllChannelsOfErrorAndClose(Throwable cause) {
-		if (channelError.compareAndSet(false, true)) {
+		if (channelError.compareAndSet(null, cause)) {
 			try {
 				for (RemoteInputChannel inputChannel : inputChannels.values()) {
 					inputChannel.onError(cause);
@@ -194,6 +191,22 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	}
 
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Checks for an error and rethrows it if one was reported.
+	 */
+	private void checkError() throws IOException {
+		final Throwable t = channelError.get();
+
+		if (t != null) {
+			if (t instanceof IOException) {
+				throw (IOException) t;
+			}
+			else {
+				throw new IOException("There has been an error in the channel.", t);
+			}
+		}
+	}
 
 	@Override
 	public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {

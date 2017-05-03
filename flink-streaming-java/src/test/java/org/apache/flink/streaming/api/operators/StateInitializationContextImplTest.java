@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
@@ -75,7 +76,7 @@ public class StateInitializationContextImplTest {
 
 		ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos(64);
 
-		List<KeyGroupsStateHandle> keyGroupsStateHandles = new ArrayList<>(NUM_HANDLES);
+		List<KeyedStateHandle> keyedStateHandles = new ArrayList<>(NUM_HANDLES);
 		int prev = 0;
 		for (int i = 0; i < NUM_HANDLES; ++i) {
 			out.reset();
@@ -91,10 +92,10 @@ public class StateInitializationContextImplTest {
 				++writtenKeyGroups;
 			}
 
-			KeyGroupsStateHandle handle =
+			KeyedStateHandle handle =
 					new KeyGroupsStateHandle(offsets, new ByteStateHandleCloseChecking("kg-" + i, out.toByteArray()));
 
-			keyGroupsStateHandles.add(handle);
+			keyedStateHandles.add(handle);
 		}
 
 		List<OperatorStateHandle> operatorStateHandles = new ArrayList<>(NUM_HANDLES);
@@ -125,7 +126,7 @@ public class StateInitializationContextImplTest {
 						true,
 						stateStore,
 						mock(KeyedStateStore.class),
-						keyGroupsStateHandles,
+						keyedStateHandles,
 						operatorStateHandles,
 						closableRegistry);
 	}

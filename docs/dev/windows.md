@@ -565,6 +565,108 @@ The example shows a `WindowFunction` to count the elements in a window. In addit
 
 <span class="label label-danger">Attention</span> Note that using `WindowFunction` for simple aggregates such as count is quite inefficient. The next section shows how a `ReduceFunction` can be combined with a `WindowFunction` to get both incremental aggregation and the added information of a `WindowFunction`.
 
+### ProcessWindowFunction
+
+In places where a `WindowFunction` can be used you can also use a `ProcessWindowFunction`. This
+is very similar to `WindowFunction`, except that the interface allows to query more information
+about the context in which the window evaluation happens.
+
+This is the `ProcessWindowFunction` interface:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> implements Function {
+
+    /**
+     * Evaluates the window and outputs none or several elements.
+     *
+     * @param key The key for which this window is evaluated.
+     * @param context The context in which the window is being evaluated.
+     * @param elements The elements in the window being evaluated.
+     * @param out A collector for emitting elements.
+     *
+     * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
+     */
+    public abstract void process(
+            KEY key,
+            Context context,
+            Iterable<IN> elements,
+            Collector<OUT> out) throws Exception;
+
+    /**
+     * The context holding window metadata
+     */
+    public abstract class Context {
+        /**
+         * @return The window that is being evaluated.
+         */
+        public abstract W window();
+    }
+}
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function {
+
+  /**
+    * Evaluates the window and outputs none or several elements.
+    *
+    * @param key      The key for which this window is evaluated.
+    * @param context  The context in which the window is being evaluated.
+    * @param elements The elements in the window being evaluated.
+    * @param out      A collector for emitting elements.
+    * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
+    */
+  @throws[Exception]
+  def process(
+      key: KEY,
+      context: Context,
+      elements: Iterable[IN],
+      out: Collector[OUT])
+
+  /**
+    * The context holding window metadata
+    */
+  abstract class Context {
+    /**
+      * @return The window that is being evaluated.
+      */
+    def window: W
+  }
+}
+{% endhighlight %}
+</div>
+</div>
+
+It can be used like this:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<Tuple2<String, Long>> input = ...;
+
+input
+    .keyBy(<key selector>)
+    .window(<window assigner>)
+    .process(new MyProcessWindowFunction());
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val input: DataStream[(String, Long)] = ...
+
+input
+    .keyBy(<key selector>)
+    .window(<window assigner>)
+    .process(new MyProcessWindowFunction())
+{% endhighlight %}
+</div>
+</div>
+
 ### WindowFunction with Incremental Aggregation
 
 A `WindowFunction` can be combined with either a `ReduceFunction` or a `FoldFunction` to
@@ -572,6 +674,9 @@ incrementally aggregate elements as they arrive in the window.
 When the window is closed, the `WindowFunction` will be provided with the aggregated result.
 This allows to incrementally compute windows while having access to the
 additional window meta information of the `WindowFunction`.
+
+<span class="label label-info">Note</span> You can also `ProcessWindowFunction` instead of
+`WindowFunction` for incremental window aggregation.
 
 #### Incremental Window Aggregation with FoldFunction
 
@@ -867,6 +972,51 @@ input
 
 <span class="label label-info">Note</span> When using the `GlobalWindows` window assigner no
 data is ever considered late because the end timestamp of the global window is `Long.MAX_VALUE`.
+
+### Getting late data as a side output
+
+Using Flink's [side output]({{ site.baseurl }}/dev/stream/side_output.html) feature you can get a stream of the data
+that was discarded as late.
+
+You first need to specify that you want to get late data using `sideOutputLateData(OutputTag)` on
+the windowed stream. Then, you can get the side-output stream on the result of the windowed
+operation:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final OutputTag<T> lateOutputTag = new OutputTag<T>("late-data"){};
+
+DataStream<T> input = ...;
+
+DataStream<T> result = input
+    .keyBy(<key selector>)
+    .window(<window assigner>)
+    .allowedLateness(<time>)
+    .sideOutputLateData(lateOutputTag)
+    .<windowed transformation>(<window function>);
+
+DataStream<T> lateStream = result.getSideOutput(lateOutputTag);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val lateOutputTag = OutputTag[T]("late-data")
+
+val input: DataStream[T] = ...
+
+val result = input
+    .keyBy(<key selector>)
+    .window(<window assigner>)
+    .allowedLateness(<time>)
+    .sideOutputLateData(lateOutputTag)
+    .<windowed transformation>(<window function>)
+
+val lateStream = result.getSideOutput(lateOutputTag)
+{% endhighlight %}
+</div>
+</div>
 
 ### Late elements considerations
 

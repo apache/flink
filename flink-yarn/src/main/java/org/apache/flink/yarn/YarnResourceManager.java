@@ -26,19 +26,17 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.DataOutputBuffer;
-import org.apache.hadoop.security.Credentials;
-import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.Priority;
@@ -47,28 +45,19 @@ import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.NodeReport;
-import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.FiniteDuration;
 import org.apache.flink.util.ExceptionUtils;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Collections;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-
-import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 
 /**
  * The yarn implementation of the resource manager. Used when the system is started
@@ -119,20 +108,26 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 	final private Map<ResourceProfile, Integer> resourcePriorities = new HashMap<>();
 
 	public YarnResourceManager(
+			RpcService rpcService,
+			String resourceManagerEndpointId,
+			ResourceID resourceId,
 			Configuration flinkConfig,
 			Map<String, String> env,
-			RpcService rpcService,
 			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
-			SlotManagerFactory slotManagerFactory,
+			HeartbeatServices heartbeatServices,
+			SlotManager slotManager,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
 			FatalErrorHandler fatalErrorHandler) {
 		super(
 			rpcService,
+			resourceManagerEndpointId,
+			resourceId,
 			resourceManagerConfiguration,
 			highAvailabilityServices,
-			slotManagerFactory,
+			heartbeatServices,
+			slotManager,
 			metricRegistry,
 			jobLeaderIdService,
 			fatalErrorHandler);
@@ -229,6 +224,11 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 	}
 
 	@Override
+	public void stopWorker(InstanceID instanceId) {
+		// TODO: Implement to stop the worker
+	}
+
+	@Override
 	protected ResourceID workerStarted(ResourceID resourceID) {
 		return resourceID;
 	}
@@ -244,7 +244,8 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 	public void onContainersCompleted(List<ContainerStatus> list) {
 		for (ContainerStatus container : list) {
 			if (container.getExitStatus() < 0) {
-				notifyWorkerFailed(new ResourceID(container.getContainerId().toString()), container.getDiagnostics());
+				closeTaskManagerConnection(new ResourceID(
+					container.getContainerId().toString()), new Exception(container.getDiagnostics()));
 			}
 		}
 	}
@@ -357,7 +358,7 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 				flinkConfig, "", 0, 1, teRegistrationTimeout);
 		LOG.debug("TaskManager configuration: {}", taskManagerConfig);
 
-		ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorContext(
+		ContainerLaunchContext taskExecutorLaunchContext = Utils.createTaskExecutorContext(
 				flinkConfig, yarnConfig, ENV,
 				taskManagerParameters, taskManagerConfig,
 				currDir, YarnTaskExecutorRunner.class, LOG);
@@ -371,204 +372,10 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 	}
 
 
-	/**
-	 * Creates the launch context, which describes how to bring up a TaskExecutor process in
-	 * an allocated YARN container.
-	 *
-	 * <p>This code is extremely YARN specific and registers all the resources that the TaskExecutor
-	 * needs (such as JAR file, config file, ...) and all environment variables in a YARN
-	 * container launch context. The launch context then ensures that those resources will be
-	 * copied into the containers transient working directory.
-	 *
-	 * @param flinkConfig
-	 *		 The Flink configuration object.
-	 * @param yarnConfig
-	 *		 The YARN configuration object.
-	 * @param env
-	 *		 The environment variables.
-	 * @param tmParams
-	 *		 The TaskExecutor container memory parameters.
-	 * @param taskManagerConfig
-	 *		 The configuration for the TaskExecutors.
-	 * @param workingDirectory
-	 *		 The current application master container's working directory.
-	 * @param taskManagerMainClass
-	 *		 The class with the main method.
-	 * @param log
-	 *		 The logger.
-	 *
-	 * @return The launch context for the TaskManager processes.
-	 *
-	 * @throws Exception Thrown if teh launch context could not be created, for example if
-	 *				   the resources could not be copied.
-	 */
-	private static ContainerLaunchContext createTaskExecutorContext(
-			Configuration flinkConfig,
-			YarnConfiguration yarnConfig,
-			Map<String, String> env,
-			ContaineredTaskManagerParameters tmParams,
-			Configuration taskManagerConfig,
-			String workingDirectory,
-			Class<?> taskManagerMainClass,
-			Logger log) throws Exception {
 
-		// get and validate all relevant variables
-
-		String remoteFlinkJarPath = env.get(YarnConfigKeys.FLINK_JAR_PATH);
-		
-		String appId = env.get(YarnConfigKeys.ENV_APP_ID);
-
-		String clientHomeDir = env.get(YarnConfigKeys.ENV_CLIENT_HOME_DIR);
-
-		String shipListString = env.get(YarnConfigKeys.ENV_CLIENT_SHIP_FILES);
-
-		String yarnClientUsername = env.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
-
-		final String remoteKeytabPath = env.get(YarnConfigKeys.KEYTAB_PATH);
-		log.info("TM:remote keytab path obtained {}", remoteKeytabPath);
-
-		final String remoteKeytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
-		log.info("TM:remote keytab principal obtained {}", remoteKeytabPrincipal);
-
-		final String remoteYarnConfPath = env.get(YarnConfigKeys.ENV_YARN_SITE_XML_PATH);
-		log.info("TM:remote yarn conf path obtained {}", remoteYarnConfPath);
-
-		final String remoteKrb5Path = env.get(YarnConfigKeys.ENV_KRB5_PATH);
-		log.info("TM:remote krb5 path obtained {}", remoteKrb5Path);
-
-		String classPathString = env.get(YarnConfigKeys.ENV_FLINK_CLASSPATH);
-
-		// obtain a handle to the file system used by YARN
-		final org.apache.hadoop.fs.FileSystem yarnFileSystem;
-		try {
-			yarnFileSystem = org.apache.hadoop.fs.FileSystem.get(yarnConfig);
-		} catch (IOException e) {
-			throw new Exception("Could not access YARN's default file system", e);
-		}
-
-		//register keytab
-		LocalResource keytabResource = null;
-		if(remoteKeytabPath != null) {
-			log.info("Adding keytab {} to the AM container local resource bucket", remoteKeytabPath);
-			keytabResource = Records.newRecord(LocalResource.class);
-			Path keytabPath = new Path(remoteKeytabPath);
-			Utils.registerLocalResource(yarnFileSystem, keytabPath, keytabResource);
-		}
-
-		//To support Yarn Secure Integration Test Scenario
-		LocalResource yarnConfResource = null;
-		LocalResource krb5ConfResource = null;
-		boolean hasKrb5 = false;
-		if(remoteYarnConfPath != null && remoteKrb5Path != null) {
-			log.info("TM:Adding remoteYarnConfPath {} to the container local resource bucket", remoteYarnConfPath);
-			yarnConfResource = Records.newRecord(LocalResource.class);
-			Path yarnConfPath = new Path(remoteYarnConfPath);
-			Utils.registerLocalResource(yarnFileSystem, yarnConfPath, yarnConfResource);
-
-			log.info("TM:Adding remoteKrb5Path {} to the container local resource bucket", remoteKrb5Path);
-			krb5ConfResource = Records.newRecord(LocalResource.class);
-			Path krb5ConfPath = new Path(remoteKrb5Path);
-			Utils.registerLocalResource(yarnFileSystem, krb5ConfPath, krb5ConfResource);
-
-			hasKrb5 = true;
-		}
-
-		// register Flink Jar with remote HDFS
-		LocalResource flinkJar = Records.newRecord(LocalResource.class);
-		{
-			Path remoteJarPath = new Path(remoteFlinkJarPath);
-			Utils.registerLocalResource(yarnFileSystem, remoteJarPath, flinkJar);
-		}
-
-		// register conf with local fs
-		LocalResource flinkConf = Records.newRecord(LocalResource.class);
-		{
-			// write the TaskManager configuration to a local file
-			final File taskManagerConfigFile =
-					new File(workingDirectory, UUID.randomUUID() + "-taskmanager-conf.yaml");
-			log.debug("Writing TaskManager configuration to {}", taskManagerConfigFile.getAbsolutePath());
-			BootstrapTools.writeConfiguration(taskManagerConfig, taskManagerConfigFile);
-
-			Utils.setupLocalResource(yarnFileSystem, appId,
-					new Path(taskManagerConfigFile.toURI()), flinkConf, new Path(clientHomeDir));
-
-			log.info("Prepared local resource for modified yaml: {}", flinkConf);
-		}
-
-		Map<String, LocalResource> taskManagerLocalResources = new HashMap<>();
-		taskManagerLocalResources.put("flink.jar", flinkJar);
-		taskManagerLocalResources.put("flink-conf.yaml", flinkConf);
-
-		//To support Yarn Secure Integration Test Scenario
-		if(yarnConfResource != null && krb5ConfResource != null) {
-			taskManagerLocalResources.put(Utils.YARN_SITE_FILE_NAME, yarnConfResource);
-			taskManagerLocalResources.put(Utils.KRB5_FILE_NAME, krb5ConfResource);
-		}
-
-		if(keytabResource != null) {
-			taskManagerLocalResources.put(Utils.KEYTAB_FILE_NAME, keytabResource);
-		}
-
-		// prepare additional files to be shipped
-		for (String pathStr : shipListString.split(",")) {
-			if (!pathStr.isEmpty()) {
-				LocalResource resource = Records.newRecord(LocalResource.class);
-				Path path = new Path(pathStr);
-				Utils.registerLocalResource(yarnFileSystem, path, resource);
-				taskManagerLocalResources.put(path.getName(), resource);
-			}
-		}
-
-		// now that all resources are prepared, we can create the launch context
-
-		log.info("Creating container launch context for TaskManagers");
-
-		boolean hasLogback = new File(workingDirectory, "logback.xml").exists();
-		boolean hasLog4j = new File(workingDirectory, "log4j.properties").exists();
-
-		String launchCommand = BootstrapTools.getTaskManagerShellCommand(
-				flinkConfig, tmParams, ".", ApplicationConstants.LOG_DIR_EXPANSION_VAR,
-				hasLogback, hasLog4j, hasKrb5, taskManagerMainClass);
-
-		log.info("Starting TaskManagers with command: " + launchCommand);
-
-		ContainerLaunchContext ctx = Records.newRecord(ContainerLaunchContext.class);
-		ctx.setCommands(Collections.singletonList(launchCommand));
-		ctx.setLocalResources(taskManagerLocalResources);
-
-		Map<String, String> containerEnv = new HashMap<>();
-		containerEnv.putAll(tmParams.taskManagerEnv());
-
-		// add YARN classpath, etc to the container environment
-		containerEnv.put(ENV_FLINK_CLASSPATH, classPathString);
-		Utils.setupYarnClassPath(yarnConfig, containerEnv);
-
-		containerEnv.put(YarnConfigKeys.ENV_HADOOP_USER_NAME, UserGroupInformation.getCurrentUser().getUserName());
-
-		if(remoteKeytabPath != null && remoteKeytabPrincipal != null) {
-			containerEnv.put(YarnConfigKeys.KEYTAB_PATH, remoteKeytabPath);
-			containerEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, remoteKeytabPrincipal);
-		}
-
-		ctx.setEnvironment(containerEnv);
-
-		try (DataOutputBuffer dob = new DataOutputBuffer()) {
-			log.debug("Adding security tokens to Task Executor Container launch Context....");
-			UserGroupInformation user = UserGroupInformation.getCurrentUser();
-			Credentials credentials = user.getCredentials();
-			credentials.writeTokenStorageToStream(dob);
-			ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
-			ctx.setTokens(securityTokens);
-		}
-		catch (Throwable t) {
-			log.error("Getting current user info failed when trying to launch the container", t);
-		}
-
-		return ctx;
-	}
 	
 	/**
-	 * Generate priority by given resouce profile. 
+	 * Generate priority by given resource profile.
 	 * Priority is only used for distinguishing request of different resource.
 	 * @param resourceProfile The resource profile of a request
 	 * @return The priority of this resource profile.

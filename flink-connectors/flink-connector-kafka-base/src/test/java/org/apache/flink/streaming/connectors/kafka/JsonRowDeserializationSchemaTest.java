@@ -20,6 +20,8 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.Types;
 import org.apache.flink.types.Row;
 import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
 import org.junit.Test;
@@ -56,8 +58,11 @@ public class JsonRowDeserializationSchemaTest {
 		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
 
 		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(
+			Types.ROW(
 				new String[] { "id", "name", "bytes" },
-				new Class<?>[] { Long.class, String.class, byte[].class });
+				new TypeInformation<?>[] { Types.LONG(), Types.STRING(), Types.PRIMITIVE_ARRAY(Types.BYTE()) }
+			)
+		);
 
 		Row deserialized = deserializationSchema.deserialize(serializedJson);
 
@@ -80,8 +85,11 @@ public class JsonRowDeserializationSchemaTest {
 		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
 
 		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(
+			Types.ROW(
 				new String[] { "name" },
-				new Class<?>[] { String.class });
+				new TypeInformation<?>[] { Types.STRING() }
+			)
+		);
 
 		Row row = deserializationSchema.deserialize(serializedJson);
 
@@ -105,17 +113,11 @@ public class JsonRowDeserializationSchemaTest {
 	public void testNumberOfFieldNamesAndTypesMismatch() throws Exception {
 		try {
 			new JsonRowDeserializationSchema(
+				Types.ROW(
 					new String[] { "one", "two", "three" },
-					new Class<?>[] { Long.class });
-			fail("Did not throw expected Exception");
-		} catch (IllegalArgumentException ignored) {
-			// Expected
-		}
-
-		try {
-			new JsonRowDeserializationSchema(
-					new String[] { "one" },
-					new Class<?>[] { Long.class, String.class });
+					new TypeInformation<?>[] { Types.LONG() }
+				)
+			);
 			fail("Did not throw expected Exception");
 		} catch (IllegalArgumentException ignored) {
 			// Expected

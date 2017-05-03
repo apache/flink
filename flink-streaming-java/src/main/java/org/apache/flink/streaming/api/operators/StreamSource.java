@@ -17,16 +17,16 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import java.util.concurrent.ScheduledFuture;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-
-import java.util.concurrent.ScheduledFuture;
 
 /**
  * {@link StreamOperator} for streaming sources.
@@ -35,32 +35,35 @@ import java.util.concurrent.ScheduledFuture;
  * @param <SRC> Type of the source function of this stream source operator
  */
 @Internal
-public class StreamSource<OUT, SRC extends SourceFunction<OUT>> 
+public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		extends AbstractUdfStreamOperator<OUT, SRC> implements StreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private transient SourceFunction.SourceContext<OUT> ctx;
 
 	private transient volatile boolean canceledOrStopped = false;
-	
-	
+
+
 	public StreamSource(SRC sourceFunction) {
 		super(sourceFunction);
 
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
-	public void run(final Object lockingObject) throws Exception {
-		run(lockingObject, output);
+	public void run(final Object lockingObject, final StreamStatusMaintainer streamStatusMaintainer) throws Exception {
+		run(lockingObject, streamStatusMaintainer, output);
 	}
 
-	
-	public void run(final Object lockingObject, final Output<StreamRecord<OUT>> collector) throws Exception {
+
+	public void run(final Object lockingObject,
+			final StreamStatusMaintainer streamStatusMaintainer,
+			final Output<StreamRecord<OUT>> collector) throws Exception {
+
 		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
 
 		LatencyMarksEmitter latencyEmitter = null;
-		if(getExecutionConfig().isLatencyTrackingEnabled()) {
+		if (getExecutionConfig().isLatencyTrackingEnabled()) {
 			latencyEmitter = new LatencyMarksEmitter<>(
 				getProcessingTimeService(),
 				collector,
@@ -68,11 +71,17 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 				getOperatorConfig().getVertexID(),
 				getRuntimeContext().getIndexOfThisSubtask());
 		}
-		
+
 		final long watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
 
 		this.ctx = StreamSourceContexts.getSourceContext(
-			timeCharacteristic, getProcessingTimeService(), lockingObject, collector, watermarkInterval);
+			timeCharacteristic,
+			getProcessingTimeService(),
+			lockingObject,
+			streamStatusMaintainer,
+			collector,
+			watermarkInterval,
+			-1);
 
 		try {
 			userFunction.run(ctx);
@@ -86,7 +95,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		} finally {
 			// make sure that the context is closed in any case
 			ctx.close();
-			if(latencyEmitter != null) {
+			if (latencyEmitter != null) {
 				latencyEmitter.close();
 			}
 		}
@@ -98,7 +107,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		// the happens-before relationship
 		markCanceledOrStopped();
 		userFunction.cancel();
-		
+
 		// the context may not be initialized if the source was never running.
 		if (ctx != null) {
 			ctx.close();
@@ -107,16 +116,16 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 	/**
 	 * Marks this source as canceled or stopped.
-	 * 
-	 * <p>This indicates that any exit of the {@link #run(Object, Output)} method
-	 * cannot be interpreted as the result of a finite source.  
+	 *
+	 * <p>This indicates that any exit of the {@link #run(Object, StreamStatusMaintainer, Output)} method
+	 * cannot be interpreted as the result of a finite source.
 	 */
 	protected void markCanceledOrStopped() {
 		this.canceledOrStopped = true;
 	}
-	
+
 	/**
-	 * Checks whether the source has been canceled or stopped. 
+	 * Checks whether the source has been canceled or stopped.
 	 * @return True, if the source is canceled or stopped, false is not.
 	 */
 	protected boolean isCanceledOrStopped() {

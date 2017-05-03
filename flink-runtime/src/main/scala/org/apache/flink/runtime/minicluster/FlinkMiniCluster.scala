@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.minicluster
 
-import java.net.InetAddress
 import java.util.UUID
 import java.util.concurrent.{Executors, TimeUnit}
 
@@ -26,7 +25,7 @@ import akka.pattern.Patterns.gracefulStop
 import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.Config
-import org.apache.flink.api.common.time.Time
+
 import org.apache.flink.api.common.{JobExecutionResult, JobID, JobSubmissionResult}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
@@ -37,8 +36,9 @@ import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService, StandaloneLeaderRetrievalService}
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
-import org.apache.flink.runtime.util.{Hardware, NamedThreadFactory, ZooKeeperUtils}
+import org.apache.flink.runtime.util.{ExecutorThreadFactory, Hardware, ZooKeeperUtils}
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
+
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -109,11 +109,11 @@ abstract class FlinkMiniCluster(
 
   val futureExecutor = Executors.newScheduledThreadPool(
     Hardware.getNumberCPUCores(),
-    new NamedThreadFactory("mini-cluster-future-", "-thread"))
+    new ExecutorThreadFactory("mini-cluster-future"))
 
   val ioExecutor = Executors.newFixedThreadPool(
     Hardware.getNumberCPUCores(),
-    new NamedThreadFactory("mini-cluster-io-", "-thread"))
+    new ExecutorThreadFactory("mini-cluster-io"))
 
   def configuration: Configuration = {
     if (originalConfiguration.getInteger(

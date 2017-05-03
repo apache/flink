@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -33,6 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Serializer for {@link Row}.
  */
+@Internal
 public class RowSerializer extends TypeSerializer<Row> {
 
 	private static final long serialVersionUID = 1L;
@@ -51,22 +53,11 @@ public class RowSerializer extends TypeSerializer<Row> {
 
 	@Override
 	public TypeSerializer<Row> duplicate() {
-		boolean stateful = false;
 		TypeSerializer<?>[] duplicateFieldSerializers = new TypeSerializer[fieldSerializers.length];
-
 		for (int i = 0; i < fieldSerializers.length; i++) {
 			duplicateFieldSerializers[i] = fieldSerializers[i].duplicate();
-			if (duplicateFieldSerializers[i] != fieldSerializers[i]) {
-				// at least one of them is stateful
-				stateful = true;
-			}
 		}
-
-		if (stateful) {
-			return new RowSerializer(duplicateFieldSerializers);
-		} else {
-			return this;
-		}
+		return new RowSerializer(duplicateFieldSerializers);
 	}
 
 	@Override

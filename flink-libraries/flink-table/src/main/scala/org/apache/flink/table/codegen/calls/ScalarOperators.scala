@@ -22,9 +22,9 @@ import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, PrimitiveArrayTypeInfo, SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.codegen.CodeGenUtils._
-import org.apache.flink.table.codegen.{CodeGenerator, CodeGenException, GeneratedExpression}
+import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 
@@ -286,42 +286,51 @@ object ScalarOperators {
       // Unknown && False -> False
       // Unknown && Unknown -> Unknown
       s"""
-        |${left.code}
-        |${right.code}
-        |boolean $resultTerm;
-        |boolean $nullTerm;
-        |if (!${left.nullTerm} && !${right.nullTerm}) {
-        |  $resultTerm = ${left.resultTerm} && ${right.resultTerm};
-        |  $nullTerm = false;
-        |}
-        |else if (!${left.nullTerm} && ${left.resultTerm} && ${right.nullTerm}) {
-        |  $resultTerm = false;
-        |  $nullTerm = true;
-        |}
-        |else if (!${left.nullTerm} && !${left.resultTerm} && ${right.nullTerm}) {
-        |  $resultTerm = false;
-        |  $nullTerm = false;
-        |}
-        |else if (${left.nullTerm} && !${right.nullTerm} && ${right.resultTerm}) {
-        |  $resultTerm = false;
-        |  $nullTerm = true;
-        |}
-        |else if (${left.nullTerm} && !${right.nullTerm} && !${right.resultTerm}) {
-        |  $resultTerm = false;
-        |  $nullTerm = false;
-        |}
-        |else {
-        |  $resultTerm = false;
-        |  $nullTerm = true;
-        |}
-        |""".stripMargin
+         |${left.code}
+         |
+         |boolean $resultTerm = false;
+         |boolean $nullTerm = false;
+         |if (!${left.nullTerm} && !${left.resultTerm}) {
+         |  // left expr is false, skip right expr
+         |} else {
+         |  ${right.code}
+         |
+         |  if (!${left.nullTerm} && !${right.nullTerm}) {
+         |    $resultTerm = ${left.resultTerm} && ${right.resultTerm};
+         |    $nullTerm = false;
+         |  }
+         |  else if (!${left.nullTerm} && ${left.resultTerm} && ${right.nullTerm}) {
+         |    $resultTerm = false;
+         |    $nullTerm = true;
+         |  }
+         |  else if (!${left.nullTerm} && !${left.resultTerm} && ${right.nullTerm}) {
+         |    $resultTerm = false;
+         |    $nullTerm = false;
+         |  }
+         |  else if (${left.nullTerm} && !${right.nullTerm} && ${right.resultTerm}) {
+         |    $resultTerm = false;
+         |    $nullTerm = true;
+         |  }
+         |  else if (${left.nullTerm} && !${right.nullTerm} && !${right.resultTerm}) {
+         |    $resultTerm = false;
+         |    $nullTerm = false;
+         |  }
+         |  else {
+         |    $resultTerm = false;
+         |    $nullTerm = true;
+         |  }
+         |}
+       """.stripMargin
     }
     else {
       s"""
-        |${left.code}
-        |${right.code}
-        |boolean $resultTerm = ${left.resultTerm} && ${right.resultTerm};
-        |""".stripMargin
+         |${left.code}
+         |boolean $resultTerm = false;
+         |if (${left.resultTerm}) {
+         |  ${right.code}
+         |  $resultTerm = ${right.resultTerm};
+         |}
+         |""".stripMargin
     }
 
     GeneratedExpression(resultTerm, nullTerm, operatorCode, BOOLEAN_TYPE_INFO)
@@ -338,47 +347,56 @@ object ScalarOperators {
     val operatorCode = if (nullCheck) {
       // Three-valued logic:
       // no Unknown -> Two-valued logic
-      // True && Unknown -> True
-      // False && Unknown -> Unknown
-      // Unknown && True -> True
-      // Unknown && False -> Unknown
-      // Unknown && Unknown -> Unknown
+      // True || Unknown -> True
+      // False || Unknown -> Unknown
+      // Unknown || True -> True
+      // Unknown || False -> Unknown
+      // Unknown || Unknown -> Unknown
       s"""
         |${left.code}
-        |${right.code}
-        |boolean $resultTerm;
-        |boolean $nullTerm;
-        |if (!${left.nullTerm} && !${right.nullTerm}) {
-        |  $resultTerm = ${left.resultTerm} || ${right.resultTerm};
-        |  $nullTerm = false;
-        |}
-        |else if (!${left.nullTerm} && ${left.resultTerm} && ${right.nullTerm}) {
-        |  $resultTerm = true;
-        |  $nullTerm = false;
-        |}
-        |else if (!${left.nullTerm} && !${left.resultTerm} && ${right.nullTerm}) {
-        |  $resultTerm = false;
-        |  $nullTerm = true;
-        |}
-        |else if (${left.nullTerm} && !${right.nullTerm} && ${right.resultTerm}) {
-        |  $resultTerm = true;
-        |  $nullTerm = false;
-        |}
-        |else if (${left.nullTerm} && !${right.nullTerm} && !${right.resultTerm}) {
-        |  $resultTerm = false;
-        |  $nullTerm = true;
-        |}
-        |else {
-        |  $resultTerm = false;
-        |  $nullTerm = true;
+        |
+        |boolean $resultTerm = true;
+        |boolean $nullTerm = false;
+        |if (!${left.nullTerm} && ${left.resultTerm}) {
+        |  // left expr is true, skip right expr
+        |} else {
+        |  ${right.code}
+        |
+        |  if (!${left.nullTerm} && !${right.nullTerm}) {
+        |    $resultTerm = ${left.resultTerm} || ${right.resultTerm};
+        |    $nullTerm = false;
+        |  }
+        |  else if (!${left.nullTerm} && ${left.resultTerm} && ${right.nullTerm}) {
+        |    $resultTerm = true;
+        |    $nullTerm = false;
+        |  }
+        |  else if (!${left.nullTerm} && !${left.resultTerm} && ${right.nullTerm}) {
+        |    $resultTerm = false;
+        |    $nullTerm = true;
+        |  }
+        |  else if (${left.nullTerm} && !${right.nullTerm} && ${right.resultTerm}) {
+        |    $resultTerm = true;
+        |    $nullTerm = false;
+        |  }
+        |  else if (${left.nullTerm} && !${right.nullTerm} && !${right.resultTerm}) {
+        |    $resultTerm = false;
+        |    $nullTerm = true;
+        |  }
+        |  else {
+        |    $resultTerm = false;
+        |    $nullTerm = true;
+        |  }
         |}
         |""".stripMargin
     }
     else {
       s"""
-        |${left.code}
-        |${right.code}
-        |boolean $resultTerm = ${left.resultTerm} || ${right.resultTerm};
+         |${left.code}
+         |boolean $resultTerm = true;
+         |if (!${left.resultTerm}) {
+         |  ${right.code}
+         |  $resultTerm = ${right.resultTerm};
+         |}
         |""".stripMargin
     }
 
@@ -891,6 +909,36 @@ object ScalarOperators {
     generateUnaryOperatorIfNotNull(nullCheck, INT_TYPE_INFO, array) {
       (operandTerm) => s"${array.resultTerm}.length"
     }
+  }
+
+  def generateMapGet(
+      codeGenerator: CodeGenerator,
+      map: GeneratedExpression,
+      key: GeneratedExpression)
+  : GeneratedExpression = {
+
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+    val ty = map.resultType.asInstanceOf[MapTypeInfo[_,_]]
+    val resultType = ty.getValueTypeInfo
+    val resultTypeTerm = boxedTypeTermForTypeInfo(ty.getValueTypeInfo)
+    val accessCode = if (codeGenerator.nullCheck) {
+          s"""
+             |${map.code}
+             |${key.code}
+             |boolean $nullTerm = (${map.nullTerm} || ${key.nullTerm});
+             |$resultTypeTerm $resultTerm = $nullTerm ?
+             |  null : ($resultTypeTerm) ${map.resultTerm}.get(${key.resultTerm});
+             |""".stripMargin
+        } else {
+          s"""
+             |${map.code}
+             |${key.code}
+             |$resultTypeTerm $resultTerm = ($resultTypeTerm)
+             | ${map.resultTerm}.get(${key.resultTerm});
+             |""".stripMargin
+        }
+    GeneratedExpression(resultTerm, nullTerm, accessCode, resultType)
   }
 
   // ----------------------------------------------------------------------------------------------

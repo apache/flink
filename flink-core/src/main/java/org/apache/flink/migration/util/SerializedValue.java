@@ -18,6 +18,7 @@
 
 package org.apache.flink.migration.util;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
@@ -34,8 +35,10 @@ import java.util.Arrays;
  * provide the corresponding class loader.
  *
  * @param <T> The type of the value held.
+ * @deprecated Only used internally when migrating from previous savepoint versions.
  */
 @Deprecated
+@PublicEvolving
 public class SerializedValue<T> implements java.io.Serializable {
 
 	private static final long serialVersionUID = -3564011643393683761L;

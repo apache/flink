@@ -46,6 +46,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
@@ -55,6 +56,7 @@ import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import scala.concurrent.ExecutionContext;
+import scala.concurrent.ExecutionContext$;
 
 public class ExecutionGraphTestUtils {
 
@@ -183,7 +185,8 @@ public class ExecutionGraphTestUtils {
 			new Configuration(),
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(ExecutionContext$.MODULE$.fromExecutor(executor)));
 
 		ExecutionJobVertex ejv = spy(new ExecutionJobVertex(graph, ajv, 1,
 				AkkaUtils.getDefaultTimeout()));

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
@@ -30,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Arrays;
 
+@Internal
 public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWritable {
 
 	public static final int VERSION = 1;
@@ -92,7 +94,7 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 		// read in a way that allows the stream to recover from exceptions
 		int serializerBytes = in.readInt();
 		byte[] buffer = new byte[serializerBytes];
-		in.read(buffer);
+		in.readFully(buffer);
 		try {
 			typeSerializer = InstantiationUtil.deserializeObject(buffer, userClassLoader);
 		} catch (ClassNotFoundException e) {

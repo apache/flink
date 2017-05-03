@@ -19,7 +19,9 @@ package org.apache.flink.runtime.webmonitor.metrics;
 
 import akka.actor.ActorSystem;
 import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.handlers.JobVertexAccumulatorsHandler;
 import org.apache.flink.util.TestLogger;
+import org.junit.Assert;
 import org.junit.Test;
 import scala.concurrent.ExecutionContext;
 
@@ -32,6 +34,14 @@ import static org.junit.Assert.assertNull;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 public class JobMetricsHandlerTest extends TestLogger {
+	@Test
+	public void testGetPaths() {
+		JobMetricsHandler handler = new JobMetricsHandler(mock(MetricFetcher.class));
+		String[] paths = handler.getPaths();
+		Assert.assertEquals(1, paths.length);
+		Assert.assertEquals("/jobs/:jobid/metrics", paths[0]);
+	}
+
 	@Test
 	public void getMapFor() throws Exception {
 		MetricFetcher fetcher = new MetricFetcher(mock(ActorSystem.class), mock(JobManagerRetriever.class), mock(ExecutionContext.class));

@@ -41,7 +41,7 @@ public class SplitStream<OUT> extends DataStream<OUT> {
 
 	/**
 	 * Sets the output names for which the next operator will receive values.
-	 * 
+	 *
 	 * @param outputNames
 	 *            The output names for which the operator will receive the
 	 *            input.

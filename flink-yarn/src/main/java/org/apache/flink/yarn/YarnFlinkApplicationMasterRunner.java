@@ -24,9 +24,11 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -34,11 +36,10 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
-import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultSlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
@@ -63,10 +64,10 @@ import java.io.ObjectInputStream;
  * <p>The lifetime of the YARN application bound to that of the Flink job. Other
  * YARN Application Master implementations are for example the YARN session.
  * 
- * It starts actor system and the actors for {@link org.apache.flink.runtime.jobmaster.JobManagerRunner}
- * and {@link org.apache.flink.yarn.YarnResourceManager}.
+ * It starts actor system and the actors for {@link JobManagerRunner}
+ * and {@link YarnResourceManager}.
  *
- * The JobMasnagerRunner start a {@link org.apache.flink.runtime.jobmaster.JobMaster}
+ * The JobManagerRunner start a {@link org.apache.flink.runtime.jobmaster.JobMaster}
  * JobMaster handles Flink job execution, while the YarnResourceManager handles container
  * allocation and failure detection.
  */
@@ -91,6 +92,9 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	private HighAvailabilityServices haServices;
 
 	@GuardedBy("lock")
+	private HeartbeatServices heartbeatServices;
+
+	@GuardedBy("lock")
 	private RpcService commonRpcService;
 
 	@GuardedBy("lock")
@@ -98,9 +102,6 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 
 	@GuardedBy("lock")
 	private JobManagerRunner jobManagerRunner;
-
-	@GuardedBy("lock")
-	private JobGraph jobGraph;
 
 	// ------------------------------------------------------------------------
 	//  Program entry point
@@ -136,6 +137,8 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 			synchronized (lock) {
 				LOG.info("Starting High Availability Services");
 				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config);
+
+				heartbeatServices = HeartbeatServices.fromConfiguration(config);
 				
 				metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 				commonRpcService = createRpcService(config, appMasterHostname, amPortRange);
@@ -187,45 +190,46 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 
 	private ResourceManager<?> createResourceManager(Configuration config) throws Exception {
 		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(config);
-		final SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
-		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(haServices);
+		final ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(config);
+		final ResourceManagerRuntimeServices resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
+			resourceManagerRuntimeServicesConfiguration,
+			haServices,
+			commonRpcService.getScheduledExecutor());
 
-		return new YarnResourceManager(config,
-				ENV,
-				commonRpcService,
-				resourceManagerConfiguration,
-				haServices,
-				slotManagerFactory,
-				metricRegistry,
-				jobLeaderIdService,
-				this);
+		return new YarnResourceManager(
+			commonRpcService,
+			FlinkResourceManager.RESOURCE_MANAGER_NAME,
+			ResourceID.generate(),
+			config,
+			ENV,
+			resourceManagerConfiguration,
+			haServices,
+			heartbeatServices,
+			resourceManagerRuntimeServices.getSlotManager(),
+			metricRegistry,
+			resourceManagerRuntimeServices.getJobLeaderIdService(),
+			this);
 	}
 
 	private JobManagerRunner createJobManagerRunner(Configuration config) throws Exception{
 		// first get JobGraph from local resources
 		//TODO: generate the job graph from user's jar
-		jobGraph = loadJobGraph(config);
-
-		// we first need to mark the job as running in the HA services, so that the
-		// JobManager leader will recognize that it as work to do
-		try {
-			haServices.getRunningJobsRegistry().setJobRunning(jobGraph.getJobID());
-		}
-		catch (Throwable t) {
-			throw new JobExecutionException(jobGraph.getJobID(),
-					"Could not register the job at the high-availability services", t);
-		}
+		JobGraph jobGraph = loadJobGraph(config);
 
 		// now the JobManagerRunner
 		return new JobManagerRunner(
-				jobGraph, config,
-				commonRpcService,
-				haServices,
-				this,
-				this);
+			ResourceID.generate(),
+			jobGraph,
+			config,
+			commonRpcService,
+			haServices,
+			heartbeatServices,
+			this,
+			this);
 	}
 
 	protected void shutdown(ApplicationStatus status, String msg) {
+
 		synchronized (lock) {
 			if (jobManagerRunner != null) {
 				try {

@@ -77,7 +77,7 @@ public class SafetyNetCloseableRegistryTest {
 					FileSystem fs1 = FileSystem.getLocalFileSystem();
 					// ensure no safety net in place
 					Assert.assertFalse(fs1 instanceof SafetyNetWrapperFileSystem);
-					FileSystem.createAndSetFileSystemCloseableRegistryForThread();
+					FileSystemSafetyNet.initializeSafetyNetForThread();
 					fs1 = FileSystem.getLocalFileSystem();
 					// ensure safety net is in place now
 					Assert.assertTrue(fs1 instanceof SafetyNetWrapperFileSystem);
@@ -91,11 +91,11 @@ public class SafetyNetCloseableRegistryTest {
 								FileSystem fs2 = FileSystem.getLocalFileSystem();
 								// ensure the safety net does not leak here
 								Assert.assertFalse(fs2 instanceof SafetyNetWrapperFileSystem);
-								FileSystem.createAndSetFileSystemCloseableRegistryForThread();
+								FileSystemSafetyNet.initializeSafetyNetForThread();
 								fs2 = FileSystem.getLocalFileSystem();
 								// ensure we can bring another safety net in place
 								Assert.assertTrue(fs2 instanceof SafetyNetWrapperFileSystem);
-								FileSystem.closeAndDisposeFileSystemCloseableRegistryForThread();
+								FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
 								fs2 = FileSystem.getLocalFileSystem();
 								// and that we can remove it again
 								Assert.assertFalse(fs2 instanceof SafetyNetWrapperFileSystem);
@@ -107,7 +107,7 @@ public class SafetyNetCloseableRegistryTest {
 
 						//ensure stream is still open and was never closed by any interferences
 						stream.write(42);
-						FileSystem.closeAndDisposeFileSystemCloseableRegistryForThread();
+						FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
 
 						// ensure leaking stream was closed
 						try {

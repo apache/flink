@@ -17,11 +17,31 @@
  */
 package org.apache.flink.table.functions
 
+import org.apache.commons.codec.digest.DigestUtils
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.serialize
 /**
   * Base class for all user-defined functions such as scalar functions, table functions,
   * or aggregation functions.
-  *
-  * User-defined functions must have a default constructor and must be instantiable during runtime.
   */
-trait UserDefinedFunction {
+abstract class UserDefinedFunction extends Serializable {
+  /**
+    * Setup method for user-defined function. It can be used for initialization work.
+    *
+    * By default, this method does nothing.
+    */
+  @throws(classOf[Exception])
+  def open(context: FunctionContext): Unit = {}
+
+  /**
+    * Tear-down method for user-defined function. It can be used for clean up work.
+    *
+    * By default, this method does nothing.
+    */
+  @throws(classOf[Exception])
+  def close(): Unit = {}
+
+  final def functionIdentifier: String = {
+    val md5  =  DigestUtils.md5Hex(serialize(this))
+    getClass.getCanonicalName.replace('.', '$').concat("$").concat(md5)
+  }
 }

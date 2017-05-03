@@ -25,7 +25,11 @@ import org.apache.flink.core.fs.Path;
 
 import java.util.ArrayList;
 
+/**
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
+ */
 @Deprecated
+@SuppressWarnings("deprecation")
 public class FsListState<K, N, V> {
 
 	public static class Snapshot<K, N, V> extends AbstractFsStateSnapshot<K, N, ArrayList<V>, ListState<V>, ListStateDescriptor<V>> {

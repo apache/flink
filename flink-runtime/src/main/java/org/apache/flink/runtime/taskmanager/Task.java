@@ -25,12 +25,14 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotCheckpointingException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -52,6 +54,8 @@ import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionMetrics;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGateMetrics;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -64,11 +68,15 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateHandles;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+
+import org.apache.flink.util.WrappingRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URL;
@@ -275,7 +283,7 @@ public class Task implements Runnable, TaskActions {
 		LibraryCacheManager libraryCache,
 		FileCache fileCache,
 		TaskManagerRuntimeInfo taskManagerConfig,
-		TaskMetricGroup metricGroup,
+		@Nonnull TaskMetricGroup metricGroup,
 		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
 		PartitionProducerStateChecker partitionProducerStateChecker,
 		Executor executor) {
@@ -289,7 +297,7 @@ public class Task implements Runnable, TaskActions {
 
 		this.taskInfo = new TaskInfo(
 				taskInformation.getTaskName(),
-				taskInformation.getNumberOfKeyGroups(),
+				taskInformation.getMaxNumberOfSubtaks(),
 				subtaskIndex,
 				taskInformation.getNumberOfSubtasks(),
 				attemptNumber);
@@ -388,11 +396,6 @@ public class Task implements Runnable, TaskActions {
 
 		// finally, create the executing thread, but do not start it
 		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
-
-		if (this.metrics != null && this.metrics.getIOMetricGroup() != null) {
-			// add metrics for buffers
-			this.metrics.getIOMetricGroup().initializeBufferMetrics(this);
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -524,16 +527,25 @@ public class Task implements Runnable, TaskActions {
 			else if (current == ExecutionState.FAILED) {
 				// we were immediately failed. tell the TaskManager that we reached our final state
 				notifyFinalState();
+				if (metrics != null) {
+					metrics.close();
+				}
 				return;
 			}
 			else if (current == ExecutionState.CANCELING) {
 				if (transitionState(ExecutionState.CANCELING, ExecutionState.CANCELED)) {
 					// we were immediately canceled. tell the TaskManager that we reached our final state
 					notifyFinalState();
+					if (metrics != null) {
+						metrics.close();
+					}
 					return;
 				}
 			}
 			else {
+				if (metrics != null) {
+					metrics.close();
+				}
 				throw new IllegalStateException("Invalid state for beginning of operation of task " + this + '.');
 			}
 		}
@@ -551,7 +563,8 @@ public class Task implements Runnable, TaskActions {
 			// ----------------------------
 
 			// activate safety net for task thread
-			FileSystem.createAndSetFileSystemCloseableRegistryForThread();
+			LOG.info("Creating FileSystem stream leak safety net for task {}", this);
+			FileSystemSafetyNet.initializeSafetyNetForThread();
 
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
@@ -587,6 +600,28 @@ public class Task implements Runnable, TaskActions {
 			LOG.info("Registering task at network: {}.", this);
 
 			network.registerTask(this);
+
+			// add metrics for buffers
+			this.metrics.getIOMetricGroup().initializeBufferMetrics(this);
+
+			// register detailed network metrics, if configured
+			if (taskManagerConfig.getConfiguration().getBoolean(TaskManagerOptions.NETWORK_DETAILED_METRICS)) {
+				// similar to MetricUtils.instantiateNetworkMetrics() but inside this IOMetricGroup
+				MetricGroup networkGroup = this.metrics.getIOMetricGroup().addGroup("Network");
+				MetricGroup outputGroup = networkGroup.addGroup("Output");
+				MetricGroup inputGroup = networkGroup.addGroup("Input");
+
+				// output metrics
+				for (int i = 0; i < producedPartitions.length; i++) {
+					ResultPartitionMetrics.registerQueueLengthMetrics(
+						outputGroup.addGroup(i), producedPartitions[i]);
+				}
+
+				for (int i = 0; i < inputGates.length; i++) {
+					InputGateMetrics.registerQueueLengthMetrics(
+						inputGroup.addGroup(i), inputGates[i]);
+				}
+			}
 
 			// next, kick off the background copying of files for the distributed cache
 			try {
@@ -694,12 +729,30 @@ public class Task implements Runnable, TaskActions {
 		}
 		catch (Throwable t) {
 
+			// unwrap wrapped exceptions to make stack traces more compact
+			if (t instanceof WrappingRuntimeException) {
+				t = ((WrappingRuntimeException) t).unwrap();
+			}
+
 			// ----------------------------------------------------------------
 			// the execution failed. either the invokable code properly failed, or
 			// an exception was thrown as a side effect of cancelling
 			// ----------------------------------------------------------------
 
 			try {
+				// check if the exception is unrecoverable
+				if (ExceptionUtils.isJvmFatalError(t) || 
+					(t instanceof OutOfMemoryError && taskManagerConfig.shouldExitJvmOnOutOfMemoryError()))
+				{
+					// terminate the JVM immediately
+					// don't attempt a clean shutdown, because we cannot expect the clean shutdown to complete
+					try {
+						LOG.error("Encountered fatal error {} - terminating the JVM", t.getClass().getName(), t);
+					} finally {
+						Runtime.getRuntime().halt(-1);
+					}
+				}
+
 				// transition into our final state. we should be either in DEPLOYING, RUNNING, CANCELING, or FAILED
 				// loop for multiple retries during concurrent state changes via calls to cancel() or
 				// to failExternally()
@@ -775,8 +828,10 @@ public class Task implements Runnable, TaskActions {
 
 				// remove all files in the distributed cache
 				removeCachedFiles(distributedCacheEntries, fileCache);
+
 				// close and de-activate safety net for task thread
-				FileSystem.closeAndDisposeFileSystemCloseableRegistryForThread();
+				LOG.info("Ensuring all FileSystem streams are closed for task {}", this); 
+				FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
 
 				notifyFinalState();
 			}
@@ -1102,8 +1157,13 @@ public class Task implements Runnable, TaskActions {
 	 * 
 	 * @param checkpointID The ID identifying the checkpoint.
 	 * @param checkpointTimestamp The timestamp associated with the checkpoint.
+	 * @param checkpointOptions Options for performing this checkpoint.
 	 */
-	public void triggerCheckpointBarrier(final long checkpointID, long checkpointTimestamp) {
+	public void triggerCheckpointBarrier(
+			final long checkpointID,
+			long checkpointTimestamp,
+			final CheckpointOptions checkpointOptions) {
+
 		final AbstractInvokable invokable = this.invokable;
 		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointID, checkpointTimestamp);
 
@@ -1117,9 +1177,11 @@ public class Task implements Runnable, TaskActions {
 					@Override
 					public void run() {
 						// activate safety net for checkpointing thread
-						FileSystem.createAndSetFileSystemCloseableRegistryForThread();
+						LOG.debug("Creating FileSystem stream leak safety net for {}", Thread.currentThread().getName());
+						FileSystemSafetyNet.initializeSafetyNetForThread();
+
 						try {
-							boolean success = statefulTask.triggerCheckpoint(checkpointMetaData);
+							boolean success = statefulTask.triggerCheckpoint(checkpointMetaData, checkpointOptions);
 							if (!success) {
 								checkpointResponder.declineCheckpoint(
 										getJobID(), getExecutionId(), checkpointID,
@@ -1138,7 +1200,10 @@ public class Task implements Runnable, TaskActions {
 							}
 						} finally {
 							// close and de-activate safety net for checkpointing thread
-							FileSystem.closeAndDisposeFileSystemCloseableRegistryForThread();
+							LOG.debug("Ensuring all FileSystem streams are closed for {}",
+									Thread.currentThread().getName());
+
+							FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
 						}
 					}
 				};

@@ -55,37 +55,22 @@ class SetOperatorsTest extends TableTestBase {
         "DataSetJoin",
         batchTableNode(0),
         unaryNode(
-          "DataSetAggregate",
+          "DataSetCalc",
           unaryNode(
-            "DataSetCalc",
-            binaryNode(
-              "DataSetJoin",
-              unaryNode(
-                "DataSetCalc",
-                batchTableNode(1),
-                term("select", "b_long")
-              ),
-              unaryNode(
-                "DataSetAggregate",
-                unaryNode(
-                  "DataSetCalc",
-                  batchTableNode(0),
-                  term("select", "a_long")
-                ),
-                term("groupBy", "a_long"),
-                term("select", "a_long")
-              ),
-              term("where", "=(a_long, b_long)"),
-              term("join", "b_long", "a_long"),
-              term("joinType", "InnerJoin")
+            "DataSetAggregate",
+            unaryNode(
+              "DataSetCalc",
+              batchTableNode(1),
+              term("select", "b_long AS b_long3", "true AS $f0"),
+              term("where", "IS NOT NULL(b_long)")
             ),
-            term("select", "true AS $f0", "a_long")
+            term("groupBy", "b_long3"),
+            term("select", "b_long3", "MIN($f0) AS $f1")
           ),
-          term("groupBy", "a_long"),
-          term("select", "a_long", "MIN($f0) AS $f1")
+          term("select", "b_long3")
         ),
-        term("where", "=(a_long, a_long0)"),
-        term("join", "a_long", "a_int", "a_string", "a_long0", "$f1"),
+        term("where", "=(a_long, b_long3)"),
+        term("join", "a_long", "a_int", "a_string", "b_long3"),
         term("joinType", "InnerJoin")
       ),
       term("select", "a_int", "a_string")

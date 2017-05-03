@@ -26,7 +26,6 @@ import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTa
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 
 import _root_.scala.language.implicitConversions
-import _root_.scala.reflect.ClassTag
 
 /**
   * == Table API (Scala) ==

@@ -842,6 +842,12 @@ public class CliFrontend {
 			program.deleteExtractedLibraries();
 		}
 
+		if (null == result) {
+			logAndSysout("No JobSubmissionResult returned, please make sure you called " +
+				"ExecutionEnvironment.execute()");
+			return 1;
+		}
+
 		if (result.isJobExecutionResult()) {
 			logAndSysout("Program execution finished");
 			JobExecutionResult execResult = result.getJobExecutionResult();
@@ -1073,7 +1079,7 @@ public class CliFrontend {
 		// do action
 		switch (action) {
 			case ACTION_RUN:
-				return CliFrontend.this.run(params);
+				return run(params);
 			case ACTION_LIST:
 				return list(params);
 			case ACTION_INFO:

@@ -18,7 +18,7 @@
 ################################################################################
 
 # Start/stop a Flink daemon.
-USAGE="Usage: flink-daemon.sh (start|stop|stop-all) (jobmanager|taskmanager|zookeeper) [args]"
+USAGE="Usage: flink-daemon.sh (start|stop|stop-all) (jobmanager|taskmanager|zookeeper|historyserver) [args]"
 
 STARTSTOP=$1
 DAEMON=$2
@@ -40,6 +40,10 @@ case $DAEMON in
 
     (zookeeper)
         CLASS_TO_RUN=org.apache.flink.runtime.zookeeper.FlinkZooKeeperQuorumPeer
+    ;;
+
+    (historyserver)
+        CLASS_TO_RUN=org.apache.flink.runtime.webmonitor.history.HistoryServer
     ;;
 
     (*)
@@ -74,8 +78,9 @@ fi
 # This allows us to start multiple daemon of each type.
 id=$([ -f "$pid" ] && echo $(wc -l < $pid) || echo "0")
 
-log="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-${DAEMON}-${id}-${HOSTNAME}.log"
-out="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-${DAEMON}-${id}-${HOSTNAME}.out"
+FLINK_LOG_PREFIX="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-${DAEMON}-${id}-${HOSTNAME}"
+log="${FLINK_LOG_PREFIX}.log"
+out="${FLINK_LOG_PREFIX}.out"
 
 log_setting=("-Dlog.file=${log}" "-Dlog4j.configuration=file:${FLINK_CONF_DIR}/log4j.properties" "-Dlogback.configurationFile=file:${FLINK_CONF_DIR}/logback.xml")
 
@@ -92,8 +97,7 @@ case $STARTSTOP in
 
     (start)
         # Rotate log files
-        rotateLogFile $log
-        rotateLogFile $out
+        rotateLogFilesWithPrefix $FLINK_LOG_DIR $FLINK_LOG_PREFIX
 
         # Print a warning if daemons are already running on host
         if [ -f $pid ]; then
@@ -111,6 +115,9 @@ case $STARTSTOP in
             echo "[INFO] $count instance(s) of $DAEMON are already running on $HOSTNAME."
           fi
         fi
+
+        # Evaluate user options for local variable expansion
+        FLINK_ENV_JAVA_OPTS=$(eval echo ${FLINK_ENV_JAVA_OPTS})
 
         echo "Starting $DAEMON daemon on host $HOSTNAME."
         $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" > "$out" 200<&- 2>&1 < /dev/null &

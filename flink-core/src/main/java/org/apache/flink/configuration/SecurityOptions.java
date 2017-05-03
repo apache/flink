@@ -18,11 +18,14 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
  * The set of configuration options relating to security.
  */
+@PublicEvolving
 public class SecurityOptions {
 
 	// ------------------------------------------------------------------------
@@ -51,6 +54,10 @@ public class SecurityOptions {
 	// ------------------------------------------------------------------------
 	//  ZooKeeper Security Options
 	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<Boolean> ZOOKEEPER_SASL_DISABLE =
+		key("zookeeper.sasl.disable")
+			.defaultValue(false);
 
 	public static final ConfigOption<String> ZOOKEEPER_SASL_SERVICE_NAME =
 		key("zookeeper.sasl.service-name")

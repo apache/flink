@@ -17,14 +17,13 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing.functions;
 
+import java.util.Collections;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
-
-import java.util.Collections;
 
 /**
  * Internal window function for wrapping an {@link AllWindowFunction} that takes an {@code Iterable}
@@ -41,8 +40,13 @@ public final class InternalSingleValueAllWindowFunction<IN, OUT, W extends Windo
 	}
 
 	@Override
-	public void apply(Byte key, W window, IN input, Collector<OUT> out) throws Exception {
+	public void process(Byte key, W window, InternalWindowContext context, IN input, Collector<OUT> out) throws Exception {
 		wrappedFunction.apply(window, Collections.singletonList(input), out);
+	}
+
+	@Override
+	public void clear(W window, InternalWindowContext context) throws Exception {
+
 	}
 
 	@Override

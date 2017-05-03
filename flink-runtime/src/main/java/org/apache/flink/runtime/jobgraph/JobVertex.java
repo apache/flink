@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -30,6 +31,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The base class for job vertexes.
@@ -47,7 +50,14 @@ public class JobVertex implements java.io.Serializable {
 	/** The ID of the vertex. */
 	private final JobVertexID id;
 
+	/** The alternative IDs of the vertex. */
 	private final ArrayList<JobVertexID> idAlternatives = new ArrayList<>();
+
+	/** The IDs of all operators contained in this vertex. */
+	private final ArrayList<OperatorID> operatorIDs = new ArrayList<>();
+
+	/** The alternative IDs of all operators contained in this vertex. */
+	private final ArrayList<OperatorID> operatorIdsAlternatives = new ArrayList<>();
 
 	/** List of produced data sets, one per writer */
 	private final ArrayList<IntermediateDataSet> results = new ArrayList<IntermediateDataSet>();
@@ -60,6 +70,12 @@ public class JobVertex implements java.io.Serializable {
 
 	/** Maximum number of subtasks to split this taks into a runtime. */
 	private int maxParallelism = -1;
+
+	/** The minimum resource of the vertex */
+	private ResourceSpec minResources = ResourceSpec.DEFAULT;
+
+	/** The preferred resource of the vertex */
+	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
 
 	/** Custom configuration passed to the assigned task at runtime. */
 	private Configuration configuration;
@@ -116,6 +132,9 @@ public class JobVertex implements java.io.Serializable {
 	public JobVertex(String name, JobVertexID id) {
 		this.name = name == null ? DEFAULT_NAME : name;
 		this.id = id == null ? new JobVertexID() : id;
+		// the id lists must have the same size
+		this.operatorIDs.add(OperatorID.fromJobVertexID(this.id));
+		this.operatorIdsAlternatives.add(null);
 	}
 
 	/**
@@ -124,11 +143,16 @@ public class JobVertex implements java.io.Serializable {
 	 * @param name The name of the new job vertex.
 	 * @param primaryId The id of the job vertex.
 	 * @param alternativeIds The alternative ids of the job vertex.
+	 * @param operatorIds The ids of all operators contained in this job vertex.
+	 * @param alternativeOperatorIds The alternative ids of all operators contained in this job vertex-
 	 */
-	public JobVertex(String name, JobVertexID primaryId, List<JobVertexID> alternativeIds) {
+	public JobVertex(String name, JobVertexID primaryId, List<JobVertexID> alternativeIds, List<OperatorID> operatorIds, List<OperatorID> alternativeOperatorIds) {
+		Preconditions.checkArgument(operatorIds.size() == alternativeOperatorIds.size());
 		this.name = name == null ? DEFAULT_NAME : name;
 		this.id = primaryId == null ? new JobVertexID() : primaryId;
 		this.idAlternatives.addAll(alternativeIds);
+		this.operatorIDs.addAll(operatorIds);
+		this.operatorIdsAlternatives.addAll(alternativeOperatorIds);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -185,6 +209,14 @@ public class JobVertex implements java.io.Serializable {
 	 */
 	public int getNumberOfInputs() {
 		return this.inputs.size();
+	}
+
+	public List<OperatorID> getOperatorIDs() {
+		return operatorIDs;
+	}
+
+	public List<OperatorID> getUserDefinedOperatorIDs() {
+		return operatorIdsAlternatives;
 	}
 
 	/**
@@ -276,6 +308,35 @@ public class JobVertex implements java.io.Serializable {
 	 */
 	public void setMaxParallelism(int maxParallelism) {
 		this.maxParallelism = maxParallelism;
+	}
+
+	/**
+	 * Gets the minimum resource for the task.
+	 *
+	 * @return The minimum resource for the task.
+	 */
+	public ResourceSpec getMinResources() {
+		return minResources;
+	}
+
+	/**
+	 * Gets the preferred resource for the task.
+	 *
+	 * @return The preferred resource for the task.
+	 */
+	public ResourceSpec getPreferredResources() {
+		return preferredResources;
+	}
+
+	/**
+	 * Sets the minimum and preferred resources for the task.
+	 *
+	 * @param minResources The minimum resource for the task.
+	 * @param preferredResources The preferred resource for the task.
+	 */
+	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		this.minResources = checkNotNull(minResources);
+		this.preferredResources = checkNotNull(preferredResources);
 	}
 
 	public InputSplitSource<?> getInputSplitSource() {
@@ -398,10 +459,6 @@ public class JobVertex implements java.io.Serializable {
 		this.inputs.add(edge);
 		dataSet.addConsumer(edge);
 		return edge;
-	}
-
-	public JobEdge connectNewDataSetAsInput(JobVertex input, DistributionPattern distPattern) {
-		return connectNewDataSetAsInput(input, distPattern, ResultPartitionType.PIPELINED);
 	}
 
 	public JobEdge connectNewDataSetAsInput(

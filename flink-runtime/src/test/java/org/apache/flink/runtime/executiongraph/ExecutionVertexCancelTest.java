@@ -457,7 +457,7 @@ public class ExecutionVertexCancelTest {
 			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
 			// 1)
-			// scheduling after being created should be tolerated (no exception) because
+			// scheduling after being canceled should be tolerated (no exception) because
 			// it can occur as the result of races
 			{
 				Scheduler scheduler = mock(Scheduler.class);

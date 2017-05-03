@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -57,6 +58,7 @@ public class SourceStreamTaskTest {
 	public void testOpenClose() throws Exception {
 		final SourceStreamTask<String, SourceFunction<String>, StreamSource<String, SourceFunction<String>>> sourceTask = new SourceStreamTask<>();
 		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<String>(sourceTask, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamSource<String, ?> sourceOperator = new StreamSource<>(new OpenCloseTestSource());
@@ -99,6 +101,7 @@ public class SourceStreamTaskTest {
 			final SourceStreamTask<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>,
 				StreamSource<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>>> sourceTask = new SourceStreamTask<>();
 			final StreamTaskTestHarness<Tuple2<Long, Integer>> testHarness = new StreamTaskTestHarness<Tuple2<Long, Integer>>(sourceTask, typeInfo);
+			testHarness.setupOutputForSingletonOperatorChain();
 
 			StreamConfig streamConfig = testHarness.getStreamConfig();
 			StreamSource<Tuple2<Long, Integer>, ?> sourceOperator = new StreamSource<>(new MockSource(NUM_ELEMENTS, SOURCE_CHECKPOINT_DELAY, SOURCE_READ_DELAY));
@@ -165,8 +168,10 @@ public class SourceStreamTaskTest {
 				// simulate some work
 				try {
 					Thread.sleep(readDelay);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+				}
+				catch (InterruptedException e) {
+					// ignore and reset interruption state
+					Thread.currentThread().interrupt();
 				}
 
 				synchronized (lockObject) {
@@ -229,7 +234,7 @@ public class SourceStreamTaskTest {
 			for (int i = 0; i < numCheckpoints; i++) {
 				long currentCheckpointId = checkpointId.getAndIncrement();
 				CheckpointMetaData checkpointMetaData = new CheckpointMetaData(currentCheckpointId, 0L);
-				sourceTask.triggerCheckpoint(checkpointMetaData);
+				sourceTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forFullCheckpoint());
 				Thread.sleep(checkpointInterval);
 			}
 			return true;

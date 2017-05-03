@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.io.DelimitedInputFormat;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.operators.testutils.NirvanaOutputList;
 import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
 import org.apache.flink.runtime.operators.testutils.TaskTestBase;
@@ -247,7 +248,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		@Override
 		public Record readRecord(Record target, byte[] record, int offset, int numBytes) {
 			
-			String line = new String(record, offset, numBytes);
+			String line = new String(record, offset, numBytes, ConfigConstants.DEFAULT_CHARSET);
 			
 			try {
 				this.key.setValue(Integer.parseInt(line.substring(0,line.indexOf("_"))));
@@ -290,7 +291,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 				return null;
 			}
 			
-			String line = new String(record, offset, numBytes);
+			String line = new String(record, offset, numBytes, ConfigConstants.DEFAULT_CHARSET);
 			
 			try {
 				this.key.setValue(Integer.parseInt(line.substring(0,line.indexOf("_"))));
@@ -324,7 +325,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 			
 			this.cnt++;
 			
-			String line = new String(record, offset, numBytes);
+			String line = new String(record, offset, numBytes, ConfigConstants.DEFAULT_CHARSET);
 			
 			try {
 				this.key.setValue(Integer.parseInt(line.substring(0,line.indexOf("_"))));

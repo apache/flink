@@ -24,12 +24,12 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexLiteral
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.runtime.io.ValuesInputFormat
-import org.apache.flink.table.typeutils.TypeConverter._
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
 
@@ -66,17 +66,11 @@ class DataSetValues(
     super.explainTerms(pw).item("values", valuesFieldsToString)
   }
 
-  override def translateToPlan(
-      tableEnv: BatchTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
     val config = tableEnv.getConfig
 
-    val returnType = determineReturnType(
-      getRowType,
-      expectedType,
-      config.getNullCheck,
-      config.getEfficientTypeUsage)
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     val generator = new CodeGenerator(config)
 
@@ -94,12 +88,12 @@ class DataSetValues(
       generatedRecords.map(_.code),
       returnType)
 
-    val inputFormat = new ValuesInputFormat[Any](
+    val inputFormat = new ValuesInputFormat[Row](
       generatedFunction.name,
       generatedFunction.code,
       generatedFunction.returnType)
 
-    tableEnv.execEnv.createInput(inputFormat, returnType).asInstanceOf[DataSet[Any]]
+    tableEnv.execEnv.createInput(inputFormat, returnType)
   }
 
   private def valuesFieldsToString: String = {

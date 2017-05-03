@@ -45,6 +45,15 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 		this.currentExecution = vertex.getCurrentExecutionAttempt().archive();
 	}
 
+	public ArchivedExecutionVertex(
+			int subTaskIndex, String taskNameWithSubtask,
+			ArchivedExecution currentExecution, EvictingBoundedList<ArchivedExecution> priorExecutions) {
+		this.subTaskIndex = subTaskIndex;
+		this.taskNameWithSubtask = taskNameWithSubtask;
+		this.currentExecution = currentExecution;
+		this.priorExecutions = priorExecutions;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//   Accessors
 	// --------------------------------------------------------------------------------------------

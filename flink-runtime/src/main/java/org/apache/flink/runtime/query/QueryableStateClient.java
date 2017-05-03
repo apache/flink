@@ -92,7 +92,7 @@ public class QueryableStateClient {
 	private final ConcurrentMap<Tuple2<JobID, String>, Future<KvStateLocation>> lookupCache =
 			new ConcurrentHashMap<>();
 
-	/** This is != null, iff we started the actor system. */
+	/** This is != null, if we started the actor system. */
 	private final ActorSystem actorSystem;
 
 	/**
@@ -210,7 +210,7 @@ public class QueryableStateClient {
 			try {
 				actorSystem.shutdown();
 			} catch (Throwable t) {
-				LOG.error("Failed to shut down ActorSystem");
+				LOG.error("Failed to shut down ActorSystem", t);
 			}
 		}
 	}

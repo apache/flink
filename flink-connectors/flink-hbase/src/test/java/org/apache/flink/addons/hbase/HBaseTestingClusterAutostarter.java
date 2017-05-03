@@ -23,6 +23,7 @@ package org.apache.flink.addons.hbase;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.impl.Log4JLogger;
+import org.apache.flink.util.TestLogger;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -77,7 +78,7 @@ import static org.junit.Assert.fail;
 //
 // https://github.com/apache/hbase/blob/master/hbase-server/src/test/java/org/apache/hadoop/hbase/filter/FilterTestingCluster.java
 //
-public class HBaseTestingClusterAutostarter implements Serializable {
+public class HBaseTestingClusterAutostarter extends TestLogger implements Serializable {
 
 	private static final Log LOG = LogFactory.getLog(HBaseTestingClusterAutostarter.class);
 
@@ -87,13 +88,17 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 
 	private static boolean alreadyRegisteredTestCluster = false;
 
-	protected static void createTable(TableName tableName, byte[] columnFamilyName, byte[][] splitKeys) {
+	private static Configuration conf;
+
+	protected static void createTable(TableName tableName, byte[][] columnFamilyName, byte[][] splitKeys) {
 		LOG.info("HBase minicluster: Creating table " + tableName.getNameAsString());
 
 		assertNotNull("HBaseAdmin is not initialized successfully.", admin);
 		HTableDescriptor desc = new HTableDescriptor(tableName);
-		HColumnDescriptor colDef = new HColumnDescriptor(columnFamilyName);
-		desc.addFamily(colDef);
+		for(byte[] fam : columnFamilyName) {
+			HColumnDescriptor colDef = new HColumnDescriptor(fam);
+			desc.addFamily(colDef);
+		}
 
 		try {
 			admin.createTable(desc, splitKeys);
@@ -125,7 +130,7 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 		}
 	}
 
-	private static void initialize(Configuration conf) {
+	private static Configuration initialize(Configuration conf) {
 		conf = HBaseConfiguration.create(conf);
 		conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 1);
 		try {
@@ -137,6 +142,7 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 		} catch (IOException e) {
 			assertNull("IOException", e);
 		}
+		return conf;
 	}
 
 	@BeforeClass
@@ -154,7 +160,7 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 		// Make sure the zookeeper quorum value contains the right port number (varies per run).
 		TEST_UTIL.getConfiguration().set("hbase.zookeeper.quorum", "localhost:" + TEST_UTIL.getZkCluster().getClientPort());
 
-		initialize(TEST_UTIL.getConfiguration());
+		conf = initialize(TEST_UTIL.getConfiguration());
 		LOG.info("HBase minicluster: Running");
 	}
 
@@ -186,6 +192,9 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 		alreadyRegisteredTestCluster = true;
 	}
 
+	public static Configuration getConf() {
+		return conf;
+	}
 	private static void createHBaseSiteXml(File hbaseSiteXmlDirectory, String zookeeperQuorum) {
 		hbaseSiteXmlFile = new File(hbaseSiteXmlDirectory, "hbase-site.xml");
 		// Create the hbase-site.xml file for this run.

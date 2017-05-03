@@ -24,14 +24,13 @@ import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -96,22 +95,12 @@ public class ZookeeperOffsetHandler {
 	}
 
 	/**
-	 * @param partitions The partitions to read offsets for.
+	 * @param partition The partition to read offset for.
 	 * @return The mapping from partition to offset.
 	 * @throws Exception This method forwards exceptions.
 	 */
-	public Map<KafkaTopicPartition, Long> getCommittedOffsets(List<KafkaTopicPartition> partitions) throws Exception {
-		Map<KafkaTopicPartition, Long> ret = new HashMap<>(partitions.size());
-		for (KafkaTopicPartition tp : partitions) {
-			Long offset = getOffsetFromZooKeeper(curatorClient, groupId, tp.getTopic(), tp.getPartition());
-
-			if (offset != null) {
-				LOG.info("Offset for TopicPartition {}:{} was set to {} in ZooKeeper. Seeking fetcher to that position.",
-						tp.getTopic(), tp.getPartition(), offset);
-				ret.put(tp, offset);
-			}
-		}
-		return ret;
+	public Long getCommittedOffset(KafkaTopicPartition partition) throws Exception {
+		return getOffsetFromZooKeeper(curatorClient, groupId, partition.getTopic(), partition.getPartition());
 	}
 
 	/**
@@ -131,7 +120,7 @@ public class ZookeeperOffsetHandler {
 		ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(groupId, topic);
 		String path = topicDirs.consumerOffsetDir() + "/" + partition;
 		curatorClient.newNamespaceAwareEnsurePath(path).ensure(curatorClient.getZookeeperClient());
-		byte[] data = Long.toString(offset).getBytes();
+		byte[] data = Long.toString(offset).getBytes(ConfigConstants.DEFAULT_CHARSET);
 		curatorClient.setData().forPath(path, data);
 	}
 
@@ -145,7 +134,7 @@ public class ZookeeperOffsetHandler {
 		if (data == null) {
 			return null;
 		} else {
-			String asString = new String(data);
+			String asString = new String(data, ConfigConstants.DEFAULT_CHARSET);
 			if (asString.length() == 0) {
 				return null;
 			} else {

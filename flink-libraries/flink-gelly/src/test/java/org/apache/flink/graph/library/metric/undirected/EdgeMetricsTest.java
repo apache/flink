@@ -80,7 +80,7 @@ extends AsmTestBase {
 		Result expectedResult = new Result(107817, 315537, 820, 3822);
 
 		Result withoutZeroDegreeVertices = new EdgeMetrics<LongValue, NullValue, NullValue>()
-			.run(undirectedRMatGraph)
+			.run(undirectedRMatGraph(10, 16))
 			.execute();
 
 		assertEquals(expectedResult, withoutZeroDegreeVertices);

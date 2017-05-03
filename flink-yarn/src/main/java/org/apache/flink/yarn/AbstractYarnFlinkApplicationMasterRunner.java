@@ -178,8 +178,6 @@ public abstract class AbstractYarnFlinkApplicationMasterRunner {
 
 		Configuration configuration = GlobalConfiguration.loadConfiguration(baseDirectory);
 
-		configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, baseDirectory);
-
 		// add dynamic properties to JobManager configuration.
 		for (Map.Entry<String, String> property : additional.entrySet()) {
 			configuration.setString(property.getKey(), property.getValue());

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
@@ -340,7 +341,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 		for(int i = 0; i < LINES_PER_FILE; i++) {
 			String line = fileIdx +": "+ sampleLine + " " + i +"\n";
 			str.append(line);
-			stream.write(line.getBytes());
+			stream.write(line.getBytes(ConfigConstants.DEFAULT_CHARSET));
 		}
 		stream.close();
 		return new Tuple2<>(tmp, str.toString());

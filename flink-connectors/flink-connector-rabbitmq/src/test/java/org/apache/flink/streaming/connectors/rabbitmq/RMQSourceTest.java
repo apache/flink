@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.QueueingConsumer;
@@ -27,6 +28,7 @@ import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -45,7 +47,6 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.modules.junit4.PowerMockRunner;
-import com.rabbitmq.client.Connection;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -323,7 +324,7 @@ public class RMQSourceTest {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			return new String(message);
+			return new String(message, ConfigConstants.DEFAULT_CHARSET);
 		}
 
 		@Override
@@ -365,7 +366,7 @@ public class RMQSourceTest {
 
 			// Mock for delivery
 			final QueueingConsumer.Delivery deliveryMock = Mockito.mock(QueueingConsumer.Delivery.class);
-			Mockito.when(deliveryMock.getBody()).thenReturn("test".getBytes());
+			Mockito.when(deliveryMock.getBody()).thenReturn("test".getBytes(ConfigConstants.DEFAULT_CHARSET));
 
 			try {
 				Mockito.when(consumer.nextDelivery()).thenReturn(deliveryMock);
@@ -443,6 +444,12 @@ public class RMQSourceTest {
 
 		@Override
 		public void emitWatermark(Watermark mark) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void markAsTemporarilyIdle() {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override

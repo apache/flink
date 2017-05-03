@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,16 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-
 import java.util.Collection;
 import java.util.List;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 /**
  * This transformation represents a union of several input
  * {@link StreamTransformation StreamTransformations}.
  *
- * <p>
- * This does not create a physical operation, it only affects how upstream operations are
+ * <p>This does not create a physical operation, it only affects how upstream operations are
  * connected to downstream operations.
  *
  * @param <T> The type of the elements that result from this {@code UnionTransformation}
@@ -41,8 +39,7 @@ public class UnionTransformation<T> extends StreamTransformation<T> {
 	/**
 	 * Creates a new {@code UnionTransformation} from the given input {@code StreamTransformations}.
 	 *
-	 * <p>
-	 * The input {@code StreamTransformations} must all have the same type.
+	 * <p>The input {@code StreamTransformations} must all have the same type.
 	 *
 	 * @param inputs The list of input {@code StreamTransformations}
 	 */

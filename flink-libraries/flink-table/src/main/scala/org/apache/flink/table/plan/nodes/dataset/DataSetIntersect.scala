@@ -22,11 +22,10 @@ import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTra
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.runtime.IntersectCoGroupFunction
-import org.apache.flink.table.typeutils.TypeConverter._
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -75,55 +74,21 @@ class DataSetIntersect(
     }
   }
 
-  override def translateToPlan(
-      tableEnv: BatchTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
-    val leftDataSet: DataSet[Any] = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
-    val rightDataSet: DataSet[Any] = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val coGroupedDs = leftDataSet.coGroup(rightDataSet)
 
     val coGroupOpName = s"intersect: ($intersectSelectionToString)"
-    val coGroupFunction = new IntersectCoGroupFunction[Any](all)
+    val coGroupFunction = new IntersectCoGroupFunction[Row](all)
 
-    val intersectDs = coGroupedDs.where("*").equalTo("*")
-      .`with`(coGroupFunction).name(coGroupOpName)
-
-    val config = tableEnv.getConfig
-    val leftType = leftDataSet.getType
-
-    // here we only care about left type information, because we emit records from left DataSet
-    expectedType match {
-      case None if config.getEfficientTypeUsage =>
-        intersectDs
-
-      case _ =>
-        val determinedType = determineReturnType(
-          getRowType,
-          expectedType,
-          config.getNullCheck,
-          config.getEfficientTypeUsage)
-
-        // conversion
-        if (determinedType != leftType) {
-          val mapFunc = getConversionMapper(
-            config,
-            false,
-            leftType,
-            determinedType,
-            "DataSetIntersectConversion",
-            getRowType.getFieldNames)
-
-          val opName = s"convert: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
-
-          intersectDs.map(mapFunc).name(opName)
-        }
-        // no conversion necessary, forward
-        else {
-          intersectDs
-        }
-    }
+    coGroupedDs
+      .where("*")
+      .equalTo("*")
+      .`with`(coGroupFunction)
+      .name(coGroupOpName)
   }
 
   private def intersectSelectionToString: String = {

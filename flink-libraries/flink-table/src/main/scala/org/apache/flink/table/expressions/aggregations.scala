@@ -18,10 +18,13 @@
 package org.apache.flink.table.expressions
 
 import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.SqlAggFunction
+import org.apache.calcite.sql.SqlKind._
+import org.apache.calcite.sql.fun._
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.TypeCheckUtils
 
 abstract sealed class Aggregation extends UnaryExpression {
@@ -35,6 +38,12 @@ abstract sealed class Aggregation extends UnaryExpression {
     * Convert Aggregate to its counterpart in Calcite, i.e. AggCall
     */
   private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall
+
+  /**
+    * Returns the SqlAggFunction for this Aggregation.
+    */
+  private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder): SqlAggFunction
+
 }
 
 case class Sum(child: Expression) extends Aggregation {
@@ -48,6 +57,29 @@ case class Sum(child: Expression) extends Aggregation {
 
   override private[flink] def validateInput() =
     TypeCheckUtils.assertNumericExpr(child.resultType, "sum")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
+    val returnType = relBuilder
+      .getTypeFactory.asInstanceOf[FlinkTypeFactory]
+      .createTypeFromTypeInfo(resultType)
+    new SqlSumAggFunction(returnType)
+  }
+}
+
+case class Sum0(child: Expression) extends Aggregation {
+  override def toString = s"sum0($child)"
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.SUM0, false, null, name, child.toRexNode)
+  }
+
+  override private[flink] def resultType = child.resultType
+
+  override private[flink] def validateInput() =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "sum0")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) =
+    new SqlSumEmptyIsZeroAggFunction()
 }
 
 case class Min(child: Expression) extends Aggregation {
@@ -61,6 +93,10 @@ case class Min(child: Expression) extends Aggregation {
 
   override private[flink] def validateInput() =
     TypeCheckUtils.assertOrderableExpr(child.resultType, "min")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
+    new SqlMinMaxAggFunction(MIN)
+  }
 }
 
 case class Max(child: Expression) extends Aggregation {
@@ -74,6 +110,10 @@ case class Max(child: Expression) extends Aggregation {
 
   override private[flink] def validateInput() =
     TypeCheckUtils.assertOrderableExpr(child.resultType, "max")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
+    new SqlMinMaxAggFunction(MAX)
+  }
 }
 
 case class Count(child: Expression) extends Aggregation {
@@ -84,6 +124,10 @@ case class Count(child: Expression) extends Aggregation {
   }
 
   override private[flink] def resultType = BasicTypeInfo.LONG_TYPE_INFO
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
+    new SqlCountAggFunction()
+  }
 }
 
 case class Avg(child: Expression) extends Aggregation {
@@ -97,4 +141,72 @@ case class Avg(child: Expression) extends Aggregation {
 
   override private[flink] def validateInput() =
     TypeCheckUtils.assertNumericExpr(child.resultType, "avg")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
+    new SqlAvgAggFunction(AVG)
+  }
+}
+
+case class StddevPop(child: Expression) extends Aggregation {
+  override def toString = s"stddev_pop($child)"
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.STDDEV_POP, false, null, name, child.toRexNode)
+  }
+
+  override private[flink] def resultType = child.resultType
+
+  override private[flink] def validateInput() =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "stddev_pop")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) =
+    new SqlAvgAggFunction(STDDEV_POP)
+}
+
+case class StddevSamp(child: Expression) extends Aggregation {
+  override def toString = s"stddev_samp($child)"
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.STDDEV_SAMP, false, null, name, child.toRexNode)
+  }
+
+  override private[flink] def resultType = child.resultType
+
+  override private[flink] def validateInput() =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "stddev_samp")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) =
+    new SqlAvgAggFunction(STDDEV_SAMP)
+}
+
+case class VarPop(child: Expression) extends Aggregation {
+  override def toString = s"var_pop($child)"
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.VAR_POP, false, null, name, child.toRexNode)
+  }
+
+  override private[flink] def resultType = child.resultType
+
+  override private[flink] def validateInput() =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "var_pop")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) =
+    new SqlAvgAggFunction(VAR_POP)
+}
+
+case class VarSamp(child: Expression) extends Aggregation {
+  override def toString = s"var_samp($child)"
+
+  override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    relBuilder.aggregateCall(SqlStdOperatorTable.VAR_SAMP, false, null, name, child.toRexNode)
+  }
+
+  override private[flink] def resultType = child.resultType
+
+  override private[flink] def validateInput() =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "var_samp")
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) =
+    new SqlAvgAggFunction(VAR_SAMP)
 }

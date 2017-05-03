@@ -24,11 +24,9 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 
 /**
- * This class extends the {@link TaskExecutorRegistration}, adding the worker information.
+ * This class extends the {@link TaskExecutorConnection}, adding the worker information.
  */
-public class WorkerRegistration<WorkerType extends Serializable> extends TaskExecutorRegistration {
-
-	private static final long serialVersionUID = -2062957799469434614L;
+public class WorkerRegistration<WorkerType extends Serializable> extends TaskExecutorConnection {
 
 	private final WorkerType worker;
 

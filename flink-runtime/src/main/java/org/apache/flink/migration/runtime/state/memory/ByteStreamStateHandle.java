@@ -27,7 +27,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 
+/**
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
+ */
 @Deprecated
+@SuppressWarnings("deprecation")
 public final class ByteStreamStateHandle extends AbstractCloseableHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = -5280226231200217594L;

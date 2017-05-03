@@ -30,6 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
@@ -73,6 +74,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -139,7 +142,7 @@ public class TestBaseUtils extends TestLogger {
 		Path logFile = Files.createFile(new File(logDir, "jobmanager.log").toPath());
 		Files.createFile(new File(logDir, "jobmanager.out").toPath());
 
-		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, TASK_MANAGER_MEMORY_SIZE);
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT + "s");
@@ -283,6 +286,8 @@ public class TestBaseUtils extends TestLogger {
 			String resultPath,
 			String[] excludePrefixes,
 			boolean inOrderOfFiles) throws IOException {
+		
+		checkArgument(resultPath != null, "resultPath cannot be be null");
 
 		final BufferedReader[] readers = getResultReader(resultPath, excludePrefixes, inOrderOfFiles);
 		try {

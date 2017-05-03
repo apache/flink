@@ -32,7 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -63,7 +63,7 @@ import static org.junit.Assert.fail;
  */
 public class JobSubmitTest {
 
-	private static final FiniteDuration timeout = new FiniteDuration(5000, TimeUnit.MILLISECONDS);
+	private static final FiniteDuration timeout = new FiniteDuration(60000, TimeUnit.MILLISECONDS);
 
 	private static ActorSystem jobManagerSystem;
 	private static ActorGateway jmGateway;
@@ -228,8 +228,8 @@ public class JobSubmitTest {
 		List<JobVertexID> vertexIdList = Collections.singletonList(jobVertex.getID());
 
 		JobGraph jg = new JobGraph("test job", jobVertex);
-		jg.setSnapshotSettings(new JobSnapshottingSettings(vertexIdList, vertexIdList, vertexIdList,
-			5000, 5000, 0L, 10, ExternalizedCheckpointSettings.none(), true));
+		jg.setSnapshotSettings(new JobCheckpointingSettings(vertexIdList, vertexIdList, vertexIdList,
+			5000, 5000, 0L, 10, ExternalizedCheckpointSettings.none(), null, true));
 		return jg;
 	}
 }

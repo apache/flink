@@ -29,7 +29,6 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -70,13 +69,12 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 	public Kafka09Fetcher(
 			SourceContext<T> sourceContext,
-			List<KafkaTopicPartition> assignedPartitions,
+			Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			ProcessingTimeService processingTimeProvider,
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
-			boolean enableCheckpointing,
 			String taskNameWithSubtasks,
 			MetricGroup metricGroup,
 			KeyedDeserializationSchema<T> deserializer,
@@ -86,7 +84,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	{
 		super(
 				sourceContext,
-				assignedPartitions,
+				assignedPartitionsWithInitialOffsets,
 				watermarksPeriodic,
 				watermarksPunctuated,
 				processingTimeProvider,
@@ -99,17 +97,12 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 		final MetricGroup kafkaMetricGroup = metricGroup.addGroup("KafkaConsumer");
 		addOffsetStateGauge(kafkaMetricGroup);
-
-		// if checkpointing is enabled, we are not automatically committing to Kafka.
-		kafkaProperties.setProperty(
-				ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
-				Boolean.toString(!enableCheckpointing));
 		
 		this.consumerThread = new KafkaConsumerThread(
 				LOG,
 				handover,
 				kafkaProperties,
-				subscribedPartitions(),
+				subscribedPartitionStates(),
 				kafkaMetricGroup,
 				createCallBridge(),
 				getFetcherName() + " for " + taskNameWithSubtasks,
@@ -135,13 +128,12 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 				final ConsumerRecords<byte[], byte[]> records = handover.pollNext();
 
 				// get the records for each topic partition
-				for (KafkaTopicPartitionState<TopicPartition> partition : subscribedPartitions()) {
+				for (KafkaTopicPartitionState<TopicPartition> partition : subscribedPartitionStates()) {
 
 					List<ConsumerRecord<byte[], byte[]>> partitionRecords =
 							records.records(partition.getKafkaPartitionHandle());
 
 					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
-
 						final T value = deserializer.deserialize(
 								record.key(), record.value(),
 								record.topic(), record.partition(), record.offset());
@@ -220,7 +212,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 	@Override
 	public void commitInternalOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
-		KafkaTopicPartitionState<TopicPartition>[] partitions = subscribedPartitions();
+		KafkaTopicPartitionState<TopicPartition>[] partitions = subscribedPartitionStates();
 		Map<TopicPartition, OffsetAndMetadata> offsetsToCommit = new HashMap<>(partitions.length);
 
 		for (KafkaTopicPartitionState<TopicPartition> partition : partitions) {

@@ -31,6 +31,8 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -40,6 +42,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
@@ -119,6 +122,7 @@ public class RocksDBAsyncSnapshotTest {
 		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		testHarness.configureForKeyedStream(new KeySelector<String, String>() {
 			@Override
@@ -150,10 +154,11 @@ public class RocksDBAsyncSnapshotTest {
 
 			@Override
 			public void acknowledgeCheckpoint(
-					CheckpointMetaData checkpointMetaData,
+					long checkpointId,
+					CheckpointMetrics checkpointMetrics,
 					SubtaskState checkpointStateHandles) {
 
-				super.acknowledgeCheckpoint(checkpointMetaData);
+				super.acknowledgeCheckpoint(checkpointId, checkpointMetrics);
 
 				// block on the latch, to verify that triggerCheckpoint returns below,
 				// even though the async checkpoint would not finish
@@ -183,7 +188,7 @@ public class RocksDBAsyncSnapshotTest {
 			}
 		}
 
-		task.triggerCheckpoint(new CheckpointMetaData(42, 17));
+		task.triggerCheckpoint(new CheckpointMetaData(42, 17), CheckpointOptions.forFullCheckpoint());
 
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 
@@ -219,6 +224,7 @@ public class RocksDBAsyncSnapshotTest {
 		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		testHarness.configureForKeyedStream(new KeySelector<String, String>() {
 			@Override
@@ -262,7 +268,7 @@ public class RocksDBAsyncSnapshotTest {
 			}
 		}
 
-		task.triggerCheckpoint(new CheckpointMetaData(42, 17));
+		task.triggerCheckpoint(new CheckpointMetaData(42, 17), CheckpointOptions.forFullCheckpoint());
 		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
 		BlockingStreamMemoryStateBackend.waitFirstWriteLatch.await();
 		task.cancel();
@@ -338,7 +344,8 @@ public class RocksDBAsyncSnapshotTest {
 			StringSerializer.INSTANCE,
 			new ValueStateDescriptor<>("foobar", String.class));
 
-		RunnableFuture<KeyGroupsStateHandle> snapshotFuture = keyedStateBackend.snapshot(checkpointId, timestamp, checkpointStreamFactory);
+		RunnableFuture<KeyedStateHandle> snapshotFuture = keyedStateBackend.snapshot(
+			checkpointId, timestamp, checkpointStreamFactory, CheckpointOptions.forFullCheckpoint());
 
 		try {
 			FutureUtil.runIfNotDoneAndGet(snapshotFuture);

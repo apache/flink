@@ -20,6 +20,7 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigConstants;
 
 /**
  * Parses a text field into a {@link Float}.
@@ -42,7 +43,7 @@ public class FloatParser extends FieldParser<Float> {
 			return -1;
 		}
 
-		String str = new String(bytes, startPos, endPos - startPos);
+		String str = new String(bytes, startPos, endPos - startPos, ConfigConstants.DEFAULT_CHARSET);
 		try {
 			this.result = Float.parseFloat(str);
 			return (endPos == limit) ? limit : endPos + delimiter.length;
@@ -99,7 +100,7 @@ public class FloatParser extends FieldParser<Float> {
 			throw new NumberFormatException("There is leading or trailing whitespace in the numeric field.");
 		}
 
-		final String str = new String(bytes, startPos, limitedLen);
+		final String str = new String(bytes, startPos, limitedLen, ConfigConstants.DEFAULT_CHARSET);
 		return Float.parseFloat(str);
 	}
 }

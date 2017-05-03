@@ -19,13 +19,18 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -36,30 +41,49 @@ import static org.mockito.Mockito.mock;
 /**
  * resourceManager HA test, including grant leadership and revoke leadership
  */
-public class ResourceManagerHATest {
+public class ResourceManagerHATest extends TestLogger {
 
 	@Test
 	public void testGrantAndRevokeLeadership() throws Exception {
+		ResourceID rmResourceId = ResourceID.generate();
 		RpcService rpcService = new TestingSerialRpcService();
 
 		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		highAvailabilityServices.setResourceManagerLeaderElectionService(leaderElectionService);
 
-		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.seconds(5L), Time.seconds(5L));
-		SlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
+		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class);
+
+		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.seconds(5L),
+			Time.seconds(5L));
+
+		ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = new ResourceManagerRuntimeServicesConfiguration(
+			Time.seconds(5L),
+			new SlotManagerConfiguration(
+				TestingUtils.infiniteTime(),
+				TestingUtils.infiniteTime(),
+				TestingUtils.infiniteTime()));
+		ResourceManagerRuntimeServices resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
+			resourceManagerRuntimeServicesConfiguration,
+			highAvailabilityServices,
+			rpcService.getScheduledExecutor());
+
 		MetricRegistry metricRegistry = mock(MetricRegistry.class);
-		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(highAvailabilityServices);
+
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		final ResourceManager resourceManager =
 			new StandaloneResourceManager(
 				rpcService,
+				FlinkResourceManager.RESOURCE_MANAGER_NAME,
+				rmResourceId,
 				resourceManagerConfiguration,
 				highAvailabilityServices,
-				slotManagerFactory,
+				heartbeatServices,
+				resourceManagerRuntimeServices.getSlotManager(),
 				metricRegistry,
-				jobLeaderIdService,
+				resourceManagerRuntimeServices.getJobLeaderIdService(),
 				testingFatalErrorHandler);
 		resourceManager.start();
 		// before grant leadership, resourceManager's leaderId is null

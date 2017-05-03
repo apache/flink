@@ -20,7 +20,7 @@
 /**
  * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
  * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
- * additional information regarding copyright ownership. 
+ * additional information regarding copyright ownership.
  */
 
 package org.apache.flink.core.fs.local;
@@ -43,9 +43,17 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.DirectoryNotEmptyException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.StandardCopyOption;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The class <code>LocalFile</code> provides an implementation of the {@link FileSystem} interface
+ * The class {@code LocalFileSystem} is an implementation of the {@link FileSystem} interface
  * for the local file system of the machine where the JVM runs.
  */
 @Internal
@@ -187,7 +195,7 @@ public class LocalFileSystem extends FileSystem {
 
 	/**
 	 * Deletes the given file or directory.
-	 * 
+	 *
 	 * @param f
 	 *        the file to be deleted
 	 * @return <code>true</code> if all files were deleted successfully, <code>false</code> otherwise
@@ -214,12 +222,13 @@ public class LocalFileSystem extends FileSystem {
 
 	/**
 	 * Recursively creates the directory specified by the provided path.
-	 * 
+	 *
 	 * @return <code>true</code>if the directories either already existed or have been created successfully,
 	 *         <code>false</code> otherwise
 	 * @throws IOException
 	 *         thrown if an error occurred while creating the directory/directories
 	 */
+	@Override
 	public boolean mkdirs(final Path f) throws IOException {
 		final File p2f = pathToFile(f);
 
@@ -231,28 +240,27 @@ public class LocalFileSystem extends FileSystem {
 		return (parent == null || mkdirs(parent)) && (p2f.mkdir() || p2f.isDirectory());
 	}
 
-
 	@Override
-	public FSDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize,
-			final short replication, final long blockSize) throws IOException {
+	public FSDataOutputStream create(final Path filePath, final WriteMode overwrite) throws IOException {
+		checkNotNull(filePath, "filePath");
 
-		if (exists(f) && !overwrite) {
-			throw new IOException("File already exists:" + f);
+		if (exists(filePath) && overwrite == WriteMode.NO_OVERWRITE) {
+			throw new FileAlreadyExistsException("File already exists: " + filePath);
 		}
 
-		final Path parent = f.getParent();
+		final Path parent = filePath.getParent();
 		if (parent != null && !mkdirs(parent)) {
-			throw new IOException("Mkdirs failed to create " + parent.toString());
+			throw new IOException("Mkdirs failed to create " + parent);
 		}
 
-		final File file = pathToFile(f);
+		final File file = pathToFile(filePath);
 		return new LocalDataOutputStream(file);
 	}
 
-
 	@Override
-	public FSDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
-		return create(f, overwrite, 0, (short) 0, 0);
+	public FSDataOutputStream create(
+			Path f, boolean overwrite, int bufferSize, short replication, long blockSize) throws IOException {
+		return create(f, overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE);
 	}
 
 
@@ -261,7 +269,20 @@ public class LocalFileSystem extends FileSystem {
 		final File srcFile = pathToFile(src);
 		final File dstFile = pathToFile(dst);
 
-		return srcFile.renameTo(dstFile);
+		final File dstParent = dstFile.getParentFile();
+
+		// Files.move fails if the destination directory doesn't exist
+		//noinspection ResultOfMethodCallIgnored -- we don't care if the directory existed or was created
+		dstParent.mkdirs();
+
+		try {
+			Files.move(srcFile.toPath(), dstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			return true;
+		}
+		catch (NoSuchFileException | AccessDeniedException | DirectoryNotEmptyException | SecurityException ex) {
+			// catch the errors that are regular "move failed" exceptions and return false
+			return false;
+		}
 	}
 
 	@Override

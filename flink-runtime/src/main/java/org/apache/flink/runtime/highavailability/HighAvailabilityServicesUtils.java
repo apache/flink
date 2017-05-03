@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 
 public class HighAvailabilityServicesUtils {
 
@@ -32,8 +34,8 @@ public class HighAvailabilityServicesUtils {
 				return new EmbeddedNonHaServices();
 
 			case ZOOKEEPER:
-				throw new UnsupportedOperationException("ZooKeeper high availability services " +
-						"have not been implemented yet.");
+				return new ZookeeperHaServices(ZooKeeperUtils.startCuratorFramework(config), 
+						Executors.directExecutor(), config);
 
 			default:
 				throw new Exception("High availability mode " + highAvailabilityMode + " is not supported.");
@@ -49,8 +51,8 @@ public class HighAvailabilityServicesUtils {
 				final String resourceManagerAddress = null;
 				return new NonHaServices(resourceManagerAddress);
 			case ZOOKEEPER:
-				throw new UnsupportedOperationException("ZooKeeper high availability services " +
-					"have not been implemented yet.");
+				return new ZookeeperHaServices(ZooKeeperUtils.startCuratorFramework(configuration), 
+						Executors.directExecutor(), configuration);
 			default:
 				throw new Exception("Recovery mode " + highAvailabilityMode + " is not supported.");
 		}

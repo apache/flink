@@ -57,7 +57,16 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThreadExecutable, StartStoppable, SelfGateway {
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaInvocationHandler.class);
 
+	/**
+	 * The Akka (RPC) address of {@link #rpcEndpoint} including host and port of the ActorSystem in
+	 * which the actor is running.
+	 */
 	private final String address;
+
+	/**
+	 * Hostname of the host, {@link #rpcEndpoint} is running on.
+	 */
+	private final String hostname;
 
 	private final ActorRef rpcEndpoint;
 
@@ -74,12 +83,14 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 
 	AkkaInvocationHandler(
 			String address,
+			String hostname,
 			ActorRef rpcEndpoint,
 			Time timeout,
 			long maximumFramesize,
 			Future<Void> terminationFuture) {
 
 		this.address = Preconditions.checkNotNull(address);
+		this.hostname = Preconditions.checkNotNull(hostname);
 		this.rpcEndpoint = Preconditions.checkNotNull(rpcEndpoint);
 		this.isLocal = this.rpcEndpoint.path().address().hasLocalScope();
 		this.timeout = Preconditions.checkNotNull(timeout);
@@ -166,12 +177,13 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 	}
 
 	@Override
-	public void scheduleRunAsync(Runnable runnable, long delay) {
+	public void scheduleRunAsync(Runnable runnable, long delayMillis) {
 		checkNotNull(runnable, "runnable");
-		checkArgument(delay >= 0, "delay must be zero or greater");
-		
+		checkArgument(delayMillis >= 0, "delay must be zero or greater");
+
 		if (isLocal) {
-			rpcEndpoint.tell(new RunAsync(runnable, delay), ActorRef.noSender());
+			long atTimeNanos = delayMillis == 0 ? 0 : System.nanoTime() + (delayMillis * 1_000_000);
+			rpcEndpoint.tell(new RunAsync(runnable, atTimeNanos), ActorRef.noSender());
 		} else {
 			throw new RuntimeException("Trying to send a Runnable to a remote actor at " +
 				rpcEndpoint.path() + ". This is not supported.");
@@ -311,6 +323,11 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 	@Override
 	public String getAddress() {
 		return address;
+	}
+
+	@Override
+	public String getHostname() {
+		return hostname;
 	}
 
 	@Override

@@ -22,17 +22,16 @@ package org.apache.flink.table.sources
   * Adds support for projection push-down to a [[TableSource]].
   * A [[TableSource]] extending this interface is able to project the fields of the return table.
   *
-  * @tparam T The return type of the [[ProjectableTableSource]].
+  * @tparam T The return type of the [[TableSource]].
   */
 trait ProjectableTableSource[T] {
 
   /**
-    * Creates a copy of the [[ProjectableTableSource]] that projects its output on the specified
-    * fields.
+    * Creates a copy of the [[TableSource]] that projects its output on the specified fields.
     *
     * @param fields The indexes of the fields to return.
-    * @return A copy of the [[ProjectableTableSource]] that projects its output.
+    * @return A copy of the [[TableSource]] that projects its output.
     */
-  def projectFields(fields: Array[Int]): ProjectableTableSource[T]
+  def projectFields(fields: Array[Int]): TableSource[T]
 
 }

@@ -28,9 +28,14 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A special {@link StreamTask} that is used for executing feedback edges. This is used in
+ * combination with {@link StreamIterationHead}.
+ */
 @Internal
 public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
@@ -38,8 +43,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 	@Override
 	public void init() throws Exception {
-		super.init();
-		
+
 		final String iterationId = getConfiguration().getIterationId();
 		if (iterationId == null || iterationId.length() == 0) {
 			throw new Exception("Missing iteration ID in the task configuration");
@@ -51,19 +55,22 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 		final long iterationWaitTime = getConfiguration().getIterationWaitTime();
 
 		LOG.info("Iteration tail {} trying to acquire feedback queue under {}", getName(), brokerID);
-		
+
 		@SuppressWarnings("unchecked")
 		BlockingQueue<StreamRecord<IN>> dataChannel =
 				(BlockingQueue<StreamRecord<IN>>) BlockingQueueBroker.INSTANCE.get(brokerID);
-		
+
 		LOG.info("Iteration tail {} acquired feedback queue {}", getName(), brokerID);
-		
+
 		this.headOperator = new RecordPusher<>();
 		this.headOperator.setup(this, getConfiguration(), new IterationTailOutput<>(dataChannel, iterationWaitTime));
+
+		// call super.init() last because that needs this.headOperator to be set up
+		super.init();
 	}
 
 	private static class RecordPusher<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -86,9 +93,9 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 		@SuppressWarnings("NonSerializableFieldInSerializableClass")
 		private final BlockingQueue<StreamRecord<IN>> dataChannel;
-		
+
 		private final long iterationWaitTime;
-		
+
 		private final boolean shouldWait;
 
 		IterationTailOutput(BlockingQueue<StreamRecord<IN>> dataChannel, long iterationWaitTime) {
@@ -117,6 +124,12 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 			} catch (InterruptedException e) {
 				throw new RuntimeException(e);
 			}
+		}
+
+		@Override
+		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+			throw new UnsupportedOperationException("Side outputs not used in iteration tail");
+
 		}
 
 		@Override

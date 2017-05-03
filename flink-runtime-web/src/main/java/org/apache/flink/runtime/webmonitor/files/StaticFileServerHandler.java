@@ -106,7 +106,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	private static final TimeZone GMT_TIMEZONE = TimeZone.getTimeZone("GMT");
 
 	/** Date format for HTTP */
-	private static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
+	public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
 
 	/** Be default, we allow files to be cached for 5 minutes */
 	private static final int HTTP_CACHE_SECONDS = 300;
@@ -296,37 +296,44 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			sendError(ctx, NOT_FOUND);
 			return;
 		}
-		long fileLength = raf.length();
 
-		HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-		setContentTypeHeader(response, file);
+		try {
+			long fileLength = raf.length();
 
-		// since the log and out files are rapidly changing, we don't want to browser to cache them
-		if (!(requestPath.contains("log") || requestPath.contains("out"))) {
-			setDateAndCacheHeaders(response, file);
-		}
-		if (HttpHeaders.isKeepAlive(request)) {
-			response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
-		}
-		HttpHeaders.setContentLength(response, fileLength);
+			HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+			setContentTypeHeader(response, file);
 
-		// write the initial line and the header.
-		ctx.write(response);
+			// since the log and out files are rapidly changing, we don't want to browser to cache them
+			if (!(requestPath.contains("log") || requestPath.contains("out"))) {
+				setDateAndCacheHeaders(response, file);
+			}
+			if (HttpHeaders.isKeepAlive(request)) {
+				response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+			}
+			HttpHeaders.setContentLength(response, fileLength);
 
-		// write the content.
-		ChannelFuture lastContentFuture;
-		if (ctx.pipeline().get(SslHandler.class) == null) {
-			ctx.write(new DefaultFileRegion(raf.getChannel(), 0, fileLength), ctx.newProgressivePromise());
-			lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
-		} else {
-			lastContentFuture = ctx.writeAndFlush(new HttpChunkedInput(new ChunkedFile(raf, 0, fileLength, 8192)),
-				ctx.newProgressivePromise());
-			// HttpChunkedInput will write the end marker (LastHttpContent) for us.
-		}
+			// write the initial line and the header.
+			ctx.write(response);
 
-		// close the connection, if no keep-alive is needed
-		if (!HttpHeaders.isKeepAlive(request)) {
-			lastContentFuture.addListener(ChannelFutureListener.CLOSE);
+			// write the content.
+			ChannelFuture lastContentFuture;
+			if (ctx.pipeline().get(SslHandler.class) == null) {
+				ctx.write(new DefaultFileRegion(raf.getChannel(), 0, fileLength), ctx.newProgressivePromise());
+				lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+			} else {
+				lastContentFuture = ctx.writeAndFlush(new HttpChunkedInput(new ChunkedFile(raf, 0, fileLength, 8192)),
+					ctx.newProgressivePromise());
+				// HttpChunkedInput will write the end marker (LastHttpContent) for us.
+			}
+
+			// close the connection, if no keep-alive is needed
+			if (!HttpHeaders.isKeepAlive(request)) {
+				lastContentFuture.addListener(ChannelFutureListener.CLOSE);
+			}
+		} catch (Exception e) {
+			raf.close();
+			logger.error("Failed to serve file.", e);
+			sendError(ctx, INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -348,7 +355,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 * @param ctx    The channel context to write the response to.
 	 * @param status The response status.
 	 */
-	private static void sendError(ChannelHandlerContext ctx, HttpResponseStatus status) {
+	public static void sendError(ChannelHandlerContext ctx, HttpResponseStatus status) {
 		FullHttpResponse response = new DefaultFullHttpResponse(
 				HTTP_1_1, status, Unpooled.copiedBuffer("Failure: " + status + "\r\n", CharsetUtil.UTF_8));
 		response.headers().set(CONTENT_TYPE, "text/plain; charset=UTF-8");
@@ -363,7 +370,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 *
 	 * @param ctx The channel context to write the response to.
 	 */
-	private static void sendNotModified(ChannelHandlerContext ctx) {
+	public static void sendNotModified(ChannelHandlerContext ctx) {
 		FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, NOT_MODIFIED);
 		setDateHeader(response);
 
@@ -376,7 +383,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 *
 	 * @param response HTTP response
 	 */
-	private static void setDateHeader(FullHttpResponse response) {
+	public static void setDateHeader(FullHttpResponse response) {
 		SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
 		dateFormatter.setTimeZone(GMT_TIMEZONE);
 
@@ -390,7 +397,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 * @param response    The HTTP response object.
 	 * @param fileToCache File to extract the modification timestamp from.
 	 */
-	private static void setDateAndCacheHeaders(HttpResponse response, File fileToCache) {
+	public static void setDateAndCacheHeaders(HttpResponse response, File fileToCache) {
 		SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
 		dateFormatter.setTimeZone(GMT_TIMEZONE);
 
@@ -411,7 +418,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 * @param response HTTP response
 	 * @param file     file to extract content type
 	 */
-	private static void setContentTypeHeader(HttpResponse response, File file) {
+	public static void setContentTypeHeader(HttpResponse response, File file) {
 		String mimeType = MimeTypes.getMimeTypeForFileName(file.getName());
 		String mimeFinal = mimeType != null ? mimeType : MimeTypes.getDefaultMimeType();
 		response.headers().set(CONTENT_TYPE, mimeFinal);

@@ -27,7 +27,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * Interface for stream operators with one input. Use
  * {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator} as a base class if
  * you want to implement a custom operator.
- * 
+ *
  * @param <IN> The input type of the operator
  * @param <OUT> The output type of the operator
  */

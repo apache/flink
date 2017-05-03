@@ -87,3 +87,14 @@ angular.module('flinkApp')
 
 .filter "percentage", ->
   (number) -> (number * 100).toFixed(0) + '%'
+
+.filter "humanizeWatermark", (watermarksConfig) ->
+  (value) ->
+    if isNaN(value) || value <= watermarksConfig.noWatermark
+      return 'No Watermark'
+    else
+      return value
+
+.filter "increment", ->
+  (number) ->
+    parseInt(number) + 1

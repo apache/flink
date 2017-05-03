@@ -55,9 +55,9 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.rocksdb</groupId>
-			<artifactId>rocksdbjni</artifactId>
-			<version>4.11.2</version>
+			<groupId>com.data-artisans</groupId>
+			<artifactId>frocksdbjni</artifactId>
+			<version>4.11.2-artisans</version>
 		</dependency>
 
 		<!-- test dependencies -->

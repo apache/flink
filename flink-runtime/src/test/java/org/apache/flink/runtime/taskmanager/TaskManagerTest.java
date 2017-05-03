@@ -46,6 +46,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -69,6 +70,7 @@ import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskMessages.StopTask;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -91,6 +93,7 @@ import scala.concurrent.duration.FiniteDuration;
 import scala.util.Failure;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
@@ -123,7 +126,7 @@ public class TaskManagerTest extends TestLogger {
 
 	private static ActorSystem system;
 
-	final static UUID leaderSessionID = null;
+	final static UUID leaderSessionID = HighAvailabilityServices.DEFAULT_LEADER_ID;
 
 	@BeforeClass
 	public static void setup() {
@@ -483,7 +486,7 @@ public class TaskManagerTest extends TestLogger {
 							expectMsgEquals(Acknowledge.get());
 
 							tm.tell(new StopTask(eid2), testActorGateway);
-							expectMsgClass(Failure.class);
+							expectMsgClass(Status.Failure.class);
 
 							assertEquals(ExecutionState.RUNNING, t2.getExecutionState());
 
@@ -637,7 +640,7 @@ public class TaskManagerTest extends TestLogger {
 
 				InputGateDeploymentDescriptor ircdd =
 						new InputGateDeploymentDescriptor(
-								new IntermediateDataSetID(),
+								new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
 								0, new InputChannelDeploymentDescriptor[]{
 										new InputChannelDeploymentDescriptor(new ResultPartitionID(partitionId, eid1), ResultPartitionLocation.createLocal())
 								}
@@ -782,7 +785,7 @@ public class TaskManagerTest extends TestLogger {
 
 				InputGateDeploymentDescriptor ircdd =
 						new InputGateDeploymentDescriptor(
-								new IntermediateDataSetID(),
+								new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
 								0, new InputChannelDeploymentDescriptor[]{
 										new InputChannelDeploymentDescriptor(new ResultPartitionID(partitionId, eid1), ResultPartitionLocation.createLocal())
 								}
@@ -936,7 +939,7 @@ public class TaskManagerTest extends TestLogger {
 								new InputChannelDeploymentDescriptor(partitionId, loc)};
 
 				final InputGateDeploymentDescriptor igdd =
-						new InputGateDeploymentDescriptor(resultId, 0, icdd);
+						new InputGateDeploymentDescriptor(resultId, ResultPartitionType.PIPELINED, 0, icdd);
 
 				final TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid, eid,
@@ -976,6 +979,25 @@ public class TaskManagerTest extends TestLogger {
 				TestingUtils.stopActor(jobManager);
 			}
 		}};
+	}
+
+	@Test
+	public void testTaskManagerServicesConfiguration() throws Exception {
+
+		// set some non-default values
+		final Configuration config = new Configuration();
+		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+		config.setInteger(TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL, 10);
+		config.setInteger(TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
+
+		TaskManagerServicesConfiguration tmConfig =
+			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLoopbackAddress(), true);
+
+		assertEquals(tmConfig.getNetworkConfig().partitionRequestInitialBackoff(), 100);
+		assertEquals(tmConfig.getNetworkConfig().partitionRequestMaxBackoff(), 200);
+		assertEquals(tmConfig.getNetworkConfig().networkBuffersPerChannel(), 10);
+		assertEquals(tmConfig.getNetworkConfig().extraNetworkBuffersPerGate(), 100);
 	}
 
 	/**
@@ -1031,7 +1053,7 @@ public class TaskManagerTest extends TestLogger {
 								new InputChannelDeploymentDescriptor(partitionId, loc)};
 
 				final InputGateDeploymentDescriptor igdd =
-						new InputGateDeploymentDescriptor(resultId, 0, icdd);
+						new InputGateDeploymentDescriptor(resultId, ResultPartitionType.PIPELINED, 0, icdd);
 
 				final TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid, eid,
@@ -1144,8 +1166,8 @@ public class TaskManagerTest extends TestLogger {
 
 			// We need this to be a JM that answers to update messages for
 			// robustness on Travis (if jobs need to be resubmitted in (4)).
-			ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator(null)));
-			ActorGateway jobManagerActorGateway = new AkkaActorGateway(jm, null);
+			ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator(leaderSessionID)));
+			ActorGateway jobManagerActorGateway = new AkkaActorGateway(jm, leaderSessionID);
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
 					getTestActor(),
@@ -1227,13 +1249,13 @@ public class TaskManagerTest extends TestLogger {
 
 							// Receive the expected message (heartbeat races possible)
 							Object[] msg = receiveN(1);
-							while (!(msg[0] instanceof Failure)) {
+							while (!(msg[0] instanceof Status.Failure)) {
 								msg = receiveN(1);
 							}
 
-							Failure response = (Failure) msg[0];
+							Status.Failure response = (Status.Failure) msg[0];
 
-							assertEquals(IllegalStateException.class, response.exception().getClass());
+							assertEquals(IllegalStateException.class, response.cause().getClass());
 						} catch (Exception e) {
 							e.printStackTrace();
 							fail(e.getMessage());
@@ -1476,7 +1498,7 @@ public class TaskManagerTest extends TestLogger {
 			// set the memory segment to the smallest size possible, because we have to fill one
 			// memory buffer to trigger the schedule or update consumers message to the downstream
 			// operators
-			configuration.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, 4096);
+			configuration.setInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE, 4096);
 
 			final JobID jid = new JobID();
 			final JobVertexID vid = new JobVertexID();
@@ -1525,7 +1547,234 @@ public class TaskManagerTest extends TestLogger {
 			}
 		}};
 	}
-	
+
+	/**
+	 * Tests that the TaskManager sends a proper exception back to the sender if the submit task
+	 * message fails.
+	 */
+	@Test
+	public void testSubmitTaskFailure() throws Exception {
+		ActorGateway jobManager = null;
+		ActorGateway taskManager = null;
+
+		try {
+
+			ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
+			jobManager = new AkkaActorGateway(jm, leaderSessionID);
+
+			taskManager = TestingUtils.createTaskManager(
+				system,
+				jobManager,
+				new Configuration(),
+				true,
+				true);
+
+			TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(
+				new JobID(),
+				"test job",
+				new JobVertexID(),
+				new ExecutionAttemptID(),
+				new SerializedValue<>(new ExecutionConfig()),
+				"test task",
+				0, // this will make the submission fail because the number of key groups must be >= 1
+				0,
+				1,
+				0,
+				new Configuration(),
+				new Configuration(),
+				"Foobar",
+				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+				Collections.<InputGateDeploymentDescriptor>emptyList(),
+				Collections.<BlobKey>emptyList(),
+				Collections.<URL>emptyList(),
+				0);
+
+			Future<Object> submitResponse = taskManager.ask(new SubmitTask(tdd), timeout);
+
+			try {
+				Await.result(submitResponse, timeout);
+
+				fail("The submit task message should have failed.");
+			} catch (IllegalArgumentException e) {
+				// expected
+			}
+		} finally {
+			TestingUtils.stopActor(jobManager);
+			TestingUtils.stopActor(taskManager);
+		}
+	}
+
+	/**
+	 * Tests that the TaskManager sends a proper exception back to the sender if the stop task
+	 * message fails.
+	 */
+	@Test
+	public void testStopTaskFailure() throws Exception {
+		ActorGateway jobManager = null;
+		ActorGateway taskManager = null;
+
+		try {
+			final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+
+			ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
+			jobManager = new AkkaActorGateway(jm, leaderSessionID);
+
+			taskManager = TestingUtils.createTaskManager(
+				system,
+				jobManager,
+				new Configuration(),
+				true,
+				true);
+
+			TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(
+				new JobID(),
+				"test job",
+				new JobVertexID(),
+				executionAttemptId,
+				new SerializedValue<>(new ExecutionConfig()),
+				"test task",
+				1,
+				0,
+				1,
+				0,
+				new Configuration(),
+				new Configuration(),
+				BlockingNoOpInvokable.class.getName(),
+				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+				Collections.<InputGateDeploymentDescriptor>emptyList(),
+				Collections.<BlobKey>emptyList(),
+				Collections.<URL>emptyList(),
+				0);
+
+			Future<Object> submitResponse = taskManager.ask(new SubmitTask(tdd), timeout);
+
+			Await.result(submitResponse, timeout);
+
+			Future<Object> stopResponse = taskManager.ask(new StopTask(executionAttemptId), timeout);
+
+			try {
+				Await.result(stopResponse, timeout);
+
+				fail("The stop task message should have failed.");
+			} catch (UnsupportedOperationException e) {
+				// expected
+			}
+		} finally {
+			TestingUtils.stopActor(jobManager);
+			TestingUtils.stopActor(taskManager);
+		}
+	}
+
+	/**
+	 * Tests that the TaskManager sends a proper exception back to the sender if the trigger stack
+	 * trace message fails.
+	 */
+	@Test
+	public void testStackTraceSampleFailure() throws Exception {
+		ActorGateway jobManager = null;
+		ActorGateway taskManager = null;
+
+		try {
+
+			ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
+			jobManager = new AkkaActorGateway(jm, leaderSessionID);
+
+			taskManager = TestingUtils.createTaskManager(
+				system,
+				jobManager,
+				new Configuration(),
+				true,
+				true);
+
+			Future<Object> stackTraceResponse = taskManager.ask(
+				new TriggerStackTraceSample(
+					0,
+					new ExecutionAttemptID(),
+					0,
+					Time.milliseconds(1L),
+					0),
+				timeout);
+
+			try {
+				Await.result(stackTraceResponse, timeout);
+
+				fail("The trigger stack trace message should have failed.");
+			} catch (IllegalStateException e) {
+				// expected
+			}
+		} finally {
+			TestingUtils.stopActor(jobManager);
+			TestingUtils.stopActor(taskManager);
+		}
+	}
+
+	/**
+	 * Tests that the TaskManager sends a proper exception back to the sender if the trigger stack
+	 * trace message fails.
+	 */
+	@Test
+	public void testUpdateTaskInputPartitionsFailure() throws Exception {
+		ActorGateway jobManager = null;
+		ActorGateway taskManager = null;
+
+		try {
+
+			final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+
+			ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class, leaderSessionID));
+			jobManager = new AkkaActorGateway(jm, leaderSessionID);
+
+			taskManager = TestingUtils.createTaskManager(
+				system,
+				jobManager,
+				new Configuration(),
+				true,
+				true);
+
+			TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(
+				new JobID(),
+				"test job",
+				new JobVertexID(),
+				executionAttemptId,
+				new SerializedValue<>(new ExecutionConfig()),
+				"test task",
+				1,
+				0,
+				1,
+				0,
+				new Configuration(),
+				new Configuration(),
+				BlockingNoOpInvokable.class.getName(),
+				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+				Collections.<InputGateDeploymentDescriptor>emptyList(),
+				Collections.<BlobKey>emptyList(),
+				Collections.<URL>emptyList(),
+				0);
+
+			Future<Object> submitResponse = taskManager.ask(new SubmitTask(tdd), timeout);
+
+			Await.result(submitResponse, timeout);
+
+			Future<Object> partitionUpdateResponse = taskManager.ask(
+				new TaskMessages.UpdateTaskSinglePartitionInfo(
+					executionAttemptId,
+					new IntermediateDataSetID(),
+					new InputChannelDeploymentDescriptor(new ResultPartitionID(), ResultPartitionLocation.createLocal())),
+				timeout);
+
+			try {
+				Await.result(partitionUpdateResponse, timeout);
+
+				fail("The update task input partitions message should have failed.");
+			} catch (Exception e) {
+				// expected
+			}
+		} finally {
+			TestingUtils.stopActor(jobManager);
+			TestingUtils.stopActor(taskManager);
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	public static class SimpleJobManager extends FlinkUntypedActor {

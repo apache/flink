@@ -49,8 +49,9 @@ public class TaskExecutionState implements Serializable {
 
 	private final SerializedThrowable throwable;
 
-	/** Serialized flink and user-defined accumulators */
+	/** Serialized user-defined accumulators */
 	private final AccumulatorSnapshot accumulators;
+
 	private final IOMetrics ioMetrics;
 
 	/**
@@ -196,7 +197,7 @@ public class TaskExecutionState implements Serializable {
 	
 	@Override
 	public String toString() {
-		return String.format("TaskState jobId=%s, jobID=%s, state=%s, error=%s",
+		return String.format("TaskExecutionState jobId=%s, executionId=%s, state=%s, error=%s",
 				jobID, executionId, executionState,
 				throwable == null ? "(null)" : throwable.toString());
 	}

@@ -80,7 +80,7 @@ public class SlotPoolRpcTest {
 				Time.days(1), Time.days(1),
 				Time.milliseconds(100) // this is the timeout for the request tested here
 		);
-		pool.start(UUID.randomUUID());
+		pool.start(UUID.randomUUID(), "foobar");
 
 		Future<SimpleSlot> future = pool.allocateSlot(mock(ScheduledUnit.class), DEFAULT_TESTING_PROFILE, null);
 

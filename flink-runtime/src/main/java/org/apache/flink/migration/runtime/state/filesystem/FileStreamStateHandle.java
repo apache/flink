@@ -28,8 +28,11 @@ import java.io.Serializable;
 
 /**
  * A state handle that points to state in a file system, accessible as an input stream.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public class FileStreamStateHandle extends AbstractFileStateHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = -6826990484549987311L;

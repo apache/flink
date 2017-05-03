@@ -59,6 +59,21 @@ public class ArchivedExecution implements AccessExecution, Serializable {
 		this.ioMetrics = execution.getIOMetrics();
 	}
 
+	public ArchivedExecution(
+			StringifiedAccumulatorResult[] userAccumulators, IOMetrics ioMetrics,
+			ExecutionAttemptID attemptId, int attemptNumber, ExecutionState state, String failureCause,
+			TaskManagerLocation assignedResourceLocation, int parallelSubtaskIndex, long[] stateTimestamps) {
+		this.userAccumulators = userAccumulators;
+		this.ioMetrics = ioMetrics;
+		this.failureCause = failureCause;
+		this.assignedResourceLocation = assignedResourceLocation;
+		this.attemptNumber = attemptNumber;
+		this.attemptId = attemptId;
+		this.state = state;
+		this.stateTimestamps = stateTimestamps;
+		this.parallelSubtaskIndex = parallelSubtaskIndex;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//   Accessors
 	// --------------------------------------------------------------------------------------------

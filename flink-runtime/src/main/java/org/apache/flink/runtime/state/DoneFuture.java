@@ -30,10 +30,13 @@ import java.util.concurrent.TimeoutException;
  * @param <T> The type of object in this {@code Future}.
  */
 public class DoneFuture<T> implements RunnableFuture<T> {
-	private final T keyGroupsStateHandle;
 
-	public DoneFuture(T keyGroupsStateHandle) {
-		this.keyGroupsStateHandle = keyGroupsStateHandle;
+	private static final DoneFuture<?> NULL_FUTURE = new DoneFuture<Object>(null);
+
+	private final T payload;
+
+	public DoneFuture(T payload) {
+		this.payload = payload;
 	}
 
 	@Override
@@ -53,7 +56,7 @@ public class DoneFuture<T> implements RunnableFuture<T> {
 
 	@Override
 	public T get() throws InterruptedException, ExecutionException {
-		return keyGroupsStateHandle;
+		return payload;
 	}
 
 	@Override
@@ -66,5 +69,10 @@ public class DoneFuture<T> implements RunnableFuture<T> {
 	@Override
 	public void run() {
 
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> DoneFuture<T> nullValue() {
+		return (DoneFuture<T>) NULL_FUTURE;
 	}
 }

@@ -22,16 +22,16 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 
 /**
  * A timestamp assigner that assigns timestamps based on the machine's wall clock.
- * 
+ *
  * <p>If this assigner is used after a stream source, it realizes "ingestion time" semantics.
- * 
+ *
  * @param <T> The elements that get timestamps assigned.
  */
 public class IngestionTimeExtractor<T> implements AssignerWithPeriodicWatermarks<T> {
 	private static final long serialVersionUID = -4072216356049069301L;
-	
+
 	private long maxTimestamp;
-	
+
 	@Override
 	public long extractTimestamp(T element, long previousElementTimestamp) {
 		// make sure timestamps are monotonously increasing, even when the system clock re-syncs

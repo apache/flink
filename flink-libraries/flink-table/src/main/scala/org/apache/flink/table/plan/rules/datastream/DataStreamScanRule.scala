@@ -18,25 +18,24 @@
 
 package org.apache.flink.table.plan.rules.datastream
 
-import org.apache.calcite.plan.{RelOptRuleCall, Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.flink.table.plan.nodes.datastream.DataStreamConvention
+import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamScan
 import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalNativeTableScan
 
 class DataStreamScanRule
   extends ConverterRule(
-    classOf[LogicalTableScan],
-    Convention.NONE,
-    DataStreamConvention.INSTANCE,
+    classOf[FlinkLogicalNativeTableScan],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASTREAM,
     "DataStreamScanRule")
 {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
+    val scan: FlinkLogicalNativeTableScan = call.rel(0).asInstanceOf[FlinkLogicalNativeTableScan]
     val dataSetTable = scan.getTable.unwrap(classOf[DataStreamTable[Any]])
     dataSetTable match {
       case _: DataStreamTable[Any] =>
@@ -47,8 +46,8 @@ class DataStreamScanRule
   }
 
   def convert(rel: RelNode): RelNode = {
-    val scan: LogicalTableScan = rel.asInstanceOf[LogicalTableScan]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
+    val scan: FlinkLogicalNativeTableScan = rel.asInstanceOf[FlinkLogicalNativeTableScan]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASTREAM)
 
     new DataStreamScan(
       rel.getCluster,

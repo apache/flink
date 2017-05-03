@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import com.google.common.collect.Maps;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -34,6 +32,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -47,6 +46,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
@@ -115,6 +115,9 @@ public class SingleInputGate implements InputGate {
 	 */
 	private final IntermediateDataSetID consumedResultId;
 
+	/** The type of the partition the input gate is consuming. */
+	private final ResultPartitionType consumedPartitionType;
+
 	/**
 	 * The index of the consumed subpartition of each consumed partition. This index depends on the
 	 * {@link DistributionPattern} and the subtask indices of the producing and consuming task.
@@ -166,6 +169,7 @@ public class SingleInputGate implements InputGate {
 		String owningTaskName,
 		JobID jobId,
 		IntermediateDataSetID consumedResultId,
+		final ResultPartitionType consumedPartitionType,
 		int consumedSubpartitionIndex,
 		int numberOfInputChannels,
 		TaskActions taskActions,
@@ -175,6 +179,7 @@ public class SingleInputGate implements InputGate {
 		this.jobId = checkNotNull(jobId);
 
 		this.consumedResultId = checkNotNull(consumedResultId);
+		this.consumedPartitionType = checkNotNull(consumedPartitionType);
 
 		checkArgument(consumedSubpartitionIndex >= 0);
 		this.consumedSubpartitionIndex = consumedSubpartitionIndex;
@@ -182,7 +187,7 @@ public class SingleInputGate implements InputGate {
 		checkArgument(numberOfInputChannels > 0);
 		this.numberOfInputChannels = numberOfInputChannels;
 
-		this.inputChannels = Maps.newHashMapWithExpectedSize(numberOfInputChannels);
+		this.inputChannels = new HashMap<>(numberOfInputChannels);
 		this.channelsWithEndOfPartitionEvents = new BitSet(numberOfInputChannels);
 
 		this.taskActions = checkNotNull(taskActions);
@@ -199,6 +204,15 @@ public class SingleInputGate implements InputGate {
 
 	public IntermediateDataSetID getConsumedResultId() {
 		return consumedResultId;
+	}
+
+	/**
+	 * Returns the type of this input channel's consumed result partition.
+	 *
+	 * @return consumed result partition type
+	 */
+	public ResultPartitionType getConsumedPartitionType() {
+		return consumedPartitionType;
 	}
 
 	BufferProvider getBufferProvider() {
@@ -551,7 +565,6 @@ public class SingleInputGate implements InputGate {
 
 	// ------------------------------------------------------------------------
 
-	@VisibleForTesting
 	Map<IntermediateResultPartitionID, InputChannel> getInputChannels() {
 		return inputChannels;
 	}
@@ -571,6 +584,7 @@ public class SingleInputGate implements InputGate {
 		TaskIOMetricGroup metrics) {
 
 		final IntermediateDataSetID consumedResultId = checkNotNull(igdd.getConsumedResultId());
+		final ResultPartitionType consumedPartitionType = checkNotNull(igdd.getConsumedPartitionType());
 
 		final int consumedSubpartitionIndex = igdd.getConsumedSubpartitionIndex();
 		checkArgument(consumedSubpartitionIndex >= 0);
@@ -578,7 +592,7 @@ public class SingleInputGate implements InputGate {
 		final InputChannelDeploymentDescriptor[] icdd = checkNotNull(igdd.getInputChannelDeploymentDescriptors());
 
 		final SingleInputGate inputGate = new SingleInputGate(
-			owningTaskName, jobId, consumedResultId, consumedSubpartitionIndex,
+			owningTaskName, jobId, consumedResultId, consumedPartitionType, consumedSubpartitionIndex,
 			icdd.length, taskActions, metrics);
 
 		// Create the input channels. There is one input channel for each consumed partition.

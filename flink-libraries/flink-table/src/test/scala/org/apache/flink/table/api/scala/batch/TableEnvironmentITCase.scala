@@ -20,6 +20,7 @@ package org.apache.flink.table.api.scala.batch
 
 import java.util
 
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -31,6 +32,7 @@ import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.Assert.assertTrue
 
 import scala.collection.JavaConverters._
 
@@ -254,6 +256,34 @@ class TableEnvironmentITCase(
     CollectionDataSets.get3TupleDataSet(env)
       .toTable(tEnv, 'a as 'foo, 'b, 'c)
   }
+
+  @Test(expected = classOf[TableException])
+  def testGenericRow() {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    // use null value the enforce GenericType
+    val dataSet = env.fromElements(Row.of(null))
+    assertTrue(dataSet.getType().isInstanceOf[GenericTypeInfo[_]])
+    assertTrue(dataSet.getType().getTypeClass == classOf[Row])
+
+    // Must fail. Cannot import DataSet<Row> with GenericTypeInfo.
+    tableEnv.fromDataSet(dataSet)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testGenericRowWithAlias() {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    // use null value the enforce GenericType
+    val dataSet = env.fromElements(Row.of(null))
+    assertTrue(dataSet.getType().isInstanceOf[GenericTypeInfo[_]])
+    assertTrue(dataSet.getType().getTypeClass == classOf[Row])
+
+    // Must fail. Cannot import DataSet<Row> with GenericTypeInfo.
+    tableEnv.fromDataSet(dataSet, "nullField")
+  }
 }
 
 object TableEnvironmentITCase {
@@ -261,8 +291,8 @@ object TableEnvironmentITCase {
   @Parameterized.Parameters(name = "Table config = {0}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(TableProgramsTestBase.DEFAULT),
-      Array(TableProgramsTestBase.EFFICIENT)).asJava
+      Array(TableProgramsTestBase.DEFAULT)
+    ).asJava
   }
 }
 

@@ -28,15 +28,13 @@ import java.util.{Collections, UUID}
 import _root_.akka.actor._
 import _root_.akka.pattern.ask
 import _root_.akka.util.Timeout
-
 import grizzled.slf4j.Logger
-
 import org.apache.commons.lang3.exception.ExceptionUtils
-
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
-import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.akka.{AkkaUtils, DefaultQuarantineHandler, QuarantineMonitor}
 import org.apache.flink.runtime.blob.{BlobCache, BlobClient, BlobService}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
@@ -66,16 +64,14 @@ import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
-import org.apache.flink.runtime.taskexecutor.{TaskManagerServices, TaskManagerServicesConfiguration, TaskManagerConfiguration}
+import org.apache.flink.runtime.taskexecutor.{TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
-import org.apache.flink.util.NetUtils
 
 import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
 
 /**
  * The TaskManager is responsible for executing the individual tasks of a Flink job. It is
@@ -423,7 +419,7 @@ class TaskManager(
               futureResponse.mapTo[Boolean].onComplete {
                 // IMPORTANT: In the future callback, we cannot directly modify state
                 //            but only send messages to the TaskManager to do those changes
-                case Success(result) =>
+                case scala.util.Success(result) =>
                   if (!result) {
                   self ! decorateMessage(
                     FailTask(
@@ -432,7 +428,7 @@ class TaskManager(
                     )
                   }
 
-                case Failure(t) =>
+                case scala.util.Failure(t) =>
                 self ! decorateMessage(
                   FailTask(
                     executionID,
@@ -470,7 +466,7 @@ class TaskManager(
               sender ! decorateMessage(Acknowledge.get())
             } catch {
               case t: Throwable =>
-                sender ! decorateMessage(Failure(t))
+                sender ! decorateMessage(Status.Failure(t))
             }
           } else {
             log.debug(s"Cannot find task to stop for execution ${executionID})")
@@ -503,12 +499,13 @@ class TaskManager(
         val taskExecutionId = message.getTaskExecutionId
         val checkpointId = message.getCheckpointId
         val timestamp = message.getTimestamp
+        val checkpointOptions = message.getCheckpointOptions
 
         log.debug(s"Receiver TriggerCheckpoint $checkpointId@$timestamp for $taskExecutionId.")
 
         val task = runningTasks.get(taskExecutionId)
         if (task != null) {
-          task.triggerCheckpointBarrier(checkpointId, timestamp)
+          task.triggerCheckpointBarrier(checkpointId, timestamp, checkpointOptions)
         } else {
           log.debug(s"TaskManager received a checkpoint request for unknown task $taskExecutionId.")
         }
@@ -762,8 +759,6 @@ class TaskManager(
                   // ---- Done ----
                   log.debug(s"Done with stack trace sample $sampleId.")
 
-
-
                   sender ! new StackTraceSampleResponse(sampleId, executionId, currentTraces)
                 }
 
@@ -781,7 +776,7 @@ class TaskManager(
           }
         } catch {
           case e: Exception =>
-            sender ! Failure(e)
+            sender ! decorateMessage(Status.Failure(e))
         }
 
       case _ => unhandled(message)
@@ -841,10 +836,10 @@ class TaskManager(
             client.put(fis);
           }(context.dispatcher)
             .onComplete {
-              case Success(value) =>
+              case scala.util.Success(value) =>
                 sender ! value
                 fis.close()
-              case Failure(e) =>
+              case scala.util.Failure(e) =>
                 sender ! akka.actor.Status.Failure(e)
                 fis.close()
             }(context.dispatcher)
@@ -1209,7 +1204,7 @@ class TaskManager(
     catch {
       case t: Throwable =>
         log.error("SubmitTask failed", t)
-        sender ! decorateMessage(Failure(t))
+        sender ! decorateMessage(Status.Failure(t))
     }
   }
 
@@ -1263,7 +1258,7 @@ class TaskManager(
         if (errors.isEmpty) {
           sender ! decorateMessage(Acknowledge.get())
         } else {
-          sender ! decorateMessage(Failure(new Exception(errors.mkString("\n"))))
+          sender ! decorateMessage(Status.Failure(new Exception(errors.mkString("\n"))))
         }
 
       case None =>
@@ -1437,7 +1432,10 @@ class TaskManager(
     this.jobManagerAkkaURL = Option(newJobManagerAkkaURL)
     this.leaderSessionID = Option(leaderSessionID)
 
-    triggerTaskManagerRegistration()
+    if (this.leaderSessionID.isDefined) {
+      // only trigger the registration if we have obtained a valid leader id (!= null)
+      triggerTaskManagerRegistration()
+    }
   }
 
   /** Starts the TaskManager's registration process to connect to the JobManager.
@@ -1793,6 +1791,18 @@ object TaskManager {
       taskManagerSystem.actorOf(
         Props(classOf[ProcessReaper], taskManager, LOG.logger, RUNTIME_FAILURE_RETURN_CODE),
         "TaskManager_Process_Reaper")
+
+      if (configuration.getBoolean(TaskManagerOptions.EXIT_ON_FATAL_AKKA_ERROR)) {
+        val quarantineHandler = new DefaultQuarantineHandler(
+          Time.milliseconds(AkkaUtils.getTimeout(configuration).toMillis),
+          RUNTIME_FAILURE_RETURN_CODE,
+          LOG.logger)
+
+        LOG.debug("Starting TaskManager quarantine monitor")
+        taskManagerSystem.actorOf(
+          Props(classOf[QuarantineMonitor], quarantineHandler, LOG.logger)
+        )
+      }
 
       // if desired, start the logging daemon that periodically logs the
       // memory usage information

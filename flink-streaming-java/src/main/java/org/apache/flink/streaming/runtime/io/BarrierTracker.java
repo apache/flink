@@ -18,29 +18,29 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import java.util.ArrayDeque;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayDeque;
 
 /**
  * The BarrierTracker keeps track of what checkpoint barriers have been received from
  * which input channels. Once it has observed all checkpoint barriers for a checkpoint ID,
  * it notifies its listener of a completed checkpoint.
- * 
+ *
  * <p>Unlike the {@link BarrierBuffer}, the BarrierTracker does not block the input
  * channels that have sent barriers, so it cannot be used to gain "exactly-once" processing
  * guarantees. It can, however, be used to gain "at least once" processing guarantees.
- * 
+ *
  * <p>NOTE: This implementation strictly assumes that newer checkpoints have higher checkpoint IDs.
  */
 @Internal
@@ -48,31 +48,37 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BarrierTracker.class);
 
-	/** The tracker tracks a maximum number of checkpoints, for which some, but not all
-	 * barriers have yet arrived. */
+	/**
+	 * The tracker tracks a maximum number of checkpoints, for which some, but not all barriers
+	 * have yet arrived.
+	 */
 	private static final int MAX_CHECKPOINTS_TO_TRACK = 50;
 
 	// ------------------------------------------------------------------------
 
-	/** The input gate, to draw the buffers and events from */
+	/** The input gate, to draw the buffers and events from. */
 	private final InputGate inputGate;
-	
-	/** The number of channels. Once that many barriers have been received for a checkpoint,
-	 * the checkpoint is considered complete. */
+
+	/**
+	 * The number of channels. Once that many barriers have been received for a checkpoint, the
+	 * checkpoint is considered complete.
+	 */
 	private final int totalNumberOfInputChannels;
 
-	/** All checkpoints for which some (but not all) barriers have been received,
-	 * and that are not yet known to be subsumed by newer checkpoints */
+	/**
+	 * All checkpoints for which some (but not all) barriers have been received, and that are not
+	 * yet known to be subsumed by newer checkpoints.
+	 */
 	private final ArrayDeque<CheckpointBarrierCount> pendingCheckpoints;
-	
-	/** The listener to be notified on complete checkpoints */
+
+	/** The listener to be notified on complete checkpoints. */
 	private StatefulTask toNotifyOnCheckpoint;
-	
-	/** The highest checkpoint ID encountered so far */
+
+	/** The highest checkpoint ID encountered so far. */
 	private long latestPendingCheckpointID = -1;
 
 	// ------------------------------------------------------------------------
-	
+
 	public BarrierTracker(InputGate inputGate) {
 		this.inputGate = inputGate;
 		this.totalNumberOfInputChannels = inputGate.getNumberOfInputChannels();
@@ -131,7 +137,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 
 		// fast path for single channel trackers
 		if (totalNumberOfInputChannels == 1) {
-			notifyCheckpoint(barrierId, receivedBarrier.getTimestamp());
+			notifyCheckpoint(barrierId, receivedBarrier.getTimestamp(), receivedBarrier.getCheckpointOptions());
 			return;
 		}
 
@@ -169,7 +175,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 						LOG.debug("Received all barriers for checkpoint {}", barrierId);
 					}
 
-					notifyCheckpoint(receivedBarrier.getId(), receivedBarrier.getTimestamp());
+					notifyCheckpoint(receivedBarrier.getId(), receivedBarrier.getTimestamp(), receivedBarrier.getCheckpointOptions());
 				}
 			}
 		}
@@ -181,7 +187,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 			if (barrierId > latestPendingCheckpointID) {
 				latestPendingCheckpointID = barrierId;
 				pendingCheckpoints.addLast(new CheckpointBarrierCount(barrierId));
-				
+
 				// make sure we do not track too many checkpoints
 				if (pendingCheckpoints.size() > MAX_CHECKPOINTS_TO_TRACK) {
 					pendingCheckpoints.pollFirst();
@@ -247,15 +253,14 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 		}
 	}
 
-	private void notifyCheckpoint(long checkpointId, long timestamp) throws Exception {
+	private void notifyCheckpoint(long checkpointId, long timestamp, CheckpointOptions checkpointOptions) throws Exception {
 		if (toNotifyOnCheckpoint != null) {
 			CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
+			CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
+				.setBytesBufferedInAlignment(0L)
+				.setAlignmentDurationNanos(0L);
 
-			checkpointMetaData
-					.setBytesBufferedInAlignment(0L)
-					.setAlignmentDurationNanos(0L);
-
-			toNotifyOnCheckpoint.triggerCheckpointOnBarrier(checkpointMetaData);
+			toNotifyOnCheckpoint.triggerCheckpointOnBarrier(checkpointMetaData, checkpointOptions, checkpointMetrics);
 		}
 	}
 

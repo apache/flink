@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -91,7 +92,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 	}
 
 	enum StateBackendEnum {
-		MEM, FILE, ROCKSDB_FULLY_ASYNC
+		MEM, FILE, ROCKSDB_FULLY_ASYNC, MEM_ASYNC, FILE_ASYNC
 	}
 
 	@BeforeClass
@@ -99,7 +100,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM / 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 48);
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 48L);
 
 		cluster = new LocalFlinkMiniCluster(config, false);
 		cluster.start();
@@ -116,11 +117,19 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 	public void initStateBackend() throws IOException {
 		switch (stateBackendEnum) {
 			case MEM:
-				this.stateBackend = new MemoryStateBackend(MAX_MEM_STATE_SIZE);
+				this.stateBackend = new MemoryStateBackend(MAX_MEM_STATE_SIZE, false);
 				break;
 			case FILE: {
 				String backups = tempFolder.newFolder().getAbsolutePath();
-				this.stateBackend = new FsStateBackend("file://" + backups);
+				this.stateBackend = new FsStateBackend("file://" + backups, false);
+				break;
+			}
+			case MEM_ASYNC:
+				this.stateBackend = new MemoryStateBackend(MAX_MEM_STATE_SIZE, true);
+				break;
+			case FILE_ASYNC: {
+				String backups = tempFolder.newFolder().getAbsolutePath();
+				this.stateBackend = new FsStateBackend("file://" + backups, true);
 				break;
 			}
 			case ROCKSDB_FULLY_ASYNC: {
@@ -138,9 +147,9 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 	@Test
 	public void testTumblingTimeWindow() {
-		final int NUM_ELEMENTS_PER_KEY = 3000;
-		final int WINDOW_SIZE = 100;
-		final int NUM_KEYS = 100;
+		final int NUM_ELEMENTS_PER_KEY = numElementsPerKey();
+		final int WINDOW_SIZE = windowSize();
+		final int NUM_KEYS = numKeys();
 		FailingSource.reset();
 		
 		try {
@@ -211,9 +220,9 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 	}
 
 	public void doTestTumblingTimeWindowWithKVState(int maxParallelism) {
-		final int NUM_ELEMENTS_PER_KEY = 3000;
-		final int WINDOW_SIZE = 100;
-		final int NUM_KEYS = 100;
+		final int NUM_ELEMENTS_PER_KEY = numElementsPerKey();
+		final int WINDOW_SIZE = windowSize();
+		final int NUM_KEYS = numKeys();
 		FailingSource.reset();
 
 		try {
@@ -280,10 +289,10 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 	@Test
 	public void testSlidingTimeWindow() {
-		final int NUM_ELEMENTS_PER_KEY = 3000;
-		final int WINDOW_SIZE = 1000;
-		final int WINDOW_SLIDE = 100;
-		final int NUM_KEYS = 100;
+		final int NUM_ELEMENTS_PER_KEY = numElementsPerKey();
+		final int WINDOW_SIZE = windowSize();
+		final int WINDOW_SLIDE = windowSlide();
+		final int NUM_KEYS = numKeys();
 		FailingSource.reset();
 
 		try {
@@ -346,9 +355,9 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 	@Test
 	public void testPreAggregatedTumblingTimeWindow() {
-		final int NUM_ELEMENTS_PER_KEY = 3000;
-		final int WINDOW_SIZE = 100;
-		final int NUM_KEYS = 100;
+		final int NUM_ELEMENTS_PER_KEY = numElementsPerKey();
+		final int WINDOW_SIZE = windowSize();
+		final int NUM_KEYS = numKeys();
 		FailingSource.reset();
 
 		try {
@@ -418,10 +427,10 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 	@Test
 	public void testPreAggregatedSlidingTimeWindow() {
-		final int NUM_ELEMENTS_PER_KEY = 3000;
-		final int WINDOW_SIZE = 1000;
-		final int WINDOW_SLIDE = 100;
-		final int NUM_KEYS = 100;
+		final int NUM_ELEMENTS_PER_KEY = numElementsPerKey();
+		final int WINDOW_SIZE = windowSize();
+		final int WINDOW_SLIDE = windowSlide();
+		final int NUM_KEYS = numKeys();
 		FailingSource.reset();
 
 		try {
@@ -789,5 +798,21 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		public IntType() {}
 
 		public IntType(int value) { this.value = value; }
+	}
+
+	protected int numElementsPerKey() {
+		return 300;
+	}
+
+	protected int windowSize() {
+		return 100;
+	}
+
+	protected int windowSlide() {
+		return 100;
+	}
+
+	protected int numKeys() {
+		return 20;
 	}
 }

@@ -35,11 +35,9 @@ import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotAndLocality;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
-import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestRegistered;
-import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestRejected;
-import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -129,6 +127,8 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 	/** The gateway to communicate with resource manager */
 	private ResourceManagerGateway resourceManagerGateway;
 
+	private String jobManagerAddress;
+
 	// ------------------------------------------------------------------------
 
 	public SlotPool(RpcService rpcService, JobID jobId) {
@@ -172,10 +172,12 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 	/**
 	 * Start the slot pool to accept RPC calls.
 	 *
-	 * @param jobManagerLeaderId The necessary leader id for running the job.
+	 * @param newJobManagerLeaderId The necessary leader id for running the job.
+	 * @param newJobManagerAddress for the slot requests which are sent to the resource manager
 	 */
-	public void start(UUID jobManagerLeaderId) throws Exception {
-		this.jobManagerLeaderId = jobManagerLeaderId;
+	public void start(UUID newJobManagerLeaderId, String newJobManagerAddress) throws Exception {
+		this.jobManagerLeaderId = checkNotNull(newJobManagerLeaderId);
+		this.jobManagerAddress = checkNotNull(newJobManagerAddress);
 
 		// TODO - start should not throw an exception
 		try {
@@ -315,38 +317,20 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 		pendingRequests.put(allocationID, new PendingRequest(allocationID, future, resources));
 
-		Future<RMSlotRequestReply> rmResponse = resourceManagerGateway.requestSlot(
+		Future<Acknowledge> rmResponse = resourceManagerGateway.requestSlot(
 				jobManagerLeaderId, resourceManagerLeaderId,
-				new SlotRequest(jobId, allocationID, resources),
+				new SlotRequest(jobId, allocationID, resources, jobManagerAddress),
 				resourceManagerRequestsTimeout);
 
-		// on success, trigger let the slot pool know
-		rmResponse.thenAcceptAsync(new AcceptFunction<RMSlotRequestReply>() {
+		Future<Void> slotRequestProcessingFuture = rmResponse.thenAcceptAsync(new AcceptFunction<Acknowledge>() {
 			@Override
-			public void accept(RMSlotRequestReply reply) {
-				if (reply.getAllocationID() != null && reply.getAllocationID().equals(allocationID)) {
-					if (reply instanceof RMSlotRequestRegistered) {
-						slotRequestToResourceManagerSuccess(allocationID);
-					}
-					else if (reply instanceof RMSlotRequestRejected) {
-						slotRequestToResourceManagerFailed(allocationID,
-								new Exception("ResourceManager rejected slot request"));
-					}
-					else {
-						slotRequestToResourceManagerFailed(allocationID, 
-								new Exception("Unknown ResourceManager response: " + reply));
-					}
-				}
-				else {
-					future.completeExceptionally(new Exception(String.format(
-							"Bug: ResourceManager response had wrong AllocationID. Request: %s , Response: %s", 
-							allocationID, reply.getAllocationID())));
-				}
+			public void accept(Acknowledge value) {
+				slotRequestToResourceManagerSuccess(allocationID);
 			}
 		}, getMainThreadExecutor());
 
 		// on failure, fail the request future
-		rmResponse.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
+		slotRequestProcessingFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
 
 			@Override
 			public Void apply(Throwable failure) {
@@ -372,6 +356,10 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 		if (request != null) {
 			request.future().completeExceptionally(new NoResourceAvailableException(
 					"No pooled slot available and request to ResourceManager for new slot failed", failure));
+		} else {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Unregistered slot request {} failed.", allocationID, failure);
+			}
 		}
 	}
 
@@ -436,7 +424,9 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 					LOG.debug("Fulfilling pending request [{}] early with returned slot [{}]",
 							pendingRequest.allocationID(), taskManagerSlot.getSlotAllocationId());
 
-					pendingRequest.future().complete(createSimpleSlot(taskManagerSlot, Locality.UNKNOWN));
+					SimpleSlot newSlot = createSimpleSlot(taskManagerSlot, Locality.UNKNOWN);
+					allocatedSlots.add(newSlot);
+					pendingRequest.future().complete(newSlot);
 				}
 				else {
 					LOG.debug("Adding returned slot [{}] to available slots", taskManagerSlot.getSlotAllocationId());
@@ -624,6 +614,15 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 			result.setLocality(locality);
 		}
 		return result;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Methods for tests
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	AllocatedSlots getAllocatedSlots() {
+		return allocatedSlots;
 	}
 
 	// ------------------------------------------------------------------------
@@ -1037,9 +1036,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 		private final long timestamp;
 
-		SlotAndTimestamp(
-				AllocatedSlot slot,
-				long timestamp) {
+		SlotAndTimestamp(AllocatedSlot slot, long timestamp) {
 			this.slot = slot;
 			this.timestamp = timestamp;
 		}
@@ -1050,6 +1047,11 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 		public long timestamp() {
 			return timestamp;
+		}
+
+		@Override
+		public String toString() {
+			return slot + " @ " + timestamp;
 		}
 	}
 }

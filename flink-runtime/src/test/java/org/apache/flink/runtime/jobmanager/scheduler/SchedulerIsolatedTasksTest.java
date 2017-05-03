@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.areAllDistinct;
@@ -133,11 +134,11 @@ public class SchedulerIsolatedTasksTest {
 			assertTrue(areAllDistinct(s1, s2, s3, s4, s5));
 			
 			try {
-				scheduler.allocateSlot(new ScheduledUnit(getDummyTask()), false);
+				scheduler.allocateSlot(new ScheduledUnit(getDummyTask()), false).get();
 				fail("Scheduler accepted scheduling request without available resource.");
 			}
-			catch (NoResourceAvailableException e) {
-				// pass!
+			catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
 			}
 			
 			// release some slots again
@@ -313,8 +314,8 @@ public class SchedulerIsolatedTasksTest {
 				scheduler.allocateSlot(new ScheduledUnit(getDummyTask()), false).get();
 				fail("Scheduler served a slot from a dead instance");
 			}
-			catch (NoResourceAvailableException e) {
-				// fine
+			catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
 			}
 			catch (Exception e) {
 				fail("Wrong exception type.");

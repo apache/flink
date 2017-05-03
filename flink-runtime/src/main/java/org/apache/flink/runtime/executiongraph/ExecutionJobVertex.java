@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.Archiveable;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -30,20 +31,23 @@ import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.JobManagerOptions;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -65,6 +69,24 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	private final ExecutionGraph graph;
 	
 	private final JobVertex jobVertex;
+
+	/**
+	 * The IDs of all operators contained in this execution job vertex.
+	 *
+	 * The ID's are stored depth-first post-order; for the forking chain below the ID's would be stored as [D, E, B, C, A].
+	 *  A - B - D
+	 *   \    \
+	 *    C    E
+	 * This is the same order that operators are stored in the {@code StreamTask}.
+	 */
+	private final List<OperatorID> operatorIDs;
+
+	/**
+	 * The alternative IDs of all operators contained in this execution job vertex.
+	 *
+	 * The ID's are in the same order as {@link ExecutionJobVertex#operatorIDs}.
+	 */
+	private final List<OperatorID> userDefinedOperatorIds;
 	
 	private final ExecutionVertex[] taskVertices;
 
@@ -136,6 +158,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		this.serializedTaskInformation = null;
 
 		this.taskVertices = new ExecutionVertex[numTaskVertices];
+		this.operatorIDs = Collections.unmodifiableList(jobVertex.getOperatorIDs());
+		this.userDefinedOperatorIds = Collections.unmodifiableList(jobVertex.getUserDefinedOperatorIDs());
 		
 		this.inputs = new ArrayList<>(jobVertex.getInputs().size());
 		
@@ -211,6 +235,24 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		finishedSubtasks = new boolean[parallelism];
 	}
 
+	/**
+	 * Returns a list containing the IDs of all operators contained in this execution job vertex.
+	 *
+	 * @return list containing the IDs of all contained operators
+	 */
+	public List<OperatorID> getOperatorIDs() {
+		return operatorIDs;
+	}
+
+	/**
+	 * Returns a list containing the alternative IDs of all operators contained in this execution job vertex.
+	 *
+	 * @return list containing alternative the IDs of all contained operators
+	 */
+	public List<OperatorID> getUserDefinedOperatorIDs() {
+		return userDefinedOperatorIds;
+	}
+
 	public void setMaxParallelism(int maxParallelismDerived) {
 
 		Preconditions.checkState(!maxParallelismConfigured,
@@ -221,10 +263,14 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	}
 
 	private void setMaxParallelismInternal(int maxParallelism) {
+		if (maxParallelism == ExecutionConfig.PARALLELISM_AUTO_MAX) {
+			maxParallelism = KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
+		}
+
 		Preconditions.checkArgument(maxParallelism > 0
 						&& maxParallelism <= KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
-				"Overriding max parallelism is not in valid bounds (1.." +
-						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM + "), found:" + maxParallelism);
+				"Overriding max parallelism is not in valid bounds (1..%s), found: %s",
+				KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM, maxParallelism);
 
 		this.maxParallelism = maxParallelism;
 	}
@@ -386,14 +432,56 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	//  Actions
 	//---------------------------------------------------------------------------------------------
 	
-	public void scheduleAll(SlotProvider slotProvider, boolean queued) throws NoResourceAvailableException {
+	public void scheduleAll(SlotProvider slotProvider, boolean queued) {
 		
-		ExecutionVertex[] vertices = this.taskVertices;
+		final ExecutionVertex[] vertices = this.taskVertices;
 
 		// kick off the tasks
 		for (ExecutionVertex ev : vertices) {
 			ev.scheduleForExecution(slotProvider, queued);
 		}
+	}
+
+	/**
+	 * Acquires a slot for all the execution vertices of this ExecutionJobVertex. The method returns
+	 * pairs of the slots and execution attempts, to ease correlation between vertices and execution
+	 * attempts.
+	 * 
+	 * <p>If this method throws an exception, it makes sure to release all so far requested slots.
+	 * 
+	 * @param resourceProvider The resource provider from whom the slots are requested.
+	 */
+	public ExecutionAndSlot[] allocateResourcesForAll(SlotProvider resourceProvider, boolean queued) {
+		final ExecutionVertex[] vertices = this.taskVertices;
+		final ExecutionAndSlot[] slots = new ExecutionAndSlot[vertices.length];
+
+		// try to acquire a slot future for each execution.
+		// we store the execution with the future just to be on the safe side
+		for (int i = 0; i < vertices.length; i++) {
+
+			// we use this flag to handle failures in a 'finally' clause
+			// that allows us to not go through clumsy cast-and-rethrow logic
+			boolean successful = false;
+
+			try {
+				// allocate the next slot (future)
+				final Execution exec = vertices[i].getCurrentExecutionAttempt();
+				final Future<SimpleSlot> future = exec.allocateSlotForExecution(resourceProvider, queued);
+				slots[i] = new ExecutionAndSlot(exec, future);
+				successful = true;
+			}
+			finally {
+				if (!successful) {
+					// this is the case if an exception was thrown
+					for (int k = 0; k < i; k++) {
+						ExecutionGraphUtils.releaseSlotFuture(slots[k].slotFuture);
+					}
+				}
+			}
+		}
+
+		// all good, we acquired all slots
+		return slots;
 	}
 
 	public void cancel() {
@@ -674,6 +762,30 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 						ExecutionJobVertex old = expanded.put(jobVertexID, executionJobVertex);
 						Preconditions.checkState(null == old || old.equals(executionJobVertex),
 								"Ambiguous jobvertex id detected during expansion to legacy ids.");
+					}
+				}
+			}
+		}
+
+		return expanded;
+	}
+
+	public static Map<OperatorID, ExecutionJobVertex> includeAlternativeOperatorIDs(
+			Map<OperatorID, ExecutionJobVertex> operatorMapping) {
+
+		Map<OperatorID, ExecutionJobVertex> expanded = new HashMap<>(2 * operatorMapping.size());
+		// first include all existing ids
+		expanded.putAll(operatorMapping);
+
+		// now expand and add user-defined ids
+		for (ExecutionJobVertex executionJobVertex : operatorMapping.values()) {
+			if (executionJobVertex != null) {
+				JobVertex jobVertex = executionJobVertex.getJobVertex();
+				if (jobVertex != null) {
+					for (OperatorID operatorID : jobVertex.getUserDefinedOperatorIDs()) {
+						if (operatorID != null) {
+							expanded.put(operatorID, executionJobVertex);
+						}
 					}
 				}
 			}

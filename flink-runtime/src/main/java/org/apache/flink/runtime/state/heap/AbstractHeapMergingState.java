@@ -22,18 +22,15 @@ import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
 
 import java.util.Collection;
-import java.util.Map;
-
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Base class for {@link MergingState} ({@link org.apache.flink.runtime.state.internal.InternalMergingState})
  * that is stored on the heap.
- * 
+ *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <SV> The type of the values in the state.
@@ -45,21 +42,25 @@ public abstract class AbstractHeapMergingState<K, N, IN, OUT, SV, S extends Stat
 		implements InternalMergingState<N, IN, OUT> {
 
 	/**
+	 * The merge transformation function that implements the merge logic.
+	 */
+	private final MergeTransformation mergeTransformation;
+
+	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param backend The state backend backing that created this state.
 	 * @param stateDesc The state identifier for the state. This contains name
 	 *                           and can create a default state value.
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
 	protected AbstractHeapMergingState(
-			KeyedStateBackend<K> backend,
 			SD stateDesc,
 			StateTable<K, N, SV> stateTable,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 
-		super(backend, stateDesc, stateTable, keySerializer, namespaceSerializer);
+		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		this.mergeTransformation = new MergeTransformation();
 	}
 
 	@Override
@@ -68,56 +69,40 @@ public abstract class AbstractHeapMergingState<K, N, IN, OUT, SV, S extends Stat
 			return; // nothing to do
 		}
 
-		final K key = backend.getCurrentKey();
-		checkState(key != null, "No key set.");
+		final StateTable<K, N, SV> map = stateTable;
 
-		final Map<N, Map<K, SV>> namespaceMap = stateTable.get(backend.getCurrentKeyGroupIndex());
+		SV merged = null;
 
-		if (namespaceMap != null) {
-			SV merged = null;
+		// merge the sources
+		for (N source : sources) {
 
-			// merge the sources
-			for (N source : sources) {
-				Map<K, SV> keysForNamespace = namespaceMap.get(source);
-				if (keysForNamespace != null) {
-					// get and remove the next source per namespace/key
-					SV sourceState = keysForNamespace.remove(key);
+			// get and remove the next source per namespace/key
+			SV sourceState = map.removeAndGetOld(source);
 
-					// if the namespace map became empty, remove 
-					if (keysForNamespace.isEmpty()) {
-						namespaceMap.remove(source);
-					}
-
-					if (merged != null && sourceState != null) {
-						merged = mergeState(merged, sourceState);
-					}
-					else if (merged == null) {
-						merged = sourceState;
-					}
-				}
-			}
-
-			// merge into the target, if needed
-			if (merged != null) {
-				Map<K, SV> keysForTarget = namespaceMap.get(target);
-				if (keysForTarget == null) {
-					keysForTarget = createNewMap();
-					namespaceMap.put(target, keysForTarget);
-				}
-				SV targetState = keysForTarget.get(key);
-
-				if (targetState != null) {
-					targetState = mergeState(targetState, merged);
-				}
-				else {
-					targetState = merged;
-				}
-				keysForTarget.put(key, targetState);
+			if (merged != null && sourceState != null) {
+				merged = mergeState(merged, sourceState);
+			} else if (merged == null) {
+				merged = sourceState;
 			}
 		}
 
-		// else no entries for that key at all, nothing to do skip
+		// merge into the target, if needed
+		if (merged != null) {
+			map.transform(target, merged, mergeTransformation);
+		}
 	}
 
 	protected abstract SV mergeState(SV a, SV b) throws Exception;
+
+	final class MergeTransformation implements StateTransformationFunction<SV, SV> {
+
+		@Override
+		public SV apply(SV targetState, SV merged) throws Exception {
+			if (targetState != null) {
+				return mergeState(targetState, merged);
+			} else {
+				return merged;
+			}
+		}
+	}
 }

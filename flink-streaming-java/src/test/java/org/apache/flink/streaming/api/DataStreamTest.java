@@ -17,16 +17,27 @@
 
 package org.apache.flink.streaming.api;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
@@ -46,8 +57,9 @@ import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
@@ -62,7 +74,11 @@ import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.Collector;
 
+import org.hamcrest.core.StringStartsWith;
+import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import static org.junit.Assert.*;
 
@@ -236,9 +252,9 @@ public class DataStreamTest {
 
 					@Override
 					public void flatMap2(Long value, Collector<Long> out) throws Exception {}
-					
+
 				}).name("testCoFlatMap")
-				
+
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(10)))
 				.fold(0L, new FoldFunction<Long, Long>() {
@@ -501,6 +517,111 @@ public class DataStreamTest {
 		assertEquals(4, env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getParallelism());
 	}
 
+	/**
+	 * Tests whether resources get set.
+	 */
+	@Test
+	public void testResources() throws Exception{
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		ResourceSpec minResource1 = new ResourceSpec(1.0, 100);
+		ResourceSpec preferredResource1 = new ResourceSpec(2.0, 200);
+
+		ResourceSpec minResource2 = new ResourceSpec(1.0, 200);
+		ResourceSpec preferredResource2 = new ResourceSpec(2.0, 300);
+
+		ResourceSpec minResource3 = new ResourceSpec(1.0, 300);
+		ResourceSpec preferredResource3 = new ResourceSpec(2.0, 400);
+
+		ResourceSpec minResource4 = new ResourceSpec(1.0, 400);
+		ResourceSpec preferredResource4 = new ResourceSpec(2.0, 500);
+
+		ResourceSpec minResource5 = new ResourceSpec(1.0, 500);
+		ResourceSpec preferredResource5 = new ResourceSpec(2.0, 600);
+
+		ResourceSpec minResource6 = new ResourceSpec(1.0, 600);
+		ResourceSpec preferredResource6 = new ResourceSpec(2.0, 700);
+
+		ResourceSpec minResource7 = new ResourceSpec(1.0, 700);
+		ResourceSpec preferredResource7 = new ResourceSpec(2.0, 800);
+
+		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class, ResourceSpec.class);
+		opMethod.setAccessible(true);
+
+		Method sinkMethod = DataStreamSink.class.getDeclaredMethod("setResources", ResourceSpec.class, ResourceSpec.class);
+		sinkMethod.setAccessible(true);
+
+		DataStream<Long> source1 = env.generateSequence(0, 0);
+		opMethod.invoke(source1, minResource1, preferredResource1);
+
+		DataStream<Long> map1 = source1.map(new MapFunction<Long, Long>() {
+			@Override
+			public Long map(Long value) throws Exception {
+				return null;
+			}
+		});
+		opMethod.invoke(map1, minResource2, preferredResource2);
+
+		DataStream<Long> source2 = env.generateSequence(0, 0);
+		opMethod.invoke(source2, minResource3, preferredResource3);
+
+		DataStream<Long> map2 = source2.map(new MapFunction<Long, Long>() {
+			@Override
+			public Long map(Long value) throws Exception {
+				return null;
+			}
+		});
+		opMethod.invoke(map2, minResource4, preferredResource4);
+
+		DataStream<Long> connected = map1.connect(map2)
+				.flatMap(new CoFlatMapFunction<Long, Long, Long>() {
+					@Override
+					public void flatMap1(Long value, Collector<Long> out) throws Exception {
+					}
+					@Override
+					public void flatMap2(Long value, Collector<Long> out) throws Exception {
+					}
+				});
+		opMethod.invoke(connected, minResource5, preferredResource5);
+
+		DataStream<Long> windowed = connected
+				.windowAll(GlobalWindows.create())
+				.trigger(PurgingTrigger.of(CountTrigger.of(10)))
+				.fold(0L, new FoldFunction<Long, Long>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Long fold(Long accumulator, Long value) throws Exception {
+						return null;
+					}
+				});
+		opMethod.invoke(windowed, minResource6, preferredResource6);
+
+		DataStreamSink<Long> sink = windowed.print();
+		sinkMethod.invoke(sink, minResource7, preferredResource7);
+
+		assertEquals(minResource1, env.getStreamGraph().getStreamNode(source1.getId()).getMinResources());
+		assertEquals(preferredResource1, env.getStreamGraph().getStreamNode(source1.getId()).getPreferredResources());
+
+		assertEquals(minResource2, env.getStreamGraph().getStreamNode(map1.getId()).getMinResources());
+		assertEquals(preferredResource2, env.getStreamGraph().getStreamNode(map1.getId()).getPreferredResources());
+
+		assertEquals(minResource3, env.getStreamGraph().getStreamNode(source2.getId()).getMinResources());
+		assertEquals(preferredResource3, env.getStreamGraph().getStreamNode(source2.getId()).getPreferredResources());
+
+		assertEquals(minResource4, env.getStreamGraph().getStreamNode(map2.getId()).getMinResources());
+		assertEquals(preferredResource4, env.getStreamGraph().getStreamNode(map2.getId()).getPreferredResources());
+
+		assertEquals(minResource5, env.getStreamGraph().getStreamNode(connected.getId()).getMinResources());
+		assertEquals(preferredResource5, env.getStreamGraph().getStreamNode(connected.getId()).getPreferredResources());
+
+		assertEquals(minResource6, env.getStreamGraph().getStreamNode(windowed.getId()).getMinResources());
+		assertEquals(preferredResource6, env.getStreamGraph().getStreamNode(windowed.getId()).getPreferredResources());
+
+		assertEquals(minResource7, env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getMinResources());
+		assertEquals(preferredResource7, env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getPreferredResources());
+	}
+
 	@Test
 	public void testTypeInfo() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -551,7 +672,7 @@ public class DataStreamTest {
 	 * an operator.
 	 */
 	@Test
-	public void testProcessTranslation() {
+	public void testKeyedProcessTranslation() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStreamSource<Long> src = env.generateSequence(0, 0);
 
@@ -582,8 +703,47 @@ public class DataStreamTest {
 		processed.addSink(new DiscardingSink<Integer>());
 
 		assertEquals(processFunction, getFunctionForDataStream(processed));
+		assertTrue(getOperatorForDataStream(processed) instanceof KeyedProcessOperator);
+	}
+
+	/**
+	 * Verify that a {@link DataStream#process(ProcessFunction)} call is correctly translated to
+	 * an operator.
+	 */
+	@Test
+	public void testProcessTranslation() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStreamSource<Long> src = env.generateSequence(0, 0);
+
+		ProcessFunction<Long, Integer> processFunction = new ProcessFunction<Long, Integer>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void processElement(
+					Long value,
+					Context ctx,
+					Collector<Integer> out) throws Exception {
+
+			}
+
+			@Override
+			public void onTimer(
+					long timestamp,
+					OnTimerContext ctx,
+					Collector<Integer> out) throws Exception {
+
+			}
+		};
+
+		DataStream<Integer> processed = src
+				.process(processFunction);
+
+		processed.addSink(new DiscardingSink<Integer>());
+
+		assertEquals(processFunction, getFunctionForDataStream(processed));
 		assertTrue(getOperatorForDataStream(processed) instanceof ProcessOperator);
 	}
+
 
 	@Test
 	public void operatorTest() {
@@ -688,7 +848,7 @@ public class DataStreamTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void sinkKeyTest() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -772,6 +932,231 @@ public class DataStreamTest {
 				env.getStreamGraph().getStreamEdges(src.getId(),
 						globalSink.getTransformation().getId()).get(0).getPartitioner();
 		assertTrue(globalPartitioner instanceof GlobalPartitioner);
+	}
+
+	/////////////////////////////////////////////////////////////
+	// KeyBy testing
+	/////////////////////////////////////////////////////////////
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
+
+	@Test
+	public void testPrimitiveArrayKeyRejection() {
+
+		KeySelector<Tuple2<Integer[], String>, int[]> keySelector =
+				new KeySelector<Tuple2<Integer[], String>, int[]>() {
+
+			@Override
+			public int[] getKey(Tuple2<Integer[], String> value) throws Exception {
+				int[] ks = new int[value.f0.length];
+				for (int i = 0; i < ks.length; i++) {
+					ks[i] = value.f0[i];
+				}
+				return ks;
+			}
+		};
+
+		testKeyRejection(keySelector, PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
+	}
+
+	@Test
+	public void testBasicArrayKeyRejection() {
+
+		KeySelector<Tuple2<Integer[], String>, Integer[]> keySelector =
+				new KeySelector<Tuple2<Integer[], String>, Integer[]>() {
+
+			@Override
+			public Integer[] getKey(Tuple2<Integer[], String> value) throws Exception {
+				return value.f0;
+			}
+		};
+
+		testKeyRejection(keySelector, BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO);
+	}
+
+	@Test
+	public void testObjectArrayKeyRejection() {
+
+		KeySelector<Tuple2<Integer[], String>, Object[]> keySelector =
+				new KeySelector<Tuple2<Integer[], String>, Object[]>() {
+
+					@Override
+					public Object[] getKey(Tuple2<Integer[], String> value) throws Exception {
+						Object[] ks = new Object[value.f0.length];
+						for (int i = 0; i < ks.length; i++) {
+							ks[i] = new Object();
+						}
+						return ks;
+					}
+				};
+
+		ObjectArrayTypeInfo<Object[], Object> keyTypeInfo = ObjectArrayTypeInfo.getInfoFor(
+				Object[].class, new GenericTypeInfo<>(Object.class));
+
+		testKeyRejection(keySelector, keyTypeInfo);
+	}
+
+	private <K> void testKeyRejection(KeySelector<Tuple2<Integer[], String>, K> keySelector, TypeInformation<K> expectedKeyType) {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Tuple2<Integer[], String>> input = env.fromElements(
+				new Tuple2<>(new Integer[] {1, 2}, "barfoo")
+		);
+
+		Assert.assertEquals(expectedKeyType, TypeExtractor.getKeySelectorTypes(keySelector, input.getType()));
+
+		// adjust the rule
+		expectedException.expect(InvalidProgramException.class);
+		expectedException.expectMessage(new StringStartsWith("Type " + expectedKeyType + " cannot be used as key."));
+
+		input.keyBy(keySelector);
+	}
+
+	////////////////			Composite Key Tests : POJOs			////////////////
+
+	@Test
+	public void testPOJOWithNestedArrayNoHashCodeKeyRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<POJOWithHashCode> input = env.fromElements(
+				new POJOWithHashCode(new int[] {1, 2}));
+
+		TypeInformation<?> expectedTypeInfo = new TupleTypeInfo<Tuple1<int[]>>(
+				PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
+
+		// adjust the rule
+		expectedException.expect(InvalidProgramException.class);
+		expectedException.expectMessage(new StringStartsWith("Type " + expectedTypeInfo + " cannot be used as key."));
+
+		input.keyBy("id");
+	}
+
+	@Test
+	public void testPOJOWithNestedArrayAndHashCodeWorkAround() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<POJOWithHashCode> input = env.fromElements(
+				new POJOWithHashCode(new int[] {1, 2}));
+
+		input.keyBy(new KeySelector<POJOWithHashCode, POJOWithHashCode>() {
+			@Override
+			public POJOWithHashCode getKey(POJOWithHashCode value) throws Exception {
+				return value;
+			}
+		}).addSink(new SinkFunction<POJOWithHashCode>() {
+			@Override
+			public void invoke(POJOWithHashCode value) throws Exception {
+				Assert.assertEquals(value.getId(), new int[]{1, 2});
+			}
+		});
+	}
+
+	@Test
+	public void testPOJOnoHashCodeKeyRejection() {
+
+		KeySelector<POJOWithoutHashCode, POJOWithoutHashCode> keySelector =
+				new KeySelector<POJOWithoutHashCode, POJOWithoutHashCode>() {
+					@Override
+					public POJOWithoutHashCode getKey(POJOWithoutHashCode value) throws Exception {
+						return value;
+					}
+				};
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<POJOWithoutHashCode> input = env.fromElements(
+				new POJOWithoutHashCode(new int[] {1, 2}));
+
+		// adjust the rule
+		expectedException.expect(InvalidProgramException.class);
+
+		input.keyBy(keySelector);
+	}
+
+	////////////////			Composite Key Tests : Tuples			////////////////
+
+	@Test
+	public void testTupleNestedArrayKeyRejection() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Tuple2<Integer[], String>> input = env.fromElements(
+				new Tuple2<>(new Integer[] {1, 2}, "test-test"));
+
+		TypeInformation<?> expectedTypeInfo = new TupleTypeInfo<Tuple2<Integer[], String>>(
+				BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+
+		// adjust the rule
+		expectedException.expect(InvalidProgramException.class);
+		expectedException.expectMessage(new StringStartsWith("Type " + expectedTypeInfo + " cannot be used as key."));
+
+		input.keyBy(new KeySelector<Tuple2<Integer[],String>, Tuple2<Integer[],String>>() {
+			@Override
+			public Tuple2<Integer[], String> getKey(Tuple2<Integer[], String> value) throws Exception {
+				return value;
+			}
+		});
+	}
+
+	@Test
+	public void testPrimitiveKeyAcceptance() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+		env.setMaxParallelism(1);
+
+		DataStream<Integer> input = env.fromElements(new Integer(10000));
+
+		KeyedStream<Integer, Object> keyedStream = input.keyBy(new KeySelector<Integer, Object>() {
+			@Override
+			public Object getKey(Integer value) throws Exception {
+				return value;
+			}
+		});
+
+		keyedStream.addSink(new SinkFunction<Integer>() {
+			@Override
+			public void invoke(Integer value) throws Exception {
+				Assert.assertEquals(10000L, (long) value);
+			}
+		});
+	}
+
+	public static class POJOWithoutHashCode {
+
+		private int[] id;
+
+		public POJOWithoutHashCode() {}
+
+		public POJOWithoutHashCode(int[] id) {
+			this.id = id;
+		}
+
+		public int[] getId() {
+			return id;
+		}
+
+		public void setId(int[] id) {
+			this.id = id;
+		}
+	}
+
+	public static class POJOWithHashCode extends POJOWithoutHashCode {
+
+		public POJOWithHashCode() {
+		}
+
+		public POJOWithHashCode(int[] id) {
+			super(id);
+		}
+
+		@Override
+		public int hashCode() {
+			int hash = 31;
+			for (int i : getId()) {
+				hash = 37 * hash + i;
+			}
+			return hash;
+		}
 	}
 
 	/////////////////////////////////////////////////////////////

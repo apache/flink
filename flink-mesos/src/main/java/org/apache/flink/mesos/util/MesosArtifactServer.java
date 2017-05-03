@@ -130,6 +130,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 		router = new Router();
 
+		final Configuration sslConfig = config;
 		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 
 			@Override
@@ -139,6 +140,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 				// SSL should be the first handler in the pipeline
 				if (serverSSLContext != null) {
 					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
+					SSLUtils.setSSLVerAndCipherSuites(sslEngine, sslConfig);
 					sslEngine.setUseClientMode(false);
 					ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}

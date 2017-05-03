@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsHistory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.MinMaxAvgStats;
 import org.apache.flink.runtime.checkpoint.SubtaskStateStats;
@@ -31,11 +32,18 @@ import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractExecutionGraphRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractJobVertexRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JsonFactory;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsHandler.writeMinMaxAvg;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -44,11 +52,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String CHECKPOINT_STATS_DETAILS_SUBTASKS_REST_PATH = "/jobs/:jobid/checkpoints/details/:checkpointid/subtasks/:vertexid";
+
 	private final CheckpointStatsCache cache;
 
 	public CheckpointStatsDetailsSubtasksHandler(ExecutionGraphHolder executionGraphHolder, CheckpointStatsCache cache) {
 		super(executionGraphHolder);
 		this.cache = checkNotNull(cache);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{CHECKPOINT_STATS_DETAILS_SUBTASKS_REST_PATH};
 	}
 
 	@Override
@@ -88,19 +103,43 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 			}
 		}
 
-		return writeResponse(checkpoint, vertexId);
-	}
-
-	private String writeResponse(AbstractCheckpointStats checkpoint, JobVertexID vertexId) throws IOException {
-		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-		gen.writeStartObject();
-
 		TaskStateStats taskStats = checkpoint.getTaskStateStats(vertexId);
 		if (taskStats == null) {
 			return "{}";
 		}
+		
+		return createSubtaskCheckpointDetailsJson(checkpoint, taskStats);
+	}
 
+	public static class CheckpointStatsDetailsSubtasksJsonArchivist implements JsonArchivist {
+
+		@Override
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			CheckpointStatsSnapshot stats = graph.getCheckpointStatsSnapshot();
+			if (stats == null) {
+				return Collections.emptyList();
+			}
+			CheckpointStatsHistory history = stats.getHistory();
+			List<ArchivedJson> archive = new ArrayList<>();
+			for (AbstractCheckpointStats checkpoint : history.getCheckpoints()) {
+				for (TaskStateStats subtaskStats : checkpoint.getAllTaskStateStats()) {
+					String json = createSubtaskCheckpointDetailsJson(checkpoint, subtaskStats);
+					String path = CHECKPOINT_STATS_DETAILS_SUBTASKS_REST_PATH
+						.replace(":jobid", graph.getJobID().toString())
+						.replace(":checkpointid", String.valueOf(checkpoint.getCheckpointId()))
+						.replace(":vertexid", subtaskStats.getJobVertexId().toString());
+					archive.add(new ArchivedJson(path, json));
+				}
+			}
+			return archive;
+		}
+	}
+
+	private static String createSubtaskCheckpointDetailsJson(AbstractCheckpointStats checkpoint, TaskStateStats taskStats) throws IOException {
+		StringWriter writer = new StringWriter();
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+
+		gen.writeStartObject();
 		// Overview
 		gen.writeNumberField("id", checkpoint.getCheckpointId());
 		gen.writeStringField("status", checkpoint.getStatus().toString());
@@ -179,12 +218,6 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 		gen.close();
 
 		return writer.toString();
-	}
-
-	private void writeMinMaxAvg(JsonGenerator gen, MinMaxAvgStats minMaxAvg) throws IOException {
-		gen.writeNumberField("min", minMaxAvg.getMinimum());
-		gen.writeNumberField("max", minMaxAvg.getMaximum());
-		gen.writeNumberField("avg", minMaxAvg.getAverage());
 	}
 
 }

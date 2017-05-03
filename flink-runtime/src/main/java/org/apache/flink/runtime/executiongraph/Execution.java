@@ -23,6 +23,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.BiFunction;
@@ -40,7 +41,6 @@ import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -248,30 +248,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *               immediately deploy it.
 	 * 
 	 * @throws IllegalStateException Thrown, if the vertex is not in CREATED state, which is the only state that permits scheduling.
-	 * @throws NoResourceAvailableException Thrown is no queued scheduling is allowed and no resources are currently available.
 	 */
-	public boolean scheduleForExecution(SlotProvider slotProvider, boolean queued) throws NoResourceAvailableException {
-		if (slotProvider == null) {
-			throw new IllegalArgumentException("Cannot send null Scheduler when scheduling execution.");
-		}
-
-		final SlotSharingGroup sharingGroup = vertex.getJobVertex().getSlotSharingGroup();
-		final CoLocationConstraint locationConstraint = vertex.getLocationConstraint();
-
-		// sanity check
-		if (locationConstraint != null && sharingGroup == null) {
-			throw new RuntimeException("Trying to schedule with co-location constraint but without slot sharing allowed.");
-		}
-
-		if (transitionState(CREATED, SCHEDULED)) {
-
-			ScheduledUnit toSchedule = locationConstraint == null ?
-				new ScheduledUnit(this, sharingGroup) :
-				new ScheduledUnit(this, sharingGroup, locationConstraint);
-
-			// IMPORTANT: To prevent leaks of cluster resources, we need to make sure that slots are returned
-			//     in all cases where the deployment failed. we use many try {} finally {} clauses to assure that
-			final Future<SimpleSlot> slotAllocationFuture = slotProvider.allocateSlot(toSchedule, queued);
+	public boolean scheduleForExecution(SlotProvider slotProvider, boolean queued) {
+		try {
+			final Future<SimpleSlot> slotAllocationFuture = allocateSlotForExecution(slotProvider, queued);
 
 			// IMPORTANT: We have to use the synchronous handle operation (direct executor) here so
 			// that we directly deploy the tasks if the slot allocation future is completed. This is
@@ -298,28 +278,54 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			});
 
 			// if tasks have to scheduled immediately check that the task has been deployed
-			// TODO: This might be problematic if the future is not completed right away
-			if (!queued) {
-				if (!deploymentFuture.isDone()) {
-					markFailed(new IllegalArgumentException("The slot allocation future has not been completed yet."));
-				}
+			if (!queued && !deploymentFuture.isDone()) {
+				markFailed(new IllegalArgumentException("The slot allocation future has not been completed yet."));
 			}
-			
+
 			return true;
 		}
-		else {
-			// call race, already deployed, or already done
+		catch (IllegalExecutionStateException e) {
 			return false;
 		}
 	}
 
-	public void deployToSlot(final SimpleSlot slot) throws JobException {
-		// sanity checks
-		if (slot == null) {
-			throw new NullPointerException();
+	public Future<SimpleSlot> allocateSlotForExecution(SlotProvider slotProvider, boolean queued) 
+			throws IllegalExecutionStateException {
+
+		checkNotNull(slotProvider);
+
+		final SlotSharingGroup sharingGroup = vertex.getJobVertex().getSlotSharingGroup();
+		final CoLocationConstraint locationConstraint = vertex.getLocationConstraint();
+
+		// sanity check
+		if (locationConstraint != null && sharingGroup == null) {
+			throw new IllegalStateException(
+					"Trying to schedule with co-location constraint but without slot sharing allowed.");
 		}
+
+		// this method only works if the execution is in the state 'CREATED'
+		if (transitionState(CREATED, SCHEDULED)) {
+
+			ScheduledUnit toSchedule = locationConstraint == null ?
+					new ScheduledUnit(this, sharingGroup) :
+					new ScheduledUnit(this, sharingGroup, locationConstraint);
+
+			return slotProvider.allocateSlot(toSchedule, queued);
+		}
+		else {
+			// call race, already deployed, or already done
+			throw new IllegalExecutionStateException(this, CREATED, state);
+		}
+	}
+
+	public void deployToSlot(final SimpleSlot slot) throws JobException {
+		checkNotNull(slot);
+
+		// Check if the TaskManager died in the meantime
+		// This only speeds up the response to TaskManagers failing concurrently to deployments.
+		// The more general check is the timeout of the deployment call
 		if (!slot.isAlive()) {
-			throw new JobException("Target slot for deployment is not alive.");
+			throw new JobException("Target slot (TaskManager) for deployment is no longer alive.");
 		}
 
 		// make sure exactly one deployment call happens from the correct state
@@ -351,7 +357,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 
 			if (LOG.isInfoEnabled()) {
-				LOG.info(String.format("Deploying %s (attempt #%d) to %s", vertex.getSimpleName(),
+				LOG.info(String.format("Deploying %s (attempt #%d) to %s", vertex.getTaskNameWithSubtaskIndex(),
 						attemptNumber, getAssignedResourceLocation().getHostname()));
 			}
 
@@ -670,14 +676,15 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *
 	 * @param checkpointId of th checkpoint to trigger
 	 * @param timestamp of the checkpoint to trigger
+	 * @param checkpointOptions of the checkpoint to trigger
 	 */
-	public void triggerCheckpoint(long checkpointId, long timestamp) {
+	public void triggerCheckpoint(long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
 		final SimpleSlot slot = assignedResource;
 
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-			taskManagerGateway.triggerCheckpoint(attemptId, getVertex().getJobId(), checkpointId, timestamp);
+			taskManagerGateway.triggerCheckpoint(attemptId, getVertex().getJobId(), checkpointId, timestamp, checkpointOptions);
 		} else {
 			LOG.debug("The execution has no slot assigned. This indicates that the execution is " +
 				"no longer running.");
@@ -697,6 +704,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 */
 	void markFailed(Throwable t) {
 		processFail(t, true);
+	}
+
+	void markFailed(Throwable t, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
+		processFail(t, true, userAccumulators, metrics);
 	}
 
 	void markFinished() {
@@ -724,10 +735,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 							}
 						}
 
-						synchronized (accumulatorLock) {
-							this.userAccumulators = userAccumulators;
-						}
-						this.ioMetrics = metrics;
+						updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
 						assignedResource.releaseSlot();
 						vertex.getExecutionGraph().deregisterExecution(this);
@@ -741,7 +749,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			else if (current == CANCELING) {
 				// we sent a cancel call, and the task manager finished before it arrived. We
 				// will never get a CANCELED call back from the job manager
-				cancelingComplete();
+				cancelingComplete(userAccumulators, metrics);
 				return;
 			}
 			else if (current == CANCELED || current == FAILED) {
@@ -759,6 +767,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	void cancelingComplete() {
+		cancelingComplete(null, null);
+	}
+	
+	void cancelingComplete(Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
 
 		// the taskmanagers can themselves cancel tasks without an external trigger, if they find that the
 		// network stack is canceled (for example by a failing / canceling receiver or sender
@@ -772,6 +784,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				return;
 			}
 			else if (current == CANCELING || current == RUNNING || current == DEPLOYING) {
+
+				updateAccumulatorsAndMetrics(userAccumulators, metrics);
+
 				if (transitionState(current, CANCELED)) {
 					try {
 						assignedResource.releaseSlot();
@@ -805,7 +820,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	void sendPartitionInfos() {
 		// check if the ExecutionVertex has already been archived and thus cleared the
 		// partial partition infos queue
-		if(partialInputChannelDeploymentDescriptors != null && !partialInputChannelDeploymentDescriptors.isEmpty()) {
+		if (partialInputChannelDeploymentDescriptors != null && !partialInputChannelDeploymentDescriptors.isEmpty()) {
 
 			PartialInputChannelDeploymentDescriptor partialInputChannelDeploymentDescriptor;
 
@@ -827,6 +842,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	// --------------------------------------------------------------------------------------------
 
 	private boolean processFail(Throwable t, boolean isCallback) {
+		return processFail(t, isCallback, null, null);
+	}
+
+	private boolean processFail(Throwable t, boolean isCallback, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
 
 		// damn, we failed. This means only that we keep our books and notify our parent JobExecutionVertex
 		// the actual computation on the task manager is cleaned up by the TaskManager that noticed the failure
@@ -850,13 +869,15 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 
 			if (current == CANCELING) {
-				cancelingComplete();
+				cancelingComplete(userAccumulators, metrics);
 				return false;
 			}
 
 			if (transitionState(current, FAILED, t)) {
 				// success (in a manner of speaking)
 				this.failureCause = t;
+
+				updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
 				try {
 					if (assignedResource != null) {
@@ -910,7 +931,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 			else if (currentState == CANCELING || currentState == FAILED) {
 				if (LOG.isDebugEnabled()) {
-					LOG.debug(String.format("Concurrent canceling/failing of %s while deployment was in progress.", getVertexWithAttempt()));
+					// this log statement is guarded because the 'getVertexWithAttempt()' method
+					// performs string concatenations 
+					LOG.debug("Concurrent canceling/failing of {} while deployment was in progress.", getVertexWithAttempt());
 				}
 				sendCancelRpcCall();
 			}
@@ -1048,7 +1071,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	public String getVertexWithAttempt() {
-		return vertex.getSimpleName() + " - execution #" + attemptNumber;
+		return vertex.getTaskNameWithSubtaskIndex() + " - execution #" + attemptNumber;
 	}
 
 	// ------------------------------------------------------------------------
@@ -1086,13 +1109,24 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return ioMetrics;
 	}
 
+	private void updateAccumulatorsAndMetrics(Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
+		if (userAccumulators != null) {
+			synchronized (accumulatorLock) {
+				this.userAccumulators = userAccumulators;
+			}
+		}
+		if (metrics != null) {
+			this.ioMetrics = metrics;
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Standard utilities
 	// ------------------------------------------------------------------------
 	
 	@Override
 	public String toString() {
-		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getSimpleName(),
+		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getTaskNameWithSubtaskIndex(),
 				(assignedResource == null ? "(unassigned)" : assignedResource.toString()), state);
 	}
 

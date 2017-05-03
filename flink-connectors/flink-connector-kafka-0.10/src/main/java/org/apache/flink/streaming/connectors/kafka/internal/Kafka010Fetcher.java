@@ -31,7 +31,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 
-import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -46,13 +46,12 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 
 	public Kafka010Fetcher(
 			SourceContext<T> sourceContext,
-			List<KafkaTopicPartition> assignedPartitions,
+			Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			ProcessingTimeService processingTimeProvider,
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
-			boolean enableCheckpointing,
 			String taskNameWithSubtasks,
 			MetricGroup metricGroup,
 			KeyedDeserializationSchema<T> deserializer,
@@ -62,13 +61,12 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 	{
 		super(
 				sourceContext,
-				assignedPartitions,
+				assignedPartitionsWithInitialOffsets,
 				watermarksPeriodic,
 				watermarksPunctuated,
 				processingTimeProvider,
 				autoWatermarkInterval,
 				userCodeClassLoader,
-				enableCheckpointing,
 				taskNameWithSubtasks,
 				metricGroup,
 				deserializer,

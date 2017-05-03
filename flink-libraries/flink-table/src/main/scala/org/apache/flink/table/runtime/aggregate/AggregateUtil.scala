@@ -17,30 +17,37 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
+import java.lang.reflect.Method
 import java.util
 
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
-import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun._
-import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction,RichGroupCombineFunction}
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
-import FlinkRelBuilder.NamedWindowProperty
-import org.apache.flink.table.expressions._
-import org.apache.flink.table.plan.logical._
-import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.apache.flink.api.common.functions.{AggregateFunction => DataStreamAggFunction, _}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
-import org.apache.flink.table.api.{TableException, Types}
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions.aggfunctions._
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.functions.{AggregateFunction => TableAggregateFunction}
+import org.apache.flink.table.plan.logical._
+import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 object AggregateUtil {
@@ -49,43 +56,162 @@ object AggregateUtil {
   type JavaList[T] = java.util.List[T]
 
   /**
-    * Create a [[org.apache.flink.api.common.functions.MapFunction]] that prepares for aggregates.
-    * The function returns intermediate aggregate values of all aggregate function which are
-    * organized by the following format:
+    * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] for unbounded OVER
+    * window to evaluate final aggregate value.
     *
-    * {{{
-    *                   avg(x) aggOffsetInRow = 2          count(z) aggOffsetInRow = 5
-    *                             |                          |
-    *                             v                          v
-    *        +---------+---------+--------+--------+--------+--------+
-    *        |groupKey1|groupKey2|  sum1  | count1 |  sum2  | count2 |
-    *        +---------+---------+--------+--------+--------+--------+
-    *                                              ^
-    *                                              |
-    *                               sum(y) aggOffsetInRow = 4
-    * }}}
-    *
+    * @param generator       code generator instance
+    * @param namedAggregates List of calls to aggregate functions and their output field names
+    * @param inputType Input row type
+    * @param isRowTimeType It is a tag that indicates whether the time type is rowTimeType
+    * @param isPartitioned It is a tag that indicate whether the input is partitioned
+    * @param isRowsClause It is a tag that indicates whether the OVER clause is ROWS clause
     */
-  private[flink] def createPrepareMapFunction(
+  private[flink] def createUnboundedOverProcessFunction(
+    generator: CodeGenerator,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    groupings: Array[Int],
-    inputType: RelDataType): MapFunction[Any, Row] = {
+    inputType: RelDataType,
+    isRowTimeType: Boolean,
+    isPartitioned: Boolean,
+    isRowsClause: Boolean): ProcessFunction[Row, Row] = {
 
-    val (aggFieldIndexes,aggregates) = transformToAggregateFunctions(
-      namedAggregates.map(_.getKey),
+    val needRetract = false
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetract)
+
+    val aggregationStateType: RowTypeInfo =
+      createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
+
+    val forwardMapping = (0 until inputType.getFieldCount).toArray
+    val aggMapping = aggregates.indices.map(x => x + inputType.getFieldCount).toArray
+    val outputArity = inputType.getFieldCount + aggregates.length
+
+    val genFunction = generator.generateAggregations(
+      "UnboundedProcessingOverAggregateHelper",
+      generator,
       inputType,
-      groupings.length)
-
-    val mapReturnType: RowTypeInfo =
-      createAggregateBufferDataType(groupings, aggregates, inputType)
-
-    val mapFunction = new AggregateMapFunction[Row, Row](
       aggregates,
-      aggFieldIndexes,
-      groupings,
-      mapReturnType.asInstanceOf[RowTypeInfo]).asInstanceOf[MapFunction[Any, Row]]
+      aggFields,
+      aggMapping,
+      partialResults = false,
+      forwardMapping,
+      None,
+      None,
+      outputArity,
+      needRetract,
+      needMerge = false
+    )
 
-    mapFunction
+    if (isRowTimeType) {
+      if (isRowsClause) {
+        // ROWS unbounded over process function
+        new RowTimeUnboundedRowsOver(
+          genFunction,
+          aggregationStateType,
+          FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+      } else {
+        // RANGE unbounded over process function
+        new RowTimeUnboundedRangeOver(
+          genFunction,
+          aggregationStateType,
+          FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+      }
+    } else {
+      if (isPartitioned) {
+        new ProcTimeUnboundedPartitionedOver(
+          genFunction,
+          aggregationStateType)
+      } else {
+        new ProcTimeUnboundedNonPartitionedOver(
+          genFunction,
+          aggregationStateType)
+      }
+    }
+  }
+
+  /**
+    * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] for
+    * bounded OVER window to evaluate final aggregate value.
+    *
+    * @param generator       code generator instance
+    * @param namedAggregates List of calls to aggregate functions and their output field names
+    * @param inputType       Input row type
+    * @param precedingOffset the preceding offset
+    * @param isRowsClause   It is a tag that indicates whether the OVER clause is ROWS clause
+    * @param isRowTimeType   It is a tag that indicates whether the time type is rowTimeType
+    * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
+    */
+  private[flink] def createBoundedOverProcessFunction(
+    generator: CodeGenerator,
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    precedingOffset: Long,
+    isRowsClause: Boolean,
+    isRowTimeType: Boolean): ProcessFunction[Row, Row] = {
+
+    val needRetract = true
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetract)
+
+    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+    val inputRowType = FlinkTypeFactory.toInternalRowTypeInfo(inputType).asInstanceOf[RowTypeInfo]
+
+    val forwardMapping = (0 until inputType.getFieldCount).toArray
+    val aggMapping = aggregates.indices.map(x => x + inputType.getFieldCount).toArray
+    val outputArity = inputType.getFieldCount + aggregates.length
+
+    val genFunction = generator.generateAggregations(
+      "BoundedOverAggregateHelper",
+      generator,
+      inputType,
+      aggregates,
+      aggFields,
+      aggMapping,
+      partialResults = false,
+      forwardMapping,
+      None,
+      None,
+      outputArity,
+      needRetract,
+      needMerge = false
+    )
+
+    if (isRowTimeType) {
+      if (isRowsClause) {
+        new RowTimeBoundedRowsOver(
+          genFunction,
+          aggregationStateType,
+          inputRowType,
+          precedingOffset
+        )
+      } else {
+        new RowTimeBoundedRangeOver(
+          genFunction,
+          aggregationStateType,
+          inputRowType,
+          precedingOffset
+        )
+      }
+    } else {
+      if (isRowsClause) {
+        new ProcTimeBoundedRowsOver(
+          genFunction,
+          precedingOffset,
+          aggregationStateType,
+          inputRowType)
+      } else {
+        new ProcTimeBoundedRangeOver(
+          genFunction,
+          precedingOffset,
+          aggregationStateType,
+          inputRowType)
+      }
+    }
   }
 
 
@@ -97,57 +223,222 @@ object AggregateUtil {
     * event-time, the timestamp is not aligned and used to sort.
     *
     * The output is stored in Row by the following format:
-    *
     * {{{
-    *                      avg(x) aggOffsetInRow = 2      count(z) aggOffsetInRow = 5
-    *                            |                          |
-    *                            v                          v
-    *        +---------+---------+--------+--------+--------+--------+--------+
-    *        |groupKey1|groupKey2|  sum1  | count1 |  sum2  | count2 | rowtime|
-    *        +---------+---------+--------+--------+--------+--------+--------+
-    *                                              ^                 ^
-    *                                              |                 |
-    *                                 sum(y) aggOffsetInRow = 4    rowtime to group or sort
+    *                      avg(x)                           count(z)
+    *                       |                                 |
+    *                       v                                 v
+    *   +---------+---------+----------------+----------------+------------------+-------+
+    *   |groupKey1|groupKey2| AvgAccumulator | SumAccumulator | CountAccumulator |rowtime|
+    *   +---------+---------+----------------+----------------+------------------+-------+
+    *                                        ^                                   ^
+    *                                        |                                   |
+    *                                       sum(y)                        rowtime to group or sort
     * }}}
     *
     * NOTE: this function is only used for time based window on batch tables.
     */
   def createDataSetWindowPrepareMapFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    groupings: Array[Int],
-    inputType: RelDataType,
-    isParserCaseSensitive: Boolean): MapFunction[Any, Row] = {
+      generator: CodeGenerator,
+      window: LogicalWindow,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      groupings: Array[Int],
+      inputType: RelDataType,
+      isParserCaseSensitive: Boolean)
+  : MapFunction[Row, Row] = {
 
+    val needRetract = false
     val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      groupings.length)
+      needRetract)
 
     val mapReturnType: RowTypeInfo =
-      createAggregateBufferDataType(groupings, aggregates, inputType, Some(Array(Types.LONG)))
+      createDataSetAggregateBufferDataType(
+        groupings,
+        aggregates,
+        inputType,
+        Some(Array(BasicTypeInfo.LONG_TYPE_INFO)))
 
     val (timeFieldPos, tumbleTimeWindowSize) = window match {
-      case EventTimeTumblingGroupWindow(_, time, size) =>
+      case EventTimeTumblingGroupWindow(_, time, size) if isTimeInterval(size.resultType) =>
         val timeFieldPos = getTimeFieldPosition(time, inputType, isParserCaseSensitive)
-        size match {
-          case Literal(value: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
-            (timeFieldPos, Some(value))
-          case _ => (timeFieldPos, None)
-        }
+        (timeFieldPos, Some(asLong(size)))
+
+      case EventTimeTumblingGroupWindow(_, time, _) =>
+        val timeFieldPos = getTimeFieldPosition(time, inputType, isParserCaseSensitive)
+        (timeFieldPos, None)
+
       case EventTimeSessionGroupWindow(_, time, _) =>
-        (getTimeFieldPosition(time, inputType, isParserCaseSensitive), None)
+        val timeFieldPos = getTimeFieldPosition(time, inputType, isParserCaseSensitive)
+        (timeFieldPos, None)
+
+      case EventTimeSlidingGroupWindow(_, time, size, slide)
+          if isTimeInterval(time.resultType) && doAllSupportPartialMerge(aggregates) =>
+        // pre-tumble incremental aggregates on time-windows
+        val timeFieldPos = getTimeFieldPosition(time, inputType, isParserCaseSensitive)
+        val preTumblingSize = determineLargestTumblingSize(asLong(size), asLong(slide))
+        (timeFieldPos, Some(preTumblingSize))
+
+      case EventTimeSlidingGroupWindow(_, time, _, _) =>
+        val timeFieldPos = getTimeFieldPosition(time, inputType, isParserCaseSensitive)
+        (timeFieldPos, None)
+
       case _ =>
         throw new UnsupportedOperationException(s"$window is currently not supported on batch")
     }
 
-    new DataSetWindowAggregateMapFunction(
+    val aggMapping = aggregates.indices.toArray.map(_ + groupings.length)
+    val outputArity = aggregates.length + groupings.length + 1
+
+    val genFunction = generator.generateAggregations(
+      "DataSetAggregatePrepareMapHelper",
+      generator,
+      inputType,
       aggregates,
       aggFieldIndexes,
+      aggMapping,
+      partialResults = true,
       groupings,
+      None,
+      None,
+      outputArity,
+      needRetract,
+      needMerge = false
+    )
+
+    new DataSetWindowAggMapFunction(
+      genFunction,
       timeFieldPos,
       tumbleTimeWindowSize,
-      mapReturnType).asInstanceOf[MapFunction[Any, Row]]
+      mapReturnType)
+  }
+
+  /**
+    * Create a [[org.apache.flink.api.common.functions.GroupReduceFunction]] that prepares for
+    * partial aggregates of sliding windows (time and count-windows).
+    * It requires a prepared input (with intermediate aggregate fields and aligned rowtime for
+    * pre-tumbling in case of time-windows), pre-aggregates (pre-tumbles) rows, aligns the
+    * window-start, and replicates or omits records for different panes of a sliding window.
+    *
+    * The output of the function contains the grouping keys, the intermediate aggregate values of
+    * all aggregate function and the aligned window start. Window start must not be a timestamp,
+    * but can also be a count value for count-windows.
+    *
+    * The output is stored in Row by the following format:
+    *
+    * {{{
+    *                      avg(x) aggOffsetInRow = 2      count(z) aggOffsetInRow = 5
+    *                            |                          |
+    *                            v                          v
+    *        +---------+---------+--------+--------+--------+--------+-------------+
+    *        |groupKey1|groupKey2|  sum1  | count1 |  sum2  | count2 | windowStart |
+    *        +---------+---------+--------+--------+--------+--------+-------------+
+    *                                              ^                 ^
+    *                                              |                 |
+    *                                 sum(y) aggOffsetInRow = 4    window start for pane mapping
+    * }}}
+    *
+    * NOTE: this function is only used for sliding windows with partial aggregates on batch tables.
+    */
+  def createDataSetSlideWindowPrepareGroupReduceFunction(
+      generator: CodeGenerator,
+      window: LogicalWindow,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      groupings: Array[Int],
+      inputType: RelDataType,
+      isParserCaseSensitive: Boolean)
+    : RichGroupReduceFunction[Row, Row] = {
+
+    val needRetract = false
+    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
+      namedAggregates.map(_.getKey),
+      inputType,
+      needRetract)
+
+    val returnType: RowTypeInfo = createDataSetAggregateBufferDataType(
+      groupings,
+      aggregates,
+      inputType,
+      Some(Array(BasicTypeInfo.LONG_TYPE_INFO)))
+
+    val keysAndAggregatesArity = groupings.length + namedAggregates.length
+
+    window match {
+      case EventTimeSlidingGroupWindow(_, _, size, slide) if isTimeInterval(size.resultType) =>
+        // sliding time-window for partial aggregations
+        val genFunction = generator.generateAggregations(
+          "DataSetAggregatePrepareMapHelper",
+          generator,
+          inputType,
+          aggregates,
+          aggFieldIndexes,
+          aggregates.indices.map(_ + groupings.length).toArray,
+          partialResults = true,
+          groupings,
+          Some(aggregates.indices.map(_ + groupings.length).toArray),
+          None,
+          keysAndAggregatesArity + 1,
+          needRetract,
+          needMerge = true
+        )
+        new DataSetSlideTimeWindowAggReduceGroupFunction(
+          genFunction,
+          keysAndAggregatesArity,
+          asLong(size),
+          asLong(slide),
+          returnType)
+
+      case _ =>
+        throw new UnsupportedOperationException(s"$window is currently not supported on batch.")
+    }
+  }
+
+  /**
+    * Create a [[org.apache.flink.api.common.functions.FlatMapFunction]] that prepares for
+    * non-incremental aggregates of sliding windows (time-windows).
+    *
+    * It requires a prepared input (with intermediate aggregate fields), aligns the
+    * window-start, and replicates or omits records for different panes of a sliding window.
+    *
+    * The output of the function contains the grouping keys, the intermediate aggregate values of
+    * all aggregate function and the aligned window start.
+    *
+    * The output is stored in Row by the following format:
+    *
+    * {{{
+    *                      avg(x) aggOffsetInRow = 2      count(z) aggOffsetInRow = 5
+    *                            |                          |
+    *                            v                          v
+    *        +---------+---------+--------+--------+--------+--------+-------------+
+    *        |groupKey1|groupKey2|  sum1  | count1 |  sum2  | count2 | windowStart |
+    *        +---------+---------+--------+--------+--------+--------+-------------+
+    *                                              ^                 ^
+    *                                              |                 |
+    *                                 sum(y) aggOffsetInRow = 4      window start for pane mapping
+    * }}}
+    *
+    * NOTE: this function is only used for time-based sliding windows on batch tables.
+    */
+  def createDataSetSlideWindowPrepareFlatMapFunction(
+      window: LogicalWindow,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      groupings: Array[Int],
+      inputType: TypeInformation[Row],
+      isParserCaseSensitive: Boolean)
+    : FlatMapFunction[Row, Row] = {
+
+    window match {
+      case EventTimeSlidingGroupWindow(_, _, size, slide) if isTimeInterval(size.resultType) =>
+        new DataSetSlideTimeWindowAggFlatMapFunction(
+          inputType.getArity - 1,
+          asLong(size),
+          asLong(slide),
+          inputType)
+
+      case _ =>
+        throw new UnsupportedOperationException(
+          s"$window is currently not supported in a batch environment.")
+    }
   }
 
   /**
@@ -159,89 +450,200 @@ object AggregateUtil {
     * NOTE: this function is only used for window on batch tables.
     */
   def createDataSetWindowAggregationGroupReduceFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int],
-    properties: Seq[NamedWindowProperty],
-    isInputCombined: Boolean = false): RichGroupReduceFunction[Row, Row] = {
+      generator: CodeGenerator,
+      window: LogicalWindow,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int],
+      properties: Seq[NamedWindowProperty],
+      isInputCombined: Boolean = false)
+    : RichGroupReduceFunction[Row, Row] = {
 
-    val aggregates = transformToAggregateFunctions(
+    val needRetract = false
+    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      groupings.length)._2
+      needRetract)
 
-    val intermediateRowArity = groupings.length +
-      aggregates.map(_.intermediateDataType.length).sum
+    val aggMapping = aggregates.indices.toArray.map(_ + groupings.length)
 
-    // the mapping relation between field index of intermediate aggregate Row and output Row.
-    val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
+    val genPreAggFunction = generator.generateAggregations(
+      "GroupingWindowAggregateHelper",
+      generator,
+      inputType,
+      aggregates,
+      aggFieldIndexes,
+      aggMapping,
+      partialResults = true,
+      groupings,
+      Some(aggregates.indices.map(_ + groupings.length).toArray),
+      None,
+      outputType.getFieldCount,
+      needRetract,
+      needMerge = true
+    )
 
-    // the mapping relation between aggregate function index in list and its corresponding
-    // field index in output Row.
-    val aggOffsetMapping = getAggregateMapping(namedAggregates, outputType)
+    val genFinalAggFunction = generator.generateAggregations(
+      "GroupingWindowAggregateHelper",
+      generator,
+      inputType,
+      aggregates,
+      aggFieldIndexes,
+      aggMapping,
+      partialResults = false,
+      groupings.indices.toArray,
+      Some(aggregates.indices.map(_ + groupings.length).toArray),
+      None,
+      outputType.getFieldCount,
+      needRetract,
+      needMerge = true
+    )
 
-    if (groupingOffsetMapping.length != groupings.length ||
-      aggOffsetMapping.length != namedAggregates.length) {
-      throw new TableException(
-        "Could not find output field in input data type " +
-          "or aggregate functions.")
-    }
+    val keysAndAggregatesArity = groupings.length + namedAggregates.length
 
     window match {
       case EventTimeTumblingGroupWindow(_, _, size) if isTimeInterval(size.resultType) =>
         // tumbling time window
         val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
-        if (aggregates.forall(_.supportPartial)) {
+        if (doAllSupportPartialMerge(aggregates)) {
           // for incremental aggregations
           new DataSetTumbleTimeWindowAggReduceCombineFunction(
-            intermediateRowArity,
+            genPreAggFunction,
+            genFinalAggFunction,
             asLong(size),
             startPos,
             endPos,
-            aggregates,
-            groupingOffsetMapping,
-            aggOffsetMapping,
-            intermediateRowArity + 1, // the additional field is used to store the time attribute
-            outputType.getFieldCount)
+            keysAndAggregatesArity)
         }
         else {
           // for non-incremental aggregations
           new DataSetTumbleTimeWindowAggReduceGroupFunction(
-            intermediateRowArity - 1,
+            genFinalAggFunction,
             asLong(size),
             startPos,
             endPos,
-            aggregates,
-            groupingOffsetMapping,
-            aggOffsetMapping,
-            intermediateRowArity,
             outputType.getFieldCount)
         }
       case EventTimeTumblingGroupWindow(_, _, size) =>
         // tumbling count window
         new DataSetTumbleCountWindowAggReduceGroupFunction(
-          asLong(size),
-          aggregates,
-          groupingOffsetMapping,
-          aggOffsetMapping,
-          intermediateRowArity + 1,// the additional field is used to store the time attribute
-          outputType.getFieldCount)
+          genFinalAggFunction,
+          asLong(size))
 
       case EventTimeSessionGroupWindow(_, _, gap) =>
         val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
-        new DataSetSessionWindowAggregateReduceGroupFunction(
-          aggregates,
-          groupingOffsetMapping,
-          aggOffsetMapping,
-          // the additional two fields are used to store window-start and window-end attributes
-          intermediateRowArity + 2,
-          outputType.getFieldCount,
+        new DataSetSessionWindowAggReduceGroupFunction(
+          genFinalAggFunction,
+          keysAndAggregatesArity,
           startPos,
           endPos,
           asLong(gap),
           isInputCombined)
+
+      case EventTimeSlidingGroupWindow(_, _, size, _) if isTimeInterval(size.resultType) =>
+        val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
+        if (doAllSupportPartialMerge(aggregates)) {
+          // for partial aggregations
+          new DataSetSlideWindowAggReduceCombineFunction(
+            genPreAggFunction,
+            genFinalAggFunction,
+            keysAndAggregatesArity,
+            startPos,
+            endPos,
+            asLong(size))
+        }
+        else {
+          // for non-partial aggregations
+          new DataSetSlideWindowAggReduceGroupFunction(
+            genFinalAggFunction,
+            keysAndAggregatesArity,
+            startPos,
+            endPos,
+            asLong(size))
+        }
+
+      case EventTimeSlidingGroupWindow(_, _, size, _) =>
+        new DataSetSlideWindowAggReduceGroupFunction(
+            genFinalAggFunction,
+            keysAndAggregatesArity,
+            None,
+            None,
+            asLong(size))
+
+      case _ =>
+        throw new UnsupportedOperationException(s"$window is currently not supported on batch")
+    }
+  }
+
+  /**
+    * Create a [[org.apache.flink.api.common.functions.MapPartitionFunction]] that aggregation
+    * for aggregates.
+    * The function returns aggregate values of all aggregate function which are
+    * organized by the following format:
+    *
+    * {{{
+    *       avg(x) aggOffsetInRow = 2  count(z) aggOffsetInRow = 5
+    *           |                          |          windowEnd(max(rowtime)
+    *           |                          |                   |
+    *           v                          v                   v
+    *        +--------+--------+--------+--------+-----------+---------+
+    *        |  sum1  | count1 |  sum2  | count2 |windowStart|windowEnd|
+    *        +--------+--------+--------+--------+-----------+---------+
+    *                               ^                 ^
+    *                               |                 |
+    *             sum(y) aggOffsetInRow = 4    windowStart(min(rowtime))
+    *
+    * }}}
+    *
+    */
+  def createDataSetWindowAggregationMapPartitionFunction(
+    generator: CodeGenerator,
+    window: LogicalWindow,
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    groupings: Array[Int]): MapPartitionFunction[Row, Row] = {
+
+    val needRetract = false
+    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
+      namedAggregates.map(_.getKey),
+      inputType,
+      needRetract)
+
+    val aggMapping = aggregates.indices.map(_ + groupings.length).toArray
+
+    val keysAndAggregatesArity = groupings.length + namedAggregates.length
+
+    window match {
+      case EventTimeSessionGroupWindow(_, _, gap) =>
+        val combineReturnType: RowTypeInfo =
+          createDataSetAggregateBufferDataType(
+            groupings,
+            aggregates,
+            inputType,
+            Option(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
+
+        val genFunction = generator.generateAggregations(
+          "GroupingWindowAggregateHelper",
+          generator,
+          inputType,
+          aggregates,
+          aggFieldIndexes,
+          aggMapping,
+          partialResults = true,
+          groupings.indices.toArray,
+          Some(aggregates.indices.map(_ + groupings.length).toArray),
+          None,
+          groupings.length + aggregates.length + 2,
+          needRetract,
+          needMerge = true
+        )
+
+        new DataSetSessionWindowAggregatePreProcessor(
+          genFunction,
+          keysAndAggregatesArity,
+          asLong(gap),
+          combineReturnType)
       case _ =>
         throw new UnsupportedOperationException(s"$window is currently not supported on batch")
     }
@@ -252,52 +654,69 @@ object AggregateUtil {
     * for aggregates.
     * The function returns intermediate aggregate values of all aggregate function which are
     * organized by the following format:
-    *
     * {{{
-    *                   avg(x) aggOffsetInRow = 2          count(z) aggOffsetInRow = 5
-    *                             |                          |          windowEnd(max(rowtime)
-    *                             |                          |                   |
-    *                             v                          v                   v
-    *        +---------+---------+--------+--------+--------+--------+-----------+---------+
-    *        |groupKey1|groupKey2|  sum1  | count1 |  sum2  | count2 |windowStart|windowEnd|
-    *        +---------+---------+--------+--------+--------+--------+-----------+---------+
-    *                                              ^                 ^
-    *                                              |                 |
-    *                               sum(y) aggOffsetInRow = 4    windowStart(min(rowtime))
-    *
+    *                      avg(x)                           windowEnd(max(rowtime)
+    *                       |                                 |
+    *                       v                                 v
+    *   +---------+---------+----------------+----------------+-------------+-----------+
+    *   |groupKey1|groupKey2| AvgAccumulator | SumAccumulator | windowStart | windowEnd |
+    *   +---------+---------+----------------+----------------+-------------+-----------+
+    *                                        ^                              ^
+    *                                        |                              |
+    *                                       sum(y)                       windowStart(min(rowtime))
     * }}}
     *
     */
   private[flink] def createDataSetWindowAggregationCombineFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    groupings: Array[Int]): RichGroupCombineFunction[Row,Row] = {
+      generator: CodeGenerator,
+      window: LogicalWindow,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      groupings: Array[Int])
+    : GroupCombineFunction[Row, Row] = {
 
-    val aggregates = transformToAggregateFunctions(
+    val needRetract = false
+    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      groupings.length)._2
+      needRetract)
 
-    val intermediateRowArity = groupings.length +
-      aggregates.map(_.intermediateDataType.length).sum
+    val aggMapping = aggregates.indices.map(_ + groupings.length).toArray
+
+    val keysAndAggregatesArity = groupings.length + namedAggregates.length
 
     window match {
+
       case EventTimeSessionGroupWindow(_, _, gap) =>
         val combineReturnType: RowTypeInfo =
-          createAggregateBufferDataType(
+          createDataSetAggregateBufferDataType(
             groupings,
             aggregates,
             inputType,
             Option(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
 
-        new DataSetSessionWindowAggregateCombineGroupFunction(
+        val genFunction = generator.generateAggregations(
+          "GroupingWindowAggregateHelper",
+          generator,
+          inputType,
           aggregates,
-          groupings,
-          // the addition two fields are used to store window-start and window-end attributes
-          intermediateRowArity + 2,
+          aggFieldIndexes,
+          aggMapping,
+          partialResults = true,
+          groupings.indices.toArray,
+          Some(aggregates.indices.map(_ + groupings.length).toArray),
+          None,
+          groupings.length + aggregates.length + 2,
+          needRetract,
+          needMerge = true
+        )
+
+        new DataSetSessionWindowAggregatePreProcessor(
+          genFunction,
+          keysAndAggregatesArity,
           asLong(gap),
           combineReturnType)
+
       case _ =>
         throw new UnsupportedOperationException(
           s" [ ${window.getClass.getCanonicalName.split("\\.").last} ] is currently not " +
@@ -306,276 +725,266 @@ object AggregateUtil {
   }
 
   /**
-    * Create a [[org.apache.flink.api.common.functions.GroupReduceFunction]] to compute aggregates.
-    * If all aggregates support partial aggregation, the
-    * [[org.apache.flink.api.common.functions.GroupReduceFunction]] implements
-    * [[org.apache.flink.api.common.functions.CombineFunction]] as well.
-    *
+    * Create functions to compute a [[org.apache.flink.table.plan.nodes.dataset.DataSetAggregate]].
+    * If all aggregation functions support pre-aggregation, a pre-aggregation function and the
+    * respective output type are generated as well.
     */
-  private[flink] def createAggregateGroupReduceFunction(
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int],
-    inGroupingSet: Boolean): RichGroupReduceFunction[Row, Row] = {
+  private[flink] def createDataSetAggregateFunctions(
+      generator: CodeGenerator,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int],
+      inGroupingSet: Boolean): (Option[DataSetPreAggFunction],
+        Option[TypeInformation[Row]],
+        RichGroupReduceFunction[Row, Row]) = {
 
-    val aggregates = transformToAggregateFunctions(
+    val needRetract = false
+    val (aggInFields, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      groupings.length)._2
+      needRetract)
 
-    val (groupingOffsetMapping, aggOffsetMapping) =
-      getGroupingOffsetAndAggOffsetMapping(
-        namedAggregates,
-        inputType,
-        outputType,
-        groupings)
-
-    val groupingSetsMapping: Array[(Int, Int)] = if (inGroupingSet) {
-      getGroupingSetsIndicatorMapping(inputType, outputType)
-    } else {
-      Array()
-    }
-
-    val allPartialAggregate: Boolean = aggregates.forall(_.supportPartial)
-
-    val intermediateRowArity = groupings.length +
-      aggregates.map(_.intermediateDataType.length).sum
-
-    val groupReduceFunction =
-      if (allPartialAggregate) {
-        new AggregateReduceCombineFunction(
-          aggregates,
-          groupingOffsetMapping,
-          aggOffsetMapping,
-          groupingSetsMapping,
-          intermediateRowArity,
-          outputType.getFieldCount)
-      }
-      else {
-        new AggregateReduceGroupFunction(
-          aggregates,
-          groupingOffsetMapping,
-          aggOffsetMapping,
-          groupingSetsMapping,
-          intermediateRowArity,
-          outputType.getFieldCount)
-      }
-    groupReduceFunction
-  }
-
-  /**
-    * Create a [[org.apache.flink.api.common.functions.ReduceFunction]] for incremental window
-    * aggregation.
-    *
-    */
-  private[flink] def createIncrementalAggregateReduceFunction(
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int]): IncrementalAggregateReduceFunction = {
-
-    val aggregates = transformToAggregateFunctions(
-      namedAggregates.map(_.getKey),inputType,groupings.length)._2
-
-    val groupingOffsetMapping =
-      getGroupingOffsetAndAggOffsetMapping(
-        namedAggregates,
-        inputType,
-        outputType,
-        groupings)._1
-
-    val intermediateRowArity = groupings.length + aggregates.map(_.intermediateDataType.length).sum
-    val reduceFunction = new IncrementalAggregateReduceFunction(
-      aggregates,
-      groupingOffsetMapping,
-      intermediateRowArity)
-    reduceFunction
-  }
-
-  /**
-    * Create an [[AllWindowFunction]] to compute non-partitioned group window aggregates.
-    */
-  private[flink] def createAllWindowAggregationFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int],
-    properties: Seq[NamedWindowProperty])
-  : AllWindowFunction[Row, Row, DataStreamWindow] = {
-
-    val aggFunction =
-      createAggregateGroupReduceFunction(
-        namedAggregates,
-        inputType,
-        outputType,
-        groupings,
-        inGroupingSet = false)
-
-    if (isTimeWindow(window)) {
-      val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
-      new AggregateAllTimeWindowFunction(aggFunction, startPos, endPos)
-      .asInstanceOf[AllWindowFunction[Row, Row, DataStreamWindow]]
-    } else {
-      new AggregateAllWindowFunction(aggFunction)
-    }
-  }
-
-  /**
-    * Create a [[WindowFunction]] to compute partitioned group window aggregates.
-    *
-    */
-  private[flink] def createWindowAggregationFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int],
-    properties: Seq[NamedWindowProperty])
-  : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
-
-    val aggFunction =
-      createAggregateGroupReduceFunction(
-        namedAggregates,
-        inputType,
-        outputType,
-        groupings,
-        inGroupingSet = false)
-
-    if (isTimeWindow(window)) {
-      val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
-      new AggregateTimeWindowFunction(aggFunction, startPos, endPos)
-      .asInstanceOf[WindowFunction[Row, Row, Tuple, DataStreamWindow]]
-    } else {
-      new AggregateWindowFunction(aggFunction)
-    }
-  }
-
-  /**
-    * Create an [[AllWindowFunction]] to finalize incrementally pre-computed non-partitioned
-    * window aggregates.
-    */
-  private[flink] def createAllWindowIncrementalAggregationFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int],
-    properties: Seq[NamedWindowProperty]): AllWindowFunction[Row, Row, DataStreamWindow] = {
-
-    val aggregates = transformToAggregateFunctions(
-      namedAggregates.map(_.getKey),inputType,groupings.length)._2
-
-    val (groupingOffsetMapping, aggOffsetMapping) =
-      getGroupingOffsetAndAggOffsetMapping(
+    val (gkeyOutMapping, aggOutMapping) = getOutputMappings(
       namedAggregates,
+      groupings,
       inputType,
-      outputType,
-      groupings)
+      outputType
+    )
 
-    val finalRowArity = outputType.getFieldCount
+    val constantFlags: Option[Array[(Int, Boolean)]] =
+    if (inGroupingSet) {
+
+      val groupingSetsMapping = getGroupingSetsIndicatorMapping(inputType, outputType)
+      val nonNullKeysFields = gkeyOutMapping.map(_._1)
+      val flags = for ((in, out) <- groupingSetsMapping) yield
+        (out, !nonNullKeysFields.contains(in))
+      Some(flags)
+    } else {
+      None
+    }
+
+    val aggOutFields = aggOutMapping.map(_._1)
+
+    if (doAllSupportPartialMerge(aggregates)) {
+
+      // compute preaggregation type
+      val preAggFieldTypes = gkeyOutMapping.map(_._2)
+        .map(inputType.getFieldList.get(_).getType)
+        .map(FlinkTypeFactory.toTypeInfo) ++ createAccumulatorType(aggregates)
+      val preAggRowType = new RowTypeInfo(preAggFieldTypes: _*)
+
+      val genPreAggFunction = generator.generateAggregations(
+        "DataSetAggregatePrepareMapHelper",
+        generator,
+        inputType,
+        aggregates,
+        aggInFields,
+        aggregates.indices.map(_ + groupings.length).toArray,
+        partialResults = true,
+        groupings,
+        None,
+        None,
+        groupings.length + aggregates.length,
+        needRetract,
+        needMerge = false
+      )
+
+      // compute mapping of forwarded grouping keys
+      val gkeyMapping: Array[Int] = if (gkeyOutMapping.nonEmpty) {
+        val gkeyOutFields = gkeyOutMapping.map(_._1)
+        val mapping = Array.fill[Int](gkeyOutFields.max + 1)(-1)
+        gkeyOutFields.zipWithIndex.foreach(m => mapping(m._1) = m._2)
+        mapping
+      } else {
+        new Array[Int](0)
+      }
+
+      val genFinalAggFunction = generator.generateAggregations(
+        "DataSetAggregateFinalHelper",
+        generator,
+        inputType,
+        aggregates,
+        aggInFields,
+        aggOutFields,
+        partialResults = false,
+        gkeyMapping,
+        Some(aggregates.indices.map(_ + groupings.length).toArray),
+        constantFlags,
+        outputType.getFieldCount,
+        needRetract,
+        needMerge = true
+      )
+
+      (
+        Some(new DataSetPreAggFunction(genPreAggFunction)),
+        Some(preAggRowType),
+        new DataSetFinalAggFunction(genFinalAggFunction)
+      )
+    }
+    else {
+      val genFunction = generator.generateAggregations(
+        "DataSetAggregateHelper",
+        generator,
+        inputType,
+        aggregates,
+        aggInFields,
+        aggOutFields,
+        partialResults = false,
+        groupings,
+        None,
+        constantFlags,
+        outputType.getFieldCount,
+        needRetract,
+        needMerge = false
+      )
+
+      (
+        None,
+        None,
+        new DataSetAggFunction(genFunction)
+      )
+    }
+
+  }
+
+  /**
+    * Create an [[AllWindowFunction]] for non-partitioned window aggregates.
+    */
+  private[flink] def createAggregationAllWindowFunction(
+      window: LogicalWindow,
+      finalRowArity: Int,
+      properties: Seq[NamedWindowProperty])
+    : AllWindowFunction[Row, Row, DataStreamWindow] = {
 
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
       new IncrementalAggregateAllTimeWindowFunction(
-        aggregates,
-        groupingOffsetMapping,
-        aggOffsetMapping,
-        finalRowArity,
         startPos,
-        endPos)
-      .asInstanceOf[AllWindowFunction[Row, Row, DataStreamWindow]]
+        endPos,
+        finalRowArity)
+        .asInstanceOf[AllWindowFunction[Row, Row, DataStreamWindow]]
     } else {
       new IncrementalAggregateAllWindowFunction(
-        aggregates,
-        groupingOffsetMapping,
-        aggOffsetMapping,
         finalRowArity)
     }
   }
 
   /**
-    * Create a [[WindowFunction]] to finalize incrementally pre-computed window aggregates.
+    * Create a [[WindowFunction]] for group window aggregates.
     */
-  private[flink] def createWindowIncrementalAggregationFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int],
-    properties: Seq[NamedWindowProperty]): WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
-
-    val aggregates = transformToAggregateFunctions(
-      namedAggregates.map(_.getKey),inputType,groupings.length)._2
-
-    val (groupingOffsetMapping, aggOffsetMapping) =
-      getGroupingOffsetAndAggOffsetMapping(
-        namedAggregates,
-        inputType,
-        outputType,
-        groupings)
-
-    val finalRowArity = outputType.getFieldCount
+  private[flink] def createAggregationGroupWindowFunction(
+      window: LogicalWindow,
+      numGroupingKeys: Int,
+      numAggregates: Int,
+      finalRowArity: Int,
+      properties: Seq[NamedWindowProperty])
+    : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
 
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
       new IncrementalAggregateTimeWindowFunction(
-        aggregates,
-        groupingOffsetMapping,
-        aggOffsetMapping,
-        finalRowArity,
+        numGroupingKeys,
+        numAggregates,
         startPos,
-        endPos)
-      .asInstanceOf[WindowFunction[Row, Row, Tuple, DataStreamWindow]]
+        endPos,
+        finalRowArity)
+        .asInstanceOf[WindowFunction[Row, Row, Tuple, DataStreamWindow]]
     } else {
       new IncrementalAggregateWindowFunction(
-        aggregates,
-        groupingOffsetMapping,
-        aggOffsetMapping,
+        numGroupingKeys,
+        numAggregates,
         finalRowArity)
     }
   }
 
-  /**
-    * Return true if all aggregates can be partially computed. False otherwise.
-    */
-  private[flink] def doAllSupportPartialAggregation(
-    aggregateCalls: Seq[AggregateCall],
-    inputType: RelDataType,
-    groupKeysCount: Int): Boolean = {
-    transformToAggregateFunctions(
-      aggregateCalls,
+  private[flink] def createDataStreamAggregateFunction(
+      generator: CodeGenerator,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType)
+    : (DataStreamAggFunction[Row, Row, Row], RowTypeInfo, RowTypeInfo) = {
+
+    val needRetract = false
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetract)
+
+    val aggMapping = aggregates.indices.toArray
+    val outputArity = aggregates.length
+
+    val genFunction = generator.generateAggregations(
+      "GroupingWindowAggregateHelper",
+      generator,
       inputType,
-      groupKeysCount)._2.forall(_.supportPartial)
+      aggregates,
+      aggFields,
+      aggMapping,
+      partialResults = false,
+      Array(), // no fields are forwarded
+      None,
+      None,
+      outputArity,
+      needRetract,
+      needMerge = true
+    )
+
+    val aggResultTypes = namedAggregates.map(a => FlinkTypeFactory.toTypeInfo(a.left.getType))
+
+    val accumulatorRowType = createAccumulatorRowType(aggregates)
+    val aggResultRowType = new RowTypeInfo(aggResultTypes: _*)
+    val aggFunction = new AggregateAggFunction(genFunction)
+
+    (aggFunction, accumulatorRowType, aggResultRowType)
   }
 
   /**
-    * @return groupingOffsetMapping (mapping relation between field index of intermediate
-    *         aggregate Row and output Row.)
-    *         and aggOffsetMapping (the mapping relation between aggregate function index in list
-    *         and its corresponding field index in output Row.)
+    * Return true if all aggregates can be partially merged. False otherwise.
     */
-  private def getGroupingOffsetAndAggOffsetMapping(
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+  private[flink] def doAllSupportPartialMerge(
+    aggregateCalls: Seq[AggregateCall],
     inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int]): (Array[(Int, Int)], Array[(Int, Int)]) = {
+    groupKeysCount: Int): Boolean = {
 
-    // the mapping relation between field index of intermediate aggregate Row and output Row.
-    val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
+    val aggregateList = transformToAggregateFunctions(
+      aggregateCalls,
+      inputType,
+      needRetraction = false)._2
 
-    // the mapping relation between aggregate function index in list and its corresponding
-    // field index in output Row.
-    val aggOffsetMapping = getAggregateMapping(namedAggregates, outputType)
+    doAllSupportPartialMerge(aggregateList)
+  }
 
-    if (groupingOffsetMapping.length != groupings.length ||
-      aggOffsetMapping.length != namedAggregates.length) {
-      throw new TableException(
-        "Could not find output field in input data type " +
-          "or aggregate functions.")
-    }
-    (groupingOffsetMapping, aggOffsetMapping)
+  /**
+    * Return true if all aggregates can be partially merged. False otherwise.
+    */
+  private[flink] def doAllSupportPartialMerge(
+      aggregateList: Array[TableAggregateFunction[_ <: Any, _ <: Any]]): Boolean = {
+    aggregateList.forall(ifMethodExistInFunction("merge", _))
+  }
+
+  /**
+    * @return A mappings of field positions from input type to output type for grouping keys and
+    *         aggregates.
+    */
+  private def getOutputMappings(
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      groupings: Array[Int],
+      inputType: RelDataType,
+      outputType: RelDataType) : (Array[(Int, Int)], Array[(Int, Int)]) = {
+
+    val groupKeyNames: Seq[(String, Int)] =
+      groupings.map(g => (inputType.getFieldList.get(g).getName, g))
+    val aggNames: Seq[(String, Int)] =
+      namedAggregates.zipWithIndex.map(a => (a._1.right, a._2))
+
+    val groupOutMapping: Array[(Int, Int)] =
+      groupKeyNames.map(g => (outputType.getField(g._1, false, false).getIndex, g._2)).toArray
+    val aggOutMapping: Array[(Int, Int)] =
+      aggNames.map(a => (outputType.getField(a._1, false, false).getIndex, a._2)).toArray
+
+    (groupOutMapping, aggOutMapping)
   }
 
   /**
@@ -593,10 +1002,10 @@ object AggregateUtil {
 
     // map from field -> i$field or field -> i$field_0
     val groupingFields = inputFields.map(inputFieldName => {
-        val base = "i$" + inputFieldName
-        var name = base
-        var i = 0
-        while (inputFields.contains(name)) {
+      val base = "i$" + inputFieldName
+      var name = base
+      var i = 0
+      while (inputFields.contains(name)) {
           name = base + "_" + i // if i$XXX is already a field it will be suffixed by _NUMBER
           i = i + 1
         }
@@ -634,11 +1043,11 @@ object AggregateUtil {
   }
 
   private[flink] def computeWindowStartEndPropertyPos(
-    properties: Seq[NamedWindowProperty]): (Option[Int], Option[Int]) = {
+      properties: Seq[NamedWindowProperty]): (Option[Int], Option[Int]) = {
 
     val propPos = properties.foldRight((None: Option[Int], None: Option[Int], 0)) {
       (p, x) => p match {
-        case NamedWindowProperty(name, prop) =>
+        case NamedWindowProperty(_, prop) =>
           prop match {
             case WindowStart(_) if x._1.isDefined =>
               throw new TableException("Duplicate WindowStart property encountered. This is a bug.")
@@ -655,25 +1064,21 @@ object AggregateUtil {
   }
 
   private def transformToAggregateFunctions(
-    aggregateCalls: Seq[AggregateCall],
-    inputType: RelDataType,
-    groupKeysCount: Int): (Array[Int], Array[Aggregate[_ <: Any]]) = {
+      aggregateCalls: Seq[AggregateCall],
+      inputType: RelDataType,
+      needRetraction: Boolean)
+  : (Array[Array[Int]], Array[TableAggregateFunction[_ <: Any, _ <: Any]]) = {
 
     // store the aggregate fields of each aggregate function, by the same order of aggregates.
-    val aggFieldIndexes = new Array[Int](aggregateCalls.size)
-    val aggregates = new Array[Aggregate[_ <: Any]](aggregateCalls.size)
-
-    // set the start offset of aggregate buffer value to group keys' length, 
-    // as all the group keys would be moved to the start fields of intermediate
-    // aggregate data.
-    var aggOffset = groupKeysCount
+    val aggFieldIndexes = new Array[Array[Int]](aggregateCalls.size)
+    val aggregates = new Array[TableAggregateFunction[_ <: Any, _ <: Any]](aggregateCalls.size)
 
     // create aggregate function instances by function type and aggregate field data type.
     aggregateCalls.zipWithIndex.foreach { case (aggregateCall, index) =>
       val argList: util.List[Integer] = aggregateCall.getArgList
       if (argList.isEmpty) {
         if (aggregateCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
-          aggFieldIndexes(index) = 0
+          aggFieldIndexes(index) = Array[Int](0)
         } else {
           throw new TableException("Aggregate fields should not be empty.")
         }
@@ -681,188 +1086,287 @@ object AggregateUtil {
         if (argList.size() > 1) {
           throw new TableException("Currently, do not support aggregate on multi fields.")
         }
-        aggFieldIndexes(index) = argList.get(0)
+        aggFieldIndexes(index) = argList.asScala.map(i => i.intValue).toArray
       }
-      val sqlTypeName = inputType.getFieldList.get(aggFieldIndexes(index)).getType.getSqlTypeName
+      val sqlTypeName = inputType.getFieldList.get(aggFieldIndexes(index)(0)).getType
+        .getSqlTypeName
       aggregateCall.getAggregation match {
-        case _: SqlSumAggFunction | _: SqlSumEmptyIsZeroAggFunction => {
-          aggregates(index) = sqlTypeName match {
-            case TINYINT =>
-              new ByteSumAggregate
-            case SMALLINT =>
-              new ShortSumAggregate
-            case INTEGER =>
-              new IntSumAggregate
-            case BIGINT =>
-              new LongSumAggregate
-            case FLOAT =>
-              new FloatSumAggregate
-            case DOUBLE =>
-              new DoubleSumAggregate
-            case DECIMAL =>
-              new DecimalSumAggregate
-            case sqlType: SqlTypeName =>
-              throw new TableException("Sum aggregate does no support type:" + sqlType)
+
+        case _: SqlSumAggFunction =>
+          if (needRetraction) {
+            aggregates(index) = sqlTypeName match {
+              case TINYINT =>
+                new ByteSumWithRetractAggFunction
+              case SMALLINT =>
+                new ShortSumWithRetractAggFunction
+              case INTEGER =>
+                new IntSumWithRetractAggFunction
+              case BIGINT =>
+                new LongSumWithRetractAggFunction
+              case FLOAT =>
+                new FloatSumWithRetractAggFunction
+              case DOUBLE =>
+                new DoubleSumWithRetractAggFunction
+              case DECIMAL =>
+                new DecimalSumWithRetractAggFunction
+              case sqlType: SqlTypeName =>
+                throw new TableException("Sum aggregate does no support type:" + sqlType)
+            }
+          } else {
+            aggregates(index) = sqlTypeName match {
+              case TINYINT =>
+                new ByteSumAggFunction
+              case SMALLINT =>
+                new ShortSumAggFunction
+              case INTEGER =>
+                new IntSumAggFunction
+              case BIGINT =>
+                new LongSumAggFunction
+              case FLOAT =>
+                new FloatSumAggFunction
+              case DOUBLE =>
+                new DoubleSumAggFunction
+              case DECIMAL =>
+                new DecimalSumAggFunction
+              case sqlType: SqlTypeName =>
+                throw new TableException("Sum aggregate does no support type:" + sqlType)
+            }
           }
-        }
-        case _: SqlAvgAggFunction => {
+
+        case _: SqlSumEmptyIsZeroAggFunction =>
+          if (needRetraction) {
+            aggregates(index) = sqlTypeName match {
+              case TINYINT =>
+                new ByteSum0WithRetractAggFunction
+              case SMALLINT =>
+                new ShortSum0WithRetractAggFunction
+              case INTEGER =>
+                new IntSum0WithRetractAggFunction
+              case BIGINT =>
+                new LongSum0WithRetractAggFunction
+              case FLOAT =>
+                new FloatSum0WithRetractAggFunction
+              case DOUBLE =>
+                new DoubleSum0WithRetractAggFunction
+              case DECIMAL =>
+                new DecimalSum0WithRetractAggFunction
+              case sqlType: SqlTypeName =>
+                throw new TableException("Sum0 aggregate does no support type:" + sqlType)
+            }
+          } else {
+            aggregates(index) = sqlTypeName match {
+              case TINYINT =>
+                new ByteSum0AggFunction
+              case SMALLINT =>
+                new ShortSum0AggFunction
+              case INTEGER =>
+                new IntSum0AggFunction
+              case BIGINT =>
+                new LongSum0AggFunction
+              case FLOAT =>
+                new FloatSum0AggFunction
+              case DOUBLE =>
+                new DoubleSum0AggFunction
+              case DECIMAL =>
+                new DecimalSum0AggFunction
+              case sqlType: SqlTypeName =>
+                throw new TableException("Sum0 aggregate does no support type:" + sqlType)
+            }
+          }
+
+        case _: SqlAvgAggFunction =>
           aggregates(index) = sqlTypeName match {
             case TINYINT =>
-               new ByteAvgAggregate
+              new ByteAvgAggFunction
             case SMALLINT =>
-              new ShortAvgAggregate
+              new ShortAvgAggFunction
             case INTEGER =>
-              new IntAvgAggregate
+              new IntAvgAggFunction
             case BIGINT =>
-              new LongAvgAggregate
+              new LongAvgAggFunction
             case FLOAT =>
-              new FloatAvgAggregate
+              new FloatAvgAggFunction
             case DOUBLE =>
-              new DoubleAvgAggregate
+              new DoubleAvgAggFunction
             case DECIMAL =>
-              new DecimalAvgAggregate
+              new DecimalAvgAggFunction
             case sqlType: SqlTypeName =>
               throw new TableException("Avg aggregate does no support type:" + sqlType)
           }
-        }
-        case sqlMinMaxFunction: SqlMinMaxAggFunction => {
+
+        case sqlMinMaxFunction: SqlMinMaxAggFunction =>
           aggregates(index) = if (sqlMinMaxFunction.getKind == SqlKind.MIN) {
-            sqlTypeName match {
-              case TINYINT =>
-                new ByteMinAggregate
-              case SMALLINT =>
-                new ShortMinAggregate
-              case INTEGER =>
-                new IntMinAggregate
-              case BIGINT =>
-                new LongMinAggregate
-              case FLOAT =>
-                new FloatMinAggregate
-              case DOUBLE =>
-                new DoubleMinAggregate
-              case DECIMAL =>
-                new DecimalMinAggregate
-              case BOOLEAN =>
-                new BooleanMinAggregate
-              case sqlType: SqlTypeName =>
-                throw new TableException("Min aggregate does no support type:" + sqlType)
+            if (needRetraction) {
+              sqlTypeName match {
+                case TINYINT =>
+                  new ByteMinWithRetractAggFunction
+                case SMALLINT =>
+                  new ShortMinWithRetractAggFunction
+                case INTEGER =>
+                  new IntMinWithRetractAggFunction
+                case BIGINT =>
+                  new LongMinWithRetractAggFunction
+                case FLOAT =>
+                  new FloatMinWithRetractAggFunction
+                case DOUBLE =>
+                  new DoubleMinWithRetractAggFunction
+                case DECIMAL =>
+                  new DecimalMinWithRetractAggFunction
+                case BOOLEAN =>
+                  new BooleanMinWithRetractAggFunction
+                case VARCHAR | CHAR =>
+                  new StringMinWithRetractAggFunction
+                case sqlType: SqlTypeName =>
+                  throw new TableException("Min with retract aggregate does no support type:" +
+                                             sqlType)
+              }
+            } else {
+              sqlTypeName match {
+                case TINYINT =>
+                  new ByteMinAggFunction
+                case SMALLINT =>
+                  new ShortMinAggFunction
+                case INTEGER =>
+                  new IntMinAggFunction
+                case BIGINT =>
+                  new LongMinAggFunction
+                case FLOAT =>
+                  new FloatMinAggFunction
+                case DOUBLE =>
+                  new DoubleMinAggFunction
+                case DECIMAL =>
+                  new DecimalMinAggFunction
+                case BOOLEAN =>
+                  new BooleanMinAggFunction
+                case VARCHAR | CHAR =>
+                  new StringMinAggFunction
+                case sqlType: SqlTypeName =>
+                  throw new TableException("Min aggregate does no support type:" + sqlType)
+              }
             }
           } else {
-            sqlTypeName match {
-              case TINYINT =>
-                new ByteMaxAggregate
-              case SMALLINT =>
-                new ShortMaxAggregate
-              case INTEGER =>
-                new IntMaxAggregate
-              case BIGINT =>
-                new LongMaxAggregate
-              case FLOAT =>
-                new FloatMaxAggregate
-              case DOUBLE =>
-                new DoubleMaxAggregate
-              case DECIMAL =>
-                new DecimalMaxAggregate
-              case BOOLEAN =>
-                new BooleanMaxAggregate
-              case sqlType: SqlTypeName =>
-                throw new TableException("Max aggregate does no support type:" + sqlType)
+            if (needRetraction) {
+              sqlTypeName match {
+                case TINYINT =>
+                  new ByteMaxWithRetractAggFunction
+                case SMALLINT =>
+                  new ShortMaxWithRetractAggFunction
+                case INTEGER =>
+                  new IntMaxWithRetractAggFunction
+                case BIGINT =>
+                  new LongMaxWithRetractAggFunction
+                case FLOAT =>
+                  new FloatMaxWithRetractAggFunction
+                case DOUBLE =>
+                  new DoubleMaxWithRetractAggFunction
+                case DECIMAL =>
+                  new DecimalMaxWithRetractAggFunction
+                case BOOLEAN =>
+                  new BooleanMaxWithRetractAggFunction
+                case VARCHAR | CHAR =>
+                  new StringMaxWithRetractAggFunction
+                case sqlType: SqlTypeName =>
+                  throw new TableException("Max with retract aggregate does no support type:" +
+                                             sqlType)
+              }
+            } else {
+              sqlTypeName match {
+                case TINYINT =>
+                  new ByteMaxAggFunction
+                case SMALLINT =>
+                  new ShortMaxAggFunction
+                case INTEGER =>
+                  new IntMaxAggFunction
+                case BIGINT =>
+                  new LongMaxAggFunction
+                case FLOAT =>
+                  new FloatMaxAggFunction
+                case DOUBLE =>
+                  new DoubleMaxAggFunction
+                case DECIMAL =>
+                  new DecimalMaxAggFunction
+                case BOOLEAN =>
+                  new BooleanMaxAggFunction
+                case VARCHAR | CHAR =>
+                  new StringMaxAggFunction
+                case sqlType: SqlTypeName =>
+                  throw new TableException("Max aggregate does no support type:" + sqlType)
+              }
             }
           }
-        }
+
         case _: SqlCountAggFunction =>
-          aggregates(index) = new CountAggregate
+          aggregates(index) = new CountAggFunction
+
         case unSupported: SqlAggFunction =>
           throw new TableException("unsupported Function: " + unSupported.getName)
       }
-      setAggregateDataOffset(index)
-    }
-
-    // set the aggregate intermediate data start index in Row, and update current value.
-    def setAggregateDataOffset(index: Int): Unit = {
-      aggregates(index).setAggOffsetInRow(aggOffset)
-      aggOffset += aggregates(index).intermediateDataType.length
     }
 
     (aggFieldIndexes, aggregates)
   }
 
-  private def createAggregateBufferDataType(
-    groupings: Array[Int],
-    aggregates: Array[Aggregate[_]],
-    inputType: RelDataType,
-    windowKeyTypes: Option[Array[TypeInformation[_]]] = None): RowTypeInfo = {
+  private def createAccumulatorType(
+      aggregates: Array[TableAggregateFunction[_, _]]): Seq[TypeInformation[_]] = {
+
+    val aggTypes: Seq[TypeInformation[_]] =
+      aggregates.map {
+        agg =>
+          val accType = try {
+            val method: Method = agg.getClass.getMethod("getAccumulatorType")
+            method.invoke(agg).asInstanceOf[TypeInformation[_]]
+          } catch {
+            case _: NoSuchMethodException => null
+            case ite: Throwable => throw new TableException("Unexpected exception:", ite)
+          }
+          if (accType != null) {
+            accType
+          } else {
+            val accumulator = agg.createAccumulator()
+            try {
+              TypeInformation.of(accumulator.getClass)
+            } catch {
+              case ite: InvalidTypesException =>
+                throw new TableException(
+                  "Cannot infer type of accumulator. " +
+                    "You can override AggregateFunction.getAccumulatorType() to specify the type.",
+                  ite)
+            }
+          }
+      }
+
+    aggTypes
+  }
+
+  private def createDataSetAggregateBufferDataType(
+      groupings: Array[Int],
+      aggregates: Array[TableAggregateFunction[_, _]],
+      inputType: RelDataType,
+      windowKeyTypes: Option[Array[TypeInformation[_]]] = None): RowTypeInfo = {
 
     // get the field data types of group keys.
-    val groupingTypes: Seq[TypeInformation[_]] = groupings
-      .map(inputType.getFieldList.get(_).getType)
-      .map(FlinkTypeFactory.toTypeInfo)
+    val groupingTypes: Seq[TypeInformation[_]] =
+      groupings
+        .map(inputType.getFieldList.get(_).getType)
+        .map(FlinkTypeFactory.toTypeInfo)
 
     // get all field data types of all intermediate aggregates
-    val aggTypes: Seq[TypeInformation[_]] = aggregates.flatMap(_.intermediateDataType)
+    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(aggregates)
 
     // concat group key types, aggregation types, and window key types
-    val allFieldTypes:Seq[TypeInformation[_]] = windowKeyTypes match {
+    val allFieldTypes: Seq[TypeInformation[_]] = windowKeyTypes match {
       case None => groupingTypes ++: aggTypes
       case _ => groupingTypes ++: aggTypes ++: windowKeyTypes.get
     }
-    new RowTypeInfo(allFieldTypes :_*)
+    new RowTypeInfo(allFieldTypes: _*)
   }
 
-  // Find the mapping between the index of aggregate list and aggregated value index in output Row.
-  private def getAggregateMapping(
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    outputType: RelDataType): Array[(Int, Int)] = {
+  private[flink] def createAccumulatorRowType(
+      aggregates: Array[TableAggregateFunction[_, _]]): RowTypeInfo = {
 
-    // the mapping relation between aggregate function index in list and its corresponding
-    // field index in output Row.
-    var aggOffsetMapping = ArrayBuffer[(Int, Int)]()
+    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(aggregates)
 
-    outputType.getFieldList.zipWithIndex.foreach{
-      case (outputFieldType, outputIndex) =>
-        namedAggregates.zipWithIndex.foreach {
-          case (namedAggCall, aggregateIndex) =>
-            if (namedAggCall.getValue.equals(outputFieldType.getName) &&
-                namedAggCall.getKey.getType.equals(outputFieldType.getType)) {
-              aggOffsetMapping += ((outputIndex, aggregateIndex))
-            }
-        }
-    }
-
-    aggOffsetMapping.toArray
-  }
-
-  // Find the mapping between the index of group key in intermediate aggregate Row and its index
-  // in output Row.
-  private def getGroupKeysMapping(
-    inputDatType: RelDataType,
-    outputType: RelDataType,
-    groupKeys: Array[Int]): Array[(Int, Int)] = {
-
-    // the mapping relation between field index of intermediate aggregate Row and output Row.
-    var groupingOffsetMapping = ArrayBuffer[(Int, Int)]()
-
-    outputType.getFieldList.zipWithIndex.foreach {
-      case (outputFieldType, outputIndex) =>
-        inputDatType.getFieldList.zipWithIndex.foreach {
-          // find the field index in input data type.
-          case (inputFieldType, inputIndex) =>
-            if (outputFieldType.getName.equals(inputFieldType.getName) &&
-                outputFieldType.getType.equals(inputFieldType.getType)) {
-              // as aggregated field in output data type would not have a matched field in
-              // input data, so if inputIndex is not -1, it must be a group key. Then we can
-              // find the field index in buffer data by the group keys index mapping between
-              // input data and buffer data.
-              for (i <- groupKeys.indices) {
-                if (inputIndex == groupKeys(i)) {
-                  groupingOffsetMapping += ((outputIndex, i))
-                }
-              }
-            }
-        }
-    }
-
-    groupingOffsetMapping.toArray
+    new RowTypeInfo(aggTypes: _*)
   }
 
   private def getTimeFieldPosition(
@@ -893,11 +1397,21 @@ object AggregateUtil {
     }
   }
 
-  private def asLong(expr: Expression): Long = expr match {
+  private[flink] def asLong(expr: Expression): Long = expr match {
     case Literal(value: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) => value
     case Literal(value: Long, RowIntervalTypeInfo.INTERVAL_ROWS) => value
     case _ => throw new IllegalArgumentException()
   }
 
-}
+  private[flink] def determineLargestTumblingSize(size: Long, slide: Long): Long = {
+    if (slide > size) {
+      gcd(slide, size)
+    } else {
+      gcd(size, slide)
+    }
+  }
 
+  private def gcd(a: Long, b: Long): Long = {
+    if (b == 0) a else gcd(b, a % b)
+  }
+}

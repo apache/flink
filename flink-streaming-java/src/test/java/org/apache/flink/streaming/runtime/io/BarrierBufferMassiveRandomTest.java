@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -43,22 +44,22 @@ import static org.junit.Assert.fail;
 public class BarrierBufferMassiveRandomTest {
 
 	private static final int PAGE_SIZE = 1024;
-	
+
 	@Test
 	public void testWithTwoChannelsAndRandomBarriers() {
 		IOManager ioMan = null;
 		try {
 			ioMan = new IOManagerAsync();
-			
-			BufferPool pool1 = new NetworkBufferPool(100, PAGE_SIZE, MemoryType.HEAP).createBufferPool(100, true);
-			BufferPool pool2 = new NetworkBufferPool(100, PAGE_SIZE, MemoryType.HEAP).createBufferPool(100, true);
+
+			BufferPool pool1 = new NetworkBufferPool(100, PAGE_SIZE, MemoryType.HEAP).createBufferPool(100, 100);
+			BufferPool pool2 = new NetworkBufferPool(100, PAGE_SIZE, MemoryType.HEAP).createBufferPool(100, 100);
 
 			RandomGeneratingInputGate myIG = new RandomGeneratingInputGate(
 					new BufferPool[] { pool1, pool2 },
 					new BarrierGenerator[] { new CountBarrier(100000), new RandomBarrier(100000) });
-	
+
 			BarrierBuffer barrierBuffer = new BarrierBuffer(myIG, ioMan);
-			
+
 			for (int i = 0; i < 2000000; i++) {
 				BufferOrEvent boe = barrierBuffer.getNextNonBlocked();
 				if (boe.isBuffer()) {
@@ -80,13 +81,13 @@ public class BarrierBufferMassiveRandomTest {
 	// ------------------------------------------------------------------------
 	//  Mocks and Generators
 	// ------------------------------------------------------------------------
-	
+
 	protected interface BarrierGenerator {
 		public boolean isNextBarrier();
 	}
 
 	protected static class RandomBarrier implements BarrierGenerator {
-		
+
 		private static final Random rnd = new Random();
 
 		private final double threshold;
@@ -151,7 +152,7 @@ public class BarrierBufferMassiveRandomTest {
 
 			if (barrierGens[currentChannel].isNextBarrier()) {
 				return new BufferOrEvent(
-						new CheckpointBarrier(++currentBarriers[currentChannel], System.currentTimeMillis()),
+						new CheckpointBarrier(++currentBarriers[currentChannel], System.currentTimeMillis(), CheckpointOptions.forFullCheckpoint()),
 							currentChannel);
 			} else {
 				Buffer buffer = bufferPools[currentChannel].requestBuffer();

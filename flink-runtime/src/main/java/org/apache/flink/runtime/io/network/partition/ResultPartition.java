@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManager;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -160,6 +161,7 @@ public class ResultPartition implements BufferPoolOwner {
 				break;
 
 			case PIPELINED:
+			case PIPELINED_BOUNDED:
 				for (int i = 0; i < subpartitions.length; i++) {
 					subpartitions[i] = new PipelinedSubpartition(i, this);
 				}
@@ -219,10 +221,20 @@ public class ResultPartition implements BufferPoolOwner {
 		return bufferPool;
 	}
 
+	/**
+	 * Returns the total number of processed network buffers since initialization.
+	 *
+	 * @return overall number of processed network buffers
+	 */
 	public int getTotalNumberOfBuffers() {
 		return totalNumberOfBuffers;
 	}
 
+	/**
+	 * Returns the total size of processed network buffers since initialization.
+	 *
+	 * @return overall size of processed network buffers
+	 */
 	public long getTotalNumberOfBytes() {
 		return totalNumberOfBytes;
 	}
@@ -231,10 +243,19 @@ public class ResultPartition implements BufferPoolOwner {
 		int totalBuffers = 0;
 
 		for (ResultSubpartition subpartition : subpartitions) {
-			totalBuffers += subpartition.getNumberOfQueuedBuffers();
+			totalBuffers += subpartition.unsynchronizedGetNumberOfQueuedBuffers();
 		}
 
 		return totalBuffers;
+	}
+
+	/**
+	 * Returns the type of this result partition.
+	 *
+	 * @return result partition type
+	 */
+	public ResultPartitionType getPartitionType() {
+		return partitionType;
 	}
 
 	// ------------------------------------------------------------------------
@@ -341,7 +362,7 @@ public class ResultPartition implements BufferPoolOwner {
 	/**
 	 * Returns the requested subpartition.
 	 */
-	public ResultSubpartitionView createSubpartitionView(int index, BufferProvider bufferProvider, BufferAvailabilityListener availabilityListener) throws IOException {
+	public ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException {
 		int refCnt = pendingReferences.get();
 
 		checkState(refCnt != -1, "Partition released.");
@@ -349,7 +370,7 @@ public class ResultPartition implements BufferPoolOwner {
 
 		checkElementIndex(index, subpartitions.length, "Subpartition not found.");
 
-		ResultSubpartitionView readView = subpartitions[index].createReadView(bufferProvider, availabilityListener);
+		ResultSubpartitionView readView = subpartitions[index].createReadView(availabilityListener);
 
 		LOG.debug("Created {}", readView);
 
@@ -434,6 +455,10 @@ public class ResultPartition implements BufferPoolOwner {
 
 		LOG.debug("{}: Received release notification for subpartition {} (reference count now at: {}).",
 				this, subpartitionIndex, pendingReferences);
+	}
+
+	ResultSubpartition[] getAllPartitions() {
+		return subpartitions;
 	}
 
 	// ------------------------------------------------------------------------

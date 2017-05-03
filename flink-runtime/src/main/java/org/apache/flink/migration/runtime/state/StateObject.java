@@ -32,8 +32,11 @@ package org.apache.flink.migration.runtime.state;
  *         stop the current access or recovery to the state. Called for example when an operation is
  *         canceled during recovery.</li>
  * </ul>
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public interface StateObject extends java.io.Closeable, java.io.Serializable {
 
 	/**

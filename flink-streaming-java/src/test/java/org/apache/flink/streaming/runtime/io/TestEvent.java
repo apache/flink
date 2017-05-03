@@ -58,7 +58,7 @@ public class TestEvent extends AbstractEvent {
 	public void read(DataInputView in) throws IOException {
 		this.magicNumber = in.readLong();
 		this.payload = new byte[in.readInt()];
-		in.read(this.payload);
+		in.readFully(this.payload);
 	}
 
 	// ------------------------------------------------------------------------

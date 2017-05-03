@@ -22,7 +22,11 @@ import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+/**
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
+ */
 @Deprecated
+@SuppressWarnings("deprecation")
 public class MemFoldingState<K, N, T, ACC> {
 
 	public static class Snapshot<K, N, T, ACC> extends AbstractMemStateSnapshot<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>> {

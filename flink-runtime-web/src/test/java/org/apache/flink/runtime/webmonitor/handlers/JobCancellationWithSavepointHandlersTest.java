@@ -20,6 +20,8 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import akka.dispatch.ExecutionContexts$;
 import akka.dispatch.Futures;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -32,8 +34,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
+import org.junit.Assert;
 import org.junit.Test;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
@@ -41,8 +42,10 @@ import scala.concurrent.duration.FiniteDuration;
 import scala.concurrent.impl.Promise;
 
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -56,6 +59,23 @@ import static org.mockito.Mockito.when;
 public class JobCancellationWithSavepointHandlersTest {
 
 	private static final ExecutionContext EC = ExecutionContexts$.MODULE$.fromExecutor(Executors.directExecutor());
+
+	@Test
+	public void testGetPaths() {
+		JobCancellationWithSavepointHandlers handler = new JobCancellationWithSavepointHandlers(mock(ExecutionGraphHolder.class), EC);
+
+		JobCancellationWithSavepointHandlers.TriggerHandler triggerHandler = handler.getTriggerHandler();
+		String[] triggerPaths = triggerHandler.getPaths();
+		Assert.assertEquals(2, triggerPaths.length);
+		List<String> triggerPathsList = Arrays.asList(triggerPaths);
+		Assert.assertTrue(triggerPathsList.contains("/jobs/:jobid/cancel-with-savepoint"));
+		Assert.assertTrue(triggerPathsList.contains("/jobs/:jobid/cancel-with-savepoint/target-directory/:targetDirectory"));
+
+		JobCancellationWithSavepointHandlers.InProgressHandler progressHandler = handler.getInProgressHandler();
+		String[] progressPaths = progressHandler.getPaths();
+		Assert.assertEquals(1, progressPaths.length);
+		Assert.assertEquals("/jobs/:jobid/cancel-with-savepoint/in-progress/:requestId", progressPaths[0]);
+	}
 
 	/**
 	 * Tests that the cancellation ask timeout respects the checkpoint timeout.
@@ -181,9 +201,9 @@ public class JobCancellationWithSavepointHandlersTest {
 		String json = response.content().toString(Charset.forName("UTF-8"));
 		JsonNode root = new ObjectMapper().readTree(json);
 
-		assertEquals("accepted", root.get("status").getValueAsText());
-		assertEquals("1", root.get("request-id").getValueAsText());
-		assertEquals(location, root.get("location").getValueAsText());
+		assertEquals("accepted", root.get("status").asText());
+		assertEquals("1", root.get("request-id").asText());
+		assertEquals(location, root.get("location").asText());
 
 		// Trigger again
 		response = trigger.handleRequest(params, Collections.<String, String>emptyMap(), jobManager);
@@ -195,9 +215,9 @@ public class JobCancellationWithSavepointHandlersTest {
 		json = response.content().toString(Charset.forName("UTF-8"));
 		root = new ObjectMapper().readTree(json);
 
-		assertEquals("accepted", root.get("status").getValueAsText());
-		assertEquals("1", root.get("request-id").getValueAsText());
-		assertEquals(location, root.get("location").getValueAsText());
+		assertEquals("accepted", root.get("status").asText());
+		assertEquals("1", root.get("request-id").asText());
+		assertEquals(location, root.get("location").asText());
 
 		// Only single actual request
 		verify(jobManager).ask(eq(new CancelJobWithSavepoint(jobId, "custom-directory")), any(FiniteDuration.class));
@@ -213,8 +233,8 @@ public class JobCancellationWithSavepointHandlersTest {
 		json = response.content().toString(Charset.forName("UTF-8"));
 		root = new ObjectMapper().readTree(json);
 
-		assertEquals("in-progress", root.get("status").getValueAsText());
-		assertEquals("1", root.get("request-id").getValueAsText());
+		assertEquals("in-progress", root.get("status").asText());
+		assertEquals("1", root.get("request-id").asText());
 
 		// Complete
 		promise.success(new CancellationSuccess(jobId, "_path-savepoint_"));
@@ -229,9 +249,9 @@ public class JobCancellationWithSavepointHandlersTest {
 
 		root = new ObjectMapper().readTree(json);
 
-		assertEquals("success", root.get("status").getValueAsText());
-		assertEquals("1", root.get("request-id").getValueAsText());
-		assertEquals("_path-savepoint_", root.get("savepoint-path").getValueAsText());
+		assertEquals("success", root.get("status").asText());
+		assertEquals("1", root.get("request-id").asText());
+		assertEquals("_path-savepoint_", root.get("savepoint-path").asText());
 
 		// Query again, keep recent history
 
@@ -245,9 +265,9 @@ public class JobCancellationWithSavepointHandlersTest {
 
 		root = new ObjectMapper().readTree(json);
 
-		assertEquals("success", root.get("status").getValueAsText());
-		assertEquals("1", root.get("request-id").getValueAsText());
-		assertEquals("_path-savepoint_", root.get("savepoint-path").getValueAsText());
+		assertEquals("success", root.get("status").asText());
+		assertEquals("1", root.get("request-id").asText());
+		assertEquals("_path-savepoint_", root.get("savepoint-path").asText());
 
 		// Query for unknown request
 		params.put("requestId", "9929");
@@ -261,9 +281,9 @@ public class JobCancellationWithSavepointHandlersTest {
 
 		root = new ObjectMapper().readTree(json);
 
-		assertEquals("failed", root.get("status").getValueAsText());
-		assertEquals("9929", root.get("request-id").getValueAsText());
-		assertEquals("Unknown job/request ID", root.get("cause").getValueAsText());
+		assertEquals("failed", root.get("status").asText());
+		assertEquals("9929", root.get("request-id").asText());
+		assertEquals("Unknown job/request ID", root.get("cause").asText());
 	}
 
 	/**
@@ -307,8 +327,8 @@ public class JobCancellationWithSavepointHandlersTest {
 		String json = response.content().toString(Charset.forName("UTF-8"));
 		JsonNode root = new ObjectMapper().readTree(json);
 
-		assertEquals("failed", root.get("status").getValueAsText());
-		assertEquals("1", root.get("request-id").getValueAsText());
-		assertEquals("Test Exception", root.get("cause").getValueAsText());
+		assertEquals("failed", root.get("status").asText());
+		assertEquals("1", root.get("request-id").asText());
+		assertEquals("Test Exception", root.get("cause").asText());
 	}
 }

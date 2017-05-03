@@ -38,6 +38,7 @@ import org.apache.flink.runtime.rpc.akka.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.akka.messages.RunAsync;
 
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
+import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -267,21 +268,27 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 				runAsync.getClass().getName(),
 				runAsync.getClass().getName());
 		}
-		else if (runAsync.getDelay() == 0) {
-			// run immediately
-			try {
-				runAsync.getRunnable().run();
-			} catch (final Throwable e) {
-				LOG.error("Caught exception while executing runnable in main thread.", e);
-			}
-		}
 		else {
-			// schedule for later. send a new message after the delay, which will then be immediately executed 
-			FiniteDuration delay = new FiniteDuration(runAsync.getDelay(), TimeUnit.MILLISECONDS);
-			RunAsync message = new RunAsync(runAsync.getRunnable(), 0);
+			final long timeToRun = runAsync.getTimeNanos(); 
+			final long delayNanos;
 
-			getContext().system().scheduler().scheduleOnce(delay, getSelf(), message,
-					getContext().dispatcher(), ActorRef.noSender());
+			if (timeToRun == 0 || (delayNanos = timeToRun - System.nanoTime()) <= 0) {
+				// run immediately
+				try {
+					runAsync.getRunnable().run();
+				} catch (Throwable t) {
+					LOG.error("Caught exception while executing runnable in main thread.", t);
+					ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+				}
+			}
+			else {
+				// schedule for later. send a new message after the delay, which will then be immediately executed 
+				FiniteDuration delay = new FiniteDuration(delayNanos, TimeUnit.NANOSECONDS);
+				RunAsync message = new RunAsync(runAsync.getRunnable(), timeToRun);
+
+				getContext().system().scheduler().scheduleOnce(delay, getSelf(), message,
+						getContext().dispatcher(), ActorRef.noSender());
+			}
 		}
 	}
 

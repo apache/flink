@@ -35,6 +35,7 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.Valu
 import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -43,7 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class ExternalSortITCase {
+public class ExternalSortITCase extends TestLogger {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(ExternalSortITCase.class);
 

@@ -88,7 +88,7 @@ extends AsmTestBase {
 		Result expectedResult = new Result(113_435_893, 0, 7_616_063, 0, 0, 0, 0, 0, 0, 0, 778_295, 0, 0, 0, 0, 75_049);
 
 		Result triadCensus = new TriadicCensus<LongValue, NullValue, NullValue>()
-			.run(undirectedRMatGraph)
+			.run(undirectedRMatGraph(10, 16))
 			.execute();
 
 		assertEquals(expectedResult, triadCensus);
@@ -115,7 +115,7 @@ extends AsmTestBase {
 			7_587, 15_178, 17_368, 4_951);
 
 		Result triadCensus = new TriadicCensus<LongValue, NullValue, NullValue>()
-			.run(directedRMatGraph)
+			.run(directedRMatGraph(10, 16))
 			.execute();
 
 		assertEquals(expectedResult, triadCensus);

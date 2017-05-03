@@ -27,7 +27,7 @@ import java.io.Serializable;
 import java.util.Collection;
 
 public class CollectingSourceContext<T extends Serializable> implements SourceFunction.SourceContext<T> {
-	
+
 	private final Object lock;
 	private final Collection<T> collection;
 
@@ -52,6 +52,11 @@ public class CollectingSourceContext<T extends Serializable> implements SourceFu
 
 	@Override
 	public void emitWatermark(Watermark mark) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void markAsTemporarilyIdle() {
 		throw new UnsupportedOperationException();
 	}
 

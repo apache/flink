@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -68,6 +69,9 @@ public class TaskStopTest {
 		TaskManagerRuntimeInfo tmRuntimeInfo = mock(TaskManagerRuntimeInfo.class);
 		when(tmRuntimeInfo.getConfiguration()).thenReturn(new Configuration());
 
+		TaskMetricGroup taskMetricGroup = mock(TaskMetricGroup.class);
+		when(taskMetricGroup.getIOMetricGroup()).thenReturn(mock(TaskIOMetricGroup.class));
+
 		task = new Task(
 			mock(JobInformation.class),
 			new TaskInformation(
@@ -95,7 +99,7 @@ public class TaskStopTest {
 			mock(LibraryCacheManager.class),
 			mock(FileCache.class),
 			tmRuntimeInfo,
-			mock(TaskMetricGroup.class),
+			taskMetricGroup,
 			mock(ResultPartitionConsumableNotifier.class),
 			mock(PartitionProducerStateChecker.class),
 			mock(Executor.class));

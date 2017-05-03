@@ -120,8 +120,12 @@ public class JobManagerServices {
 			throw new IllegalConfigurationException(AkkaUtils.formatDurationParingErrorMessage());
 		}
 
+		final ScheduledExecutorService futureExecutor = Executors.newScheduledThreadPool(
+				Hardware.getNumberCPUCores(),
+				new ExecutorThreadFactory("jobmanager-future"));
+
 		return new JobManagerServices(
-			Executors.newScheduledThreadPool(Hardware.getNumberCPUCores(), ExecutorThreadFactory.INSTANCE),
+			futureExecutor,
 			libraryCacheManager,
 			RestartStrategyFactory.createRestartStrategyFactory(config),
 			Time.of(timeout.length(), timeout.unit()));

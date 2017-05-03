@@ -25,6 +25,8 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -44,6 +46,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateHandles;
@@ -90,7 +93,7 @@ public class TaskAsyncCallTest {
 			awaitLatch.await();
 			
 			for (int i = 1; i <= NUM_CALLS; i++) {
-				task.triggerCheckpointBarrier(i, 156865867234L);
+				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forFullCheckpoint());
 			}
 			
 			triggerLatch.await();
@@ -120,7 +123,7 @@ public class TaskAsyncCallTest {
 			awaitLatch.await();
 
 			for (int i = 1; i <= NUM_CALLS; i++) {
-				task.triggerCheckpointBarrier(i, 156865867234L);
+				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forFullCheckpoint());
 				task.notifyCheckpointComplete(i);
 			}
 
@@ -154,6 +157,9 @@ public class TaskAsyncCallTest {
 		when(networkEnvironment.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
+
+		TaskMetricGroup taskMetricGroup = mock(TaskMetricGroup.class);
+		when(taskMetricGroup.getIOMetricGroup()).thenReturn(mock(TaskIOMetricGroup.class));
 
 		JobInformation jobInformation = new JobInformation(
 			new JobID(),
@@ -192,7 +198,7 @@ public class TaskAsyncCallTest {
 			libCache,
 			mock(FileCache.class),
 			new TestingTaskManagerRuntimeInfo(),
-			mock(TaskMetricGroup.class),
+			taskMetricGroup,
 			consumableNotifier,
 			partitionProducerStateChecker,
 			executor);
@@ -225,7 +231,7 @@ public class TaskAsyncCallTest {
 		public void setInitialState(TaskStateHandles taskStateHandles) throws Exception {}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData) {
+		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
 			lastCheckpointId++;
 			if (checkpointMetaData.getCheckpointId() == lastCheckpointId) {
 				if (lastCheckpointId == NUM_CALLS) {
@@ -242,7 +248,7 @@ public class TaskAsyncCallTest {
 		}
 
 		@Override
-		public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData) throws Exception {
+		public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws Exception {
 			throw new UnsupportedOperationException("Should not be called");
 		}
 

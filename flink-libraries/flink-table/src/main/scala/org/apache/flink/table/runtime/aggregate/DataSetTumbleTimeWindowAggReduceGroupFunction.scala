@@ -21,80 +21,77 @@ import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.types.Row
-import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.util.Collector
+import org.slf4j.LoggerFactory
 
 /**
   * It wraps the aggregate logic inside of
   * [[org.apache.flink.api.java.operators.GroupReduceOperator]]. It is used for tumbling time-window
   * on batch.
   *
-  * @param rowtimePos The rowtime field index in input row
-  * @param windowSize Tumbling time window size
-  * @param windowStartPos The relative window-start field position to the last field of output row
-  * @param windowEndPos The relative window-end field position to the last field of output row
-  * @param aggregates The aggregate functions.
-  * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
-  *                         and output Row.
-  * @param aggregateMapping The index mapping between aggregate function list and aggregated value
-  *                         index in output Row.
-  * @param intermediateRowArity The intermediate row field count
-  * @param finalRowArity The output row field count
+  * @param genAggregations  Code-generated [[GeneratedAggregations]]
+  * @param windowSize       Tumbling time window size
+  * @param windowStartPos   The relative window-start field position to the last field of output row
+  * @param windowEndPos     The relative window-end field position to the last field of output row
+  * @param keysAndAggregatesArity    The total arity of keys and aggregates
   */
 class DataSetTumbleTimeWindowAggReduceGroupFunction(
-    rowtimePos: Int,
+    genAggregations: GeneratedAggregationsFunction,
     windowSize: Long,
     windowStartPos: Option[Int],
     windowEndPos: Option[Int],
-    aggregates: Array[Aggregate[_ <: Any]],
-    groupKeysMapping: Array[(Int, Int)],
-    aggregateMapping: Array[(Int, Int)],
-    intermediateRowArity: Int,
-    finalRowArity: Int)
-  extends RichGroupReduceFunction[Row, Row] {
+    keysAndAggregatesArity: Int)
+  extends RichGroupReduceFunction[Row, Row]
+    with Compiler[GeneratedAggregations] {
 
   private var collector: TimeWindowPropertyCollector = _
-  protected var aggregateBuffer: Row = _
+  protected var aggregateBuffer: Row = new Row(keysAndAggregatesArity + 1)
+
   private var output: Row = _
+  protected var accumulators: Row = _
+
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  protected var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
-    Preconditions.checkNotNull(aggregates)
-    Preconditions.checkNotNull(groupKeysMapping)
-    aggregateBuffer = new Row(intermediateRowArity)
-    output = new Row(finalRowArity)
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getClass.getClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
+
+    output = function.createOutputRow()
+    accumulators = function.createAccumulators()
     collector = new TimeWindowPropertyCollector(windowStartPos, windowEndPos)
   }
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
-    // initiate intermediate aggregate value.
-    aggregates.foreach(_.initiate(aggregateBuffer))
-
-    // merge intermediate aggregate value to buffer.
     var last: Row = null
-
     val iterator = records.iterator()
+
+    // reset accumulator
+    function.resetAccumulator(accumulators)
+
     while (iterator.hasNext) {
       val record = iterator.next()
-      aggregates.foreach(_.merge(record, aggregateBuffer))
+      function.mergeAccumulatorsPair(accumulators, record)
       last = record
     }
 
     // set group keys value to final output.
-    groupKeysMapping.foreach {
-      case (after, previous) =>
-        output.setField(after, last.getField(previous))
-    }
+    function.setForwardedFields(last, output)
 
-    // evaluate final aggregate value and set to output.
-    aggregateMapping.foreach {
-      case (after, previous) =>
-        output.setField(after, aggregates(previous).evaluate(aggregateBuffer))
-    }
+    // get final aggregate value and set to output.
+    function.setAggregationResults(accumulators, output)
 
     // get window start timestamp
-    val startTs: Long = last.getField(rowtimePos).asInstanceOf[Long]
+    val startTs: Long = last.getField(keysAndAggregatesArity).asInstanceOf[Long]
 
     // set collector and window
     collector.wrappedCollector = out

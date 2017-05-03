@@ -26,8 +26,11 @@ import java.io.Serializable;
 
 /**
  * A state backend defines how state is stored and snapshotted during checkpoints.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public abstract class AbstractStateBackend implements Serializable {
 	
 	private static final long serialVersionUID = 4620413814639220247L;

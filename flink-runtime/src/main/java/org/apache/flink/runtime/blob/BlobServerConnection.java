@@ -168,6 +168,14 @@ class BlobServerConnection extends Thread {
 	 *         thrown if an I/O error occurs while reading/writing data from/to the respective streams
 	 */
 	private void get(InputStream inputStream, OutputStream outputStream, byte[] buf) throws IOException {
+		/**
+		 * Retrieve the file from the (distributed?) BLOB store and store it
+		 * locally, then send it to the service which requested it.
+		 *
+		 * Instead, we could send it from the distributed store directly but
+		 * chances are high that if there is one request, there will be more
+		 * so a local cache makes more sense.
+		 */
 
 		File blobFile;
 		try {

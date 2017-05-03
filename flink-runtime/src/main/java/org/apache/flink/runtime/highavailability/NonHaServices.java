@@ -54,16 +54,6 @@ public class NonHaServices extends AbstractNonHaServices implements HighAvailabi
 	}
 
 	// ------------------------------------------------------------------------
-	//  Names
-	// ------------------------------------------------------------------------
-
-	@Override
-	public String getResourceManagerEndpointName() {
-		return RESOURCE_MANAGER_RPC_ENDPOINT_NAME;
-	}
-
-
-	// ------------------------------------------------------------------------
 	//  Services
 	// ------------------------------------------------------------------------
 

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
@@ -60,8 +59,7 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener {
 	void requestSubpartitionView(
 		ResultPartitionProvider partitionProvider,
 		ResultPartitionID resultPartitionId,
-		int subPartitionIndex,
-		BufferProvider bufferProvider) throws IOException {
+		int subPartitionIndex) throws IOException {
 
 		synchronized (requestLock) {
 			if (subpartitionView == null) {
@@ -72,7 +70,6 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener {
 				this.subpartitionView = partitionProvider.createSubpartitionView(
 					resultPartitionId,
 					subPartitionIndex,
-					bufferProvider,
 					this);
 			} else {
 				throw new IllegalStateException("Subpartition already requested");

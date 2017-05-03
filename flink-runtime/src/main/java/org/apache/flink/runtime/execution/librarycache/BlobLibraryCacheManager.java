@@ -37,10 +37,11 @@ import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * For each job graph that is submitted to the system the library cache manager maintains
@@ -73,7 +74,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	// --------------------------------------------------------------------------------------------
 
 	public BlobLibraryCacheManager(BlobService blobService, long cleanupInterval) {
-		this.blobService = blobService;
+		this.blobService = checkNotNull(blobService);
 
 		// Initializing the clean up task
 		this.cleanupTimer = new Timer(true);
@@ -91,8 +92,8 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	@Override
 	public void registerTask(JobID jobId, ExecutionAttemptID task, Collection<BlobKey> requiredJarFiles,
 			Collection<URL> requiredClasspaths) throws IOException {
-		Preconditions.checkNotNull(jobId, "The JobId must not be null.");
-		Preconditions.checkNotNull(task, "The task execution id must not be null.");
+		checkNotNull(jobId, "The JobId must not be null.");
+		checkNotNull(task, "The task execution id must not be null.");
 
 		if (requiredJarFiles == null) {
 			requiredJarFiles = Collections.emptySet();
@@ -153,8 +154,8 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	
 	@Override
 	public void unregisterTask(JobID jobId, ExecutionAttemptID task) {
-		Preconditions.checkNotNull(jobId, "The JobId must not be null.");
-		Preconditions.checkNotNull(task, "The task execution id must not be null.");
+		checkNotNull(jobId, "The JobId must not be null.");
+		checkNotNull(task, "The task execution id must not be null.");
 
 		synchronized (lockObject) {
 			LibraryCacheEntry entry = cacheEntries.get(jobId);

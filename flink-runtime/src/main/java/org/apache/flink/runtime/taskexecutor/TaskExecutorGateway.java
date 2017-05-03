@@ -20,17 +20,17 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.resourcemanager.messages.taskexecutor.TMSlotRequestReply;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
-import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskmanager.Task;
 
 import java.util.UUID;
@@ -46,10 +46,9 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @param slotId slot id for the request
 	 * @param allocationId id for the request
 	 * @param resourceManagerLeaderId current leader id of the ResourceManager
-	 * @throws SlotAllocationException if the slot allocation fails
 	 * @return answer to the slot request
 	 */
-	Future<TMSlotRequestReply> requestSlot(
+	Future<Acknowledge> requestSlot(
 		SlotID slotId,
 		JobID jobId,
 		AllocationID allocationId,
@@ -97,9 +96,10 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @param executionAttemptID identifying the task
 	 * @param checkpointID unique id for the checkpoint
 	 * @param checkpointTimestamp is the timestamp when the checkpoint has been initiated
+	 * @param checkpointOptions for performing the checkpoint
 	 * @return Future acknowledge if the checkpoint has been successfully triggered
 	 */
-	Future<Acknowledge> triggerCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointID, long checkpointTimestamp);
+	Future<Acknowledge> triggerCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointID, long checkpointTimestamp, CheckpointOptions checkpointOptions);
 
 	/**
 	 * Confirm a checkpoint for the given task. The checkpoint is identified by the checkpoint ID
@@ -129,4 +129,33 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @return Future acknowledge if the task is successfully canceled
 	 */
 	Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, @RpcTimeout Time timeout);
+
+	/**
+	 * Heartbeat request from the job manager
+	 *
+	 * @param heartbeatOrigin unique id of the job manager
+	 */
+	void heartbeatFromJobManager(ResourceID heartbeatOrigin);
+
+	/**
+	 * Heartbeat request from the resource manager
+	 *
+	 * @param heartbeatOrigin unique id of the resource manager
+	 */
+	void heartbeatFromResourceManager(ResourceID heartbeatOrigin);
+
+	/**
+	 * Disconnects the given JobManager from the TaskManager.
+	 *
+	 * @param jobId JobID for which the JobManager was the leader
+	 * @param cause for the disconnection from the JobManager
+	 */
+	void disconnectJobManager(JobID jobId, Exception cause);
+
+	/**
+	 * Disconnects the ResourceManager from the TaskManager.
+	 *
+	 * @param cause for the disconnection from the ResourceManager
+	 */
+	void disconnectResourceManager(Exception cause);
 }

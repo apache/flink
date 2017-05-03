@@ -32,11 +32,11 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -73,7 +73,13 @@ public class SingleInputGateTest {
 	public void testBasicGetNextLogic() throws Exception {
 		// Setup
 		final SingleInputGate inputGate = new SingleInputGate(
-			"Test Task Name", new JobID(), new IntermediateDataSetID(), 0, 2, mock(TaskActions.class), new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+			"Test Task Name", new JobID(),
+			new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
+			0, 2,
+			mock(TaskActions.class),
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+
+		assertEquals(ResultPartitionType.PIPELINED, inputGate.getConsumedPartitionType());
 
 		final TestInputChannel[] inputChannels = new TestInputChannel[]{
 			new TestInputChannel(inputGate, 0),
@@ -121,13 +127,17 @@ public class SingleInputGateTest {
 		when(partitionManager.createSubpartitionView(
 			any(ResultPartitionID.class),
 			anyInt(),
-			any(BufferProvider.class),
 			any(BufferAvailabilityListener.class))).thenReturn(iterator);
 
 		// Setup reader with one local and one unknown input channel
 		final IntermediateDataSetID resultId = new IntermediateDataSetID();
 
-		final SingleInputGate inputGate = new SingleInputGate("Test Task Name", new JobID(), resultId, 0, 2, mock(TaskActions.class), new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+		final SingleInputGate inputGate = new SingleInputGate(
+				"Test Task Name", new JobID(),
+				resultId, ResultPartitionType.PIPELINED,
+				0, 2,
+				mock(TaskActions.class),
+				new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 		final BufferPool bufferPool = mock(BufferPool.class);
 		when(bufferPool.getNumberOfRequiredMemorySegments()).thenReturn(2);
 
@@ -151,7 +161,7 @@ public class SingleInputGateTest {
 		inputGate.requestPartitions();
 
 		// Only the local channel can request
-		verify(partitionManager, times(1)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferProvider.class), any(BufferAvailabilityListener.class));
+		verify(partitionManager, times(1)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
 
 		// Send event backwards and initialize unknown channel afterwards
 		final TaskEvent event = new TestTaskEvent();
@@ -163,7 +173,7 @@ public class SingleInputGateTest {
 		// After the update, the pending event should be send to local channel
 		inputGate.updateInputChannel(new InputChannelDeploymentDescriptor(new ResultPartitionID(unknownPartitionId.getPartitionId(), unknownPartitionId.getProducerId()), ResultPartitionLocation.createLocal()));
 
-		verify(partitionManager, times(2)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferProvider.class), any(BufferAvailabilityListener.class));
+		verify(partitionManager, times(2)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
 		verify(taskEventDispatcher, times(2)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
 	}
 
@@ -179,6 +189,7 @@ public class SingleInputGateTest {
 			"t1",
 			new JobID(),
 			new IntermediateDataSetID(),
+			ResultPartitionType.PIPELINED,
 			0,
 			1,
 			mock(TaskActions.class), new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
@@ -202,7 +213,7 @@ public class SingleInputGateTest {
 			ResultPartitionLocation.createLocal()));
 
 		verify(partitionManager, never()).createSubpartitionView(
-			any(ResultPartitionID.class), anyInt(), any(BufferProvider.class), any(BufferAvailabilityListener.class));
+			any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class));
 	}
 
 	/**
@@ -218,6 +229,7 @@ public class SingleInputGateTest {
 			"InputGate",
 			new JobID(),
 			new IntermediateDataSetID(),
+			ResultPartitionType.PIPELINED,
 			0,
 			1,
 			mock(TaskActions.class),
@@ -303,7 +315,9 @@ public class SingleInputGateTest {
 				partitionIds[2],
 				ResultPartitionLocation.createUnknown())};
 
-		InputGateDeploymentDescriptor gateDesc = new InputGateDeploymentDescriptor(new IntermediateDataSetID(), 0, channelDescs);
+		InputGateDeploymentDescriptor gateDesc =
+			new InputGateDeploymentDescriptor(new IntermediateDataSetID(),
+				ResultPartitionType.PIPELINED, 0, channelDescs);
 
 		int initialBackoff = 137;
 		int maxBackoff = 1001;
@@ -323,6 +337,8 @@ public class SingleInputGateTest {
 			netEnv,
 			mock(TaskActions.class),
 			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+
+		assertEquals(gateDesc.getConsumedPartitionType(), gate.getConsumedPartitionType());
 
 		Map<IntermediateResultPartitionID, InputChannel> channelMap = gate.getInputChannels();
 
