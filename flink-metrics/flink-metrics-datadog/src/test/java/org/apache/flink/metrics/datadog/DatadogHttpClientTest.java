@@ -39,8 +39,13 @@ import static org.junit.Assert.assertEquals;
 public class DatadogHttpClientTest {
 	public static class TestApiKey {
 		@Test(expected = IllegalArgumentException.class)
-		public void testValidateApiKey() {
-			new DatadogHttpClient("fake_key");
+		public void testClientWithEmptyKey() {
+			new DatadogHttpClient("");
+		}
+
+		@Test(expected = IllegalArgumentException.class)
+		public void testClientWithNullKey() {
+			new DatadogHttpClient(null);
 		}
 	}
 
