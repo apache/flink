@@ -19,7 +19,7 @@
 
 package org.apache.flink.table.functions.utils
 
-import java.lang.{Long => JLong, Integer => JInt}
+import java.lang.{Integer => JInt, Long => JLong}
 import java.lang.reflect.{Method, Modifier}
 import java.sql.{Date, Time, Timestamp}
 
@@ -30,8 +30,10 @@ import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.api.{TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
 
@@ -357,5 +359,38 @@ object UserDefinedFunctionUtils {
     val byteData = Base64.decodeBase64(data)
     InstantiationUtil
       .deserializeObject[UserDefinedFunction](byteData, Thread.currentThread.getContextClassLoader)
+  }
+
+  /**
+    * Creates a [[LogicalTableFunctionCall]] by parsing a String expression.
+    *
+    * @param tableEnv The table environmenent to lookup the function.
+    * @param udtf a String expression of a TableFunctionCall, such as "split(c)"
+    * @return A LogicalTableFunctionCall.
+    */
+  def createLogicalFunctionCall(
+      tableEnv: TableEnvironment,
+      udtf: String): LogicalTableFunctionCall = {
+
+    var alias: Option[Seq[String]] = None
+
+    // unwrap an Expression until we get a TableFunctionCall
+    def unwrap(expr: Expression): TableFunctionCall = expr match {
+      case Alias(child, name, extraNames) =>
+        alias = Some(Seq(name) ++ extraNames)
+        unwrap(child)
+      case Call(name, args) =>
+        val function = tableEnv.functionCatalog.lookupFunction(name, args)
+        unwrap(function)
+      case c: TableFunctionCall => c
+      case _ =>
+        throw new TableException(
+          "Table(TableEnv, String) constructor only accept String that " +
+            "define table function followed by some Alias.")
+    }
+
+    val functionCall: LogicalTableFunctionCall = unwrap(ExpressionParser.parseExpression(udtf))
+      .as(alias).toLogicalTableFunctionCall(child = null)
+    functionCall
   }
 }
