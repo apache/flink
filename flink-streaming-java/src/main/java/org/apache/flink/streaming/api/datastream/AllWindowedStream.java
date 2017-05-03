@@ -753,7 +753,10 @@ public class AllWindowedStream<T, W extends Window> {
 	 *
 	 * @param function The fold function.
 	 * @return The data stream that is the result of applying the fold function to the window.
+	 *
+	 * @deprecated use {@link #aggregate(AggregateFunction)} instead
 	 */
+	@Deprecated
 	public <R> SingleOutputStreamOperator<R> fold(R initialValue, FoldFunction<T, R> function) {
 		if (function instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction of fold can not be a RichFunction. " +
@@ -773,7 +776,10 @@ public class AllWindowedStream<T, W extends Window> {
 	 *
 	 * @param function The fold function.
 	 * @return The data stream that is the result of applying the fold function to the window.
+	 *
+	 * @deprecated use {@link #aggregate(AggregateFunction, TypeInformation, TypeInformation)} instead
 	 */
+	@Deprecated
 	public <R> SingleOutputStreamOperator<R> fold(R initialValue, FoldFunction<T, R> function, TypeInformation<R> resultType) {
 		if (function instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction of fold can not be a RichFunction. " +
@@ -794,8 +800,11 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param foldFunction The fold function that is used for incremental aggregation.
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
+	 *
+	 * @deprecated use {@link #aggregate(AggregateFunction, ProcessAllWindowFunction)} instead
 	 */
 	@PublicEvolving
+	@Deprecated
 	public <ACC, R> SingleOutputStreamOperator<R> fold(ACC initialValue, FoldFunction<T, ACC> foldFunction, AllWindowFunction<ACC, R, W> function) {
 
 		TypeInformation<ACC> foldAccumulatorType = TypeExtractor.getFoldReturnTypes(foldFunction, input.getType(),
@@ -820,8 +829,11 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param foldAccumulatorType Type information for the result type of the fold function
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
+	 *
+	 * @deprecated use {@link #aggregate(AggregateFunction, AllWindowFunction, TypeInformation, TypeInformation, TypeInformation)} instead
 	 */
 	@PublicEvolving
+	@Deprecated
 	public <ACC, R> SingleOutputStreamOperator<R> fold(ACC initialValue,
 			FoldFunction<T, ACC> foldFunction,
 			AllWindowFunction<ACC, R, W> function,
@@ -900,8 +912,11 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param foldFunction The fold function that is used for incremental aggregation.
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
+	 *
+	 * @deprecated use {@link #aggregate(AggregateFunction, ProcessAllWindowFunction)} instead
 	 */
 	@PublicEvolving
+	@Deprecated
 	public <ACC, R> SingleOutputStreamOperator<R> fold(ACC initialValue, FoldFunction<T, ACC> foldFunction, ProcessAllWindowFunction<ACC, R, W> function) {
 
 		TypeInformation<ACC> foldAccumulatorType = TypeExtractor.getFoldReturnTypes(foldFunction, input.getType(),
@@ -926,8 +941,11 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param foldAccumulatorType Type information for the result type of the fold function
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
+	 *
+	 * @deprecated use {@link #aggregate(AggregateFunction, ProcessAllWindowFunction, TypeInformation, TypeInformation, TypeInformation)} instead
 	 */
 	@PublicEvolving
+	@Deprecated
 	public <ACC, R> SingleOutputStreamOperator<R> fold(ACC initialValue,
 			FoldFunction<T, ACC> foldFunction,
 			ProcessAllWindowFunction<ACC, R, W> function,

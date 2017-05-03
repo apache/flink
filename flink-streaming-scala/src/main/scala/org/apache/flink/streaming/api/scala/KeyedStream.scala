@@ -183,7 +183,10 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Creates a new [[DataStream]] by folding the elements of this DataStream
    * using an associative fold function and an initial value. An independent 
    * aggregate is kept per key.
+   *
+   * @deprecated will be removed in a future version
    */
+  @Deprecated
   def fold[R: TypeInformation](initialValue: R, folder: FoldFunction[T,R]): 
       DataStream[R] = {
     if (folder == null) {
