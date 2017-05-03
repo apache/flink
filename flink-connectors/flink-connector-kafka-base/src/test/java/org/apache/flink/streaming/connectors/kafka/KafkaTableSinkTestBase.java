@@ -45,8 +45,7 @@ public abstract class KafkaTableSinkTestBase {
 	private static final String TOPIC = "testTopic";
 	protected static final String[] FIELD_NAMES = new String[] {"field1", "field2"};
 	private static final TypeInformation[] FIELD_TYPES = new TypeInformation[] { Types.INT(), Types.STRING() };
-	private static final KafkaPartitioner<Row> PARTITIONER = new CustomPartitioner();
-	private static final FlinkKafkaPartitioner<Row> FLINK_PARTITIONER = new FlinkCustomPartitioner();
+	private static final FlinkKafkaPartitioner<Row> PARTITIONER = new FlinkCustomPartitioner();
 	private static final Properties PROPERTIES = createSinkProperties();
 	@SuppressWarnings("unchecked")
 	private final FlinkKafkaProducerBase<Row> PRODUCER = new FlinkKafkaProducerBase<Row>(
@@ -74,23 +73,6 @@ public abstract class KafkaTableSinkTestBase {
 	}
 
 	@Test
-	@SuppressWarnings("unchecked")
-	public void testKafkaTableSinkWithFlinkPartitioner() throws Exception {
-		DataStream dataStream = mock(DataStream.class);
-
-		KafkaTableSink kafkaTableSink = spy(createTableSinkWithFlinkPartitioner());
-		kafkaTableSink.emitDataStream(dataStream);
-
-		verify(dataStream).addSink(eq(PRODUCER));
-
-		verify(kafkaTableSink).createKafkaProducer(
-			eq(TOPIC),
-			eq(PROPERTIES),
-			any(getSerializationSchema().getClass()),
-			eq(FLINK_PARTITIONER));
-	}
-
-	@Test
 	public void testConfiguration() {
 		KafkaTableSink kafkaTableSink = createTableSink();
 		KafkaTableSink newKafkaTableSink = kafkaTableSink.configure(FIELD_NAMES, FIELD_TYPES);
@@ -101,21 +83,7 @@ public abstract class KafkaTableSinkTestBase {
 		assertEquals(new RowTypeInfo(FIELD_TYPES), newKafkaTableSink.getOutputType());
 	}
 
-	@Test
-	public void testConfigurationWithFlinkPartitioner() {
-		KafkaTableSink kafkaTableSink = createTableSinkWithFlinkPartitioner();
-		KafkaTableSink newKafkaTableSink = kafkaTableSink.configure(FIELD_NAMES, FIELD_TYPES);
-		assertNotSame(kafkaTableSink, newKafkaTableSink);
-
-		assertArrayEquals(FIELD_NAMES, newKafkaTableSink.getFieldNames());
-		assertArrayEquals(FIELD_TYPES, newKafkaTableSink.getFieldTypes());
-		assertEquals(new RowTypeInfo(FIELD_TYPES), newKafkaTableSink.getOutputType());
-	}
-
-	protected abstract KafkaTableSink createTableSink(String topic, Properties properties,
-			KafkaPartitioner<Row> partitioner, FlinkKafkaProducerBase<Row> kafkaProducer);
-
-	protected abstract KafkaTableSink createTableSinkWithFlinkPartitioner(String topic,
+	protected abstract KafkaTableSink createTableSink(String topic,
 			Properties properties, FlinkKafkaPartitioner<Row> partitioner, FlinkKafkaProducerBase<Row> kafkaProducer);
 
 	protected abstract SerializationSchema<Row> getSerializationSchema();
@@ -124,16 +92,13 @@ public abstract class KafkaTableSinkTestBase {
 		return createTableSink(TOPIC, PROPERTIES, PARTITIONER, PRODUCER);
 	}
 
-	private KafkaTableSink createTableSinkWithFlinkPartitioner() {
-		return createTableSinkWithFlinkPartitioner(TOPIC, PROPERTIES, FLINK_PARTITIONER, PRODUCER);
-	}
-
 	private static Properties createSinkProperties() {
 		Properties properties = new Properties();
 		properties.setProperty("bootstrap.servers", "localhost:12345");
 		return properties;
 	}
 
+	@Deprecated
 	private static class CustomPartitioner extends KafkaPartitioner<Row> implements Serializable {
 		@Override
 		public int partition(Row next, byte[] serializedKey, byte[] serializedValue, int numPartitions) {

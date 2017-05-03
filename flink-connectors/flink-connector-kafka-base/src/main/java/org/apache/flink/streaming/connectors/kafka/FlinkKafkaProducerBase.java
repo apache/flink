@@ -90,6 +90,12 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	public static final String DEFAULT_KAFKA_META_TIMEOUT_MS = "100";
 
 	/**
+	 * Configuration key for times of retry to fetch meta of kafka
+	 */
+	public static final String KEY_KAFKA_META_RETRY = "flink.kafka.meta.retry";
+	public static final String DEFAULT_KAFKA_META_RETRY = "3";
+
+	/**
 	 * User defined properties for the Producer
 	 */
 	protected final Properties producerConfig;
@@ -129,6 +135,11 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	 * Timeout of fetching kafka meta
 	 */
 	protected long kafkaMetaTimeoutMs;
+
+	/**
+	 * Times of retry to fetch kafka meta
+	 */
+	protected int kafkaMetaRetry;
 	
 	// -------------------------------- Runtime fields ------------------------------------------
 
@@ -251,6 +262,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		executor = Executors.newCachedThreadPool();
 
 		this.kafkaMetaTimeoutMs = Long.parseLong(producerConfig.getProperty(KEY_KAFKA_META_TIMEOUT_MS, DEFAULT_KAFKA_META_TIMEOUT_MS));
+		this.kafkaMetaRetry = Integer.parseInt(producerConfig.getProperty(KEY_KAFKA_META_RETRY, DEFAULT_KAFKA_META_RETRY));
 
 		RuntimeContext ctx = getRuntimeContext();
 		if(null != flinkKafkaPartitioner) {
@@ -308,13 +320,18 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	}
 
 	protected int[] getPartitionsByTopic(String topic, KafkaProducer<byte[], byte[]> producer) {
-		Future<int[]> future = executor.submit(new PartitionMetaTask(topic, producer));
+		Exception thrownException = null;
+		for(int i = 0; i < this.kafkaMetaRetry; i++) {
+			Future<int[]> future = executor.submit(new PartitionMetaTask(topic, producer));
 
-		try {
-			return future.get(kafkaMetaTimeoutMs, TimeUnit.MILLISECONDS);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
+			try {
+				return future.get(kafkaMetaTimeoutMs, TimeUnit.MILLISECONDS);
+			} catch (Exception e) {
+				LOG.warn("Retry to fetch kafka meta in ({}/{})th fail.", (i+1), this.kafkaMetaRetry);
+				thrownException = e;
+			}
 		}
+		throw new RuntimeException(thrownException);
 	}
 
 	class PartitionMetaTask implements Callable<int[]> {
