@@ -39,8 +39,11 @@ import org.apache.flink.util.Collector;
  * Internal {@link ProcessAllWindowFunction} that is used for implementing a fold on a window
  * configuration that only allows {@link ProcessAllWindowFunction} and cannot directly execute a
  * {@link FoldFunction}.
+ *
+ * @deprecated will be removed in a future version
  */
 @Internal
+@Deprecated
 public class FoldApplyProcessAllWindowFunction<W extends Window, T, ACC, R>
 	extends ProcessAllWindowFunction<T, R, W>
 	implements OutputTypeConfigurable<R> {
