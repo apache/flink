@@ -32,8 +32,7 @@ import org.apache.flink.util.Collector;
  * {@link ReduceFunction}.
  */
 @Internal
-public class ReduceApplyProcessAllWindowFunction<W extends Window, T, R>
-	extends RichProcessAllWindowFunction<T, R, W> {
+public class ReduceApplyProcessAllWindowFunction<W extends Window, T, R> extends ProcessAllWindowFunction<T, R, W> {
 
 	private static final long serialVersionUID = 1L;
 
