@@ -28,5 +28,8 @@ import org.apache.flink.api.common.state.FoldingState;
  * @param <N> The type of the namespace
  * @param <T> Type of the values folded into the state
  * @param <ACC> Type of the value in the state
+ *
+ * @deprecated will be removed in a future version
  */
+@Deprecated
 public interface InternalFoldingState<N, T, ACC> extends InternalAppendingState<N, T, ACC>, FoldingState<T, ACC> {}

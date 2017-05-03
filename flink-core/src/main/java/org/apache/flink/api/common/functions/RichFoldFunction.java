@@ -28,8 +28,11 @@ import org.apache.flink.annotation.Public;
  *
  * @param <T> Type of the initial input and the returned element
  * @param <O> Type of the elements that the group/list/stream contains
+ *
+ *@deprecated use {@link RichAggregateFunction} instead
  */
 @Public
+@Deprecated
 public abstract class RichFoldFunction<O, T> extends AbstractRichFunction implements FoldFunction<O, T> {
 
 	private static final long serialVersionUID = 1L;
