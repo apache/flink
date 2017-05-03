@@ -106,7 +106,6 @@ public class YarnClusterClientV2 extends ClusterClient {
 			}
 		}
 		catch (Exception e) {
-			yarnClient.stop();
 			throw new ProgramInvocationException("Fail to submit the job", e.getCause());
 		}
 	}
@@ -146,7 +145,9 @@ public class YarnClusterClientV2 extends ClusterClient {
 
 	@Override
 	public void finalizeCluster() {
-		// Do nothing
+		LOG.info("YARN Client is shutting down");
+		yarnClient.stop(); // actorRunner is using the yarnClient.
+		yarnClient = null; // set null to clearly see if somebody wants to access it afterwards.
 	}
 
 	@Override
