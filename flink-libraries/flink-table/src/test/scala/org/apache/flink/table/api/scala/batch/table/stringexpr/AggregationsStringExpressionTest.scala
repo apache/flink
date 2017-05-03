@@ -20,12 +20,12 @@ package org.apache.flink.table.api.scala.batch.table.stringexpr
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.api.scala.batch.utils.LogicalPlanFormatUtils
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.utils.TableTestBase
 import org.junit._
 
-class AggregationsStringExpressionTest {
+class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testAggregationTypes(): Unit = {
@@ -35,15 +35,10 @@ class AggregationsStringExpressionTest {
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
 
-    val t1 = t.select('_1.sum, '_1.min, '_1.max, '_1.count, '_1.avg)
-    val t2 = t.select("_1.sum, _1.min, _1.max, _1.count, _1.avg")
+    val t1 = t.select('_1.sum, '_1.sum0, '_1.min, '_1.max, '_1.count, '_1.avg)
+    val t2 = t.select("_1.sum, _1.sum0, _1.min, _1.max, _1.count, _1.avg")
 
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
-      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+    verifyTableEquals(t1, t2)
   }
 
   @Test
@@ -59,12 +54,7 @@ class AggregationsStringExpressionTest {
     val t1 = t.select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
     val t2 = t.select("_1.avg, _2.avg, _3.avg, _4.avg, _5.avg, _6.avg, _7.count")
 
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
-      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+    verifyTableEquals(t1, t2)
   }
 
   @Test
@@ -80,12 +70,7 @@ class AggregationsStringExpressionTest {
     val t1 = t.select('_1.avg, '_1.sum, '_1.count, '_2.avg, '_2.sum)
     val t2 = t.select("_1.avg, _1.sum, _1.count, _2.avg, _2.sum")
 
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
-      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+    verifyTableEquals(t1, t2)
   }
 
   @Test
@@ -99,12 +84,7 @@ class AggregationsStringExpressionTest {
     val t1 = t.select(('_1 + 2).avg + 2, '_2.count + 5)
     val t2 = t.select("(_1 + 2).avg + 2, _2.count + 5")
 
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
-      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+    verifyTableEquals(t1, t2)
   }
 
   @Test
@@ -118,12 +98,7 @@ class AggregationsStringExpressionTest {
     val t1 = t.select('_1.count, '_2.count)
     val t2 = t.select("_1.count, _2.count")
 
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
-      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+    verifyTableEquals(t1, t2)
   }
 
   @Test
@@ -142,12 +117,7 @@ class AggregationsStringExpressionTest {
     val t2 = t.select("_1, _2, _3")
       .select("_1.avg, _2.sum, _3.count")
 
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
-      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+    verifyTableEquals(t1, t2)
   }
 
   @Test
@@ -160,10 +130,7 @@ class AggregationsStringExpressionTest {
     val distinct = ds.select('b).distinct()
     val distinct2 = ds.select("b").distinct()
 
-    val lPlan1 = distinct.logicalPlan
-    val lPlan2 = distinct2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
+    verifyTableEquals(distinct, distinct2)
   }
 
   @Test
@@ -193,12 +160,7 @@ class AggregationsStringExpressionTest {
     val t1 = t.groupBy('b).select('b, 'a.sum)
     val t2 = t.groupBy("b").select("b, a.sum")
 
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
-      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+    verifyTableEquals(t1, t2)
   }
 
   @Test
@@ -212,12 +174,7 @@ class AggregationsStringExpressionTest {
     val t1 = t.groupBy('b).select('a.sum)
     val t2 = t.groupBy("b").select("a.sum")
 
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
-      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+    verifyTableEquals(t1, t2)
   }
 
   @Test
@@ -240,12 +197,7 @@ class AggregationsStringExpressionTest {
       .groupBy("b, d")
       .select("b")
 
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
-      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+    verifyTableEquals(t1, t2)
   }
 
   @Test
@@ -264,12 +216,7 @@ class AggregationsStringExpressionTest {
       .groupBy("four, a")
       .select("four, b.sum")
 
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
-      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+    verifyTableEquals(t1, t2)
   }
 
   @Test
@@ -287,12 +234,7 @@ class AggregationsStringExpressionTest {
       .groupBy("b, four")
       .select("four, a.sum")
 
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
-      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+    verifyTableEquals(t1, t2)
   }
 
   @Test
@@ -308,12 +250,7 @@ class AggregationsStringExpressionTest {
     val t2 = t.groupBy("e, b % 3")
       .select("c.min, e, a.avg, d.count")
 
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
-      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+    verifyTableEquals(t1, t2)
   }
 
   @Test
@@ -331,12 +268,26 @@ class AggregationsStringExpressionTest {
       .select("b, a.sum")
       .where("b = 2")
 
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
+    verifyTableEquals(t1, t2)
+  }
 
-    Assert.assertEquals("Logical Plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(lPlan1.toString),
-      LogicalPlanFormatUtils.formatTempTableId(lPlan2.toString))
+  @Test
+  def testAnalyticAggregation(): Unit = {
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, Float, Double)]('_1, '_2, '_3, '_4)
+
+    val resScala = t.select(
+      '_1.stddevPop, '_2.stddevPop, '_3.stddevPop, '_4.stddevPop,
+      '_1.stddevSamp, '_2.stddevSamp, '_3.stddevSamp, '_4.stddevSamp,
+      '_1.varPop, '_2.varPop, '_3.varPop, '_4.varPop,
+      '_1.varSamp, '_2.varSamp, '_3.varSamp, '_4.varSamp)
+    val resJava = t.select("""
+      _1.stddevPop, _2.stddevPop, _3.stddevPop, _4.stddevPop,
+      _1.stddevSamp, _2.stddevSamp, _3.stddevSamp, _4.stddevSamp,
+      _1.varPop, _2.varPop, _3.varPop, _4.varPop,
+      _1.varSamp, _2.varSamp, _3.varSamp, _4.varSamp""")
+
+    verifyTableEquals(resScala, resJava)
   }
 
 }

@@ -1066,7 +1066,7 @@ dataType = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOLEAN" | 
 
 as = composite , ".as(" , fieldReference , ")" ;
 
-aggregation = composite , ( ".sum" | ".min" | ".max" | ".count" | ".avg" | ".start" | ".end" | ".stddev_pop" | ".stddev_samp" | ".var_pop" | ".var_samp" ) , [ "()" ] ;
+aggregation = composite , ( ".sum" | ".sum0" | ".min" | ".max" | ".count" | ".avg" | ".start" | ".end" | ".stddev_pop" | ".stddev_samp" | ".var_pop" | ".var_samp" ) , [ "()" ] ;
 
 if = composite , ".?(" , expression , "," , expression , ")" ;
 
@@ -2794,7 +2794,18 @@ FIELD.sum
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the sum of the numeric field across all input values.</p>
+        <p>Returns the sum of the numeric field across all input values. If all values are null, null is returned.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.sum0
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sum of the numeric field across all input values. If all values are null, 0 is returned.</p>
       </td>
     </tr>
 
@@ -2817,6 +2828,51 @@ FIELD.min
       </td>
       <td>
         <p>Returns the minimum value of field across all input values.</p>
+      </td>
+    </tr>
+
+
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.stddevPop
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the population standard deviation of the numeric field across all input values.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.stddevSamp
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sample standard deviation of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.varPop
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the population variance (square of the population standard deviation) of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.varSamp
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sample variance (square of the sample standard deviation) of the numeric field across all input values.</p>
       </td>
     </tr>
 
@@ -3945,7 +4001,18 @@ FIELD.sum
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the sum of the numeric field across all input values.</p>
+        <p>Returns the sum of the numeric field across all input values. If all values are null, null is returned.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.sum0
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sum of the numeric field across all input values. If all values are null, 0 is returned.</p>
       </td>
     </tr>
 
@@ -3971,6 +4038,49 @@ FIELD.min
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.stddevPop
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the population standard deviation of the numeric field across all input values.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.stddevSamp
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sample standard deviation of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.varPop
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the population variance (square of the population standard deviation) of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.varSamp
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sample variance (square of the sample standard deviation) of the numeric field across all input values.</p>
+      </td>
+    </tr>
   </tbody>
 </table>
 
@@ -5266,6 +5376,49 @@ MIN(value)
         <p>Returns the minimum value of <i>value</i> across all input values.</p>
       </td>
     </tr>
+    <tr>
+      <td>
+        {% highlight text %}
+STDDEV_POP(value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the population standard deviation of the numeric field across all input values.</p>
+      </td>
+    </tr>
+    
+<tr>
+      <td>
+        {% highlight text %}
+STDDEV_SAMP(value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sample standard deviation of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+VAR_POP(value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the population variance (square of the population standard deviation) of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+VAR_SAMP(value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sample variance (square of the sample standard deviation) of the numeric field across all input values.</p>
+      </td>
+    </tr>
   </tbody>
 </table>
 
@@ -5374,49 +5527,6 @@ ELEMENT(ARRAY)
       </td>
       <td>
         <p>Returns the sole element of an array with a single element. Returns <code>null</code> if the array is empty. Throws an exception if the array has more than one element.</p>
-      </td>
-    </tr>
-<tr>
-      <td>
-        {% highlight text %}
-STDDEV_POP(value)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns the standard deviation of numeric <i>value</i></p>
-      </td>
-    </tr>
-    
-<tr>
-      <td>
-        {% highlight text %}
-STDDEV_SAMP(value)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns the sample standard deviation of numeric <i>value</i></p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-VAR_POP(value)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns the variance of numeric <i>value</i></p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-VAR_SAMP (value)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns the sample variance of numeric <i>value</i></p>
       </td>
     </tr>
   </tbody>

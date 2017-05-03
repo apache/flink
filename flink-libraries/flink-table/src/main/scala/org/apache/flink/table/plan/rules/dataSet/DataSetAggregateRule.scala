@@ -21,7 +21,6 @@ package org.apache.flink.table.plan.rules.dataSet
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.sql.SqlKind
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.{DataSetAggregate, DataSetUnion}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalAggregate
@@ -55,12 +54,7 @@ class DataSetAggregateRule
     // check if we have distinct aggregates
     val distinctAggs = agg.getAggCallList.exists(_.isDistinct)
 
-    val supported = agg.getAggCallList.map(_.getAggregation.getKind).forall {
-      case SqlKind.STDDEV_POP | SqlKind.STDDEV_SAMP | SqlKind.VAR_POP | SqlKind.VAR_SAMP => false
-      case _ => true
-    }
-
-    !distinctAggs && supported
+    !distinctAggs
   }
 
   override def convert(rel: RelNode): RelNode = {

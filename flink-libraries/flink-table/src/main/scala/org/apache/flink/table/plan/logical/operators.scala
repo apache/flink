@@ -511,7 +511,7 @@ case class Join(
 }
 
 case class CatalogNode(
-    tablePath: Array[String],
+    tablePath: Seq[String],
     rowType: RelDataType) extends LeafNode {
 
   val output: Seq[Attribute] = rowType.getFieldList.asScala.map { field =>
@@ -519,7 +519,7 @@ case class CatalogNode(
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    relBuilder.scan(tablePath.toIterable.asJava)
+    relBuilder.scan(tablePath.asJava)
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = this

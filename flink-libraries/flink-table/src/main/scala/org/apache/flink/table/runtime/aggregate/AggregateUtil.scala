@@ -1092,7 +1092,7 @@ object AggregateUtil {
         .getSqlTypeName
       aggregateCall.getAggregation match {
 
-        case _: SqlSumAggFunction | _: SqlSumEmptyIsZeroAggFunction =>
+        case _: SqlSumAggFunction =>
           if (needRetraction) {
             aggregates(index) = sqlTypeName match {
               case TINYINT =>
@@ -1130,6 +1130,47 @@ object AggregateUtil {
                 new DecimalSumAggFunction
               case sqlType: SqlTypeName =>
                 throw new TableException("Sum aggregate does no support type:" + sqlType)
+            }
+          }
+
+        case _: SqlSumEmptyIsZeroAggFunction =>
+          if (needRetraction) {
+            aggregates(index) = sqlTypeName match {
+              case TINYINT =>
+                new ByteSum0WithRetractAggFunction
+              case SMALLINT =>
+                new ShortSum0WithRetractAggFunction
+              case INTEGER =>
+                new IntSum0WithRetractAggFunction
+              case BIGINT =>
+                new LongSum0WithRetractAggFunction
+              case FLOAT =>
+                new FloatSum0WithRetractAggFunction
+              case DOUBLE =>
+                new DoubleSum0WithRetractAggFunction
+              case DECIMAL =>
+                new DecimalSum0WithRetractAggFunction
+              case sqlType: SqlTypeName =>
+                throw new TableException("Sum0 aggregate does no support type:" + sqlType)
+            }
+          } else {
+            aggregates(index) = sqlTypeName match {
+              case TINYINT =>
+                new ByteSum0AggFunction
+              case SMALLINT =>
+                new ShortSum0AggFunction
+              case INTEGER =>
+                new IntSum0AggFunction
+              case BIGINT =>
+                new LongSum0AggFunction
+              case FLOAT =>
+                new FloatSum0AggFunction
+              case DOUBLE =>
+                new DoubleSum0AggFunction
+              case DECIMAL =>
+                new DecimalSum0AggFunction
+              case sqlType: SqlTypeName =>
+                throw new TableException("Sum0 aggregate does no support type:" + sqlType)
             }
           }
 

@@ -76,7 +76,7 @@ abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T, SumAccumu
     acc.f1 = false
   }
 
-  def getAccumulatorType(): TypeInformation[_] = {
+  def getAccumulatorType: TypeInformation[_] = {
     new TupleTypeInfo(
       (new SumAccumulator).getClass,
       getValueTypeInfo,
@@ -152,10 +152,10 @@ class DecimalSumAggFunction extends AggregateFunction[BigDecimal, DecimalSumAccu
   }
 
   override def getValue(acc: DecimalSumAccumulator): BigDecimal = {
-    if (!acc.f1) {
-      null.asInstanceOf[BigDecimal]
-    } else {
+    if (acc.f1) {
       acc.f0
+    } else {
+      null.asInstanceOf[BigDecimal]
     }
   }
 
@@ -175,7 +175,7 @@ class DecimalSumAggFunction extends AggregateFunction[BigDecimal, DecimalSumAccu
     acc.f1 = false
   }
 
-  def getAccumulatorType(): TypeInformation[_] = {
+  def getAccumulatorType: TypeInformation[_] = {
     new TupleTypeInfo(
       (new DecimalSumAccumulator).getClass,
       BasicTypeInfo.BIG_DEC_TYPE_INFO,
