@@ -19,13 +19,11 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.types.Row
-
-import scala.collection.JavaConverters._
 
 /**
   * Flink RelNode which matches along with Union.
@@ -36,11 +34,11 @@ class DataStreamUnion(
     traitSet: RelTraitSet,
     leftNode: RelNode,
     rightNode: RelNode,
-    rowRelDataType: RelDataType)
+    schema: RowSchema)
   extends BiRel(cluster, traitSet, leftNode, rightNode)
   with DataStreamRel {
 
-  override def deriveRowType() = rowRelDataType
+  override def deriveRowType() = schema.logicalType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamUnion(
@@ -48,7 +46,7 @@ class DataStreamUnion(
       traitSet,
       inputs.get(0),
       inputs.get(1),
-      getRowType
+      schema
     )
   }
 
@@ -57,7 +55,7 @@ class DataStreamUnion(
   }
 
   override def toString = {
-    s"Union All(union: (${getRowType.getFieldNames.asScala.toList.mkString(", ")}))"
+    s"Union All(union: (${schema.logicalFieldNames.mkString(", ")}))"
   }
 
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
@@ -68,6 +66,6 @@ class DataStreamUnion(
   }
 
   private def unionSelectionToString: String = {
-    getRowType.getFieldNames.asScala.toList.mkString(", ")
+    schema.logicalFieldNames.mkString(", ")
   }
 }

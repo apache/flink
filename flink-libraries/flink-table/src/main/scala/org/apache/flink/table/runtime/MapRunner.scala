@@ -35,7 +35,7 @@ class MapRunner[IN, OUT](
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
-  private var function: MapFunction[IN, OUT] = null
+  private var function: MapFunction[IN, OUT] = _
 
   override def open(parameters: Configuration): Unit = {
     LOG.debug(s"Compiling MapFunction: $name \n\n Code:\n$code")

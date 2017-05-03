@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.plan.rules.datastream
 
-import java.math.BigDecimal
+import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rex.{RexBuilder, RexCall, RexLiteral, RexNode}
+import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.table.api.{TableException, Window}
 import org.apache.flink.table.api.scala.{Session, Slide, Tumble}
-import org.apache.flink.table.expressions.Literal
-import org.apache.flink.table.functions.TimeModeTypes
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.expressions.{Literal, UnresolvedFieldReference}
 import org.apache.flink.table.plan.rules.common.LogicalWindowAggregateRule
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 
@@ -49,16 +49,12 @@ class DataStreamLogicalWindowAggregateRule
 
     val timeType = windowExpression.operands.get(0).getType
     timeType match {
-      case TimeModeTypes.ROWTIME =>
-        rexBuilder.makeAbstractCast(
-          TimeModeTypes.ROWTIME,
-          rexBuilder.makeLiteral(0L, TimeModeTypes.ROWTIME, true))
-      case TimeModeTypes.PROCTIME =>
-        rexBuilder.makeAbstractCast(
-          TimeModeTypes.PROCTIME,
-          rexBuilder.makeLiteral(0L, TimeModeTypes.PROCTIME, true))
+
+      case _ if FlinkTypeFactory.isTimeIndicatorType(timeType) =>
+        rexBuilder.makeLiteral(0L, timeType, true)
+
       case _ =>
-        throw TableException(s"""Unexpected time type $timeType encountered""")
+        throw TableException(s"""Time attribute expected but $timeType encountered.""")
     }
   }
 
@@ -68,41 +64,41 @@ class DataStreamLogicalWindowAggregateRule
 
     def getOperandAsLong(call: RexCall, idx: Int): Long =
       call.getOperands.get(idx) match {
-        case v : RexLiteral => v.getValue.asInstanceOf[BigDecimal].longValue()
-        case _ => throw new TableException("Only constant window descriptors are supported")
+        case v: RexLiteral => v.getValue.asInstanceOf[JBigDecimal].longValue()
+        case _ => throw new TableException("Only constant window descriptors are supported.")
+      }
+
+    def getOperandAsTimeIndicator(call: RexCall, idx: Int): String =
+      call.getOperands.get(idx) match {
+        case v: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(v.getType) =>
+          rowType.getFieldList.get(v.getIndex).getName
+        case _ =>
+          throw new TableException("Window can only be defined over a time attribute column.")
       }
 
     windowExpr.getOperator match {
       case SqlStdOperatorTable.TUMBLE =>
+        val time = getOperandAsTimeIndicator(windowExpr, 0)
         val interval = getOperandAsLong(windowExpr, 1)
         val w = Tumble.over(Literal(interval, TimeIntervalTypeInfo.INTERVAL_MILLIS))
 
-        val window = windowExpr.getType match {
-          case TimeModeTypes.PROCTIME => w
-          case TimeModeTypes.ROWTIME => w.on("rowtime")
-        }
-        window.as("w$")
+        w.on(UnresolvedFieldReference(time)).as("w$")
 
       case SqlStdOperatorTable.HOP =>
+        val time = getOperandAsTimeIndicator(windowExpr, 0)
         val (slide, size) = (getOperandAsLong(windowExpr, 1), getOperandAsLong(windowExpr, 2))
         val w = Slide
           .over(Literal(size, TimeIntervalTypeInfo.INTERVAL_MILLIS))
           .every(Literal(slide, TimeIntervalTypeInfo.INTERVAL_MILLIS))
 
-        val window = windowExpr.getType match {
-          case TimeModeTypes.PROCTIME => w
-          case TimeModeTypes.ROWTIME => w.on("rowtime")
-        }
-        window.as("w$")
+        w.on(UnresolvedFieldReference(time)).as("w$")
+
       case SqlStdOperatorTable.SESSION =>
+        val time = getOperandAsTimeIndicator(windowExpr, 0)
         val gap = getOperandAsLong(windowExpr, 1)
         val w = Session.withGap(Literal(gap, TimeIntervalTypeInfo.INTERVAL_MILLIS))
 
-        val window = windowExpr.getType match {
-          case TimeModeTypes.PROCTIME => w
-          case TimeModeTypes.ROWTIME => w.on("rowtime")
-        }
-        window.as("w$")
+        w.on(UnresolvedFieldReference(time)).as("w$")
     }
   }
 }
