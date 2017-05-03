@@ -45,6 +45,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.runtime.TableFunctionCollector
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkAndExtractMethods, getUserDefinedMethod, signatureToString}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -258,6 +259,9 @@ class CodeGenerator(
     * @param constantFlags An optional parameter to define where to set constant boolean flags in
     *                      the output row.
     * @param outputArity The number of fields in the output row.
+    * @param needRetract a flag to indicate if the aggregate needs the retract method
+    * @param needMerge a flag to indicate if the aggregate needs the merge method
+    * @param needReset a flag to indicate if the aggregate needs the resetAccumulator method
     *
     * @return A GeneratedAggregationsFunction
     */
@@ -274,7 +278,8 @@ class CodeGenerator(
       constantFlags: Option[Array[(Int, Boolean)]],
       outputArity: Int,
       needRetract: Boolean,
-      needMerge: Boolean)
+      needMerge: Boolean,
+      needReset: Boolean)
   : GeneratedAggregationsFunction = {
 
     // get unique function name
@@ -282,18 +287,64 @@ class CodeGenerator(
     // register UDAGGs
     val aggs = aggregates.map(a => generator.addReusableFunction(a))
     // get java types of accumulators
-    val accTypes = aggregates.map { a =>
-      a.getClass.getMethod("createAccumulator").getReturnType.getCanonicalName
+    val accTypeClasses = aggregates.map { a =>
+      a.getClass.getMethod("createAccumulator").getReturnType
+    }
+    val accTypes = accTypeClasses.map(_.getCanonicalName)
+
+    // get java classes of input fields
+    val javaClasses = inputType.getFieldList
+      .map(f => FlinkTypeFactory.toTypeInfo(f.getType))
+      .map(t => t.getTypeClass)
+    // get parameter lists for aggregation functions
+    val parameters = aggFields.map { inFields =>
+      val fields = for (f <- inFields) yield
+        s"(${javaClasses(f).getCanonicalName}) input.getField($f)"
+      fields.mkString(", ")
+    }
+    val methodSignaturesList = aggFields.map {
+      inFields => for (f <- inFields) yield javaClasses(f)
     }
 
-    // get java types of input fields
-    val javaTypes = inputType.getFieldList
-      .map(f => FlinkTypeFactory.toTypeInfo(f.getType))
-      .map(t => t.getTypeClass.getCanonicalName)
-    // get parameter lists for aggregation functions
-    val parameters = aggFields.map {inFields =>
-      val fields = for (f <- inFields) yield s"(${javaTypes(f)}) input.getField($f)"
-      fields.mkString(", ")
+    // check and validate the needed methods
+    aggregates.zipWithIndex.map {
+      case (a, i) => {
+        getUserDefinedMethod(a, "accumulate", Array(accTypeClasses(i)) ++ methodSignaturesList(i))
+          .getOrElse(
+            throw new CodeGenException(
+              s"No matching accumulate method found for aggregate " +
+                s"'${a.getClass.getCanonicalName}'" +
+                s"with parameters '${signatureToString(methodSignaturesList(i))}'.")
+          )
+
+        if (needRetract) {
+          getUserDefinedMethod(a, "retract", Array(accTypeClasses(i)) ++ methodSignaturesList(i))
+            .getOrElse(
+              throw new CodeGenException(
+                s"No matching retract method found for aggregate " +
+                  s"'${a.getClass.getCanonicalName}'" +
+                  s"with parameters '${signatureToString(methodSignaturesList(i))}'.")
+            )
+        }
+
+        if (needMerge) {
+          val methods = checkAndExtractMethods(a, "merge")
+          if (methods.isEmpty || methods.length > 1) {
+            throw new CodeGenException(
+              s"No matching merge method found for aggregate " +
+                s"${a.getClass.getCanonicalName}'.")
+          }
+        }
+
+        if (needReset) {
+          getUserDefinedMethod(a, "resetAccumulator", Array(accTypeClasses(i)))
+            .getOrElse(
+              throw new CodeGenException(
+                s"No matching resetAccumulator method found for " +
+                  s"aggregate ${a.getClass.getCanonicalName}'.")
+            )
+        }
+      }
     }
 
     def genSetAggregationResults: String = {
@@ -529,9 +580,14 @@ class CodeGenerator(
              |      ((${accTypes(i)}) accs.getField($i)));""".stripMargin
       }.mkString("\n")
 
-      j"""$sig {
-         |$reset
-         |  }""".stripMargin
+      if (needReset) {
+        j"""$sig {
+           |$reset
+           |  }""".stripMargin
+      } else {
+        j"""$sig {
+           |  }""".stripMargin
+      }
     }
 
     var funcCode =

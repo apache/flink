@@ -39,6 +39,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.aggfunctions._
+import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction => TableAggregateFunction}
 import org.apache.flink.table.plan.logical._
@@ -101,7 +102,8 @@ object AggregateUtil {
       None,
       outputArity,
       needRetract,
-      needMerge = false
+      needMerge = false,
+      needReset = false
     )
 
     if (isRowTimeType) {
@@ -178,7 +180,8 @@ object AggregateUtil {
       None,
       outputArity,
       needRetract,
-      needMerge = false
+      needMerge = false,
+      needReset = true
     )
 
     if (isRowTimeType) {
@@ -303,7 +306,8 @@ object AggregateUtil {
       None,
       outputArity,
       needRetract,
-      needMerge = false
+      needMerge = false,
+      needReset = true
     )
 
     new DataSetWindowAggMapFunction(
@@ -379,7 +383,8 @@ object AggregateUtil {
           None,
           keysAndAggregatesArity + 1,
           needRetract,
-          needMerge = true
+          needMerge = true,
+          needReset = true
         )
         new DataSetSlideTimeWindowAggReduceGroupFunction(
           genFunction,
@@ -481,7 +486,8 @@ object AggregateUtil {
       None,
       outputType.getFieldCount,
       needRetract,
-      needMerge = true
+      needMerge = true,
+      needReset = true
     )
 
     val genFinalAggFunction = generator.generateAggregations(
@@ -497,7 +503,8 @@ object AggregateUtil {
       None,
       outputType.getFieldCount,
       needRetract,
-      needMerge = true
+      needMerge = true,
+      needReset = true
     )
 
     val keysAndAggregatesArity = groupings.length + namedAggregates.length
@@ -636,7 +643,8 @@ object AggregateUtil {
           None,
           groupings.length + aggregates.length + 2,
           needRetract,
-          needMerge = true
+          needMerge = true,
+          needReset = true
         )
 
         new DataSetSessionWindowAggregatePreProcessor(
@@ -708,7 +716,8 @@ object AggregateUtil {
           None,
           groupings.length + aggregates.length + 2,
           needRetract,
-          needMerge = true
+          needMerge = true,
+          needReset = true
         )
 
         new DataSetSessionWindowAggregatePreProcessor(
@@ -787,7 +796,8 @@ object AggregateUtil {
         None,
         groupings.length + aggregates.length,
         needRetract,
-        needMerge = false
+        needMerge = false,
+        needReset = true
       )
 
       // compute mapping of forwarded grouping keys
@@ -813,7 +823,8 @@ object AggregateUtil {
         constantFlags,
         outputType.getFieldCount,
         needRetract,
-        needMerge = true
+        needMerge = true,
+        needReset = true
       )
 
       (
@@ -836,7 +847,8 @@ object AggregateUtil {
         constantFlags,
         outputType.getFieldCount,
         needRetract,
-        needMerge = false
+        needMerge = false,
+        needReset = true
       )
 
       (
@@ -902,7 +914,8 @@ object AggregateUtil {
       generator: CodeGenerator,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
-      outputType: RelDataType)
+      outputType: RelDataType,
+      needMerge: Boolean)
     : (DataStreamAggFunction[Row, Row, Row], RowTypeInfo, RowTypeInfo) = {
 
     val needRetract = false
@@ -928,7 +941,8 @@ object AggregateUtil {
       None,
       outputArity,
       needRetract,
-      needMerge = true
+      needMerge,
+      needReset = false
     )
 
     val aggResultTypes = namedAggregates.map(a => FlinkTypeFactory.toTypeInfo(a.left.getType))
@@ -1083,9 +1097,6 @@ object AggregateUtil {
           throw new TableException("Aggregate fields should not be empty.")
         }
       } else {
-        if (argList.size() > 1) {
-          throw new TableException("Currently, do not support aggregate on multi fields.")
-        }
         aggFieldIndexes(index) = argList.asScala.map(i => i.intValue).toArray
       }
       val sqlTypeName = inputType.getFieldList.get(aggFieldIndexes(index)(0)).getType
@@ -1256,6 +1267,9 @@ object AggregateUtil {
 
         case _: SqlCountAggFunction =>
           aggregates(index) = new CountAggFunction
+
+        case udagg: AggSqlFunction =>
+          aggregates(index) = udagg.getFunction
 
         case unSupported: SqlAggFunction =>
           throw new TableException("unsupported Function: " + unSupported.getName)
