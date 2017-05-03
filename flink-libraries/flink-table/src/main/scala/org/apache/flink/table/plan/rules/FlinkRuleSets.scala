@@ -175,6 +175,7 @@ object FlinkRuleSets {
     // translate to DataStream nodes
     DataStreamOverAggregateRule.INSTANCE,
     DataStreamAggregateRule.INSTANCE,
+    DataStreamDistinctRule.INSTANCE,
     DataStreamCalcRule.INSTANCE,
     DataStreamScanRule.INSTANCE,
     DataStreamUnionRule.INSTANCE,
