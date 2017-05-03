@@ -2382,8 +2382,7 @@ object TaskManager {
       configuration,
       initialRegistrationPause,
       maxRegistrationPause,
-      refusedRegistrationPause,
-      configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY))
+      refusedRegistrationPause)
 
     (taskManagerConfig, networkConfig, taskManagerInetSocketAddress, memType)
   }
