@@ -103,6 +103,11 @@ object CollectionDataSets {
     env.fromCollection(Random.shuffle(data))
   }
 
+  def getTupleDataSetForUDTF(env: ExecutionEnvironment): DataSet[(String)] = {
+    val data = List("hi#world")
+    env.fromCollection(data)
+  }
+
   def getGroupSortedNestedTupleDataSet(env: ExecutionEnvironment): DataSet[((Int, Int), String)] = {
     val data = new mutable.MutableList[((Int, Int), String)]
     data.+=(((1, 3), "a"))

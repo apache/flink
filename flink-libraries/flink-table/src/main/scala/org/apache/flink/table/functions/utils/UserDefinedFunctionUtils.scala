@@ -30,8 +30,10 @@ import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.api.{TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{Table, TableEnvironment, TableException, ValidationException}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.plan.logical.LogicalTableFunctionCall
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
 
@@ -358,4 +360,45 @@ object UserDefinedFunctionUtils {
     InstantiationUtil
       .deserializeObject[UserDefinedFunction](byteData, Thread.currentThread.getContextClassLoader)
   }
+
+  /**
+    * this method is used for create a [[LogicalTableFunctionCall]]
+    * @param tableEnv
+    * @param udtf a String represent a TableFunction Call e.g "split(c)"
+    * @return
+    */
+  def createLogicalFunctionCall(tableEnv: TableEnvironment, udtf: String) = {
+    var alias: Option[Seq[String]] = None
+
+    // unwrap an Expression until we get a TableFunctionCall
+    def unwrap(expr: Expression): TableFunctionCall = expr match {
+      case Alias(child, name, extraNames) =>
+        alias = Some(Seq(name) ++ extraNames)
+        unwrap(child)
+      case Call(name, args) =>
+        val function = tableEnv.functionCatalog.lookupFunction(name, args)
+        unwrap(function)
+      case c: TableFunctionCall => c
+      case _ =>
+        throw new TableException(
+          "Table(TableEnv, String) constructor only accept String that " +
+            "define table function followed by some Alias.")
+    }
+
+    val functionCall: LogicalTableFunctionCall = unwrap(ExpressionParser.parseExpression(udtf))
+      .as(alias).toLogicalTableFunctionCall(child = null)
+    functionCall
+  }
+
+  /**
+    * this method verifies if the table is composed of a TableFunction
+    * created by a TableFunctionCall e.g split('c) or new Table(env, "split(c)")
+    * @param table
+    * @return
+    */
+  def verifyTableFunctionCallExistence(table: Table): Boolean =
+    table.logicalPlan match {
+      case functionCall: LogicalTableFunctionCall if functionCall.child == null => true
+      case _ => false
+    }
 }

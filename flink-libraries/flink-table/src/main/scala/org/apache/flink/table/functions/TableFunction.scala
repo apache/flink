@@ -19,7 +19,6 @@
 package org.apache.flink.table.functions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.expressions.{Expression, TableFunctionCall}
 import org.apache.flink.util.Collector
 
 /**
@@ -78,21 +77,6 @@ import org.apache.flink.util.Collector
   * @tparam T The type of the output row
   */
 abstract class TableFunction[T] extends UserDefinedFunction {
-
-  /**
-    * Creates a call to a [[TableFunction]] in Scala Table API.
-    *
-    * @param params actual parameters of function
-    * @return [[Expression]] in form of a [[TableFunctionCall]]
-    */
-  final def apply(params: Expression*)(implicit typeInfo: TypeInformation[T]): Expression = {
-    val resultType = if (getResultType == null) {
-      typeInfo
-    } else {
-      getResultType
-    }
-    TableFunctionCall(getClass.getSimpleName, this, params, resultType)
-  }
 
   override def toString: String = getClass.getCanonicalName
 

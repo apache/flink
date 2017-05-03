@@ -21,9 +21,10 @@ package org.apache.flink.table.api.scala
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.table.api.{Table, TableException}
+import org.apache.flink.table.api.{Table, TableException, ValidationException}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 
 /**
   * Holds methods to convert a [[Table]] into a [[DataSet]] or a [[DataStream]].
@@ -35,6 +36,10 @@ class TableConversions(table: Table) {
   /** Converts the [[Table]] to a [[DataSet]] of the specified type. */
   def toDataSet[T: TypeInformation]: DataSet[T] = {
 
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(table)) {
+      throw new TableException(
+        "TableFunctions can not convert to DataSet")
+    }
     table.tableEnv match {
       case tEnv: ScalaBatchTableEnv =>
         tEnv.toDataSet(table)
@@ -46,6 +51,10 @@ class TableConversions(table: Table) {
 
   /** Converts the [[Table]] to a [[DataStream]] of the specified type. */
   def toDataStream[T: TypeInformation]: DataStream[T] = {
+    if (UserDefinedFunctionUtils.verifyTableFunctionCallExistence(table)) {
+      throw new TableException(
+        "TableFunctions can not convert to DataStream.")
+    }
 
     table.tableEnv match {
       case tEnv: ScalaStreamTableEnv =>
