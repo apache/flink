@@ -801,38 +801,6 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testMergeAndEvictor() throws Exception {
-		// verify that merging WindowAssigner and Evictor cannot be used together
-
-		StreamExecutionEnvironment env = LocalStreamEnvironment.createLocalEnvironment();
-
-		WindowedStream<String, String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
-				.keyBy(new KeySelector<String, String>() {
-					private static final long serialVersionUID = -887743259776124087L;
-
-					@Override
-					public String getKey(String value) throws Exception {
-						return value;
-					}
-				})
-				.window(EventTimeSessionWindows.withGap(Time.seconds(5)));
-
-		try {
-			windowedStream.evictor(CountEvictor.of(13));
-
-		} catch (UnsupportedOperationException e) {
-			// expected
-			// use a catch to ensure that the exception is thrown by the fold
-			return;
-		}
-
-		fail("The evictor call should fail.");
-
-		env.execute();
-
-	}
-
-	@Test
 	@SuppressWarnings("unchecked")
 	/**
 	 * This tests a custom Session window assigner that assigns some elements to "point windows",
