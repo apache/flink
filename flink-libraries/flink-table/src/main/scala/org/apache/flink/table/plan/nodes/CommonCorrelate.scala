@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rex.{RexCall, RexNode}
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexShuttle}
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -143,6 +143,17 @@ trait CommonCorrelate[T] {
          |getCollector().collect(${crossResultExpr.resultTerm});
          |""".stripMargin
     } else {
+
+      // adjust indicies of InputRefs to adhere to schema expected by generator
+      val changeInputRefIndexShuttle = new RexShuttle {
+        override def visitInputRef(inputRef: RexInputRef): RexNode = {
+          new RexInputRef(inputSchema.physicalArity + inputRef.getIndex, inputRef.getType)
+        }
+      }
+      // Run generateExpression to add init statements (ScalarFunctions) of condition to generator.
+      //   The generated expression is discarded.
+      generator.generateExpression(condition.get.accept(changeInputRefIndexShuttle))
+
       val filterGenerator = new CodeGenerator(config, false, udtfTypeInfo, None, pojoFieldMapping)
       filterGenerator.input1Term = filterGenerator.input2Term
       val filterCondition = filterGenerator.generateExpression(condition.get)

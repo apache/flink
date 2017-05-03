@@ -25,10 +25,9 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.{ScalarFunction, FunctionContext}
 import org.junit.Assert
 
+import scala.annotation.varargs
 import scala.collection.mutable
 import scala.io.Source
-
-import scala.annotation.varargs
 
 case class SimplePojo(name: String, age: Int)
 
@@ -261,5 +260,11 @@ object Func17 extends ScalarFunction {
   // Without @varargs, we will throw an exception
   def eval(a: String*): String = {
     a.mkString(", ")
+  }
+}
+
+object Func18 extends ScalarFunction {
+  def eval(str: String, prefix: String): Boolean = {
+    str.startsWith(prefix)
   }
 }
