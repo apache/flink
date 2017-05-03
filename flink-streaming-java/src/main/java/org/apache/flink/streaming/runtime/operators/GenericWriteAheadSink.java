@@ -17,13 +17,8 @@
  */
 package org.apache.flink.streaming.runtime.operators;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.UUID;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -40,6 +35,13 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.UUID;
 
 /**
  * Generic Sink that emits its input elements into an arbitrary backend. This sink is integrated with Flink's checkpointing
@@ -59,6 +61,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 
 	private final String id;
 	private final CheckpointCommitter committer;
+	private final ListStateDescriptor<PendingCheckpoint> checkpointedStateDescriptor = new ListStateDescriptor<>("pending-checkpoints", PendingCheckpoint.class);
 	protected final TypeSerializer<IN> serializer;
 
 	private transient CheckpointStreamFactory.CheckpointStateOutputStream out;
@@ -88,8 +91,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 		Preconditions.checkState(this.checkpointedState == null,
 			"The reader state has already been initialized.");
 
-		checkpointedState = context.getOperatorStateStore()
-			.getSerializableListState("pending-checkpoints");
+		checkpointedState = context.getOperatorStateStore().getListState(checkpointedStateDescriptor);
 
 		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
 		if (context.isRestored()) {
