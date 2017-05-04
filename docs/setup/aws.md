@@ -32,17 +32,23 @@ Amazon Web Services offers cloud computing services on which you can run Flink.
 
 [Amazon Elastic MapReduce](https://aws.amazon.com/elasticmapreduce/) (Amazon EMR) is a web service that makes it easy to  quickly setup a Hadoop cluster. This is the **recommended way** to run Flink on AWS as it takes care of setting up everything.
 
-### Create EMR Cluster
+### Standard EMR Installation
 
-The EMR documentation contains [examples showing how to start an EMR cluster](http://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-gs-launch-sample-cluster.html). You can follow that guide and install any EMR release. You don't need to install *All Applications* part of the EMR release, but can stick to *Core Hadoop*:
+Flink is a supported application on Amazon EMR. Basically all you have to do is choose Flink as an application, along with whatever
+else you need, and configure the instances and roles. [Amazon's documentation](http://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-flink.html) gives all the details.
 
-<img src="{{ site.baseurl }}/fig/flink-on-emr.png" class="img-responsive">
+### Custom EMR Installation
+
+The standard installation (above) is easier, but if you need to use a version of Flink that Amazon doesn't support,
+then you can setup a stock EMR cluster and install Flink yourself.
+
+**Create EMR Cluster**
+
+The EMR documentation contains [examples showing how to start an EMR cluster](http://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-gs-launch-sample-cluster.html). You can follow that guide and install any EMR release. You don't need to install the *All Applications* part of the EMR release, but can stick to *Core Hadoop*.
 
 When creating your cluster, make sure to setup [IAM roles](http://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-iam-roles.html) allowing you to access your S3 buckets if required.
 
-{% top %}
-
-### Install Flink on EMR Cluster
+**Install Flink on EMR Cluster**
 
 After creating your cluster, you can [connect to the master node](http://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-connect-master-node.html) and install Flink:
 
