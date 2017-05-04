@@ -104,7 +104,6 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 			} catch (IOException e) {
 				LOG.info("Reading pending checkpoint in older state for the GenericWriteAheadSink (taskIdx={}).", subtaskIdx);
 				this.pendingCheckpoints.clear();
-				
 				ListState<PendingCheckpoint> javaCheckpointedState = context.getOperatorStateStore().getSerializableListState(checkpointedStateDescriptor.getName());
 				for (PendingCheckpoint pendingCheckpoint : javaCheckpointedState.get()) {
 					this.pendingCheckpoints.add(pendingCheckpoint);
