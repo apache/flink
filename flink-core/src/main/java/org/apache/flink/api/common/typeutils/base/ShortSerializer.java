@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
 import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -34,6 +35,9 @@ public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 	public static final ShortSerializer INSTANCE = new ShortSerializer();
 	
 	private static final Short ZERO = Short.valueOf((short)0);
+
+	public static final ParameterlessTypeSerializerConfig CONFIG =
+			new ParameterlessTypeSerializerConfig(ShortSerializer.class.getCanonicalName());
 
 	@Override
 	public boolean isImmutableType() {
@@ -90,16 +94,14 @@ public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public PlainSerializationFormatConfigs.ShortSerializationFormatConfig snapshotConfiguration() {
-		return PlainSerializationFormatConfigs.SHORT;
+	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
+		return CONFIG;
 	}
 
 	@Override
 	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof PlainSerializationFormatConfigs.ShortSerializationFormatConfig) {
-			return ReconfigureResult.COMPATIBLE;
-		} else {
-			return ReconfigureResult.INCOMPATIBLE;
-		}
+		return (configSnapshot.equals(CONFIG) || configSnapshot.equals(ShortValueSerializer.CONFIG))
+			? ReconfigureResult.COMPATIBLE
+			: ReconfigureResult.INCOMPATIBLE;
 	}
 }

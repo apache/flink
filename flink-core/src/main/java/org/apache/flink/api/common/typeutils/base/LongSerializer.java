@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
 import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -35,6 +36,8 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 	
 	private static final Long ZERO = Long.valueOf(0);
 
+	public static final ParameterlessTypeSerializerConfig CONFIG =
+		new ParameterlessTypeSerializerConfig(LongSerializer.class.getCanonicalName());
 
 	@Override
 	public boolean isImmutableType() {
@@ -91,16 +94,14 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public PlainSerializationFormatConfigs.LongSerializationFormatConfig snapshotConfiguration() {
-		return PlainSerializationFormatConfigs.LONG;
+	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
+		return CONFIG;
 	}
 
 	@Override
 	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof PlainSerializationFormatConfigs.LongSerializationFormatConfig) {
-			return ReconfigureResult.COMPATIBLE;
-		} else {
-			return ReconfigureResult.INCOMPATIBLE;
-		}
+		return (configSnapshot.equals(CONFIG) || configSnapshot.equals(LongValueSerializer.CONFIG))
+			? ReconfigureResult.COMPATIBLE
+			: ReconfigureResult.INCOMPATIBLE;
 	}
 }

@@ -21,36 +21,69 @@ package org.apache.flink.api.common.typeutils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 
 /**
  * A base class for {@link TypeSerializerConfigSnapshot}s that do not have any parameters.
- *
- * <p>Versioning is removed from this configuration since without parameters, no versioning is required.
  */
 @Internal
-public abstract class ParameterlessTypeSerializerConfig extends TypeSerializerConfigSnapshot {
+public final class ParameterlessTypeSerializerConfig extends TypeSerializerConfigSnapshot {
+
+	private static final int VERSION = 1;
+
+	/**
+	 * A string identifier that encodes the serialization format used by the serializer.
+	 *
+	 * TODO we might change this to a proper serialization format class in the future
+	 */
+	private String serializationFormatIdentifier;
+
+	/** This empty nullary constructor is required for deserializing the configuration. */
+	public ParameterlessTypeSerializerConfig() {}
+
+	public ParameterlessTypeSerializerConfig(String serializationFormatIdentifier) {
+		this.serializationFormatIdentifier = Preconditions.checkNotNull(serializationFormatIdentifier);
+	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		// write nothing
+		super.write(out);
+		out.writeUTF(serializationFormatIdentifier);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		// nothing to read
-	}
-
-	@Override
-	public int getSnapshotVersion() {
-		throw new UnsupportedOperationException(
-				"Versioning is not required for the ParameterlessTypeSerializerConfig.");
+		super.read(in);
+		serializationFormatIdentifier = in.readUTF();
 	}
 
 	@Override
 	public int getVersion() {
-		throw new UnsupportedOperationException(
-				"Versioning is not required for the ParameterlessTypeSerializerConfig.");
+		return VERSION;
+	}
+
+	public String getSerializationFormatIdentifier() {
+		return serializationFormatIdentifier;
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (other == this) {
+			return true;
+		}
+
+		if (other == null) {
+			return false;
+		}
+
+		return (other instanceof ParameterlessTypeSerializerConfig)
+				&& serializationFormatIdentifier.equals(((ParameterlessTypeSerializerConfig) other).getSerializationFormatIdentifier());
+	}
+
+	@Override
+	public int hashCode() {
+		return serializationFormatIdentifier.hashCode();
 	}
 }

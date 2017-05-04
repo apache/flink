@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
 import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -33,8 +34,10 @@ public final class BooleanValueSerializer extends TypeSerializerSingleton<Boolea
 	private static final long serialVersionUID = 1L;
 	
 	public static final BooleanValueSerializer INSTANCE = new BooleanValueSerializer();
-	
-	
+
+	public static final ParameterlessTypeSerializerConfig CONFIG =
+			new ParameterlessTypeSerializerConfig(BooleanValueSerializer.class.getCanonicalName());
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -94,16 +97,14 @@ public final class BooleanValueSerializer extends TypeSerializerSingleton<Boolea
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public PlainSerializationFormatConfigs.BooleanSerializationFormatConfig snapshotConfiguration() {
-		return PlainSerializationFormatConfigs.BOOLEAN;
+	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
+		return CONFIG;
 	}
 
 	@Override
 	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof PlainSerializationFormatConfigs.BooleanSerializationFormatConfig) {
-			return ReconfigureResult.COMPATIBLE;
-		} else {
-			return ReconfigureResult.INCOMPATIBLE;
-		}
+		return (configSnapshot.equals(CONFIG) || configSnapshot.equals(BooleanSerializer.CONFIG))
+			? ReconfigureResult.COMPATIBLE
+			: ReconfigureResult.INCOMPATIBLE;
 	}
 }

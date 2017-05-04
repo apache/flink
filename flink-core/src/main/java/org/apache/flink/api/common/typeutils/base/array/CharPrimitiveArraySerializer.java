@@ -21,9 +21,9 @@ package org.apache.flink.api.common.typeutils.base.array;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
 import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.base.PlainSerializationFormatConfigs;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -39,8 +39,10 @@ public final class CharPrimitiveArraySerializer extends TypeSerializerSingleton<
 	private static final char[] EMPTY = new char[0];
 
 	public static final CharPrimitiveArraySerializer INSTANCE = new CharPrimitiveArraySerializer();
-	
-	
+
+	public static final ParameterlessTypeSerializerConfig CONFIG =
+			new ParameterlessTypeSerializerConfig(CharPrimitiveArraySerializer.class.getCanonicalName());
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -116,16 +118,14 @@ public final class CharPrimitiveArraySerializer extends TypeSerializerSingleton<
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public PlainSerializationFormatConfigs.CharArraySerializationFormatConfig snapshotConfiguration() {
-		return PlainSerializationFormatConfigs.CHAR_ARRAY;
+	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
+		return CONFIG;
 	}
 
 	@Override
 	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof PlainSerializationFormatConfigs.CharArraySerializationFormatConfig) {
-			return ReconfigureResult.COMPATIBLE;
-		} else {
-			return ReconfigureResult.INCOMPATIBLE;
-		}
+		return (configSnapshot.equals(CONFIG))
+			? ReconfigureResult.COMPATIBLE
+			: ReconfigureResult.INCOMPATIBLE;
 	}
 }

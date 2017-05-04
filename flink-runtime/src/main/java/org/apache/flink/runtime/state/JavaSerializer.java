@@ -38,7 +38,8 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 5067491650263321234L;
 
-	public static final JavaSerializationFormatConfig CONFIG = new JavaSerializationFormatConfig();
+	public static final ParameterlessTypeSerializerConfig CONFIG =
+			new ParameterlessTypeSerializerConfig(JavaSerializer.class.getCanonicalName());
 
 	@Override
 	public boolean isImmutableType() {
@@ -122,18 +123,14 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public JavaSerializationFormatConfig snapshotConfiguration() {
+	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
 		return CONFIG;
 	}
 
 	@Override
 	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof JavaSerializationFormatConfig) {
-			return ReconfigureResult.COMPATIBLE;
-		} else {
-			return ReconfigureResult.INCOMPATIBLE;
-		}
+		return (configSnapshot.equals(CONFIG))
+			? ReconfigureResult.COMPATIBLE
+			: ReconfigureResult.INCOMPATIBLE;
 	}
-
-	public static final class JavaSerializationFormatConfig extends ParameterlessTypeSerializerConfig {}
 }

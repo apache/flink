@@ -38,7 +38,8 @@ public final class BigIntSerializer extends TypeSerializerSingleton<BigInteger> 
 
 	public static final BigIntSerializer INSTANCE = new BigIntSerializer();
 
-	public static final BigIntSerializationFormatConfig CONFIG = new BigIntSerializationFormatConfig();
+	public static final ParameterlessTypeSerializerConfig CONFIG =
+			new ParameterlessTypeSerializerConfig(BigIntSerializer.class.getCanonicalName());
 
 	@Override
 	public boolean isImmutableType() {
@@ -154,18 +155,14 @@ public final class BigIntSerializer extends TypeSerializerSingleton<BigInteger> 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public BigIntSerializationFormatConfig snapshotConfiguration() {
+	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
 		return CONFIG;
 	}
 
 	@Override
 	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof BigIntSerializationFormatConfig) {
-			return ReconfigureResult.COMPATIBLE;
-		} else {
-			return ReconfigureResult.INCOMPATIBLE;
-		}
+		return (configSnapshot.equals(CONFIG))
+			? ReconfigureResult.COMPATIBLE
+			: ReconfigureResult.INCOMPATIBLE;
 	}
-
-	public static final class BigIntSerializationFormatConfig extends ParameterlessTypeSerializerConfig {}
 }

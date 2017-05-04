@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
 import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -33,8 +34,10 @@ public final class ByteValueSerializer extends TypeSerializerSingleton<ByteValue
 	private static final long serialVersionUID = 1L;
 	
 	public static final ByteValueSerializer INSTANCE = new ByteValueSerializer();
-	
-	
+
+	public static final ParameterlessTypeSerializerConfig CONFIG =
+			new ParameterlessTypeSerializerConfig(ByteValueSerializer.class.getCanonicalName());
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -92,16 +95,14 @@ public final class ByteValueSerializer extends TypeSerializerSingleton<ByteValue
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public PlainSerializationFormatConfigs.ByteSerializationFormatConfig snapshotConfiguration() {
-		return PlainSerializationFormatConfigs.BYTE;
+	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
+		return CONFIG;
 	}
 
 	@Override
 	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof PlainSerializationFormatConfigs.ByteSerializationFormatConfig) {
-			return ReconfigureResult.COMPATIBLE;
-		} else {
-			return ReconfigureResult.INCOMPATIBLE;
-		}
+		return (configSnapshot.equals(CONFIG) || configSnapshot.equals(ByteSerializer.CONFIG))
+			? ReconfigureResult.COMPATIBLE
+			: ReconfigureResult.INCOMPATIBLE;
 	}
 }

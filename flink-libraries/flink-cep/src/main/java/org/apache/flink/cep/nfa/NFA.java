@@ -867,7 +867,8 @@ public class NFA<T> implements Serializable {
 
 		private static final long serialVersionUID = 1L;
 
-		private static final NFASerializerConfigSnapshot CONFIG = new NFASerializerConfigSnapshot();
+		private static final ParameterlessTypeSerializerConfig CONFIG =
+				new ParameterlessTypeSerializerConfig(Serializer.class.getCanonicalName());
 
 		@Override
 		public boolean isImmutableType() {
@@ -969,19 +970,15 @@ public class NFA<T> implements Serializable {
 		// --------------------------------------------------------------------------------------------
 
 		@Override
-		public NFASerializerConfigSnapshot snapshotConfiguration() {
+		public ParameterlessTypeSerializerConfig snapshotConfiguration() {
 			return CONFIG;
 		}
 
 		@Override
-		protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-			if (configSnapshot instanceof NFASerializerConfigSnapshot) {
-				return ReconfigureResult.COMPATIBLE;
-			} else {
-				return ReconfigureResult.INCOMPATIBLE;
-			}
+		public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+			return (configSnapshot.equals(CONFIG))
+				? ReconfigureResult.COMPATIBLE
+				: ReconfigureResult.INCOMPATIBLE;
 		}
 	}
-
-	public static final class NFASerializerConfigSnapshot extends ParameterlessTypeSerializerConfig {}
 }

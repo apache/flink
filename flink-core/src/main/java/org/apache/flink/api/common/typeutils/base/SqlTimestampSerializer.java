@@ -34,7 +34,8 @@ public final class SqlTimestampSerializer extends TypeSerializerSingleton<Timest
 
 	public static final SqlTimestampSerializer INSTANCE = new SqlTimestampSerializer();
 
-	public static final SqlTimestampSerializationFormatConfig CONFIG = new SqlTimestampSerializationFormatConfig();
+	public static final ParameterlessTypeSerializerConfig CONFIG =
+			new ParameterlessTypeSerializerConfig(SqlTimestampSerializer.class.getCanonicalName());
 
 	@Override
 	public boolean isImmutableType() {
@@ -122,18 +123,14 @@ public final class SqlTimestampSerializer extends TypeSerializerSingleton<Timest
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public SqlTimestampSerializationFormatConfig snapshotConfiguration() {
+	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
 		return CONFIG;
 	}
 
 	@Override
 	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof SqlTimestampSerializationFormatConfig) {
-			return ReconfigureResult.COMPATIBLE;
-		} else {
-			return ReconfigureResult.INCOMPATIBLE;
-		}
+		return (configSnapshot.equals(CONFIG))
+			? ReconfigureResult.COMPATIBLE
+			: ReconfigureResult.INCOMPATIBLE;
 	}
-
-	public static final class SqlTimestampSerializationFormatConfig extends ParameterlessTypeSerializerConfig {}
 }

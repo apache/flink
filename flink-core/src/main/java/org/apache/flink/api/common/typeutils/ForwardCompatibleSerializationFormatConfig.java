@@ -19,6 +19,10 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
 
 /**
  * This is a special {@link TypeSerializerConfigSnapshot} that serializers can return to serve
@@ -26,11 +30,33 @@ import org.apache.flink.annotation.PublicEvolving;
  * need to be checked for compatibility.
  */
 @PublicEvolving
-public final class ForwardCompatibleSerializationFormatConfig extends ParameterlessTypeSerializerConfig {
+public final class ForwardCompatibleSerializationFormatConfig extends TypeSerializerConfigSnapshot {
 
 	/** Singleton instance. */
 	public static final ForwardCompatibleSerializationFormatConfig INSTANCE =
 			new ForwardCompatibleSerializationFormatConfig();
+
+	@Override
+	public void write(DataOutputView out) throws IOException {
+		// nothing to write
+	}
+
+	@Override
+	public void read(DataInputView in) throws IOException {
+		// nothing to read
+	}
+
+	@Override
+	public int getSnapshotVersion() {
+		throw new UnsupportedOperationException(
+				"This is a ForwardCompatibleSerializationFormatConfig. No versioning required.");
+	}
+
+	@Override
+	public int getVersion() {
+		throw new UnsupportedOperationException(
+				"This is a ForwardCompatibleSerializationFormatConfig. No versioning required.");
+	}
 
 	/**
 	 * This special configuration type does not require the default

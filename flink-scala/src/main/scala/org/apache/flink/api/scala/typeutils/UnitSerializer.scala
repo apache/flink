@@ -18,8 +18,8 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{ReconfigureResult, TypeSerializerConfigSnapshot}
-import org.apache.flink.api.common.typeutils.base.{PlainSerializationFormatConfigs, TypeSerializerSingleton}
+import org.apache.flink.api.common.typeutils.{ParameterlessTypeSerializerConfig, ReconfigureResult, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 @Internal
@@ -63,15 +63,21 @@ class UnitSerializer extends TypeSerializerSingleton[Unit] {
   // Serializer configuration snapshotting & reconfiguring
   // --------------------------------------------------------------------------------------------
 
-  override def snapshotConfiguration(): TypeSerializerConfigSnapshot = {
-    PlainSerializationFormatConfigs.VOID
+  override def snapshotConfiguration(): ParameterlessTypeSerializerConfig = {
+    UnitSerializer.CONFIG
   }
 
   override def reconfigure(configSnapshot: TypeSerializerConfigSnapshot): ReconfigureResult = {
-    configSnapshot match {
-      case voidFormatConfig: PlainSerializationFormatConfigs.VoidSerializationFormatConfig =>
-        ReconfigureResult.COMPATIBLE
-      case _ => ReconfigureResult.INCOMPATIBLE
+    if (configSnapshot.equals(UnitSerializer.CONFIG)) {
+      ReconfigureResult.COMPATIBLE
+    } else {
+      ReconfigureResult.INCOMPATIBLE
     }
   }
+}
+
+object UnitSerializer {
+
+  val CONFIG = new ParameterlessTypeSerializerConfig(UnitSerializer.getClass.getCanonicalName)
+
 }

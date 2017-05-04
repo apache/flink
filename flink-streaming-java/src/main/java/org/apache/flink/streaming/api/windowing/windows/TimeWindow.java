@@ -136,7 +136,8 @@ public class TimeWindow extends Window {
 	public static class Serializer extends TypeSerializer<TimeWindow> {
 		private static final long serialVersionUID = 1L;
 
-		private static final TimeWindowSerializerConfig CONFIG = new TimeWindowSerializerConfig();
+		private static final ParameterlessTypeSerializerConfig CONFIG =
+				new ParameterlessTypeSerializerConfig(Serializer.class.getCanonicalName());
 
 		@Override
 		public boolean isImmutableType() {
@@ -212,24 +213,17 @@ public class TimeWindow extends Window {
 		// --------------------------------------------------------------------------------------------
 
 		@Override
-		public TimeWindowSerializerConfig snapshotConfiguration() {
+		public ParameterlessTypeSerializerConfig snapshotConfiguration() {
 			return CONFIG;
 		}
 
 		@Override
 		public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-			if (configSnapshot instanceof TimeWindowSerializerConfig) {
-				return ReconfigureResult.COMPATIBLE;
-			} else {
-				return ReconfigureResult.INCOMPATIBLE;
-			}
+			return (configSnapshot.equals(CONFIG))
+				? ReconfigureResult.COMPATIBLE
+				: ReconfigureResult.INCOMPATIBLE;
 		}
 	}
-
-	/**
-	 * A {@link TypeSerializerConfigSnapshot} specific to the {@link TimeWindow} serializer.
-	 */
-	public static final class TimeWindowSerializerConfig extends ParameterlessTypeSerializerConfig {}
 
 	// ------------------------------------------------------------------------
 	//  Utilities

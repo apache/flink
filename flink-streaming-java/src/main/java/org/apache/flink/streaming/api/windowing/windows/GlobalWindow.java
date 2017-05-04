@@ -67,7 +67,8 @@ public class GlobalWindow extends Window {
 	public static class Serializer extends TypeSerializer<GlobalWindow> {
 		private static final long serialVersionUID = 1L;
 
-		private static final GlobalWindowSerializerConfigSnapshot CONFIG = new GlobalWindowSerializerConfigSnapshot();
+		private static final ParameterlessTypeSerializerConfig CONFIG =
+				new ParameterlessTypeSerializerConfig(Serializer.class.getCanonicalName());
 
 		@Override
 		public boolean isImmutableType() {
@@ -143,22 +144,15 @@ public class GlobalWindow extends Window {
 		// --------------------------------------------------------------------------------------------
 
 		@Override
-		public GlobalWindowSerializerConfigSnapshot snapshotConfiguration() {
+		public ParameterlessTypeSerializerConfig snapshotConfiguration() {
 			return CONFIG;
 		}
 
 		@Override
 		public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-			if (configSnapshot instanceof GlobalWindowSerializerConfigSnapshot) {
-				return ReconfigureResult.COMPATIBLE;
-			} else {
-				return ReconfigureResult.INCOMPATIBLE;
-			}
+			return (configSnapshot.equals(CONFIG))
+				? ReconfigureResult.COMPATIBLE
+				: ReconfigureResult.INCOMPATIBLE;
 		}
 	}
-
-	/**
-	 * A {@link TypeSerializerConfigSnapshot} specific to the {@link GlobalWindow} serializer.
-	 */
-	public static final class GlobalWindowSerializerConfigSnapshot extends ParameterlessTypeSerializerConfig {}
 }

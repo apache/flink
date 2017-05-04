@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 import java.util.Date;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
 import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -32,6 +33,9 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 	private static final long serialVersionUID = 1L;
 
 	public static final DateSerializer INSTANCE = new DateSerializer();
+
+	public static final ParameterlessTypeSerializerConfig CONFIG =
+			new ParameterlessTypeSerializerConfig(DateSerializer.class.getCanonicalName());
 
 	@Override
 	public boolean isImmutableType() {
@@ -109,16 +113,16 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public TimestampSerializationFormatConfigSnapshot snapshotConfiguration() {
-		return TimestampSerializationFormatConfigSnapshot.INSTANCE;
+	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
+		return CONFIG;
 	}
 
 	@Override
 	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof TimestampSerializationFormatConfigSnapshot) {
-			return ReconfigureResult.COMPATIBLE;
-		} else {
-			return ReconfigureResult.INCOMPATIBLE;
-		}
+		return (configSnapshot.equals(CONFIG)
+				|| configSnapshot.equals(SqlDateSerializer.CONFIG)
+				|| configSnapshot.equals(SqlTimeSerializer.CONFIG))
+			? ReconfigureResult.COMPATIBLE
+			: ReconfigureResult.INCOMPATIBLE;
 	}
 }
