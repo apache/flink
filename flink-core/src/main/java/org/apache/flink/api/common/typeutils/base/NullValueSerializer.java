@@ -19,9 +19,6 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.NullValue;
@@ -34,9 +31,6 @@ public final class NullValueSerializer extends TypeSerializerSingleton<NullValue
 	private static final long serialVersionUID = 1L;
 
 	public static final NullValueSerializer INSTANCE = new NullValueSerializer();
-
-	public static final ParameterlessTypeSerializerConfig CONFIG =
-			new ParameterlessTypeSerializerConfig(NullValueSerializer.class.getCanonicalName());
 
 	@Override
 	public boolean isImmutableType() {
@@ -84,21 +78,5 @@ public final class NullValueSerializer extends TypeSerializerSingleton<NullValue
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof NullValueSerializer;
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & reconfiguring
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
-		return CONFIG;
-	}
-
-	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		return (configSnapshot.equals(CONFIG))
-			? ReconfigureResult.COMPATIBLE
-			: ReconfigureResult.INCOMPATIBLE;
 	}
 }

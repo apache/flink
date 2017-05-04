@@ -21,9 +21,6 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -35,9 +32,6 @@ public final class CharSerializer extends TypeSerializerSingleton<Character> {
 	public static final CharSerializer INSTANCE = new CharSerializer();
 	
 	private static final Character ZERO = Character.valueOf((char)0);
-
-	public static final ParameterlessTypeSerializerConfig CONFIG =
-			new ParameterlessTypeSerializerConfig(CharSerializer.class.getCanonicalName());
 
 	@Override
 	public boolean isImmutableType() {
@@ -89,19 +83,9 @@ public final class CharSerializer extends TypeSerializerSingleton<Character> {
 		return obj instanceof CharSerializer;
 	}
 
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & reconfiguring
-	// --------------------------------------------------------------------------------------------
-
 	@Override
-	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
-		return CONFIG;
-	}
-
-	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		return (configSnapshot.equals(CONFIG) || configSnapshot.equals(CharValueSerializer.CONFIG))
-			? ReconfigureResult.COMPATIBLE
-			: ReconfigureResult.INCOMPATIBLE;
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(CharValueSerializer.class.getCanonicalName());
 	}
 }

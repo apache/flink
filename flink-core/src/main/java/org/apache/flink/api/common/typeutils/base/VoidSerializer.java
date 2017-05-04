@@ -21,9 +21,6 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -33,9 +30,6 @@ public final class VoidSerializer extends TypeSerializerSingleton<Void> {
 	private static final long serialVersionUID = 1L;
 	
 	public static final VoidSerializer INSTANCE = new VoidSerializer();
-
-	public static final ParameterlessTypeSerializerConfig CONFIG =
-			new ParameterlessTypeSerializerConfig(VoidSerializer.class.getCanonicalName());
 
 	@Override
 	public boolean isImmutableType() {
@@ -89,21 +83,5 @@ public final class VoidSerializer extends TypeSerializerSingleton<Void> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof VoidSerializer;
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & reconfiguring
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
-		return CONFIG;
-	}
-
-	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		return (configSnapshot.equals(CONFIG))
-			? ReconfigureResult.COMPATIBLE
-			: ReconfigureResult.INCOMPATIBLE;
 	}
 }

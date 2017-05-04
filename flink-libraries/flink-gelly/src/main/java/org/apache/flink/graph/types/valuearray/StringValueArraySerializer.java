@@ -18,9 +18,6 @@
 
 package org.apache.flink.graph.types.valuearray;
 
-import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -34,9 +31,6 @@ import java.io.IOException;
 public final class StringValueArraySerializer extends TypeSerializerSingleton<StringValueArray> {
 
 	private static final long serialVersionUID = 1L;
-
-	public static final ParameterlessTypeSerializerConfig CONFIG =
-			new ParameterlessTypeSerializerConfig(StringValueArraySerializer.class.getCanonicalName());
 
 	@Override
 	public boolean isImmutableType() {
@@ -90,19 +84,9 @@ public final class StringValueArraySerializer extends TypeSerializerSingleton<St
 		return obj instanceof StringValueArraySerializer;
 	}
 
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & reconfiguring
-	// --------------------------------------------------------------------------------------------
-
 	@Override
-	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
-		return CONFIG;
-	}
-
-	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		return (configSnapshot.equals(CONFIG) || configSnapshot.equals(StringArraySerializer.CONFIG))
-			? ReconfigureResult.COMPATIBLE
-			: ReconfigureResult.INCOMPATIBLE;
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(StringArraySerializer.class.getCanonicalName());
 	}
 }

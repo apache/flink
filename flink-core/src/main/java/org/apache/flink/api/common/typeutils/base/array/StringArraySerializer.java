@@ -21,9 +21,6 @@ package org.apache.flink.api.common.typeutils.base.array;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -41,9 +38,6 @@ public final class StringArraySerializer extends TypeSerializerSingleton<String[
 	private static final String[] EMPTY = new String[0];
 	
 	public static final StringArraySerializer INSTANCE = new StringArraySerializer();
-
-	public static final ParameterlessTypeSerializerConfig CONFIG =
-		new ParameterlessTypeSerializerConfig(StringArraySerializer.class.getCanonicalName());
 
 	@Override
 	public boolean isImmutableType() {
@@ -115,21 +109,5 @@ public final class StringArraySerializer extends TypeSerializerSingleton<String[
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof StringArraySerializer;
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & reconfiguring
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
-		return CONFIG;
-	}
-
-	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		return (configSnapshot.equals(CONFIG))
-			? ReconfigureResult.COMPATIBLE
-			: ReconfigureResult.INCOMPATIBLE;
 	}
 }

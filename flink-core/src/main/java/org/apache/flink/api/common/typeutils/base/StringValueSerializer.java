@@ -21,9 +21,6 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
@@ -36,9 +33,6 @@ public final class StringValueSerializer extends TypeSerializerSingleton<StringV
 	private static final int HIGH_BIT = 0x1 << 7;
 	
 	public static final StringValueSerializer INSTANCE = new StringValueSerializer();
-
-	public static final ParameterlessTypeSerializerConfig CONFIG =
-		new ParameterlessTypeSerializerConfig(StringValueSerializer.class.getCanonicalName());
 
 	@Override
 	public boolean isImmutableType() {
@@ -115,19 +109,9 @@ public final class StringValueSerializer extends TypeSerializerSingleton<StringV
 		return obj instanceof StringValueSerializer;
 	}
 
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & reconfiguring
-	// --------------------------------------------------------------------------------------------
-
 	@Override
-	public ParameterlessTypeSerializerConfig snapshotConfiguration() {
-		return CONFIG;
-	}
-
-	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-		return (configSnapshot.equals(CONFIG) || configSnapshot.equals(StringSerializer.CONFIG))
-			? ReconfigureResult.COMPATIBLE
-			: ReconfigureResult.INCOMPATIBLE;
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(StringSerializer.class.getCanonicalName());
 	}
 }

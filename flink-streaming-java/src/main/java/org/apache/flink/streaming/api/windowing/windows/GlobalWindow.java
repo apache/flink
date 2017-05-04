@@ -19,10 +19,8 @@ package org.apache.flink.streaming.api.windowing.windows;
 
 import java.io.IOException;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -64,20 +62,12 @@ public class GlobalWindow extends Window {
 	/**
 	 * A {@link TypeSerializer} for {@link GlobalWindow}.
 	 */
-	public static class Serializer extends TypeSerializer<GlobalWindow> {
+	public static class Serializer extends TypeSerializerSingleton<GlobalWindow> {
 		private static final long serialVersionUID = 1L;
-
-		private static final ParameterlessTypeSerializerConfig CONFIG =
-				new ParameterlessTypeSerializerConfig(Serializer.class.getCanonicalName());
 
 		@Override
 		public boolean isImmutableType() {
 			return true;
-		}
-
-		@Override
-		public TypeSerializer<GlobalWindow> duplicate() {
-			return this;
 		}
 
 		@Override
@@ -125,34 +115,8 @@ public class GlobalWindow extends Window {
 		}
 
 		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof Serializer;
-		}
-
-		@Override
 		public boolean canEqual(Object obj) {
 			return obj instanceof Serializer;
-		}
-
-		@Override
-		public int hashCode() {
-			return 0;
-		}
-
-		// --------------------------------------------------------------------------------------------
-		// Serializer configuration snapshotting & reconfiguring
-		// --------------------------------------------------------------------------------------------
-
-		@Override
-		public ParameterlessTypeSerializerConfig snapshotConfiguration() {
-			return CONFIG;
-		}
-
-		@Override
-		public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-			return (configSnapshot.equals(CONFIG))
-				? ReconfigureResult.COMPATIBLE
-				: ReconfigureResult.INCOMPATIBLE;
 		}
 	}
 }

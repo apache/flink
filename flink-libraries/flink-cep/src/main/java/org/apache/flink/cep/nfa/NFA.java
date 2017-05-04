@@ -21,10 +21,8 @@ package org.apache.flink.cep.nfa;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.LinkedHashMultimap;
-import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
@@ -863,21 +861,13 @@ public class NFA<T> implements Serializable {
 	/**
 	 * A {@link TypeSerializer} for {@link NFA} that uses Java Serialization.
 	 */
-	public static class Serializer<T> extends TypeSerializer<NFA<T>> {
+	public static class Serializer<T> extends TypeSerializerSingleton<NFA<T>> {
 
 		private static final long serialVersionUID = 1L;
-
-		private static final ParameterlessTypeSerializerConfig CONFIG =
-				new ParameterlessTypeSerializerConfig(Serializer.class.getCanonicalName());
 
 		@Override
 		public boolean isImmutableType() {
 			return false;
-		}
-
-		@Override
-		public TypeSerializer<NFA<T>> duplicate() {
-			return this;
 		}
 
 		@Override
@@ -951,34 +941,8 @@ public class NFA<T> implements Serializable {
 		}
 
 		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof Serializer && ((Serializer) obj).canEqual(this);
-		}
-
-		@Override
 		public boolean canEqual(Object obj) {
 			return obj instanceof Serializer;
-		}
-
-		@Override
-		public int hashCode() {
-			return getClass().hashCode();
-		}
-
-		// --------------------------------------------------------------------------------------------
-		// Serializer configuration snapshotting & reconfiguring
-		// --------------------------------------------------------------------------------------------
-
-		@Override
-		public ParameterlessTypeSerializerConfig snapshotConfiguration() {
-			return CONFIG;
-		}
-
-		@Override
-		public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
-			return (configSnapshot.equals(CONFIG))
-				? ReconfigureResult.COMPATIBLE
-				: ReconfigureResult.INCOMPATIBLE;
 		}
 	}
 }
