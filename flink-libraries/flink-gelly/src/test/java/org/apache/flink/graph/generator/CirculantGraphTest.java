@@ -35,7 +35,7 @@ extends AbstractGraphTest {
 	public void testGraph()
 			throws Exception {
 		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, 10)
-			.addOffsets(4, 2)
+			.addOffsetRange(4, 2)
 			.generate();
 
 		String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
@@ -53,7 +53,7 @@ extends AbstractGraphTest {
 		int vertexCount = 10;
 
 		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, 10)
-				.addOffsets(4, 2)
+				.addOffsetRange(4, 2)
 				.generate();
 
 		assertEquals(vertexCount, graph.numberOfVertices());
@@ -72,7 +72,7 @@ extends AbstractGraphTest {
 		int parallelism = 2;
 
 		Graph<LongValue, NullValue, NullValue> graph = new CirculantGraph(env, 10)
-				.addOffsets(4, 2)
+				.addOffsetRange(4, 2)
 				.setParallelism(parallelism)
 				.generate();
 

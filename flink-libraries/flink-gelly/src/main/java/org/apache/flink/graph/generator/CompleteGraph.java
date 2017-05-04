@@ -58,7 +58,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 		long maxOffset = vertexCount / 2;
 
 		// add all the offset
-		circulantGraph.addOffsets(1, maxOffset);
+		circulantGraph.addOffsetRange(1, maxOffset);
 
 		return circulantGraph
 				.setParallelism(parallelism)
