@@ -28,7 +28,7 @@ under the License.
 	<includeBaseDirectory>true</includeBaseDirectory>
 	<baseDirectory>flink-${project.version}</baseDirectory>
 
-	<!-- Include flink-python.jar in lib/ -->
+	<!-- Include flink-python.jar & flink-streaming-python.jar in lib/ -->
 	<dependencySets>
 		<dependencySet>
 			<outputDirectory>lib</outputDirectory>
@@ -40,6 +40,7 @@ under the License.
 
 			<includes>
 				<include>org.apache.flink:flink-python_2.10</include>
+				<include>org.apache.flink:flink-streaming-python_2.10</include>
 				<include>org.slf4j:slf4j-log4j12</include>
 				<include>log4j:log4j</include>
 			</includes>
