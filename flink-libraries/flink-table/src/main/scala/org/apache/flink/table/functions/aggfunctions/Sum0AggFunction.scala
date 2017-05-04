@@ -21,12 +21,14 @@ import java.math.BigDecimal
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 
+import scala.reflect.ClassTag
+
 /**
   * Base class for built-in Sum0 aggregate function. If all values are null, 0 is returned.
   *
   * @tparam T the type for the aggregation result
   */
-abstract class Sum0AggFunction[T: Numeric] extends SumAggFunction[T] {
+abstract class Sum0AggFunction[T: Numeric](implicit t: ClassTag[T]) extends SumAggFunction[T] {
 
   override def getValue(acc: SumAccumulator[T]): T = {
     if (acc.f1) {
@@ -40,44 +42,32 @@ abstract class Sum0AggFunction[T: Numeric] extends SumAggFunction[T] {
 /**
   * Built-in Byte Sum0 aggregate function
   */
-class ByteSum0AggFunction extends Sum0AggFunction[Byte] {
-  override def getValueTypeInfo = BasicTypeInfo.BYTE_TYPE_INFO
-}
+class ByteSum0AggFunction extends Sum0AggFunction[Byte]
 
 /**
   * Built-in Short Sum0 aggregate function
   */
-class ShortSum0AggFunction extends Sum0AggFunction[Short] {
-  override def getValueTypeInfo = BasicTypeInfo.SHORT_TYPE_INFO
-}
+class ShortSum0AggFunction extends Sum0AggFunction[Short]
 
 /**
   * Built-in Int Sum0 aggregate function
   */
-class IntSum0AggFunction extends Sum0AggFunction[Int] {
-  override def getValueTypeInfo = BasicTypeInfo.INT_TYPE_INFO
-}
+class IntSum0AggFunction extends Sum0AggFunction[Int]
 
 /**
   * Built-in Long Sum0 aggregate function
   */
-class LongSum0AggFunction extends Sum0AggFunction[Long] {
-  override def getValueTypeInfo = BasicTypeInfo.LONG_TYPE_INFO
-}
+class LongSum0AggFunction extends Sum0AggFunction[Long]
 
 /**
   * Built-in Float Sum0 aggregate function
   */
-class FloatSum0AggFunction extends Sum0AggFunction[Float] {
-  override def getValueTypeInfo = BasicTypeInfo.FLOAT_TYPE_INFO
-}
+class FloatSum0AggFunction extends Sum0AggFunction[Float]
 
 /**
   * Built-in Double Sum0 aggregate function
   */
-class DoubleSum0AggFunction extends Sum0AggFunction[Double] {
-  override def getValueTypeInfo = BasicTypeInfo.DOUBLE_TYPE_INFO
-}
+class DoubleSum0AggFunction extends Sum0AggFunction[Double]
 
 /**
   * Built-in Big Decimal Sum0 aggregate function

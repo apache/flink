@@ -24,6 +24,9 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.typeutils.TypeCoercion
+
+import scala.reflect.ClassTag
 
 /** The initial accumulator for Sum aggregate function */
 class SumAccumulator[T] extends JTuple2[T, Boolean]
@@ -33,7 +36,7 @@ class SumAccumulator[T] extends JTuple2[T, Boolean]
   *
   * @tparam T the type for the aggregation result
   */
-abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T, SumAccumulator[T]] {
+abstract class SumAggFunction[T: Numeric](implicit t: ClassTag[T]) extends AggregateFunction[T, SumAccumulator[T]] {
 
   private val numeric = implicitly[Numeric[T]]
 
@@ -83,50 +86,38 @@ abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T, SumAccumu
       BasicTypeInfo.BOOLEAN_TYPE_INFO)
   }
 
-  def getValueTypeInfo: TypeInformation[_]
+  def getValueTypeInfo: TypeInformation[_] = TypeCoercion.getScalaPrimativeTypeInformation[T]
 }
 
 /**
   * Built-in Byte Sum aggregate function
   */
-class ByteSumAggFunction extends SumAggFunction[Byte] {
-  override def getValueTypeInfo = BasicTypeInfo.BYTE_TYPE_INFO
-}
+class ByteSumAggFunction extends SumAggFunction[Byte]
 
 /**
   * Built-in Short Sum aggregate function
   */
-class ShortSumAggFunction extends SumAggFunction[Short] {
-  override def getValueTypeInfo = BasicTypeInfo.SHORT_TYPE_INFO
-}
+class ShortSumAggFunction extends SumAggFunction[Short]
 
 /**
   * Built-in Int Sum aggregate function
   */
-class IntSumAggFunction extends SumAggFunction[Int] {
-  override def getValueTypeInfo = BasicTypeInfo.INT_TYPE_INFO
-}
+class IntSumAggFunction extends SumAggFunction[Int]
 
 /**
   * Built-in Long Sum aggregate function
   */
-class LongSumAggFunction extends SumAggFunction[Long] {
-  override def getValueTypeInfo = BasicTypeInfo.LONG_TYPE_INFO
-}
+class LongSumAggFunction extends SumAggFunction[Long]
 
 /**
   * Built-in Float Sum aggregate function
   */
-class FloatSumAggFunction extends SumAggFunction[Float] {
-  override def getValueTypeInfo = BasicTypeInfo.FLOAT_TYPE_INFO
-}
+class FloatSumAggFunction extends SumAggFunction[Float]
 
 /**
   * Built-in Double Sum aggregate function
   */
-class DoubleSumAggFunction extends SumAggFunction[Double] {
-  override def getValueTypeInfo = BasicTypeInfo.DOUBLE_TYPE_INFO
-}
+class DoubleSumAggFunction extends SumAggFunction[Double]
 
 /** The initial accumulator for Big Decimal Sum aggregate function */
 class DecimalSumAccumulator extends JTuple2[BigDecimal, Boolean] {
