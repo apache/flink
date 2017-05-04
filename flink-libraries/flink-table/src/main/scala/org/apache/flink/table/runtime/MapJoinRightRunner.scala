@@ -25,7 +25,8 @@ import org.apache.flink.util.Collector
 class MapJoinRightRunner[IN1, IN2, OUT](
     name: String,
     code: String,
-    returnType: TypeInformation[OUT],
+    outerJoin: Boolean,
+    @transient returnType: TypeInformation[OUT],
     broadcastSetName: String)
   extends MapSideJoinRunner[IN1, IN2, IN1, IN2, OUT](name, code, returnType, broadcastSetName) {
 
@@ -33,7 +34,7 @@ class MapJoinRightRunner[IN1, IN2, OUT](
     broadcastSet match {
       case Some(singleInput) => function.join(singleInput, multiInput, out)
       case None =>
-        if (isRowClass(multiInput) && returnType.getTypeClass.equals(classOf[Row])) {
+        if (outerJoin && isRowClass(multiInput) && returnType.getTypeClass.equals(classOf[Row])) {
           val inputRow = multiInput.asInstanceOf[Row]
           val countNullRecords = returnType.getTotalFields - inputRow.getArity
           val nullRecords= new Row(countNullRecords)

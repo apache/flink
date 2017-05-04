@@ -45,7 +45,6 @@ class DataSetSingleRowJoin(
     leftNode: RelNode,
     rightNode: RelNode,
     leftIsSingle: Boolean,
-    rightIsSingle: Boolean,
     rowRelDataType: RelDataType,
     joinCondition: RexNode,
     joinRowType: RelDataType,
@@ -63,7 +62,6 @@ class DataSetSingleRowJoin(
       inputs.get(0),
       inputs.get(1),
       leftIsSingle,
-      rightIsSingle,
       getRowType,
       joinCondition,
       joinRowType,
@@ -156,7 +154,7 @@ class DataSetSingleRowJoin(
          |""".stripMargin
     } else {
         val singleNode =
-          if (rightIsSingle) {
+          if (!leftIsSingle) {
             rightNode
           }
           else {
@@ -169,29 +167,6 @@ class DataSetSingleRowJoin(
           .map(field => getRowType.getFieldNames.indexOf(field.getName))
           .map(i => s"${conversion.resultTerm}.setField($i,null);")
 
-        if (joinType == JoinRelType.LEFT && leftIsSingle) {
-          s"""
-             |${condition.code}
-             |${conversion.code}
-             |if(!${condition.resultTerm}){
-             |${notSuitedToCondition.mkString("\n")}
-             |}
-             |if(!${condition.leftNullTerm}){
-             |${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
-             |}
-             |""".stripMargin
-        } else if (joinType == JoinRelType.RIGHT && rightIsSingle){
-          s"""
-             |${condition.code}
-             |${conversion.code}
-             |if(!${condition.resultTerm}){
-             |${notSuitedToCondition.mkString("\n")}
-             |}
-             |if(!${condition.leftNullTerm} && ${condition.resultTerm}){
-             |${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
-             |}
-             |""".stripMargin
-        } else {
           s"""
              |${condition.code}
              |${conversion.code}
@@ -201,7 +176,6 @@ class DataSetSingleRowJoin(
              |${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
              |""".stripMargin
         }
-      }
 
     val genFunction = codeGenerator.generateFunction(
       ruleDescription,
@@ -209,35 +183,21 @@ class DataSetSingleRowJoin(
       joinMethodBody,
       returnType)
 
-    if (joinType == JoinRelType.RIGHT) {
-      if (leftIsSingle) {
-        new MapJoinRightRunner[Row, Row, Row](
-          genFunction.name,
-          genFunction.code,
-          genFunction.returnType,
-          broadcastInputSetName)
-      } else {
+      if (!leftIsSingle) {
         new MapJoinLeftRunner[Row, Row, Row](
           genFunction.name,
           genFunction.code,
-          genFunction.returnType,
-          broadcastInputSetName)
-      }
-    } else {
-      if (rightIsSingle) {
-        new MapJoinLeftRunner[Row, Row, Row](
-          genFunction.name,
-          genFunction.code,
+          nullCheck,
           genFunction.returnType,
           broadcastInputSetName)
       } else {
         new MapJoinRightRunner[Row, Row, Row](
           genFunction.name,
           genFunction.code,
+          nullCheck,
           genFunction.returnType,
           broadcastInputSetName)
       }
-    }
   }
 
   private def getMapOperatorName: String = {
