@@ -27,7 +27,7 @@ import org.apache.flink.util.Preconditions;
 
 /**
  * Every {@link Vertex} in the {@link EchoGraph} has the same degree.
- * and further vertices are chose to be linked.
+ * and vertices as far as possible are chose to be linked.
  * {@link EchoGraph} is a specific case of {@link CirculantGraph}.
  */
 public class EchoGraph
