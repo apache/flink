@@ -41,24 +41,16 @@ public class ConfigOptionsDocGenerator {
 	 * Options are sorted alphabetically by key.
 	 *
 	 * @param options list of options to include in this group
-	 * @param includeShort should the short description be included
 	 * @return string containing HTML formatted table
 	 */
-	private static String toHTMLTable(final List<ConfigOption> options, boolean includeShort) {
+	private static String toHTMLTable(final List<ConfigOption> options) {
 		final StringBuilder htmlTable = new StringBuilder(
 			"<table class=\"table table-bordered\"><thead><tr><th class=\"text-left\" style=\"width: 20%\">Name</th>" +
-			"<th class=\"text-left\" style=\"width: 15%\">Default Value</th>");
-		if (includeShort) {
-			htmlTable.append(
-				"<th class=\"text-left\" style=\"width: 25%\">Short description</th>" +
-				"<th class=\"text-left\" style=\"width: 40%\">Description</th></tr></thead><tbody>");
-		} else {
-			htmlTable.append(
-				"<th class=\"text-left\" style=\"width: 65%\">Description</th></tr></thead><tbody>");
-		}
+			"<th class=\"text-left\" style=\"width: 15%\">Default Value</th><th class=\"text-left\" " +
+			"style=\"width: 65%\">Description</th></tr></thead><tbody>");
 
 		for (ConfigOption option : options) {
-			htmlTable.append(toHTMLString(option, includeShort));
+			htmlTable.append(toHTMLString(option));
 		}
 
 		htmlTable.append("</tbody></table>");
@@ -71,10 +63,9 @@ public class ConfigOptionsDocGenerator {
 	 * Options are sorted alphabetically by key.
 	 *
 	 * @param clazzz a class that contains options to be converted int documentation
-	 * @param includeShort should the short description be included
 	 * @return string containing HTML formatted table
 	 */
-	static String create(Class<?> clazzz, boolean includeShort) {
+	static String create(Class<?> clazzz) {
 		try {
 			final List<ConfigOption> configOptions = new ArrayList<>();
 			final Field[] fields = clazzz.getFields();
@@ -91,7 +82,7 @@ public class ConfigOptionsDocGenerator {
 				}
 			});
 
-			return toHTMLTable(configOptions, includeShort);
+			return toHTMLTable(configOptions);
 		} catch (Exception e) {
 			throw new RuntimeException("Could not retrieve all options.", e);
 		}
@@ -101,21 +92,14 @@ public class ConfigOptionsDocGenerator {
 	 * Transforms option to table row.
 	 *
 	 * @param option option to transform
-	 * @param includeShort should the short description be included
 	 * @return row with the option description
 	 */
-	private static String toHTMLString(final ConfigOption<?> option, boolean includeShort) {
-		final StringBuilder stringBuilder = new StringBuilder("<tr><td>")
-			.append(option.key()).append("</td>")
-			.append("<td>")
-			.append(defaultValueToHtml(option.defaultValue()))
-			.append("</td>");
-		if (includeShort) {
-			stringBuilder.append("<td>").append(option.shortDescription()).append("</td>");
-		}
-
-		stringBuilder.append("<td>").append(option.description()).append("</td></tr>");
-		return stringBuilder.toString();
+	private static String toHTMLString(final ConfigOption<?> option) {
+		return "<tr>" +
+				"<td>" + option.key() + "</td>" +
+				"<td>" + defaultValueToHtml(option.defaultValue()) + "</td>" +
+				"<td>" + option.description() + "</td>" +
+				"</tr>";
 	}
 
 	private static String defaultValueToHtml(Object value) {
@@ -151,7 +135,7 @@ public class ConfigOptionsDocGenerator {
 						"_configuration.html";
 
 					final String className = matcher.group(1);
-					final String doc = ConfigOptionsDocGenerator.create(Class.forName(packageName + "." + className), false);
+					final String doc = ConfigOptionsDocGenerator.create(Class.forName(packageName + "." + className));
 					Files.write(Paths.get(outputPath, outputFile), doc.getBytes(StandardCharsets.UTF_8));
 				}
 			}

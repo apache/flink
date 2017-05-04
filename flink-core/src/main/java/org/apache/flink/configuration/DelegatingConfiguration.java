@@ -343,7 +343,6 @@ public final class DelegatingConfiguration extends Configuration {
 
 		String[] deprecated = deprecatedKeys.toArray(new String[deprecatedKeys.size()]);
 		return new ConfigOption<T>(key,
-			option.shortDescription(),
 			option.description(),
 			option.defaultValue(),
 			deprecated);

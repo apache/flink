@@ -32,15 +32,14 @@ public class ConfigOptionsDocGeneratorTest {
 		public static ConfigOption<String> secondOption = ConfigOptions
 			.key("second.option.a")
 			.noDefaultValue()
-			.withDescription("Short second option descr",
-				"This is long example description for the second option.");
+			.withDescription("This is long example description for the second option.");
 
 		private TestConfigGroup() {
 		}
 	}
 
 	@Test
-	public void testCreatingNoShortDescription() throws Exception {
+	public void testCreatingDescription() throws Exception {
 		final String expectedTable = "<table class=\"table table-bordered\">" +
 			"<thead>" +
 			"<tr>" +
@@ -62,39 +61,9 @@ public class ConfigOptionsDocGeneratorTest {
 			"</tr>" +
 			"</tbody>" +
 			"</table>";
-		final String htmlTable = ConfigOptionsDocGenerator.create(TestConfigGroup.class, false);
+		final String htmlTable = ConfigOptionsDocGenerator.create(TestConfigGroup.class);
 
 		assertEquals(expectedTable, htmlTable);
 	}
 
-	@Test
-	public void testCreatingWithShortDescription() throws Exception {
-		final String expectedTable = "<table class=\"table table-bordered\">" +
-		                             "<thead>" +
-		                             "<tr>" +
-		                             "<th class=\"text-left\" style=\"width: 20%\">Name</th>" +
-		                             "<th class=\"text-left\" style=\"width: 15%\">Default Value</th>" +
-		                             "<th class=\"text-left\" style=\"width: 25%\">Short description</th>" +
-		                             "<th class=\"text-left\" style=\"width: 40%\">Description</th>" +
-		                             "</tr>" +
-		                             "</thead>" +
-		                             "<tbody>" +
-		                             "<tr>" +
-		                             "<td>first.option.a</td>" +
-		                             "<td>2</td>" +
-		                             "<td></td>" +
-		                             "<td>This is example description for the first option.</td>" +
-		                             "</tr>" +
-		                             "<tr>" +
-		                             "<td>second.option.a</td>" +
-		                             "<td>(none)</td>" +
-		                             "<td>Short second option descr</td>" +
-		                             "<td>This is long example description for the second option.</td>" +
-		                             "</tr>" +
-		                             "</tbody>" +
-		                             "</table>";
-		final String htmlTable = ConfigOptionsDocGenerator.create(TestConfigGroup.class, true);
-
-		assertEquals(expectedTable, htmlTable);
-	}
 }

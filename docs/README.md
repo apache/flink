@@ -49,6 +49,21 @@ to files that are modified. Note that if you are making changes that affect
 the sidebar navigation, you'll have to build the entire site to see
 those changes reflected on every page.
 
+## Generate configuration tables
+
+Configuration descriptions are auto generated from code. To trigger the generation you need to run:
+
+```
+mvn -Pgenerate-config-docs install
+```
+
+Resulting html files will be written to `_include/generated`. Tables are regenerated each time the command is invoked.
+To include such a table in docs you should simply add a markup:
+
+```
+{% include generated/file_name.html %}
+```
+
 # Contribute
 
 ## Markdown
