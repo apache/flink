@@ -854,8 +854,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				// write state data
 				Preconditions.checkState(backupFileSystem.exists(backupPath));
 
-				FileStatus[] fileStatuses = backupFileSystem.listStatus(
-					backupPath);
+				FileStatus[] fileStatuses = backupFileSystem.listStatus(backupPath);
 				if (fileStatuses != null) {
 					for (FileStatus fileStatus : fileStatuses) {
 						Path filePath = fileStatus.getPath();
