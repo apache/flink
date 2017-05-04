@@ -124,14 +124,14 @@ class DataSetSingleRowJoin(
       broadcastInputSetName: String)
     : FlatMapFunction[Row, Row] = {
 
-    val nullCheck = joinType match {
+    val isOuterJoin = joinType match {
       case JoinRelType.LEFT | JoinRelType.RIGHT => true
       case _ => false
     }    
     
     val codeGenerator = new CodeGenerator(
       config,
-      nullCheck,
+      isOuterJoin,
       inputType1,
       Some(inputType2))
 
@@ -187,14 +187,14 @@ class DataSetSingleRowJoin(
         new MapJoinLeftRunner[Row, Row, Row](
           genFunction.name,
           genFunction.code,
-          nullCheck,
+          isOuterJoin,
           genFunction.returnType,
           broadcastInputSetName)
       } else {
         new MapJoinRightRunner[Row, Row, Row](
           genFunction.name,
           genFunction.code,
-          nullCheck,
+          isOuterJoin,
           genFunction.returnType,
           broadcastInputSetName)
       }
