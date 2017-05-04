@@ -148,7 +148,7 @@ public class NFACompiler {
 		 * <p>A current not condition can be produced in two cases:
 		 * <ol>
 		 *     <li>the previous pattern is a {@link Quantifier.ConsumingStrategy#NOT_FOLLOW}</li>
-		 *     <li>exists a path of {@link Quantifier.QuantifierProperty#OPTIONAL} patterns to
+		 *     <li>exists a backward path of {@link Quantifier.QuantifierProperty#OPTIONAL} patterns to
 		 *       {@link Quantifier.ConsumingStrategy#NOT_FOLLOW}</li>
 		 * </ol>
 		 *
