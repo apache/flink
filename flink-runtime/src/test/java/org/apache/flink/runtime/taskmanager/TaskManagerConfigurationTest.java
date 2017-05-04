@@ -21,7 +21,6 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.Test;
@@ -33,6 +32,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.net.*;
+import java.util.Iterator;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -53,7 +53,7 @@ public class TaskManagerConfigurationTest {
 			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 7891);
 
-			Tuple2<String, Object> address = TaskManager.selectNetworkInterfaceAndPort(config);
+			Tuple2<String, Iterator<Integer>> address = TaskManager.selectNetworkInterfaceAndPortRange(config);
 
 			// validate the configured test host name
 			assertEquals(TEST_HOST_NAME, address._1());
@@ -71,35 +71,28 @@ public class TaskManagerConfigurationTest {
 			Configuration config = new Configuration();
 			config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
 			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
-			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 7891);
+			config.setString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, "7891");
 
 			// auto port
-			assertEquals(0, TaskManager.selectNetworkInterfaceAndPort(config)._2());
+			Iterator<Integer> portsIter = TaskManager.selectNetworkInterfaceAndPortRange(config)._2();
+			assertTrue(portsIter.hasNext());
+			assertEquals(0, (int)portsIter.next());
 
 			// pre-defined port
 			final int testPort = 22551;
-			config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, testPort);
-			assertEquals(testPort, TaskManager.selectNetworkInterfaceAndPort(config)._2());
+			config.setString(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, String.valueOf(testPort));
 
-			// invalid port
-			try {
-				config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, -1);
-				TaskManager.selectNetworkInterfaceAndPort(config);
-				fail("should fail with an exception");
-			}
-			catch (IllegalConfigurationException e) {
-				// bam!
-			}
+			portsIter = TaskManager.selectNetworkInterfaceAndPortRange(config)._2();
+			assertTrue(portsIter.hasNext());
+			assertEquals(testPort, (int)portsIter.next());
 
-			// invalid port
-			try {
-				config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 100000);
-				TaskManager.selectNetworkInterfaceAndPort(config);
-				fail("should fail with an exception");
-			}
-			catch (IllegalConfigurationException e) {
-				// bam!
-			}
+			// port range
+			config.setString(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, "8000-8001");
+			portsIter = TaskManager.selectNetworkInterfaceAndPortRange(config)._2();
+			assertTrue(portsIter.hasNext());
+			assertEquals(8000, (int)portsIter.next());
+			assertEquals(8001, (int)portsIter.next());
+
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -156,7 +149,7 @@ public class TaskManagerConfigurationTest {
 			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, hostname);
 			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, server.getLocalPort());
 
-			assertNotNull(TaskManager.selectNetworkInterfaceAndPort(config)._1());
+			assertNotNull(TaskManager.selectNetworkInterfaceAndPortRange(config)._1());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
