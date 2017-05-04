@@ -51,7 +51,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	// Required configuration
 	private long vertexCount;
 
-	private List<Tuple2<Long, Long>> startOffsetPairs = new ArrayList<>();
+	private List<Tuple2<Long, Long>> offsetRanges = new ArrayList<>();
 
 	/**
 	 * An undirected {@link Graph} whose {@link Vertex} connects to targets appointed by an offset list.
@@ -70,20 +70,20 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	/**
 	 * Required configuration for each offset of the graph.
 	 *
-	 * @param startOffset first offset appointing the vertices' position should be linked by any vertex
-	 * @param length offset in [startOffset, startOffset + length) will be added
+	 * @param offset first offset appointing the vertices' position should be linked by any vertex
+	 * @param length offset in [offset, offset + length) will be added
 	 * @return this
 	 */
-	public CirculantGraph addOffsets(long startOffset, long length) {
+	public CirculantGraph addOffsetRange(long offset, long length) {
 		long maxOffset = vertexCount / 2;
 
-		Preconditions.checkArgument(startOffset >= MINIMUM_OFFSET,
+		Preconditions.checkArgument(offset >= MINIMUM_OFFSET,
 			"Offset must be at least " + MINIMUM_OFFSET);
-		Preconditions.checkArgument(startOffset + length - 1 <= maxOffset,
+		Preconditions.checkArgument(offset + length - 1 <= maxOffset,
 			"Offset must be at most " + maxOffset);
 
-		// save startOffset and length pair
-		startOffsetPairs.add(new Tuple2<>(startOffset, length));
+		// save offset range
+		offsetRanges.add(new Tuple2<>(offset, length));
 
 		return this;
 	}
@@ -100,7 +100,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 				.fromParallelCollection(iterator, LongValue.class)
 				.setParallelism(parallelism)
 				.name("Edge iterators")
-				.flatMap(new LinkVertexToOffsets(vertexCount, startOffsetPairs))
+				.flatMap(new LinkVertexToOffsets(vertexCount, offsetRanges))
 				.setParallelism(parallelism)
 				.name("Circulant graph edges");
 
@@ -114,15 +114,15 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 		private final long vertexCount;
 
-		private final List<Tuple2<Long, Long>> startOffsetPairs;
+		private final List<Tuple2<Long, Long>> offsetRanges;
 
 		private LongValue target = new LongValue();
 
 		private Edge<LongValue, NullValue> edge = new Edge<>(null, target, NullValue.getInstance());
 
-		public LinkVertexToOffsets(long vertexCount, List<Tuple2<Long, Long>> startOffsetPairs) {
+		public LinkVertexToOffsets(long vertexCount, List<Tuple2<Long, Long>> offsetRanges) {
 			this.vertexCount = vertexCount;
-			this.startOffsetPairs = startOffsetPairs;
+			this.offsetRanges = offsetRanges;
 		}
 
 		@Override
@@ -133,20 +133,20 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 			long index = source.getValue();
 			long maxOffset = vertexCount / 2;
 
-			for (Tuple2<Long, Long> offsetPair : startOffsetPairs) {
-				Long startOffset = offsetPair.f0;
-				Long length = offsetPair.f1;
+			for (Tuple2<Long, Long> offsetRange : offsetRanges) {
+				Long offset = offsetRange.f0;
+				Long length = offsetRange.f1;
 
 				for (int i = 0; i < length; i++) {
-					long offset = startOffset + i;
+					long curOffset = offset + i;
 
 					// add positive offset
-					target.setValue((index + offset + vertexCount) % vertexCount);
+					target.setValue((index + curOffset + vertexCount) % vertexCount);
 					out.collect(edge);
 
 					// add negative offset, ignore negative max offset when vertex count is even
-					if (!(vertexCount % 2 == 0 && offset == maxOffset)) {
-						target.setValue((index - offset + vertexCount) % vertexCount);
+					if (!(vertexCount % 2 == 0 && curOffset == maxOffset)) {
+						target.setValue((index - curOffset + vertexCount) % vertexCount);
 						out.collect(edge);
 					}
 				}
