@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.codegen
 
+import java.lang.reflect.ParameterizedType
+import java.lang.{Iterable => JIterable}
 import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.calcite.avatica.util.DateTimeUtils
@@ -46,6 +48,7 @@ import org.apache.flink.table.runtime.TableFunctionCollector
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkAndExtractMethods, getUserDefinedMethod, signatureToString}
+import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -328,11 +331,27 @@ class CodeGenerator(
         }
 
         if (needMerge) {
-          val methods = checkAndExtractMethods(a, "merge")
-          if (methods.isEmpty || methods.length > 1) {
+          val methods =
+            getUserDefinedMethod(a, "merge", Array(accTypeClasses(i), classOf[JIterable[Any]]))
+              .getOrElse(
+                throw new CodeGenException(
+                  s"No matching merge method found for aggregate " +
+                    s"${a.getClass.getCanonicalName}'.")
+              )
+
+          var iterableTypeClass = methods.getGenericParameterTypes.apply(1)
+            .asInstanceOf[ParameterizedType].getActualTypeArguments.apply(0)
+          // further extract iterableTypeClass if the accumulator has generic type
+          if (iterableTypeClass.isInstanceOf[ParameterizedTypeImpl]) {
+            iterableTypeClass =
+              iterableTypeClass.asInstanceOf[ParameterizedTypeImpl].getRawType
+          }
+
+          if (iterableTypeClass != accTypeClasses(i)) {
             throw new CodeGenException(
-              s"No matching merge method found for aggregate " +
-                s"${a.getClass.getCanonicalName}'.")
+              s"merge method in aggregate ${a.getClass.getCanonicalName} does not have the " +
+                s"correct iterableType. Actually: ${iterableTypeClass.getTypeName}. Expected:" +
+                s"${accTypeClasses(i).getTypeName}")
           }
         }
 

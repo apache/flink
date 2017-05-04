@@ -83,7 +83,7 @@ object ScalarSqlFunction {
               s"Actual: ${signatureToString(parameters)} \n" +
               s"Expected: ${signaturesToString(scalarFunction, "eval")}")
         }
-        val resultType = getResultTypeOfScalaFunction(scalarFunction, foundSignature.get)
+        val resultType = getResultTypeOfScalarFunction(scalarFunction, foundSignature.get)
         val t = typeFactory.createTypeFromTypeInfo(resultType)
         typeFactory.createTypeWithNullability(t, nullable = true)
       }

@@ -29,9 +29,8 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulateMethodSignature, signatureToString, signaturesToString}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 abstract sealed class Aggregation extends Expression {
@@ -143,25 +142,14 @@ case class Avg(child: Expression) extends Aggregation {
   }
 }
 
-case class UDAGGFunctionCall(
+case class AggFunctionCall(
     aggregateFunction: AggregateFunction[_, _],
     args: Seq[Expression])
   extends Aggregation {
 
   override private[flink] def children: Seq[Expression] = args
 
-  // Override makeCopy method in TreeNode, to produce vargars properly
-  override def makeCopy(args: Array[AnyRef]): this.type = {
-    if (args.length < 1) {
-      throw new TableException("Invalid constructor params")
-    }
-    val agg = args.head.asInstanceOf[AggregateFunction[_, _]]
-    val arg = args.last.asInstanceOf[Seq[Expression]]
-    new UDAGGFunctionCall(agg, arg).asInstanceOf[this.type]
-  }
-
-  override def resultType: TypeInformation[_] = TypeExtractor.createTypeInfo(
-    aggregateFunction, classOf[AggregateFunction[_, _]], aggregateFunction.getClass, 0)
+  override def resultType: TypeInformation[_] = getResultTypeOfAggregateFunction(aggregateFunction)
 
   override def validateInput(): ValidationResult = {
     val signature = children.map(_.resultType)
@@ -170,7 +158,9 @@ case class UDAGGFunctionCall(
     if (foundSignature.isEmpty) {
       ValidationFailure(s"Given parameters do not match any signature. \n" +
                           s"Actual: ${signatureToString(signature)} \n" +
-                          s"Expected: ${signaturesToString(aggregateFunction, "accumulate")}")
+                          s"Expected: ${
+                            getMethodSignatures(aggregateFunction, "accumulate").drop(1)
+                              .map(signatureToString).mkString(", ")}")
     } else {
       ValidationSuccess
     }
@@ -180,13 +170,16 @@ case class UDAGGFunctionCall(
 
   override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val sqlFunction = AggSqlFunction(name, aggregateFunction, resultType, typeFactory)
+    val sqlFunction = AggSqlFunction(aggregateFunction.getClass.getSimpleName,
+                                     aggregateFunction,
+                                     resultType,
+                                     typeFactory)
     relBuilder.aggregateCall(sqlFunction, false, null, name, args.map(_.toRexNode): _*)
   }
 
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    AggSqlFunction("UDAGG", // tableAPI parser does not really use this
+    AggSqlFunction(aggregateFunction.getClass.getSimpleName,
                    aggregateFunction,
                    resultType,
                    typeFactory)
@@ -195,7 +188,7 @@ case class UDAGGFunctionCall(
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     relBuilder.call(
-      AggSqlFunction("UDAGG", // tableAPI parser does not really use this
+      AggSqlFunction(aggregateFunction.getClass.getSimpleName,
                      aggregateFunction,
                      resultType,
                      typeFactory),

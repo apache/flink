@@ -28,8 +28,9 @@ object LogicalPlanFormatUtils {
   }
 
   private def getMinTempTableId(logicalStr: String): Long = {
-    tempPattern.findAllIn(logicalStr).map(s => {
+    val matches = tempPattern.findAllIn(logicalStr).map(s => {
       s.substring(4).toInt
-    }).min
+    })
+    if (matches.isEmpty) 0 else matches.min
   }
 }

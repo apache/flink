@@ -47,7 +47,7 @@ class ScalarFunctionCallGen(
     val matchingMethod = getUserDefinedMethod(scalarFunction, "eval", typeInfoToClass(signature))
       .getOrElse(throw new CodeGenException("No matching signature found."))
     val matchingSignature = matchingMethod.getParameterTypes
-    val resultClass = getResultTypeClassOfScalaFunction(scalarFunction, matchingSignature)
+    val resultClass = getResultTypeClassOfScalarFunction(scalarFunction, matchingSignature)
 
     // zip for variable signatures
     var paramToOperands = matchingSignature.zip(operands)

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical.Minus
-import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Ordering, TableFunctionCall, UDAGGFunctionCall, UnresolvedAlias}
+import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Ordering, TableFunctionCall, AggFunctionCall, UnresolvedAlias}
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.sinks.TableSink
@@ -129,9 +129,9 @@ class Table(
     */
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
-    //get the correct expression for UDAGGFunctionCall
-    val input = fieldExprs.map(replaceUDAGGFunctionCall(_, tableEnv))
-    select(fieldExprs: _*)
+    //get the correct expression for AggFunctionCall
+    val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, tableEnv))
+    select(withResolvedAggFunctionCall: _*)
   }
 
   /**
@@ -913,9 +913,9 @@ class GroupedTable(
     */
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
-    //get the correct expression for UDAGGFunctionCall
-    val input = fieldExprs.map(replaceUDAGGFunctionCall(_, table.tableEnv))
-    select(input: _*)
+    //get the correct expression for AggFunctionCall
+    val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, table.tableEnv))
+    select(withResolvedAggFunctionCall: _*)
   }
 }
 
@@ -990,9 +990,9 @@ class OverWindowedTable(
 
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
-    //get the correct expression for UDAGGFunctionCall
-    val input = fieldExprs.map(replaceUDAGGFunctionCall(_, table.tableEnv))
-    select(input: _*)
+    //get the correct expression for AggFunctionCall
+    val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, table.tableEnv))
+    select(withResolvedAggFunctionCall: _*)
   }
 }
 
@@ -1052,9 +1052,9 @@ class WindowGroupedTable(
     */
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
-    //get the correct expression for UDAGGFunctionCall
-    val input = fieldExprs.map(replaceUDAGGFunctionCall(_, table.tableEnv))
-    select(input: _*)
+    //get the correct expression for AggFunctionCall
+    val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, table.tableEnv))
+    select(withResolvedAggFunctionCall: _*)
   }
 
 }

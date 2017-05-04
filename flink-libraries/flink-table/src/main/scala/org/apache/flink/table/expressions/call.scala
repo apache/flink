@@ -282,7 +282,7 @@ case class ScalarFunctionCall(
     s"${scalarFunction.getClass.getCanonicalName}(${parameters.mkString(", ")})"
 
   override private[flink] def resultType =
-    getResultTypeOfScalaFunction(
+    getResultTypeOfScalarFunction(
       scalarFunction,
       foundSignature.get)
 

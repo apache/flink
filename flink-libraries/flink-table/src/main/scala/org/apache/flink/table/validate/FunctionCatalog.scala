@@ -104,7 +104,7 @@ class FunctionCatalog {
           .getOrElse(throw ValidationException(s"Undefined table function: $name"))
           .asInstanceOf[AggSqlFunction]
         val function = aggregateFunction.getFunction
-        UDAGGFunctionCall(function, children)
+        AggFunctionCall(function, children)
 
       // general expression call
       case expression if classOf[Expression].isAssignableFrom(expression) =>

@@ -31,7 +31,7 @@ import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.api.{TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
@@ -273,48 +273,69 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Create [[SqlFunction]]s for an [[AggregateFunction]]
+    * Create [[SqlFunction]] for an [[AggregateFunction]]
     *
     * @param name function name
     * @param aggFunction aggregate function
-    * @param resultType the type information of returned value
     * @param typeFactory type factory
     * @return the TableSqlFunction
     */
-  def createAggregateSqlFunctions(
+  def createAggregateSqlFunction(
       name: String,
       aggFunction: AggregateFunction[_, _],
-      resultType: TypeInformation[_],
       typeFactory: FlinkTypeFactory)
   : SqlFunction = {
     //check if a qualified accumulate method exists before create Sql function
     checkAndExtractMethods(aggFunction, "accumulate")
+    val resultType: TypeInformation[_] = getResultTypeOfAggregateFunction(aggFunction)
     AggSqlFunction(name, aggFunction, resultType, typeFactory)
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Utilities for scalar functions
+  // Utilities for user-defined functions
   // ----------------------------------------------------------------------------------------------
+
+  /**
+    * Internal method of AggregateFunction#getResultType() that does some pre-checking and uses
+    * [[TypeExtractor]] as default return type inference.
+    */
+  def getResultTypeOfAggregateFunction(aggregateFunction: AggregateFunction[_, _])
+  : TypeInformation[_] = {
+
+    val resultType = try {
+      val method: Method = aggregateFunction.getClass.getMethod("getResultType")
+      method.invoke(aggregateFunction).asInstanceOf[TypeInformation[_]]
+    } catch {
+      case _: NoSuchMethodException => null
+      case ite: Throwable => throw new TableException("Unexpected exception:", ite)
+    }
+    if (resultType != null) {
+      resultType
+    } else {
+      TypeExtractor
+        .createTypeInfo(aggregateFunction,
+                        classOf[AggregateFunction[_, _]],
+                        aggregateFunction.getClass,
+                        0)
+        .asInstanceOf[TypeInformation[_]]
+    }
+  }
 
   /**
     * Internal method of [[ScalarFunction#getResultType()]] that does some pre-checking and uses
     * [[TypeExtractor]] as default return type inference.
     */
-  def getResultTypeOfScalaFunction(
+  def getResultTypeOfScalarFunction(
       function: ScalarFunction,
       signature: Array[Class[_]])
     : TypeInformation[_] = {
-    // find method for signature
-    val evalMethod = checkAndExtractMethods(function, "eval")
-      .find(m => signature.sameElements(m.getParameterTypes))
-      .getOrElse(throw new ValidationException("Given signature is invalid."))
 
     val userDefinedTypeInfo = function.getResultType(signature)
     if (userDefinedTypeInfo != null) {
       userDefinedTypeInfo
     } else {
       try {
-        TypeExtractor.getForClass(evalMethod.getReturnType)
+        TypeExtractor.getForClass(getResultTypeClassOfScalarFunction(function, signature))
       } catch {
         case ite: InvalidTypesException =>
           throw new ValidationException(
@@ -327,7 +348,7 @@ object UserDefinedFunctionUtils {
   /**
     * Returns the return type of the evaluation method matching the given signature.
     */
-  def getResultTypeClassOfScalaFunction(
+  def getResultTypeClassOfScalarFunction(
       function: ScalarFunction,
       signature: Array[Class[_]])
     : Class[_] = {

@@ -24,6 +24,7 @@ import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getResultTypeOfAggregateFunction
 
 /**
   * The [[TableEnvironment]] for a Java [[StreamExecutionEnvironment]].
@@ -194,9 +195,8 @@ class StreamTableEnvironment(
       name: String,
       f: AggregateFunction[T, ACC])
   : Unit = {
-    implicit val typeInfo: TypeInformation[T] = TypeExtractor
-      .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 0)
-      .asInstanceOf[TypeInformation[T]]
+    implicit val typeInfo: TypeInformation[T] =
+      getResultTypeOfAggregateFunction(f).asInstanceOf[TypeInformation[T]]
 
     registerAggregateFunctionInternal[T, ACC](name, f)
   }

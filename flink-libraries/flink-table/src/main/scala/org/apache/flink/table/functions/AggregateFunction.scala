@@ -89,12 +89,24 @@ package org.apache.flink.table.functions
   *
   * {{{
   * Returns the [[org.apache.flink.api.common.typeinfo.TypeInformation]] of the accumulator. This
-  * function is optional and can be implemented if the accumulator type cannot automatically
+  * function is optional and can be implemented if the accumulator type cannot be automatically
   * inferred from the instance returned by createAccumulator method.
   *
   * @return  the type information for the accumulator.
 
   * def getAccumulatorType: TypeInformation[_]
+  * }}}
+  *
+  *
+  * {{{
+  * Returns the [[org.apache.flink.api.common.typeinfo.TypeInformation]] of the return value. This
+  * function is optional and needed in case Flink's type extraction facilities are not sufficient
+  * to extract the TypeInformation. Flink's type extraction facilities can handle basic types or
+  * simple POJOs but might be wrong for more complex, custom, or composite types.
+  *
+  * @return  the type information for the return value.
+  *
+  * def getResultType: TypeInformation[_]
   * }}}
   *
   *

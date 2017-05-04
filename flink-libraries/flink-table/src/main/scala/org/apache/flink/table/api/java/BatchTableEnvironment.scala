@@ -23,6 +23,7 @@ import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.table.api._
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getResultTypeOfAggregateFunction
 
 /**
   * The [[TableEnvironment]] for a Java batch [[DataSet]]
@@ -192,9 +193,8 @@ class BatchTableEnvironment(
       name: String,
       f: AggregateFunction[T, ACC])
   : Unit = {
-    implicit val typeInfo: TypeInformation[T] = TypeExtractor
-      .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 0)
-      .asInstanceOf[TypeInformation[T]]
+    implicit val typeInfo: TypeInformation[T] =
+      getResultTypeOfAggregateFunction(f).asInstanceOf[TypeInformation[T]]
 
     registerAggregateFunctionInternal[T, ACC](name, f)
   }

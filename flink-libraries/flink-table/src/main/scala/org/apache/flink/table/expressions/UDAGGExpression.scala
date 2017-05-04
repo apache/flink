@@ -17,20 +17,19 @@
  */
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.functions.AggregateFunction
 
 /**
   * A class which creates a call to an aggregateFunction
   */
-case class UDAGGExpression[T: TypeInformation, ACC](aggregateFunction: AggregateFunction[T, ACC]) {
+case class UDAGGExpression[T, ACC](aggregateFunction: AggregateFunction[T, ACC]) {
 
   /**
     * Creates a call to an [[AggregateFunction]].
     *
     * @param params actual parameters of function
-    * @return a [[UDAGGFunctionCall]]
+    * @return a [[AggFunctionCall]]
     */
-  def apply(params: Expression*): UDAGGFunctionCall =
-    UDAGGFunctionCall(aggregateFunction, params)
+  def apply(params: Expression*): AggFunctionCall =
+    AggFunctionCall(aggregateFunction, params)
 }

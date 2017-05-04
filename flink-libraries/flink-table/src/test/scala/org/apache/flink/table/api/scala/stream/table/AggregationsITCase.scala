@@ -25,9 +25,11 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.stream.table.AggregationsITCase.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.api.scala.stream.utils.StreamITCase
+import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
@@ -50,23 +52,28 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
   @Test
   def testProcessingTimeSlidingGroupWindowOverCount(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env.fromCollection(data)
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
 
+    val countFun = new CountAggFunction
+    val weightAvgFun = new WeightedAvg
+
     val windowedTable = table
       .window(Slide over 2.rows every 1.rows as 'w)
       .groupBy('w, 'string)
-      .select('string, 'int.count, 'int.avg)
+      .select('string, countFun('int), 'int.avg,
+              weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
     val results = windowedTable.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = Seq("Hello world,1,3", "Hello world,2,3", "Hello,1,2", "Hello,2,2", "Hi,1,1")
+    val expected = Seq("Hello world,1,3,8,3", "Hello world,2,3,12,3", "Hello,1,2,2,2",
+                       "Hello,2,2,3,2", "Hi,1,1,1,1")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -89,6 +96,9 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
 
+    val countFun = new CountAggFunction
+    val weightAvgFun = new WeightedAvgWithMerge
+
     val stream = env
       .fromCollection(sessionWindowTestdata)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset(10L))
@@ -97,36 +107,40 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     val windowedTable = table
       .window(Session withGap 5.milli on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .select('string, 'int.count, 'int.sum)
+      .select('string, countFun('int), 'int.avg,
+              weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
     val results = windowedTable.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = Seq("Hello World,1,9", "Hello,1,16", "Hello,4,15")
+    val expected = Seq("Hello World,1,9,9,9", "Hello,1,16,16,16", "Hello,4,3,5,5")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
   def testAllProcessingTimeTumblingGroupWindowOverCount(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env.fromCollection(data)
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val countFun = new CountAggFunction
+    val weightAvgFun = new WeightedAvg
 
     val windowedTable = table
       .window(Tumble over 2.rows as 'w)
       .groupBy('w)
-      .select('int.count)
+      .select(countFun('string), 'int.avg,
+              weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
     val results = windowedTable.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = Seq("2", "2")
+    val expected = Seq("2,1,1,1", "2,2,6,2")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -141,21 +155,24 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset(0L))
     val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val countFun = new CountAggFunction
+    val weightAvgFun = new WeightedAvg
 
     val windowedTable = table
       .window(Tumble over 5.milli on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .select('string, 'int.count, 'int.avg, 'int.min, 'int.max, 'int.sum, 'w.start, 'w.end)
+      .select('string, countFun('string), 'int.avg, weightAvgFun('long, 'int),
+              weightAvgFun('int, 'int), 'int.min, 'int.max, 'int.sum, 'w.start, 'w.end)
 
     val results = windowedTable.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
     val expected = Seq(
-      "Hello world,1,3,3,3,3,1970-01-01 00:00:00.005,1970-01-01 00:00:00.01",
-      "Hello world,1,3,3,3,3,1970-01-01 00:00:00.015,1970-01-01 00:00:00.02",
-      "Hello,2,2,2,2,4,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005",
-      "Hi,1,1,1,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005")
+      "Hello world,1,3,8,3,3,3,3,1970-01-01 00:00:00.005,1970-01-01 00:00:00.01",
+      "Hello world,1,3,16,3,3,3,3,1970-01-01 00:00:00.015,1970-01-01 00:00:00.02",
+      "Hello,2,2,3,2,2,2,4,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005",
+      "Hi,1,1,1,1,1,1,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.005")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

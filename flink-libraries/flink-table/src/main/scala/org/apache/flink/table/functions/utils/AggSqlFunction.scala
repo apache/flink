@@ -84,7 +84,9 @@ object AggSqlFunction {
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
         val foundSignature = getAccumulateMethodSignature(aggregateFunction, operandTypeInfo)
-          .getOrElse(throw new ValidationException(s"Operand types of could not be inferred."))
+          .getOrElse(
+            throw new ValidationException(
+              s"Operand types of ${signatureToString(operandTypeInfo)} could not be inferred."))
 
         val inferredTypes = getParameterTypes(aggregateFunction, foundSignature.drop(1))
           .map(typeFactory.createTypeFromTypeInfo)
@@ -133,11 +135,11 @@ object AggSqlFunction {
         var max = -1
         signatures.foreach(
           sig => {
-            val inputSig = sig.drop(1)
             //do not count accumulator as input
+            val inputSig = sig.drop(1)
             var len = inputSig.length
-            if (len > 0 && inputSig(inputSig.length - 1).isArray) {
-              max = 254 // according to JVM spec 4.3.3
+            if (len > 0 && inputSig.last.isArray) {
+              max = 253 // according to JVM spec 4.3.3
               len = sig.length - 1
             }
             max = Math.max(len, max)
