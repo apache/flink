@@ -459,6 +459,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
+	public void notifyOfCompletedCheckpoint(long checkpointId) {
+		//Nothing to do
+	}
+
+	@Override
 	public String toString() {
 		return "HeapKeyedStateBackend";
 	}
