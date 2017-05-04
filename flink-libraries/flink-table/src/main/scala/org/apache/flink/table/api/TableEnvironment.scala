@@ -31,7 +31,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
-import org.apache.calcite.sql.SqlOperatorTable
+import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
 import org.apache.calcite.tools._
@@ -49,13 +49,13 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
-import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference, _}
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions, _}
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{RelTable, RowSchema}
+import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSinkTable}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -109,6 +109,13 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig: TableConfig = config
+
+  /** Returns the [[QueryConfig]] depends on the concrete type of this TableEnvironment. */
+  private[flink] def queryConfig: QueryConfig = this match {
+    case _: BatchTableEnvironment => new BatchQueryConfig
+    case _: StreamTableEnvironment => new StreamQueryConfig
+    case _ => null
+  }
 
   /**
     * Returns the operator table for this environment including a custom Calcite configuration.
@@ -276,7 +283,8 @@ abstract class TableEnvironment(val config: TableConfig) {
             s"${t.msg}\n" +
             s"Please check the documentation for the set of currently supported SQL features.")
       case a: AssertionError =>
-        throw a.getCause
+        // keep original exception stack for caller
+        throw a
     }
     output
   }
@@ -414,6 +422,22 @@ abstract class TableEnvironment(val config: TableConfig) {
   def registerTableSource(name: String, tableSource: TableSource[_]): Unit
 
   /**
+    * Registers an external [[TableSink]] with given field names and types in this
+    * [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML statements.
+    *
+    * @param name The name under which the [[TableSink]] is registered.
+    * @param fieldNames The field names to register with the [[TableSink]].
+    * @param fieldTypes The field types to register with the [[TableSink]].
+    * @param tableSink The [[TableSink]] to register.
+    */
+  def registerTableSink(
+      name: String,
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]],
+      tableSink: TableSink[_]): Unit
+
+  /**
     * Replaces a registered Table with another Table under the same name.
     * We use this method to replace a [[org.apache.flink.table.plan.schema.DataStreamTable]]
     * with a [[org.apache.calcite.schema.TranslatableTable]].
@@ -489,9 +513,10 @@ abstract class TableEnvironment(val config: TableConfig) {
   /**
     * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
     *
-    * All tables referenced by the query must be registered in the TableEnvironment. But
-    * [[Table.toString]] will automatically register an unique table name and return the
-    * table name. So it allows to call SQL directly on tables like this:
+    * All tables referenced by the query must be registered in the TableEnvironment.
+    * A [[Table]] is automatically registered when its [[toString]] method is called, for example
+    * when it is embedded into a String.
+    * Hence, SQL queries can directly reference a [[Table]] as follows:
     *
     * {{{
     *   val table: Table = ...
@@ -502,16 +527,110 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param query The SQL query to evaluate.
     * @return The result of the query as Table.
     */
+  @deprecated("Please use sqlQuery() instead.")
   def sql(query: String): Table = {
+    sqlQuery(query)
+  }
+
+  /**
+    * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
+    *
+    * All tables referenced by the query must be registered in the TableEnvironment.
+    * A [[Table]] is automatically registered when its [[toString]] method is called, for example
+    * when it is embedded into a String.
+    * Hence, SQL queries can directly reference a [[Table]] as follows:
+    *
+    * {{{
+    *   val table: Table = ...
+    *   // the table is not registered to the table environment
+    *   tEnv.sqlQuery(s"SELECT * FROM $table")
+    * }}}
+    *
+    * @param query The SQL query to evaluate.
+    * @return The result of the query as Table
+    */
+  def sqlQuery(query: String): Table = {
     val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
     // parse the sql query
     val parsed = planner.parse(query)
-    // validate the sql query
-    val validated = planner.validate(parsed)
-    // transform to a relational tree
-    val relational = planner.rel(validated)
+    if (null != parsed && parsed.getKind.belongsTo(SqlKind.QUERY)) {
+      // validate the sql query
+      val validated = planner.validate(parsed)
+      // transform to a relational tree
+      val relational = planner.rel(validated)
+      new Table(this, LogicalRelNode(relational.rel))
+    } else {
+      throw new TableException(
+        "Unsupported SQL query! sqlQuery() only accepts SQL queries of type " +
+          "SELECT, UNION, INTERSECT, EXCEPT, VALUES, and ORDER_BY.")
+    }
+  }
 
-    new Table(this, LogicalRelNode(relational.rel))
+  /**
+    * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
+    * NOTE: Currently only SQL INSERT statements are supported.
+    *
+    * All tables referenced by the query must be registered in the TableEnvironment.
+    * A [[Table]] is automatically registered when its [[toString]] method is called, for example
+    * when it is embedded into a String.
+    * Hence, SQL queries can directly reference a [[Table]] as follows:
+    *
+    * {{{
+    *   // register the table sink into which the result is inserted.
+    *   tEnv.registerTableSink("sinkTable", fieldNames, fieldsTypes, tableSink)
+    *   val sourceTable: Table = ...
+    *   // sourceTable is not registered to the table environment
+    *   tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM $sourceTable")
+    * }}}
+    *
+    * @param stmt The SQL statement to evaluate.
+    */
+  def sqlUpdate(stmt: String): Unit = {
+    sqlUpdate(stmt, this.queryConfig)
+  }
+
+  /**
+    * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
+    * NOTE: Currently only SQL INSERT statements are supported.
+    *
+    * All tables referenced by the query must be registered in the TableEnvironment.
+    * A [[Table]] is automatically registered when its [[toString]] method is called, for example
+    * when it is embedded into a String.
+    * Hence, SQL queries can directly reference a [[Table]] as follows:
+    *
+    * {{{
+    *   // register the table sink into which the result is inserted.
+    *   tEnv.registerTableSink("sinkTable", fieldNames, fieldsTypes, tableSink)
+    *   val sourceTable: Table = ...
+    *   // sourceTable is not registered to the table environment
+    *   tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM $sourceTable")
+    * }}}
+    *
+    * @param stmt The SQL statement to evaluate.
+    * @param config The [[QueryConfig]] to use.
+    */
+  def sqlUpdate(stmt: String, config: QueryConfig): Unit = {
+    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
+    // parse the sql query
+    val parsed = planner.parse(stmt)
+    parsed match {
+      case insert: SqlInsert =>
+        // validate the SQL query
+        val query = insert.getSource
+        planner.validate(query)
+
+        // get query result as Table
+        val queryResult = new Table(this, LogicalRelNode(planner.rel(query).rel))
+
+        // get name of sink table
+        val targetTableName = insert.getTargetTable.asInstanceOf[SqlIdentifier].names.get(0)
+
+        // insert query result into sink table
+        insertInto(queryResult, targetTableName, config)
+      case _ =>
+        throw new TableException(
+          "Unsupported SQL query! sqlUpdate() only accepts SQL statements of type INSERT.")
+    }
   }
 
   /**
@@ -519,9 +638,60 @@ abstract class TableEnvironment(val config: TableConfig) {
     *
     * @param table The [[Table]] to write.
     * @param sink The [[TableSink]] to write the [[Table]] to.
+    * @param conf The [[QueryConfig]] to use.
     * @tparam T The data type that the [[TableSink]] expects.
     */
   private[flink] def writeToSink[T](table: Table, sink: TableSink[T], conf: QueryConfig): Unit
+
+  /**
+    * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
+    *
+    * @param table The table to write to the TableSink.
+    * @param sinkTableName The name of the registered TableSink.
+    * @param conf The query configuration to use.
+    */
+  private[flink] def insertInto(table: Table, sinkTableName: String, conf: QueryConfig): Unit = {
+
+    // check that sink table exists
+    if (null == sinkTableName) throw TableException("Name of TableSink must not be null.")
+    if (sinkTableName.isEmpty) throw TableException("Name of TableSink must not be empty.")
+    if (!isRegistered(sinkTableName)) {
+      throw TableException(s"No table was registered under the name $sinkTableName.")
+    }
+
+    getTable(sinkTableName) match {
+      case s: TableSinkTable[_] =>
+        val tableSink = s.tableSink
+        // validate schema of source table and table sink
+        val srcFieldTypes = table.getSchema.getTypes
+        val sinkFieldTypes = tableSink.getFieldTypes
+
+        if (srcFieldTypes.length != sinkFieldTypes.length ||
+          srcFieldTypes.zip(sinkFieldTypes).exists{case (srcF, snkF) => srcF != snkF}) {
+
+          val srcFieldNames = table.getSchema.getColumnNames
+          val sinkFieldNames = tableSink.getFieldNames
+
+          // format table and table sink schema strings
+          val srcSchema = srcFieldNames.zip(srcFieldTypes)
+            .map{case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}"}
+            .mkString("[", ", ", "]")
+          val sinkSchema = sinkFieldNames.zip(sinkFieldTypes)
+            .map{case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}"}
+            .mkString("[", ", ", "]")
+
+          throw ValidationException(
+            s"Field types of query result and registered TableSink $sinkTableName do not match.\n" +
+              s"Query result schema: $srcSchema\n" +
+              s"TableSink schema:    $sinkSchema")
+        }
+        // emit the table to the configured table sink
+        writeToSink(table, tableSink, conf)
+      case _ =>
+        throw TableException(s"The table registered as $sinkTableName is not a TableSink. " +
+          s"You can only emit query results to a registered TableSink.")
+    }
+  }
 
   /**
     * Registers a Calcite [[AbstractTable]] in the TableEnvironment's catalog.
@@ -554,8 +724,12 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param name The table name to check.
     * @return true, if a table is registered under the name, false otherwise.
     */
-  protected def isRegistered(name: String): Boolean = {
+  protected[flink] def isRegistered(name: String): Boolean = {
     rootSchema.getTableNames.contains(name)
+  }
+
+  private def getTable(name: String): org.apache.calcite.schema.Table = {
+    rootSchema.getTable(name)
   }
 
   protected def getRowType(name: String): RelDataType = {

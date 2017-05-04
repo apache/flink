@@ -178,7 +178,7 @@ case class BatchTableTestUtil() extends TableTestUtil {
   }
 
   def verifySql(query: String, expected: String): Unit = {
-    verifyTable(tableEnv.sql(query), expected)
+    verifyTable(tableEnv.sqlQuery(query), expected)
   }
 
   def verifyTable(resultTable: Table, expected: String): Unit = {
@@ -197,7 +197,7 @@ case class BatchTableTestUtil() extends TableTestUtil {
   }
 
   def printSql(query: String): Unit = {
-    printTable(tableEnv.sql(query))
+    printTable(tableEnv.sqlQuery(query))
   }
 
 }
@@ -256,7 +256,7 @@ case class StreamTableTestUtil() extends TableTestUtil {
   }
 
   def verifySql(query: String, expected: String): Unit = {
-    verifyTable(tableEnv.sql(query), expected)
+    verifyTable(tableEnv.sqlQuery(query), expected)
   }
 
   def verifyTable(resultTable: Table, expected: String): Unit = {
@@ -276,7 +276,7 @@ case class StreamTableTestUtil() extends TableTestUtil {
   }
 
   def printSql(query: String): Unit = {
-    printTable(tableEnv.sql(query))
+    printTable(tableEnv.sqlQuery(query))
   }
 
 }

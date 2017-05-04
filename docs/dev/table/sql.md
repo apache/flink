@@ -49,15 +49,25 @@ DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 
 // SQL query with an inlined (unregistered) table
 Table table = tableEnv.toTable(ds, "user, product, amount");
-Table result = tableEnv.sql(
+Table result = tableEnv.sqlQuery(
   "SELECT SUM(amount) FROM " + table + " WHERE product LIKE '%Rubber%'");
 
 // SQL query with a registered table
 // register the DataStream as table "Orders"
 tableEnv.registerDataStream("Orders", ds, "user, product, amount");
 // run a SQL query on the Table and retrieve the result as a new Table
-Table result2 = tableEnv.sql(
+Table result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
+
+// SQL update with a registered table
+// create and register a TableSink
+TableSink csvSink = new CsvTableSink("/path/to/file", ...);
+String[] fieldNames = {"product", "amount"};
+TypeInformation[] fieldTypes = {Types.STRING, Types.INT};
+tableEnv.registerTableSink("RubberOrders", fieldNames, fieldTypes, csvSink);
+// run a SQL update query on the Table and emit the result to the TableSink
+tableEnv.sqlUpdate(
+  "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 {% endhighlight %}
 </div>
 
@@ -71,15 +81,25 @@ val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
 
 // SQL query with an inlined (unregistered) table
 val table = ds.toTable(tableEnv, 'user, 'product, 'amount)
-val result = tableEnv.sql(
+val result = tableEnv.sqlQuery(
   s"SELECT SUM(amount) FROM $table WHERE product LIKE '%Rubber%'")
 
 // SQL query with a registered table
 // register the DataStream under the name "Orders"
 tableEnv.registerDataStream("Orders", ds, 'user, 'product, 'amount)
 // run a SQL query on the Table and retrieve the result as a new Table
-val result2 = tableEnv.sql(
+val result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+
+// SQL update with a registered table
+// create and register a TableSink
+TableSink csvSink = new CsvTableSink("/path/to/file", ...)
+val fieldNames: Arary[String] = Array("product", "amount")
+val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT)
+tableEnv.registerTableSink("RubberOrders", fieldNames, fieldTypes, csvSink)
+// run a SQL update query on the Table and emit the result to the TableSink
+tableEnv.sqlUpdate(
+  "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
 </div>
@@ -89,7 +109,7 @@ val result2 = tableEnv.sql(
 Supported Syntax
 ----------------
 
-Flink parses SQL using [Apache Calcite](https://calcite.apache.org/docs/reference.html), which supports standard ANSI SQL. DML and DDL statements are not supported by Flink.
+Flink parses SQL using [Apache Calcite](https://calcite.apache.org/docs/reference.html), which supports standard ANSI SQL. DDL statements are not supported by Flink.
 
 The following BNF-grammar describes the superset of supported SQL features in batch and streaming queries. The [Operations](#operations) section shows examples for the supported features and indicates which features are only supported for batch or streaming queries.
 
@@ -155,6 +175,10 @@ groupItem:
   | CUBE '(' expression [, expression ]* ')'
   | ROLLUP '(' expression [, expression ]* ')'
   | GROUPING SETS '(' groupItem [, groupItem ]* ')'
+
+insert:
+  INSERT INTO tableReference
+  query
 
 ```
 
@@ -566,6 +590,39 @@ LIMIT 3
 
 {% top %}
 
+### Insert
+
+<div markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <strong>Insert Into</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#register-a-tablesink">Register a TableSink</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
+
+{% highlight sql %}
+INSERT INTO OutputTable
+SELECT users, tag
+FROM Orders
+{% endhighlight %}
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+</div>
+
+{% top %}
+
 ### Group Windows
 
 Group windows are defined in the `GROUP BY` clause of a SQL query. Just like queries with regular `GROUP BY` clauses, queries with a `GROUP BY` clause that includes a group window function compute a single result row per group. The following group windows functions are supported for SQL on batch and streaming tables.
@@ -649,22 +706,22 @@ DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 tableEnv.registerDataStream("Orders", ds, "user, product, amount, proctime.proctime, rowtime.rowtime");
 
 // compute SUM(amount) per day (in event-time)
-Table result1 = tableEnv.sql(
+Table result1 = tableEnv.sqlQuery(
   "SELECT user, " +
   "  TUMBLE_START(rowtime, INTERVAL '1' DAY) as wStart,  " +
   "  SUM(amount) FROM Orders " +
   "GROUP BY TUMBLE(rowtime, INTERVAL '1' DAY), user");
 
 // compute SUM(amount) per day (in processing-time)
-Table result2 = tableEnv.sql(
+Table result2 = tableEnv.sqlQuery(
   "SELECT user, SUM(amount) FROM Orders GROUP BY TUMBLE(proctime, INTERVAL '1' DAY), user");
 
 // compute every hour the SUM(amount) of the last 24 hours in event-time
-Table result3 = tableEnv.sql(
+Table result3 = tableEnv.sqlQuery(
   "SELECT product, SUM(amount) FROM Orders GROUP BY HOP(rowtime, INTERVAL '1' HOUR, INTERVAL '1' DAY), product");
 
 // compute SUM(amount) per session with 12 hour inactivity gap (in event-time)
-Table result4 = tableEnv.sql(
+Table result4 = tableEnv.sqlQuery(
   "SELECT user, " +
   "  SESSION_START(rowtime, INTERVAL '12' HOUR) AS sStart, " +
   "  SESSION_END(rowtime, INTERVAL '12' HOUR) AS snd, " +
@@ -686,7 +743,7 @@ val ds: DataStream[(Long, String, Int)] = env.addSource(...)
 tableEnv.registerDataStream("Orders", ds, 'user, 'product, 'amount, 'proctime.proctime, 'rowtime.rowtime)
 
 // compute SUM(amount) per day (in event-time)
-val result1 = tableEnv.sql(
+val result1 = tableEnv.sqlQuery(
     """
       |SELECT
       |  user,
@@ -697,15 +754,15 @@ val result1 = tableEnv.sql(
     """.stripMargin)
 
 // compute SUM(amount) per day (in processing-time)
-val result2 = tableEnv.sql(
+val result2 = tableEnv.sqlQuery(
   "SELECT user, SUM(amount) FROM Orders GROUP BY TUMBLE(proctime, INTERVAL '1' DAY), user")
 
 // compute every hour the SUM(amount) of the last 24 hours in event-time
-val result3 = tableEnv.sql(
+val result3 = tableEnv.sqlQuery(
   "SELECT product, SUM(amount) FROM Orders GROUP BY HOP(rowtime, INTERVAL '1' HOUR, INTERVAL '1' DAY), product")
 
 // compute SUM(amount) per session with 12 hour inactivity gap (in event-time)
-val result4 = tableEnv.sql(
+val result4 = tableEnv.sqlQuery(
     """
       |SELECT
       |  user,

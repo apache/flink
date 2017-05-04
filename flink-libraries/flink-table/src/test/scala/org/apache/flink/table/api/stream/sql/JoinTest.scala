@@ -206,7 +206,7 @@ class JoinTest extends TableTestBase {
     val query =
       "SELECT t1.a, t2.b FROM MyTable as t1 join MyTable2 as t2 on t1.a = t2.a and " + timeSql
 
-    val resultTable = streamUtil.tableEnv.sql(query)
+    val resultTable = streamUtil.tableEnv.sqlQuery(query)
     val relNode = resultTable.getRelNode
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val rexNode = joinNode.getCondition
@@ -230,7 +230,7 @@ class JoinTest extends TableTestBase {
       query: String,
       expectCondStr: String): Unit = {
 
-    val resultTable = streamUtil.tableEnv.sql(query)
+    val resultTable = streamUtil.tableEnv.sqlQuery(query)
     val relNode = resultTable.getRelNode
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
     val joinInfo = joinNode.analyzeCondition

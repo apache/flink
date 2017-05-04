@@ -145,7 +145,7 @@ class CorrelateValidationTest extends TableTestBase {
       ), "Undefined function: NONEXIST")
     // SQL API call
     expectExceptionThrown(
-      util.tableEnv.sql("SELECT * FROM MyTable, LATERAL TABLE(nonexist(a))"),
+      util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(nonexist(a))"),
       "No match found for function signature nonexist(<NUMERIC>)")
 
 
@@ -160,7 +160,7 @@ class CorrelateValidationTest extends TableTestBase {
     // SQL API call
     // NOTE: it doesn't throw an exception but an AssertionError, maybe a Calcite bug
     expectExceptionThrown(
-      util.tableEnv.sql("SELECT * FROM MyTable, LATERAL TABLE(func0(a))"),
+      util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(func0(a))"),
       null,
       classOf[AssertionError])
 
@@ -172,7 +172,7 @@ class CorrelateValidationTest extends TableTestBase {
       "Given parameters of function 'FUNC2' do not match any signature")
     // SQL API call
     expectExceptionThrown(
-      util.tableEnv.sql("SELECT * FROM MyTable, LATERAL TABLE(func2(c, c))"),
+      util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(func2(c, c))"),
       "No match found for function signature func2(<CHARACTER>, <CHARACTER>)")
   }
 

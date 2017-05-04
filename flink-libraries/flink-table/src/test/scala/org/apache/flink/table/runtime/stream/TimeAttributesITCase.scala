@@ -229,7 +229,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
     tEnv.registerTable("MyTable", table)
 
-    val t = tEnv.sql("SELECT COUNT(`rowtime`) FROM MyTable " +
+    val t = tEnv.sqlQuery("SELECT COUNT(`rowtime`) FROM MyTable " +
       "GROUP BY TUMBLE(rowtime, INTERVAL '0.003' SECOND)")
 
     val results = t.toAppendStream[Row]
@@ -292,7 +292,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     tEnv.registerTable("T1", table)
     val querySql = "select rowtime as ts, string as msg from T1"
 
-    val results = tEnv.sql(querySql).toAppendStream[Pojo1]
+    val results = tEnv.sqlQuery(querySql).toAppendStream[Pojo1]
     results.addSink(new StreamITCase.StringSink[Pojo1])
     env.execute()
 

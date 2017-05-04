@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.stream.table
 
 import java.io.File
 import java.lang.{Boolean => JBool}
-import java.sql.Timestamp
 
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -37,6 +36,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableEnvironment, TableException, Types}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.sinks._
+import org.apache.flink.table.utils.MemoryTableSinkUtil
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
@@ -47,6 +47,36 @@ import scala.collection.mutable
 import scala.collection.JavaConverters._
 
 class TableSinkITCase extends StreamingMultipleProgramsTestBase {
+
+  @Test
+  def testInsertIntoRegisteredTableSink(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    MemoryTableSinkUtil.clear
+
+    val input = StreamTestData.get3TupleDataStream(env)
+      .assignAscendingTimestamps(r => r._2)
+    val fieldNames = Array("d", "e", "t")
+    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.SQL_TIMESTAMP, Types.LONG)
+    val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
+    tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
+
+    val results = input.toTable(tEnv, 'a, 'b, 'c, 't.rowtime)
+      .where('a < 3 || 'a > 19)
+      .select('c, 't, 'b)
+      .insertInto("targetTable")
+    env.execute()
+
+    val expected = Seq(
+      "Hi,1970-01-01 00:00:00.001,1",
+      "Hello,1970-01-01 00:00:00.002,2",
+      "Comment#14,1970-01-01 00:00:00.006,6",
+      "Comment#15,1970-01-01 00:00:00.006,6").mkString("\n")
+
+    TestBaseUtils.compareResultAsText(MemoryTableSinkUtil.results.asJava, expected)
+  }
 
   @Test
   def testStreamTableSink(): Unit = {
