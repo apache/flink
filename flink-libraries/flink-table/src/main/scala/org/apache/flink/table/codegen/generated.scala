@@ -35,7 +35,7 @@ case class GeneratedExpression(
     resultTerm: String,
     nullTerm: String,
     code: String,
-    resultType: TypeInformation[_]) 
+    resultType: TypeInformation[_])
 
 object GeneratedExpression {
   val ALWAYS_NULL = "true"
