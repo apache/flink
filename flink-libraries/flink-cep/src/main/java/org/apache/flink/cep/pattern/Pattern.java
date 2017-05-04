@@ -127,8 +127,9 @@ public class Pattern<T, F extends T> {
 	 * @return The pattern with the new condition is set.
 	 */
 	public Pattern<T, F> where(IterativeCondition<F> condition) {
-		ClosureCleaner.clean(condition, true);
+		Preconditions.checkNotNull(condition, "The condition cannot be null.");
 
+		ClosureCleaner.clean(condition, true);
 		if (this.condition == null) {
 			this.condition = condition;
 		} else {
@@ -148,6 +149,8 @@ public class Pattern<T, F extends T> {
 	 * @return The pattern with the new condition is set.
 	 */
 	public Pattern<T, F> or(IterativeCondition<F> condition) {
+		Preconditions.checkNotNull(condition, "The condition cannot be null.");
+
 		ClosureCleaner.clean(condition, true);
 
 		if (this.condition == null) {
@@ -167,6 +170,8 @@ public class Pattern<T, F extends T> {
 	 * @return The same pattern with the new subtype constraint
 	 */
 	public <S extends F> Pattern<T, S> subtype(final Class<S> subtypeClass) {
+		Preconditions.checkNotNull(subtypeClass, "The class cannot be null.");
+
 		if (condition == null) {
 			this.condition = new SubtypeCondition<F>(subtypeClass);
 		} else {
