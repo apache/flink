@@ -19,7 +19,9 @@
 package org.apache.flink.table.typeutils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, NumericTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NumericTypeInfo, SqlTimeTypeInfo, TypeInformation}
+
+import scala.reflect._
 
 /**
   * Utilities for type conversions.
@@ -117,5 +119,18 @@ object TypeCoercion {
     case (TimeIntervalTypeInfo.INTERVAL_MILLIS, LONG_TYPE_INFO) => true
 
     case _ => false
+  }
+  def getScalaPrimativeTypeInformation[T](implicit t: ClassTag[T]) = {
+    classTag[T].runtimeClass.toString.split(" ").last.toLowerCase match {
+      case "byte" => BasicTypeInfo.BYTE_TYPE_INFO
+      case "short" => BasicTypeInfo.SHORT_TYPE_INFO
+      case "int" => BasicTypeInfo.INT_TYPE_INFO
+      case "long" => BasicTypeInfo.LONG_TYPE_INFO
+      case "float" => BasicTypeInfo.FLOAT_TYPE_INFO
+      case "double" => BasicTypeInfo.DOUBLE_TYPE_INFO
+      case "boolean" => BasicTypeInfo.BOOLEAN_TYPE_INFO
+      case "java.math.bigdecimal" => BasicTypeInfo.BIG_DEC_TYPE_INFO
+      case "java.lang.string" => BasicTypeInfo.STRING_TYPE_INFO
+    }
   }
 }
