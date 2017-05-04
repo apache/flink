@@ -37,8 +37,7 @@ import org.apache.flink.util.Collector
   */
 @PublicEvolving
 abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window]
-    extends AbstractRichFunction
-    with Serializable {
+    extends AbstractRichFunction {
 
   /**
     * Evaluates the window and outputs none or several elements.

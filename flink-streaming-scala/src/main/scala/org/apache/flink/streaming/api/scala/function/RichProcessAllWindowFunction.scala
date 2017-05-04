@@ -28,11 +28,9 @@ import org.apache.flink.streaming.api.windowing.windows.Window
   * @tparam IN The type of the input value.
   * @tparam OUT The type of the output value.
   * @tparam W The type of the window.
-  *
-  * @deprecated use [[ProcessAllWindowFunction]] instead
   */
 @Public
-@Deprecated
+@deprecated("use [[ProcessAllWindowFunction]] instead")
 abstract class RichProcessAllWindowFunction[IN, OUT, W <: Window]
     extends ProcessAllWindowFunction[IN, OUT, W] {
 }
