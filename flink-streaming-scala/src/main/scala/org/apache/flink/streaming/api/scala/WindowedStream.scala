@@ -381,10 +381,8 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    *
    * @param function The fold function.
    * @return The data stream that is the result of applying the fold function to the window.
-   *
-   * @deprecated use [[aggregate(AggregateFunction)]] instead
    */
-  @deprecated
+  @deprecated("use [[aggregate()]] instead")
   def fold[R: TypeInformation](
       initialValue: R,
       function: FoldFunction[T,R]): DataStream[R] = {
@@ -404,10 +402,8 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    *
    * @param function The fold function.
    * @return The data stream that is the result of applying the fold function to the window.
-   *
-   * @deprecated use [[aggregate()]] instead
-   */
-  @Deprecated
+    */
+  @deprecated("use [[aggregate()]] instead")
   def fold[R: TypeInformation](initialValue: R)(function: (R, T) => R): DataStream[R] = {
     if (function == null) {
       throw new NullPointerException("Fold function must not be null.")
@@ -428,10 +424,8 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     * @param foldFunction The fold function that is used for incremental aggregation
     * @param function The window function.
     * @return The data stream that is the result of applying the window function to the window.
-    *
-    * @deprecated use [[aggregate()]] instead
     */
-  @deprecated
+  @deprecated("use [[aggregate()]] instead")
   def fold[ACC: TypeInformation, R: TypeInformation](
       initialValue: ACC,
       foldFunction: FoldFunction[T, ACC],
@@ -460,10 +454,8 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     * @param foldFunction The fold function that is used for incremental aggregation
     * @param windowFunction The window function.
     * @return The data stream that is the result of applying the window function to the window.
-    *
-    * @deprecated use [[aggregate()]] instead
     */
-  @Deprecated
+  @deprecated("use [[aggregate()]] instead")
   def fold[ACC: TypeInformation, R: TypeInformation](
       initialValue: ACC,
       foldFunction: (ACC, T) => ACC,
@@ -497,10 +489,8 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     * @param foldFunction The fold function that is used for incremental aggregation
     * @param function The process window function.
     * @return The data stream that is the result of applying the window function to the window.
-    *
-    * @deprecated use [[aggregate()]] instead
     */
-  @Deprecated
+  @deprecated("use [[aggregate()]] instead")
   @PublicEvolving
   def fold[R: TypeInformation, ACC: TypeInformation](
       initialValue: ACC,
@@ -530,10 +520,8 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     * @param foldFunction The fold function that is used for incremental aggregation
     * @param function The process window function.
     * @return The data stream that is the result of applying the window function to the window.
-    *
-    * @deprecated use [[aggregate()]] instead
     */
-  @deprecated
+  @deprecated("use [[aggregate()]] instead")
   @PublicEvolving
   def fold[R: TypeInformation, ACC: TypeInformation](
       initialValue: ACC,

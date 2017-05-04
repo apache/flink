@@ -183,10 +183,8 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Creates a new [[DataStream]] by folding the elements of this DataStream
    * using an associative fold function and an initial value. An independent 
    * aggregate is kept per key.
-   *
-   * @deprecated will be removed in a future version
    */
-  @deprecated
+  @deprecated("will be removed in a future version")
   def fold[R: TypeInformation](initialValue: R, folder: FoldFunction[T,R]): 
       DataStream[R] = {
     if (folder == null) {
@@ -203,10 +201,8 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * Creates a new [[DataStream]] by folding the elements of this DataStream
    * using an associative fold function and an initial value. An independent 
    * aggregate is kept per key.
-   *
-   * @deprecated will be removed in a future version
    */
-  @deprecated
+  @deprecated("will be removed in a future version")
   def fold[R: TypeInformation](initialValue: R)(fun: (R,T) => R): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Fold function must not be null.")
@@ -511,11 +507,9 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     * @param queryableStateName Name under which to the publish the queryable state instance
     * @param stateDescriptor State descriptor to create state instance from
     * @return Queryable state instance
-    *
-    * @deprecated will be removed in a future version
     */
   @PublicEvolving
-  @deprecated
+  @deprecated("will be removed in a future version")
   def asQueryableState[ACC](
       queryableStateName: String,
       stateDescriptor: FoldingStateDescriptor[T, ACC]) : QueryableStateStream[K, ACC] =  {
