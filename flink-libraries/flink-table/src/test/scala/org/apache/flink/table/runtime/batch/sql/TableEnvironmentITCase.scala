@@ -18,12 +18,16 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
+import java.io.File
+
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
+<<<<<<< HEAD:flink-libraries/flink-table/src/test/scala/org/apache/flink/table/runtime/batch/sql/TableEnvironmentITCase.scala
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.utils.CsvSQLTableSink
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
@@ -113,4 +117,31 @@ class TableEnvironmentITCase(
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  /** test insert into **/
+  @Test
+  def testInsertIntoTable(): Unit = {
+    val tmpFile = File.createTempFile("flink-sql-table-sink-test1", ".tmp")
+    tmpFile.deleteOnExit()
+    val path = tmpFile.toURI.toString
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("sourceTable", t)
+
+    val fieldTypes = tEnv.scan("sourceTable").getSchema.getTypes
+    val fieldNames = Seq("d", "e", "f").toArray
+    val sink = new CsvSQLTableSink(path, fieldTypes, fieldNames, ",")
+    tEnv.registerTableSink("targetTable", sink)
+
+    val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
+    tEnv.sql(sql)
+    env.execute()
+
+    val expected = Seq("1,1,Hi", "2,2,Hello", "3,2,Hello world").mkString("\n")
+    TestBaseUtils.compareResultsByLinesInMemory(expected, path)
+  }
+
 }

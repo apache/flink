@@ -16,29 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.utils
+package org.apache.flink.table.plan.schema
 
-import org.apache.calcite.tools.RuleSet
-import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sinks.TableSink
-import org.apache.flink.table.sources.TableSource
 
-class MockTableEnvironment extends TableEnvironment(new TableConfig) {
-
-  override private[flink] def writeToSink[T](
-      table: Table,
-      sink: TableSink[T],
-      queryConfig: QueryConfig): Unit = ???
-
-  override protected def checkValidTableName(name: String): Unit = ???
-
-  override def sql(query: String): Table = ???
-
-  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = ???
-
-  override protected def getBuiltInNormRuleSet: RuleSet = ???
-
-  override protected def getBuiltInPhysicalOptRuleSet: RuleSet = ???
-
-  override def registerTableSink(name: String, tableSink: TableSink[_]): Unit = ???
-}
+/** Table which defines an external table via a [[TableSink]] */
+class TableSinkTable[T](
+    val tableSink: TableSink[T],
+    override val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
+  extends FlinkTable[T](
+    typeInfo = tableSink.getOutputType,
+    fieldIndexes = TableEnvironment.getFieldIndices(tableSink),
+    fieldNames = TableEnvironment.getFieldNames(tableSink),
+    statistic)

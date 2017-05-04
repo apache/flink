@@ -26,6 +26,10 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
+import org.apache.flink.table.utils.CsvSQLTableSink
+import org.apache.flink.test.util.TestBaseUtils
+
+import java.io.File
 import org.junit.Assert._
 import org.junit._
 
@@ -314,5 +318,29 @@ class SqlITCase extends StreamingWithStateTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
-}
+  /** test insert into **/
+  @Test
+  def testInsertIntoTable(): Unit = {
+    val tmpFile = File.createTempFile("flink-sql-stream-table-sink-test1", ".tmp")
+    tmpFile.deleteOnExit()
+    val path = tmpFile.toURI.toString
 
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("sourceTable", t)
+
+    val fieldTypes = tEnv.scan("sourceTable").getSchema.getTypes
+    val fieldNames = Seq("d", "e", "f").toArray
+    val sink = new CsvSQLTableSink(path, fieldTypes, fieldNames, ",")
+    tEnv.registerTableSink("targetTable", sink)
+
+    val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
+    tEnv.sql(sql)
+    env.execute()
+
+    val expected = Seq("1,1,Hi", "2,2,Hello", "3,2,Hello world").mkString("\n")
+    TestBaseUtils.compareResultsByLinesInMemory(expected, path)
+  }
+}

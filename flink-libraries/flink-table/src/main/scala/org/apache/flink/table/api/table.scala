@@ -762,14 +762,7 @@ class Table(
     * @tparam T The data type that the [[TableSink]] expects.
     */
   def writeToSink[T](sink: TableSink[T]): Unit = {
-
-    def queryConfig = this.tableEnv match {
-      case s: StreamTableEnvironment => s.queryConfig
-      case b: BatchTableEnvironment => new BatchQueryConfig
-      case _ => null
-    }
-
-    writeToSink(sink, queryConfig)
+    writeToSink(sink, QueryConfig.getQueryConfigFromTableEnv(this.tableEnv))
   }
 
   /**

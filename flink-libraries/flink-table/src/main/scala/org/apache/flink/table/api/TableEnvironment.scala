@@ -31,7 +31,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
-import org.apache.calcite.sql.SqlOperatorTable
+import org.apache.calcite.sql.{SqlIdentifier, SqlInsert, SqlOperatorTable}
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
 import org.apache.calcite.tools._
@@ -55,7 +55,7 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{RelTable, RowSchema}
+import org.apache.flink.table.plan.schema.{RelTable, TableSinkTable, RowSchema}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -276,6 +276,7 @@ abstract class TableEnvironment(val config: TableConfig) {
             s"${t.msg}\n" +
             s"Please check the documentation for the set of currently supported SQL features.")
       case a: AssertionError =>
+        a.printStackTrace()
         throw a.getCause
     }
     output
@@ -414,6 +415,15 @@ abstract class TableEnvironment(val config: TableConfig) {
   def registerTableSource(name: String, tableSource: TableSource[_]): Unit
 
   /**
+    * Registers an external [[TableSink]] in this [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML clause.
+    *
+    * @param name        The name under which the [[TableSink]] is registered.
+    * @param tableSink The [[TableSink]] to register.
+    */
+  def registerTableSink(name: String, tableSink: TableSink[_]): Unit
+
+  /**
     * Replaces a registered Table with another Table under the same name.
     * We use this method to replace a [[org.apache.flink.table.plan.schema.DataStreamTable]]
     * with a [[org.apache.calcite.schema.TranslatableTable]].
@@ -487,7 +497,8 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
-    * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
+    * Evaluates a SQL query or DML insert on registered tables and retrieves the result as a
+    * [[Table]].
     *
     * All tables referenced by the query must be registered in the TableEnvironment. But
     * [[Table.toString]] will automatically register an unique table name and return the
@@ -499,19 +510,50 @@ abstract class TableEnvironment(val config: TableConfig) {
     *   tEnv.sql(s"SELECT * FROM $table")
     * }}}
     *
-    * @param query The SQL query to evaluate.
-    * @return The result of the query as Table.
+    * @param sql The SQL string to evaluate.
+    * @return The result of the query as Table or null of the DML insert operation.
     */
-  def sql(query: String): Table = {
+  def sql(sql: String): Table = {
     val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
     // parse the sql query
-    val parsed = planner.parse(query)
+    val parsed = planner.parse(sql)
     // validate the sql query
     val validated = planner.validate(parsed)
-    // transform to a relational tree
-    val relational = planner.rel(validated)
 
-    new Table(this, LogicalRelNode(relational.rel))
+    // separate source translation if DML insert, considering sink operation has no output but all
+    // RelNodes' translation should return a DataSet/DataStream, and Calcite's TableModify
+    // defines output for DML(INSERT,DELETE,UPDATE) is a RowCount column of BigInt type. This a
+    // work around since we have no conclusion for the output type definition of sink operation
+    // (compare to traditional SQL insert).
+    if (parsed.isInstanceOf[SqlInsert]) {
+      val insert = parsed.asInstanceOf[SqlInsert]
+      // validate sink table
+      val targetName = insert.getTargetTable.asInstanceOf[SqlIdentifier].names.get(0)
+      val targetTable = getTable(targetName)
+      if (null == targetTable || !targetTable.isInstanceOf[TableSinkTable[_]]) {
+        throw new TableException("SQL DML INSERT operation need a registered TableSink Table!")
+      }
+      // validate unsupported partial insertion to sink table
+      val sinkTable = targetTable.asInstanceOf[TableSinkTable[_]]
+      if (null != insert.getTargetColumnList && insert.getTargetColumnList.size() !=
+        sinkTable.fieldTypes.length) {
+        throw new TableException(
+          "SQL DML INSERT do not support insert partial columns of the target table due to table " +
+            "columns haven’t nullable property definition for now!")
+      }
+
+      writeToSink(
+        new Table(this, LogicalRelNode(planner.rel(insert.getSource).rel)),
+        sinkTable.tableSink,
+        QueryConfig.getQueryConfigFromTableEnv(this)
+        )
+      // do not return a Table after insert operation
+      null
+    } else {
+      // transform to a relational tree
+      val relational = planner.rel(validated)
+      new Table(this, LogicalRelNode(relational.rel))
+    }
   }
 
   /**
@@ -556,6 +598,10 @@ abstract class TableEnvironment(val config: TableConfig) {
     */
   protected def isRegistered(name: String): Boolean = {
     rootSchema.getTableNames.contains(name)
+  }
+
+  protected def getTable(name: String): org.apache.calcite.schema.Table = {
+    rootSchema.getTable(name)
   }
 
   protected def getRowType(name: String): RelDataType = {
@@ -1016,5 +1062,29 @@ object TableEnvironment {
   def getFieldIndices[A](tableSource: TableSource[A]): Array[Int] = tableSource match {
     case d: DefinedFieldNames => d.getFieldIndices
     case _ => TableEnvironment.getFieldIndices(tableSource.getReturnType)
+  }
+
+  /**
+    * Returns field names for a given [[TableSink]].
+    *
+    * @param tableSink The TableSink to extract field names from.
+    * @tparam A The type of the TableSink.
+    * @return An array holding the field names.
+    */
+  def getFieldNames[A](tableSink: TableSink[A]): Array[String] = tableSink match {
+      case d: DefinedFieldNames => d.getFieldNames
+      case _ => TableEnvironment.getFieldNames(tableSink.getOutputType)
+    }
+
+  /**
+    * Returns field indices for a given [[TableSink]].
+    *
+    * @param tableSink The TableSink to extract field indices from.
+    * @tparam A The type of the TableSink.
+    * @return An array holding the field indices.
+    */
+  def getFieldIndices[A](tableSink: TableSink[A]): Array[Int] = tableSink match {
+    case d: DefinedFieldNames => d.getFieldIndices
+    case _ => TableEnvironment.getFieldIndices(tableSink.getOutputType)
   }
 }

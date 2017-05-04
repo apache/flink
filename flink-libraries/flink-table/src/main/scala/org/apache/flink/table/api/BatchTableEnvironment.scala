@@ -36,7 +36,7 @@ import org.apache.flink.table.expressions.{Expression, TimeAttribute}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{DataSetTable, RowSchema, TableSourceTable}
+import org.apache.flink.table.plan.schema.{DataSetTable, RowSchema, TableSinkTable, TableSourceTable}
 import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks.{BatchTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
@@ -102,6 +102,24 @@ abstract class BatchTableEnvironment(
       case _ =>
         throw new TableException("Only BatchTableSource can be registered in " +
             "BatchTableEnvironment")
+    }
+  }
+
+  /**
+    * Registers an external [[TableSink]] in this [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML clause.
+    *
+    * @param name      The name under which the [[TableSink]] is registered.
+    * @param tableSink The [[TableSink]] to register.
+    */
+  override def registerTableSink(name: String, tableSink: TableSink[_]): Unit = {
+    checkValidTableName(name)
+
+    tableSink match {
+      case batchTableSink: BatchTableSink[_] =>
+        registerTableInternal(name, new TableSinkTable(batchTableSink))
+      case _ =>
+        throw new TableException("Only BatchTableSink can be registered in BatchTableEnvironment")
     }
   }
 
@@ -324,7 +342,7 @@ abstract class BatchTableEnvironment(
     * @tparam A The type of the resulting [[DataSet]].
     * @return The [[DataSet]] that corresponds to the translated [[Table]].
     */
-  protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataSet[A] = {
+  def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataSet[A] = {
     val relNode = table.getRelNode
     val dataSetPlan = optimize(relNode)
     translate(dataSetPlan, relNode.getRowType)

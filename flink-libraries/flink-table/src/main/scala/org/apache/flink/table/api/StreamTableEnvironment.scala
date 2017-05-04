@@ -42,12 +42,12 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema, StreamTableSourceTable}
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.conversion._
+import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema, StreamTableSourceTable, TableSinkTable}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
-import org.apache.flink.table.runtime.{CRowMapRunner, OutputRowtimeProcessFunction}
-import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, TableSink, UpsertStreamTableSink}
+import org.apache.flink.table.runtime.{CRowInputJavaTupleOutputMapRunner, CRowInputMapRunner, CRowInputScalaTupleOutputMapRunner, OutputRowtimeProcessFunction}
+import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{DefinedRowtimeAttribute, StreamTableSource, TableSource}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 
@@ -126,6 +126,25 @@ abstract class StreamTableEnvironment(
       case _ =>
         throw new TableException("Only StreamTableSource can be registered in " +
             "StreamTableEnvironment")
+    }
+  }
+
+  /**
+    * Registers an external [[TableSink]] in this [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML clause.
+    *
+    * @param name      The name under which the [[TableSink]] is registered.
+    * @param tableSink The [[TableSink]] to register.
+    */
+  override def registerTableSink(name: String, tableSink: TableSink[_]): Unit = {
+    checkValidTableName(name)
+
+    tableSink match {
+      case t @ (_: AppendStreamTableSink[_] | _: UpsertStreamTableSink[_] |
+        _: RetractStreamTableSink[_]) =>
+        registerTableInternal(name, new TableSinkTable(t))
+      case _ =>
+        throw new TableException("BatchTableSink can not be registered in StreamTableEnvironment")
     }
   }
 
