@@ -28,13 +28,13 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.junit.Test;
 
-public class EvenlyGraphTest
+public class EchoGraphTest
 extends AbstractGraphTest {
 
 	@Test
 	public void testGraph()
 			throws Exception {
-		Graph<LongValue, NullValue, NullValue> graph = new EvenlyGraph(env, 10, 3)
+		Graph<LongValue, NullValue, NullValue> graph = new EchoGraph(env, 10, 3)
 			.generate();
 
 		String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
@@ -52,7 +52,7 @@ extends AbstractGraphTest {
 		int vertexCount = 10;
 		int vertexDegree = 3;
 
-		Graph<LongValue, NullValue, NullValue> graph = new EvenlyGraph(env, vertexCount, vertexDegree)
+		Graph<LongValue, NullValue, NullValue> graph = new EchoGraph(env, vertexCount, vertexDegree)
 			.generate();
 
 		assertEquals(vertexCount, graph.numberOfVertices());
@@ -70,7 +70,7 @@ extends AbstractGraphTest {
 			throws Exception {
 		int parallelism = 2;
 
-		Graph<LongValue, NullValue, NullValue> graph = new EvenlyGraph(env, 10, 3)
+		Graph<LongValue, NullValue, NullValue> graph = new EchoGraph(env, 10, 3)
 			.setParallelism(parallelism)
 			.generate();
 

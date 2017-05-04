@@ -26,14 +26,11 @@ import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Every {@link Vertex} in the {@link EvenlyGraph} has the same degree.
- * there may exist multiple cases satisfy the condition above, so further vertices
- * are chose to be linked.
- * {@link EvenlyGraph} is a specific case of {@link CirculantGraph}.
- * when vertex degree is 0, {@link EmptyGraph} will be generated.
- * when vertex degree is vertex count - 1, {@link CompleteGraph} will be generated.
+ * Every {@link Vertex} in the {@link EchoGraph} has the same degree.
+ * and further vertices are chose to be linked.
+ * {@link EchoGraph} is a specific case of {@link CirculantGraph}.
  */
-public class EvenlyGraph
+public class EchoGraph
 extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 	public static final int MINIMUM_VERTEX_COUNT = 1;
@@ -55,7 +52,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	 * @param vertexCount number of vertices
 	 * @param vertexDegree degree of vertices
 	 */
-	public EvenlyGraph(ExecutionEnvironment env, long vertexCount,  long vertexDegree) {
+	public EchoGraph(ExecutionEnvironment env, long vertexCount, long vertexDegree) {
 		Preconditions.checkArgument(vertexCount >= MINIMUM_VERTEX_COUNT,
 			"Vertex count must be at least " + MINIMUM_VERTEX_COUNT);
 		Preconditions.checkArgument(vertexDegree >= MINIMUM_VERTEX_DEGREE,
