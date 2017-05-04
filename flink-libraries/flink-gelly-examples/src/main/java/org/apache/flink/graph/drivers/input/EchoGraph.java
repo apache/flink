@@ -19,7 +19,8 @@
 package org.apache.flink.graph.drivers.input;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
-import static org.apache.flink.graph.generator.CompleteGraph.MINIMUM_VERTEX_COUNT;
+import static org.apache.flink.graph.generator.EchoGraph.MINIMUM_VERTEX_COUNT;
+import static org.apache.flink.graph.generator.EchoGraph.MINIMUM_VERTEX_DEGREE;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Graph;
@@ -28,13 +29,16 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
 /**
- * Generate a {@link org.apache.flink.graph.generator.CompleteGraph}.
+ * Generate a {@link org.apache.flink.graph.generator.EchoGraph}.
  */
 public class EchoGraph
 extends GeneratedGraph<LongValue> {
 
 	private LongParameter vertexCount = new LongParameter(this, "vertex_count")
 		.setMinimumValue(MINIMUM_VERTEX_COUNT);
+
+	private LongParameter vertexDegree = new LongParameter(this, "vertex_degree")
+			.setMinimumValue(MINIMUM_VERTEX_DEGREE);
 
 	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")
 		.setDefaultValue(PARALLELISM_DEFAULT);
@@ -56,7 +60,7 @@ extends GeneratedGraph<LongValue> {
 
 	@Override
 	protected Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) throws Exception {
-		return new org.apache.flink.graph.generator.CompleteGraph(env, vertexCount.getValue())
+		return new org.apache.flink.graph.generator.EchoGraph(env, vertexCount.getValue(), vertexDegree.getValue())
 			.setParallelism(littleParallelism.getValue().intValue())
 			.generate();
 	}

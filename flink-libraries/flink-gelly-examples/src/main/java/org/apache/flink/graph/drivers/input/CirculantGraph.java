@@ -19,8 +19,8 @@
 package org.apache.flink.graph.drivers.input;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
+import static org.apache.flink.graph.generator.CirculantGraph.MINIMUM_VERTEX_COUNT;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,14 +35,17 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
 /**
- * Generate a {@link org.apache.flink.graph.generator.GridGraph}.
+ * Generate a {@link org.apache.flink.graph.generator.CirculantGraph}.
  */
 public class CirculantGraph
 extends GeneratedGraph<LongValue> {
 
-	private static final String PREFIX = "dim";
+	private static final String PREFIX = "off";
 
-	private List<Dimension> dimensions = new ArrayList<>();
+	private LongParameter vertexCount = new LongParameter(this, "vertex_count")
+			.setMinimumValue(MINIMUM_VERTEX_COUNT);
+
+	private List<OffsetRange> offsetRanges = new ArrayList<>();
 
 	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")
 		.setDefaultValue(PARALLELISM_DEFAULT);
@@ -54,58 +57,47 @@ extends GeneratedGraph<LongValue> {
 
 	@Override
 	public String getUsage() {
-		return "--dim0 size:wrap_endpoints [--dim1 size:wrap_endpoints [--dim2 ...]]" + super.getUsage();
+		return "--off0 offset:length [--off1 offset:length [--off2 ...]]" + super.getUsage();
 	}
 
 	@Override
 	public void configure(ParameterTool parameterTool) throws ProgramParametrizationException {
 		super.configure(parameterTool);
 
-		// add dimensions as ordered by dimension ID (dim0, dim1, dim2, ...)
+		// add offset ranges as ordered by offset ID (off0, off1, off2, ...)
 
-		Map<Integer, String> dimensionMap = new TreeMap<>();
+		Map<Integer, String> offsetRangeMap = new TreeMap<>();
 
-		// first parse all dimensions into a sorted map
+		// first parse all offset ranges into a sorted map
 		for (String key : parameterTool.toMap().keySet()) {
 			if (key.startsWith(PREFIX)) {
-				int dimensionId = Integer.parseInt(key.substring(PREFIX.length()));
-				dimensionMap.put(dimensionId, parameterTool.get(key));
+				int offsetId = Integer.parseInt(key.substring(PREFIX.length()));
+				offsetRangeMap.put(offsetId, parameterTool.get(key));
 			}
 		}
 
-		// then store dimensions in order
-		for (String field : dimensionMap.values()) {
-			dimensions.add(new Dimension(field));
+		// then store offset ranges in order
+		for (String field : offsetRangeMap.values()) {
+			offsetRanges.add(new OffsetRange(field));
 		}
 	}
 
 	@Override
 	public String getIdentity() {
-		return getTypeName() + " " + getName() + " (" + dimensions + ")";
+		return getTypeName() + " " + getName() + " (" + offsetRanges + ")";
 	}
 
 	@Override
 	protected long vertexCount() {
-		// in Java 8 use Math.multiplyExact(long, long)
-		BigInteger vertexCount = BigInteger.ONE;
-		for (Dimension dimension : dimensions) {
-			vertexCount = vertexCount.multiply(BigInteger.valueOf(dimension.size));
-		}
-
-		if (vertexCount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
-			throw new ProgramParametrizationException("Number of vertices in grid graph '" + vertexCount +
-				"' is greater than Long.MAX_VALUE.");
-		}
-
-		return vertexCount.longValue();
+		return vertexCount.getValue();
 	}
 
 	@Override
 	public Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) {
-		org.apache.flink.graph.generator.GridGraph graph = new org.apache.flink.graph.generator.GridGraph(env);
+		org.apache.flink.graph.generator.CirculantGraph graph = new org.apache.flink.graph.generator.CirculantGraph(env, vertexCount.getValue());
 
-		for (Dimension dimension : dimensions) {
-			graph.addDimension(dimension.size, dimension.wrapEndpoints);
+		for (OffsetRange offsetRange : offsetRanges) {
+			graph.addOffsetRange(offsetRange.offset, offsetRange.length);
 		}
 
 		return graph
@@ -114,24 +106,23 @@ extends GeneratedGraph<LongValue> {
 	}
 
 	/**
-	 * Stores and parses the size and endpoint wrapping configuration for a
-	 * {@link org.apache.flink.graph.generator.GridGraph} dimension.
+	 * Stores and parses the start offset and length configuration for a
+	 * {@link org.apache.flink.graph.generator.CirculantGraph} offset range.
 	 */
-	private static class Dimension {
-		private long size;
+	private static class OffsetRange {
+		private long offset;
 
-		private boolean wrapEndpoints;
+		private long length;
 
 		/**
-		 * Configuration string to be parsed. The size integer and endpoint
-		 * wrapping boolean must be separated by a colon.
+		 * Configuration string to be parsed. The offset integer and length integer
+		 * length integer must be separated by a colon.
 		 *
 		 * @param field configuration string
 		 */
-		public Dimension(String field) {
-			ProgramParametrizationException exception = new ProgramParametrizationException("Grid dimension must use " +
-				"a colon to separate the integer size and boolean indicating whether the dimension endpoints are " +
-				"connected: '" + field + "'");
+		public OffsetRange(String field) {
+			ProgramParametrizationException exception = new ProgramParametrizationException("Circulant offset range must use " +
+				"a colon to separate the integer offset and integer length:" + field + "'");
 
 			if (! field.contains(":")) {
 				throw exception;
@@ -144,8 +135,8 @@ extends GeneratedGraph<LongValue> {
 			}
 
 			try {
-				size = Long.parseLong(parts[0]);
-				wrapEndpoints = Boolean.parseBoolean(parts[1]);
+				offset = Long.parseLong(parts[0]);
+				length = Long.parseLong(parts[1]);
 			} catch(NumberFormatException ex) {
 				throw exception;
 			}
@@ -153,7 +144,7 @@ extends GeneratedGraph<LongValue> {
 
 		@Override
 		public String toString() {
-			return Long.toString(size) + (wrapEndpoints ? "+" : "⊞");
+			return Long.toString(offset) + ":" + Long.toString(length);
 		}
 	}
 }

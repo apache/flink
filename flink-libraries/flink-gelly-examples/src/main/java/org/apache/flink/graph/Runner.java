@@ -35,8 +35,10 @@ import org.apache.flink.graph.drivers.HITS;
 import org.apache.flink.graph.drivers.JaccardIndex;
 import org.apache.flink.graph.drivers.PageRank;
 import org.apache.flink.graph.drivers.TriangleListing;
+import org.apache.flink.graph.drivers.input.CirculantGraph;
 import org.apache.flink.graph.drivers.input.CompleteGraph;
 import org.apache.flink.graph.drivers.input.CycleGraph;
+import org.apache.flink.graph.drivers.input.EchoGraph;
 import org.apache.flink.graph.drivers.input.EmptyGraph;
 import org.apache.flink.graph.drivers.input.GridGraph;
 import org.apache.flink.graph.drivers.input.HypercubeGraph;
@@ -76,6 +78,8 @@ public class Runner {
 	private static final String OUTPUT = "output";
 
 	private static ParameterizedFactory<Input> inputFactory = new ParameterizedFactory<Input>()
+		.addClass(EchoGraph.class)
+		.addClass(CirculantGraph.class)
 		.addClass(CompleteGraph.class)
 		.addClass(org.apache.flink.graph.drivers.input.CSV.class)
 		.addClass(CycleGraph.class)
