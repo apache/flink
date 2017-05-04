@@ -81,7 +81,6 @@ object AggregateUtil {
       isRowsClause: Boolean)
     : ProcessFunction[Row, Row] = {
 
-    val needRetract = false
     val (aggFields, aggregates) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
@@ -107,7 +106,7 @@ object AggregateUtil {
       None,
       None,
       outputArity,
-      needRetract,
+      needRetract = false,
       needMerge = false,
       needReset = false
     )

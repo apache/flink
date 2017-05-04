@@ -18,30 +18,43 @@
 
 package org.apache.flink.table.sources
 
-import org.apache.flink.api.java.tuple.Tuple2
+/**
+  * Defines a logical event-time attribute for a [[TableSource]].
+  * The event-time attribute can be used for indicating, accessing, and working with Flink's
+  * event-time.
+  *
+  * A [[TableSource]] that implements this interface defines the name of
+  * the event-time attribute. The attribute will be added to the schema of the
+  * [[org.apache.flink.table.api.Table]] produced by the [[TableSource]].
+  */
+trait DefinedRowTimeAttribute {
+
+  /**
+    * Defines a name of the event-time attribute that represents Flink's
+    * event-time. Null if no rowtime should be available.
+    *
+    * The field will be appended to the schema provided by the [[TableSource]].
+    */
+  def getRowtimeAttribute: String
+}
 
 /**
-  * Defines logical time attributes for a [[TableSource]]. Time attributes can be used for
-  * indicating, accessing, and working with Flink's event-time or processing-time. A
-  * [[TableSource]] that implements this interface can define names and positions of rowtime
-  * and proctime attributes in the rows it produces.
+  * Defines a logical processing-time attribute for a [[TableSource]].
+  * The processing-time attribute can be used for indicating, accessing, and working with Flink's
+  * processing-time.
+  *
+  * A [[TableSource]] that implements this interface defines the name of
+  * the processing-time attribute. The attribute will be added to the schema of the
+  * [[org.apache.flink.table.api.Table]] produced by the [[TableSource]].
   */
-trait DefinedTimeAttributes {
+trait DefinedProcTimeAttribute {
 
   /**
-    * Defines a name and position (starting at 0) of rowtime attribute that represents Flink's
-    * event-time. Null if no rowtime should be available. If the position is within the arity of
-    * the result row, the logical attribute will overwrite the physical attribute. If the position
-    * is higher than the result row, the time attribute will be appended logically.
+    * Defines a name of the processing-time attribute that represents Flink's
+    * processing-time. Null if no rowtime should be available.
+    *
+    * The field will be appended to the schema provided by the [[TableSource]].
     */
-  def getRowtimeAttribute: Tuple2[Int, String]
-
-  /**
-    * Defines a name and position (starting at 0) of proctime attribute that represents Flink's
-    * processing-time. Null if no proctime should be available. If the position is within the arity
-    * of the result row, the logical attribute will overwrite the physical attribute. If the
-    * position is higher than the result row, the time attribute will be appended logically.
-    */
-  def getProctimeAttribute: Tuple2[Int, String]
+  def getProctimeAttribute: String
 
 }

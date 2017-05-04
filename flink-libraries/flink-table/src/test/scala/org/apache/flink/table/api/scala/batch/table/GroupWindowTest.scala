@@ -100,7 +100,7 @@ class GroupWindowTest extends TableTestBase {
   @Test
   def testEventTimeTumblingGroupWindowOverCount(): Unit = {
     val util = batchTestUtil()
-    val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     val windowedTable = table
       .window(Tumble over 2.rows on 'long as 'w)
@@ -144,7 +144,7 @@ class GroupWindowTest extends TableTestBase {
   @Test
   def testEventTimeTumblingGroupWindowOverTime(): Unit = {
     val util = batchTestUtil()
-    val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     val windowedTable = table
       .window(Tumble over 5.milli on 'long as 'w)
