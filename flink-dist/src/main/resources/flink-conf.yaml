@@ -165,15 +165,25 @@ jobmanager.web.port: 8081
 # High Availability
 #==============================================================================
 
+# The high-availability mode. Possible options are 'NONE' or 'zookeeper'.
+#
+# high-availability: zookeeper
+
+# The path where metadata for master recovery is persisted. While ZooKeeper stored
+# the small ground truth for checkpoint and leader election, this location stores
+# the larger objects, like persisted dataflow graphs.
+# 
+# Must be a durable file system that is accessible from all nodes
+# (like HDFS, S3, Ceph, nfs, ...) 
+#
+# high-availability.storageDir: hdfs:///flink/ha/
+
 # The list of ZooKeeper quorum peers that coordinate the high-availability
 # setup. This must be a list of the form:
-#
 # "host1:clientPort,host2:clientPort,..." (default clientPort: 2181)
 #
-
-# high-availability: zookeeper
 # high-availability.zookeeper.quorum: localhost:2181
-# high-availability.zookeeper.storageDir: hdfs:///flink/ha/
+
 
 # ACL options are based on https://zookeeper.apache.org/doc/r3.1.2/zookeeperProgrammers.html#sc_BuiltinACLSchemes
 # It can be either "creator" (ZOO_CREATE_ALL_ACL) or "open" (ZOO_OPEN_ACL_UNSAFE)
