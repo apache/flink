@@ -43,7 +43,6 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * Generic Sink that emits its input elements into an arbitrary backend. This sink is integrated with Flink's checkpointing
  * mechanism and can provide exactly-once guarantees; depending on the storage backend and sink/committer implementation.
@@ -62,13 +61,11 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 
 	private final String id;
 	private final CheckpointCommitter committer;
-	private final ListStateDescriptor<PendingCheckpoint> checkpointedStateDescriptor = new ListStateDescriptor<>("pending-checkpoints", PendingCheckpoint.class);
 	protected final TypeSerializer<IN> serializer;
 
 	private transient CheckpointStreamFactory.CheckpointStateOutputStream out;
 	private transient CheckpointStreamFactory checkpointStreamFactory;
 
-	private transient ListState<PendingCheckpoint> javaCheckpointedState;
 	private transient ListState<PendingCheckpoint> checkpointedState;
 
 	private final Set<PendingCheckpoint> pendingCheckpoints = new TreeSet<>();
@@ -93,7 +90,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 		Preconditions.checkState(this.checkpointedState == null,
 			"The reader state has already been initialized.");
 
-		javaCheckpointedState = context.getOperatorStateStore().getSerializableListState(checkpointedStateDescriptor.getName());
+		ListStateDescriptor<PendingCheckpoint> checkpointedStateDescriptor = new ListStateDescriptor<>("pending-checkpoints", PendingCheckpoint.class);
 		checkpointedState = context.getOperatorStateStore().getListState(checkpointedStateDescriptor);
 
 		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
@@ -101,13 +98,15 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 			LOG.info("Restoring state for the GenericWriteAheadSink (taskIdx={}).", subtaskIdx);
 
 			try {
-				for (PendingCheckpoint pendingCheckpoint : javaCheckpointedState.get()) {
+				for (PendingCheckpoint pendingCheckpoint : checkpointedState.get()) {
 					this.pendingCheckpoints.add(pendingCheckpoint);
 				}
-			} catch (Exception e) {
-				LOG.info("Reading pending checkpoint in newer state for the GenericWriteAheadSink (taskIdx={}).", subtaskIdx);
+			} catch (IOException e) {
+				LOG.info("Reading pending checkpoint in older state for the GenericWriteAheadSink (taskIdx={}).", subtaskIdx);
 				this.pendingCheckpoints.clear();
-				for (PendingCheckpoint pendingCheckpoint : checkpointedState.get()) {
+				
+				ListState<PendingCheckpoint> javaCheckpointedState = context.getOperatorStateStore().getSerializableListState(checkpointedStateDescriptor.getName());
+				for (PendingCheckpoint pendingCheckpoint : javaCheckpointedState.get()) {
 					this.pendingCheckpoints.add(pendingCheckpoint);
 				}
 			}
