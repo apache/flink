@@ -384,7 +384,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    *
    * @deprecated use [[aggregate(AggregateFunction)]] instead
    */
-  @Deprecated
+  @deprecated
   def fold[R: TypeInformation](
       initialValue: R,
       function: FoldFunction[T,R]): DataStream[R] = {
@@ -431,7 +431,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     *
     * @deprecated use [[aggregate()]] instead
     */
-  @Deprecated
+  @deprecated
   def fold[ACC: TypeInformation, R: TypeInformation](
       initialValue: ACC,
       foldFunction: FoldFunction[T, ACC],
@@ -533,7 +533,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     *
     * @deprecated use [[aggregate()]] instead
     */
-  @Deprecated
+  @deprecated
   @PublicEvolving
   def fold[R: TypeInformation, ACC: TypeInformation](
       initialValue: ACC,

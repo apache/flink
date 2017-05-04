@@ -401,7 +401,10 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    *
    * @param function The fold function.
    * @return The data stream that is the result of applying the fold function to the window.
+   *
+   * @deprecated use [[aggregate()]] instead
    */
+  @deprecated
   def fold[R: TypeInformation](
       initialValue: R,
       function: FoldFunction[T,R]): DataStream[R] = {
@@ -421,7 +424,10 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    *
    * @param function The fold function.
    * @return The data stream that is the result of applying the fold function to the window.
+   *
+   * @deprecated use [[aggregate()]] instead
    */
+  @deprecated
   def fold[R: TypeInformation](initialValue: R)(function: (R, T) => R): DataStream[R] = {
     if (function == null) {
       throw new NullPointerException("Fold function must not be null.")
@@ -443,7 +449,10 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     * @param preAggregator The reduce function that is used for pre-aggregation
     * @param windowFunction The window function.
     * @return The data stream that is the result of applying the window function to the window.
+    *
+    * @deprecated use [[aggregate()]] instead
     */
+  @deprecated
   def fold[ACC: TypeInformation, R: TypeInformation](
       initialValue: ACC,
       preAggregator: FoldFunction[T, ACC],
@@ -473,7 +482,10 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     * @param preAggregator The reduce function that is used for pre-aggregation
     * @param windowFunction The process window function.
     * @return The data stream that is the result of applying the window function to the window.
+    *
+    * @deprecated use [[aggregate()]] instead
     */
+  @deprecated
   @PublicEvolving
   def fold[ACC: TypeInformation, R: TypeInformation](
       initialValue: ACC,
@@ -504,7 +516,10 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     * @param preAggregator The reduce function that is used for pre-aggregation
     * @param windowFunction The window function.
     * @return The data stream that is the result of applying the window function to the window.
+    *
+    * @deprecated use [[aggregate()]] instead
     */
+  @deprecated
   def fold[ACC: TypeInformation, R: TypeInformation](
       initialValue: ACC,
       preAggregator: (ACC, T) => ACC,
@@ -539,7 +554,10 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     * @param preAggregator The reduce function that is used for pre-aggregation
     * @param windowFunction The window function.
     * @return The data stream that is the result of applying the window function to the window.
+    *
+    * @deprecated use [[aggregate()]] instead
     */
+  @deprecated
   @PublicEvolving
   def fold[ACC: TypeInformation, R: TypeInformation](
       initialValue: ACC,
