@@ -1469,7 +1469,7 @@ class CodeGenerator(
   // generator helping methods
   // ----------------------------------------------------------------------------------------------
 
-  private def generateInputAccess(
+  def generateInputAccess(
       inputType: TypeInformation[_ <: Any],
       inputTerm: String,
       index: Int,
