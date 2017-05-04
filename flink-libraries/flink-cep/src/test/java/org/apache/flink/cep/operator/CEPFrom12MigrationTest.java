@@ -26,40 +26,85 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
-import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OperatorSnapshotUtil;
+import org.junit.Ignore;
 import org.junit.Test;
 
-import java.io.FileInputStream;
-import java.io.ObjectInputStream;
-import java.net.URL;
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class CEPMigration12to13Test {
+/**
+ * Tests for checking whether CEP operator can restore from snapshots that were done
+ * using the Flink 1.2 operator.
+ *
+ * <p>For regenerating the binary snapshot file you have to run the {@code write*()} method on
+ * the Flink 1.2 branch.
+ */
 
-	private static String getResourceFilename(String filename) {
-		ClassLoader cl = CEPMigration12to13Test.class.getClassLoader();
-		URL resource = cl.getResource(filename);
-		if (resource == null) {
-			throw new NullPointerException("Missing snapshot resource.");
-		}
-		return resource.getFile();
+public class CEPFrom12MigrationTest {
+
+	/**
+	 * Manually run this to write binary snapshot data.
+	 */
+	@Ignore
+	@Test
+	public void writAfterBranchingPatternSnapshot() throws Exception {
+
+		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
+			private static final long serialVersionUID = -4873366487571254798L;
+
+			@Override
+			public Integer getKey(Event value) throws Exception {
+				return value.getId();
+			}
+		};
+
+		final Event startEvent = new Event(42, "start", 1.0);
+		final SubEvent middleEvent1 = new SubEvent(42, "foo1", 1.0, 10.0);
+		final SubEvent middleEvent2 = new SubEvent(42, "foo2", 2.0, 10.0);
+
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
+				new KeyedOneInputStreamOperatorTestHarness<>(
+						new KeyedCEPPatternOperator<>(
+								Event.createTypeSerializer(),
+								false,
+								keySelector,
+								IntSerializer.INSTANCE,
+								new NFAFactory(),
+								null,
+								true),
+						keySelector,
+						BasicTypeInfo.INT_TYPE_INFO);
+
+		harness.setup();
+		harness.open();
+
+		harness.processElement(new StreamRecord<Event>(startEvent, 1));
+		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
+		harness.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3));
+		harness.processElement(new StreamRecord<Event>(middleEvent1, 2));
+		harness.processElement(new StreamRecord<Event>(middleEvent2, 3));
+
+		harness.processWatermark(new Watermark(5));
+
+		// do snapshot and save to file
+		OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/cep-migration-after-branching-flink1.2-snapshot");
+
+		harness.close();
 	}
 
 	@Test
-	public void testMigrationAfterBranchingPattern() throws Exception {
+	public void testRestoreAfterBranchingPattern() throws Exception {
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
 			private static final long serialVersionUID = -4873366487571254798L;
@@ -75,66 +120,23 @@ public class CEPMigration12to13Test {
 		final SubEvent middleEvent2 = new SubEvent(42, "foo2", 2.0, 10.0);
 		final Event endEvent = new Event(42, "end", 1.0);
 
-		// uncomment these lines for regenerating the snapshot on Flink 1.2
-//		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
-//			new KeyedOneInputStreamOperatorTestHarness<>(
-//				new KeyedCEPPatternOperator<>(
-//					Event.createTypeSerializer(),
-//					false,
-//					keySelector,
-//					IntSerializer.INSTANCE,
-//					new NFAFactory(),
-//					true),
-//				keySelector,
-//				BasicTypeInfo.INT_TYPE_INFO);
-//
-//		harness.setup();
-//		harness.open();
-//		harness.processElement(new StreamRecord<Event>(startEvent, 1));
-//		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
-//		harness.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3));
-//		harness.processElement(new StreamRecord<Event>(middleEvent1, 2));
-//		harness.processElement(new StreamRecord<Event>(middleEvent2, 3));
-//		harness.processWatermark(new Watermark(5));
-//		// simulate snapshot/restore with empty element queue but NFA state
-//		OperatorStateHandles snapshot = harness.snapshot(1, 1);
-//		FileOutputStream out = new FileOutputStream(
-//				"src/test/resources/cep-branching-snapshot-1.2");
-//		ObjectOutputStream oos = new ObjectOutputStream(out);
-//		oos.writeObject(snapshot.getOperatorChainIndex());
-//		oos.writeObject(snapshot.getLegacyOperatorState());
-//		oos.writeObject(snapshot.getManagedKeyedState());
-//		oos.writeObject(snapshot.getRawKeyedState());
-//		oos.writeObject(snapshot.getManagedOperatorState());
-//		oos.writeObject(snapshot.getRawOperatorState());
-//		out.close();
-//		harness.close();
-
 		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
-			new KeyedOneInputStreamOperatorTestHarness<>(
-				new KeyedCEPPatternOperator<>(
-					Event.createTypeSerializer(),
-					false,
-					keySelector,
-					IntSerializer.INSTANCE,
-					new NFAFactory(),
-					null,
-					true),
-				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(
+						new KeyedCEPPatternOperator<>(
+								Event.createTypeSerializer(),
+								false,
+								keySelector,
+								IntSerializer.INSTANCE,
+								new NFAFactory(),
+								null,
+								true),
+						keySelector,
+						BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.setup();
-		final ObjectInputStream ois = new ObjectInputStream(new FileInputStream(getResourceFilename(
-			"cep-branching-snapshot-1.2")));
-		final OperatorStateHandles snapshot = new OperatorStateHandles(
-			(int) ois.readObject(),
-			(StreamStateHandle) ois.readObject(),
-			(Collection<KeyedStateHandle>) ois.readObject(),
-			(Collection<KeyedStateHandle>) ois.readObject(),
-			(Collection<OperatorStateHandle>) ois.readObject(),
-			(Collection<OperatorStateHandle>) ois.readObject()
-		);
-		harness.initializeState(snapshot);
+		harness.initializeState(
+				OperatorSnapshotUtil.readStateHandle(
+						OperatorSnapshotUtil.getResourceFilename("cep-migration-after-branching-flink1.2-snapshot")));
 		harness.open();
 
 		harness.processElement(new StreamRecord<>(new Event(42, "start", 1.0), 4));
@@ -174,8 +176,55 @@ public class CEPMigration12to13Test {
 		harness.close();
 	}
 
+	/**
+	 * Manually run this to write binary snapshot data.
+	 */
+	@Ignore
 	@Test
-	public void testStartingNewPatternAfterMigration() throws Exception {
+	public void writeStartingNewPatternAfterMigrationSnapshot() throws Exception {
+
+		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
+			private static final long serialVersionUID = -4873366487571254798L;
+
+			@Override
+			public Integer getKey(Event value) throws Exception {
+				return value.getId();
+			}
+		};
+
+		final Event startEvent1 = new Event(42, "start", 1.0);
+		final SubEvent middleEvent1 = new SubEvent(42, "foo1", 1.0, 10.0);
+
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
+				new KeyedOneInputStreamOperatorTestHarness<>(
+						new KeyedCEPPatternOperator<>(
+								Event.createTypeSerializer(),
+								false,
+								keySelector,
+								IntSerializer.INSTANCE,
+								new NFAFactory(),
+								null,
+								true),
+						keySelector,
+						BasicTypeInfo.INT_TYPE_INFO);
+
+		harness.setup();
+		harness.open();
+		harness.processElement(new StreamRecord<Event>(startEvent1, 1));
+		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
+		harness.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3));
+		harness.processElement(new StreamRecord<Event>(middleEvent1, 2));
+		harness.processWatermark(new Watermark(5));
+
+		// do snapshot and save to file
+		OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/cep-migration-starting-new-pattern-flink1.2-snapshot");
+
+		harness.close();
+	}
+
+	@Test
+	public void testRestoreStartingNewPatternAfterMigration() throws Exception {
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
 			private static final long serialVersionUID = -4873366487571254798L;
@@ -192,65 +241,23 @@ public class CEPMigration12to13Test {
 		final SubEvent middleEvent2 = new SubEvent(42, "foo2", 2.0, 10.0);
 		final Event endEvent = new Event(42, "end", 1.0);
 
-		// uncomment these lines for regenerating the snapshot on Flink 1.2
-//		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
-//			new KeyedOneInputStreamOperatorTestHarness<>(
-//				new KeyedCEPPatternOperator<>(
-//					Event.createTypeSerializer(),
-//					false,
-//					keySelector,
-//					IntSerializer.INSTANCE,
-//					new NFAFactory(),
-//					true),
-//				keySelector,
-//				BasicTypeInfo.INT_TYPE_INFO);
-//
-//		harness.setup();
-//		harness.open();
-//		harness.processElement(new StreamRecord<Event>(startEvent1, 1));
-//		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
-//		harness.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3));
-//		harness.processElement(new StreamRecord<Event>(middleEvent1, 2));
-//		harness.processWatermark(new Watermark(5));
-//		// simulate snapshot/restore with empty element queue but NFA state
-//		OperatorStateHandles snapshot = harness.snapshot(1, 1);
-//		FileOutputStream out = new FileOutputStream(
-//				"src/test/resources/cep-starting-snapshot-1.2");
-//		ObjectOutputStream oos = new ObjectOutputStream(out);
-//		oos.writeObject(snapshot.getOperatorChainIndex());
-//		oos.writeObject(snapshot.getLegacyOperatorState());
-//		oos.writeObject(snapshot.getManagedKeyedState());
-//		oos.writeObject(snapshot.getRawKeyedState());
-//		oos.writeObject(snapshot.getManagedOperatorState());
-//		oos.writeObject(snapshot.getRawOperatorState());
-//		out.close();
-//		harness.close();
-
 		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
-			new KeyedOneInputStreamOperatorTestHarness<>(
-				new KeyedCEPPatternOperator<>(
-					Event.createTypeSerializer(),
-					false,
-					keySelector,
-					IntSerializer.INSTANCE,
-					new NFAFactory(),
-					null,
-					true),
-				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(
+						new KeyedCEPPatternOperator<>(
+								Event.createTypeSerializer(),
+								false,
+								keySelector,
+								IntSerializer.INSTANCE,
+								new NFAFactory(),
+								null,
+								true),
+						keySelector,
+						BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.setup();
-		final ObjectInputStream ois = new ObjectInputStream(new FileInputStream(getResourceFilename(
-			"cep-starting-snapshot-1.2")));
-		final OperatorStateHandles snapshot = new OperatorStateHandles(
-			(int) ois.readObject(),
-			(StreamStateHandle) ois.readObject(),
-			(Collection<KeyedStateHandle>) ois.readObject(),
-			(Collection<KeyedStateHandle>) ois.readObject(),
-			(Collection<OperatorStateHandle>) ois.readObject(),
-			(Collection<OperatorStateHandle>) ois.readObject()
-		);
-		harness.initializeState(snapshot);
+		harness.initializeState(
+				OperatorSnapshotUtil.readStateHandle(
+						OperatorSnapshotUtil.getResourceFilename("cep-migration-starting-new-pattern-flink1.2-snapshot")));
 		harness.open();
 
 		harness.processElement(new StreamRecord<>(startEvent2, 5));
@@ -303,6 +310,49 @@ public class CEPMigration12to13Test {
 		harness.close();
 	}
 
+	/**
+	 * Manually run this to write binary snapshot data.
+	 */
+	@Ignore
+	@Test
+	public void writeSinglePatternAfterMigrationSnapshot() throws Exception {
+
+		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
+			private static final long serialVersionUID = -4873366487571254798L;
+
+			@Override
+			public Integer getKey(Event value) throws Exception {
+				return value.getId();
+			}
+		};
+
+		final Event startEvent1 = new Event(42, "start", 1.0);
+
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
+				new KeyedOneInputStreamOperatorTestHarness<>(
+						new KeyedCEPPatternOperator<>(
+								Event.createTypeSerializer(),
+								false,
+								keySelector,
+								IntSerializer.INSTANCE,
+								new SinglePatternNFAFactory(),
+								null,
+								true),
+						keySelector,
+						BasicTypeInfo.INT_TYPE_INFO);
+
+		harness.setup();
+		harness.open();
+		harness.processWatermark(new Watermark(5));
+
+		// do snapshot and save to file
+		OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/cep-migration-single-pattern-afterwards-flink1.2-snapshot");
+
+		harness.close();
+	}
+
+
 	@Test
 	public void testSinglePatternAfterMigration() throws Exception {
 
@@ -317,61 +367,23 @@ public class CEPMigration12to13Test {
 
 		final Event startEvent1 = new Event(42, "start", 1.0);
 
-		// uncomment these lines for regenerating the snapshot on Flink 1.2
-//		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
-//			new KeyedOneInputStreamOperatorTestHarness<>(
-//				new KeyedCEPPatternOperator<>(
-//					Event.createTypeSerializer(),
-//					false,
-//					keySelector,
-//					IntSerializer.INSTANCE,
-//					new SinglePatternNFAFactory(),
-//					true),
-//				keySelector,
-//				BasicTypeInfo.INT_TYPE_INFO);
-//
-//		harness.setup();
-//		harness.open();
-//		harness.processWatermark(new Watermark(5));
-//		// simulate snapshot/restore with empty element queue but NFA state
-//		OperatorStateHandles snapshot = harness.snapshot(1, 1);
-//		FileOutputStream out = new FileOutputStream(
-//				"src/test/resources/cep-single-pattern-snapshot-1.2");
-//		ObjectOutputStream oos = new ObjectOutputStream(out);
-//		oos.writeObject(snapshot.getOperatorChainIndex());
-//		oos.writeObject(snapshot.getLegacyOperatorState());
-//		oos.writeObject(snapshot.getManagedKeyedState());
-//		oos.writeObject(snapshot.getRawKeyedState());
-//		oos.writeObject(snapshot.getManagedOperatorState());
-//		oos.writeObject(snapshot.getRawOperatorState());
-//		out.close();
-//		harness.close();
-
 		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
-			new KeyedOneInputStreamOperatorTestHarness<>(
-				new KeyedCEPPatternOperator<>(
-					Event.createTypeSerializer(),
-					false,
-					keySelector,
-					IntSerializer.INSTANCE,
-					new SinglePatternNFAFactory(),
-					null,
-					true),
-				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(
+						new KeyedCEPPatternOperator<>(
+								Event.createTypeSerializer(),
+								false,
+								keySelector,
+								IntSerializer.INSTANCE,
+								new SinglePatternNFAFactory(),
+								null,
+								true),
+						keySelector,
+						BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.setup();
-		final ObjectInputStream ois = new ObjectInputStream(new FileInputStream(getResourceFilename(
-			"cep-single-pattern-snapshot-1.2")));
-		final OperatorStateHandles snapshot = new OperatorStateHandles(
-			(int) ois.readObject(),
-			(StreamStateHandle) ois.readObject(),
-			(Collection<KeyedStateHandle>) ois.readObject(),
-			(Collection<KeyedStateHandle>) ois.readObject(),
-			(Collection<OperatorStateHandle>) ois.readObject(),
-			(Collection<OperatorStateHandle>) ois.readObject()
-		);
-		harness.initializeState(snapshot);
+		harness.initializeState(
+				OperatorSnapshotUtil.readStateHandle(
+						OperatorSnapshotUtil.getResourceFilename("cep-migration-single-pattern-afterwards-flink1.2-snapshot")));
 		harness.open();
 
 		harness.processElement(new StreamRecord<>(startEvent1, 5));
@@ -414,7 +426,7 @@ public class CEPMigration12to13Test {
 		public NFA<Event> createNFA() {
 
 			Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new StartFilter())
-				.within(Time.milliseconds(10L));
+					.within(Time.milliseconds(10L));
 
 			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
 		}
@@ -438,14 +450,14 @@ public class CEPMigration12to13Test {
 		public NFA<Event> createNFA() {
 
 			Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new StartFilter())
-				.followedBy("middle")
-				.subtype(SubEvent.class)
-				.where(new MiddleFilter())
-				.followedBy("end")
-				.where(new EndFilter())
-				// add a window timeout to test whether timestamps of elements in the
-				// priority queue in CEP operator are correctly checkpointed/restored
-				.within(Time.milliseconds(10L));
+					.followedBy("middle")
+					.subtype(SubEvent.class)
+					.where(new MiddleFilter())
+					.followedBy("end")
+					.where(new EndFilter())
+					// add a window timeout to test whether timestamps of elements in the
+					// priority queue in CEP operator are correctly checkpointed/restored
+					.within(Time.milliseconds(10L));
 
 			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
 		}

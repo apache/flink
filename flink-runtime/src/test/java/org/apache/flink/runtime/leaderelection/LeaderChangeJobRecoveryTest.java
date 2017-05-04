@@ -21,7 +21,6 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.TerminalJobStatusListener;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -53,7 +52,6 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 	private int numSlotsPerTM = 1;
 	private int parallelism = numTMs * numSlotsPerTM;
 
-	private Configuration configuration;
 	private LeaderElectionRetrievalTestingCluster cluster = null;
 	private JobGraph job = createBlockingJob(parallelism);
 
@@ -61,7 +59,7 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 	public void before() throws TimeoutException, InterruptedException {
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(true);
 
-		configuration = new Configuration();
+		Configuration configuration = new Configuration();
 
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 1);
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
@@ -110,12 +108,9 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 
 		ExecutionGraph executionGraph = (ExecutionGraph) ((TestingJobManagerMessages.ExecutionGraphFound) responseExecutionGraph).executionGraph();
 
-		TerminalJobStatusListener testListener = new TerminalJobStatusListener();
-		executionGraph.registerJobStatusListener(testListener);
-
 		cluster.revokeLeadership();
 
-		testListener.waitForTerminalState(30000);
+		executionGraph.getTerminationFuture().get(30, TimeUnit.SECONDS);
 	}
 
 	public JobGraph createBlockingJob(int parallelism) {

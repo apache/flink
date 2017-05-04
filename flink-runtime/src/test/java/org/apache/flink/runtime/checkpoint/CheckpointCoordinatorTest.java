@@ -3135,6 +3135,7 @@ public class CheckpointCoordinatorTest {
 			vertex,
 			1,
 			1L,
+			1L,
 			Time.milliseconds(500L)
 		));
 		when(exec.getAttemptId()).thenReturn(attemptID);

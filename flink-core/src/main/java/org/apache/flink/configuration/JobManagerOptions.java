@@ -73,6 +73,13 @@ public class JobManagerOptions {
 			.withDeprecatedKeys("job-manager.max-attempts-history-size");
 
 	/**
+	 * The maximum number of prior execution attempts kept in history.
+	 */
+	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
+		key("jobmanager.execution.failover-strategy")
+			.defaultValue("full");
+
+	/**
 	 * This option specifies the interval in order to trigger a resource manager reconnection if the connection
 	 * to the resource manager has been lost.
 	 *

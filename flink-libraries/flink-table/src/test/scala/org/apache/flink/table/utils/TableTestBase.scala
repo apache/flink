@@ -28,6 +28,7 @@ import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
+import org.apache.flink.table.api.scala.batch.utils.LogicalPlanFormatUtils
 import org.junit.Assert.assertEquals
 import org.mockito.Mockito.{mock, when}
 
@@ -47,8 +48,8 @@ class TableTestBase {
   def verifyTableEquals(expected: Table, actual: Table): Unit = {
     assertEquals(
       "Logical plans do not match",
-      RelOptUtil.toString(expected.getRelNode),
-      RelOptUtil.toString(actual.getRelNode))
+      LogicalPlanFormatUtils.formatTempTableId(RelOptUtil.toString(expected.getRelNode)),
+      LogicalPlanFormatUtils.formatTempTableId(RelOptUtil.toString(actual.getRelNode)))
   }
 
 }
