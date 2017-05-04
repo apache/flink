@@ -378,7 +378,7 @@ object AggregateUtil {
           aggFieldIndexes,
           aggregates.indices.map(_ + groupings.length).toArray,
           partialResults = true,
-          groupings,
+          groupings.indices.toArray,
           Some(aggregates.indices.map(_ + groupings.length).toArray),
           None,
           keysAndAggregatesArity + 1,

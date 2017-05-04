@@ -339,7 +339,7 @@ class AggregationsITCase(
     env.setParallelism(1)
 
     val sqlQuery =
-      "SELECT b, SUM(a), COUNT(*)" +
+      "SELECT b, SUM(a), countFun(c), wAvgWithMergeAndReset(b, a), wAvgWithMergeAndReset(a, a)" +
         "FROM T " +
         "GROUP BY b, HOP(ts, INTERVAL '2' SECOND, INTERVAL '4' SECOND)"
 
@@ -350,12 +350,12 @@ class AggregationsITCase(
 
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect()
     val expected = Seq(
-      "1,1,1","1,1,1",
-      "2,5,2","2,5,2",
-      "3,9,2", "3,15,3", "3,6,1",
-      "4,7,1", "4,24,3", "4,27,3", "4,10,1",
-      "5,11,1", "5,36,3", "5,54,4", "5,29,2",
-      "6,33,2", "6,70,4", "6,78,4", "6,41,2"
+      "1,1,1,1,1","1,1,1,1,1",
+      "2,5,2,2,2","2,5,2,2,2",
+      "3,9,2,3,4", "3,15,3,3,5", "3,6,1,3,6",
+      "4,7,1,4,7", "4,24,3,4,8", "4,27,3,4,9", "4,10,1,4,10",
+      "5,11,1,5,11", "5,36,3,5,12", "5,54,4,5,13", "5,29,2,5,14",
+      "6,33,2,6,16", "6,70,4,6,17", "6,78,4,6,19", "6,41,2,6,20"
     ).mkString("\n")
 
     TestBaseUtils.compareResultAsText(result.asJava, expected)
