@@ -65,11 +65,12 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
           createSqlIntervalType(
             new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO))
 
-        case TimeIndicatorTypeInfo.ROWTIME_INDICATOR =>
-          createRowtimeIndicatorType()
-
-        case TimeIndicatorTypeInfo.PROCTIME_INDICATOR =>
-          createProctimeIndicatorType()
+        case TIMESTAMP if typeInfo.isInstanceOf[TimeIndicatorTypeInfo] =>
+          if (typeInfo.asInstanceOf[TimeIndicatorTypeInfo].isEventTime) {
+            createRowtimeIndicatorType()
+          } else {
+            createProctimeIndicatorType()
+          }
 
         case _ =>
           createSqlType(sqlType)
@@ -114,9 +115,11 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     * @param fieldNames field names
     * @param fieldTypes field types, every element is Flink's [[TypeInformation]]
     * @param rowtime optional system field to indicate event-time; the index determines the index
-    *                in the final record and might replace an existing field
+    *                in the final record. If the index is smaller than the number of specified
+    *                fields, it shifts all following fields.
     * @param proctime optional system field to indicate processing-time; the index determines the
-    *                 index in the final record and might replace an existing field
+    *                 index in the final record. If the index is smaller than the number of
+    *                 specified fields, it shifts all following fields.
     * @return a struct type with the input fieldNames, input fieldTypes, and system fields
     */
   def buildLogicalRowType(

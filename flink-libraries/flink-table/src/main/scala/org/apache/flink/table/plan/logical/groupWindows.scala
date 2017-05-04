@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.logical
 import org.apache.flink.table.api.{BatchTableEnvironment, StreamTableEnvironment, TableEnvironment}
 import org.apache.flink.table.expressions.ExpressionUtils.{isRowCountLiteral, isRowtimeAttribute, isTimeAttribute, isTimeIntervalLiteral}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.typeutils.TypeCheckUtils.isTimePoint
+import org.apache.flink.table.typeutils.TypeCheckUtils.{isTimePoint, isLong}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 // ------------------------------------------------------------------------------------------------
@@ -56,7 +56,8 @@ case class TumblingGroupWindow(
         case _: StreamTableEnvironment if !isTimeAttribute(timeField) =>
           ValidationFailure(
             "Tumbling window expects a time attribute for grouping in a stream environment.")
-        case _: BatchTableEnvironment if isTimePoint(size.resultType) =>
+        case _: BatchTableEnvironment
+          if !(isTimePoint(timeField.resultType) || isLong(timeField.resultType)) =>
           ValidationFailure(
             "Tumbling window expects a time attribute for grouping in a stream environment.")
 
@@ -119,7 +120,8 @@ case class SlidingGroupWindow(
         case _: StreamTableEnvironment if !isTimeAttribute(timeField) =>
           ValidationFailure(
             "Sliding window expects a time attribute for grouping in a stream environment.")
-        case _: BatchTableEnvironment if isTimePoint(size.resultType) =>
+        case _: BatchTableEnvironment
+          if !(isTimePoint(timeField.resultType) || isLong(timeField.resultType)) =>
           ValidationFailure(
             "Sliding window expects a time attribute for grouping in a stream environment.")
 
@@ -169,7 +171,8 @@ case class SessionGroupWindow(
         case _: StreamTableEnvironment if !isTimeAttribute(timeField) =>
           ValidationFailure(
             "Session window expects a time attribute for grouping in a stream environment.")
-        case _: BatchTableEnvironment if isTimePoint(gap.resultType) =>
+        case _: BatchTableEnvironment
+          if !(isTimePoint(timeField.resultType) || isLong(timeField.resultType)) =>
           ValidationFailure(
             "Session window expects a time attribute for grouping in a stream environment.")
 

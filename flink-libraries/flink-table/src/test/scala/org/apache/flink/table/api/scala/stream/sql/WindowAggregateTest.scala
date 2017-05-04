@@ -24,7 +24,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class WindowAggregateTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
@@ -85,7 +85,6 @@ class WindowAggregateTest extends TableTestBase {
   }
 
   @Test
-  @Ignore // TODO enable once CALCITE-1761 is fixed
   def testTumbleFunction() = {
     streamUtil.tEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
 
@@ -98,24 +97,23 @@ class WindowAggregateTest extends TableTestBase {
         "GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)"
     val expected =
       unaryNode(
-        "DataStreamCalc",
+        "DataStreamAggregate",
         unaryNode(
-          "DataStreamAggregate",
+          "DataStreamCalc",
           streamTableNode(0),
-          term("window", TumblingGroupWindow('w$, 'rowtime, 900000.millis)),
-          term("select",
-            "COUNT(*) AS EXPR$0, " +
-              "weightedAvg(c, a) AS wAvg, " +
-              "start('w$) AS w$start, " +
-              "end('w$) AS w$end")
+          term("select", "1970-01-01 00:00:00 AS $f0", "c", "a")
         ),
-        term("select", "EXPR$0, wAvg, CAST(w$start) AS w$start, CAST(w$end) AS w$end")
+        term("window", TumblingGroupWindow('w$, 'rowtime, 900000.millis)),
+        term("select",
+          "COUNT(*) AS EXPR$0, " +
+            "weightedAvg(c, a) AS wAvg, " +
+            "start('w$) AS w$start, " +
+            "end('w$) AS w$end")
       )
     streamUtil.verifySql(sql, expected)
   }
 
   @Test
-  @Ignore // TODO enable once CALCITE-1761 is fixed
   def testHoppingFunction() = {
     streamUtil.tEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
 
@@ -127,24 +125,23 @@ class WindowAggregateTest extends TableTestBase {
         "GROUP BY HOP(proctime, INTERVAL '15' MINUTE, INTERVAL '1' HOUR)"
     val expected =
       unaryNode(
-        "DataStreamCalc",
+        "DataStreamAggregate",
         unaryNode(
-          "DataStreamAggregate",
+          "DataStreamCalc",
           streamTableNode(0),
-          term("window", SlidingGroupWindow('w$, 'rowtime, 3600000.millis, 900000.millis)),
-          term("select",
-            "COUNT(*) AS EXPR$0, " +
-              "weightedAvg(c, a) AS wAvg, " +
-              "start('w$) AS w$start, " +
-              "end('w$) AS w$end")
+          term("select", "1970-01-01 00:00:00 AS $f0", "c", "a")
         ),
-        term("select", "EXPR$0, wAvg, CAST(w$start) AS w$start, CAST(w$end) AS w$end")
+        term("window", SlidingGroupWindow('w$, 'proctime, 3600000.millis, 900000.millis)),
+        term("select",
+          "COUNT(*) AS EXPR$0, " +
+            "weightedAvg(c, a) AS wAvg, " +
+            "start('w$) AS w$start, " +
+            "end('w$) AS w$end")
       )
     streamUtil.verifySql(sql, expected)
   }
 
   @Test
-  @Ignore // TODO enable once CALCITE-1761 is fixed
   def testSessionFunction() = {
     streamUtil.tEnv.registerFunction("weightedAvg", new WeightedAvgWithMerge)
 
@@ -157,18 +154,18 @@ class WindowAggregateTest extends TableTestBase {
         "GROUP BY SESSION(proctime, INTERVAL '15' MINUTE)"
     val expected =
       unaryNode(
-        "DataStreamCalc",
+        "DataStreamAggregate",
         unaryNode(
-          "DataStreamAggregate",
+          "DataStreamCalc",
           streamTableNode(0),
-          term("window", SessionGroupWindow('w$, 'rowtime, 900000.millis)),
-          term("select",
-            "COUNT(*) AS EXPR$0, " +
-              "weightedAvg(c, a) AS wAvg, " +
-              "start('w$) AS w$start, " +
-              "end('w$) AS w$end")
+          term("select", "1970-01-01 00:00:00 AS $f0", "c", "a")
         ),
-        term("select", "EXPR$0, wAvg, CAST(w$start) AS w$start, CAST(w$end) AS w$end")
+        term("window", SessionGroupWindow('w$, 'proctime, 900000.millis)),
+        term("select",
+          "COUNT(*) AS EXPR$0, " +
+            "weightedAvg(c, a) AS wAvg, " +
+            "start('w$) AS w$start, " +
+            "end('w$) AS w$end")
       )
     streamUtil.verifySql(sql, expected)
   }

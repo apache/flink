@@ -103,10 +103,7 @@ class DataSetCalc(
       body,
       rowTypeInfo)
 
-    val runner = new FlatMapRunner[Row, Row](
-      genFunction.name,
-      genFunction.code,
-      genFunction.returnType)
+    val runner = calcMapFunction(genFunction)
 
     inputDS.flatMap(runner).name(calcOpName(calcProgram, getExpressionString))
   }

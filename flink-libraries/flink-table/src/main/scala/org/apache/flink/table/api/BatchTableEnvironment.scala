@@ -31,7 +31,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.explain.PlanJsonParser
-import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.expressions.{Expression, RowtimeAttribute, TimeAttribute}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
@@ -196,26 +196,11 @@ abstract class BatchTableEnvironment(
 
     val (fieldNames, fieldIndexes) = getFieldInfo[T](
       dataSet.getType,
-      fields,
-      ignoreTimeAttributes = true)
+      fields)
 
-    // validate and extract time attributes
-    val (rowtime, proctime) = validateAndExtractTimeAttributes(fieldNames, fieldIndexes, fields)
-
-    // don't allow proctime on batch
-    proctime match {
-      case Some(_) =>
-        throw new ValidationException(
-          "A proctime attribute is not allowed in a batch environment. " +
-            "Working with processing-time on batch would lead to non-deterministic results.")
-      case _ => // ok
-    }
-    // rowtime must not extend the schema of a batch table
-    rowtime match {
-      case Some((idx, _)) if idx >= dataSet.getType.getArity =>
-        throw new ValidationException(
-          "A rowtime attribute must be defined on an existing field in a batch environment.")
-      case _ => // ok
+    if (fields.exists(_.isInstanceOf[TimeAttribute])) {
+      throw new ValidationException(
+        ".rowtime and .proctime time indicators are not allowed in a batch environment.")
     }
 
     val dataSetTable = new DataSetTable[T](dataSet, fieldIndexes, fieldNames)

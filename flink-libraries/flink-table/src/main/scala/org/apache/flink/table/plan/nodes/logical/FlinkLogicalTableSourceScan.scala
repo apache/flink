@@ -29,7 +29,7 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.sources.{DefinedProcTimeAttribute, DefinedRowTimeAttribute, TableSource}
 
 import scala.collection.JavaConverters._
 
@@ -47,11 +47,33 @@ class FlinkLogicalTableSourceScan(
 
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+
+    val fieldNames = TableEnvironment.getFieldNames(tableSource).toList
+    val fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
+
+    val fieldCnt = fieldNames.length
+
+    val rowtime = tableSource match {
+      case timeSource: DefinedRowTimeAttribute if timeSource.getRowtimeAttribute != null =>
+        val rowtimeAttribute = timeSource.getRowtimeAttribute
+        Some((fieldCnt, rowtimeAttribute))
+      case _ =>
+        None
+    }
+
+    val proctime = tableSource match {
+      case timeSource: DefinedProcTimeAttribute if timeSource.getProctimeAttribute != null =>
+        val proctimeAttribute = timeSource.getProctimeAttribute
+        Some((fieldCnt + (if (rowtime.isDefined) 1 else 0), proctimeAttribute))
+      case _ =>
+        None
+    }
+
     flinkTypeFactory.buildLogicalRowType(
-      TableEnvironment.getFieldNames(tableSource),
-      TableEnvironment.getFieldTypes(tableSource.getReturnType),
-      None,
-      None)
+      fieldNames,
+      fieldTypes,
+      rowtime,
+      proctime)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {

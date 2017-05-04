@@ -34,11 +34,11 @@ import scala.collection.JavaConverters._
 trait CommonCalc {
 
   private[flink] def functionBody(
-     generator: CodeGenerator,
-     inputSchema: RowSchema,
-     returnSchema: RowSchema,
-     calcProgram: RexProgram,
-     config: TableConfig)
+      generator: CodeGenerator,
+      inputSchema: RowSchema,
+      returnSchema: RowSchema,
+      calcProgram: RexProgram,
+      config: TableConfig)
     : String = {
 
     val expandedExpressions = calcProgram

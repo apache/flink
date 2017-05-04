@@ -23,7 +23,7 @@ import org.apache.flink.table.expressions.{Expression, WindowReference}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 /**
-  * Logical super class for all types of windows (group-windows and row-windows).
+  * Logical super class for group windows.
   *
   * @param aliasAttribute window alias
   * @param timeAttribute time field indicating event-time or processing-time

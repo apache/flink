@@ -26,7 +26,7 @@ import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.{RowSchema, TableSourceTable}
-import org.apache.flink.table.sources.{DefinedTimeAttributes, StreamTableSource, TableSource}
+import org.apache.flink.table.sources._
 import org.apache.flink.types.Row
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
@@ -41,35 +41,23 @@ class StreamTableSourceScan(
   override def deriveRowType() = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
-    def removeIndex[T](idx: Int, l: List[T]): List[T] = {
-      if (l.size < idx) {
-        l
-      } else {
-        l.take(idx) ++ l.drop(idx + 1)
-      }
-    }
+    val fieldNames = TableEnvironment.getFieldNames(tableSource).toList
+    val fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
 
-    var fieldNames = TableEnvironment.getFieldNames(tableSource).toList
-    var fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
+    val fieldCnt = fieldNames.length
 
     val rowtime = tableSource match {
-      case timeSource: DefinedTimeAttributes if timeSource.getRowtimeAttribute != null =>
+      case timeSource: DefinedRowTimeAttribute if timeSource.getRowtimeAttribute != null =>
         val rowtimeAttribute = timeSource.getRowtimeAttribute
-        // remove physical field if it is overwritten by time attribute
-        fieldNames = removeIndex(rowtimeAttribute.f0, fieldNames)
-        fieldTypes = removeIndex(rowtimeAttribute.f0, fieldTypes)
-        Some((rowtimeAttribute.f0, rowtimeAttribute.f1))
+        Some((fieldCnt, rowtimeAttribute))
       case _ =>
         None
     }
 
     val proctime = tableSource match {
-      case timeSource: DefinedTimeAttributes if timeSource.getProctimeAttribute != null =>
+      case timeSource: DefinedProcTimeAttribute if timeSource.getProctimeAttribute != null =>
         val proctimeAttribute = timeSource.getProctimeAttribute
-        // remove physical field if it is overwritten by time attribute
-        fieldNames = removeIndex(proctimeAttribute.f0, fieldNames)
-        fieldTypes = removeIndex(proctimeAttribute.f0, fieldTypes)
-        Some((proctimeAttribute.f0, proctimeAttribute.f1))
+        Some((fieldCnt + (if (rowtime.isDefined) 1 else 0), proctimeAttribute))
       case _ =>
         None
     }

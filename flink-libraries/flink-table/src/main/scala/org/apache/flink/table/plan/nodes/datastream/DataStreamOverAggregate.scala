@@ -241,10 +241,7 @@ class DataStreamOverAggregate(
     }
 
     val precedingOffset =
-      getLowerBoundary(
-        logicWindow,
-        overWindow,
-        input) + (if (isRowsClause) 1 else 0)
+      getLowerBoundary(logicWindow, overWindow, input) + (if (isRowsClause) 1 else 0)
 
     val processFunction = AggregateUtil.createBoundedOverProcessFunction(
       generator,

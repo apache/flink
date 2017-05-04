@@ -26,19 +26,21 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.{RuleSet, RuleSets}
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.calcite.RelTimeIndicatorConverter
 import org.apache.flink.table.explain.PlanJsonParser
-import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.expressions.{Expression, ProctimeAttribute, RowtimeAttribute, UnresolvedFieldReference}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{DataStreamTable, TableSourceTable}
+import org.apache.flink.table.plan.schema.{DataStreamTable, StreamTableSourceTable, TableSourceTable}
 import org.apache.flink.table.sinks.{StreamTableSink, TableSink}
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConverters._
@@ -99,7 +101,7 @@ abstract class StreamTableEnvironment(
 
     tableSource match {
       case streamTableSource: StreamTableSource[_] =>
-        registerTableInternal(name, new TableSourceTable(streamTableSource))
+        registerTableInternal(name, new StreamTableSourceTable(streamTableSource))
       case _ =>
         throw new TableException("Only StreamTableSource can be registered in " +
             "StreamTableEnvironment")
@@ -168,14 +170,13 @@ abstract class StreamTableEnvironment(
       fields: Array[Expression])
     : Unit = {
 
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](
-      dataStream.getType,
-      fields,
-      ignoreTimeAttributes = false)
+    val streamType = dataStream.getType
+
+    // get field names and types for all non-replaced fields
+    val (fieldNames, fieldIndexes) = getFieldInfo[T](streamType, fields)
 
     // validate and extract time attributes
-    val (rowtime, proctime) = validateAndExtractTimeAttributes(fieldNames, fieldIndexes, fields)
-
+    val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, fields)
 
     val dataStreamTable = new DataStreamTable[T](
       dataStream,
@@ -185,6 +186,71 @@ abstract class StreamTableEnvironment(
       proctime
     )
     registerTableInternal(name, dataStreamTable)
+  }
+
+  /**
+    * Checks for at most one rowtime and proctime attribute.
+    * Returns the time attributes.
+    *
+    * @return rowtime attribute and proctime attribute
+    */
+  private def validateAndExtractTimeAttributes(
+    streamType: TypeInformation[_],
+    exprs: Array[Expression])
+  : (Option[(Int, String)], Option[(Int, String)]) = {
+
+    val fieldTypes: Array[TypeInformation[_]] = streamType match {
+      case c: CompositeType[_] => (0 until c.getArity).map(i => c.getTypeAt(i)).toArray
+      case a: AtomicType[_] => Array(a)
+    }
+
+    var fieldNames: List[String] = Nil
+    var rowtime: Option[(Int, String)] = None
+    var proctime: Option[(Int, String)] = None
+
+    exprs.zipWithIndex.foreach {
+      case (RowtimeAttribute(reference@UnresolvedFieldReference(name)), idx) =>
+        if (rowtime.isDefined) {
+          throw new TableException(
+            "The rowtime attribute can only be defined once in a table schema.")
+        } else {
+          // check type of field that is replaced
+          if (idx < fieldTypes.length &&
+            !(TypeCheckUtils.isLong(fieldTypes(idx)) ||
+              TypeCheckUtils.isTimePoint(fieldTypes(idx)))) {
+            throw new TableException(
+              "The rowtime attribute can only be replace a field with a valid time type, such as " +
+                "Timestamp or Long.")
+          }
+          rowtime = Some(idx, name)
+        }
+      case (ProctimeAttribute(reference@UnresolvedFieldReference(name)), idx) =>
+        if (proctime.isDefined) {
+          throw new TableException(
+            "The proctime attribute can only be defined once in a table schema.")
+        } else {
+          // check that proctime is only appended
+          if (idx < fieldTypes.length) {
+            throw new TableException(
+              "The proctime attribute can only be appended to the table schema and not replace " +
+                "an existing field. Please move it to the end of the schema.")
+          }
+          proctime = Some(idx, name)
+        }
+      case (u: UnresolvedFieldReference, _) => fieldNames = u.name :: fieldNames
+    }
+
+    if (rowtime.isDefined && fieldNames.contains(rowtime.get._2)) {
+      throw new TableException(
+        "The rowtime attribute may not have the same name as an another field.")
+    }
+
+    if (proctime.isDefined && fieldNames.contains(proctime.get._2)) {
+      throw new TableException(
+        "The proctime attribute may not have the same name as an another field.")
+    }
+
+    (rowtime, proctime)
   }
 
   /**

@@ -46,7 +46,7 @@ abstract class PhysicalTableSourceScan(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val terms = super.explainTerms(pw)
-        .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
+        .item("fields", deriveRowType().getFieldNames.asScala.mkString(", "))
 
     val sourceDesc = tableSource.explainSource()
     if (sourceDesc.nonEmpty) {

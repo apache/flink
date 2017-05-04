@@ -98,11 +98,14 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val UNBOUNDED_ROW: Keyword = Keyword("unbounded_row")
   lazy val UNBOUNDED_RANGE: Keyword = Keyword("unbounded_range")
   lazy val ASIN: Keyword = Keyword("asin")
+  lazy val ROWTIME: Keyword = Keyword("rowtime")
+  lazy val PROCTIME: Keyword = Keyword("proctime")
 
   def functionIdent: ExpressionParser.Parser[String] =
     not(ARRAY) ~ not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
       not(SUM0) ~ not(STDDEV_POP) ~ not(STDDEV_SAMP) ~ not(VAR_POP) ~ not(VAR_SAMP) ~
       not(SUM) ~ not(START) ~ not(END)~ not(CAST) ~ not(NULL) ~ not(IF) ~
+      not(ROWTIME) ~ not(PROCTIME) ~
       not(CURRENT_ROW) ~ not(UNBOUNDED_ROW) ~ not(CURRENT_RANGE) ~ not(UNBOUNDED_RANGE) ~>
       super.ident
 
@@ -532,11 +535,24 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // alias
 
-  lazy val alias: PackratParser[Expression] = logic ~ AS ~ fieldReference ^^ {
+  lazy val alias: PackratParser[Expression] = timeIndicator |
+    logic ~ AS ~ fieldReference ^^ {
       case e ~ _ ~ name => Alias(e, name.name)
   } | logic ~ AS ~ "(" ~ rep1sep(fieldReference, ",") ~ ")" ^^ {
     case e ~ _ ~ _ ~ names ~ _ => Alias(e, names.head.name, names.tail.map(_.name))
   } | logic
+
+  // time indicators
+
+  lazy val timeIndicator: PackratParser[Expression] = procTime | rowTime
+
+  lazy val procTime: PackratParser[Expression] = fieldReference ~ "." ~ PROCTIME ^^ {
+    case f ~ _ ~ _ => ProctimeAttribute(f)
+  }
+
+  lazy val rowTime: PackratParser[Expression] = fieldReference ~ "." ~ ROWTIME ^^ {
+    case f ~ _ ~ _ => RowtimeAttribute(f)
+  }
 
   lazy val expression: PackratParser[Expression] = alias |
     failure("Invalid expression.")
