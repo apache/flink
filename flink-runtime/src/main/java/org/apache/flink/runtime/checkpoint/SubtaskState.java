@@ -152,12 +152,24 @@ public class SubtaskState implements CompositeStateHandle {
 
 	@Override
 	public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
-		// No shared states
+		if (managedKeyedState != null) {
+			managedKeyedState.registerSharedStates(sharedStateRegistry);
+		}
+
+		if (rawKeyedState != null) {
+			rawKeyedState.registerSharedStates(sharedStateRegistry);
+		}
 	}
 
 	@Override
 	public void unregisterSharedStates(SharedStateRegistry sharedStateRegistry) {
-		// No shared states
+		if (managedKeyedState != null) {
+			managedKeyedState.unregisterSharedStates(sharedStateRegistry);
+		}
+
+		if (rawKeyedState != null) {
+			rawKeyedState.unregisterSharedStates(sharedStateRegistry);
+		}
 	}
 
 	@Override
