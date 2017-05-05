@@ -2532,8 +2532,7 @@ object JobManager {
 
     val restartStrategy = RestartStrategyFactory.createRestartStrategyFactory(configuration)
 
-    val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
-      ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT)
+    val archiveCount = configuration.getInteger(JobManagerOptions.WEB_ARCHIVE_COUNT)
 
     val archiveDir = configuration.getString(JobManagerOptions.ARCHIVE_DIR)
 
