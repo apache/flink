@@ -221,6 +221,12 @@ public class Pattern<T, F extends T> {
 	 * @return A new pattern which is appended to this one
 	 */
 	public Pattern<T, T> notNext(final String name) {
+		if (quantifier.hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
+			throw new UnsupportedOperationException(
+					"Specifying a pattern with an optional path to NOT condition is not supported yet. " +
+					"You can simulate such pattern with two independent patterns, one with and the other without " +
+					"the optional part.");
+		}
 		return new Pattern<>(name, this, ConsumingStrategy.NOT_NEXT);
 	}
 
@@ -247,12 +253,11 @@ public class Pattern<T, F extends T> {
 	 */
 	public Pattern<T, T> notFollowedBy(final String name) {
 		if (quantifier.hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
-			throw new MalformedPatternException(
-				"Specifying a pattern with an optional path to NOT condition is not supported yet. " +
-				"You can simulate such pattern with two independent patterns, one with and the other without " +
-				"the optional part.");
+			throw new UnsupportedOperationException(
+					"Specifying a pattern with an optional path to NOT condition is not supported yet. " +
+					"You can simulate such pattern with two independent patterns, one with and the other without " +
+					"the optional part.");
 		}
-
 		return new Pattern<>(name, this, ConsumingStrategy.NOT_FOLLOW);
 	}
 
