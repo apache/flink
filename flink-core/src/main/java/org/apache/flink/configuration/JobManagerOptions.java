@@ -94,6 +94,13 @@ public class JobManagerOptions {
 	// ------------------------------------------------------------------------
 
 	/**
+	 * Config parameter defining the runtime monitor web-frontend server address.
+	 */
+	public static final ConfigOption<String> WEB_FRONTEND_ADDRESS =
+		key("jobmanager.web.address")
+			.noDefaultValue();
+
+	/**
 	 * The port for the runtime monitor web-frontend server.
 	 */
 	public static final ConfigOption<Integer> WEB_PORT =
