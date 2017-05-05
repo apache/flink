@@ -402,7 +402,11 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.HOP_END,
     SqlStdOperatorTable.SESSION,
     SqlStdOperatorTable.SESSION_START,
-    SqlStdOperatorTable.SESSION_END
+    SqlStdOperatorTable.SESSION_END,
+    
+    // TO BE REMOVED WHEN https://issues.apache.org/jira/browse/CALCITE-1740
+    // is merged and calcite is updated
+    DistinctAggregatorExtractor
   )
 
   builtInSqlOperators.foreach(register)

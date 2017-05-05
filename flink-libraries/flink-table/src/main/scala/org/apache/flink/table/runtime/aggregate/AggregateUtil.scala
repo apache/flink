@@ -70,6 +70,7 @@ object AggregateUtil {
   private[flink] def createUnboundedOverProcessFunction(
     generator: CodeGenerator,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    distinctAggregatesFlags: Array[Boolean],
     inputType: RelDataType,
     isRowTimeType: Boolean,
     isPartitioned: Boolean,
@@ -100,6 +101,7 @@ object AggregateUtil {
       forwardMapping,
       None,
       None,
+      distinctAggregatesFlags,
       outputArity,
       needRetract,
       needMerge = false,
@@ -148,6 +150,7 @@ object AggregateUtil {
   private[flink] def createBoundedOverProcessFunction(
     generator: CodeGenerator,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    distinctAggregatesFlags: Array[Boolean],
     inputType: RelDataType,
     precedingOffset: Long,
     isRowsClause: Boolean,
@@ -178,6 +181,7 @@ object AggregateUtil {
       forwardMapping,
       None,
       None,
+      distinctAggregatesFlags,
       outputArity,
       needRetract,
       needMerge = false,
@@ -204,6 +208,7 @@ object AggregateUtil {
       if (isRowsClause) {
         new ProcTimeBoundedRowsOver(
           genFunction,
+          distinctAggregatesFlags,
           precedingOffset,
           aggregationStateType,
           inputRowType)
@@ -254,7 +259,7 @@ object AggregateUtil {
       namedAggregates.map(_.getKey),
       inputType,
       needRetract)
-
+      
     val mapReturnType: RowTypeInfo =
       createDataSetAggregateBufferDataType(
         groupings,
@@ -293,6 +298,10 @@ object AggregateUtil {
     val aggMapping = aggregates.indices.toArray.map(_ + groupings.length)
     val outputArity = aggregates.length + groupings.length + 1
 
+    // remove when distinct is supported
+    val distinctAggregatesFlags = new Array[Boolean](aggregates.size)
+    for(i <- aggregates.indices) distinctAggregatesFlags(i) = false
+    
     val genFunction = generator.generateAggregations(
       "DataSetAggregatePrepareMapHelper",
       generator,
@@ -304,6 +313,7 @@ object AggregateUtil {
       groupings,
       None,
       None,
+      distinctAggregatesFlags,
       outputArity,
       needRetract,
       needMerge = false,
@@ -367,6 +377,10 @@ object AggregateUtil {
 
     val keysAndAggregatesArity = groupings.length + namedAggregates.length
 
+    // remove when distinct is supported
+    val distinctAggregatesFlags = new Array[Boolean](aggregates.size)
+    for(i <- aggregates.indices) distinctAggregatesFlags(i)=false
+    
     window match {
       case EventTimeSlidingGroupWindow(_, _, size, slide) if isTimeInterval(size.resultType) =>
         // sliding time-window for partial aggregations
@@ -381,6 +395,7 @@ object AggregateUtil {
           groupings.indices.toArray,
           Some(aggregates.indices.map(_ + groupings.length).toArray),
           None,
+          distinctAggregatesFlags,
           keysAndAggregatesArity + 1,
           needRetract,
           needMerge = true,
@@ -473,6 +488,10 @@ object AggregateUtil {
 
     val aggMapping = aggregates.indices.toArray.map(_ + groupings.length)
 
+    // remove when distinct is supported
+    val distinctAggregatesFlags = new Array[Boolean](aggregates.size)
+    for(i <- aggregates.indices) distinctAggregatesFlags(i)=false
+    
     val genPreAggFunction = generator.generateAggregations(
       "GroupingWindowAggregateHelper",
       generator,
@@ -484,6 +503,7 @@ object AggregateUtil {
       groupings,
       Some(aggregates.indices.map(_ + groupings.length).toArray),
       None,
+      distinctAggregatesFlags,
       outputType.getFieldCount,
       needRetract,
       needMerge = true,
@@ -501,6 +521,7 @@ object AggregateUtil {
       groupings.indices.toArray,
       Some(aggregates.indices.map(_ + groupings.length).toArray),
       None,
+      distinctAggregatesFlags,
       outputType.getFieldCount,
       needRetract,
       needMerge = true,
@@ -621,6 +642,10 @@ object AggregateUtil {
 
     val keysAndAggregatesArity = groupings.length + namedAggregates.length
 
+    // remove when distinct is supported
+    val distinctAggregatesFlags = new Array[Boolean](aggregates.size)
+    for(i <- aggregates.indices) distinctAggregatesFlags(i)=false
+    
     window match {
       case EventTimeSessionGroupWindow(_, _, gap) =>
         val combineReturnType: RowTypeInfo =
@@ -641,6 +666,7 @@ object AggregateUtil {
           groupings.indices.toArray,
           Some(aggregates.indices.map(_ + groupings.length).toArray),
           None,
+          distinctAggregatesFlags,
           groupings.length + aggregates.length + 2,
           needRetract,
           needMerge = true,
@@ -689,6 +715,10 @@ object AggregateUtil {
       inputType,
       needRetract)
 
+   // remove when distinct is supported
+    val distinctAggregatesFlags = new Array[Boolean](aggregates.size)
+    for(i <- aggregates.indices) distinctAggregatesFlags(i)=false   
+   
     val aggMapping = aggregates.indices.map(_ + groupings.length).toArray
 
     val keysAndAggregatesArity = groupings.length + namedAggregates.length
@@ -714,6 +744,7 @@ object AggregateUtil {
           groupings.indices.toArray,
           Some(aggregates.indices.map(_ + groupings.length).toArray),
           None,
+          distinctAggregatesFlags,
           groupings.length + aggregates.length + 2,
           needRetract,
           needMerge = true,
@@ -733,6 +764,7 @@ object AggregateUtil {
     }
   }
 
+ 
   /**
     * Create functions to compute a [[org.apache.flink.table.plan.nodes.dataset.DataSetAggregate]].
     * If all aggregation functions support pre-aggregation, a pre-aggregation function and the
@@ -772,7 +804,11 @@ object AggregateUtil {
     } else {
       None
     }
-
+    
+    // remove when distinct is supported
+    val distinctAggregatesFlags = new Array[Boolean](aggregates.size)
+    for(i <- aggregates.indices) distinctAggregatesFlags(i)=false
+    
     val aggOutFields = aggOutMapping.map(_._1)
 
     if (doAllSupportPartialMerge(aggregates)) {
@@ -794,6 +830,7 @@ object AggregateUtil {
         groupings,
         None,
         None,
+        distinctAggregatesFlags,
         groupings.length + aggregates.length,
         needRetract,
         needMerge = false,
@@ -821,6 +858,7 @@ object AggregateUtil {
         gkeyMapping,
         Some(aggregates.indices.map(_ + groupings.length).toArray),
         constantFlags,
+        distinctAggregatesFlags,
         outputType.getFieldCount,
         needRetract,
         needMerge = true,
@@ -845,6 +883,7 @@ object AggregateUtil {
         groupings,
         None,
         constantFlags,
+        distinctAggregatesFlags,
         outputType.getFieldCount,
         needRetract,
         needMerge = false,
@@ -928,6 +967,10 @@ object AggregateUtil {
     val aggMapping = aggregates.indices.toArray
     val outputArity = aggregates.length
 
+    // remove when distinct is supported
+    val distinctAggregatesFlags = new Array[Boolean](aggregates.size)
+    for(i <- aggregates.indices) distinctAggregatesFlags(i)=false
+    
     val genFunction = generator.generateAggregations(
       "GroupingWindowAggregateHelper",
       generator,
@@ -939,6 +982,7 @@ object AggregateUtil {
       Array(), // no fields are forwarded
       None,
       None,
+      distinctAggregatesFlags,
       outputArity,
       needRetract,
       needMerge,
