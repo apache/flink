@@ -72,6 +72,14 @@ public class MesosTaskManagerParameters {
 		key("mesos.constraints.hard.hostattribute")
 			.noDefaultValue();
 
+	public static final ConfigOption<String> MESOS_TM_HOSTNAME =
+			key(ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_HOSTNAME)
+					.noDefaultValue();
+
+	public static final ConfigOption<String> MESOS_TM_BOOTSTRAP_CMD =
+			key(ConfigConstants.MESOS_RESOURCEMANAGER_TASKS_BOOTSTRAP_CMD)
+					.noDefaultValue();
+
 	/**
 	 * Value for {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE} setting. Tells to use the Mesos containerizer.
 	 */
@@ -93,13 +101,20 @@ public class MesosTaskManagerParameters {
 	
 	private final List<ConstraintEvaluator> constraints;
 
+	private final Option<String> bootstrapCommand;
+
+	private final Option<String> taskManagerHostName;
+
+
 	public MesosTaskManagerParameters(
 			double cpus,
 			ContainerType containerType,
 			Option<String> containerImageName,
 			ContaineredTaskManagerParameters containeredParameters,
 			List<Protos.Volume> containerVolumes,
-			List<ConstraintEvaluator> constraints) {
+			List<ConstraintEvaluator> constraints,
+			Option<String> bootstrapCommand,
+			Option<String> taskManagerHostName) {
 
 		this.cpus = cpus;
 		this.containerType = Preconditions.checkNotNull(containerType);
@@ -107,6 +122,8 @@ public class MesosTaskManagerParameters {
 		this.containeredParameters = Preconditions.checkNotNull(containeredParameters);
 		this.containerVolumes = Preconditions.checkNotNull(containerVolumes);
 		this.constraints = Preconditions.checkNotNull(constraints);
+		this.bootstrapCommand = bootstrapCommand;
+		this.taskManagerHostName = taskManagerHostName;
 	}
 
 
@@ -154,6 +171,16 @@ public class MesosTaskManagerParameters {
 		return constraints;
 	}
 
+	/*
+ 	 * Get the taskManager hostname.
+ 	 */
+	public Option<String> taskManagerHostName() { return taskManagerHostName; }
+
+	/**
+ 	 * Get the bootstrap command.
+ 	 */
+	public Option<String> bootstrapCommand() { return bootstrapCommand;	}
+
 	@Override
 	public String toString() {
 		return "MesosTaskManagerParameters{" +
@@ -163,6 +190,8 @@ public class MesosTaskManagerParameters {
 			", containeredParameters=" + containeredParameters +
 			", containerVolumes=" + containerVolumes +
 			", constraints=" + constraints +
+			", taskManagerHostName=" + taskManagerHostName +
+			", bootstrapCommand=" + bootstrapCommand +
 			'}';
 	}
 
@@ -208,13 +237,21 @@ public class MesosTaskManagerParameters {
 
 		List<Protos.Volume> containerVolumes = buildVolumes(containerVolOpt);
 
+		//obtain Task Manager Host Name from the configuration
+		Option<String> tmHostName = Option.apply(flinkConfig.getString(MESOS_TM_HOSTNAME));
+
+		//obtain bootstrap command from the configuration
+		Option<String> tmBootstrapCommand = Option.apply(flinkConfig.getString(MESOS_TM_BOOTSTRAP_CMD));
+
 		return new MesosTaskManagerParameters(
 			cpus,
 			containerType,
 			Option.apply(imageName),
-			containeredParameters,			
+			containeredParameters,
 			containerVolumes,
-			constraints);
+			constraints,
+			tmBootstrapCommand,
+			tmHostName);
 	}
 
 	private static List<ConstraintEvaluator> parseConstraints(String mesosConstraints) {
