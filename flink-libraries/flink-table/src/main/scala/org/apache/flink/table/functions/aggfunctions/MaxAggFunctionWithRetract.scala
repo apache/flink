@@ -25,6 +25,9 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, TupleTypeInfo}
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.typeutils.TypeCoercion
+
+import scala.reflect.ClassTag
 
 /** The initial accumulator for Max with retraction aggregate function */
 class MaxWithRetractAccumulator[T] extends JTuple2[T, JHashMap[T, Long]]
@@ -34,7 +37,7 @@ class MaxWithRetractAccumulator[T] extends JTuple2[T, JHashMap[T, Long]]
   *
   * @tparam T the type for the aggregation result
   */
-abstract class MaxWithRetractAggFunction[T](implicit ord: Ordering[T])
+abstract class MaxWithRetractAggFunction[T](implicit ord: Ordering[T], t: ClassTag[T])
   extends AggregateFunction[T, MaxWithRetractAccumulator[T]] {
 
   override def createAccumulator(): MaxWithRetractAccumulator[T] = {
@@ -142,7 +145,7 @@ abstract class MaxWithRetractAggFunction[T](implicit ord: Ordering[T])
 
   def getInitValue: T
 
-  def getValueTypeInfo: TypeInformation[_]
+  def getValueTypeInfo: TypeInformation[_] = TypeCoercion.getScalaPrimativeTypeInformation[T]
 }
 
 /**
@@ -150,7 +153,6 @@ abstract class MaxWithRetractAggFunction[T](implicit ord: Ordering[T])
   */
 class ByteMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Byte] {
   override def getInitValue: Byte = 0.toByte
-  override def getValueTypeInfo = BasicTypeInfo.BYTE_TYPE_INFO
 }
 
 /**
@@ -158,7 +160,6 @@ class ByteMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Byte] {
   */
 class ShortMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Short] {
   override def getInitValue: Short = 0.toShort
-  override def getValueTypeInfo = BasicTypeInfo.SHORT_TYPE_INFO
 }
 
 /**
@@ -166,7 +167,6 @@ class ShortMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Short] {
   */
 class IntMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Int] {
   override def getInitValue: Int = 0
-  override def getValueTypeInfo = BasicTypeInfo.INT_TYPE_INFO
 }
 
 /**
@@ -174,7 +174,6 @@ class IntMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Int] {
   */
 class LongMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Long] {
   override def getInitValue: Long = 0L
-  override def getValueTypeInfo = BasicTypeInfo.LONG_TYPE_INFO
 }
 
 /**
@@ -182,7 +181,6 @@ class LongMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Long] {
   */
 class FloatMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Float] {
   override def getInitValue: Float = 0.0f
-  override def getValueTypeInfo = BasicTypeInfo.FLOAT_TYPE_INFO
 }
 
 /**
@@ -190,7 +188,6 @@ class FloatMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Float] {
   */
 class DoubleMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Double] {
   override def getInitValue: Double = 0.0d
-  override def getValueTypeInfo = BasicTypeInfo.DOUBLE_TYPE_INFO
 }
 
 /**
@@ -198,7 +195,6 @@ class DoubleMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Double] 
   */
 class BooleanMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Boolean] {
   override def getInitValue: Boolean = false
-  override def getValueTypeInfo = BasicTypeInfo.BOOLEAN_TYPE_INFO
 }
 
 /**
@@ -206,7 +202,6 @@ class BooleanMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Boolean
   */
 class DecimalMaxWithRetractAggFunction extends MaxWithRetractAggFunction[BigDecimal] {
   override def getInitValue: BigDecimal = BigDecimal.ZERO
-  override def getValueTypeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO
 }
 
 /**
@@ -214,5 +209,4 @@ class DecimalMaxWithRetractAggFunction extends MaxWithRetractAggFunction[BigDeci
   */
 class StringMaxWithRetractAggFunction extends MaxWithRetractAggFunction[String] {
   override def getInitValue: String = ""
-  override def getValueTypeInfo = BasicTypeInfo.STRING_TYPE_INFO
 }

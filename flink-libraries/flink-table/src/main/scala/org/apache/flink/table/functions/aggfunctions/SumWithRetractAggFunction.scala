@@ -24,6 +24,9 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.typeutils.TypeCoercion
+
+import scala.reflect.ClassTag
 
 /** The initial accumulator for Sum with retract aggregate function */
 class SumWithRetractAccumulator[T] extends JTuple2[T, Long]
@@ -33,7 +36,7 @@ class SumWithRetractAccumulator[T] extends JTuple2[T, Long]
   *
   * @tparam T the type for the aggregation result
   */
-abstract class SumWithRetractAggFunction[T: Numeric]
+abstract class SumWithRetractAggFunction[T: Numeric](implicit t: ClassTag[T])
   extends AggregateFunction[T, SumWithRetractAccumulator[T]] {
 
   private val numeric = implicitly[Numeric[T]]
@@ -91,50 +94,38 @@ abstract class SumWithRetractAggFunction[T: Numeric]
       BasicTypeInfo.LONG_TYPE_INFO)
   }
 
-  def getValueTypeInfo: TypeInformation[_]
+  def getValueTypeInfo: TypeInformation[_] = TypeCoercion.getScalaPrimativeTypeInformation[T]
 }
 
 /**
   * Built-in Byte Sum with retract aggregate function
   */
-class ByteSumWithRetractAggFunction extends SumWithRetractAggFunction[Byte] {
-  override def getValueTypeInfo = BasicTypeInfo.BYTE_TYPE_INFO
-}
+class ByteSumWithRetractAggFunction extends SumWithRetractAggFunction[Byte]
 
 /**
   * Built-in Short Sum with retract aggregate function
   */
-class ShortSumWithRetractAggFunction extends SumWithRetractAggFunction[Short] {
-  override def getValueTypeInfo = BasicTypeInfo.SHORT_TYPE_INFO
-}
+class ShortSumWithRetractAggFunction extends SumWithRetractAggFunction[Short]
 
 /**
   * Built-in Int Sum with retract aggregate function
   */
-class IntSumWithRetractAggFunction extends SumWithRetractAggFunction[Int] {
-  override def getValueTypeInfo = BasicTypeInfo.INT_TYPE_INFO
-}
+class IntSumWithRetractAggFunction extends SumWithRetractAggFunction[Int]
 
 /**
   * Built-in Long Sum with retract aggregate function
   */
-class LongSumWithRetractAggFunction extends SumWithRetractAggFunction[Long] {
-  override def getValueTypeInfo = BasicTypeInfo.LONG_TYPE_INFO
-}
+class LongSumWithRetractAggFunction extends SumWithRetractAggFunction[Long]
 
 /**
   * Built-in Float Sum with retract aggregate function
   */
-class FloatSumWithRetractAggFunction extends SumWithRetractAggFunction[Float] {
-  override def getValueTypeInfo = BasicTypeInfo.FLOAT_TYPE_INFO
-}
+class FloatSumWithRetractAggFunction extends SumWithRetractAggFunction[Float]
 
 /**
   * Built-in Double Sum with retract aggregate function
   */
-class DoubleSumWithRetractAggFunction extends SumWithRetractAggFunction[Double] {
-  override def getValueTypeInfo = BasicTypeInfo.DOUBLE_TYPE_INFO
-}
+class DoubleSumWithRetractAggFunction extends SumWithRetractAggFunction[Double]
 
 /** The initial accumulator for Big Decimal Sum with retract aggregate function */
 class DecimalSumWithRetractAccumulator extends JTuple2[BigDecimal, Long] {

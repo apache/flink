@@ -21,13 +21,15 @@ import java.math.BigDecimal
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 
+import scala.reflect.ClassTag
+
 /**
   * Base class for built-in Sum0 with retract aggregate function.
   * If all values are null, 0 is returned.
   *
   * @tparam T the type for the aggregation result
   */
-abstract class Sum0WithRetractAggFunction[T: Numeric] extends SumWithRetractAggFunction[T] {
+abstract class Sum0WithRetractAggFunction[T: Numeric](implicit t: ClassTag[T])extends SumWithRetractAggFunction[T] {
 
   override def getValue(acc: SumWithRetractAccumulator[T]): T = {
     if (acc.f1 > 0) {
@@ -41,44 +43,32 @@ abstract class Sum0WithRetractAggFunction[T: Numeric] extends SumWithRetractAggF
 /**
   * Built-in Byte Sum0 with retract aggregate function
   */
-class ByteSum0WithRetractAggFunction extends Sum0WithRetractAggFunction[Byte] {
-  override def getValueTypeInfo = BasicTypeInfo.BYTE_TYPE_INFO
-}
+class ByteSum0WithRetractAggFunction extends Sum0WithRetractAggFunction[Byte]
 
 /**
   * Built-in Short Sum0 with retract aggregate function
   */
-class ShortSum0WithRetractAggFunction extends Sum0WithRetractAggFunction[Short] {
-  override def getValueTypeInfo = BasicTypeInfo.SHORT_TYPE_INFO
-}
+class ShortSum0WithRetractAggFunction extends Sum0WithRetractAggFunction[Short]
 
 /**
   * Built-in Int Sum0 with retract aggregate function
   */
-class IntSum0WithRetractAggFunction extends Sum0WithRetractAggFunction[Int] {
-  override def getValueTypeInfo = BasicTypeInfo.INT_TYPE_INFO
-}
+class IntSum0WithRetractAggFunction extends Sum0WithRetractAggFunction[Int]
 
 /**
   * Built-in Long Sum0 with retract aggregate function
   */
-class LongSum0WithRetractAggFunction extends Sum0WithRetractAggFunction[Long] {
-  override def getValueTypeInfo = BasicTypeInfo.LONG_TYPE_INFO
-}
+class LongSum0WithRetractAggFunction extends Sum0WithRetractAggFunction[Long]
 
 /**
   * Built-in Float Sum0 with retract aggregate function
   */
-class FloatSum0WithRetractAggFunction extends Sum0WithRetractAggFunction[Float] {
-  override def getValueTypeInfo = BasicTypeInfo.FLOAT_TYPE_INFO
-}
+class FloatSum0WithRetractAggFunction extends Sum0WithRetractAggFunction[Float]
 
 /**
   * Built-in Double Sum0 with retract aggregate function
   */
-class DoubleSum0WithRetractAggFunction extends Sum0WithRetractAggFunction[Double] {
-  override def getValueTypeInfo = BasicTypeInfo.DOUBLE_TYPE_INFO
-}
+class DoubleSum0WithRetractAggFunction extends Sum0WithRetractAggFunction[Double]
 
 /**
   * Built-in Big Decimal Sum0 with retract aggregate function
