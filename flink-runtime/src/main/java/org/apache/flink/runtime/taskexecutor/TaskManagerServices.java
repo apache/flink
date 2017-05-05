@@ -388,7 +388,7 @@ public class TaskManagerServices {
 			networkEnvironmentConfiguration.partitionRequestInitialBackoff(),
 			networkEnvironmentConfiguration.partitionRequestMaxBackoff(),
 			networkEnvironmentConfiguration.networkBuffersPerChannel(),
-			networkEnvironmentConfiguration.extraNetworkBuffersPerGate());
+			networkEnvironmentConfiguration.floatingNetworkBuffersPerGate());
 	}
 
 	/**
