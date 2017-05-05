@@ -108,6 +108,14 @@ public class JobManagerOptions {
 		.defaultValue(8081);
 
 	/**
+	 * The config parameter defining the Access-Control-Allow-Origin header for all
+	 * responses from the web-frontend.
+	 */
+	public static final ConfigOption<String> WEB_ACCESS_CONTROL_ALLOW_ORIGIN =
+		key("jobmanager.web.access-control-allow-origin")
+			.defaultValue("*");
+
+	/**
 	 * Config parameter to override SSL support for the JobManager Web UI
 	 */
 	public static final ConfigOption<Boolean> WEB_SSL_ENABLED =
