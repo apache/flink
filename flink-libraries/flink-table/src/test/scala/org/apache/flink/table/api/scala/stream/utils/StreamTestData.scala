@@ -45,11 +45,11 @@ object StreamTestData {
   }
 
   def getSmall3TupleDataStreamWithPArray(env: StreamExecutionEnvironment)
-    : DataStream[(Int, Array[Short], Array[String])] = {
-    val data = new mutable.MutableList[(Int, Array[Short], Array[String])]
-    data.+=((1, Array(12, 45), Array("hello", "world")))
-    data.+=((2, Array(41, 5), Array("abcd", "efgh")))
-    data.+=((3, Array(18, 42), Array("hijk", "lmn")))
+    : DataStream[(Int, Array[Short], Array[Array[Int]])] = {
+    val data = new mutable.MutableList[(Int, Array[Short], Array[Array[Int]])]
+    data.+=((1, Array(12, 45), Array(Array(12, 45))))
+    data.+=((2, Array(41, 5), Array(Array(18), Array(87))))
+    data.+=((3, Array(18, 42), Array(Array(1), Array(45))))
 
     env.fromCollection(data)
   }

@@ -97,13 +97,15 @@ object FlinkRuleSets {
     PushProjectIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
 
+    // Unnest rule
+    LogicalUnnestRule.INSTANCE,
+
     // translate to flink logical rel nodes
     FlinkLogicalAggregate.CONVERTER,
     FlinkLogicalWindowAggregate.CONVERTER,
     FlinkLogicalOverWindow.CONVERTER,
     FlinkLogicalCalc.CONVERTER,
     FlinkLogicalCorrelate.CONVERTER,
-    FlinkLogicalUncollect.CONVERTER,
     FlinkLogicalIntersect.CONVERTER,
     FlinkLogicalJoin.CONVERTER,
     FlinkLogicalMinus.CONVERTER,
@@ -181,7 +183,6 @@ object FlinkRuleSets {
     DataStreamUnionRule.INSTANCE,
     DataStreamValuesRule.INSTANCE,
     DataStreamCorrelateRule.INSTANCE,
-    DataStreamCorrelateUnnestRule.INSTANCE,
     StreamTableSourceScanRule.INSTANCE
   )
 

@@ -26,7 +26,7 @@ import scala.util.Random
 /**
  * #################################################################################################
  *
- * BE AWARE THAT OTHER TESTS DEPEND ON THIS TEST DATA. 
+ * BE AWARE THAT OTHER TESTS DEPEND ON THIS TEST DATA.
  * IF YOU MODIFY THE DATA MAKE SURE YOU CHECK THAT ALL TESTS ARE STILL WORKING!
  *
  * #################################################################################################
@@ -66,6 +66,25 @@ object CollectionDataSets {
     data.+=((3, 2L, "Hello world"))
     env.fromCollection(Random.shuffle(data))
   }
+
+  def getSmall3TupleDataSetWithArray(env: ExecutionEnvironment)
+    : DataSet[(Int, Long, Array[String])] = {
+    val data = new mutable.MutableList[(Int, Long, Array[String])]
+    data.+=((1, 1L, Array("Hi", "w")))
+    data.+=((2, 2L, Array("Hello", "k")))
+    data.+=((3, 2L, Array("Hello world", "x")))
+    env.fromCollection(Random.shuffle(data))
+  }
+
+  def getSmall3TupleDataSetWithTupleArray(env: ExecutionEnvironment)
+    : DataSet[(Int, Array[Tuple2[Int, String]])] = {
+    val data = new mutable.MutableList[(Int, Array[Tuple2[Int, String]])]
+    data.+=((1, Array((12, "45.6"), (12, "45.612"))))
+    data.+=((2, Array((13, "41.6"), (14, "45.2136"))))
+    data.+=((3, Array((18, "42.6"))))
+    env.fromCollection(Random.shuffle(data))
+  }
+
 
   def get5TupleDataSet(env: ExecutionEnvironment): DataSet[(Int, Long, Int, String, Long)] = {
     val data = new mutable.MutableList[(Int, Long, Int, String, Long)]

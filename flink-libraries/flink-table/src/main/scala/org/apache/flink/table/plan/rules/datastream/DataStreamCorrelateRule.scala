@@ -17,13 +17,9 @@
  */
 package org.apache.flink.table.plan.rules.datastream
 
-import java.util
-
-import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.{RelDataTypeFieldImpl, RelRecordType, StructKind}
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.table.plan.nodes.FlinkConventions

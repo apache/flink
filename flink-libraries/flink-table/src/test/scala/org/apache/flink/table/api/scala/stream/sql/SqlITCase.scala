@@ -96,6 +96,31 @@ class SqlITCase extends StreamingWithStateTestBase {
   }
 
   @Test
+  def testUnnestArrayOfArrayFromTable(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val sqlQuery = "SELECT a, s FROM MyTable as mt, UNNEST(mt.c) as T(s)"
+
+    val t = StreamTestData.getSmall3TupleDataStreamWithPArray(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,[12, 45]",
+      "2,[18]",
+      "2,[87]",
+      "3,[1]",
+      "3,[45]")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
   def testUnnestObjectArrayFromTableWithFilter(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
