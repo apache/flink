@@ -177,16 +177,17 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 *
 	 * <p>The configuration snapshot should contain information about the serializer's parameter settings and its
 	 * serialization format. When a new serializer is registered to serialize the same managed state that this
-	 * serializer was registered to, the returned configuration snapshot can be used to reconfigure the new serializer
-	 * so that it may be compatible (i.e., the new serializer is capable of reading data written by this serializer).
+	 * serializer was registered to, the returned configuration snapshot can be used to check with the new serializer
+	 * if any data migration needs to take place.
 	 *
 	 * <p>Implementations can also return the singleton {@link ForwardCompatibleSerializationFormatConfig#INSTANCE}
 	 * configuration if they guarantee forwards compatibility. For example, implementations that use serialization
-	 * frameworks with built-in serialization compatibility, such as <a href=>Thrift</a> or <a href=> Protobuf</a>,
-	 * is suitable for this usage pattern. By returning the {@link ForwardCompatibleSerializationFormatConfig#INSTANCE},
-	 * this informs Flink that when managed state serialized using this serializer is restored, there is no need to
-	 * check compatibility of the new serializer for the same state. In other words, new serializers are always assumed
-	 * to be fully compatible for the serialized state.
+	 * frameworks with built-in serialization compatibility, such as <a href=https://thrift.apache.org/>Thrift</a> or
+	 * <a href=https://developers.google.com/protocol-buffers/>Protobuf</a>, is suitable for this usage pattern. By
+	 * returning the {@link ForwardCompatibleSerializationFormatConfig#INSTANCE}, this informs Flink that when managed
+	 * state serialized using this serializer is restored, there is no need to check for migration with the new
+	 * serializer for the same state. In other words, new serializers are always assumed to be fully compatible for the
+	 * serialized state.
 	 *
 	 * @see TypeSerializerConfigSnapshot
 	 * @see ForwardCompatibleSerializationFormatConfig
@@ -196,59 +197,62 @@ public abstract class TypeSerializer<T> implements Serializable {
 	public abstract TypeSerializerConfigSnapshot snapshotConfiguration();
 
 	/**
-	 * Reconfigure this serializer with the configuration snapshot of a preceding serializer that was registered
-	 * for serialization of the same managed state (if any - this method is only relevant if this serializer is
-	 * registered for serialization of managed state).
+	 * Get the migration strategy to use this serializer based on the configuration snapshot of a preceding
+	 * serializer that was registered for serialization of the same managed state (if any - this method is only
+	 * relevant if this serializer is registered for serialization of managed state).
 	 *
-	 * <p>Implementations need to return the result of the reconfiguration. The result can be one of the following:
+	 * <p>Implementations need to return the resolved migration strategy. The strategy can be one of the following:
 	 * <ul>
-	 *     <li>{@link ReconfigureResult#COMPATIBLE}: this serializer has been reconfigured to be compatible with its
-	 *     predecessor, and the serialization schema remains the same.</li>
+	 *     <li>{@link MigrationStrategy#noMigration()}: this signals Flink that this serializer is compatible, or
+	 *     has been reconfigured to be compatible, to continue reading old data, and that the
+	 *     serialization schema remains the same. No migration needs to be performed.</li>
 	 *
-	 *     <li>{@link ReconfigureResult#COMPATIBLE_NEW_SCHEMA}: this serializer is reconfigured to be compatible with
-	 *     its predecessor, but has a new serialization schema.</li>
+	 *     <li>{@link MigrationStrategy#migrateWithFallbackDeserializer(TypeSerializer)}: this signals Flink that
+	 *     migration needs to be performed, because this serializer is not compatible, or cannot be reconfigured to be
+	 *     compatible, for old data. Furthermore, in the case that the preceding serializer cannot be found or
+	 *     restored to read the old data, the provided fallback deserializer can be used.</li>
 	 *
-	 *     <li>{@link ReconfigureResult#INCOMPATIBLE}: this serializer cannot resolve the configuration of its
-	 *     predecessor, and therefore is not compatible for data written by the preceding serializer.</li>
+	 *     <li>{@link MigrationStrategy#migrate()}: this signals Flink that migration needs to be performed, because
+	 *     this serializer is not compatible, or cannot be reconfigured to be compatible, for old data.</li>
 	 * </ul>
 	 *
 	 * <p>This method is guaranteed to only be invoked if the preceding serializer's configuration snapshot is not the
 	 * singleton {@link ForwardCompatibleSerializationFormatConfig#INSTANCE} configuration. In such cases, Flink always
-	 * assume that the reconfiguration result is {@link ReconfigureResult#COMPATIBLE}.
+	 * assume that the migration strategy is {@link MigrationStrategy#migrate()}.
 	 *
-	 * @see ReconfigureResult
+	 * @see MigrationStrategy
 	 *
 	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
 	 *
 	 * @return the result of the reconfiguration.
 	 */
-	protected abstract ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot);
+	protected abstract MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot);
 
 	/**
-	 * Reconfigure this serializer with the configuration snapshot of a preceding serializer that was registered
-	 * for serialization of the same managed state (if any - this method is only relevant if this serializer is
-	 * registered for serialization of managed state).
+	 * Get the migration strategy to use this serializer based on the configuration snapshot of a preceding
+	 * serializer that was registered for serialization of the same managed state (if any - this method is only
+	 * relevant if this serializer is registered for serialization of managed state).
 	 *
 	 * <p>This method is not part of the public user-facing API, and cannot be overriden. External operations
 	 * providing a configuration snapshot of preceding serializer can only do so through this method.
 	 *
-	 * <p>This method always assumes that the reconfiguration result is {@link ReconfigureResult#COMPATIBLE} if
+	 * <p>This method always assumes that the migration strategy is {@link MigrationStrategy#noMigration()} if
 	 * the provided configuration snapshot is the singleton {@link ForwardCompatibleSerializationFormatConfig#INSTANCE}.
 	 * Otherwise, the configuration snapshot is provided to the actual
-	 * {@link #reconfigure(TypeSerializerConfigSnapshot)} implementation.
+	 * {@link #getMigrationStrategy(TypeSerializerConfigSnapshot)} (TypeSerializerConfigSnapshot)} implementation.
 	 *
 	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
 	 *
 	 * @return the result of the reconfiguration.
 	 */
 	@Internal
-	public final ReconfigureResult reconfigureWith(TypeSerializerConfigSnapshot configSnapshot) {
+	public final MigrationStrategy getMigrationStrategyFor(TypeSerializerConfigSnapshot configSnapshot) {
 		// reference equality is viable here, because the forward compatible
 		// marker config will always be explicitly restored with the singleton instance
 		if (configSnapshot != ForwardCompatibleSerializationFormatConfig.INSTANCE) {
-			return reconfigure(configSnapshot);
+			return getMigrationStrategy(configSnapshot);
 		} else {
-			return ReconfigureResult.COMPATIBLE;
+			return MigrationStrategy.noMigration();
 		}
 	}
 }

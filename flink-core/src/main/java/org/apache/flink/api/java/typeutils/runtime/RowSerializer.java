@@ -19,7 +19,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
@@ -257,13 +257,39 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	}
 
 	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof RowSerializerConfigSnapshot) {
-			return TypeSerializerUtil.reconfigureMultipleSerializers(
-					((RowSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots(), fieldSerializers);
-		} else {
-			return ReconfigureResult.INCOMPATIBLE;
+			TypeSerializerConfigSnapshot[] fieldSerializerConfigSnapshots =
+				((RowSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
+
+			if (fieldSerializerConfigSnapshots.length == fieldSerializers.length) {
+				boolean requireMigration = false;
+				TypeSerializer<?>[] fallbackFieldSerializers = new TypeSerializer<?>[fieldSerializers.length];
+
+				MigrationStrategy strategy;
+				for (int i = 0; i < fieldSerializers.length; i++) {
+					strategy = fieldSerializers[i].getMigrationStrategyFor(fieldSerializerConfigSnapshots[i]);
+					if (strategy.requireMigration()) {
+						requireMigration = true;
+
+						if (strategy.getFallbackDeserializer() == null) {
+							// one of the field serializers cannot provide a fallback deserializer
+							return MigrationStrategy.migrate();
+						} else {
+							fallbackFieldSerializers[i] = strategy.getFallbackDeserializer();
+						}
+					}
+				}
+
+				if (requireMigration) {
+					return MigrationStrategy.migrateWithFallbackDeserializer(new RowSerializer(fallbackFieldSerializers));
+				} else {
+					return MigrationStrategy.noMigration();
+				}
+			}
 		}
+
+		return MigrationStrategy.migrate();
 	}
 
 	public static final class RowSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {

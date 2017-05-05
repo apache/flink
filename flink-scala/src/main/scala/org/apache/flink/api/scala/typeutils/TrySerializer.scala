@@ -110,17 +110,26 @@ class TrySerializer[A](
         throwableSerializer.snapshotConfiguration())
   }
 
-  override protected def reconfigure(
-      configSnapshot: TypeSerializerConfigSnapshot): ReconfigureResult = {
+  override protected def getMigrationStrategy(
+      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy = {
 
     configSnapshot match {
       case trySerializerConfigSnapshot: TrySerializer.TrySerializerConfigSnapshot =>
-        TypeSerializerUtil.reconfigureMultipleSerializers(
-          trySerializerConfigSnapshot.getNestedSerializerConfigSnapshots,
-          elemSerializer,
-          throwableSerializer
-        )
-      case _ => ReconfigureResult.INCOMPATIBLE
+        val serializerConfigSnapshots =
+          trySerializerConfigSnapshot.getNestedSerializerConfigSnapshots
+
+        val elemStrategy =
+          elemSerializer.getMigrationStrategyFor(serializerConfigSnapshots(0))
+        val throwableStrategy =
+          throwableSerializer.getMigrationStrategyFor(serializerConfigSnapshots(1))
+
+        if (elemStrategy.requireMigration() || throwableStrategy.requireMigration()) {
+          MigrationStrategy.migrate
+        } else {
+          MigrationStrategy.noMigration
+        }
+
+      case _ => MigrationStrategy.migrate
     }
   }
 }

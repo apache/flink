@@ -20,8 +20,7 @@ package org.apache.flink.runtime.operators.testutils.types;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.ForwardCompatibleSerializationFormatConfig;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -114,7 +113,7 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 	}
 
 	@Override
-	protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException();
 	}
 }

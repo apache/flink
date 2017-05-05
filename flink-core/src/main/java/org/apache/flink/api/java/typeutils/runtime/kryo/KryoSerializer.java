@@ -28,7 +28,7 @@ import org.apache.avro.generic.GenericData;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
@@ -394,40 +394,38 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof KryoSerializerConfigSnapshot) {
 			final KryoSerializerConfigSnapshot<T> config = (KryoSerializerConfigSnapshot<T>) configSnapshot;
 
 			if (type.equals(config.getTypeClass())) {
-				LinkedHashMap<String, KryoRegistration> oldRegistrations = config.getKryoRegistrations();
+				LinkedHashMap<String, KryoRegistration> reconfiguredRegistrations = config.getKryoRegistrations();
 
 				// reconfigure by assuring that classes which were previously registered are registered
 				// again in the exact same order; new class registrations will be appended.
 				// this also overwrites any dummy placeholders that the restored old configuration has
-				oldRegistrations.putAll(kryoRegistrations);
-				this.kryoRegistrations = oldRegistrations;
+				reconfiguredRegistrations.putAll(kryoRegistrations);
 
 				// check if there is still any dummy placeholders even after reconfiguration;
 				// if so, then this new Kryo serializer cannot read old data and is therefore incompatible
-				for (Map.Entry<String, KryoRegistration> reconfiguredRegistrationEntry : kryoRegistrations.entrySet()) {
+				for (Map.Entry<String, KryoRegistration> reconfiguredRegistrationEntry : reconfiguredRegistrations.entrySet()) {
 					if (reconfiguredRegistrationEntry.getValue().isDummy()) {
 						LOG.warn("The Kryo registration for a previously registered class {} does not have a " +
 							"proper serializer, because its previous serializer cannot be loaded or is no " +
 							"longer valid but a new serializer is not available", reconfiguredRegistrationEntry.getKey());
 
-						return ReconfigureResult.INCOMPATIBLE;
+						return MigrationStrategy.migrate();
 					}
 				}
 
 				// there's actually no way to tell if new Kryo serializers are compatible with
 				// the previous ones they overwrite; we can only signal compatibly and hope for the best
-				return ReconfigureResult.COMPATIBLE;
+				this.kryoRegistrations = reconfiguredRegistrations;
+				return MigrationStrategy.noMigration();
 			}
 		}
 
-		// ends up here if the preceding serializer was not the KryoSerializer,
-		// or if the serialized data type has changed
-		return ReconfigureResult.INCOMPATIBLE;
+		return MigrationStrategy.migrate();
 	}
 
 	public static final class KryoSerializerConfigSnapshot<T> extends KryoRegistrationSerializerConfigSnapshot<T> {

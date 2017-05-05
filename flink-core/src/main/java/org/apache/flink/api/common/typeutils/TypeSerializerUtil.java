@@ -34,36 +34,6 @@ import java.io.IOException;
 public class TypeSerializerUtil {
 
 	/**
-	 * Utility method to reconfigure multiple serializers with multiple configuration snapshots.
-	 * The final reconfiguration result is derived from the result of all reconfigurations.
-	 * All serializers will be reconfigured regardless of the final reconfiguration result.
-	 *
-	 * @param configSnapshots the configuration snapshots to reconfigure with.
-	 * @param serializers the serializers to reconfigure, in the exact same order as their corresponding
-	 *                    targeted configuration snapshots.
-	 *
-	 * @return the final reconfiguration result, derived from the result of all reconfigurations.
-	 */
-	public static ReconfigureResult reconfigureMultipleSerializers(
-			TypeSerializerConfigSnapshot[] configSnapshots,
-			TypeSerializer<?>... serializers) {
-
-		Preconditions.checkArgument(serializers.length == configSnapshots.length);
-
-		// start with COMPATIBLE, which has lowest result precedence; will be overwritten
-		// with results of higher precedence if encountered during the reconfiguration process
-		ReconfigureResult finalReconfigurationResult = ReconfigureResult.COMPATIBLE;
-
-		for (int i = 0; i < configSnapshots.length; i++) {
-			finalReconfigurationResult = ReconfigureResult.resolvePrecedence(
-					finalReconfigurationResult,
-					serializers[i].reconfigureWith(configSnapshots[i]));
-		}
-
-		return finalReconfigurationResult;
-	}
-
-	/**
 	 * Creates an array of {@link TypeSerializerConfigSnapshot}s taken
 	 * from the provided array of {@link TypeSerializer}s.
 	 *

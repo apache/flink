@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.typeutils
 import java.io.ObjectInputStream
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{ReconfigureResult, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils.{MigrationStrategy, TypeSerializer, TypeSerializerConfigSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 import scala.collection.generic.CanBuildFrom
@@ -155,8 +155,8 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
     throw new UnsupportedOperationException()
   }
 
-  override protected def reconfigure(
-      configSnapshot: TypeSerializerConfigSnapshot): ReconfigureResult = {
+  override protected def getMigrationStrategy(
+      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy = {
     throw new UnsupportedOperationException()
   }
 }

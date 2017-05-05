@@ -20,7 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 
@@ -59,14 +59,14 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 	}
 
 	@Override
-	protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	public MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof ParameterlessTypeSerializerConfig
 				&& isCompatibleSerializationFormatIdentifier(
 						((ParameterlessTypeSerializerConfig) configSnapshot).getSerializationFormatIdentifier())) {
 
-			return ReconfigureResult.COMPATIBLE;
+			return MigrationStrategy.noMigration();
 		} else {
-			return ReconfigureResult.INCOMPATIBLE;
+			return MigrationStrategy.migrate();
 		}
 	}
 

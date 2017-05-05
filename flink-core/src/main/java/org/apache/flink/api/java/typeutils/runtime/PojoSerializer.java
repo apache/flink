@@ -33,9 +33,8 @@ import java.util.Objects;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
@@ -71,7 +70,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	 * handled with the {@link #readObject(ObjectInputStream)} and {@link #writeObject(ObjectOutputStream)}
 	 * methods.
 	 *
-	 * <p>These may be reconfigured in {@link #reconfigure(TypeSerializerConfigSnapshot)}.
+	 * <p>These may be reconfigured in {@link #getMigrationStrategy(TypeSerializerConfigSnapshot)}.
 	 */
 	private transient Field[] fields;
 	private TypeSerializer<Object>[] fieldSerializers;
@@ -81,7 +80,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	 * Registered subclasses and their serializers.
 	 * Each subclass to their registered class tag is maintained as a separate map ordered by the class tag.
 	 *
-	 * <p>These may be reconfigured in {@link #reconfigure(TypeSerializerConfigSnapshot)}.
+	 * <p>These may be reconfigured in {@link #getMigrationStrategy(TypeSerializerConfigSnapshot)}.
 	 */
 	private LinkedHashMap<Class<?>, Integer> registeredClasses;
 	private TypeSerializer<?>[] registeredSerializers;
@@ -90,7 +89,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	 * Cache of non-registered subclasses to their serializers, created on-the-fly.
 	 *
 	 * <p>This cache is persisted and will be repopulated with reconfigured serializers
-	 * in {@link #reconfigure(TypeSerializerConfigSnapshot)}.
+	 * in {@link #getMigrationStrategy(TypeSerializerConfigSnapshot)}.
 	 */
 	private transient HashMap<Class<?>, TypeSerializer<?>> subclassSerializerCache;
 
@@ -101,7 +100,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	 *
 	 * <p>Nested serializers created using this will have the most up-to-date configuration,
 	 * and can be resolved for backwards compatibility with previous configuration
-	 * snapshots in {@link #reconfigure(TypeSerializerConfigSnapshot)}.
+	 * snapshots in {@link #getMigrationStrategy(TypeSerializerConfigSnapshot)}.
 	 */
 	private final ExecutionConfig executionConfig;
 
@@ -555,24 +554,22 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	public MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof PojoSerializerConfigSnapshot) {
 			final PojoSerializerConfigSnapshot<T> config = (PojoSerializerConfigSnapshot<T>) configSnapshot;
 
 			if (clazz.equals(config.getTypeClass())) {
-
 				if (this.numFields == config.getFieldToSerializerConfigSnapshot().size()) {
 
-					// start with COMPATIBLE, which has lowest result precedence; will be overwritten
-					// with results of higher precedence if encountered during the reconfiguration process
-					ReconfigureResult finalReconfigurationResult = ReconfigureResult.COMPATIBLE;
+					MigrationStrategy strategy;
 
-					// ------------------ reconfigure fields and field serializers ------------------
-					// reorder fields in case ordering has changed and reconfigure their serializers
+					// ----------- check field order and migration requirement of field serializers -----------
 
+					// reordered fields and their serializers;
+					// this won't be applied to this serializer until all migration checks have been completed
 					final Field[] reorderedFields = new Field[this.numFields];
 					final TypeSerializer<Object>[] reorderedFieldSerializers =
-							(TypeSerializer<Object>[]) new TypeSerializer<?>[this.numFields];
+						(TypeSerializer<Object>[]) new TypeSerializer<?>[this.numFields];
 
 					int i = 0;
 					for (Map.Entry<Field, TypeSerializerConfigSnapshot> fieldToConfigSnapshotEntry
@@ -580,88 +577,91 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 						int fieldIndex = findField(fieldToConfigSnapshotEntry.getKey());
 						if (fieldIndex != -1) {
-							// reconfigure the field's serializer (which was created using the
-							// up-to-date configuration) and restablish reconfiguration result
-							finalReconfigurationResult = ReconfigureResult.resolvePrecedence(
-									finalReconfigurationResult,
-									this.fieldSerializers[fieldIndex]
-										.reconfigureWith(fieldToConfigSnapshotEntry.getValue()));
-
 							reorderedFields[i] = fieldToConfigSnapshotEntry.getKey();
-							reorderedFieldSerializers[i] = this.fieldSerializers[fieldIndex];
+
+							strategy = fieldSerializers[fieldIndex].getMigrationStrategyFor(fieldToConfigSnapshotEntry.getValue());
+							if (strategy.requireMigration()) {
+								return MigrationStrategy.migrate();
+							} else {
+								reorderedFieldSerializers[i] = fieldSerializers[fieldIndex];
+							}
 						} else {
-							// the Pojo does not contain the field; we should never reach here because
-							// the config snapshot would have failed to be restored in the first place
-							return ReconfigureResult.INCOMPATIBLE;
+							return MigrationStrategy.migrate();
 						}
 
 						i++;
 					}
 
-					// replace with reordered fields and their reconfigured serializers
-					this.fields = reorderedFields;
-					this.fieldSerializers = reorderedFieldSerializers;
+					// ---- check subclass registration order and migration requirement of registered serializers ----
 
-					// ------------------ reconfigure registered subclass ordering and serializers ------------------
-					// reorder registrations so that class tags are compatible and reconfigure the subclass serializers
+					// reordered subclass registrations and their serializers;
+					// this won't be applied to this serializer until all migration checks have been completed
+					final LinkedHashMap<Class<?>, Integer> reorderedRegisteredSubclassesToClasstags;
+					final TypeSerializer<?>[] reorderedRegisteredSubclassSerializers;
 
 					final LinkedHashMap<Class<?>, TypeSerializerConfigSnapshot> previousRegistrations =
-							config.getRegisteredSubclassesToSerializerConfigSnapshots();
+						config.getRegisteredSubclassesToSerializerConfigSnapshots();
 
 					// the reconfigured list of registered subclasses will be the previous registered
 					// subclasses in the original order with new subclasses appended at the end
-					LinkedHashSet<Class<?>> reconfiguredRegisteredSubclasses = new LinkedHashSet<>();
-					reconfiguredRegisteredSubclasses.addAll(previousRegistrations.keySet());
-					reconfiguredRegisteredSubclasses.addAll(
-							getRegisteredSubclassesFromExecutionConfig(clazz, executionConfig));
+					LinkedHashSet<Class<?>> reorderedRegisteredSubclasses = new LinkedHashSet<>();
+					reorderedRegisteredSubclasses.addAll(previousRegistrations.keySet());
+					reorderedRegisteredSubclasses.addAll(
+						getRegisteredSubclassesFromExecutionConfig(clazz, executionConfig));
 
-					// restablish the registered class tags and serializers (first with the up-to-date configuration)
-					this.registeredClasses = createRegisteredSubclassTags(reconfiguredRegisteredSubclasses);
-					this.registeredSerializers = createRegisteredSubclassSerializers(
-							reconfiguredRegisteredSubclasses, executionConfig);
+					// restablish the registered class tags and serializers
+					reorderedRegisteredSubclassesToClasstags = createRegisteredSubclassTags(reorderedRegisteredSubclasses);
+					reorderedRegisteredSubclassSerializers = createRegisteredSubclassSerializers(
+						reorderedRegisteredSubclasses, executionConfig);
 
-					// reconfigure serializers of previous registrations
 					i = 0;
 					for (TypeSerializerConfigSnapshot previousRegisteredSerializerConfig : previousRegistrations.values()) {
-						// reconfigure the registration's serializer and restablish reconfiguration result
-						finalReconfigurationResult = ReconfigureResult.resolvePrecedence(
-								finalReconfigurationResult,
-								this.registeredSerializers[i].reconfigureWith(previousRegisteredSerializerConfig));
+						// check migration requirement of subclass serializer
+						strategy = reorderedRegisteredSubclassSerializers[i].getMigrationStrategyFor(previousRegisteredSerializerConfig);
+						if (strategy.requireMigration()) {
+							return MigrationStrategy.migrate();
+						}
 
 						i++;
 					}
 
 					// ------------------ reconfigure non-registered subclass serializers ------------------
-					// eagerly reconfigure subclass serializers and repopulate cache; doing this eagerly
-					// allow us to pre-determine whether there is compatibility issues with subclass serializers
 
-					final HashMap<Class<?>, TypeSerializerConfigSnapshot> previousCachedSerializerConfigs =
-							config.getNonRegisteredSubclassesToSerializerConfigSnapshots();
-
-					// clear cache, so that all subclass serializers are recreated when we fetch from the cache
-					this.subclassSerializerCache.clear();
+					// the rebuilt cache for non-registered subclass serializers;
+					// this won't be applied to this serializer until all migration checks have been completed
+					HashMap<Class<?>, TypeSerializer<?>> rebuiltCache = new HashMap<>();
 
 					for (Map.Entry<Class<?>, TypeSerializerConfigSnapshot> previousCachedEntry
-							: previousCachedSerializerConfigs.entrySet()) {
+							: config.getNonRegisteredSubclassesToSerializerConfigSnapshots().entrySet()) {
 
-						// reconfigure the recreated subclass serializer and restablish reconfiguration result
-						finalReconfigurationResult = ReconfigureResult.resolvePrecedence(
-								finalReconfigurationResult,
-								getSubclassSerializer(previousCachedEntry.getKey())
-									.reconfigureWith(previousCachedEntry.getValue()));
+						// check migration requirement of cached subclass serializer
+						TypeSerializer<?> cachedSerializer = createSubclassSerializer(previousCachedEntry.getKey());
+
+						strategy = cachedSerializer.getMigrationStrategyFor(previousCachedEntry.getValue());
+						if (strategy.requireMigration()) {
+							return MigrationStrategy.migrate();
+						} else {
+							rebuiltCache.put(previousCachedEntry.getKey(), cachedSerializer);
+						}
 					}
 
-					// reconfiguration completed
-					return finalReconfigurationResult;
+					// completed migration checks; up to this point, we can just reconfigure
+					// the serializer so that migration is not required
+
+					this.fields = reorderedFields;
+					this.fieldSerializers = reorderedFieldSerializers;
+
+					this.registeredClasses = reorderedRegisteredSubclassesToClasstags;
+					this.registeredSerializers = reorderedRegisteredSubclassSerializers;
+
+					this.subclassSerializerCache = rebuiltCache;
+
+					return MigrationStrategy.noMigration();
 				}
 			}
 		}
 
-		// ends up here if:
-		//  - the preceding serializer was not a PojoSerializer,
-		//  - the Pojo type is different, or
-		//  - there are new fields in the Pojo.
-		return ReconfigureResult.INCOMPATIBLE;
+		return MigrationStrategy.migrate();
 	}
 
 	public static final class PojoSerializerConfigSnapshot<T> extends GenericTypeSerializerConfigSnapshot<T> {
@@ -932,17 +932,21 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	TypeSerializer<?> getSubclassSerializer(Class<?> subclass) {
 		TypeSerializer<?> result = subclassSerializerCache.get(subclass);
 		if (result == null) {
-
-			TypeInformation<?> typeInfo = TypeExtractor.createTypeInfo(subclass);
-			result = typeInfo.createSerializer(executionConfig);
-			if (result instanceof PojoSerializer) {
-				PojoSerializer<?> subclassSerializer = (PojoSerializer<?>) result;
-				subclassSerializer.copyBaseFieldOrder(this);
-			}
+			result = createSubclassSerializer(subclass);
 			subclassSerializerCache.put(subclass, result);
-
 		}
 		return result;
+	}
+
+	private TypeSerializer<?> createSubclassSerializer(Class<?> subclass) {
+		TypeSerializer<?> serializer = TypeExtractor.createTypeInfo(subclass).createSerializer(executionConfig);
+
+		if (serializer instanceof PojoSerializer) {
+			PojoSerializer<?> subclassSerializer = (PojoSerializer<?>) serializer;
+			subclassSerializer.copyBaseFieldOrder(this);
+		}
+
+		return serializer;
 	}
 
 	/**

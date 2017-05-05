@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{ReconfigureResult, TypeSerializer, TypeSerializerConfigSnapshot, TypeSerializerUtil}
+import org.apache.flink.api.common.typeutils.{MigrationStrategy, TypeSerializer, TypeSerializerConfigSnapshot}
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializerConfigSnapshot
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
@@ -116,15 +116,34 @@ class EitherSerializer[A, B, T <: Either[A, B]](
       rightSerializer.snapshotConfiguration())
   }
 
-  override def reconfigure(configSnapshot: TypeSerializerConfigSnapshot): ReconfigureResult = {
+  override protected def getMigrationStrategy(
+      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy = {
+
     configSnapshot match {
       case eitherSerializerConfig: EitherSerializerConfigSnapshot =>
-        TypeSerializerUtil.reconfigureMultipleSerializers(
-          eitherSerializerConfig.getNestedSerializerConfigSnapshots,
-          leftSerializer,
-          rightSerializer
-        )
-      case _ => ReconfigureResult.INCOMPATIBLE
+        val leftRightConfigs =
+          eitherSerializerConfig.getNestedSerializerConfigSnapshots
+
+        val leftStrategy = leftSerializer.getMigrationStrategyFor(leftRightConfigs(0))
+        val rightStrategy = rightSerializer.getMigrationStrategyFor(leftRightConfigs(1))
+
+        if (leftStrategy.requireMigration || rightStrategy.requireMigration) {
+          if (leftStrategy.getFallbackDeserializer != null
+              && rightStrategy.getFallbackDeserializer != null) {
+
+            MigrationStrategy.migrateWithFallbackDeserializer(
+              new EitherSerializer[A, B, T](
+                leftStrategy.getFallbackDeserializer.asInstanceOf[TypeSerializer[A]],
+                rightStrategy.getFallbackDeserializer.asInstanceOf[TypeSerializer[B]]))
+
+          } else {
+            MigrationStrategy.migrate
+          }
+        } else {
+          MigrationStrategy.noMigration
+        }
+
+      case _ => MigrationStrategy.migrate();
     }
   }
 }

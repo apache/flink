@@ -19,7 +19,7 @@
 package org.apache.flink.cep;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -203,7 +203,7 @@ public final class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 	}
 }

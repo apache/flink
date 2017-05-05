@@ -29,7 +29,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -556,7 +556,7 @@ public class CoGroupedStreams<T1, T2> {
 		}
 
 		@Override
-		public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 		}
 	}

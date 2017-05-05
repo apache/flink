@@ -211,7 +211,7 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 		}
 
 		@Override
-		protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException("This object is a dummy TypeSerializer.");
 		}
 

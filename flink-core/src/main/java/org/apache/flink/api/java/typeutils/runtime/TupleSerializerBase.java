@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
@@ -132,17 +132,29 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof TupleSerializerConfigSnapshot) {
 			final TupleSerializerConfigSnapshot<T> config = (TupleSerializerConfigSnapshot<T>) configSnapshot;
 
-			if (tupleClass.equals(config.getTupleClass())
-					&& fieldSerializers.length == config.getNestedSerializerConfigSnapshots().length) {
-				return TypeSerializerUtil.reconfigureMultipleSerializers(
-						config.getNestedSerializerConfigSnapshots(), fieldSerializers);
+			if (tupleClass.equals(config.getTupleClass())) {
+				TypeSerializerConfigSnapshot[] fieldSerializerConfigSnapshots =
+					((TupleSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
+
+				if (fieldSerializerConfigSnapshots.length == fieldSerializers.length) {
+
+					MigrationStrategy strategy;
+					for (int i = 0; i < fieldSerializers.length; i++) {
+						strategy = fieldSerializers[i].getMigrationStrategyFor(fieldSerializerConfigSnapshots[i]);
+						if (strategy.requireMigration()) {
+							return MigrationStrategy.migrate();
+						}
+					}
+
+					return MigrationStrategy.noMigration();
+				}
 			}
 		}
 
-		return ReconfigureResult.INCOMPATIBLE;
+		return MigrationStrategy.migrate();
 	}
 }

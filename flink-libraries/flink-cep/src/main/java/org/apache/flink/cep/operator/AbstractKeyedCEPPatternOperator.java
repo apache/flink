@@ -21,7 +21,7 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
@@ -511,14 +511,28 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 			return new CollectionSerializerConfigSnapshot(elementSerializer.snapshotConfiguration());
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
-		public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+		protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 			if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
-				return elementSerializer.reconfigureWith(
+				MigrationStrategy strategy = elementSerializer.getMigrationStrategyFor(
 						((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
-			}
 
-			return ReconfigureResult.INCOMPATIBLE;
+				if (strategy.requireMigration()) {
+					if (strategy.getFallbackDeserializer() != null) {
+						return MigrationStrategy.migrateWithFallbackDeserializer(
+								new PriorityQueueSerializer<>(
+										(TypeSerializer<T>) strategy.getFallbackDeserializer(),
+										factory));
+					} else {
+						return MigrationStrategy.migrate();
+					}
+				} else {
+					return MigrationStrategy.noMigration();
+				}
+			} else {
+				return MigrationStrategy.migrate();
+			}
 		}
 	}
 

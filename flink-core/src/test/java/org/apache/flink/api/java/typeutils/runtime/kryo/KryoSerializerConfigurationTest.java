@@ -23,20 +23,19 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
-import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.net.URL;
-import java.net.URLClassLoader;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests related to configuration snapshotting and reconfiguring for the {@link KryoSerializer}.
@@ -47,7 +46,7 @@ public class KryoSerializerConfigurationTest {
 	 * Verifies that reconfiguration result is INCOMPATIBLE if data type has changed.
 	 */
 	@Test
-	public void testReconfigureWithDifferentKryoType() throws Exception {
+	public void testMigrationStrategyWithDifferentKryoType() throws Exception {
 		KryoSerializer<TestClassA> kryoSerializerForA = new KryoSerializer<>(TestClassA.class, new ExecutionConfig());
 
 		// snapshot configuration and serialize to bytes
@@ -66,7 +65,8 @@ public class KryoSerializerConfigurationTest {
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		assertEquals(ReconfigureResult.INCOMPATIBLE, kryoSerializerForB.reconfigure(kryoSerializerConfigSnapshot));
+		MigrationStrategy strategy = kryoSerializerForB.getMigrationStrategy(kryoSerializerConfigSnapshot);
+		assertTrue(strategy.requireMigration());
 	}
 
 	/**
@@ -74,7 +74,7 @@ public class KryoSerializerConfigurationTest {
 	 * remain the same as the preceding KryoSerializer.
 	 */
 	@Test
-	public void testReconfigureDifferentRegistrationOrder() throws Exception {
+	public void testMigrationStrategyForDifferentRegistrationOrder() throws Exception {
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.registerKryoType(TestClassA.class);
@@ -109,7 +109,8 @@ public class KryoSerializerConfigurationTest {
 		}
 
 		// reconfigure - check reconfiguration result and that registration id remains the same
-		assertEquals(ReconfigureResult.COMPATIBLE, kryoSerializer.reconfigure(kryoSerializerConfigSnapshot));
+		MigrationStrategy strategy = kryoSerializer.getMigrationStrategyFor(kryoSerializerConfigSnapshot);
+		assertFalse(strategy.requireMigration());
 		assertEquals(testClassId, kryoSerializer.getKryo().getRegistration(TestClass.class).getId());
 		assertEquals(testClassAId, kryoSerializer.getKryo().getRegistration(TestClassA.class).getId());
 		assertEquals(testClassBId, kryoSerializer.getKryo().getRegistration(TestClassB.class).getId());

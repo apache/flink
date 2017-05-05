@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{ReconfigureResult, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils.{MigrationStrategy, TypeSerializer, TypeSerializerConfigSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /**
@@ -59,7 +59,8 @@ class NothingSerializer extends TypeSerializer[Any] {
   override def snapshotConfiguration(): TypeSerializerConfigSnapshot =
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
-  override def reconfigure(configSnapshot: TypeSerializerConfigSnapshot): ReconfigureResult =
+  override protected def getMigrationStrategy(
+      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy =
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
   override def equals(obj: Any): Boolean = {

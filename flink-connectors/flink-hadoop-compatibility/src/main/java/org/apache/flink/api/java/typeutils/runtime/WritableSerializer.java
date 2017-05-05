@@ -22,7 +22,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 import com.esotericsoftware.kryo.Kryo;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -165,12 +165,13 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
 	}
 
 	@Override
-	protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof WritableSerializerConfigSnapshot
-			&& typeClass.equals(((WritableSerializerConfigSnapshot) configSnapshot).getTypeClass())) {
-			return ReconfigureResult.COMPATIBLE;
+				&& typeClass.equals(((WritableSerializerConfigSnapshot) configSnapshot).getTypeClass())) {
+
+			return MigrationStrategy.noMigration();
 		} else {
-			return ReconfigureResult.INCOMPATIBLE;
+			return MigrationStrategy.migrate();
 		}
 	}
 

@@ -47,91 +47,6 @@ import static org.mockito.Mockito.when;
 public class TypeSerializerConfigSnapshotTest {
 
 	/**
-	 * Tests the {@link TypeSerializerUtil#reconfigureMultipleSerializers(TypeSerializerConfigSnapshot[], TypeSerializer[])} method.
-	 *
-	 * When all results are COMPATIBLE, the final aggregated result should be COMPATIBLE.
-	 * Regardless of the result, all serializers should have been reconfigured.
-	 */
-	@Test
-	public void testReconfigureMultipleSerializersAllCompatible() {
-		TypeSerializerConfigSnapshot[] configSnapshots = {mock(TypeSerializerConfigSnapshot.class), mock(TypeSerializerConfigSnapshot.class)};
-
-		TypeSerializer<?> typeSerializer1 = mock(TypeSerializer.class);
-		TypeSerializer<?> typeSerializer2 = mock(TypeSerializer.class);
-
-		when(typeSerializer1.reconfigure(any(TypeSerializerConfigSnapshot.class))).thenReturn(ReconfigureResult.COMPATIBLE);
-		when(typeSerializer2.reconfigure(any(TypeSerializerConfigSnapshot.class))).thenReturn(ReconfigureResult.COMPATIBLE);
-
-		ReconfigureResult result = TypeSerializerUtil.reconfigureMultipleSerializers(configSnapshots, typeSerializer1, typeSerializer2);
-
-		assertEquals(ReconfigureResult.COMPATIBLE, result);
-
-		// regardless of the result, all serializers should have been reconfigured
-		verify(typeSerializer1, times(1)).reconfigure(any(TypeSerializerConfigSnapshot.class));
-		verify(typeSerializer2, times(1)).reconfigure(any(TypeSerializerConfigSnapshot.class));
-	}
-
-	/**
-	 * Tests the {@link TypeSerializerUtil#reconfigureMultipleSerializers(TypeSerializerConfigSnapshot[], TypeSerializer[])} method.
-	 *
-	 * When the result with the highest precedence is COMPATIBLE_NEW_SCHEMA, the final aggregated result should be COMPATIBLE_NEW_SCHEMA.
-	 * Regardless of the result, all serializers should have been reconfigured.
-	 */
-	@Test
-	public void testReconfigureMultipleSerializersCompatibleNewSchemaPrecedence() {
-		TypeSerializerConfigSnapshot[] configSnapshots = {mock(TypeSerializerConfigSnapshot.class), mock(TypeSerializerConfigSnapshot.class)};
-
-		TypeSerializer<?> typeSerializer1 = mock(TypeSerializer.class);
-		TypeSerializer<?> typeSerializer2 = mock(TypeSerializer.class);
-
-		when(typeSerializer1.reconfigure(any(TypeSerializerConfigSnapshot.class))).thenReturn(ReconfigureResult.COMPATIBLE);
-		when(typeSerializer2.reconfigure(any(TypeSerializerConfigSnapshot.class))).thenReturn(ReconfigureResult.COMPATIBLE_NEW_SCHEMA);
-
-		ReconfigureResult result = TypeSerializerUtil.reconfigureMultipleSerializers(configSnapshots, typeSerializer1, typeSerializer2);
-
-		// COMPATIBLE_NEW_SCHEMA has higher precedence and therefore should be the final result
-		assertEquals(ReconfigureResult.COMPATIBLE_NEW_SCHEMA, result);
-
-		// regardless of the result, all serializers should have been reconfigured
-		verify(typeSerializer1, times(1)).reconfigure(any(TypeSerializerConfigSnapshot.class));
-		verify(typeSerializer2, times(1)).reconfigure(any(TypeSerializerConfigSnapshot.class));
-	}
-
-	/**
-	 * Tests the {@link TypeSerializerUtil#reconfigureMultipleSerializers(TypeSerializerConfigSnapshot[], TypeSerializer[])} method.
-	 *
-	 * When the result with the highest precedence is INCOMPATIBLE, the final aggregated result should be INCOMPATIBLE.
-	 * Regardless of the result, all serializers should have been reconfigured.
-	 */
-	@Test
-	public void testReconfigureMultipleSerializersIncompatiblePrecedence() {
-		TypeSerializerConfigSnapshot[] configSnapshots = {
-			mock(TypeSerializerConfigSnapshot.class),
-			mock(TypeSerializerConfigSnapshot.class),
-			mock(TypeSerializerConfigSnapshot.class),
-		};
-
-		TypeSerializer<?> typeSerializer1 = mock(TypeSerializer.class);
-		TypeSerializer<?> typeSerializer2 = mock(TypeSerializer.class);
-		TypeSerializer<?> typeSerializer3 = mock(TypeSerializer.class);
-
-		when(typeSerializer1.reconfigure(any(TypeSerializerConfigSnapshot.class))).thenReturn(ReconfigureResult.COMPATIBLE_NEW_SCHEMA);
-		when(typeSerializer2.reconfigure(any(TypeSerializerConfigSnapshot.class))).thenReturn(ReconfigureResult.INCOMPATIBLE);
-		when(typeSerializer3.reconfigure(any(TypeSerializerConfigSnapshot.class))).thenReturn(ReconfigureResult.COMPATIBLE);
-
-		ReconfigureResult result = TypeSerializerUtil.reconfigureMultipleSerializers(
-			configSnapshots, typeSerializer1, typeSerializer2, typeSerializer3);
-
-		// INCOMPATIBLE has higher precedence and therefore should be the final result
-		assertEquals(ReconfigureResult.INCOMPATIBLE, result);
-
-		// regardless of the result, all serializers should have been reconfigured
-		verify(typeSerializer1, times(1)).reconfigure(any(TypeSerializerConfigSnapshot.class));
-		verify(typeSerializer2, times(1)).reconfigure(any(TypeSerializerConfigSnapshot.class));
-		verify(typeSerializer3, times(1)).reconfigure(any(TypeSerializerConfigSnapshot.class));
-	}
-
-	/**
 	 * Verifies that reading and writing configuration snapshots work correctly.
 	 */
 	@Test
@@ -212,16 +127,16 @@ public class TypeSerializerConfigSnapshotTest {
 	 * {@link ForwardCompatibleSerializationFormatConfig#INSTANCE}.
 	 */
 	@Test
-	public void testReconfigureWithForwardCompatibleMarkerConfig() {
+	public void testMigrationStrategyWithForwardCompatibleMarkerConfig() {
 		TypeSerializer<?> mockSerializer = spy(TypeSerializer.class);
 
-		mockSerializer.reconfigureWith(ForwardCompatibleSerializationFormatConfig.INSTANCE);
-		verify(mockSerializer, never()).reconfigure(any(TypeSerializerConfigSnapshot.class));
+		mockSerializer.getMigrationStrategyFor(ForwardCompatibleSerializationFormatConfig.INSTANCE);
+		verify(mockSerializer, never()).getMigrationStrategy(any(TypeSerializerConfigSnapshot.class));
 
 		// make sure that is actually is called if its not the special marker
 		TypeSerializerConfigSnapshot nonForwardCompatibleConfig = new TestConfigSnapshot(123, "foobar");
-		mockSerializer.reconfigureWith(nonForwardCompatibleConfig);
-		verify(mockSerializer, times(1)).reconfigure(nonForwardCompatibleConfig);
+		mockSerializer.getMigrationStrategyFor(nonForwardCompatibleConfig);
+		verify(mockSerializer, times(1)).getMigrationStrategy(nonForwardCompatibleConfig);
 	}
 
 	public static class TestConfigSnapshot extends TypeSerializerConfigSnapshot {

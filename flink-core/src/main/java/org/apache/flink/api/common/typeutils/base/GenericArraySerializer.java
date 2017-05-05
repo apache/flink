@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -198,16 +198,31 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 		return new GenericArraySerializerConfigSnapshot<>(componentClass, componentSerializer.snapshotConfiguration());
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof GenericArraySerializerConfigSnapshot) {
 			final GenericArraySerializerConfigSnapshot config = (GenericArraySerializerConfigSnapshot) configSnapshot;
 
 			if (componentClass.equals(config.getComponentClass())) {
-				return componentSerializer.reconfigureWith(config.getSingleNestedSerializerConfigSnapshot());
+				MigrationStrategy strategy = componentSerializer.getMigrationStrategyFor(
+					config.getSingleNestedSerializerConfigSnapshot());
+
+				if (strategy.requireMigration()) {
+					if (strategy.getFallbackDeserializer() != null) {
+						return MigrationStrategy.migrateWithFallbackDeserializer(
+							new GenericArraySerializer<>(
+								componentClass,
+								(TypeSerializer<C>) strategy.getFallbackDeserializer()));
+					} else {
+						return MigrationStrategy.migrate();
+					}
+				} else {
+					return MigrationStrategy.noMigration();
+				}
 			}
 		}
 
-		return ReconfigureResult.INCOMPATIBLE;
+		return MigrationStrategy.migrate();
 	}
 }

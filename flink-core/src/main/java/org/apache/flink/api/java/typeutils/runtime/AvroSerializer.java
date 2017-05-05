@@ -30,7 +30,7 @@ import org.apache.avro.util.Utf8;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
@@ -225,32 +225,31 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof AvroSerializerConfigSnapshot) {
 			final AvroSerializerConfigSnapshot<T> config = (AvroSerializerConfigSnapshot<T>) configSnapshot;
 
 			if (type.equals(config.getTypeClass()) && typeToInstantiate.equals(config.getTypeToInstantiate())) {
-
 				// resolve Kryo registrations; currently, since the Kryo registrations in Avro
 				// are fixed, there shouldn't be a problem with the resolution here.
 
 				LinkedHashMap<String, KryoRegistration> oldRegistrations = config.getKryoRegistrations();
 				oldRegistrations.putAll(kryoRegistrations);
-				this.kryoRegistrations = oldRegistrations;
 
 				for (Map.Entry<String, KryoRegistration> reconfiguredRegistrationEntry : kryoRegistrations.entrySet()) {
 					if (reconfiguredRegistrationEntry.getValue().isDummy()) {
-						return ReconfigureResult.INCOMPATIBLE;
+						return MigrationStrategy.migrate();
 					}
 				}
 
-				return ReconfigureResult.COMPATIBLE;
+				this.kryoRegistrations = oldRegistrations;
+				return MigrationStrategy.noMigration();
 			}
 		}
 
 		// ends up here if the preceding serializer is not
 		// the ValueSerializer, or serialized data type has changed
-		return ReconfigureResult.INCOMPATIBLE;
+		return MigrationStrategy.migrate();
 	}
 
 	public static class AvroSerializerConfigSnapshot<T> extends KryoRegistrationSerializerConfigSnapshot<T> {

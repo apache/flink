@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{CompositeTypeSerializerConfigSnapshot, ReconfigureResult, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /**
@@ -104,13 +104,26 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
     new OptionSerializer.OptionSerializerConfigSnapshot(elemSerializer.snapshotConfiguration())
   }
 
-  override protected def reconfigure(
-      configSnapshot: TypeSerializerConfigSnapshot): ReconfigureResult = {
+  override protected def getMigrationStrategy(
+      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy = {
     configSnapshot match {
       case optionSerializerConfigSnapshot: OptionSerializer.OptionSerializerConfigSnapshot =>
-        elemSerializer.reconfigureWith(
+        val strategy = elemSerializer.getMigrationStrategyFor(
           optionSerializerConfigSnapshot.getSingleNestedSerializerConfigSnapshot)
-      case _ => ReconfigureResult.INCOMPATIBLE
+
+        if (strategy.requireMigration()) {
+          if (strategy.getFallbackDeserializer != null) {
+            MigrationStrategy.migrateWithFallbackDeserializer(
+              new OptionSerializer[A](
+                strategy.getFallbackDeserializer.asInstanceOf[TypeSerializer[A]]))
+          } else {
+            MigrationStrategy.migrate
+          }
+        } else {
+          MigrationStrategy.noMigration
+        }
+
+      case _ => MigrationStrategy.migrate
     }
   }
 }

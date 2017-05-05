@@ -19,10 +19,9 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.base.MapSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -208,15 +207,30 @@ public final class HashMapSerializer<K, V> extends TypeSerializer<HashMap<K, V>>
 				valueSerializer.snapshotConfiguration());
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof MapSerializerConfigSnapshot) {
-			return TypeSerializerUtil.reconfigureMultipleSerializers(
-					((MapSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots(),
-					keySerializer,
-					valueSerializer);
+			TypeSerializerConfigSnapshot[] keyValueSerializerConfigSnapshots =
+				((MapSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
+
+			MigrationStrategy keyStrategy = keySerializer.getMigrationStrategyFor(keyValueSerializerConfigSnapshots[0]);
+			MigrationStrategy valueStrategy = valueSerializer.getMigrationStrategyFor(keyValueSerializerConfigSnapshots[1]);
+
+			if (keyStrategy.requireMigration() || valueStrategy.requireMigration()) {
+				if (keyStrategy.getFallbackDeserializer() != null && valueStrategy.getFallbackDeserializer() != null) {
+					return MigrationStrategy.migrateWithFallbackDeserializer(
+							new HashMapSerializer<>(
+									(TypeSerializer<K>) keyStrategy.getFallbackDeserializer(),
+									(TypeSerializer<V>) valueStrategy.getFallbackDeserializer()));
+				} else {
+					return MigrationStrategy.migrate();
+				}
+			} else {
+				return MigrationStrategy.noMigration();
+			}
 		} else {
-			return ReconfigureResult.INCOMPATIBLE;
+			return MigrationStrategy.migrate();
 		}
 	}
 }

@@ -29,10 +29,9 @@ import org.apache.flink.util.Preconditions;
  * The configuration snapshot of a serializer is persisted along with checkpoints of the managed state that the
  * serializer is registered to.
  *
- * <p>The persisted configuration may later on be used to reconfigure new serializers for the same managed state
- * so that the new serializer may be compatible (i.e., the new serializer is capable of reading data written by the
- * preceding serializer). In order to allow new serializers to determine whether or not they can be reconfigured to
- * be compatible, the configuration snapshot should encode sufficient information about:
+ * <p>The persisted configuration may later on be used by new serializers to decide the migration strategy for the
+ * same managed state. In order for new serializers to be able to decide migration strategy, the configuration snapshot
+ * should encode sufficient information about:
  *
  * <ul>
  *   <li><strong>Parameter settings of the serializer:</strong> parameters of the serializer include settings
@@ -53,7 +52,7 @@ public abstract class TypeSerializerConfigSnapshot extends VersionedIOReadableWr
 	private ClassLoader userCodeClassLoader;
 
 	/** The snapshot version of this configuration. */
-	private int snapshotVersion;
+	private Integer snapshotVersion;
 
 	/**
 	 * Returns the version of the configuration at the time its snapshot was taken.
@@ -61,7 +60,11 @@ public abstract class TypeSerializerConfigSnapshot extends VersionedIOReadableWr
 	 * @return the snapshot configuration's version.
 	 */
 	public int getSnapshotVersion() {
-		return snapshotVersion;
+		if (snapshotVersion == null) {
+			return getVersion();
+		} else {
+			return snapshotVersion;
+		}
 	}
 
 	/**

@@ -29,7 +29,7 @@ import java.util.Map;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
@@ -179,7 +179,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof EnumSerializerConfigSnapshot) {
 			final EnumSerializerConfigSnapshot<T> config = (EnumSerializerConfigSnapshot<T>) configSnapshot;
 
@@ -201,13 +201,11 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 					i++;
 				}
 
-				return ReconfigureResult.COMPATIBLE;
+				return MigrationStrategy.noMigration();
 			}
 		}
 
-		// ends up here if the preceding serializer was not
-		// the EnumSerializer, of the enum class was changed
-		return ReconfigureResult.INCOMPATIBLE;
+		return MigrationStrategy.migrate();
 	}
 
 	/**

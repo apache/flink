@@ -19,10 +19,9 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Either;
@@ -198,15 +197,30 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 				rightSerializer.snapshotConfiguration());
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof EitherSerializerConfigSnapshot) {
-			return TypeSerializerUtil.reconfigureMultipleSerializers(
-					((EitherSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots(),
-					leftSerializer,
-					rightSerializer);
+			TypeSerializerConfigSnapshot[] leftRightSerializerConfigSnapshots =
+				((EitherSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
+
+			MigrationStrategy leftStrategy = leftSerializer.getMigrationStrategyFor(leftRightSerializerConfigSnapshots[0]);
+			MigrationStrategy rightStrategy = rightSerializer.getMigrationStrategyFor(leftRightSerializerConfigSnapshots[1]);
+
+			if (leftStrategy.requireMigration() || rightStrategy.requireMigration()) {
+				if (leftStrategy.getFallbackDeserializer() != null && rightStrategy.getFallbackDeserializer() != null) {
+					return MigrationStrategy.migrateWithFallbackDeserializer(
+							new EitherSerializer<>(
+									(TypeSerializer<L>) leftStrategy.getFallbackDeserializer(),
+									(TypeSerializer<R>) rightStrategy.getFallbackDeserializer()));
+				} else {
+					return MigrationStrategy.migrate();
+				}
+			} else {
+				return MigrationStrategy.noMigration();
+			}
 		} else {
-			return ReconfigureResult.INCOMPATIBLE;
+			return MigrationStrategy.migrate();
 		}
 	}
 }

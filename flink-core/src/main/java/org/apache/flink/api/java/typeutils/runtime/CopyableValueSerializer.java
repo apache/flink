@@ -22,7 +22,7 @@ import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -142,12 +142,12 @@ public final class CopyableValueSerializer<T extends CopyableValue<T>> extends T
 	}
 
 	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof CopyableValueSerializerConfigSnapshot
 				&& valueClass.equals(((CopyableValueSerializerConfigSnapshot) configSnapshot).getTypeClass())) {
-			return ReconfigureResult.COMPATIBLE;
+			return MigrationStrategy.noMigration();
 		} else {
-			return ReconfigureResult.INCOMPATIBLE;
+			return MigrationStrategy.migrate();
 		}
 	}
 

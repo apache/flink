@@ -23,7 +23,7 @@ import java.io.ObjectInputStream;
 import java.util.LinkedHashMap;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -182,20 +182,18 @@ public final class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof ValueSerializerConfigSnapshot) {
 			final ValueSerializerConfigSnapshot<T> config = (ValueSerializerConfigSnapshot<T>) configSnapshot;
 
 			if (type.equals(config.getTypeClass())) {
 				// currently, simply checking the type of the value class is sufficient;
 				// in the future, if there are more Kryo registrations, we should try to resolve that
-				return ReconfigureResult.COMPATIBLE;
+				return MigrationStrategy.noMigration();
 			}
 		}
 
-		// ends up here if the preceding serializer is not
-		// the ValueSerializer, or serialized data type has changed
-		return ReconfigureResult.INCOMPATIBLE;
+		return MigrationStrategy.migrate();
 	}
 
 	public static class ValueSerializerConfigSnapshot<T extends Value> extends KryoRegistrationSerializerConfigSnapshot<T> {

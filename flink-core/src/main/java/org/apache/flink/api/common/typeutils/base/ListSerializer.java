@@ -19,7 +19,7 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.ReconfigureResult;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -178,13 +178,26 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 		return new CollectionSerializerConfigSnapshot(elementSerializer.snapshotConfiguration());
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public ReconfigureResult reconfigure(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
-			return elementSerializer.reconfigureWith(
-					((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+			MigrationStrategy strategy = elementSerializer.getMigrationStrategyFor(
+				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+
+			if (strategy.requireMigration()) {
+				if (strategy.getFallbackDeserializer() != null) {
+					return MigrationStrategy.migrateWithFallbackDeserializer(
+						new ListSerializer<>(
+							(TypeSerializer<T>) strategy.getFallbackDeserializer()));
+				} else {
+					return MigrationStrategy.migrate();
+				}
+			} else {
+				return MigrationStrategy.noMigration();
+			}
 		} else {
-			return ReconfigureResult.INCOMPATIBLE;
+			return MigrationStrategy.migrate();
 		}
 	}
 }
