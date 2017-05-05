@@ -82,20 +82,20 @@ public class NFATest extends TestLogger {
 		nfa.addState(endState);
 		nfa.addState(endingState);
 
-		Set<Map<String, Event>> expectedPatterns = new HashSet<>();
+		Set<Map<String, List<Event>>> expectedPatterns = new HashSet<>();
 
-		Map<String, Event> firstPattern = new HashMap<>();
-		firstPattern.put("start", new Event(1, "start", 1.0));
-		firstPattern.put("end", new Event(4, "end", 4.0));
+		Map<String, List<Event>> firstPattern = new HashMap<>();
+		firstPattern.put("start", Collections.singletonList(new Event(1, "start", 1.0)));
+		firstPattern.put("end", Collections.singletonList(new Event(4, "end", 4.0)));
 
-		Map<String, Event> secondPattern = new HashMap<>();
-		secondPattern.put("start", new Event(3, "start", 3.0));
-		secondPattern.put("end", new Event(4, "end", 4.0));
+		Map<String, List<Event>> secondPattern = new HashMap<>();
+		secondPattern.put("start", Collections.singletonList(new Event(3, "start", 3.0)));
+		secondPattern.put("end", Collections.singletonList(new Event(4, "end", 4.0)));
 
 		expectedPatterns.add(firstPattern);
 		expectedPatterns.add(secondPattern);
 
-		Collection<Map<String, Event>> actualPatterns = runNFA(nfa, streamEvents);
+		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, streamEvents);
 
 		assertEquals(expectedPatterns, actualPatterns);
 	}
@@ -110,15 +110,15 @@ public class NFATest extends TestLogger {
 		streamEvents.add(new StreamRecord<>(new Event(3, "start", 3.0), 3L));
 		streamEvents.add(new StreamRecord<>(new Event(4, "end", 4.0), 4L));
 
-		Set<Map<String, Event>> expectedPatterns = new HashSet<>();
+		Set<Map<String, List<Event>>> expectedPatterns = new HashSet<>();
 
-		Map<String, Event> secondPattern = new HashMap<>();
-		secondPattern.put("start", new Event(3, "start", 3.0));
-		secondPattern.put("end", new Event(4, "end", 4.0));
+		Map<String, List<Event>> secondPattern = new HashMap<>();
+		secondPattern.put("start", Collections.singletonList(new Event(3, "start", 3.0)));
+		secondPattern.put("end", Collections.singletonList(new Event(4, "end", 4.0)));
 
 		expectedPatterns.add(secondPattern);
 
-		Collection<Map<String, Event>> actualPatterns = runNFA(nfa, streamEvents);
+		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, streamEvents);
 
 		assertEquals(expectedPatterns, actualPatterns);
 	}
@@ -135,9 +135,9 @@ public class NFATest extends TestLogger {
 		streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
 		streamEvents.add(new StreamRecord<>(new Event(2, "end", 2.0), 3L));
 
-		Set<Map<String, Event>> expectedPatterns = Collections.emptySet();
+		Set<Map<String, List<Event>>> expectedPatterns = Collections.emptySet();
 
-		Collection<Map<String, Event>> actualPatterns = runNFA(nfa, streamEvents);
+		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, streamEvents);
 
 		assertEquals(expectedPatterns, actualPatterns);
 	}
@@ -156,40 +156,24 @@ public class NFATest extends TestLogger {
 		streamEvents.add(new StreamRecord<>(new Event(3, "foobar", 3.0), 3L));
 		streamEvents.add(new StreamRecord<>(new Event(4, "end", 4.0), 3L));
 
-		Set<Map<String, Event>> expectedPatterns = new HashSet<>();
+		Set<Map<String, List<Event>>> expectedPatterns = new HashSet<>();
 
-		Map<String, Event> secondPattern = new HashMap<>();
-		secondPattern.put("start", new Event(2, "start", 2.0));
-		secondPattern.put("end", new Event(4, "end", 4.0));
+		Map<String, List<Event>> secondPattern = new HashMap<>();
+		secondPattern.put("start", Collections.singletonList(new Event(2, "start", 2.0)));
+		secondPattern.put("end", Collections.singletonList(new Event(4, "end", 4.0)));
 
 		expectedPatterns.add(secondPattern);
 
-		Collection<Map<String, Event>> actualPatterns = runNFA(nfa, streamEvents);
+		Collection<Map<String, List<Event>>> actualPatterns = runNFA(nfa, streamEvents);
 
 		assertEquals(expectedPatterns, actualPatterns);
 	}
 
-	@Test
-	public void testStateNameGeneration() {
-		String expectedName1 = "a[2]";
-		String expectedName2 = "a_3";
-		String expectedName3 = "a[][42]";
-
-		String generatedName1 = NFA.generateStateName("a[]", 2);
-		String generatedName2 = NFA.generateStateName("a", 3);
-		String generatedName3 = NFA.generateStateName("a[][]", 42);
-
-
-		assertEquals(expectedName1, generatedName1);
-		assertEquals(expectedName2, generatedName2);
-		assertEquals(expectedName3, generatedName3);
-	}
-
-	public <T> Collection<Map<String, T>> runNFA(NFA<T> nfa, List<StreamRecord<T>> inputs) {
-		Set<Map<String, T>> actualPatterns = new HashSet<>();
+	public <T> Collection<Map<String, List<T>>> runNFA(NFA<T> nfa, List<StreamRecord<T>> inputs) {
+		Set<Map<String, List<T>>> actualPatterns = new HashSet<>();
 
 		for (StreamRecord<T> streamEvent : inputs) {
-			Collection<Map<String, T>> matchedPatterns = nfa.process(
+			Collection<Map<String, List<T>>> matchedPatterns = nfa.process(
 				streamEvent.getValue(),
 				streamEvent.getTimestamp()).f0;
 

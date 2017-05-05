@@ -20,7 +20,7 @@ package org.apache.flink.cep.nfa;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
-import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.ListMultimap;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -57,8 +57,6 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.Stack;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Non-deterministic finite automaton implementation.
@@ -88,8 +86,6 @@ public class NFA<T> implements Serializable {
 
 	private static final long serialVersionUID = 2957674889294717265L;
 
-	private static final Pattern namePattern = Pattern.compile("^(.*\\[)(\\])$");
-
 	private final NonDuplicatingTypeSerializer<T> nonDuplicatingTypeSerializer;
 
 	/**
@@ -99,7 +95,7 @@ public class NFA<T> implements Serializable {
 
 	/**
 	 * A set of all the valid NFA states, as returned by the
-	 * {@link org.apache.flink.cep.nfa.compiler.NFACompiler NFACompiler}.
+	 * {@link NFACompiler NFACompiler}.
 	 * These are directly derived from the user-specified pattern.
 	 */
 	private final Set<State<T>> states;
@@ -190,10 +186,10 @@ public class NFA<T> implements Serializable {
 	 * reached a final state) and the collection of timed out patterns (if timeout handling is
 	 * activated)
 	 */
-	public Tuple2<Collection<Map<String, T>>, Collection<Tuple2<Map<String, T>, Long>>> process(final T event, final long timestamp) {
+	public Tuple2<Collection<Map<String, List<T>>>, Collection<Tuple2<Map<String, List<T>>, Long>>> process(final T event, final long timestamp) {
 		final int numberComputationStates = computationStates.size();
-		final Collection<Map<String, T>> result = new ArrayList<>();
-		final Collection<Tuple2<Map<String, T>, Long>> timeoutResult = new ArrayList<>();
+		final Collection<Map<String, List<T>>> result = new ArrayList<>();
+		final Collection<Tuple2<Map<String, List<T>>, Long>> timeoutResult = new ArrayList<>();
 
 		// iterate over all current computations
 		for (int i = 0; i < numberComputationStates; i++) {
@@ -206,12 +202,9 @@ public class NFA<T> implements Serializable {
 				timestamp - computationState.getStartTimestamp() >= windowTime) {
 
 				if (handleTimeout) {
-					// extract the timed out event patterns
-					Collection<Map<String, T>> timeoutPatterns = extractPatternMatches(computationState);
-
-					for (Map<String, T> timeoutPattern : timeoutPatterns) {
-						timeoutResult.add(Tuple2.of(timeoutPattern, timestamp));
-					}
+					// extract the timed out event pattern
+					Map<String, List<T>> timedoutPattern = extractCurrentMatches(computationState);
+					timeoutResult.add(Tuple2.of(timedoutPattern, timestamp));
 				}
 
 				stringSharedBuffer.release(
@@ -234,8 +227,8 @@ public class NFA<T> implements Serializable {
 			for (final ComputationState<T> newComputationState: newComputationStates) {
 				if (newComputationState.isFinalState()) {
 					// we've reached a final state and can thus retrieve the matching event sequence
-					Collection<Map<String, T>> matches = extractPatternMatches(newComputationState);
-					result.addAll(matches);
+					Map<String, List<T>> matchedPattern = extractCurrentMatches(newComputationState);
+					result.add(matchedPattern);
 
 					// remove found patterns because they are no longer needed
 					stringSharedBuffer.release(
@@ -593,12 +586,20 @@ public class NFA<T> implements Serializable {
 		return condition == null || condition.filter(event, computationState.getConditionContext());
 	}
 
+	/**
+	 * Extracts all the sequences of events from the start to the given computation state. An event
+	 * sequence is returned as a map which contains the events and the names of the states to which
+	 * the events were mapped.
+	 *
+	 * @param computationState The end computation state of the extracted event sequences
+	 * @return Collection of event sequences which end in the given computation state
+	 */
 	Map<String, List<T>> extractCurrentMatches(final ComputationState<T> computationState) {
 		if (computationState.getPreviousState() == null) {
 			return new HashMap<>();
 		}
 
-		Collection<LinkedHashMultimap<String, T>> paths = stringSharedBuffer.extractPatterns(
+		Collection<ListMultimap<String, T>> paths = stringSharedBuffer.extractPatterns(
 				computationState.getPreviousState().getName(),
 				computationState.getEvent(),
 				computationState.getTimestamp(),
@@ -610,83 +611,19 @@ public class NFA<T> implements Serializable {
 		TypeSerializer<T> serializer = nonDuplicatingTypeSerializer.getTypeSerializer();
 
 		Map<String, List<T>> result = new HashMap<>();
-		for (LinkedHashMultimap<String, T> path: paths) {
+		for (ListMultimap<String, T> path: paths) {
 			for (String key: path.keySet()) {
-				Set<T> events = path.get(key);
+				List<T> events = path.get(key);
+
 				List<T> values = new ArrayList<>(events.size());
 				for (T event: events) {
+					// copy the element so that the user can change it
 					values.add(serializer.isImmutableType() ? event : serializer.copy(event));
 				}
 				result.put(key, values);
 			}
 		}
 		return result;
-	}
-
-	/**
-	 * Extracts all the sequences of events from the start to the given computation state. An event
-	 * sequence is returned as a map which contains the events and the names of the states to which
-	 * the events were mapped.
-	 *
-	 * @param computationState The end computation state of the extracted event sequences
-	 * @return Collection of event sequences which end in the given computation state
-	 */
-	private Collection<Map<String, T>> extractPatternMatches(final ComputationState<T> computationState) {
-		Collection<LinkedHashMultimap<String, T>> paths = stringSharedBuffer.extractPatterns(
-			computationState.getPreviousState().getName(),
-			computationState.getEvent(),
-			computationState.getTimestamp(),
-			computationState.getVersion());
-
-		// for a given computation state, we cannot have more than one matching patterns.
-		Preconditions.checkState(paths.size() <= 1);
-
-		List<Map<String, T>> result = new ArrayList<>();
-
-		TypeSerializer<T> serializer = nonDuplicatingTypeSerializer.getTypeSerializer();
-
-		// generate the correct names from the collection of LinkedHashMultimaps
-		for (LinkedHashMultimap<String, T> path: paths) {
-			Map<String, T> resultPath = new HashMap<>();
-			for (String key: path.keySet()) {
-				int counter = 0;
-				Set<T> events = path.get(key);
-
-				// we iterate over the elements in insertion order
-				for (T event: events) {
-					resultPath.put(
-						events.size() > 1 ? generateStateName(key, counter): key,
-						// copy the element so that the user can change it
-						serializer.isImmutableType() ? event : serializer.copy(event)
-					);
-					counter++;
-				}
-			}
-
-			result.add(resultPath);
-		}
-
-		return result;
-	}
-
-	/**
-	 * Generates a state name from a given name template and an index.
-	 * <p>
-	 * If the template ends with "[]" the index is inserted in between the square brackets.
-	 * Otherwise, an underscore and the index is appended to the name.
-	 *
-	 * @param name Name template
-	 * @param index Index of the state
-	 * @return Generated state name from the given state name template
-	 */
-	static String generateStateName(final String name, final int index) {
-		Matcher matcher = namePattern.matcher(name);
-
-		if (matcher.matches()) {
-			return matcher.group(1) + index + matcher.group(2);
-		} else {
-			return name + "_" + index;
-		}
 	}
 
 	//////////////////////			Fault-Tolerance / Migration			//////////////////////
