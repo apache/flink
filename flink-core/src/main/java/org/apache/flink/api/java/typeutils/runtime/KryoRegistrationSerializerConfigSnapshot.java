@@ -25,6 +25,7 @@ import com.esotericsoftware.kryo.io.Output;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -235,5 +236,16 @@ public abstract class KryoRegistrationSerializerConfigSnapshot<T> extends Generi
 					"This exception indicates that you're trying to read a data type" +
 						" that no longer has a valid Kryo serializer registered for it.");
 		}
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		return super.equals(obj)
+				&& kryoRegistrations.equals(((KryoSerializer.KryoSerializerConfigSnapshot) obj).getKryoRegistrations());
+	}
+
+	@Override
+	public int hashCode() {
+		return super.hashCode() + kryoRegistrations.hashCode();
 	}
 }

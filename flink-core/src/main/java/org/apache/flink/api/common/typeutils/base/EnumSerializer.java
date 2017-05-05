@@ -264,6 +264,19 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 		public T[] getEnumConstants() {
 			return enumConstants;
 		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return super.equals(obj)
+					&& Arrays.equals(
+						enumConstants,
+						((EnumSerializerConfigSnapshot) obj).getEnumConstants());
+		}
+
+		@Override
+		public int hashCode() {
+			return super.hashCode() * 31 + Arrays.hashCode(enumConstants);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

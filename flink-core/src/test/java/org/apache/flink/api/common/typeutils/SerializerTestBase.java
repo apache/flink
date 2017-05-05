@@ -519,5 +519,15 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		public int getVersion() {
 			return 0;
 		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof TestIncompatibleSerializerConfigSnapshot;
+		}
+
+		@Override
+		public int hashCode() {
+			return getClass().hashCode();
+		}
 	}
 }

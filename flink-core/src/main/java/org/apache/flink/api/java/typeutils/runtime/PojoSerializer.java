@@ -836,6 +836,24 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		public HashMap<Class<?>, TypeSerializerConfigSnapshot> getNonRegisteredSubclassesToSerializerConfigSnapshots() {
 			return nonRegisteredSubclassesToSerializerConfigSnapshots;
 		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return super.equals(obj)
+					&& (obj instanceof PojoSerializerConfigSnapshot)
+					&& fieldToSerializerConfigSnapshot.equals(((PojoSerializerConfigSnapshot) obj).getFieldToSerializerConfigSnapshot())
+					&& registeredSubclassesToSerializerConfigSnapshots.equals(((PojoSerializerConfigSnapshot) obj).getRegisteredSubclassesToSerializerConfigSnapshots())
+					&& nonRegisteredSubclassesToSerializerConfigSnapshots.equals(((PojoSerializerConfigSnapshot) obj).nonRegisteredSubclassesToSerializerConfigSnapshots);
+		}
+
+		@Override
+		public int hashCode() {
+			return super.hashCode()
+				+ Objects.hash(
+					fieldToSerializerConfigSnapshot,
+					registeredSubclassesToSerializerConfigSnapshots,
+					nonRegisteredSubclassesToSerializerConfigSnapshots);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

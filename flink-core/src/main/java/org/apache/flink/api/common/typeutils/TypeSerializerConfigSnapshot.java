@@ -96,4 +96,8 @@ public abstract class TypeSerializerConfigSnapshot extends VersionedIOReadableWr
 		super.resolveVersionRead(foundVersion);
 		this.snapshotVersion = foundVersion;
 	}
+
+	public abstract boolean equals(Object obj);
+
+	public abstract int hashCode();
 }

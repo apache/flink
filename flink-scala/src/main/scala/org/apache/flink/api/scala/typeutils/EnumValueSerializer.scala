@@ -156,6 +156,24 @@ object EnumValueSerializer {
     def getEnumClass: Class[E] = enumClass
 
     def getEnumConstants: Array[E] = enumConstants
+
+    override def equals(obj: scala.Any): Boolean = {
+      if (obj == this) {
+        return true
+      }
+
+      if (obj == null) {
+        return false
+      }
+
+      obj.isInstanceOf[ScalaEnumSerializerConfigSnapshot[E]] &&
+        enumClass.equals(obj.asInstanceOf[ScalaEnumSerializerConfigSnapshot[E]].enumClass) &&
+        enumConstants.sameElements(obj.asInstanceOf[ScalaEnumSerializerConfigSnapshot[E]].enumConstants)
+    }
+
+    override def hashCode(): Int = {
+      enumClass.hashCode() * 31 + enumConstants.toSeq.hashCode()
+    }
   }
 
   object ScalaEnumSerializerConfigSnapshot {

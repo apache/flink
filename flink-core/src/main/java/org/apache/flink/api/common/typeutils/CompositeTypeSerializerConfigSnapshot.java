@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * A {@link TypeSerializerConfigSnapshot} for serializers that has multiple nested serializers.
@@ -59,5 +60,26 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 
 	public TypeSerializerConfigSnapshot getSingleNestedSerializerConfigSnapshot() {
 		return nestedSerializerConfigSnapshots[0];
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
+		}
+
+		if (obj == null) {
+			return false;
+		}
+
+		return (obj.getClass().equals(getClass()))
+				&& Arrays.equals(
+					nestedSerializerConfigSnapshots,
+					((CompositeTypeSerializerConfigSnapshot) obj).getNestedSerializerConfigSnapshots());
+	}
+
+	@Override
+	public int hashCode() {
+		return Arrays.hashCode(nestedSerializerConfigSnapshots);
 	}
 }

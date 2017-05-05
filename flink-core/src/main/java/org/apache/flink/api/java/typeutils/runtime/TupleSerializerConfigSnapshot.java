@@ -76,4 +76,16 @@ public final class TupleSerializerConfigSnapshot<T> extends CompositeTypeSeriali
 	public Class<T> getTupleClass() {
 		return tupleClass;
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		return super.equals(obj)
+			&& (obj instanceof TupleSerializerConfigSnapshot)
+			&& (tupleClass.equals(((TupleSerializerConfigSnapshot) obj).getTupleClass()));
+	}
+
+	@Override
+	public int hashCode() {
+		return super.hashCode() * 31 + tupleClass.hashCode();
+	}
 }

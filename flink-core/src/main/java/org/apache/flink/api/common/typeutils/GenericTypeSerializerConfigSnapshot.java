@@ -66,4 +66,23 @@ public abstract class GenericTypeSerializerConfigSnapshot<T> extends TypeSeriali
 	public Class<T> getTypeClass() {
 		return typeClass;
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
+		}
+
+		if (obj == null) {
+			return false;
+		}
+
+		return (obj.getClass().equals(getClass()))
+				&& typeClass.equals(((GenericTypeSerializerConfigSnapshot) obj).getTypeClass());
+	}
+
+	@Override
+	public int hashCode() {
+		return typeClass.hashCode();
+	}
 }

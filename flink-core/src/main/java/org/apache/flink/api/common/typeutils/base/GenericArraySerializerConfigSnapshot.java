@@ -80,4 +80,16 @@ public final class GenericArraySerializerConfigSnapshot<C> extends CompositeType
 	public Class<C> getComponentClass() {
 		return componentClass;
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		return super.equals(obj)
+			&& (obj instanceof GenericArraySerializerConfigSnapshot)
+			&& (componentClass.equals(((GenericArraySerializerConfigSnapshot) obj).getComponentClass()));
+	}
+
+	@Override
+	public int hashCode() {
+		return super.hashCode() * 31 + componentClass.hashCode();
+	}
 }

@@ -63,4 +63,14 @@ public final class ForwardCompatibleSerializationFormatConfig extends TypeSerial
 	 * empty nullary constructor because it will never actually be serialized.
 	 */
 	private ForwardCompatibleSerializationFormatConfig() {}
+
+	@Override
+	public boolean equals(Object obj) {
+		return obj instanceof ForwardCompatibleSerializationFormatConfig;
+	}
+
+	@Override
+	public int hashCode() {
+		return getClass().hashCode();
+	}
 }
