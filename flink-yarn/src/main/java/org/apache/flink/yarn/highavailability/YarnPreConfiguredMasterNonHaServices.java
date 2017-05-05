@@ -21,12 +21,13 @@ package org.apache.flink.yarn.highavailability;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
-import org.apache.flink.runtime.rpc.RpcServiceUtils;
+import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import java.io.IOException;
@@ -82,7 +83,8 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 	 */
 	public YarnPreConfiguredMasterNonHaServices(
 			Configuration config,
-			org.apache.hadoop.conf.Configuration hadoopConf) throws IOException {
+			org.apache.hadoop.conf.Configuration hadoopConf,
+			HighAvailabilityServicesUtils.AddressResolution addressResolution) throws IOException {
 
 		super(config, hadoopConf);
 
@@ -107,8 +109,12 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 						YarnConfigOptions.APP_MASTER_RPC_PORT.key() + "' - port must be in [1, 65535]");
 			}
 
-			this.resourceManagerRpcUrl = RpcServiceUtils.getRpcUrl(
-					rmHost, rmPort, FlinkResourceManager.RESOURCE_MANAGER_NAME, config);
+			this.resourceManagerRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
+				rmHost,
+				rmPort,
+				ResourceManager.RESOURCE_MANAGER_NAME,
+				addressResolution,
+				config);
 
 			// all well!
 			successful = true;

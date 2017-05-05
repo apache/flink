@@ -33,6 +33,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
@@ -182,7 +183,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				// available. we give it the regular JobManager akka URL
 				taskManager = createTaskManager(
 						actorSystem,
-						JobManager.getLocalJobManagerAkkaURL(Option.<String>empty()),
+						AkkaUtils.getLocalAkkaURL(JobMaster.JOB_MANAGER_NAME),
 						new Configuration(),
 						true,
 						false);
@@ -248,7 +249,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				// start the taskManager actor
 				taskManager = createTaskManager(
 						actorSystem,
-						JobManager.getLocalJobManagerAkkaURL(Option.<String>empty()),
+						AkkaUtils.getLocalAkkaURL(JobMaster.JOB_MANAGER_NAME),
 						tmConfig,
 						true,
 						false);

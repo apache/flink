@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.highavailability;
+package org.apache.flink.runtime.highavailability.zookeeper;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.zookeeper.data.Stat;
 
 import java.io.IOException;
@@ -33,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A zookeeper based registry for running jobs, highly available.
  */
-public class ZookeeperRegistry implements RunningJobsRegistry {
+public class ZooKeeperRunningJobsRegistry implements RunningJobsRegistry {
 
 	private static final Charset ENCODING = Charset.forName("utf-8");
 
@@ -42,7 +43,7 @@ public class ZookeeperRegistry implements RunningJobsRegistry {
 
 	private final String runningJobPath;
 
-	public ZookeeperRegistry(final CuratorFramework client, final Configuration configuration) {
+	public ZooKeeperRunningJobsRegistry(final CuratorFramework client, final Configuration configuration) {
 		this.client = checkNotNull(client, "client");
 		this.runningJobPath = configuration.getString(HighAvailabilityOptions.ZOOKEEPER_RUNNING_JOB_REGISTRY_PATH);
 	}

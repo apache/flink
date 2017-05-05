@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager.exceptions;
+package org.apache.flink.util;
 
 /**
- * Exception which occures when creating a configuration object fails.
+ * Exception which occurs when creating a configuration object fails.
  */
-public class ConfigurationException extends Exception {
+public class ConfigurationException extends FlinkException {
 	private static final long serialVersionUID = 3971647332059381556L;
 
 	public ConfigurationException(String message) {

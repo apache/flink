@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc;
+package org.apache.flink.runtime.rpc.akka;
 
 import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
@@ -24,8 +24,10 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution;
 import org.apache.flink.runtime.net.SSLUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.util.Preconditions;
@@ -35,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -45,9 +48,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * These RPC utilities contain helper methods around RPC use, such as starting an RPC service,
  * or constructing RPC addresses.
  */
-public class RpcServiceUtils {
+public class AkkaRpcServiceUtils {
 
-	private static final Logger LOG = LoggerFactory.getLogger(RpcServiceUtils.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcServiceUtils.class);
+
+	private static final String AKKA_TCP = "akka.tcp";
+	private static final String AkKA_SSL_TCP = "akka.ssl.tcp";
 
 	private static final AtomicLong nextNameOffset = new AtomicLong(0L);
 
@@ -113,8 +119,12 @@ public class RpcServiceUtils {
 	 *
 	 * @return The RPC URL of the specified RPC endpoint.
 	 */
-	public static String getRpcUrl(String hostname, int port, String endpointName, Configuration config)
-			throws UnknownHostException {
+	public static String getRpcUrl(
+		String hostname,
+		int port,
+		String endpointName,
+		HighAvailabilityServicesUtils.AddressResolution addressResolution,
+		Configuration config) throws UnknownHostException {
 
 		checkNotNull(config, "config is null");
 
@@ -123,7 +133,12 @@ public class RpcServiceUtils {
 					ConfigConstants.DEFAULT_AKKA_SSL_ENABLED) &&
 				SSLUtils.getSSLEnabled(config);
 
-		return getRpcUrl(hostname, port, endpointName, sslEnabled);
+		return getRpcUrl(
+			hostname,
+			port,
+			endpointName,
+			addressResolution,
+			sslEnabled ? AkkaProtocol.SSL_TCP : AkkaProtocol.TCP);
 	}
 
 	/**
@@ -131,21 +146,37 @@ public class RpcServiceUtils {
 	 * @param hostname     The hostname or address where the target RPC service is listening.
 	 * @param port         The port where the target RPC service is listening.
 	 * @param endpointName The name of the RPC endpoint.
-	 * @param secure       True, if security/encryption is enabled, false otherwise.
+	 * @param akkaProtocol       True, if security/encryption is enabled, false otherwise.
 	 * 
 	 * @return The RPC URL of the specified RPC endpoint.
 	 */
-	public static String getRpcUrl(String hostname, int port, String endpointName, boolean secure)
-			throws UnknownHostException {
+	public static String getRpcUrl(
+			String hostname,
+			int port,
+			String endpointName,
+			HighAvailabilityServicesUtils.AddressResolution addressResolution,
+			AkkaProtocol akkaProtocol) throws UnknownHostException {
 
 		checkNotNull(hostname, "hostname is null");
 		checkNotNull(endpointName, "endpointName is null");
 		checkArgument(port > 0 && port <= 65535, "port must be in [1, 65535]");
 
-		final String protocol = secure ? "akka.ssl.tcp" : "akka.tcp";
-		final String hostPort = NetUtils.hostAndPortToUrlString(hostname, port);
+		final String protocolPrefix = akkaProtocol == AkkaProtocol.SSL_TCP ? AkKA_SSL_TCP : AKKA_TCP;
 
-		return String.format("%s://flink@%s/user/%s", protocol, hostPort, endpointName);
+		if (addressResolution == AddressResolution.TRY_ADDRESS_RESOLUTION) {
+			// Fail fast if the hostname cannot be resolved
+			//noinspection ResultOfMethodCallIgnored
+			InetAddress.getByName(hostname);
+		}
+
+		final String hostPort = NetUtils.unresolvedHostAndPortToNormalizedString(hostname, port);
+
+		return String.format("%s://flink@%s/user/%s", protocolPrefix, hostPort, endpointName);
+	}
+
+	public enum AkkaProtocol {
+		TCP,
+		SSL_TCP
 	}
 
 	/**
@@ -170,5 +201,5 @@ public class RpcServiceUtils {
 	// ------------------------------------------------------------------------
 
 	/** This class is not meant to be instantiated */
-	private RpcServiceUtils() {}
+	private AkkaRpcServiceUtils() {}
 }

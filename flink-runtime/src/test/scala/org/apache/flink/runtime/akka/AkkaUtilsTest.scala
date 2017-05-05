@@ -20,7 +20,10 @@ package org.apache.flink.runtime.akka
 
 import java.net.InetSocketAddress
 
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
 import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils.AkkaProtocol
 import org.apache.flink.util.NetUtils
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
@@ -38,19 +41,21 @@ class AkkaUtilsTest
 
     val address = new InetSocketAddress(host, port)
 
-    val remoteAkkaURL = JobManager.getRemoteJobManagerAkkaURL(
-      "akka.tcp",
-      NetUtils.unresolvedHostAndPortToNormalizedString(host, port),
-      Some("actor"))
+    val remoteAkkaUrl = AkkaRpcServiceUtils.getRpcUrl(
+      host,
+      port,
+      "actor",
+      AddressResolution.NO_ADDRESS_RESOLUTION,
+      AkkaProtocol.TCP)
 
-    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(remoteAkkaURL)
+    val result = AkkaUtils.getInetSockeAddressFromAkkaURL(remoteAkkaUrl)
 
     result should equal(address)
   }
 
   test("getHostFromAkkaURL should throw an exception if the InetSocketAddress cannot be " +
     "retrieved") {
-    val localAkkaURL = JobManager.getLocalJobManagerAkkaURL(Some("actor"))
+    val localAkkaURL = AkkaUtils.getLocalAkkaURL("actor")
 
     intercept[Exception] {
       AkkaUtils.getInetSockeAddressFromAkkaURL(localAkkaURL)

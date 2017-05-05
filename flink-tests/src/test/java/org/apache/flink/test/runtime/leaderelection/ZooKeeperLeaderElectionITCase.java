@@ -275,7 +275,8 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 			try {
 				LeaderRetrievalService lrService =
 						LeaderRetrievalUtils.createLeaderRetrievalService(
-								cluster.configuration());
+							cluster.configuration(),
+							false);
 
 				JobExecutionResult result = JobClient.submitJobAndWait(
 						clientActorSystem,

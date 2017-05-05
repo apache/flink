@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.highavailability;
+package org.apache.flink.runtime.highavailability.zookeeper;
 
 import org.apache.curator.framework.CuratorFramework;
 
@@ -30,6 +30,8 @@ import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.FileSystemBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointRecoveryFactory;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -79,7 +81,7 @@ import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
  * {@link HighAvailabilityOptions#HA_CLUSTER_ID}. All nodes with the same cluster id will join the same
  * cluster and participate in the execution of the same set of jobs.
  */
-public class ZookeeperHaServices implements HighAvailabilityServices {
+public class ZooKeeperHaServices implements HighAvailabilityServices {
 
 	private static final String RESOURCE_MANAGER_LEADER_PATH = "/resource_manager_lock";
 
@@ -100,11 +102,11 @@ public class ZookeeperHaServices implements HighAvailabilityServices {
 	/** The zookeeper based running jobs registry */
 	private final RunningJobsRegistry runningJobsRegistry;
 
-	public ZookeeperHaServices(CuratorFramework client, Executor executor, Configuration configuration) {
+	public ZooKeeperHaServices(CuratorFramework client, Executor executor, Configuration configuration) {
 		this.client = checkNotNull(client);
 		this.executor = checkNotNull(executor);
 		this.configuration = checkNotNull(configuration);
-		this.runningJobsRegistry = new ZookeeperRegistry(client, configuration);
+		this.runningJobsRegistry = new ZooKeeperRunningJobsRegistry(client, configuration);
 	}
 
 	// ------------------------------------------------------------------------

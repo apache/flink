@@ -564,7 +564,7 @@ public class YarnClusterClient extends ClusterClient {
 				/* The leader retrieval service for connecting to the cluster and finding the active leader. */
 				LeaderRetrievalService leaderRetrievalService;
 				try {
-					leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
+					leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig, true);
 				} catch (Exception e) {
 					throw new RuntimeException("Could not create the leader retrieval service.", e);
 				}

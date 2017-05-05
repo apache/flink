@@ -135,7 +135,7 @@ public final class JobListeningContext {
 	private ActorGateway getJobManager() throws JobRetrievalException {
 		try {
 			return LeaderRetrievalUtils.retrieveLeaderGateway(
-				LeaderRetrievalUtils.createLeaderRetrievalService(configuration),
+				LeaderRetrievalUtils.createLeaderRetrievalService(configuration, true),
 				actorSystem,
 				AkkaUtils.getLookupTimeout(configuration));
 		} catch (Exception e) {
