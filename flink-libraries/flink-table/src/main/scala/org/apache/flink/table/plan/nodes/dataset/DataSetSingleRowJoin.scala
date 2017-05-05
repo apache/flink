@@ -214,7 +214,7 @@ class DataSetSingleRowJoin(
   }
 
   private def joinTypeToString: String = {
-    "NestedLoopJoin"
+    "NestedLoop"+joinType.toString.toLowerCase.capitalize+"Join"
   }
 
 }
