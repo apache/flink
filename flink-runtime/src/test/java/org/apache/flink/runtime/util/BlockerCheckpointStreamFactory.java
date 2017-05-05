@@ -99,6 +99,14 @@ public class BlockerCheckpointStreamFactory implements CheckpointStreamFactory {
 				}
 			}
 
+			//We override this to ensure that writes go through the blocking #write(int) method!
+			@Override
+			public void write(byte[] b, int off, int len) throws IOException {
+				for (int i = 0; i < len; i++) {
+					write(b[off + i]);
+				}
+			}
+
 			@Override
 			public void close() {
 				super.close();
