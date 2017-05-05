@@ -257,7 +257,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	}
 
 	@Override
-	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy<Row> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof RowSerializerConfigSnapshot) {
 			TypeSerializerConfigSnapshot[] fieldSerializerConfigSnapshots =
 				((RowSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
@@ -266,7 +266,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 				boolean requireMigration = false;
 				TypeSerializer<?>[] fallbackFieldSerializers = new TypeSerializer<?>[fieldSerializers.length];
 
-				MigrationStrategy strategy;
+				MigrationStrategy<?> strategy;
 				for (int i = 0; i < fieldSerializers.length; i++) {
 					strategy = fieldSerializers[i].getMigrationStrategyFor(fieldSerializerConfigSnapshots[i]);
 					if (strategy.requireMigration()) {

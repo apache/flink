@@ -82,7 +82,7 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
   }
 
   override protected def getMigrationStrategy(
-      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy = {
+      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy[E#Value] = {
 
     configSnapshot match {
       case enumSerializerConfigSnapshot: EnumValueSerializer.ScalaEnumSerializerConfigSnapshot[_] =>
@@ -95,16 +95,16 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
             // and original constants must be in the exact same order
 
             if (currentEnumConstants(i) != enumSerializerConfigSnapshot.getEnumConstants(i)) {
-              MigrationStrategy.migrate
+              MigrationStrategy.migrate()
             }
           }
 
-          MigrationStrategy.noMigration
+          MigrationStrategy.noMigration()
         } else {
-          MigrationStrategy.migrate
+          MigrationStrategy.migrate()
         }
 
-      case _ => MigrationStrategy.migrate
+      case _ => MigrationStrategy.migrate()
     }
   }
 }

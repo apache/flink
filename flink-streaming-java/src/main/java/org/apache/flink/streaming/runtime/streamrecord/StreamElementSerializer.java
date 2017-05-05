@@ -279,18 +279,17 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 		return new StreamElementSerializerConfigSnapshot(typeSerializer.snapshotConfiguration());
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy<StreamElement> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof StreamElementSerializerConfigSnapshot) {
-			MigrationStrategy strategy = typeSerializer.getMigrationStrategyFor(
+			MigrationStrategy<T> strategy = typeSerializer.getMigrationStrategyFor(
 				((StreamElementSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
 			if (strategy.requireMigration()) {
 				if (strategy.getFallbackDeserializer() != null) {
 					return MigrationStrategy.migrateWithFallbackDeserializer(
 						new StreamElementSerializer<>(
-							(TypeSerializer<T>) strategy.getFallbackDeserializer()));
+							strategy.getFallbackDeserializer()));
 				} else {
 					return MigrationStrategy.migrate();
 				}

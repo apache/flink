@@ -142,7 +142,7 @@ public final class CopyableValueSerializer<T extends CopyableValue<T>> extends T
 	}
 
 	@Override
-	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy<T> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof CopyableValueSerializerConfigSnapshot
 				&& valueClass.equals(((CopyableValueSerializerConfigSnapshot) configSnapshot).getTypeClass())) {
 			return MigrationStrategy.noMigration();

@@ -658,7 +658,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		}
 
 		@Override
-		protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+		protected MigrationStrategy<Integer> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException();
 		}
 	}

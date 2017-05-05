@@ -193,7 +193,7 @@ public class InternalTimer<K, N> implements Comparable<InternalTimer<K, N>> {
 		}
 
 		@Override
-		protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+		protected MigrationStrategy<InternalTimer<K, N>> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 		}
 	}

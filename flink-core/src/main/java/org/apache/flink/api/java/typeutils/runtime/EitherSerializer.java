@@ -197,22 +197,21 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 				rightSerializer.snapshotConfiguration());
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy<Either<L, R>> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof EitherSerializerConfigSnapshot) {
 			TypeSerializerConfigSnapshot[] leftRightSerializerConfigSnapshots =
 				((EitherSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
 
-			MigrationStrategy leftStrategy = leftSerializer.getMigrationStrategyFor(leftRightSerializerConfigSnapshots[0]);
-			MigrationStrategy rightStrategy = rightSerializer.getMigrationStrategyFor(leftRightSerializerConfigSnapshots[1]);
+			MigrationStrategy<L> leftStrategy = leftSerializer.getMigrationStrategyFor(leftRightSerializerConfigSnapshots[0]);
+			MigrationStrategy<R> rightStrategy = rightSerializer.getMigrationStrategyFor(leftRightSerializerConfigSnapshots[1]);
 
 			if (leftStrategy.requireMigration() || rightStrategy.requireMigration()) {
 				if (leftStrategy.getFallbackDeserializer() != null && rightStrategy.getFallbackDeserializer() != null) {
 					return MigrationStrategy.migrateWithFallbackDeserializer(
 							new EitherSerializer<>(
-									(TypeSerializer<L>) leftStrategy.getFallbackDeserializer(),
-									(TypeSerializer<R>) rightStrategy.getFallbackDeserializer()));
+									leftStrategy.getFallbackDeserializer(),
+									rightStrategy.getFallbackDeserializer()));
 				} else {
 					return MigrationStrategy.migrate();
 				}

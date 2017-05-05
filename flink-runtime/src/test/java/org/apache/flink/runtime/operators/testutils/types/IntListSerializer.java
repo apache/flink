@@ -136,7 +136,7 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 	}
 
 	@Override
-	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy<IntList> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException();
 	}
 }

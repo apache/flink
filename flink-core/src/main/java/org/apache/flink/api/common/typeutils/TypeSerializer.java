@@ -226,7 +226,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 *
 	 * @return the result of the reconfiguration.
 	 */
-	protected abstract MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot);
+	protected abstract MigrationStrategy<T> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot);
 
 	/**
 	 * Get the migration strategy to use this serializer based on the configuration snapshot of a preceding
@@ -246,7 +246,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * @return the result of the reconfiguration.
 	 */
 	@Internal
-	public final MigrationStrategy getMigrationStrategyFor(TypeSerializerConfigSnapshot configSnapshot) {
+	public final MigrationStrategy<T> getMigrationStrategyFor(TypeSerializerConfigSnapshot configSnapshot) {
 		// reference equality is viable here, because the forward compatible
 		// marker config will always be explicitly restored with the singleton instance
 		if (configSnapshot != ForwardCompatibleSerializationFormatConfig.INSTANCE) {

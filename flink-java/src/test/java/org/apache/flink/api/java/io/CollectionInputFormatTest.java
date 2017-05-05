@@ -395,7 +395,7 @@ public class CollectionInputFormatTest {
 		}
 
 		@Override
-		protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+		protected MigrationStrategy<ElementType> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException();
 		}
 	}

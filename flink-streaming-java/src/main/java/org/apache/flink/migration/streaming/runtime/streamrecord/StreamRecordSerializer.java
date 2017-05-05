@@ -157,18 +157,16 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 		return new StreamRecordSerializerConfigSnapshot(typeSerializer.snapshotConfiguration());
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy<StreamRecord<T>> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof StreamRecordSerializerConfigSnapshot) {
-			MigrationStrategy strategy = typeSerializer.getMigrationStrategyFor(
+			MigrationStrategy<T> strategy = typeSerializer.getMigrationStrategyFor(
 				((StreamRecordSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
 			if (strategy.requireMigration()) {
 				if (strategy.getFallbackDeserializer() != null) {
 					return MigrationStrategy.migrateWithFallbackDeserializer(
-						new StreamRecordSerializer<>(
-							(TypeSerializer<T>) strategy.getFallbackDeserializer()));
+						new StreamRecordSerializer<>(strategy.getFallbackDeserializer()));
 				} else {
 					return MigrationStrategy.migrate();
 				}

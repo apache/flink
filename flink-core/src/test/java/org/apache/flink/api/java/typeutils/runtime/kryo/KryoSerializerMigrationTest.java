@@ -40,7 +40,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests related to configuration snapshotting and reconfiguring for the {@link KryoSerializer}.
  */
-public class KryoSerializerConfigurationTest {
+public class KryoSerializerMigrationTest {
 
 	/**
 	 * Verifies that reconfiguration result is INCOMPATIBLE if data type has changed.
@@ -65,7 +65,7 @@ public class KryoSerializerConfigurationTest {
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		MigrationStrategy strategy = kryoSerializerForB.getMigrationStrategy(kryoSerializerConfigSnapshot);
+		MigrationStrategy<TestClassB> strategy = kryoSerializerForB.getMigrationStrategy(kryoSerializerConfigSnapshot);
 		assertTrue(strategy.requireMigration());
 	}
 
@@ -109,7 +109,7 @@ public class KryoSerializerConfigurationTest {
 		}
 
 		// reconfigure - check reconfiguration result and that registration id remains the same
-		MigrationStrategy strategy = kryoSerializer.getMigrationStrategyFor(kryoSerializerConfigSnapshot);
+		MigrationStrategy<TestClass> strategy = kryoSerializer.getMigrationStrategyFor(kryoSerializerConfigSnapshot);
 		assertFalse(strategy.requireMigration());
 		assertEquals(testClassId, kryoSerializer.getKryo().getRegistration(TestClass.class).getId());
 		assertEquals(testClassAId, kryoSerializer.getKryo().getRegistration(TestClassA.class).getId());

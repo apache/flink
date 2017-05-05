@@ -300,7 +300,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		MigrationStrategy strategy = pojoSerializer2.getMigrationStrategy(pojoSerializerConfigSnapshot);
+		MigrationStrategy<SubTestUserClassA> strategy = pojoSerializer2.getMigrationStrategy(pojoSerializerConfigSnapshot);
 		assertTrue(strategy.requireMigration());
 	}
 
@@ -340,7 +340,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		MigrationStrategy result = pojoSerializer.getMigrationStrategy(pojoSerializerConfigSnapshot);
+		MigrationStrategy<TestUserClass> result = pojoSerializer.getMigrationStrategy(pojoSerializerConfigSnapshot);
 		assertTrue(!result.requireMigration());
 
 		// reconfigure - check reconfiguration result and that registration ids remains the same
@@ -384,7 +384,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		}
 
 		// reconfigure - check reconfiguration result and that subclass serializer cache is repopulated
-		MigrationStrategy strategy = pojoSerializer.getMigrationStrategyFor(pojoSerializerConfigSnapshot);
+		MigrationStrategy<TestUserClass> strategy = pojoSerializer.getMigrationStrategyFor(pojoSerializerConfigSnapshot);
 		assertFalse(strategy.requireMigration());
 		assertEquals(2, pojoSerializer.getSubclassSerializerCache().size());
 		assertTrue(pojoSerializer.getSubclassSerializerCache().containsKey(SubTestUserClassA.class));
@@ -446,7 +446,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		// reconfigure - check reconfiguration result and that
 		// 1) subclass serializer cache is repopulated
 		// 2) registrations also contain the now registered subclasses
-		MigrationStrategy strategy = pojoSerializer.getMigrationStrategyFor(pojoSerializerConfigSnapshot);
+		MigrationStrategy<TestUserClass> strategy = pojoSerializer.getMigrationStrategyFor(pojoSerializerConfigSnapshot);
 		assertFalse(strategy.requireMigration());
 		assertEquals(2, pojoSerializer.getSubclassSerializerCache().size());
 		assertTrue(pojoSerializer.getSubclassSerializerCache().containsKey(SubTestUserClassA.class));
@@ -494,7 +494,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 				new HashMap<Class<?>, TypeSerializerConfigSnapshot>()); // empty; irrelevant for this test
 
 		// reconfigure - check reconfiguration result and that fields are reordered to the previous order
-		MigrationStrategy strategy = pojoSerializer.getMigrationStrategyFor(mockPreviousConfigSnapshot);
+		MigrationStrategy<TestUserClass> strategy = pojoSerializer.getMigrationStrategyFor(mockPreviousConfigSnapshot);
 		assertFalse(strategy.requireMigration());
 		int i = 0;
 		for (Field field : mockOriginalFieldOrder) {

@@ -150,7 +150,7 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 	}
 
 	@Override
-	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy<Record> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException();
 	}
 }

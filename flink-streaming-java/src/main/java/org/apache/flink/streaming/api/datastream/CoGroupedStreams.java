@@ -556,7 +556,7 @@ public class CoGroupedStreams<T1, T2> {
 		}
 
 		@Override
-		protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+		protected MigrationStrategy<TaggedUnion<T1, T2>> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 		}
 	}

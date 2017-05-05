@@ -207,22 +207,21 @@ public final class HashMapSerializer<K, V> extends TypeSerializer<HashMap<K, V>>
 				valueSerializer.snapshotConfiguration());
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy<HashMap<K, V>> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof MapSerializerConfigSnapshot) {
 			TypeSerializerConfigSnapshot[] keyValueSerializerConfigSnapshots =
 				((MapSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
 
-			MigrationStrategy keyStrategy = keySerializer.getMigrationStrategyFor(keyValueSerializerConfigSnapshots[0]);
-			MigrationStrategy valueStrategy = valueSerializer.getMigrationStrategyFor(keyValueSerializerConfigSnapshots[1]);
+			MigrationStrategy<K> keyStrategy = keySerializer.getMigrationStrategyFor(keyValueSerializerConfigSnapshots[0]);
+			MigrationStrategy<V> valueStrategy = valueSerializer.getMigrationStrategyFor(keyValueSerializerConfigSnapshots[1]);
 
 			if (keyStrategy.requireMigration() || valueStrategy.requireMigration()) {
 				if (keyStrategy.getFallbackDeserializer() != null && valueStrategy.getFallbackDeserializer() != null) {
 					return MigrationStrategy.migrateWithFallbackDeserializer(
 							new HashMapSerializer<>(
-									(TypeSerializer<K>) keyStrategy.getFallbackDeserializer(),
-									(TypeSerializer<V>) valueStrategy.getFallbackDeserializer()));
+									keyStrategy.getFallbackDeserializer(),
+									valueStrategy.getFallbackDeserializer()));
 				} else {
 					return MigrationStrategy.migrate();
 				}

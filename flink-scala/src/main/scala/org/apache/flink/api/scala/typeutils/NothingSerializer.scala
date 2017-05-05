@@ -60,7 +60,7 @@ class NothingSerializer extends TypeSerializer[Any] {
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
   override protected def getMigrationStrategy(
-      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy =
+      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy[Any] =
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
   override def equals(obj: Any): Boolean = {

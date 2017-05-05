@@ -111,7 +111,7 @@ public class MigrationNamespaceSerializerProxy extends TypeSerializer<Serializab
 	}
 
 	@Override
-	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy<Serializable> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException(
 				"This is just a proxy used during migration until the real type serializer is provided by the user.");
 	}

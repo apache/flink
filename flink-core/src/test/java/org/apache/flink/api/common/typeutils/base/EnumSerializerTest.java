@@ -72,7 +72,7 @@ public class EnumSerializerTest extends TestLogger {
 		assertEquals(PublicEnum.PAULA.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.PAULA).intValue());
 
 		// reconfigure and verify compatibility
-		MigrationStrategy strategy = serializer.getMigrationStrategyFor(
+		MigrationStrategy<PublicEnum> strategy = serializer.getMigrationStrategyFor(
 			new EnumSerializer.EnumSerializerConfigSnapshot<>(PublicEnum.class, mockPreviousOrder));
 		assertFalse(strategy.requireMigration());
 
@@ -106,7 +106,7 @@ public class EnumSerializerTest extends TestLogger {
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		MigrationStrategy strategy = serializer.getMigrationStrategyFor(restoredConfig);
+		MigrationStrategy<PublicEnum> strategy = serializer.getMigrationStrategyFor(restoredConfig);
 		assertFalse(strategy.requireMigration());
 
 		assertEquals(PublicEnum.FOO.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.FOO).intValue());
@@ -161,7 +161,7 @@ public class EnumSerializerTest extends TestLogger {
 		assertEquals(PublicEnum.PAULA.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.PAULA).intValue());
 
 		// reconfigure and verify compatibility
-		MigrationStrategy strategy = serializer.getMigrationStrategyFor(
+		MigrationStrategy<PublicEnum> strategy = serializer.getMigrationStrategyFor(
 			new EnumSerializer.EnumSerializerConfigSnapshot<>(PublicEnum.class, mockPreviousOrder));
 		assertFalse(strategy.requireMigration());
 

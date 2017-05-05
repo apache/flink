@@ -156,7 +156,7 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
   }
 
   override protected def getMigrationStrategy(
-      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy = {
+      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy[T] = {
     throw new UnsupportedOperationException()
   }
 }

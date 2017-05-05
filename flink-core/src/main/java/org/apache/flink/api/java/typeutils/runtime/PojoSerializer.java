@@ -554,14 +554,14 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	public MigrationStrategy<T> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof PojoSerializerConfigSnapshot) {
 			final PojoSerializerConfigSnapshot<T> config = (PojoSerializerConfigSnapshot<T>) configSnapshot;
 
 			if (clazz.equals(config.getTypeClass())) {
 				if (this.numFields == config.getFieldToSerializerConfigSnapshot().size()) {
 
-					MigrationStrategy strategy;
+					MigrationStrategy<?> strategy;
 
 					// ----------- check field order and migration requirement of field serializers -----------
 

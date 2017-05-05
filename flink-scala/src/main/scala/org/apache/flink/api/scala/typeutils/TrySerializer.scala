@@ -111,7 +111,7 @@ class TrySerializer[A](
   }
 
   override protected def getMigrationStrategy(
-      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy = {
+      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy[Try[A]] = {
 
     configSnapshot match {
       case trySerializerConfigSnapshot: TrySerializer.TrySerializerConfigSnapshot =>
@@ -124,12 +124,12 @@ class TrySerializer[A](
           throwableSerializer.getMigrationStrategyFor(serializerConfigSnapshots(1))
 
         if (elemStrategy.requireMigration() || throwableStrategy.requireMigration()) {
-          MigrationStrategy.migrate
+          MigrationStrategy.migrate()
         } else {
-          MigrationStrategy.noMigration
+          MigrationStrategy.noMigration()
         }
 
-      case _ => MigrationStrategy.migrate
+      case _ => MigrationStrategy.migrate()
     }
   }
 }

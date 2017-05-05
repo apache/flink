@@ -178,18 +178,16 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 		return new CollectionSerializerConfigSnapshot(elementSerializer.snapshotConfiguration());
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy<List<T>> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
-			MigrationStrategy strategy = elementSerializer.getMigrationStrategyFor(
+			MigrationStrategy<T> strategy = elementSerializer.getMigrationStrategyFor(
 				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
 			if (strategy.requireMigration()) {
 				if (strategy.getFallbackDeserializer() != null) {
 					return MigrationStrategy.migrateWithFallbackDeserializer(
-						new ListSerializer<>(
-							(TypeSerializer<T>) strategy.getFallbackDeserializer()));
+						new ListSerializer<>(strategy.getFallbackDeserializer()));
 				} else {
 					return MigrationStrategy.migrate();
 				}

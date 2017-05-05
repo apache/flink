@@ -117,7 +117,7 @@ class EitherSerializer[A, B, T <: Either[A, B]](
   }
 
   override protected def getMigrationStrategy(
-      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy = {
+      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy[T] = {
 
     configSnapshot match {
       case eitherSerializerConfig: EitherSerializerConfigSnapshot =>
@@ -133,17 +133,19 @@ class EitherSerializer[A, B, T <: Either[A, B]](
 
             MigrationStrategy.migrateWithFallbackDeserializer(
               new EitherSerializer[A, B, T](
-                leftStrategy.getFallbackDeserializer.asInstanceOf[TypeSerializer[A]],
-                rightStrategy.getFallbackDeserializer.asInstanceOf[TypeSerializer[B]]))
+                leftStrategy.getFallbackDeserializer,
+                rightStrategy.getFallbackDeserializer
+              )
+            )
 
           } else {
-            MigrationStrategy.migrate
+            MigrationStrategy.migrate()
           }
         } else {
-          MigrationStrategy.noMigration
+          MigrationStrategy.noMigration()
         }
 
-      case _ => MigrationStrategy.migrate();
+      case _ => MigrationStrategy.migrate()
     }
   }
 }

@@ -23,9 +23,11 @@ import org.apache.flink.annotation.PublicEvolving;
 /**
  * A {@code MigrationStrategy} contains information about how to perform migration of data written
  * by an older serializer so that new serializers can continue to work on them.
+ *
+ * @param <T> the type of the data being migrated.
  */
 @PublicEvolving
-public final class MigrationStrategy {
+public final class MigrationStrategy<T> {
 
 	/** Whether or not migration is required. */
 	private final boolean requiresStateMigration;
@@ -35,15 +37,15 @@ public final class MigrationStrategy {
 	 *
 	 * <p>This is only relevant if migration is required.
 	 */
-	private final TypeSerializer<?> fallbackDeserializer;
+	private final TypeSerializer<T> fallbackDeserializer;
 
 	/**
 	 * Returns a strategy that simply signals that no migration needs to be performed.
 	 *
 	 * @return a strategy that does not perform migration
 	 */
-	public static MigrationStrategy noMigration() {
-		return new MigrationStrategy(false, null);
+	public static <T> MigrationStrategy<T> noMigration() {
+		return new MigrationStrategy<>(false, null);
 	}
 
 	/**
@@ -56,8 +58,8 @@ public final class MigrationStrategy {
 	 *
 	 * @return a strategy that performs migration with a fallback deserializer to read old data.
 	 */
-	public static MigrationStrategy migrateWithFallbackDeserializer(TypeSerializer<?> fallbackDeserializer) {
-		return new MigrationStrategy(true, fallbackDeserializer);
+	public static <T> MigrationStrategy<T> migrateWithFallbackDeserializer(TypeSerializer<T> fallbackDeserializer) {
+		return new MigrationStrategy<>(true, fallbackDeserializer);
 	}
 
 	/**
@@ -66,16 +68,16 @@ public final class MigrationStrategy {
 	 *
 	 * @return a strategy that performs migration, without a fallback deserializer.
 	 */
-	public static MigrationStrategy migrate() {
-		return new MigrationStrategy(true, null);
+	public static <T> MigrationStrategy<T> migrate() {
+		return new MigrationStrategy<>(true, null);
 	}
 
-	private MigrationStrategy(boolean requiresStateMigration, TypeSerializer<?> fallbackDeserializer) {
+	private MigrationStrategy(boolean requiresStateMigration, TypeSerializer<T> fallbackDeserializer) {
 		this.requiresStateMigration = requiresStateMigration;
 		this.fallbackDeserializer = fallbackDeserializer;
 	}
 
-	public TypeSerializer<?> getFallbackDeserializer() {
+	public TypeSerializer<T> getFallbackDeserializer() {
 		return fallbackDeserializer;
 	}
 

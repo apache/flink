@@ -59,7 +59,7 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 	}
 
 	@Override
-	public MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	public MigrationStrategy<T> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof ParameterlessTypeSerializerConfig
 				&& isCompatibleSerializationFormatIdentifier(
 						((ParameterlessTypeSerializerConfig) configSnapshot).getSerializationFormatIdentifier())) {

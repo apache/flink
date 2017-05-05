@@ -105,7 +105,7 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
   }
 
   override protected def getMigrationStrategy(
-      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy = {
+      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy[Option[A]] = {
     configSnapshot match {
       case optionSerializerConfigSnapshot: OptionSerializer.OptionSerializerConfigSnapshot =>
         val strategy = elemSerializer.getMigrationStrategyFor(
@@ -114,16 +114,15 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
         if (strategy.requireMigration()) {
           if (strategy.getFallbackDeserializer != null) {
             MigrationStrategy.migrateWithFallbackDeserializer(
-              new OptionSerializer[A](
-                strategy.getFallbackDeserializer.asInstanceOf[TypeSerializer[A]]))
+              new OptionSerializer[A](strategy.getFallbackDeserializer))
           } else {
-            MigrationStrategy.migrate
+            MigrationStrategy.migrate()
           }
         } else {
-          MigrationStrategy.noMigration
+          MigrationStrategy.noMigration()
         }
 
-      case _ => MigrationStrategy.migrate
+      case _ => MigrationStrategy.migrate()
     }
   }
 }

@@ -218,18 +218,17 @@ public class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<Stream
 		return new MultiplexingStreamRecordSerializerConfigSnapshot(typeSerializer.snapshotConfiguration());
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy<StreamElement> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof MultiplexingStreamRecordSerializerConfigSnapshot) {
-			MigrationStrategy strategy = typeSerializer.getMigrationStrategyFor(
+			MigrationStrategy<T> strategy = typeSerializer.getMigrationStrategyFor(
 				((MultiplexingStreamRecordSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
 			if (strategy.requireMigration()) {
 				if (strategy.getFallbackDeserializer() != null) {
 					return MigrationStrategy.migrateWithFallbackDeserializer(
 						new MultiplexingStreamRecordSerializer<>(
-							(TypeSerializer<T>) strategy.getFallbackDeserializer()));
+							strategy.getFallbackDeserializer()));
 				} else {
 					return MigrationStrategy.migrate();
 				}

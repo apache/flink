@@ -203,7 +203,7 @@ public final class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy<T> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 	}
 }

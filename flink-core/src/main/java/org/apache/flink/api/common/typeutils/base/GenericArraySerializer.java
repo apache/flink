@@ -198,14 +198,13 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 		return new GenericArraySerializerConfigSnapshot<>(componentClass, componentSerializer.snapshotConfiguration());
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	protected MigrationStrategy getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected MigrationStrategy<C[]> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof GenericArraySerializerConfigSnapshot) {
 			final GenericArraySerializerConfigSnapshot config = (GenericArraySerializerConfigSnapshot) configSnapshot;
 
 			if (componentClass.equals(config.getComponentClass())) {
-				MigrationStrategy strategy = componentSerializer.getMigrationStrategyFor(
+				MigrationStrategy<C> strategy = componentSerializer.getMigrationStrategyFor(
 					config.getSingleNestedSerializerConfigSnapshot());
 
 				if (strategy.requireMigration()) {
@@ -213,7 +212,7 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 						return MigrationStrategy.migrateWithFallbackDeserializer(
 							new GenericArraySerializer<>(
 								componentClass,
-								(TypeSerializer<C>) strategy.getFallbackDeserializer()));
+								strategy.getFallbackDeserializer()));
 					} else {
 						return MigrationStrategy.migrate();
 					}
