@@ -31,6 +31,7 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
@@ -330,6 +331,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				}
 			}
 		) {
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				snapshotOperation.stop();
+				return super.cancel(mayInterruptIfRunning);
+			}
+
 			@Override
 			protected void done() {
 				snapshotOperation.releaseResources(isCancelled());
@@ -715,8 +722,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private FileSystem backupFileSystem;
 		private Path backupPath;
 
-		private FSDataInputStream inputStream = null;
-		private CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
+		// Registry for all opened i/o streams
+		private CloseableRegistry closeableRegistry = new CloseableRegistry();
 
 		// new sst files since the last completed checkpoint
 		private Map<String, StreamStateHandle> newSstFiles = new HashMap<>();
@@ -742,16 +749,19 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		private StreamStateHandle materializeStateData(Path filePath) throws Exception {
+			FSDataInputStream inputStream = null;
+			CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
+
 			try {
 				final byte[] buffer = new byte[1024];
 
 				FileSystem backupFileSystem = backupPath.getFileSystem();
 				inputStream = backupFileSystem.open(filePath);
-				stateBackend.cancelStreamRegistry.registerClosable(inputStream);
+				closeableRegistry.registerClosable(inputStream);
 
 				outputStream = checkpointStreamFactory
 					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
-				stateBackend.cancelStreamRegistry.registerClosable(outputStream);
+				closeableRegistry.registerClosable(outputStream);
 
 				while (true) {
 					int numBytes = inputStream.read(buffer);
@@ -763,27 +773,27 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					outputStream.write(buffer, 0, numBytes);
 				}
 
-				stateBackend.cancelStreamRegistry.unregisterClosable(outputStream);
+				closeableRegistry.unregisterClosable(outputStream);
 				StreamStateHandle result = outputStream.closeAndGetHandle();
 				outputStream = null;
 
 				return result;
 			} finally {
 				if (inputStream != null) {
-					stateBackend.cancelStreamRegistry.unregisterClosable(inputStream);
+					closeableRegistry.unregisterClosable(inputStream);
 					inputStream.close();
-					inputStream = null;
 				}
 
 				if (outputStream != null) {
-					stateBackend.cancelStreamRegistry.unregisterClosable(outputStream);
+					closeableRegistry.unregisterClosable(outputStream);
 					outputStream.close();
-					outputStream = null;
 				}
 			}
 		}
 
 		private StreamStateHandle materializeMetaData() throws Exception {
+			CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
+
 			try {
 				outputStream = checkpointStreamFactory
 					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
@@ -804,7 +814,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				if (outputStream != null) {
 					stateBackend.cancelStreamRegistry.unregisterClosable(outputStream);
 					outputStream.close();
-					outputStream = null;
 				}
 			}
 		}
@@ -848,6 +857,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					throw new IOException("RocksDB closed.");
 				}
 
+				stateBackend.cancelStreamRegistry.registerClosable(closeableRegistry);
+
 				// write meta data
 				metaStateHandle = materializeMetaData();
 
@@ -886,32 +897,20 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				return new RocksDBIncrementalKeyedStateHandle(stateBackend.jobId,
 					stateBackend.operatorIdentifier, stateBackend.keyGroupRange,
-					checkpointId, newSstFiles, oldSstFiles, miscFiles, metaStateHandle
-				);
+					checkpointId, newSstFiles, oldSstFiles, miscFiles, metaStateHandle);
+			}
+		}
+
+		void stop() {
+			try {
+				closeableRegistry.close();
+			} catch (IOException e) {
+				LOG.warn("Could not properly close io streams.", e);
 			}
 		}
 
 		void releaseResources(boolean canceled) {
-
-			if (inputStream != null) {
-				stateBackend.cancelStreamRegistry.unregisterClosable(inputStream);
-				try {
-					inputStream.close();
-				} catch (Exception e) {
-					LOG.warn("Could not properly close the input stream.", e);
-				}
-				inputStream = null;
-			}
-
-			if (outputStream != null) {
-				stateBackend.cancelStreamRegistry.unregisterClosable(outputStream);
-				try {
-					outputStream.close();
-				} catch (Exception e) {
-					LOG.warn("Could not properly close the output stream.", e);
-				}
-				outputStream = null;
-			}
+			stateBackend.cancelStreamRegistry.unregisterClosable(closeableRegistry);
 
 			if (backupPath != null) {
 				try {
