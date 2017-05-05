@@ -76,6 +76,7 @@ under the License.
 		<module>flink-mesos</module>
 		<module>flink-metrics</module>
 		<module>flink-yarn</module>
+		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
 	</modules>
 
@@ -84,7 +85,7 @@ under the License.
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<!-- Internal property to reduce build times on TravisCi -->
 		<flink-fast-tests-pattern>never-match-me</flink-fast-tests-pattern>
-		<hadoop.version>2.3.0</hadoop.version>
+		<hadoop.version>2.4.1</hadoop.version>
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
@@ -493,14 +494,6 @@ under the License.
 			</properties>
 		</profile>
 
-		<!-- Profile to deactivate the YARN tests -->
-		<profile>
-			<id>include-yarn-tests</id>
-			<modules>
-				<module>flink-yarn-tests</module>
-			</modules>
-		</profile>
-		
 		<profile>
 			<id>vendor-repos</id>
 			<!-- Add vendor maven repositories -->
