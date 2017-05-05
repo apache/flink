@@ -46,7 +46,9 @@ import org.junit.rules.TemporaryFolder;
 
 import static org.junit.Assert.*;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
@@ -58,7 +60,7 @@ public class CEPOperatorTest extends TestLogger {
 	@Test
 	public void testKeyedCEPOperatorWatermarkForwarding() throws Exception {
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = getCepTestHarness(false);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(false);
 
 		harness.open();
 
@@ -74,7 +76,7 @@ public class CEPOperatorTest extends TestLogger {
 	@Test
 	public void testKeyedCEPOperatorCheckpointing() throws Exception {
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = getCepTestHarness(false);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(false);
 
 		harness.open();
 
@@ -138,7 +140,7 @@ public class CEPOperatorTest extends TestLogger {
 		RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
 		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = getCepTestHarness(false);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(false);
 
 		harness.setStateBackend(rocksDBStateBackend);
 
@@ -208,7 +210,6 @@ public class CEPOperatorTest extends TestLogger {
 	 * Tests that the internal time of a CEP operator advances only given watermarks. See FLINK-5033
 	 */
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testKeyedAdvancingTimeWithoutElements() throws Exception {
 		final KeySelector<Event, Integer> keySelector = new TestKeySelector();
 
@@ -216,10 +217,10 @@ public class CEPOperatorTest extends TestLogger {
 		final long watermarkTimestamp1 = 5L;
 		final long watermarkTimestamp2 = 13L;
 
-		final Map<String, Event> expectedSequence = new HashMap<>(2);
-		expectedSequence.put("start", startEvent);
+		final Map<String, List<Event>> expectedSequence = new HashMap<>(2);
+		expectedSequence.put("start", Collections.<Event>singletonList(startEvent));
 
-		OneInputStreamOperatorTestHarness<Event, Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
+		OneInputStreamOperatorTestHarness<Event, Either<Tuple2<Map<String, List<Event>>, Long>, Map<String, List<Event>>>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
 			new TimeoutKeyedCEPPatternOperator<>(
 				Event.createTypeSerializer(),
 				false,
@@ -234,7 +235,7 @@ public class CEPOperatorTest extends TestLogger {
 		try {
 			harness.setup(
 				new KryoSerializer<>(
-					(Class<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>>) (Object) Either.class,
+					(Class<Either<Tuple2<Map<String, List<Event>>, Long>, Map<String, List<Event>>>>) (Object) Either.class,
 					new ExecutionConfig()));
 			harness.open();
 
@@ -256,13 +257,15 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertTrue(resultObject instanceof StreamRecord);
 
-			StreamRecord<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> streamRecord = (StreamRecord<Either<Tuple2<Map<String,Event>,Long>,Map<String,Event>>>) resultObject;
+			StreamRecord<Either<Tuple2<Map<String, List<Event>>, Long>, Map<String, List<Event>>>> streamRecord =
+					(StreamRecord<Either<Tuple2<Map<String,List<Event>>,Long>,Map<String,List<Event>>>>) resultObject;
 
 			assertTrue(streamRecord.getValue() instanceof Either.Left);
 
-			Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>> left = (Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>>) streamRecord.getValue();
+			Either.Left<Tuple2<Map<String, List<Event>>, Long>, Map<String, List<Event>>> left =
+			(Either.Left<Tuple2<Map<String, List<Event>>, Long>, Map<String, List<Event>>>) streamRecord.getValue();
 
-			Tuple2<Map<String, Event>, Long> leftResult = left.left();
+			Tuple2<Map<String, List<Event>>, Long> leftResult = left.left();
 
 			assertEquals(watermarkTimestamp2, (long) leftResult.f1);
 			assertEquals(expectedSequence, leftResult.f0);
@@ -292,7 +295,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		TestKeySelector keySelector = new TestKeySelector();
 		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOpearator(false, keySelector);
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = getCepTestHarness(operator);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
 
 		harness.open();
 
@@ -380,7 +383,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		TestKeySelector keySelector = new TestKeySelector();
 		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOpearator(true, keySelector);
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = getCepTestHarness(operator);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
 
 		harness.open();
 
@@ -449,13 +452,13 @@ public class CEPOperatorTest extends TestLogger {
 		assertTrue(resultRecord.getValue() instanceof Map);
 
 		@SuppressWarnings("unchecked")
-		Map<String, Event> patternMap = (Map<String, Event>) resultRecord.getValue();
-		assertEquals(start, patternMap.get("start"));
-		assertEquals(middle, patternMap.get("middle"));
-		assertEquals(end, patternMap.get("end"));
+		Map<String, List<Event>> patternMap = (Map<String, List<Event>>) resultRecord.getValue();
+		assertEquals(start, patternMap.get("start").get(0));
+		assertEquals(middle, patternMap.get("middle").get(0));
+		assertEquals(end, patternMap.get("end").get(0));
 	}
 
-	private OneInputStreamOperatorTestHarness<Event, Map<String, Event>> getCepTestHarness(boolean isProcessingTime) throws Exception {
+	private OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> getCepTestHarness(boolean isProcessingTime) throws Exception {
 		KeySelector<Event, Integer> keySelector = new TestKeySelector();
 
 		return new KeyedOneInputStreamOperatorTestHarness<>(
@@ -464,7 +467,7 @@ public class CEPOperatorTest extends TestLogger {
 			BasicTypeInfo.INT_TYPE_INFO);
 	}
 
-	private OneInputStreamOperatorTestHarness<Event, Map<String, Event>> getCepTestHarness(
+	private OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> getCepTestHarness(
 			KeyedCEPPatternOperator<Event, Integer> cepOperator) throws Exception {
 		KeySelector<Event, Integer> keySelector = new TestKeySelector();
 

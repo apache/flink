@@ -37,6 +37,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.junit.Test;
 
 import java.net.URL;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -95,7 +96,7 @@ public class CEPMigration11to13Test {
 		harness.close();
 		*/
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
@@ -129,11 +130,11 @@ public class CEPMigration11to13Test {
 		assertTrue(resultRecord.getValue() instanceof Map);
 
 		@SuppressWarnings("unchecked")
-		Map<String, Event> patternMap = (Map<String, Event>) resultRecord.getValue();
+		Map<String, List<Event>> patternMap = (Map<String, List<Event>>) resultRecord.getValue();
 
-		assertEquals(startEvent, patternMap.get("start"));
-		assertEquals(middleEvent, patternMap.get("middle"));
-		assertEquals(endEvent, patternMap.get("end"));
+		assertEquals(startEvent, patternMap.get("start").get(0));
+		assertEquals(middleEvent, patternMap.get("middle").get(0));
+		assertEquals(endEvent, patternMap.get("end").get(0));
 
 		harness.close();
 	}
@@ -170,7 +171,7 @@ public class CEPMigration11to13Test {
 
 		NullByteKeySelector keySelector = new NullByteKeySelector();
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
@@ -204,11 +205,11 @@ public class CEPMigration11to13Test {
 		assertTrue(resultRecord.getValue() instanceof Map);
 
 		@SuppressWarnings("unchecked")
-		Map<String, Event> patternMap = (Map<String, Event>) resultRecord.getValue();
+		Map<String, List<Event>> patternMap = (Map<String, List<Event>>) resultRecord.getValue();
 
-		assertEquals(startEvent, patternMap.get("start"));
-		assertEquals(middleEvent, patternMap.get("middle"));
-		assertEquals(endEvent, patternMap.get("end"));
+		assertEquals(startEvent, patternMap.get("start").get(0));
+		assertEquals(middleEvent, patternMap.get("middle").get(0));
+		assertEquals(endEvent, patternMap.get("end").get(0));
 
 		harness.close();
 	}
