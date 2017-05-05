@@ -1047,7 +1047,7 @@ public class TaskManagerTest extends TestLogger {
 		assertEquals(tmConfig.getNetworkConfig().partitionRequestInitialBackoff(), 100);
 		assertEquals(tmConfig.getNetworkConfig().partitionRequestMaxBackoff(), 200);
 		assertEquals(tmConfig.getNetworkConfig().networkBuffersPerChannel(), 10);
-		assertEquals(tmConfig.getNetworkConfig().extraNetworkBuffersPerGate(), 100);
+		assertEquals(tmConfig.getNetworkConfig().floatingNetworkBuffersPerGate(), 100);
 	}
 
 	/**

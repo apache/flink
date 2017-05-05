@@ -145,7 +145,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				netConf.partitionRequestInitialBackoff(),
 				netConf.partitionRequestMaxBackoff(),
 				netConf.networkBuffersPerChannel(),
-				netConf.extraNetworkBuffersPerGate());
+				netConf.floatingNetworkBuffersPerGate());
 
 			network.start();
 
