@@ -36,6 +36,7 @@ import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -72,7 +73,7 @@ public class CEPFrom12MigrationTest {
 		final SubEvent middleEvent1 = new SubEvent(42, "foo1", 1.0, 10.0);
 		final SubEvent middleEvent2 = new SubEvent(42, "foo2", 2.0, 10.0);
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
@@ -120,7 +121,7 @@ public class CEPFrom12MigrationTest {
 		final SubEvent middleEvent2 = new SubEvent(42, "foo2", 2.0, 10.0);
 		final Event endEvent = new Event(42, "end", 1.0);
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
@@ -160,18 +161,18 @@ public class CEPFrom12MigrationTest {
 		assertTrue(resultRecord2.getValue() instanceof Map);
 
 		@SuppressWarnings("unchecked")
-		Map<String, Event> patternMap1 = (Map<String, Event>) resultRecord1.getValue();
+		Map<String, List<Event>> patternMap1 = (Map<String, List<Event>>) resultRecord1.getValue();
 
-		assertEquals(startEvent, patternMap1.get("start"));
-		assertEquals(middleEvent1, patternMap1.get("middle"));
-		assertEquals(endEvent, patternMap1.get("end"));
+		assertEquals(startEvent, patternMap1.get("start").get(0));
+		assertEquals(middleEvent1, patternMap1.get("middle").get(0));
+		assertEquals(endEvent, patternMap1.get("end").get(0));
 
 		@SuppressWarnings("unchecked")
-		Map<String, Event> patternMap2 = (Map<String, Event>) resultRecord2.getValue();
+		Map<String, List<Event>> patternMap2 = (Map<String, List<Event>>) resultRecord2.getValue();
 
-		assertEquals(startEvent, patternMap2.get("start"));
-		assertEquals(middleEvent2, patternMap2.get("middle"));
-		assertEquals(endEvent, patternMap2.get("end"));
+		assertEquals(startEvent, patternMap2.get("start").get(0));
+		assertEquals(middleEvent2, patternMap2.get("middle").get(0));
+		assertEquals(endEvent, patternMap2.get("end").get(0));
 
 		harness.close();
 	}
@@ -195,7 +196,7 @@ public class CEPFrom12MigrationTest {
 		final Event startEvent1 = new Event(42, "start", 1.0);
 		final SubEvent middleEvent1 = new SubEvent(42, "foo1", 1.0, 10.0);
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
@@ -241,7 +242,7 @@ public class CEPFrom12MigrationTest {
 		final SubEvent middleEvent2 = new SubEvent(42, "foo2", 2.0, 10.0);
 		final Event endEvent = new Event(42, "end", 1.0);
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
@@ -287,25 +288,25 @@ public class CEPFrom12MigrationTest {
 		assertTrue(resultRecord3.getValue() instanceof Map);
 
 		@SuppressWarnings("unchecked")
-		Map<String, Event> patternMap1 = (Map<String, Event>) resultRecord1.getValue();
+		Map<String, List<Event>> patternMap1 = (Map<String, List<Event>>) resultRecord1.getValue();
 
-		assertEquals(startEvent1, patternMap1.get("start"));
-		assertEquals(middleEvent1, patternMap1.get("middle"));
-		assertEquals(endEvent, patternMap1.get("end"));
-
-		@SuppressWarnings("unchecked")
-		Map<String, Event> patternMap2 = (Map<String, Event>) resultRecord2.getValue();
-
-		assertEquals(startEvent1, patternMap2.get("start"));
-		assertEquals(middleEvent2, patternMap2.get("middle"));
-		assertEquals(endEvent, patternMap2.get("end"));
+		assertEquals(startEvent1, patternMap1.get("start").get(0));
+		assertEquals(middleEvent1, patternMap1.get("middle").get(0));
+		assertEquals(endEvent, patternMap1.get("end").get(0));
 
 		@SuppressWarnings("unchecked")
-		Map<String, Event> patternMap3 = (Map<String, Event>) resultRecord3.getValue();
+		Map<String, List<Event>> patternMap2 = (Map<String, List<Event>>) resultRecord2.getValue();
 
-		assertEquals(startEvent2, patternMap3.get("start"));
-		assertEquals(middleEvent2, patternMap3.get("middle"));
-		assertEquals(endEvent, patternMap3.get("end"));
+		assertEquals(startEvent1, patternMap2.get("start").get(0));
+		assertEquals(middleEvent2, patternMap2.get("middle").get(0));
+		assertEquals(endEvent, patternMap2.get("end").get(0));
+
+		@SuppressWarnings("unchecked")
+		Map<String, List<Event>> patternMap3 = (Map<String, List<Event>>) resultRecord3.getValue();
+
+		assertEquals(startEvent2, patternMap3.get("start").get(0));
+		assertEquals(middleEvent2, patternMap3.get("middle").get(0));
+		assertEquals(endEvent, patternMap3.get("end").get(0));
 
 		harness.close();
 	}
@@ -328,7 +329,7 @@ public class CEPFrom12MigrationTest {
 
 		final Event startEvent1 = new Event(42, "start", 1.0);
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
@@ -367,7 +368,7 @@ public class CEPFrom12MigrationTest {
 
 		final Event startEvent1 = new Event(42, "start", 1.0);
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
@@ -401,9 +402,9 @@ public class CEPFrom12MigrationTest {
 		assertTrue(resultRecord.getValue() instanceof Map);
 
 		@SuppressWarnings("unchecked")
-		Map<String, Event> patternMap = (Map<String, Event>) resultRecord.getValue();
+		Map<String, List<Event>> patternMap = (Map<String, List<Event>>) resultRecord.getValue();
 
-		assertEquals(startEvent1, patternMap.get("start"));
+		assertEquals(startEvent1, patternMap.get("start").get(0));
 
 		harness.close();
 	}

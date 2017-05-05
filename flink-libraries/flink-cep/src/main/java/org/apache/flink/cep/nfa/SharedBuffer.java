@@ -18,7 +18,8 @@
 
 package org.apache.flink.cep.nfa;
 
-import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -179,12 +180,12 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 * @param version Version of the previous relation which shall be extracted
 	 * @return Collection of previous relations starting with the given value
 	 */
-	public Collection<LinkedHashMultimap<K, V>> extractPatterns(
+	public Collection<ListMultimap<K, V>> extractPatterns(
 		final K key,
 		final V value,
 		final long timestamp,
 		final DeweyNumber version) {
-		Collection<LinkedHashMultimap<K, V>> result = new ArrayList<>();
+		Collection<ListMultimap<K, V>> result = new ArrayList<>();
 
 		// stack to remember the current extraction states
 		Stack<ExtractionState<K, V>> extractionStates = new Stack<>();
@@ -204,7 +205,8 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 				// termination criterion
 				if (currentEntry == null) {
-					final LinkedHashMultimap<K, V> completePath = LinkedHashMultimap.create();
+					// TODO: 5/5/17 this should be a list 
+					final ListMultimap<K, V> completePath = ArrayListMultimap.create();
 
 					while(!currentPath.isEmpty()) {
 						final SharedBufferEntry<K, V> currentPathEntry = currentPath.pop();

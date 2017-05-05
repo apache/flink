@@ -33,6 +33,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -135,7 +136,7 @@ public class PatternStream<T> {
 	 *         function.
 	 */
 	public <R> SingleOutputStreamOperator<R> select(final PatternSelectFunction<T, R> patternSelectFunction, TypeInformation<R> outTypeInfo) {
-		SingleOutputStreamOperator<Map<String, T>> patternStream =
+		SingleOutputStreamOperator<Map<String, List<T>>> patternStream =
 				CEPOperatorUtils.createPatternStream(inputStream, pattern, lateDataOutputTag);
 		this.patternStream = patternStream;
 
@@ -167,7 +168,7 @@ public class PatternStream<T> {
 		final PatternTimeoutFunction<T, L> patternTimeoutFunction,
 		final PatternSelectFunction<T, R> patternSelectFunction) {
 
-		SingleOutputStreamOperator<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream =
+		SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> patternStream =
 				CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern, lateDataOutputTag);
 		this.patternStream = patternStream;
 
@@ -238,7 +239,7 @@ public class PatternStream<T> {
 	 *         function.
 	 */
 	public <R> SingleOutputStreamOperator<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction, TypeInformation<R> outTypeInfo) {
-		SingleOutputStreamOperator<Map<String, T>> patternStream =
+		SingleOutputStreamOperator<Map<String, List<T>>> patternStream =
 				CEPOperatorUtils.createPatternStream(inputStream, pattern, lateDataOutputTag);
 		this.patternStream = patternStream;
 
@@ -271,7 +272,7 @@ public class PatternStream<T> {
 		final PatternFlatTimeoutFunction<T, L> patternFlatTimeoutFunction,
 		final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
 
-		SingleOutputStreamOperator<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream =
+		SingleOutputStreamOperator<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>> patternStream =
 				CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern, lateDataOutputTag);
 		this.patternStream = patternStream;
 
@@ -321,7 +322,7 @@ public class PatternStream<T> {
 	 * @param <T> Type of the input elements
 	 * @param <R> Type of the resulting elements
 	 */
-	private static class PatternSelectMapper<T, R> implements MapFunction<Map<String, T>, R> {
+	private static class PatternSelectMapper<T, R> implements MapFunction<Map<String, List<T>>, R> {
 		private static final long serialVersionUID = 2273300432692943064L;
 
 		private final PatternSelectFunction<T, R> patternSelectFunction;
@@ -331,12 +332,12 @@ public class PatternStream<T> {
 		}
 
 		@Override
-		public R map(Map<String, T> value) throws Exception {
+		public R map(Map<String, List<T>> value) throws Exception {
 			return patternSelectFunction.select(value);
 		}
 	}
 
-	private static class PatternSelectTimeoutMapper<T, L, R> implements MapFunction<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>, Either<L, R>> {
+	private static class PatternSelectTimeoutMapper<T, L, R> implements MapFunction<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>, Either<L, R>> {
 
 		private static final long serialVersionUID = 8259477556738887724L;
 
@@ -352,9 +353,9 @@ public class PatternStream<T> {
 		}
 
 		@Override
-		public Either<L, R> map(Either<Tuple2<Map<String, T>, Long>, Map<String, T>> value) throws Exception {
+		public Either<L, R> map(Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>> value) throws Exception {
 			if (value.isLeft()) {
-				Tuple2<Map<String, T>, Long> timeout = value.left();
+				Tuple2<Map<String, List<T>>, Long> timeout = value.left();
 
 				return Either.Left(patternTimeoutFunction.timeout(timeout.f0, timeout.f1));
 			} else {
@@ -363,7 +364,7 @@ public class PatternStream<T> {
 		}
 	}
 
-	private static class PatternFlatSelectTimeoutWrapper<T, L, R> implements FlatMapFunction<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>, Either<L, R>> {
+	private static class PatternFlatSelectTimeoutWrapper<T, L, R> implements FlatMapFunction<Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>>, Either<L, R>> {
 
 		private static final long serialVersionUID = 7483674669662261667L;
 
@@ -378,9 +379,9 @@ public class PatternStream<T> {
 		}
 
 		@Override
-		public void flatMap(Either<Tuple2<Map<String, T>, Long>, Map<String, T>> value, Collector<Either<L, R>> out) throws Exception {
+		public void flatMap(Either<Tuple2<Map<String, List<T>>, Long>, Map<String, List<T>>> value, Collector<Either<L, R>> out) throws Exception {
 			if (value.isLeft()) {
-				Tuple2<Map<String, T>, Long> timeout = value.left();
+				Tuple2<Map<String, List<T>>, Long> timeout = value.left();
 
 				patternFlatTimeoutFunction.timeout(timeout.f0, timeout.f1, new LeftCollector<>(out));
 			} else {
@@ -433,7 +434,7 @@ public class PatternStream<T> {
 	 * @param <T> Type of the input elements
 	 * @param <R> Type of the resulting elements
 	 */
-	private static class PatternFlatSelectMapper<T, R> implements FlatMapFunction<Map<String, T>, R> {
+	private static class PatternFlatSelectMapper<T, R> implements FlatMapFunction<Map<String, List<T>>, R> {
 
 		private static final long serialVersionUID = -8610796233077989108L;
 
@@ -445,7 +446,7 @@ public class PatternStream<T> {
 
 
 		@Override
-		public void flatMap(Map<String, T> value, Collector<R> out) throws Exception {
+		public void flatMap(Map<String, List<T>> value, Collector<R> out) throws Exception {
 			patternFlatSelectFunction.flatSelect(value, out);
 		}
 	}

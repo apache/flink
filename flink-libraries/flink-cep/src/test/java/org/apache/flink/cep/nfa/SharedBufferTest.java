@@ -18,7 +18,8 @@
 
 package org.apache.flink.cep.nfa;
 
-import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
 import org.apache.flink.cep.Event;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -48,12 +49,12 @@ public class SharedBufferTest extends TestLogger {
 			events[i] = new Event(i + 1, "e" + (i + 1), i);
 		}
 
-		LinkedHashMultimap<String, Event> expectedPattern1 = LinkedHashMultimap.create();
+		ListMultimap<String, Event> expectedPattern1 = ArrayListMultimap.create();
 		expectedPattern1.put("a1", events[2]);
 		expectedPattern1.put("a[]", events[3]);
 		expectedPattern1.put("b", events[5]);
 
-		LinkedHashMultimap<String, Event> expectedPattern2 = LinkedHashMultimap.create();
+		ListMultimap<String, Event> expectedPattern2 = ArrayListMultimap.create();
 		expectedPattern2.put("a1", events[0]);
 		expectedPattern2.put("a[]", events[1]);
 		expectedPattern2.put("a[]", events[2]);
@@ -61,7 +62,7 @@ public class SharedBufferTest extends TestLogger {
 		expectedPattern2.put("a[]", events[4]);
 		expectedPattern2.put("b", events[5]);
 
-		LinkedHashMultimap<String, Event> expectedPattern3 = LinkedHashMultimap.create();
+		ListMultimap<String, Event> expectedPattern3 = ArrayListMultimap.create();
 		expectedPattern3.put("a1", events[0]);
 		expectedPattern3.put("a[]", events[1]);
 		expectedPattern3.put("a[]", events[2]);
@@ -84,11 +85,11 @@ public class SharedBufferTest extends TestLogger {
 		sharedBuffer.put("a[]", events[6], timestamp, "a[]", events[5], timestamp, DeweyNumber.fromString("1.1"));
 		sharedBuffer.put("b", events[7], timestamp, "a[]", events[6], timestamp, DeweyNumber.fromString("1.1.0"));
 
-		Collection<LinkedHashMultimap<String, Event>> patterns3 = sharedBuffer.extractPatterns("b", events[7], timestamp, DeweyNumber.fromString("1.1.0"));
+		Collection<ListMultimap<String, Event>> patterns3 = sharedBuffer.extractPatterns("b", events[7], timestamp, DeweyNumber.fromString("1.1.0"));
 		sharedBuffer.release("b", events[7], timestamp);
-		Collection<LinkedHashMultimap<String, Event>> patterns4 = sharedBuffer.extractPatterns("b", events[7], timestamp, DeweyNumber.fromString("1.1.0"));
-		Collection<LinkedHashMultimap<String, Event>> patterns1 = sharedBuffer.extractPatterns("b", events[5], timestamp, DeweyNumber.fromString("2.0.0"));
-		Collection<LinkedHashMultimap<String, Event>> patterns2 = sharedBuffer.extractPatterns("b", events[5], timestamp, DeweyNumber.fromString("1.0.0"));
+		Collection<ListMultimap<String, Event>> patterns4 = sharedBuffer.extractPatterns("b", events[7], timestamp, DeweyNumber.fromString("1.1.0"));
+		Collection<ListMultimap<String, Event>> patterns1 = sharedBuffer.extractPatterns("b", events[5], timestamp, DeweyNumber.fromString("2.0.0"));
+		Collection<ListMultimap<String, Event>> patterns2 = sharedBuffer.extractPatterns("b", events[5], timestamp, DeweyNumber.fromString("1.0.0"));
 		sharedBuffer.release("b", events[5], timestamp);
 
 		assertEquals(1L, patterns3.size());
