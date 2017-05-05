@@ -21,6 +21,7 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 
 public class WebMonitorConfig {
 
@@ -62,7 +63,7 @@ public class WebMonitorConfig {
 	}
 
 	public String getWebFrontendAddress() {
-		return config.getValue(ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS);
+		return config.getValue(JobManagerOptions.WEB_FRONTEND_ADDRESS);
 	}
 
 	public int getWebFrontendPort() {
