@@ -353,11 +353,6 @@ class LocalFlinkMiniCluster(
     if (config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE) ==
         TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) {
 
-      val bufferSize: Int = config.getInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE)
-
-      val bufferMem: Long = config.getInteger(
-        TaskManagerOptions.NETWORK_NUM_BUFFERS).toLong * bufferSize.toLong
-
       val numTaskManager = config.getInteger(
         ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
         ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER)
@@ -371,10 +366,10 @@ class LocalFlinkMiniCluster(
       // each TaskManagers and each JobManager
       memorySize /= numTaskManager + 1 // the +1 is the job manager
 
-      // for each TaskManager, subtract the memory needed for memory buffers
-      memorySize -= bufferMem
+      // for each TaskManager, subtract the memory needed for network memory buffers
+      memorySize -= TaskManagerServices.calculateNetworkBufferMemory(memorySize, config)
       memorySize = (memorySize * memoryFraction).toLong
-      memorySize >>>= 20 // bytes to megabytes
+      memorySize >>= 20 // bytes to megabytes
       config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, memorySize)
     }
   }

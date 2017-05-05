@@ -52,8 +52,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Since the network buffer pool size for outgoing partitions is usually
  * quite small, e.g. via the {@link TaskManagerOptions#NETWORK_BUFFERS_PER_CHANNEL}
  * and {@link TaskManagerOptions#NETWORK_EXTRA_BUFFERS_PER_GATE} parameters
- * for bounded channels or from the default value of
- * {@link TaskManagerOptions#NETWORK_NUM_BUFFERS}, most spillable partitions
+ * for bounded channels or from the default values of
+ * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_FRACTION},
+ * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MIN}, and
+ * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MAX}, most spillable partitions
  * will be spilled for real-world data sets.
  */
 class SpillableSubpartition extends ResultSubpartition {

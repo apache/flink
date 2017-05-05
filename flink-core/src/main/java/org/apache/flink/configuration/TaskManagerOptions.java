@@ -85,10 +85,29 @@ public class TaskManagerOptions {
 	/**
 	 * Number of buffers used in the network stack. This defines the number of possible tasks and
 	 * shuffles.
+	 *
+	 * @deprecated use {@link #NETWORK_BUFFERS_MEMORY_FRACTION}, {@link #NETWORK_BUFFERS_MEMORY_MIN},
+	 * and {@link #NETWORK_BUFFERS_MEMORY_MAX} instead
 	 */
+	@Deprecated
 	public static final ConfigOption<Integer> NETWORK_NUM_BUFFERS =
 			key("taskmanager.network.numberOfBuffers")
 			.defaultValue(2048);
+
+	/** Fraction of JVM memory to use for network buffers. */
+	public static final ConfigOption<Float> NETWORK_BUFFERS_MEMORY_FRACTION =
+			key("taskmanager.network.memory.fraction")
+			.defaultValue(0.1f);
+
+	/** Minimum memory size for network buffers (in bytes) */
+	public static final ConfigOption<Long> NETWORK_BUFFERS_MEMORY_MIN =
+			key("taskmanager.network.memory.min")
+			.defaultValue(64L << 20); // 64 MB
+
+	/** Maximum memory size for network buffers (in bytes) */
+	public static final ConfigOption<Long> NETWORK_BUFFERS_MEMORY_MAX =
+			key("taskmanager.network.memory.max")
+			.defaultValue(1024L << 20); // 1 GB
 
 
 	/** Minimum backoff for partition requests of input channels. */
@@ -100,6 +119,7 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_MAX =
 			key("taskmanager.net.request-backoff.max")
 			.defaultValue(10000);
+
 
 	/**
 	 * Number of network buffers to use for each outgoing/ingoing channel (subpartition/input channel).
