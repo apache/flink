@@ -34,19 +34,22 @@ Amazon Web Services offers cloud computing services on which you can run Flink.
 
 ### Standard EMR Installation
 
-Flink is a supported application on Amazon EMR. Basically all you have to do is choose Flink as an application, along with whatever
-else you need, and configure the instances and roles. [Amazon's documentation](http://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-flink.html) gives all the details.
+Flink is a supported application on Amazon EMR. [Amazon's documentation](http://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-flink.html)
+describes configuring Flink, creating and monitoring a cluster, and working with jobs.
 
 ### Custom EMR Installation
 
-The standard installation (above) is easier, but if you need to use a version of Flink that Amazon doesn't support,
-then you can setup a stock EMR cluster and install Flink yourself.
+Amazon EMR services are regularly updated to new releases but a version of Flink which is not available
+can be manually installed in a stock EMR cluster.
 
 **Create EMR Cluster**
 
 The EMR documentation contains [examples showing how to start an EMR cluster](http://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-gs-launch-sample-cluster.html). You can follow that guide and install any EMR release. You don't need to install the *All Applications* part of the EMR release, but can stick to *Core Hadoop*.
 
-When creating your cluster, make sure to setup [IAM roles](http://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-iam-roles.html) allowing you to access your S3 buckets if required.
+{% warn Note %}
+Access to S3 buckets requires
+[configuration of IAM roles](http://docs.aws.amazon.com/ElasticMapReduce/latest/ManagementGuide/emr-iam-roles.html)
+when creating an EMR cluster.
 
 **Install Flink on EMR Cluster**
 
