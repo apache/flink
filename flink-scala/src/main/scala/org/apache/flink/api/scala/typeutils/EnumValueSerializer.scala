@@ -168,7 +168,8 @@ object EnumValueSerializer {
 
       obj.isInstanceOf[ScalaEnumSerializerConfigSnapshot[E]] &&
         enumClass.equals(obj.asInstanceOf[ScalaEnumSerializerConfigSnapshot[E]].enumClass) &&
-        enumConstants.sameElements(obj.asInstanceOf[ScalaEnumSerializerConfigSnapshot[E]].enumConstants)
+        enumConstants.sameElements(
+          obj.asInstanceOf[ScalaEnumSerializerConfigSnapshot[E]].enumConstants)
     }
 
     override def hashCode(): Int = {
