@@ -58,6 +58,7 @@ import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.SerializedValue;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.File;
@@ -73,7 +74,7 @@ import static org.mockito.Mockito.*;
  * Test that verifies the behavior of blocking shutdown hooks and of the
  * {@link JvmShutdownSafeguard} that guards against it.
  */
-public class JvmExitOnFatalErrorTest {
+public class JvmExitOnFatalErrorTest extends TestLogger {
 
 	@Test
 	public void testExitJvmOnOutOfMemory() throws Exception {
