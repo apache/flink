@@ -705,7 +705,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
-	private static class RocksDBIncrementalSnapshotOperation {
+	private static final class RocksDBIncrementalSnapshotOperation {
 
 		private final RocksDBKeyedStateBackend<?> stateBackend;
 
@@ -717,22 +717,22 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private Map<String, StreamStateHandle> baseSstFiles;
 
-		private List<KeyedBackendSerializationProxy.StateMetaInfo<?, ?>> stateMetaInfos = new ArrayList<>();
+		private final List<KeyedBackendSerializationProxy.StateMetaInfo<?, ?>> stateMetaInfos = new ArrayList<>();
 
 		private FileSystem backupFileSystem;
 		private Path backupPath;
 
 		// Registry for all opened i/o streams
-		private CloseableRegistry closeableRegistry = new CloseableRegistry();
+		private final CloseableRegistry closeableRegistry = new CloseableRegistry();
 
 		// new sst files since the last completed checkpoint
-		private Map<String, StreamStateHandle> newSstFiles = new HashMap<>();
+		private final Map<String, StreamStateHandle> newSstFiles = new HashMap<>();
 
 		// old sst files which have been materialized in previous completed checkpoints
-		private Map<String, StreamStateHandle> oldSstFiles = new HashMap<>();
+		private final Map<String, StreamStateHandle> oldSstFiles = new HashMap<>();
 
 		// handles to the misc files in the current snapshot
-		private Map<String, StreamStateHandle> miscFiles = new HashMap<>();
+		private final Map<String, StreamStateHandle> miscFiles = new HashMap<>();
 
 		private StreamStateHandle metaStateHandle = null;
 
@@ -753,7 +753,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
 
 			try {
-				final byte[] buffer = new byte[1024];
+				final byte[] buffer = new byte[8 * 1024];
 
 				FileSystem backupFileSystem = backupPath.getFileSystem();
 				inputStream = backupFileSystem.open(filePath);
@@ -966,7 +966,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public void notifyOfCompletedCheckpoint(long completedCheckpointId) {
+	public void notifyCheckpointComplete(long completedCheckpointId) {
 		synchronized (asyncSnapshotLock) {
 			if (completedCheckpointId < lastCompletedCheckpointId) {
 				return;
@@ -1237,7 +1237,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				outputStream = restoreFileSystem.create(restoreFilePath, FileSystem.WriteMode.OVERWRITE);
 				stateBackend.cancelStreamRegistry.registerClosable(outputStream);
 
-				byte[] buffer = new byte[1024];
+				byte[] buffer = new byte[8 * 1024];
 				while (true) {
 					int numBytes = inputStream.read(buffer);
 					if (numBytes == -1) {

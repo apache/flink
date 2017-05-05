@@ -430,7 +430,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public void notifyOfCompletedCheckpoint(long checkpointId) {
+	public void notifyCheckpointComplete(long checkpointId) {
 		//Nothing to do
 	}
 

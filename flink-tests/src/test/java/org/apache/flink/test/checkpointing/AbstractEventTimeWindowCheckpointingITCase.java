@@ -94,7 +94,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 	}
 
 	enum StateBackendEnum {
-		MEM, FILE, ROCKSDB_FULLY_ASYNC, MEM_ASYNC, FILE_ASYNC
+		MEM, FILE, ROCKSDB_FULLY_ASYNC, ROCKSDB_INCREMENTAL, MEM_ASYNC, FILE_ASYNC
 	}
 
 	@BeforeClass
@@ -139,6 +139,14 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			case ROCKSDB_FULLY_ASYNC: {
 				String rocksDb = tempFolder.newFolder().getAbsolutePath();
 				RocksDBStateBackend rdb = new RocksDBStateBackend(new MemoryStateBackend(MAX_MEM_STATE_SIZE));
+				rdb.setDbStoragePath(rocksDb);
+				this.stateBackend = rdb;
+				break;
+			}
+			case ROCKSDB_INCREMENTAL: {
+				String rocksDb = tempFolder.newFolder().getAbsolutePath();
+				RocksDBStateBackend rdb =
+					new RocksDBStateBackend(new MemoryStateBackend(MAX_MEM_STATE_SIZE), true);
 				rdb.setDbStoragePath(rocksDb);
 				this.stateBackend = rdb;
 				break;

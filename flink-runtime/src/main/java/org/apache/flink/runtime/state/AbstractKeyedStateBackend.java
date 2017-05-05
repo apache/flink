@@ -61,7 +61,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <K> Type of the key by which state is keyed.
  */
 public abstract class AbstractKeyedStateBackend<K>
-		implements KeyedStateBackend<K>, Snapshotable<KeyedStateHandle>, Closeable {
+		implements KeyedStateBackend<K>, Snapshotable<KeyedStateHandle>, Closeable, CheckpointListener {
 
 	/** {@link TypeSerializer} for our key. */
 	protected final TypeSerializer<K> keySerializer;
@@ -210,16 +210,6 @@ public abstract class AbstractKeyedStateBackend<K>
 	protected abstract <N, UK, UV> InternalMapState<N, UK, UV> createMapState(
 			TypeSerializer<N> namespaceSerializer,
 			MapStateDescriptor<UK, UV> stateDesc) throws Exception;
-
-	/**
-	 * Called when the checkpoint with the given ID is completed and acknowledged on the JobManager.
-	 *
-	 * @param checkpointId The ID of the checkpoint that has been completed.
-	 *
-	 * @throws Exception Exceptions during checkpoint acknowledgement may be forwarded and will cause
-	 *                   the program to fail and enter recovery.
-	 */
-	public abstract void notifyOfCompletedCheckpoint(long checkpointId) throws Exception;
 
 	/**
 	 * @see KeyedStateBackend
