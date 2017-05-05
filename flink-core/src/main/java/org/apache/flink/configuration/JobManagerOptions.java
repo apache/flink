@@ -116,6 +116,13 @@ public class JobManagerOptions {
 			.defaultValue("*");
 
 	/**
+	 * The config parameter defining the refresh interval for the web-frontend.
+	 */
+	public static final ConfigOption<Long> WEB_REFRESH_INTERVAL =
+		key("jobmanager.web.refresh-interval")
+			.defaultValue(3000L);
+	
+	/**
 	 * Config parameter to override SSL support for the JobManager Web UI
 	 */
 	public static final ConfigOption<Boolean> WEB_SSL_ENABLED =
