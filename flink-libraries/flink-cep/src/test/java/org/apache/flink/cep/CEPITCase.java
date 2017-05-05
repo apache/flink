@@ -40,6 +40,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.util.List;
 import java.util.Map;
 
 @SuppressWarnings("serial")
@@ -116,12 +117,12 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
 			@Override
-			public String select(Map<String, Event> pattern) {
+			public String select(Map<String, List<Event>> pattern) {
 				StringBuilder builder = new StringBuilder();
 
-				builder.append(pattern.get("start").getId()).append(",")
-					.append(pattern.get("middle").getId()).append(",")
-					.append(pattern.get("end").getId());
+				builder.append(pattern.get("start").get(0).getId()).append(",")
+					.append(pattern.get("middle").get(0).getId()).append(",")
+					.append(pattern.get("end").get(0).getId());
 
 				return builder.toString();
 			}
@@ -191,12 +192,12 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
 			@Override
-			public String select(Map<String, Event> pattern) {
+			public String select(Map<String, List<Event>> pattern) {
 				StringBuilder builder = new StringBuilder();
 
-				builder.append(pattern.get("start").getId()).append(",")
-					.append(pattern.get("middle").getId()).append(",")
-					.append(pattern.get("end").getId());
+				builder.append(pattern.get("start").get(0).getId()).append(",")
+					.append(pattern.get("middle").get(0).getId()).append(",")
+					.append(pattern.get("end").get(0).getId());
 
 				return builder.toString();
 			}
@@ -268,12 +269,12 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			new PatternSelectFunction<Event, String>() {
 
 				@Override
-				public String select(Map<String, Event> pattern) {
+				public String select(Map<String, List<Event>> pattern) {
 					StringBuilder builder = new StringBuilder();
 
-					builder.append(pattern.get("start").getId()).append(",")
-						.append(pattern.get("middle").getId()).append(",")
-						.append(pattern.get("end").getId());
+					builder.append(pattern.get("start").get(0).getId()).append(",")
+						.append(pattern.get("middle").get(0).getId()).append(",")
+						.append(pattern.get("end").get(0).getId());
 
 					return builder.toString();
 				}
@@ -357,12 +358,12 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			new PatternSelectFunction<Event, String>() {
 
 				@Override
-				public String select(Map<String, Event> pattern) {
+				public String select(Map<String, List<Event>> pattern) {
 					StringBuilder builder = new StringBuilder();
 
-					builder.append(pattern.get("start").getId()).append(",")
-						.append(pattern.get("middle").getId()).append(",")
-						.append(pattern.get("end").getId());
+					builder.append(pattern.get("start").get(0).getId()).append(",")
+						.append(pattern.get("middle").get(0).getId()).append(",")
+						.append(pattern.get("end").get(0).getId());
 
 					return builder.toString();
 				}
@@ -397,8 +398,8 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Tuple2<Integer, Integer>> result = pStream.select(new PatternSelectFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
 			@Override
-			public Tuple2<Integer, Integer> select(Map<String, Tuple2<Integer, Integer>> pattern) throws Exception {
-				return pattern.get("start");
+			public Tuple2<Integer, Integer> select(Map<String, List<Tuple2<Integer, Integer>>> pattern) throws Exception {
+				return pattern.get("start").get(0);
 			}
 		});
 
@@ -420,8 +421,8 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Integer> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Integer, Integer>() {
 			@Override
-			public Integer select(Map<String, Integer> pattern) throws Exception {
-				return pattern.get("start") + pattern.get("end");
+			public Integer select(Map<String, List<Integer>> pattern) throws Exception {
+				return pattern.get("start").get(0) + pattern.get("end").get(0);
 			}
 		});
 
@@ -487,19 +488,19 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<Either<String, String>> result = CEP.pattern(input, pattern).select(
 			new PatternTimeoutFunction<Event, String>() {
 				@Override
-				public String timeout(Map<String, Event> pattern, long timeoutTimestamp) throws Exception {
-					return pattern.get("start").getPrice() + "";
+				public String timeout(Map<String, List<Event>> pattern, long timeoutTimestamp) throws Exception {
+					return pattern.get("start").get(0).getPrice() + "";
 				}
 			},
 			new PatternSelectFunction<Event, String>() {
 
 				@Override
-				public String select(Map<String, Event> pattern) {
+				public String select(Map<String, List<Event>> pattern) {
 					StringBuilder builder = new StringBuilder();
 
-					builder.append(pattern.get("start").getPrice()).append(",")
-						.append(pattern.get("middle").getPrice()).append(",")
-						.append(pattern.get("end").getPrice());
+					builder.append(pattern.get("start").get(0).getPrice()).append(",")
+						.append(pattern.get("middle").get(0).getPrice()).append(",")
+						.append(pattern.get("end").get(0).getPrice());
 
 					return builder.toString();
 				}
@@ -562,12 +563,12 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
 			@Override
-			public String select(Map<String, Event> pattern) {
+			public String select(Map<String, List<Event>> pattern) {
 				StringBuilder builder = new StringBuilder();
 
-				builder.append(pattern.get("start").getId()).append(",")
-					.append(pattern.get("middle").getId()).append(",")
-					.append(pattern.get("end").getId());
+				builder.append(pattern.get("start").get(0).getId()).append(",")
+					.append(pattern.get("middle").get(0).getId()).append(",")
+					.append(pattern.get("end").get(0).getId());
 
 				return builder.toString();
 			}
@@ -644,12 +645,12 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 				new PatternSelectFunction<Event, String>() {
 
 					@Override
-					public String select(Map<String, Event> pattern) {
+					public String select(Map<String, List<Event>> pattern) {
 						StringBuilder builder = new StringBuilder();
 
-						builder.append(pattern.get("start").getId()).append(",")
-								.append(pattern.get("middle").getId()).append(",")
-								.append(pattern.get("end").getId());
+						builder.append(pattern.get("start").get(0).getId()).append(",")
+								.append(pattern.get("middle").get(0).getId()).append(",")
+								.append(pattern.get("end").get(0).getId());
 						return builder.toString();
 					}
 				}
