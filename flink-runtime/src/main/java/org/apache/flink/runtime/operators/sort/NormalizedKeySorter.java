@@ -37,7 +37,7 @@ import java.util.List;
 /**
  * 
  */
-public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
+public class NormalizedKeySorter<T> implements InMemorySorter<T> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(NormalizedKeySorter.class);
 	
@@ -47,61 +47,61 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 	
 	public static final int MAX_NORMALIZED_KEY_LEN_PER_ELEMENT = 8;
 	
-	private static final int MIN_REQUIRED_BUFFERS = 3;
+	public static final int MIN_REQUIRED_BUFFERS = 3;
 	
-	private static final int LARGE_RECORD_THRESHOLD = 10 * 1024 * 1024;
+	public static final int LARGE_RECORD_THRESHOLD = 10 * 1024 * 1024;
 	
-	private static final long LARGE_RECORD_TAG = 1L << 63;
+	public static final long LARGE_RECORD_TAG = 1L << 63;
 	
-	private static final long POINTER_MASK = LARGE_RECORD_TAG - 1;
+	public static final long POINTER_MASK = LARGE_RECORD_TAG - 1;
 
 	// ------------------------------------------------------------------------
 	//                               Members
 	// ------------------------------------------------------------------------
 
-	private final byte[] swapBuffer;
+	protected final byte[] swapBuffer;
 	
-	private final TypeSerializer<T> serializer;
+	protected final TypeSerializer<T> serializer;
 	
-	private final TypeComparator<T> comparator;
+	protected final TypeComparator<T> comparator;
 	
-	private final SimpleCollectingOutputView recordCollector;
+	protected final SimpleCollectingOutputView recordCollector;
 	
-	private final RandomAccessInputView recordBuffer;
+	protected final RandomAccessInputView recordBuffer;
 	
-	private final RandomAccessInputView recordBufferForComparison;
+	protected final RandomAccessInputView recordBufferForComparison;
 	
-	private MemorySegment currentSortIndexSegment;
+	protected MemorySegment currentSortIndexSegment;
 	
-	private final ArrayList<MemorySegment> freeMemory;
+	protected final ArrayList<MemorySegment> freeMemory;
 	
-	private final ArrayList<MemorySegment> sortIndex;
+	protected final ArrayList<MemorySegment> sortIndex;
 	
-	private final ArrayList<MemorySegment> recordBufferSegments;
+	protected final ArrayList<MemorySegment> recordBufferSegments;
 	
-	private long currentDataBufferOffset;
+	protected long currentDataBufferOffset;
+
+	protected long sortIndexBytes;
+
+	protected int currentSortIndexOffset;
 	
-	private long sortIndexBytes;
+	protected int numRecords;
 	
-	private int currentSortIndexOffset;
+	protected final int numKeyBytes;
 	
-	private int numRecords;
+	protected final int indexEntrySize;
 	
-	private final int numKeyBytes;
+	protected final int indexEntriesPerSegment;
 	
-	private final int indexEntrySize;
+	protected final int lastIndexEntryOffset;
 	
-	private final int indexEntriesPerSegment;
+	protected final int segmentSize;
 	
-	private final int lastIndexEntryOffset;
+	protected final int totalNumBuffers;
 	
-	private final int segmentSize;
+	protected final boolean normalizedKeyFullyDetermines;
 	
-	private final int totalNumBuffers;
-	
-	private final boolean normalizedKeyFullyDetermines;
-	
-	private final boolean useNormKeyUninverted;
+	protected final boolean useNormKeyUninverted;
 	
 	
 	// -------------------------------------------------------------------------
@@ -134,7 +134,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		}
 		this.segmentSize = memory.get(0).size();
 		this.freeMemory = new ArrayList<MemorySegment>(memory);
-		
+
 		// create the buffer collections
 		this.sortIndex = new ArrayList<MemorySegment>(16);
 		this.recordBufferSegments = new ArrayList<MemorySegment>(16);
@@ -310,7 +310,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 	//                           Access Utilities
 	// ------------------------------------------------------------------------
 	
-	private long readPointer(int logicalPosition) {
+	protected long readPointer(int logicalPosition) {
 		if (logicalPosition < 0 | logicalPosition >= this.numRecords) {
 			throw new IndexOutOfBoundsException();
 		}
@@ -321,17 +321,17 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		return (this.sortIndex.get(bufferNum).getLong(segmentOffset * this.indexEntrySize)) & POINTER_MASK;
 	}
 	
-	private T getRecordFromBuffer(T reuse, long pointer) throws IOException {
+	protected T getRecordFromBuffer(T reuse, long pointer) throws IOException {
 		this.recordBuffer.setReadPosition(pointer);
 		return this.serializer.deserialize(reuse, this.recordBuffer);
 	}
 
-	private T getRecordFromBuffer(long pointer) throws IOException {
+	protected T getRecordFromBuffer(long pointer) throws IOException {
 		this.recordBuffer.setReadPosition(pointer);
 		return this.serializer.deserialize(this.recordBuffer);
 	}
 	
-	private int compareRecords(long pointer1, long pointer2) {
+	protected int compareRecords(long pointer1, long pointer2) {
 		this.recordBuffer.setReadPosition(pointer1);
 		this.recordBufferForComparison.setReadPosition(pointer2);
 		
@@ -342,11 +342,11 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		}
 	}
 	
-	private boolean memoryAvailable() {
+	protected boolean memoryAvailable() {
 		return !this.freeMemory.isEmpty();
 	}
 	
-	private MemorySegment nextMemorySegment() {
+	protected MemorySegment nextMemorySegment() {
 		return this.freeMemory.remove(this.freeMemory.size() - 1);
 	}
 
