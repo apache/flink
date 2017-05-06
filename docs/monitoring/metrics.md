@@ -415,6 +415,34 @@ metrics.reporter.grph.protocol: TCP
 
 {% endhighlight %}
 
+### Prometheus (org.apache.flink.metrics.prometheus.PrometheusReporter)
+
+In order to use this reporter you must copy `/opt/flink-metrics-prometheus-{{site.version}}.jar` into the `/lib` folder
+of your Flink distribution.
+
+Parameters:
+
+- `port` - (optional) the port the Prometheus exporter listens on, defaults to [9249](https://github.com/prometheus/prometheus/wiki/Default-port-allocations).
+
+Example configuration:
+
+{% highlight yaml %}
+
+metrics.reporters: prom
+metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+
+{% endhighlight %}
+
+Flink metric types are mapped to Prometheus metric types as follows: 
+
+| Flink     | Prometheus | Note                                                      |
+| --------- |------------|-----------------------------------------------------------|
+| Counter   | Gauge      |Prometheus counters cannot be decremented.                 |
+| Gauge     | Gauge      |                                                           |
+| Histogram | Summary    |                                                           |
+| Meter     | Counter    |The counter only keeps track of the total number of events.|
+
+
 ### StatsD (org.apache.flink.metrics.statsd.StatsDReporter)
 
 In order to use this reporter you must copy `/opt/flink-metrics-statsd-{{site.version}}.jar` into the `/lib` folder
