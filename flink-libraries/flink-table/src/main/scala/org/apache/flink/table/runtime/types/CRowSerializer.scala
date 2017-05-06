@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.types
 
-import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.common.typeutils.{CompositeTypeSerializerConfigSnapshot, MigrationStrategy, TypeSerializer, TypeSerializerConfigSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 import org.apache.flink.types.Row
 
@@ -75,4 +75,51 @@ class CRowSerializer(val rowSerializer: TypeSerializer[Row]) extends TypeSeriali
   }
 
   override def hashCode: Int = rowSerializer.hashCode() * 13
+
+  override def snapshotConfiguration(): TypeSerializerConfigSnapshot = {
+    new CRowSerializer.CRowSerializerConfigSnapshot(
+      rowSerializer.snapshotConfiguration())
+  }
+
+  override protected def getMigrationStrategy(
+      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy[CRow] = {
+
+    configSnapshot match {
+      case crowSerializerConfigSnapshot: CRowSerializer.CRowSerializerConfigSnapshot =>
+        val strategy = rowSerializer.getMigrationStrategyFor(
+            crowSerializerConfigSnapshot.getSingleNestedSerializerConfigSnapshot)
+
+        if (strategy.requireMigration()) {
+          if (strategy.getFallbackDeserializer != null) {
+            MigrationStrategy.migrateWithFallbackDeserializer(
+              new CRowSerializer(strategy.getFallbackDeserializer)
+            )
+          } else {
+            MigrationStrategy.migrate()
+          }
+        } else {
+          MigrationStrategy.noMigration()
+        }
+
+      case _ => MigrationStrategy.migrate()
+    }
+  }
+}
+
+object CRowSerializer {
+
+  class CRowSerializerConfigSnapshot(
+      private var rowSerializerConfigSnapshot: TypeSerializerConfigSnapshot)
+    extends CompositeTypeSerializerConfigSnapshot(rowSerializerConfigSnapshot) {
+
+    /** This empty nullary constructor is required for deserializing the configuration. */
+    def this() = this(null)
+
+    override def getVersion: Int = CRowSerializerConfigSnapshot.VERSION
+  }
+
+  object CRowSerializerConfigSnapshot {
+    val VERSION = 1
+  }
+
 }
