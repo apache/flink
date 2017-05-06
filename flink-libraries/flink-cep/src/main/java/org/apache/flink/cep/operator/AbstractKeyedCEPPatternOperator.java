@@ -476,11 +476,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		}
 
 		@Override
-		public boolean canRestoreFrom(TypeSerializer<?> other) {
-			return equals(other) || other instanceof AbstractKeyedCEPPatternOperator.PriorityQueueSerializer;
-		}
-
-		@Override
 		public boolean equals(Object obj) {
 			if (obj instanceof PriorityQueueSerializer) {
 				@SuppressWarnings("unchecked")

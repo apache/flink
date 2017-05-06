@@ -31,7 +31,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
@@ -52,8 +52,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	 */
 	@Test
 	public void testPutGetRemoveContainsTransform() throws Exception {
-		RegisteredBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredBackendStateMetaInfo<>(
+		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+				new RegisteredKeyedBackendStateMetaInfo<>(
 						StateDescriptor.Type.UNKNOWN,
 						"test",
 						IntSerializer.INSTANCE,
@@ -124,8 +124,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	 */
 	@Test
 	public void testIncrementalRehash() {
-		RegisteredBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredBackendStateMetaInfo<>(
+		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+				new RegisteredKeyedBackendStateMetaInfo<>(
 						StateDescriptor.Type.UNKNOWN,
 						"test",
 						IntSerializer.INSTANCE,
@@ -169,8 +169,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	@Test
 	public void testRandomModificationsAndCopyOnWriteIsolation() throws Exception {
 
-		final RegisteredBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredBackendStateMetaInfo<>(
+		final RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+				new RegisteredKeyedBackendStateMetaInfo<>(
 						StateDescriptor.Type.UNKNOWN,
 						"test",
 						IntSerializer.INSTANCE,
@@ -324,8 +324,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	 */
 	@Test
 	public void testCopyOnWriteContracts() {
-		RegisteredBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredBackendStateMetaInfo<>(
+		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+				new RegisteredKeyedBackendStateMetaInfo<>(
 						StateDescriptor.Type.UNKNOWN,
 						"test",
 						IntSerializer.INSTANCE,
@@ -399,8 +399,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		final TestDuplicateSerializer stateSerializer = new TestDuplicateSerializer();;
 		final TestDuplicateSerializer keySerializer = new TestDuplicateSerializer();;
 
-		RegisteredBackendStateMetaInfo<Integer, Integer> metaInfo =
-			new RegisteredBackendStateMetaInfo<>(
+		RegisteredKeyedBackendStateMetaInfo<Integer, Integer> metaInfo =
+			new RegisteredKeyedBackendStateMetaInfo<>(
 				StateDescriptor.Type.VALUE,
 				"test",
 				namespaceSerializer,

@@ -274,21 +274,6 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		T tmp = deserialize(copyInstance, source);
 		serialize(tmp, target);
 	}
-
-	@Override
-	public boolean canRestoreFrom(TypeSerializer<?> other) {
-		if (other instanceof KryoSerializer) {
-			KryoSerializer<?> otherKryo = (KryoSerializer<?>) other;
-
-			// we cannot include the Serializers here because they don't implement the equals method
-			return other.canEqual(this) &&
-				type == otherKryo.type &&
-				(kryoRegistrations.equals(otherKryo.kryoRegistrations)) &&
-				(defaultSerializerClasses.equals(otherKryo.defaultSerializerClasses) || otherKryo.defaultSerializerClasses.isEmpty());
-		} else {
-			return false;
-		}
-	}
 	
 	// --------------------------------------------------------------------------------------------
 	

@@ -143,7 +143,7 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 	 * Dummy TypeSerializer to avoid that data is lost when checkpointing again a serializer for which we encountered
 	 * a {@link ClassNotFoundException}.
 	 */
-	static final class ClassNotFoundDummyTypeSerializer<T> extends TypeSerializer<T> {
+	public static final class ClassNotFoundDummyTypeSerializer<T> extends TypeSerializer<T> {
 
 		private static final long serialVersionUID = 2526330533671642711L;
 		private final byte[] actualBytes;

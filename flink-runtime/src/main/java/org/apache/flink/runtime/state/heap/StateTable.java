@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.Preconditions;
 
@@ -42,14 +42,14 @@ public abstract class StateTable<K, N, S> {
 	/**
 	 * Combined meta information such as name and serializers for this state
 	 */
-	protected RegisteredBackendStateMetaInfo<N, S> metaInfo;
+	protected RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo;
 
 	/**
 	 *
 	 * @param keyContext the key context provides the key scope for all put/get/delete operations.
 	 * @param metaInfo the meta information, including the type serializer for state copy-on-write.
 	 */
-	public StateTable(InternalKeyContext<K> keyContext, RegisteredBackendStateMetaInfo<N, S> metaInfo) {
+	public StateTable(InternalKeyContext<K> keyContext, RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo) {
 		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.metaInfo = Preconditions.checkNotNull(metaInfo);
 	}
@@ -168,11 +168,11 @@ public abstract class StateTable<K, N, S> {
 		return metaInfo.getNamespaceSerializer();
 	}
 
-	public RegisteredBackendStateMetaInfo<N, S> getMetaInfo() {
+	public RegisteredKeyedBackendStateMetaInfo<N, S> getMetaInfo() {
 		return metaInfo;
 	}
 
-	public void setMetaInfo(RegisteredBackendStateMetaInfo<N, S> metaInfo) {
+	public void setMetaInfo(RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo) {
 		this.metaInfo = metaInfo;
 	}
 
