@@ -212,13 +212,15 @@ public class MemorySize implements java.io.Serializable {
 			}
 		}
 
-		try {
-			return Math.multiplyExact(value, multiplier);
-		}
-		catch (ArithmeticException e) {
+		final long result = value * multiplier;
+
+		// check for overflow
+		if (result / multiplier != value) {
 			throw new IllegalArgumentException("The value '" + text + 
 					"' cannot be re represented as 64bit number of bytes (numeric overflow).");
 		}
+
+		return result;
 	}
 
 	private static boolean matchesAny(String str, String[] variants) {
