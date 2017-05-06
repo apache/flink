@@ -206,13 +206,13 @@ public class SorterTemplateModel {
 					offsetString = "+" + accOffset;
 				}
 
-				temporaryString.append(String.format("%s temp%d = segI.get%s(iBufferOffset%s);\n",
+				temporaryString.append(String.format("%s temp%d = segI.get%s(segmentOffsetI%s);\n",
 					primitiveType, varIndex, primitiveClass, offsetString ));
 
-				firstSegmentString.append(String.format("segI.put%s(iBufferOffset%s, segJ.get%s(jBufferOffset%s));\n",
+				firstSegmentString.append(String.format("segI.put%s(segmentOffsetI%s, segJ.get%s(segmentOffsetJ%s));\n",
 					primitiveClass, offsetString, primitiveClass, offsetString));
 
-				secondSegmentString.append(String.format("segJ.put%s(jBufferOffset%s, temp%d);\n",
+				secondSegmentString.append(String.format("segJ.put%s(segmentOffsetJ%s, temp%d);\n",
 					primitiveClass, offsetString, varIndex));
 
 			}
@@ -221,7 +221,7 @@ public class SorterTemplateModel {
 				+ "\n" + firstSegmentString.toString()
 				+ "\n" + secondSegmentString.toString();
 		} else {
-			procedures = "segI.swapBytes(this.swapBuffer, segJ, iBufferOffset, jBufferOffset, this.indexEntrySize);";
+			procedures = "segI.swapBytes(this.swapBuffer, segJ, segmentOffsetI, segmentOffsetJ, this.indexEntrySize);";
 		}
 
 		return procedures;
@@ -295,9 +295,9 @@ public class SorterTemplateModel {
 
 				String var1 = "l_"+ i + "_1";
 				String var2 = "l_"+ i + "_2";
-				procedures.append(String.format("%s %s  = segI.get%s(iBufferOffset + %d);\n",
+				procedures.append(String.format("%s %s  = segI.get%s(segmentOffsetI + %d);\n",
 					primitiveType, var1, primitiveClass, offset));
-				procedures.append(String.format("%s %s  = segJ.get%s(jBufferOffset + %d);\n",
+				procedures.append(String.format("%s %s  = segJ.get%s(segmentOffsetJ + %d);\n",
 					primitiveType, var2, primitiveClass, offset));
 
 				procedures.append(String.format("if( %s != %s ) {\n", var1, var2));
@@ -312,8 +312,8 @@ public class SorterTemplateModel {
 			// don't need to compare records further for fully determined key
 			procedures.append("return 0;\n");
 		} else {
-			procedures.append("final long pointerI = segI.getLong(iBufferOffset) & POINTER_MASK;\n");
-			procedures.append("final long pointerJ = segJ.getLong(jBufferOffset) & POINTER_MASK;\n");
+			procedures.append("final long pointerI = segI.getLong(segmentOffsetI) & POINTER_MASK;\n");
+			procedures.append("final long pointerJ = segJ.getLong(segmentOffsetJ) & POINTER_MASK;\n");
 			procedures.append("return compareRecords(pointerI, pointerJ);\n");
 		}
 

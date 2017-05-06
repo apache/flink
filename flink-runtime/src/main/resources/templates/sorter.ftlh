@@ -118,25 +118,9 @@ ${writeProcedures}
 	// -------------------------------------------------------------------------
 
 	@Override
-	public int compare(int i, int j) {
-		final int bufferNumI = i / this.indexEntriesPerSegment;
-		final int iBufferOffset = (i % this.indexEntriesPerSegment) * this.indexEntrySize;
-
-		final int bufferNumJ = j / this.indexEntriesPerSegment;
-		final int jBufferOffset = (j % this.indexEntriesPerSegment) * this.indexEntrySize;
-
-		final MemorySegment segI = (MemorySegment)this.sortIndex.get(bufferNumI);
-		final MemorySegment segJ = (MemorySegment)this.sortIndex.get(bufferNumJ);
-
-// generated code
-${compareProcedures}
-// end
-	}
-
-	@Override
-	public int compare(int iBufferNumber, int iBufferOffset, int jBufferNumber, int jBufferOffset) {
-		final MemorySegment segI = (MemorySegment)this.sortIndex.get(iBufferNumber);
-		final MemorySegment segJ = (MemorySegment)this.sortIndex.get(jBufferNumber);
+	public int compare(int segmentNumberI, int segmentOffsetI, int segmentNumberJ, int segmentOffsetJ) {
+		final MemorySegment segI = (MemorySegment)this.sortIndex.get(segmentNumberI);
+		final MemorySegment segJ = (MemorySegment)this.sortIndex.get(segmentNumberJ);
 
 // generated code
 ${compareProcedures}
@@ -145,25 +129,9 @@ ${compareProcedures}
 	}
 
 	@Override
-	public void swap(int i, int j) {
-		final int bufferNumI = i / this.indexEntriesPerSegment;
-		final int iBufferOffset = (i % this.indexEntriesPerSegment) * this.indexEntrySize;
-
-		final int bufferNumJ = j / this.indexEntriesPerSegment;
-		final int jBufferOffset = (j % this.indexEntriesPerSegment) * this.indexEntrySize;
-
-		final MemorySegment segI = (MemorySegment)this.sortIndex.get(bufferNumI);
-		final MemorySegment segJ = (MemorySegment)this.sortIndex.get(bufferNumJ);
-
-// generated code
-${swapProcedures}
-// end
-	}
-
-	@Override
-	public void swap(int iBufferNumber, int iBufferOffset, int jBufferNumber, int jBufferOffset) {
-		final MemorySegment segI = (MemorySegment)this.sortIndex.get(iBufferNumber);
-		final MemorySegment segJ = (MemorySegment)this.sortIndex.get(jBufferNumber);
+	public void swap(int segmentNumberI, int segmentOffsetI, int segmentNumberJ, int segmentOffsetJ) {
+		final MemorySegment segI = (MemorySegment)this.sortIndex.get(segmentNumberI);
+		final MemorySegment segJ = (MemorySegment)this.sortIndex.get(segmentNumberJ);
 
 // generated code
 ${swapProcedures}
