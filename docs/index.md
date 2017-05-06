@@ -35,11 +35,11 @@ Apache Flink is an open source platform for distributed stream and batch data pr
 
 - **Quickstarts**: [Run an example program](quickstart/setup_quickstart.html) on your local machine or [study some examples](examples/index.html).
 
-- **Programming Guides**: You can check out our guides about [basic api concepts](dev/api_concepts.html) and the [DataStream API](dev/datastream_api.html) or [DataSet API](dev/batch/index.html) to learn how to write your first Flink programs.
+- **Programming Guides**: You can check out our guides about [basic API concepts](dev/api_concepts.html) and the [DataStream API](dev/datastream_api.html) or [DataSet API](dev/batch/index.html) to learn how to write your first Flink programs.
 
 ## Deployment
 
-Before putting your Flink job into production, be sure to read the [Production Readiness Checklist](http://localhost:4000/ops/production_ready.html).
+Before putting your Flink job into production, be sure to read the [Production Readiness Checklist](ops/production_ready.html).
 
 ## Migration Guide
 
@@ -51,7 +51,7 @@ For users that plan to upgrade a Flink system in production, we recommend readin
 
 ## External Resources
 
-- **Flink Forward**: Videos of talks from past conferences are available at the [Flink Forward](http://flink-forward.org/) website. [Robust Stream Processing with Apache Flink](http://berlin.flink-forward.org/kb_sessions/robust-stream-processing-with-apache-flink/) is a good place to start.
+- **Flink Forward**: Talks from past conferences are available at the [Flink Forward](http://flink-forward.org/) website, and on [YouTube](https://www.youtube.com/channel/UCY8_lgiZLZErZPF47a2hXMA). [Robust Stream Processing with Apache Flink](http://berlin.flink-forward.org/kb_sessions/robust-stream-processing-with-apache-flink/) is a good place to start.
 
 - **Training**: The [training materials](http://dataartisans.github.io/flink-training/) from data Artisans include slides, exercises, and sample solutions.
 
