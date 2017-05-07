@@ -67,6 +67,7 @@ import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -566,6 +567,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	 *
 	 * @throws Exception expects {@link ExpectedKryoTestException} to be thrown.
 	 */
+	@Ignore
 	@Test
 	public void testKryoRegisteringRestoreResilienceWithRegisteredSerializer() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();

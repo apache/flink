@@ -18,8 +18,9 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.core.memory.{DataOutputView, DataInputView}
+import org.apache.flink.api.common.typeutils.{MigrationStrategy, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.java.typeutils.runtime.EitherSerializerConfigSnapshot
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /**
  * Serializer for [[Either]].
@@ -103,5 +104,48 @@ class EitherSerializer[A, B, T <: Either[A, B]](
 
   override def hashCode(): Int = {
     31 * leftSerializer.hashCode() + rightSerializer.hashCode()
+  }
+
+  // --------------------------------------------------------------------------------------------
+  // Serializer configuration snapshotting & reconfiguring
+  // --------------------------------------------------------------------------------------------
+
+  override def snapshotConfiguration(): EitherSerializerConfigSnapshot = {
+    new EitherSerializerConfigSnapshot(
+      leftSerializer.snapshotConfiguration(),
+      rightSerializer.snapshotConfiguration())
+  }
+
+  override protected def getMigrationStrategy(
+      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy[T] = {
+
+    configSnapshot match {
+      case eitherSerializerConfig: EitherSerializerConfigSnapshot =>
+        val leftRightConfigs =
+          eitherSerializerConfig.getNestedSerializerConfigSnapshots
+
+        val leftStrategy = leftSerializer.getMigrationStrategyFor(leftRightConfigs(0))
+        val rightStrategy = rightSerializer.getMigrationStrategyFor(leftRightConfigs(1))
+
+        if (leftStrategy.requireMigration || rightStrategy.requireMigration) {
+          if (leftStrategy.getFallbackDeserializer != null
+              && rightStrategy.getFallbackDeserializer != null) {
+
+            MigrationStrategy.migrateWithFallbackDeserializer(
+              new EitherSerializer[A, B, T](
+                leftStrategy.getFallbackDeserializer,
+                rightStrategy.getFallbackDeserializer
+              )
+            )
+
+          } else {
+            MigrationStrategy.migrate()
+          }
+        } else {
+          MigrationStrategy.noMigration()
+        }
+
+      case _ => MigrationStrategy.migrate()
+    }
   }
 }

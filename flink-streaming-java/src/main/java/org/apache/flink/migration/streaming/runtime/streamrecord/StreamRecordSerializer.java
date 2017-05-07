@@ -20,7 +20,10 @@ package org.apache.flink.migration.streaming.runtime.streamrecord;
 
 import java.io.IOException;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -143,5 +146,55 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	@Override
 	public int hashCode() {
 		return typeSerializer.hashCode();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public StreamRecordSerializerConfigSnapshot snapshotConfiguration() {
+		return new StreamRecordSerializerConfigSnapshot(typeSerializer.snapshotConfiguration());
+	}
+
+	@Override
+	protected MigrationStrategy<StreamRecord<T>> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof StreamRecordSerializerConfigSnapshot) {
+			MigrationStrategy<T> strategy = typeSerializer.getMigrationStrategyFor(
+				((StreamRecordSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+
+			if (strategy.requireMigration()) {
+				if (strategy.getFallbackDeserializer() != null) {
+					return MigrationStrategy.migrateWithFallbackDeserializer(
+						new StreamRecordSerializer<>(strategy.getFallbackDeserializer()));
+				} else {
+					return MigrationStrategy.migrate();
+				}
+			} else {
+				return MigrationStrategy.noMigration();
+			}
+		} else {
+			return MigrationStrategy.migrate();
+		}
+	}
+
+	/**
+	 * Configuration snapshot specific to the {@link StreamRecordSerializer}.
+	 */
+	public static final class StreamRecordSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+
+		private static final int VERSION = 1;
+
+		/** This empty nullary constructor is required for deserializing the configuration. */
+		public StreamRecordSerializerConfigSnapshot() {}
+
+		public StreamRecordSerializerConfigSnapshot(TypeSerializerConfigSnapshot typeSerializerConfigSnapshot) {
+			super(typeSerializerConfigSnapshot);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
 	}
 }
