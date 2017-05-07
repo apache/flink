@@ -308,7 +308,7 @@ public class TaskManagerServicesConfiguration {
 
 		if (!hasNewNetworkBufConf(configuration)) {
 			// map old config to new one:
-			networkBufMin = networkBufMax = numNetworkBuffers * pageSize;
+			networkBufMin = networkBufMax = ((long)numNetworkBuffers) * pageSize;
 		} else {
 			if (configuration.contains(TaskManagerOptions.NETWORK_NUM_BUFFERS)) {
 				LOG.info("Ignoring old (but still present) network buffer configuration via {}.",
