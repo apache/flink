@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.types
 
-import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 import org.apache.flink.types.Row
 
@@ -75,4 +75,55 @@ class CRowSerializer(val rowSerializer: TypeSerializer[Row]) extends TypeSeriali
   }
 
   override def hashCode: Int = rowSerializer.hashCode() * 13
+
+  // --------------------------------------------------------------------------------------------
+  // Serializer configuration snapshotting & compatibility
+  // --------------------------------------------------------------------------------------------
+
+  override def snapshotConfiguration(): TypeSerializerConfigSnapshot = {
+    new CRowSerializer.CRowSerializerConfigSnapshot(
+      rowSerializer.snapshotConfiguration())
+  }
+
+  override def ensureCompatibility(
+      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[CRow] = {
+
+    configSnapshot match {
+      case crowSerializerConfigSnapshot: CRowSerializer.CRowSerializerConfigSnapshot =>
+        val compatResult = rowSerializer.ensureCompatibility(
+            crowSerializerConfigSnapshot.getSingleNestedSerializerConfigSnapshot)
+
+        if (compatResult.requiresMigration()) {
+          if (compatResult.getConvertDeserializer != null) {
+            CompatibilityResult.requiresMigration(
+              new CRowSerializer(compatResult.getConvertDeserializer)
+            )
+          } else {
+            CompatibilityResult.requiresMigration(null)
+          }
+        } else {
+          CompatibilityResult.compatible()
+        }
+
+      case _ => CompatibilityResult.requiresMigration(null)
+    }
+  }
+}
+
+object CRowSerializer {
+
+  class CRowSerializerConfigSnapshot(
+      private var rowSerializerConfigSnapshot: TypeSerializerConfigSnapshot)
+    extends CompositeTypeSerializerConfigSnapshot(rowSerializerConfigSnapshot) {
+
+    /** This empty nullary constructor is required for deserializing the configuration. */
+    def this() = this(null)
+
+    override def getVersion: Int = CRowSerializerConfigSnapshot.VERSION
+  }
+
+  object CRowSerializerConfigSnapshot {
+    val VERSION = 1
+  }
+
 }

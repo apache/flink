@@ -21,18 +21,22 @@ package org.apache.flink.api.java.typeutils.runtime.kryo;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.factories.ReflectionSerializerFactory;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
 import org.apache.avro.generic.GenericData;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
+import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
+import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
+import org.apache.flink.api.java.typeutils.runtime.KryoUtils;
 import org.apache.flink.api.java.typeutils.runtime.NoFetchingInput;
-import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers.SpecificInstanceCollectionSerializerForArrayList;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -45,6 +49,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -72,11 +77,16 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	// ------------------------------------------------------------------------
 
-	private final LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> registeredTypesWithSerializers;
-	private final LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> registeredTypesWithSerializerClasses;
 	private final LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> defaultSerializers;
 	private final LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultSerializerClasses;
-	private final LinkedHashSet<Class<?>> registeredTypes;
+
+	/**
+	 * Map of class tag (using classname as tag) to their Kryo registration.
+	 *
+	 * <p>This map serves as a preview of the final registration result of
+	 * the Kryo instance, taking into account registration overwrites.
+	 */
+	private LinkedHashMap<String, KryoRegistration> kryoRegistrations;
 
 	private final Class<T> type;
 	
@@ -93,26 +103,35 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	private transient Output output;
 
 	// ------------------------------------------------------------------------
+	// legacy fields; these fields cannot yet be removed to retain backwards compatibility
+
+	private LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> registeredTypesWithSerializers;
+	private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> registeredTypesWithSerializerClasses;
+	private LinkedHashSet<Class<?>> registeredTypes;
+
+	// ------------------------------------------------------------------------
 
 	public KryoSerializer(Class<T> type, ExecutionConfig executionConfig){
 		this.type = checkNotNull(type);
 
 		this.defaultSerializers = executionConfig.getDefaultKryoSerializers();
 		this.defaultSerializerClasses = executionConfig.getDefaultKryoSerializerClasses();
-		this.registeredTypesWithSerializers = executionConfig.getRegisteredTypesWithKryoSerializers();
-		this.registeredTypesWithSerializerClasses = executionConfig.getRegisteredTypesWithKryoSerializerClasses();
-		this.registeredTypes = executionConfig.getRegisteredKryoTypes();
+
+		this.kryoRegistrations = buildKryoRegistrations(
+				this.type,
+				executionConfig.getRegisteredKryoTypes(),
+				executionConfig.getRegisteredTypesWithKryoSerializerClasses(),
+				executionConfig.getRegisteredTypesWithKryoSerializers());
 	}
 
 	/**
 	 * Copy-constructor that does not copy transient fields. They will be initialized once required.
 	 */
 	protected KryoSerializer(KryoSerializer<T> toCopy) {
-		registeredTypesWithSerializers = toCopy.registeredTypesWithSerializers;
-		registeredTypesWithSerializerClasses = toCopy.registeredTypesWithSerializerClasses;
 		defaultSerializers = toCopy.defaultSerializers;
 		defaultSerializerClasses = toCopy.defaultSerializerClasses;
-		registeredTypes = toCopy.registeredTypes;
+
+		kryoRegistrations = toCopy.kryoRegistrations;
 
 		type = toCopy.type;
 		if(type == null){
@@ -272,11 +291,9 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		if (obj instanceof KryoSerializer) {
 			KryoSerializer<?> other = (KryoSerializer<?>) obj;
 
-			// we cannot include the Serializers here because they don't implement the equals method
 			return other.canEqual(this) &&
 				type == other.type &&
-				registeredTypes.equals(other.registeredTypes) &&
-				registeredTypesWithSerializerClasses.equals(other.registeredTypesWithSerializerClasses) &&
+				kryoRegistrations.equals(other.kryoRegistrations) &&
 				defaultSerializerClasses.equals(other.defaultSerializerClasses);
 		} else {
 			return false;
@@ -334,7 +351,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			//       This is due to a know issue with Kryo's JavaSerializer. See FLINK-6025 for details.
 			kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());
 
-			// Add default serializers first, so that they type registrations without a serializer
+			// Add default serializers first, so that the type registrations without a serializer
 			// are registered with a default serializer
 			for (Map.Entry<Class<?>, ExecutionConfig.SerializableSerializer<?>> entry: defaultSerializers.entrySet()) {
 				kryo.addDefaultSerializer(entry.getKey(), entry.getValue().getSerializer());
@@ -344,31 +361,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 				kryo.addDefaultSerializer(entry.getKey(), entry.getValue());
 			}
 
-			// register the type of our class
-			kryo.register(type);
-
-			// register given types. we do this first so that any registration of a
-			// more specific serializer overrides this
-			for (Class<?> type : registeredTypes) {
-				kryo.register(type);
-			}
-
-			// register given serializer classes
-			for (Map.Entry<Class<?>, Class<? extends Serializer<?>>> e : registeredTypesWithSerializerClasses.entrySet()) {
-				Class<?> typeClass = e.getKey();
-				Class<? extends Serializer<?>> serializerClass = e.getValue();
-
-				Serializer<?> serializer =
-						ReflectionSerializerFactory.makeSerializer(kryo, serializerClass, typeClass);
-				kryo.register(typeClass, serializer);
-			}
-
-			// register given serializers
-			for (Map.Entry<Class<?>, ExecutionConfig.SerializableSerializer<?>> e : registeredTypesWithSerializers.entrySet()) {
-				kryo.register(e.getKey(), e.getValue().getSerializer());
-			}
-			// this is needed for Avro but can not be added on demand.
-			kryo.register(GenericData.Array.class, new SpecificInstanceCollectionSerializerForArrayList());
+			KryoUtils.applyRegistrations(this.kryo, kryoRegistrations.values());
 
 			kryo.setRegistrationRequired(false);
 			kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
@@ -376,27 +369,144 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	}
 
 	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & compatibility
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public KryoSerializerConfigSnapshot<T> snapshotConfiguration() {
+		return new KryoSerializerConfigSnapshot<>(type, kryoRegistrations);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof KryoSerializerConfigSnapshot) {
+			final KryoSerializerConfigSnapshot<T> config = (KryoSerializerConfigSnapshot<T>) configSnapshot;
+
+			if (type.equals(config.getTypeClass())) {
+				LinkedHashMap<String, KryoRegistration> reconfiguredRegistrations = config.getKryoRegistrations();
+
+				// reconfigure by assuring that classes which were previously registered are registered
+				// again in the exact same order; new class registrations will be appended.
+				// this also overwrites any dummy placeholders that the restored old configuration has
+				reconfiguredRegistrations.putAll(kryoRegistrations);
+
+				// check if there is still any dummy placeholders even after reconfiguration;
+				// if so, then this new Kryo serializer cannot read old data and is therefore incompatible
+				for (Map.Entry<String, KryoRegistration> reconfiguredRegistrationEntry : reconfiguredRegistrations.entrySet()) {
+					if (reconfiguredRegistrationEntry.getValue().isDummy()) {
+						LOG.warn("The Kryo registration for a previously registered class {} does not have a " +
+							"proper serializer, because its previous serializer cannot be loaded or is no " +
+							"longer valid but a new serializer is not available", reconfiguredRegistrationEntry.getKey());
+
+						return CompatibilityResult.requiresMigration(null);
+					}
+				}
+
+				// there's actually no way to tell if new Kryo serializers are compatible with
+				// the previous ones they overwrite; we can only signal compatibly and hope for the best
+				this.kryoRegistrations = reconfiguredRegistrations;
+				return CompatibilityResult.compatible();
+			}
+		}
+
+		return CompatibilityResult.requiresMigration(null);
+	}
+
+	public static final class KryoSerializerConfigSnapshot<T> extends KryoRegistrationSerializerConfigSnapshot<T> {
+
+		private static final int VERSION = 1;
+
+		/** This empty nullary constructor is required for deserializing the configuration. */
+		public KryoSerializerConfigSnapshot() {}
+
+		public KryoSerializerConfigSnapshot(
+				Class<T> typeClass,
+				LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
+
+			super(typeClass, kryoRegistrations);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Utilities
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Utility method that takes lists of registered types and their serializers, and resolve
+	 * them into a single list such that the result will resemble the final registration
+	 * result in Kryo.
+	 */
+	private static LinkedHashMap<String, KryoRegistration> buildKryoRegistrations(
+			Class<?> serializedType,
+			LinkedHashSet<Class<?>> registeredTypes,
+			LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> registeredTypesWithSerializerClasses,
+			LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> registeredTypesWithSerializers) {
+
+		final LinkedHashMap<String, KryoRegistration> kryoRegistrations = new LinkedHashMap<>();
+
+		kryoRegistrations.put(serializedType.getName(), new KryoRegistration(serializedType));
+
+		for (Class<?> registeredType : checkNotNull(registeredTypes)) {
+			kryoRegistrations.put(registeredType.getName(), new KryoRegistration(registeredType));
+		}
+
+		for (Map.Entry<Class<?>, Class<? extends Serializer<?>>> registeredTypeWithSerializerClassEntry :
+				checkNotNull(registeredTypesWithSerializerClasses).entrySet()) {
+
+			kryoRegistrations.put(
+					registeredTypeWithSerializerClassEntry.getKey().getName(),
+					new KryoRegistration(
+							registeredTypeWithSerializerClassEntry.getKey(),
+							registeredTypeWithSerializerClassEntry.getValue()));
+		}
+
+		for (Map.Entry<Class<?>, ExecutionConfig.SerializableSerializer<?>> registeredTypeWithSerializerEntry :
+				checkNotNull(registeredTypesWithSerializers).entrySet()) {
+
+			kryoRegistrations.put(
+					registeredTypeWithSerializerEntry.getKey().getName(),
+					new KryoRegistration(
+							registeredTypeWithSerializerEntry.getKey(),
+							registeredTypeWithSerializerEntry.getValue()));
+		}
+
+		kryoRegistrations.put(
+				GenericData.Array.class.getName(),
+				new KryoRegistration(
+						GenericData.Array.class,
+						new ExecutionConfig.SerializableSerializer<>(new Serializers.SpecificInstanceCollectionSerializerForArrayList())));
+
+		return kryoRegistrations;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+
+		// kryoRegistrations may be null if this Kryo serializer is deserialized from an old version
+		if (kryoRegistrations == null) {
+			this.kryoRegistrations = buildKryoRegistrations(
+					type,
+					registeredTypes,
+					registeredTypesWithSerializerClasses,
+					registeredTypesWithSerializers);
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
 	// For testing
 	// --------------------------------------------------------------------------------------------
-	
+
+	@VisibleForTesting
 	public Kryo getKryo() {
 		checkKryoInitialized();
 		return this.kryo;
-	}
-
-	@Override
-	public boolean canRestoreFrom(TypeSerializer<?> other) {
-		if (other instanceof KryoSerializer) {
-			KryoSerializer<?> otherKryo = (KryoSerializer<?>) other;
-
-			// we cannot include the Serializers here because they don't implement the equals method
-			return other.canEqual(this) &&
-					type == otherKryo.type &&
-					(registeredTypes.equals(otherKryo.registeredTypes) || otherKryo.registeredTypes.isEmpty()) &&
-					(registeredTypesWithSerializerClasses.equals(otherKryo.registeredTypesWithSerializerClasses) || otherKryo.registeredTypesWithSerializerClasses.isEmpty()) &&
-					(defaultSerializerClasses.equals(otherKryo.defaultSerializerClasses) || otherKryo.defaultSerializerClasses.isEmpty());
-		} else {
-			return false;
-		}
 	}
 }

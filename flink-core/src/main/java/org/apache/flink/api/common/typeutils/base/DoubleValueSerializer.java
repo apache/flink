@@ -31,8 +31,7 @@ public final class DoubleValueSerializer extends TypeSerializerSingleton<DoubleV
 	private static final long serialVersionUID = 1L;
 	
 	public static final DoubleValueSerializer INSTANCE = new DoubleValueSerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -83,5 +82,11 @@ public final class DoubleValueSerializer extends TypeSerializerSingleton<DoubleV
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof DoubleValueSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(DoubleSerializer.class.getCanonicalName());
 	}
 }

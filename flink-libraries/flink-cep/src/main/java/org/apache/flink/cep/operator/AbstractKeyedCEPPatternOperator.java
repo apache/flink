@@ -21,7 +21,10 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
@@ -473,11 +476,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		}
 
 		@Override
-		public boolean canRestoreFrom(TypeSerializer<?> other) {
-			return equals(other) || other instanceof AbstractKeyedCEPPatternOperator.PriorityQueueSerializer;
-		}
-
-		@Override
 		public boolean equals(Object obj) {
 			if (obj instanceof PriorityQueueSerializer) {
 				@SuppressWarnings("unchecked")
@@ -497,6 +495,32 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		@Override
 		public int hashCode() {
 			return Objects.hash(factory, elementSerializer);
+		}
+
+		// --------------------------------------------------------------------------------------------
+		// Serializer configuration snapshotting & compatibility
+		// --------------------------------------------------------------------------------------------
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			return new CollectionSerializerConfigSnapshot(elementSerializer.snapshotConfiguration());
+		}
+
+		@Override
+		public CompatibilityResult<PriorityQueue<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+			if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
+				CompatibilityResult<T> compatResult = elementSerializer.ensureCompatibility(
+						((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+
+				if (!compatResult.requiresMigration()) {
+					return CompatibilityResult.compatible();
+				} else if (compatResult.getConvertDeserializer() != null) {
+					return CompatibilityResult.requiresMigration(
+						new PriorityQueueSerializer<>(compatResult.getConvertDeserializer(), factory));
+				}
+			}
+
+			return CompatibilityResult.requiresMigration(null);
 		}
 	}
 

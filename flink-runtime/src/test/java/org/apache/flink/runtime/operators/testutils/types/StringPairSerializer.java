@@ -20,7 +20,9 @@ package org.apache.flink.runtime.operators.testutils.types;
 
 import java.io.IOException;
 
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
@@ -103,5 +105,15 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 	@Override
 	public int hashCode() {
 		return StringPairSerializer.class.hashCode();
+	}
+
+	@Override
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CompatibilityResult<StringPair> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		throw new UnsupportedOperationException();
 	}
 }

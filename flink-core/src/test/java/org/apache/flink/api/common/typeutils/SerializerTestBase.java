@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -31,6 +32,9 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 
@@ -84,6 +88,38 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			e.printStackTrace();
 			fail("Exception in test: " + e.getMessage());
 		}
+	}
+
+	@Test
+	public void testConfigSnapshotInstantiation() {
+		TypeSerializerConfigSnapshot configSnapshot = getSerializer().snapshotConfiguration();
+
+		InstantiationUtil.instantiate(configSnapshot.getClass());
+	}
+
+	@Test
+	public void testSnapshotConfigurationAndReconfigure() throws Exception {
+		final TypeSerializerConfigSnapshot configSnapshot = getSerializer().snapshotConfiguration();
+
+		byte[] serializedConfig;
+		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+			TypeSerializerUtil.writeSerializerConfigSnapshot(
+				new DataOutputViewStreamWrapper(out), configSnapshot);
+			serializedConfig = out.toByteArray();
+		}
+
+		TypeSerializerConfigSnapshot restoredConfig;
+		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
+			restoredConfig = TypeSerializerUtil.readSerializerConfigSnapshot(
+				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+		}
+
+		CompatibilityResult strategy = getSerializer().ensureCompatibility(restoredConfig);
+		assertFalse(strategy.requiresMigration());
+
+		// also verify that the serializer's reconfigure implementation detects incompatibility
+		strategy = getSerializer().ensureCompatibility(new TestIncompatibleSerializerConfigSnapshot());
+		assertTrue(strategy.requiresMigration());
 	}
 	
 	@Test
@@ -475,6 +511,23 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 				int skipped = skipBytes(numBytes);
 				numBytes -= skipped;
 			}
+		}
+	}
+
+	public static final class TestIncompatibleSerializerConfigSnapshot extends TypeSerializerConfigSnapshot {
+		@Override
+		public int getVersion() {
+			return 0;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof TestIncompatibleSerializerConfigSnapshot;
+		}
+
+		@Override
+		public int hashCode() {
+			return getClass().hashCode();
 		}
 	}
 }

@@ -43,6 +43,8 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.JavaSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -71,7 +73,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -642,6 +643,139 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		state.value();
 	}
 
+	@Test
+	public void testKryoRestoreResilienceWithDifferentRegistrationOrder() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		Environment env = new DummyEnvironment("test", 1, 0);
+
+		// register A first then B
+		env.getExecutionConfig().registerKryoType(TestNestedPojoClassA.class);
+		env.getExecutionConfig().registerKryoType(TestNestedPojoClassB.class);
+
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
+
+		TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
+
+		// make sure that we are in fact using the KryoSerializer
+		assertTrue(pojoType.createSerializer(env.getExecutionConfig()) instanceof KryoSerializer);
+
+		ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
+		ValueState<TestPojo> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// ============== create snapshot of current configuration ==============
+
+		// make some more modifications
+		backend.setCurrentKey(1);
+		state.update(new TestPojo("u1", 1, new TestNestedPojoClassA(1.0, 2), new TestNestedPojoClassB(2.3, "foo")));
+
+		backend.setCurrentKey(2);
+		state.update(new TestPojo("u2", 2, new TestNestedPojoClassA(2.0, 5), new TestNestedPojoClassB(3.1, "bar")));
+
+		KeyedStateHandle snapshot = runSnapshot(backend.snapshot(
+			682375462378L,
+			2,
+			streamFactory,
+			CheckpointOptions.forFullCheckpoint()));
+
+		backend.dispose();
+
+		// ========== restore snapshot, with a different registration order in the configuration ==========
+
+		env = new DummyEnvironment("test", 1, 0);
+
+		env.getExecutionConfig().registerKryoType(TestNestedPojoClassB.class); // this time register B first
+		env.getExecutionConfig().registerKryoType(TestNestedPojoClassA.class);
+
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
+
+		snapshot.discardState();
+
+		// re-initialize to ensure that we create the KryoSerializer from scratch, otherwise
+		// initializeSerializerUnlessSet would not pick up our new config
+		kvId = new ValueStateDescriptor<>("id", pojoType);
+		state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		backend.setCurrentKey(1);
+
+		// update to test state backends that eagerly serialize, such as RocksDB
+		state.update(new TestPojo("u1", 11, new TestNestedPojoClassA(22.1, 12), new TestNestedPojoClassB(1.23, "foobar")));
+
+		// this tests backends that lazily serialize, such as memory state backend
+		runSnapshot(backend.snapshot(
+			682375462378L,
+			2,
+			streamFactory,
+			CheckpointOptions.forFullCheckpoint()));
+
+		backend.dispose();
+	}
+
+	@Test
+	public void testPojoRestoreResilienceWithDifferentRegistrationOrder() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		Environment env = new DummyEnvironment("test", 1, 0);
+
+		// register A first then B
+		env.getExecutionConfig().registerPojoType(TestNestedPojoClassA.class);
+		env.getExecutionConfig().registerPojoType(TestNestedPojoClassB.class);
+
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
+
+		TypeInformation<TestPojo> pojoType = TypeExtractor.getForClass(TestPojo.class);
+
+		// make sure that we are in fact using the PojoSerializer
+		assertTrue(pojoType.createSerializer(env.getExecutionConfig()) instanceof PojoSerializer);
+
+		ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
+		ValueState<TestPojo> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// ============== create snapshot of current configuration ==============
+
+		// make some more modifications
+		backend.setCurrentKey(1);
+		state.update(new TestPojo("u1", 1, new TestNestedPojoClassA(1.0, 2), new TestNestedPojoClassB(2.3, "foo")));
+
+		backend.setCurrentKey(2);
+		state.update(new TestPojo("u2", 2, new TestNestedPojoClassA(2.0, 5), new TestNestedPojoClassB(3.1, "bar")));
+
+		KeyedStateHandle snapshot = runSnapshot(backend.snapshot(
+			682375462378L,
+			2,
+			streamFactory,
+			CheckpointOptions.forFullCheckpoint()));
+
+		backend.dispose();
+
+		// ========== restore snapshot, with a different registration order in the configuration ==========
+
+		env = new DummyEnvironment("test", 1, 0);
+
+		env.getExecutionConfig().registerPojoType(TestNestedPojoClassB.class); // this time register B first
+		env.getExecutionConfig().registerPojoType(TestNestedPojoClassA.class);
+
+		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
+
+		snapshot.discardState();
+
+		// re-initialize to ensure that we create the PojoSerializer from scratch, otherwise
+		// initializeSerializerUnlessSet would not pick up our new config
+		kvId = new ValueStateDescriptor<>("id", pojoType);
+		state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		backend.setCurrentKey(1);
+
+		// update to test state backends that eagerly serialize, such as RocksDB
+		state.update(new TestPojo("u1", 11, new TestNestedPojoClassA(22.1, 12), new TestNestedPojoClassB(1.23, "foobar")));
+
+		// this tests backends that lazily serialize, such as memory state backend
+		runSnapshot(backend.snapshot(
+			682375462378L,
+			2,
+			streamFactory,
+			CheckpointOptions.forFullCheckpoint()));
+
+		backend.dispose();
+	}
 
 	@Test
 	@SuppressWarnings("unchecked")
@@ -1696,8 +1830,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				state.value();
 
 				fail("should recognize wrong serializers");
-			} catch (IOException e) {
-				if (!e.getMessage().contains("Trying to access state using wrong")) {
+			} catch (RuntimeException e) {
+				if (!e.getMessage().contains("State migration currently isn't supported")) {
 					fail("wrong exception " + e);
 				}
 				// expected
@@ -1747,8 +1881,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				state.get();
 
 				fail("should recognize wrong serializers");
-			} catch (IOException e) {
-				if (!e.getMessage().contains("Trying to access state using wrong")) {
+			} catch (RuntimeException e) {
+				if (!e.getMessage().contains("State migration currently isn't supported")) {
 					fail("wrong exception " + e);
 				}
 				// expected
@@ -1800,8 +1934,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				state.get();
 
 				fail("should recognize wrong serializers");
-			} catch (IOException e) {
-				if (!e.getMessage().contains("Trying to access state using wrong ")) {
+			} catch (RuntimeException e) {
+				if (!e.getMessage().contains("State migration currently isn't supported")) {
 					fail("wrong exception " + e);
 				}
 				// expected
@@ -1851,8 +1985,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				state.entries();
 
 				fail("should recognize wrong serializers");
-			} catch (IOException e) {
-				if (!e.getMessage().contains("Trying to access state using wrong ")) {
+			} catch (RuntimeException e) {
+				if (!e.getMessage().contains("State migration currently isn't supported")) {
 					fail("wrong exception " + e);
 				}
 				// expected
@@ -2382,15 +2516,27 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		return snapshotRunnableFuture.get();
 	}
 
-	private static class TestPojo implements Serializable {
+	public static class TestPojo implements Serializable {
 		private String strField;
 		private Integer intField;
+
+		private TestNestedPojoClassA kryoClassAField;
+		private TestNestedPojoClassB kryoClassBField;
 
 		public TestPojo() {}
 
 		public TestPojo(String strField, Integer intField) {
 			this.strField = strField;
 			this.intField = intField;
+			this.kryoClassAField = null;
+			this.kryoClassBField = null;
+		}
+
+		public TestPojo(String strField, Integer intField, TestNestedPojoClassA classAField, TestNestedPojoClassB classBfield) {
+			this.strField = strField;
+			this.intField = intField;
+			this.kryoClassAField = classAField;
+			this.kryoClassBField = classBfield;
 		}
 
 		public String getStrField() {
@@ -2409,6 +2555,22 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			this.intField = intField;
 		}
 
+		public TestNestedPojoClassA getKryoClassAField() {
+			return kryoClassAField;
+		}
+
+		public void setKryoClassAField(TestNestedPojoClassA kryoClassAField) {
+			this.kryoClassAField = kryoClassAField;
+		}
+
+		public TestNestedPojoClassB getKryoClassBField() {
+			return kryoClassBField;
+		}
+
+		public void setKryoClassBField(TestNestedPojoClassB kryoClassBField) {
+			this.kryoClassBField = kryoClassBField;
+		}
+
 		@Override
 		public String toString() {
 			return "TestPojo{" +
@@ -2424,14 +2586,133 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			TestPojo testPojo = (TestPojo) o;
 
-			if (!strField.equals(testPojo.strField)) return false;
-			return intField.equals(testPojo.intField);
+			return strField.equals(testPojo.strField)
+				&& intField.equals(testPojo.intField)
+				&& ((kryoClassAField == null && testPojo.kryoClassAField == null) || kryoClassAField.equals(testPojo.kryoClassAField))
+				&& ((kryoClassBField == null && testPojo.kryoClassBField == null) || kryoClassBField.equals(testPojo.kryoClassBField));
 		}
 
 		@Override
 		public int hashCode() {
 			int result = strField.hashCode();
 			result = 31 * result + intField.hashCode();
+
+			if (kryoClassAField != null) {
+				result = 31 * result + kryoClassAField.hashCode();
+			}
+
+			if (kryoClassBField != null) {
+				result = 31 * result + kryoClassBField.hashCode();
+			}
+
+			return result;
+		}
+	}
+
+	public static class TestNestedPojoClassA implements Serializable {
+		private Double doubleField;
+		private Integer intField;
+
+		public TestNestedPojoClassA() {}
+
+		public TestNestedPojoClassA(Double doubleField, Integer intField) {
+			this.doubleField = doubleField;
+			this.intField = intField;
+		}
+
+		public Double getDoubleField() {
+			return doubleField;
+		}
+
+		public void setDoubleField(Double doubleField) {
+			this.doubleField = doubleField;
+		}
+
+		public Integer getIntField() {
+			return intField;
+		}
+
+		public void setIntField(Integer intField) {
+			this.intField = intField;
+		}
+
+		@Override
+		public String toString() {
+			return "TestNestedPojoClassA{" +
+				"doubleField='" + doubleField + '\'' +
+				", intField=" + intField +
+				'}';
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+
+			TestNestedPojoClassA testNestedPojoClassA = (TestNestedPojoClassA) o;
+
+			if (!doubleField.equals(testNestedPojoClassA.doubleField)) return false;
+			return intField.equals(testNestedPojoClassA.intField);
+		}
+
+		@Override
+		public int hashCode() {
+			int result = doubleField.hashCode();
+			result = 31 * result + intField.hashCode();
+			return result;
+		}
+	}
+
+	public static class TestNestedPojoClassB implements Serializable {
+		private Double doubleField;
+		private String strField;
+
+		public TestNestedPojoClassB() {}
+
+		public TestNestedPojoClassB(Double doubleField, String strField) {
+			this.doubleField = doubleField;
+			this.strField = strField;
+		}
+
+		public Double getDoubleField() {
+			return doubleField;
+		}
+
+		public void setDoubleField(Double doubleField) {
+			this.doubleField = doubleField;
+		}
+
+		public String getStrField() {
+			return strField;
+		}
+
+		public void setStrField(String strField) {
+			this.strField = strField;
+		}
+
+		@Override
+		public String toString() {
+			return "TestNestedPojoClassB{" +
+				"doubleField='" + doubleField + '\'' +
+				", strField=" + strField +
+				'}';
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+
+			TestNestedPojoClassB testNestedPojoClassB = (TestNestedPojoClassB) o;
+
+			if (!doubleField.equals(testNestedPojoClassB.doubleField)) return false;
+			return strField.equals(testNestedPojoClassB.strField);
+		}
+
+		@Override
+		public int hashCode() {
+			int result = doubleField.hashCode();
+			result = 31 * result + strField.hashCode();
 			return result;
 		}
 	}
