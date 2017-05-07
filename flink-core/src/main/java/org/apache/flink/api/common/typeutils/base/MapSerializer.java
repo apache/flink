@@ -18,7 +18,10 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
@@ -38,7 +41,8 @@ import java.util.HashMap;
  * @param <K> The type of the keys in the map.
  * @param <V> The type of the values in the map.
  */
-public class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
+@Internal
+public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 
 	private static final long serialVersionUID = -6885593032367050078L;
 	
@@ -189,5 +193,42 @@ public class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 	@Override
 	public int hashCode() {
 		return keySerializer.hashCode() * 31 + valueSerializer.hashCode();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public MapSerializerConfigSnapshot snapshotConfiguration() {
+		return new MapSerializerConfigSnapshot(
+				keySerializer.snapshotConfiguration(),
+				valueSerializer.snapshotConfiguration());
+	}
+
+	@Override
+	public CompatibilityDecision<Map<K, V>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof MapSerializerConfigSnapshot) {
+			TypeSerializerConfigSnapshot[] keyValueSerializerConfigSnapshots =
+				((MapSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
+
+			CompatibilityDecision<K> keyStrategy = keySerializer.ensureCompatibility(keyValueSerializerConfigSnapshots[0]);
+			CompatibilityDecision<V> valueStrategy = valueSerializer.ensureCompatibility(keyValueSerializerConfigSnapshots[1]);
+
+			if (keyStrategy.requireMigration() || valueStrategy.requireMigration()) {
+				if (keyStrategy.getConvertDeserializer() != null && valueStrategy.getConvertDeserializer() != null) {
+					return CompatibilityDecision.requiresMigration(
+						new MapSerializer<>(
+							keyStrategy.getConvertDeserializer(),
+							valueStrategy.getConvertDeserializer()));
+				} else {
+					return CompatibilityDecision.requiresMigration(null);
+				}
+			} else {
+				return CompatibilityDecision.compatible();
+			}
+		} else {
+			return CompatibilityDecision.requiresMigration(null);
+		}
 	}
 }

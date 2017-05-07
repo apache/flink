@@ -27,7 +27,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
-import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -44,8 +44,8 @@ public class StateTableSnapshotCompatibilityTest {
 	@Test
 	public void checkCompatibleSerializationFormats() throws IOException {
 		final Random r = new Random(42);
-		RegisteredBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredBackendStateMetaInfo<>(
+		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+				new RegisteredKeyedBackendStateMetaInfo<>(
 						StateDescriptor.Type.UNKNOWN,
 						"test",
 						IntSerializer.INSTANCE,

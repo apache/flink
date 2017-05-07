@@ -83,4 +83,10 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 	public boolean canEqual(Object obj) {
 		return obj instanceof StringSerializer;
 	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+				|| identifier.equals(StringValue.class.getCanonicalName());
+	}
 }

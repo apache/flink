@@ -17,7 +17,10 @@
  */
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -131,5 +134,35 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	@Override
 	public int hashCode() {
 		return elementSerializer.hashCode();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		return new CollectionSerializerConfigSnapshot(elementSerializer.snapshotConfiguration());
+	}
+
+	@Override
+	public CompatibilityDecision<ArrayList<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
+			CompatibilityDecision<T> strategy = elementSerializer.ensureCompatibility(
+				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+
+			if (strategy.requireMigration()) {
+				if (strategy.getConvertDeserializer() != null) {
+					return CompatibilityDecision.requiresMigration(
+						new ArrayListSerializer<>(strategy.getConvertDeserializer()));
+				} else {
+					return CompatibilityDecision.requiresMigration(null);
+				}
+			} else {
+				return CompatibilityDecision.compatible();
+			}
+		} else {
+			return CompatibilityDecision.requiresMigration(null);
+		}
 	}
 }

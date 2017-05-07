@@ -19,7 +19,9 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -39,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type of element in the list.
  */
 @Internal
-public class ListSerializer<T> extends TypeSerializer<List<T>> {
+public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 
 	private static final long serialVersionUID = 1119562170939152304L;
 
@@ -165,5 +167,35 @@ public class ListSerializer<T> extends TypeSerializer<List<T>> {
 	@Override
 	public int hashCode() {
 		return elementSerializer.hashCode();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public CollectionSerializerConfigSnapshot snapshotConfiguration() {
+		return new CollectionSerializerConfigSnapshot(elementSerializer.snapshotConfiguration());
+	}
+
+	@Override
+	public CompatibilityDecision<List<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
+			CompatibilityDecision<T> strategy = elementSerializer.ensureCompatibility(
+				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+
+			if (strategy.requireMigration()) {
+				if (strategy.getConvertDeserializer() != null) {
+					return CompatibilityDecision.requiresMigration(
+						new ListSerializer<>(strategy.getConvertDeserializer()));
+				} else {
+					return CompatibilityDecision.requiresMigration(null);
+				}
+			} else {
+				return CompatibilityDecision.compatible();
+			}
+		} else {
+			return CompatibilityDecision.requiresMigration(null);
+		}
 	}
 }

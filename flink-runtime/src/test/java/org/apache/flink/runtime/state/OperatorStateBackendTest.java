@@ -97,7 +97,7 @@ public class OperatorStateBackendTest {
 		assertEquals(2, operatorStateBackend.getRegisteredStateNames().size());
 
 		// make sure that type registrations are forwarded
-		TypeSerializer<?> serializer = ((PartitionableListState<?>) listState).getPartitionStateSerializer();
+		TypeSerializer<?> serializer = ((PartitionableListState<?>) listState).getStateMetaInfo().getPartitionStateSerializer();
 		assertTrue(serializer instanceof KryoSerializer);
 		assertTrue(((KryoSerializer<?>) serializer).getKryo().getSerializer(registeredType)
 				instanceof com.esotericsoftware.kryo.serializers.JavaSerializer);

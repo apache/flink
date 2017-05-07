@@ -161,7 +161,48 @@ public abstract class TypeSerializer<T> implements Serializable {
 
 	public abstract int hashCode();
 
-	public boolean canRestoreFrom(TypeSerializer<?> other) {
-		return equals(other);
-	}
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Create a snapshot of the serializer's current configuration to be stored along with the managed state it is
+	 * registered to (if any - this method is only relevant if this serializer is registered for serialization of
+	 * managed state).
+	 *
+	 * <p>The configuration snapshot should contain information about the serializer's parameter settings and its
+	 * serialization format. When a new serializer is registered to serialize the same managed state that this
+	 * serializer was registered to, the returned configuration snapshot can be used to check with the new serializer
+	 * if any data migration needs to take place.
+	 *
+	 * @see TypeSerializerConfigSnapshot
+	 *
+	 * @return snapshot of the serializer's current configuration.
+	 */
+	public abstract TypeSerializerConfigSnapshot snapshotConfiguration();
+
+	/**
+	 * Get the migration strategy to use this serializer based on the configuration snapshot of a preceding
+	 * serializer that was registered for serialization of the same managed state (if any - this method is only
+	 * relevant if this serializer is registered for serialization of managed state).
+	 *
+	 * <p>Implementations need to return the resolved migration strategy. The strategy can be one of the following:
+	 * <ul>
+	 *     <li>{@link CompatibilityDecision#compatible()}: this signals Flink that this serializer is compatible, or
+	 *     has been reconfigured to be compatible, to continue reading old data, and that the
+	 *     serialization schema remains the same. No migration needs to be performed.</li>
+	 *
+	 *     <li>{@link CompatibilityDecision#requiresMigration(TypeSerializer)}: this signals Flink that
+	 *     migration needs to be performed, because this serializer is not compatible, or cannot be reconfigured to be
+	 *     compatible, for old data. Furthermore, in the case that the preceding serializer cannot be found or
+	 *     restored to read the old data, the provided convert deserializer can be used.</li>
+	 * </ul>
+	 *
+	 * @see CompatibilityDecision
+	 *
+	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
+	 *
+	 * @return the result of the reconfiguration.
+	 */
+	public abstract CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot);
 }

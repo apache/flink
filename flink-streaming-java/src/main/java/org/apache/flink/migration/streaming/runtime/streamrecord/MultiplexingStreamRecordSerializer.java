@@ -21,7 +21,11 @@ package org.apache.flink.migration.streaming.runtime.streamrecord;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
+
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -202,6 +206,58 @@ public class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<Stream
 		}
 		else {
 			throw new IOException("Corrupt stream, found tag: " + tag);
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public MultiplexingStreamRecordSerializerConfigSnapshot snapshotConfiguration() {
+		return new MultiplexingStreamRecordSerializerConfigSnapshot(typeSerializer.snapshotConfiguration());
+	}
+
+	@Override
+	public CompatibilityDecision<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof MultiplexingStreamRecordSerializerConfigSnapshot) {
+			CompatibilityDecision<T> strategy = typeSerializer.ensureCompatibility(
+				((MultiplexingStreamRecordSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+
+			if (strategy.requireMigration()) {
+				if (strategy.getConvertDeserializer() != null) {
+					return CompatibilityDecision.requiresMigration(
+						new MultiplexingStreamRecordSerializer<>(
+							strategy.getConvertDeserializer()));
+				} else {
+					return CompatibilityDecision.requiresMigration(null);
+				}
+			} else {
+				return CompatibilityDecision.compatible();
+			}
+		} else {
+			return CompatibilityDecision.requiresMigration(null);
+		}
+	}
+
+	/**
+	 * Configuration snapshot specific to the {@link MultiplexingStreamRecordSerializer}.
+	 */
+	public static final class MultiplexingStreamRecordSerializerConfigSnapshot
+			extends CompositeTypeSerializerConfigSnapshot {
+
+		private static final int VERSION = 1;
+
+		/** This empty nullary constructor is required for deserializing the configuration. */
+		public MultiplexingStreamRecordSerializerConfigSnapshot() {}
+
+		public MultiplexingStreamRecordSerializerConfigSnapshot(TypeSerializerConfigSnapshot typeSerializerConfigSnapshot) {
+			super(typeSerializerConfigSnapshot);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
 		}
 	}
 

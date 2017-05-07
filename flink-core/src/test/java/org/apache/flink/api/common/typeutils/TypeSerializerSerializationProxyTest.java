@@ -26,13 +26,21 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
+import java.io.InvalidClassException;
 import java.net.URL;
 import java.net.URLClassLoader;
 
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(InstantiationUtil.class)
 public class TypeSerializerSerializationProxyTest {
 
 	@Test
@@ -90,5 +98,45 @@ public class TypeSerializerSerializationProxyTest {
 		Assert.assertArrayEquals(
 				InstantiationUtil.serializeObject(serializer),
 				((TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer<?>) proxy.getTypeSerializer()).getActualBytes());
+	}
+
+	@Test
+	public void testStateSerializerSerializationProxyInvalidClass() throws Exception {
+
+		TypeSerializer<?> serializer = IntSerializer.INSTANCE;
+
+		TypeSerializerSerializationProxy<?> proxy = new TypeSerializerSerializationProxy<>(serializer);
+
+		byte[] serialized;
+		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
+			proxy.write(new DataOutputViewStreamWrapper(out));
+			serialized = out.toByteArray();
+		}
+
+		PowerMockito.spy(InstantiationUtil.class);
+		PowerMockito
+			.doThrow(new InvalidClassException("test invalid class exception"))
+			.when(InstantiationUtil.class, "deserializeObject", any(byte[].class), any(ClassLoader.class));
+
+		proxy = new TypeSerializerSerializationProxy<>(new URLClassLoader(new URL[0], null));
+
+		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
+			proxy.read(new DataInputViewStreamWrapper(in));
+			fail("InvalidClassException expected, leading to IOException");
+		} catch (IOException expected) {
+
+		}
+
+		proxy = new TypeSerializerSerializationProxy<>(new URLClassLoader(new URL[0], null), true);
+
+		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
+			proxy.read(new DataInputViewStreamWrapper(in));
+		}
+
+		Assert.assertTrue(proxy.getTypeSerializer() instanceof TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer);
+
+		Assert.assertArrayEquals(
+			InstantiationUtil.serializeObject(serializer),
+			((TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer<?>) proxy.getTypeSerializer()).getActualBytes());
 	}
 }
