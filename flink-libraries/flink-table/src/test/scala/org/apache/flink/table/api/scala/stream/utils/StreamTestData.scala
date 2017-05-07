@@ -25,11 +25,32 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 
 object StreamTestData {
 
-  def getSmall3TupleDataStream(env: StreamExecutionEnvironment): DataStream[(Int, Long, String)] = {
+  def getSmall3TupleDataStream(env: StreamExecutionEnvironment)
+    : DataStream[(Int, Long, String)] = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Hi"))
     data.+=((2, 2L, "Hello"))
     data.+=((3, 2L, "Hello world"))
+    env.fromCollection(data)
+  }
+
+  def getSmall2TupleDataStreamWithTArray(env: StreamExecutionEnvironment)
+    : DataStream[(Int, Array[Tuple2[Int, String]])] = {
+    val data = new mutable.MutableList[(Int, Array[Tuple2[Int, String]])]
+    data.+=((1, Array((12, "45.6"), (12, "45.612"))))
+    data.+=((2, Array((13, "41.6"), (14, "45.2136"))))
+    data.+=((3, Array((18, "42.6"))))
+
+    env.fromCollection(data)
+  }
+
+  def getSmall3TupleDataStreamWithPArray(env: StreamExecutionEnvironment)
+    : DataStream[(Int, Array[Short], Array[Array[Int]])] = {
+    val data = new mutable.MutableList[(Int, Array[Short], Array[Array[Int]])]
+    data.+=((1, Array(12, 45), Array(Array(12, 45))))
+    data.+=((2, Array(41, 5), Array(Array(18), Array(87))))
+    data.+=((3, Array(18, 42), Array(Array(1), Array(45))))
+
     env.fromCollection(data)
   }
 

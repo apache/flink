@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.java.stream.utils;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -35,6 +36,18 @@ public class StreamTestData {
 		data.add(new Tuple3<>(1, 1L, "Hi"));
 		data.add(new Tuple3<>(2, 2L, "Hello"));
 		data.add(new Tuple3<>(3, 2L, "Hello world"));
+
+		Collections.shuffle(data);
+
+		return env.fromCollection(data);
+	}
+
+	public static DataStream<Tuple3<Integer, Long, Integer[]>> get3TupleDataSetWithArray(StreamExecutionEnvironment env) {
+
+		List<Tuple3<Integer, Long, Integer[]>> data = new ArrayList<>();
+		data.add(new Tuple3<>(1, 1L, ImmutableList.of(121,432).toArray(new Integer[2])));
+		data.add(new Tuple3<>(2, 2L, ImmutableList.of(45, 65).toArray(new Integer[2])));
+		data.add(new Tuple3<>(3, 2L, ImmutableList.of(121, 453).toArray(new Integer[2])));
 
 		Collections.shuffle(data);
 

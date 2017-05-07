@@ -62,6 +62,34 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 	@Test
+	public void testUnnest() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+		StreamITCase.clear();
+
+		DataStream<Tuple3<Integer, Long, Integer[]>> ds = StreamTestData.get3TupleDataSetWithArray(env);
+		Table in = tableEnv.fromDataStream(ds, "a,b,c");
+		tableEnv.registerTable("MyTable", in);
+
+		String sqlQuery = "SELECT * FROM MyTable as mt, unnest(mt.c) as T(s)";
+		Table result = tableEnv.sql(sqlQuery);
+
+		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
+		resultSet.addSink(new StreamITCase.StringSink());
+		env.execute();
+
+		List<String> expected = new ArrayList<>();
+		expected.add("1,1,[121, 432],121");
+		expected.add("1,1,[121, 432],432");
+		expected.add("2,2,[45, 65],45");
+		expected.add("2,2,[45, 65],65");
+		expected.add("3,2,[121, 453],121");
+		expected.add("3,2,[121, 453],453");
+
+		StreamITCase.compareWithList(expected);
+	}
+
+	@Test
 	public void testFilter() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
