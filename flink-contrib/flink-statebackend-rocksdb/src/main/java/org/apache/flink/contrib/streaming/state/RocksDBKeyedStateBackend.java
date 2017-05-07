@@ -799,7 +799,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			try {
 				outputStream = checkpointStreamFactory
 					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
-				stateBackend.cancelStreamRegistry.registerClosable(outputStream);
+				closeableRegistry.registerClosable(outputStream);
 
 				KeyedBackendSerializationProxy serializationProxy =
 					new KeyedBackendSerializationProxy(stateBackend.keySerializer, stateMetaInfoSnapshots);
@@ -807,14 +807,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				serializationProxy.write(out);
 
-				stateBackend.cancelStreamRegistry.unregisterClosable(outputStream);
+				closeableRegistry.unregisterClosable(outputStream);
 				StreamStateHandle result = outputStream.closeAndGetHandle();
 				outputStream = null;
 
 				return result;
 			} finally {
 				if (outputStream != null) {
-					stateBackend.cancelStreamRegistry.unregisterClosable(outputStream);
+					closeableRegistry.unregisterClosable(outputStream);
 					outputStream.close();
 				}
 			}
@@ -844,54 +844,47 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		KeyedStateHandle materializeSnapshot() throws Exception {
 
-			synchronized (stateBackend.asyncSnapshotLock) {
+			stateBackend.cancelStreamRegistry.registerClosable(closeableRegistry);
 
-				if (stateBackend.db == null) {
-					throw new IOException("RocksDB closed.");
-				}
+			// write meta data
+			metaStateHandle = materializeMetaData();
 
-				stateBackend.cancelStreamRegistry.registerClosable(closeableRegistry);
+			// write state data
+			Preconditions.checkState(backupFileSystem.exists(backupPath));
 
-				// write meta data
-				metaStateHandle = materializeMetaData();
+			FileStatus[] fileStatuses = backupFileSystem.listStatus(backupPath);
+			if (fileStatuses != null) {
+				for (FileStatus fileStatus : fileStatuses) {
+					Path filePath = fileStatus.getPath();
+					String fileName = filePath.getName();
 
-				// write state data
-				Preconditions.checkState(backupFileSystem.exists(backupPath));
+					if (fileName.endsWith(SST_FILE_SUFFIX)) {
+						StreamStateHandle fileHandle =
+							baseSstFiles == null ? null : baseSstFiles.get(fileName);
 
-				FileStatus[] fileStatuses = backupFileSystem.listStatus(backupPath);
-				if (fileStatuses != null) {
-					for (FileStatus fileStatus : fileStatuses) {
-						Path filePath = fileStatus.getPath();
-						String fileName = filePath.getName();
+						if (fileHandle == null) {
+							fileHandle = materializeStateData(filePath);
 
-						if (fileName.endsWith(SST_FILE_SUFFIX)) {
-							StreamStateHandle fileHandle =
-								baseSstFiles == null ? null : baseSstFiles.get(fileName);
-
-							if (fileHandle == null) {
-								fileHandle = materializeStateData(filePath);
-
-								newSstFiles.put(fileName, fileHandle);
-							} else {
-								oldSstFiles.put(fileName, fileHandle);
-							}
+							newSstFiles.put(fileName, fileHandle);
 						} else {
-							StreamStateHandle fileHandle = materializeStateData(filePath);
-							miscFiles.put(fileName, fileHandle);
+							oldSstFiles.put(fileName, fileHandle);
 						}
+					} else {
+						StreamStateHandle fileHandle = materializeStateData(filePath);
+						miscFiles.put(fileName, fileHandle);
 					}
 				}
-
-				Map<String, StreamStateHandle> sstFiles = new HashMap<>(newSstFiles.size() + oldSstFiles.size());
-				sstFiles.putAll(newSstFiles);
-				sstFiles.putAll(oldSstFiles);
-
-				stateBackend.materializedSstFiles.put(checkpointId, sstFiles);
-
-				return new RocksDBIncrementalKeyedStateHandle(stateBackend.jobId,
-					stateBackend.operatorIdentifier, stateBackend.keyGroupRange,
-					checkpointId, newSstFiles, oldSstFiles, miscFiles, metaStateHandle);
 			}
+
+			Map<String, StreamStateHandle> sstFiles = new HashMap<>(newSstFiles.size() + oldSstFiles.size());
+			sstFiles.putAll(newSstFiles);
+			sstFiles.putAll(oldSstFiles);
+
+			stateBackend.materializedSstFiles.put(checkpointId, sstFiles);
+
+			return new RocksDBIncrementalKeyedStateHandle(stateBackend.jobId,
+				stateBackend.operatorIdentifier, stateBackend.keyGroupRange,
+				checkpointId, newSstFiles, oldSstFiles, miscFiles, metaStateHandle);
 		}
 
 		void stop() {
