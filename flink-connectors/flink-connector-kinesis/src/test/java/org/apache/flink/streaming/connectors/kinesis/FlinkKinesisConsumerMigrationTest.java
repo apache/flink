@@ -42,10 +42,7 @@ import static org.mockito.Mockito.mock;
 
 /**
  * Tests for checking whether {@link FlinkKinesisConsumer} can restore from snapshots that were
- * done using the Flink 1.1 {@link FlinkKinesisConsumer}.
- *
- * <p>For regenerating the binary snapshot file you have to run the commented out portion
- * of each test on a checkout of the Flink 1.1 branch.
+ * done using the Flink 1.1 {@code FlinkKinesisConsumer}.
  */
 public class FlinkKinesisConsumerMigrationTest {
 
