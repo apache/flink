@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -358,12 +357,10 @@ public abstract class AbstractStreamOperator<OUT>
 	public void dispose() throws Exception {
 
 		if (operatorStateBackend != null) {
-			IOUtils.closeQuietly(operatorStateBackend);
 			operatorStateBackend.dispose();
 		}
 
 		if (keyedStateBackend != null) {
-			IOUtils.closeQuietly(keyedStateBackend);
 			keyedStateBackend.dispose();
 		}
 	}
