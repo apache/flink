@@ -799,7 +799,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			try {
 				outputStream = checkpointStreamFactory
 					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
-				stateBackend.cancelStreamRegistry.registerClosable(outputStream);
+				closeableRegistry.registerClosable(outputStream);
 
 				KeyedBackendSerializationProxy serializationProxy =
 					new KeyedBackendSerializationProxy(stateBackend.keySerializer, stateMetaInfoSnapshots);
@@ -807,14 +807,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				serializationProxy.write(out);
 
-				stateBackend.cancelStreamRegistry.unregisterClosable(outputStream);
+				closeableRegistry.unregisterClosable(outputStream);
 				StreamStateHandle result = outputStream.closeAndGetHandle();
 				outputStream = null;
 
 				return result;
 			} finally {
 				if (outputStream != null) {
-					stateBackend.cancelStreamRegistry.unregisterClosable(outputStream);
+					closeableRegistry.unregisterClosable(outputStream);
 					outputStream.close();
 				}
 			}
