@@ -150,7 +150,7 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 	}
 
 	@Override
-	protected CompatibilityDecision<Record> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<Record> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException();
 	}
 }

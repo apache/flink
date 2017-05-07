@@ -203,7 +203,7 @@ public final class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	protected CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 	}
 }

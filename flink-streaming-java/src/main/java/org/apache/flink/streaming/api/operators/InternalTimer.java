@@ -193,7 +193,7 @@ public class InternalTimer<K, N> implements Comparable<InternalTimer<K, N>> {
 		}
 
 		@Override
-		protected CompatibilityDecision<InternalTimer<K, N>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public CompatibilityDecision<InternalTimer<K, N>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 		}
 	}

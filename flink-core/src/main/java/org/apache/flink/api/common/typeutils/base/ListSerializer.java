@@ -179,9 +179,9 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 	}
 
 	@Override
-	protected CompatibilityDecision<List<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<List<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
-			CompatibilityDecision<T> strategy = elementSerializer.getMigrationStrategyFor(
+			CompatibilityDecision<T> strategy = elementSerializer.ensureCompatibility(
 				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
 			if (strategy.requireMigration()) {

@@ -104,11 +104,11 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
     new OptionSerializer.OptionSerializerConfigSnapshot(elemSerializer.snapshotConfiguration())
   }
 
-  override protected def ensureCompatibility(
+  override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot): CompatibilityDecision[Option[A]] = {
     configSnapshot match {
       case optionSerializerConfigSnapshot: OptionSerializer.OptionSerializerConfigSnapshot =>
-        val strategy = elemSerializer.getMigrationStrategyFor(
+        val strategy = elemSerializer.ensureCompatibility(
           optionSerializerConfigSnapshot.getSingleNestedSerializerConfigSnapshot)
 
         if (strategy.requireMigration()) {

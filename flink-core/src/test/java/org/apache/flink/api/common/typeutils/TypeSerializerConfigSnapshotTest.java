@@ -31,14 +31,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 /**
  * Unit tests related to {@link TypeSerializerConfigSnapshot}.
@@ -94,48 +87,6 @@ public class TypeSerializerConfigSnapshotTest {
 		} catch (IOException expected) {
 			// test passes
 		}
-	}
-
-	/**
-	 * Tests that serializing and then deserializing the special marker config
-	 * {@link ForwardCompatibleSerializationFormatConfig#INSTANCE} always
-	 * restores the singleton instance.
-	 */
-	@Test
-	public void testSerializeForwardCompatibleMarkerConfig() throws Exception {
-		byte[] serializedConfig;
-		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerUtil.writeSerializerConfigSnapshot(
-				new DataOutputViewStreamWrapper(out), ForwardCompatibleSerializationFormatConfig.INSTANCE);
-			serializedConfig = out.toByteArray();
-		}
-
-		TypeSerializerConfigSnapshot restoredConfig;
-		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			restoredConfig = TypeSerializerUtil.readSerializerConfigSnapshot(
-				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
-		}
-
-		// reference equality to the singleton instance
-		assertTrue(restoredConfig == ForwardCompatibleSerializationFormatConfig.INSTANCE);
-	}
-
-	/**
-	 * Verifies that the actual reconfigure method is never invoked if the
-	 * provided configuration snapshot is the special singleton marker config
-	 * {@link ForwardCompatibleSerializationFormatConfig#INSTANCE}.
-	 */
-	@Test
-	public void testMigrationStrategyWithForwardCompatibleMarkerConfig() {
-		TypeSerializer<?> mockSerializer = spy(TypeSerializer.class);
-
-		mockSerializer.getMigrationStrategyFor(ForwardCompatibleSerializationFormatConfig.INSTANCE);
-		verify(mockSerializer, never()).ensureCompatibility(any(TypeSerializerConfigSnapshot.class));
-
-		// make sure that is actually is called if its not the special marker
-		TypeSerializerConfigSnapshot nonForwardCompatibleConfig = new TestConfigSnapshot(123, "foobar");
-		mockSerializer.getMigrationStrategyFor(nonForwardCompatibleConfig);
-		verify(mockSerializer, times(1)).ensureCompatibility(nonForwardCompatibleConfig);
 	}
 
 	public static class TestConfigSnapshot extends TypeSerializerConfigSnapshot {

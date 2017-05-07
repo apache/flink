@@ -579,7 +579,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 						if (fieldIndex != -1) {
 							reorderedFields[i] = fieldToConfigSnapshotEntry.getKey();
 
-							strategy = fieldSerializers[fieldIndex].getMigrationStrategyFor(fieldToConfigSnapshotEntry.getValue());
+							strategy = fieldSerializers[fieldIndex].ensureCompatibility(fieldToConfigSnapshotEntry.getValue());
 							if (strategy.requireMigration()) {
 								return CompatibilityDecision.requiresMigration(null);
 							} else {
@@ -617,7 +617,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					i = 0;
 					for (TypeSerializerConfigSnapshot previousRegisteredSerializerConfig : previousRegistrations.values()) {
 						// check migration requirement of subclass serializer
-						strategy = reorderedRegisteredSubclassSerializers[i].getMigrationStrategyFor(previousRegisteredSerializerConfig);
+						strategy = reorderedRegisteredSubclassSerializers[i].ensureCompatibility(previousRegisteredSerializerConfig);
 						if (strategy.requireMigration()) {
 							return CompatibilityDecision.requiresMigration(null);
 						}
@@ -637,7 +637,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 						// check migration requirement of cached subclass serializer
 						TypeSerializer<?> cachedSerializer = createSubclassSerializer(previousCachedEntry.getKey());
 
-						strategy = cachedSerializer.getMigrationStrategyFor(previousCachedEntry.getValue());
+						strategy = cachedSerializer.ensureCompatibility(previousCachedEntry.getValue());
 						if (strategy.requireMigration()) {
 							return CompatibilityDecision.requiresMigration(null);
 						} else {
@@ -1038,6 +1038,11 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	@VisibleForTesting
 	Field[] getFields() {
 		return fields;
+	}
+
+	@VisibleForTesting
+	TypeSerializer<?>[] getFieldSerializers() {
+		return fieldSerializers;
 	}
 
 	@VisibleForTesting

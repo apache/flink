@@ -1522,7 +1522,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			if (restoredMetaInfo.getNamespaceSerializerConfigSnapshot() != null) {
 				CompatibilityDecision<N> namespaceCompatibilityDecision = newMetaInfo.getNamespaceSerializer()
-					.getMigrationStrategyFor(restoredMetaInfo.getNamespaceSerializerConfigSnapshot());
+					.ensureCompatibility(restoredMetaInfo.getNamespaceSerializerConfigSnapshot());
 
 				TypeSerializer<N> finalOldNamespaceSerializer;
 				if (namespaceCompatibilityDecision.requireMigration()) {
@@ -1542,7 +1542,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			if (restoredMetaInfo.getStateSerializerConfigSnapshot() != null) {
 				CompatibilityDecision<S> stateCompatibilityDecision = newMetaInfo.getStateSerializer()
-					.getMigrationStrategyFor(restoredMetaInfo.getStateSerializerConfigSnapshot());
+					.ensureCompatibility(restoredMetaInfo.getStateSerializerConfigSnapshot());
 
 				TypeSerializer<S> finalOldStateSerializer;
 				if (stateCompatibilityDecision.requireMigration()) {

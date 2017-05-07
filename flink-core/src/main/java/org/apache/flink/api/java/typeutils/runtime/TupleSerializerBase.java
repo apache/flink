@@ -132,7 +132,7 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof TupleSerializerConfigSnapshot) {
 			final TupleSerializerConfigSnapshot<T> config = (TupleSerializerConfigSnapshot<T>) configSnapshot;
 
@@ -144,7 +144,7 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 					CompatibilityDecision strategy;
 					for (int i = 0; i < fieldSerializers.length; i++) {
-						strategy = fieldSerializers[i].getMigrationStrategyFor(fieldSerializerConfigSnapshots[i]);
+						strategy = fieldSerializers[i].ensureCompatibility(fieldSerializerConfigSnapshots[i]);
 						if (strategy.requireMigration()) {
 							return CompatibilityDecision.requiresMigration(null);
 						}

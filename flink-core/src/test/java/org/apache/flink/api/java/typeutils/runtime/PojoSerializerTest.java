@@ -32,7 +32,6 @@ import java.util.Random;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompatibilityDecision;
-import org.apache.flink.api.common.typeutils.ForwardCompatibleSerializationFormatConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -384,7 +383,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		}
 
 		// reconfigure - check reconfiguration result and that subclass serializer cache is repopulated
-		CompatibilityDecision<TestUserClass> strategy = pojoSerializer.getMigrationStrategyFor(pojoSerializerConfigSnapshot);
+		CompatibilityDecision<TestUserClass> strategy = pojoSerializer.ensureCompatibility(pojoSerializerConfigSnapshot);
 		assertFalse(strategy.requireMigration());
 		assertEquals(2, pojoSerializer.getSubclassSerializerCache().size());
 		assertTrue(pojoSerializer.getSubclassSerializerCache().containsKey(SubTestUserClassA.class));
@@ -446,7 +445,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		// reconfigure - check reconfiguration result and that
 		// 1) subclass serializer cache is repopulated
 		// 2) registrations also contain the now registered subclasses
-		CompatibilityDecision<TestUserClass> strategy = pojoSerializer.getMigrationStrategyFor(pojoSerializerConfigSnapshot);
+		CompatibilityDecision<TestUserClass> strategy = pojoSerializer.ensureCompatibility(pojoSerializerConfigSnapshot);
 		assertFalse(strategy.requireMigration());
 		assertEquals(2, pojoSerializer.getSubclassSerializerCache().size());
 		assertTrue(pojoSerializer.getSubclassSerializerCache().containsKey(SubTestUserClassA.class));
@@ -470,12 +469,17 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 			TestUserClass.class.getField("dumm5"),
 		};
 
+		// creating this serializer just for generating config snapshots of the field serializers
+		PojoSerializer<TestUserClass> ser = (PojoSerializer<TestUserClass>) type.createSerializer(new ExecutionConfig());
+
 		LinkedHashMap<Field, TypeSerializerConfigSnapshot> mockOriginalFieldToSerializerConfigSnapshot =
 			new LinkedHashMap<>(mockOriginalFieldOrder.length);
-		for (Field field : mockOriginalFieldOrder) {
-			// just use forward compatible marker; just the field ordering is relevant for this test
-			mockOriginalFieldToSerializerConfigSnapshot.put(field, ForwardCompatibleSerializationFormatConfig.INSTANCE);
-		}
+		mockOriginalFieldToSerializerConfigSnapshot.put(mockOriginalFieldOrder[0], ser.getFieldSerializers()[3].snapshotConfiguration());
+		mockOriginalFieldToSerializerConfigSnapshot.put(mockOriginalFieldOrder[1], ser.getFieldSerializers()[2].snapshotConfiguration());
+		mockOriginalFieldToSerializerConfigSnapshot.put(mockOriginalFieldOrder[2], ser.getFieldSerializers()[5].snapshotConfiguration());
+		mockOriginalFieldToSerializerConfigSnapshot.put(mockOriginalFieldOrder[3], ser.getFieldSerializers()[0].snapshotConfiguration());
+		mockOriginalFieldToSerializerConfigSnapshot.put(mockOriginalFieldOrder[4], ser.getFieldSerializers()[1].snapshotConfiguration());
+		mockOriginalFieldToSerializerConfigSnapshot.put(mockOriginalFieldOrder[5], ser.getFieldSerializers()[4].snapshotConfiguration());
 
 		PojoSerializer<TestUserClass> pojoSerializer = (PojoSerializer<TestUserClass>) type.createSerializer(new ExecutionConfig());
 
@@ -494,7 +498,9 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 				new HashMap<Class<?>, TypeSerializerConfigSnapshot>()); // empty; irrelevant for this test
 
 		// reconfigure - check reconfiguration result and that fields are reordered to the previous order
-		CompatibilityDecision<TestUserClass> strategy = pojoSerializer.getMigrationStrategyFor(mockPreviousConfigSnapshot);
+		CompatibilityDecision<TestUserClass> strategy = pojoSerializer.ensureCompatibility(
+
+			mockPreviousConfigSnapshot);
 		assertFalse(strategy.requireMigration());
 		int i = 0;
 		for (Field field : mockOriginalFieldOrder) {

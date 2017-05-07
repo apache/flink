@@ -142,7 +142,7 @@ public final class CopyableValueSerializer<T extends CopyableValue<T>> extends T
 	}
 
 	@Override
-	protected CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof CopyableValueSerializerConfigSnapshot
 				&& valueClass.equals(((CopyableValueSerializerConfigSnapshot) configSnapshot).getTypeClass())) {
 			return CompatibilityDecision.compatible();

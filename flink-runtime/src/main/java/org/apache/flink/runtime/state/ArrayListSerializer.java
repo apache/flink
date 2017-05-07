@@ -146,9 +146,9 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	}
 
 	@Override
-	protected CompatibilityDecision<ArrayList<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<ArrayList<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
-			CompatibilityDecision<T> strategy = elementSerializer.getMigrationStrategyFor(
+			CompatibilityDecision<T> strategy = elementSerializer.ensureCompatibility(
 				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
 			if (strategy.requireMigration()) {

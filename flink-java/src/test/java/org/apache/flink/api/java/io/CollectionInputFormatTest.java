@@ -395,7 +395,7 @@ public class CollectionInputFormatTest {
 		}
 
 		@Override
-		protected CompatibilityDecision<ElementType> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public CompatibilityDecision<ElementType> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException();
 		}
 	}

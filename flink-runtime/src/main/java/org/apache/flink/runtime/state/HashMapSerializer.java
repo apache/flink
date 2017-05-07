@@ -208,13 +208,13 @@ public final class HashMapSerializer<K, V> extends TypeSerializer<HashMap<K, V>>
 	}
 
 	@Override
-	protected CompatibilityDecision<HashMap<K, V>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<HashMap<K, V>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof MapSerializerConfigSnapshot) {
 			TypeSerializerConfigSnapshot[] keyValueSerializerConfigSnapshots =
 				((MapSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
 
-			CompatibilityDecision<K> keyStrategy = keySerializer.getMigrationStrategyFor(keyValueSerializerConfigSnapshots[0]);
-			CompatibilityDecision<V> valueStrategy = valueSerializer.getMigrationStrategyFor(keyValueSerializerConfigSnapshots[1]);
+			CompatibilityDecision<K> keyStrategy = keySerializer.ensureCompatibility(keyValueSerializerConfigSnapshots[0]);
+			CompatibilityDecision<V> valueStrategy = valueSerializer.ensureCompatibility(keyValueSerializerConfigSnapshots[1]);
 
 			if (keyStrategy.requireMigration() || valueStrategy.requireMigration()) {
 				if (keyStrategy.getConvertDeserializer() != null && valueStrategy.getConvertDeserializer() != null) {

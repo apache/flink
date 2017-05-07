@@ -198,13 +198,13 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 	}
 
 	@Override
-	protected CompatibilityDecision<Either<L, R>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<Either<L, R>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof EitherSerializerConfigSnapshot) {
 			TypeSerializerConfigSnapshot[] leftRightSerializerConfigSnapshots =
 				((EitherSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
 
-			CompatibilityDecision<L> leftStrategy = leftSerializer.getMigrationStrategyFor(leftRightSerializerConfigSnapshots[0]);
-			CompatibilityDecision<R> rightStrategy = rightSerializer.getMigrationStrategyFor(leftRightSerializerConfigSnapshots[1]);
+			CompatibilityDecision<L> leftStrategy = leftSerializer.ensureCompatibility(leftRightSerializerConfigSnapshots[0]);
+			CompatibilityDecision<R> rightStrategy = rightSerializer.ensureCompatibility(leftRightSerializerConfigSnapshots[1]);
 
 			if (leftStrategy.requireMigration() || rightStrategy.requireMigration()) {
 				if (leftStrategy.getConvertDeserializer() != null && rightStrategy.getConvertDeserializer() != null) {

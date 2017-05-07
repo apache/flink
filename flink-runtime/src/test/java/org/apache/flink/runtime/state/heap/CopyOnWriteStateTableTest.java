@@ -658,7 +658,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		}
 
 		@Override
-		protected CompatibilityDecision<Integer> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public CompatibilityDecision<Integer> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException();
 		}
 	}

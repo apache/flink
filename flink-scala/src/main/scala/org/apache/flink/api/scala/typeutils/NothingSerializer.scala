@@ -59,7 +59,7 @@ class NothingSerializer extends TypeSerializer[Any] {
   override def snapshotConfiguration(): TypeSerializerConfigSnapshot =
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
-  override protected def ensureCompatibility(
+  override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot): CompatibilityDecision[Any] =
     throw new RuntimeException("This must not be used. You encountered a bug.")
 

@@ -280,9 +280,9 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	}
 
 	@Override
-	protected CompatibilityDecision<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof StreamElementSerializerConfigSnapshot) {
-			CompatibilityDecision<T> strategy = typeSerializer.getMigrationStrategyFor(
+			CompatibilityDecision<T> strategy = typeSerializer.ensureCompatibility(
 				((StreamElementSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
 			if (strategy.requireMigration()) {

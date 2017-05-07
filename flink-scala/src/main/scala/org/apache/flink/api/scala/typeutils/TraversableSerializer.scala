@@ -155,7 +155,7 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
     throw new UnsupportedOperationException()
   }
 
-  override protected def ensureCompatibility(
+  override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot): CompatibilityDecision[T] = {
     throw new UnsupportedOperationException()
   }

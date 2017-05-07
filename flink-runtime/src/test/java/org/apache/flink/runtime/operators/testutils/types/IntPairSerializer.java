@@ -145,7 +145,7 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 	}
 
 	@Override
-	protected CompatibilityDecision<IntPair> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<IntPair> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException();
 	}
 }

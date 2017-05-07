@@ -110,7 +110,7 @@ class TrySerializer[A](
         throwableSerializer.snapshotConfiguration())
   }
 
-  override protected def ensureCompatibility(
+  override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot): CompatibilityDecision[Try[A]] = {
 
     configSnapshot match {
@@ -119,9 +119,9 @@ class TrySerializer[A](
           trySerializerConfigSnapshot.getNestedSerializerConfigSnapshots
 
         val elemStrategy =
-          elemSerializer.getMigrationStrategyFor(serializerConfigSnapshots(0))
+          elemSerializer.ensureCompatibility(serializerConfigSnapshots(0))
         val throwableStrategy =
-          throwableSerializer.getMigrationStrategyFor(serializerConfigSnapshots(1))
+          throwableSerializer.ensureCompatibility(serializerConfigSnapshots(1))
 
         if (elemStrategy.requireMigration() || throwableStrategy.requireMigration()) {
           CompatibilityDecision.requiresMigration(null)

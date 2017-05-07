@@ -113,7 +113,7 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 	}
 
 	@Override
-	protected CompatibilityDecision<StringPair> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<StringPair> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException();
 	}
 }

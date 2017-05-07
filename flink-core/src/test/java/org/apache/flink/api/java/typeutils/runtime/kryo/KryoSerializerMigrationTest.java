@@ -109,7 +109,7 @@ public class KryoSerializerMigrationTest {
 		}
 
 		// reconfigure - check reconfiguration result and that registration id remains the same
-		CompatibilityDecision<TestClass> strategy = kryoSerializer.getMigrationStrategyFor(kryoSerializerConfigSnapshot);
+		CompatibilityDecision<TestClass> strategy = kryoSerializer.ensureCompatibility(kryoSerializerConfigSnapshot);
 		assertFalse(strategy.requireMigration());
 		assertEquals(testClassId, kryoSerializer.getKryo().getRegistration(TestClass.class).getId());
 		assertEquals(testClassAId, kryoSerializer.getKryo().getRegistration(TestClassA.class).getId());

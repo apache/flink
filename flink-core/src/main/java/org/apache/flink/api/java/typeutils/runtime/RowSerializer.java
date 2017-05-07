@@ -257,7 +257,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	}
 
 	@Override
-	protected CompatibilityDecision<Row> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<Row> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof RowSerializerConfigSnapshot) {
 			TypeSerializerConfigSnapshot[] fieldSerializerConfigSnapshots =
 				((RowSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
@@ -268,7 +268,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 				CompatibilityDecision<?> strategy;
 				for (int i = 0; i < fieldSerializers.length; i++) {
-					strategy = fieldSerializers[i].getMigrationStrategyFor(fieldSerializerConfigSnapshots[i]);
+					strategy = fieldSerializers[i].ensureCompatibility(fieldSerializerConfigSnapshots[i]);
 					if (strategy.requireMigration()) {
 						requireMigration = true;
 

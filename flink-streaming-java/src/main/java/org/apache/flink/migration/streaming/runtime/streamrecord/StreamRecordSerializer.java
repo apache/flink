@@ -158,9 +158,9 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	}
 
 	@Override
-	protected CompatibilityDecision<StreamRecord<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<StreamRecord<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof StreamRecordSerializerConfigSnapshot) {
-			CompatibilityDecision<T> strategy = typeSerializer.getMigrationStrategyFor(
+			CompatibilityDecision<T> strategy = typeSerializer.ensureCompatibility(
 				((StreamRecordSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
 			if (strategy.requireMigration()) {

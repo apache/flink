@@ -199,12 +199,12 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	}
 
 	@Override
-	protected CompatibilityDecision<C[]> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<C[]> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof GenericArraySerializerConfigSnapshot) {
 			final GenericArraySerializerConfigSnapshot config = (GenericArraySerializerConfigSnapshot) configSnapshot;
 
 			if (componentClass.equals(config.getComponentClass())) {
-				CompatibilityDecision<C> strategy = componentSerializer.getMigrationStrategyFor(
+				CompatibilityDecision<C> strategy = componentSerializer.ensureCompatibility(
 					config.getSingleNestedSerializerConfigSnapshot());
 
 				if (strategy.requireMigration()) {

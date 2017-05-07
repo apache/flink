@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -176,17 +175,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * serializer was registered to, the returned configuration snapshot can be used to check with the new serializer
 	 * if any data migration needs to take place.
 	 *
-	 * <p>Implementations can also return the singleton {@link ForwardCompatibleSerializationFormatConfig#INSTANCE}
-	 * configuration if they guarantee forwards compatibility. For example, implementations that use serialization
-	 * frameworks with built-in serialization compatibility, such as <a href=https://thrift.apache.org/>Thrift</a> or
-	 * <a href=https://developers.google.com/protocol-buffers/>Protobuf</a>, is suitable for this usage pattern. By
-	 * returning the {@link ForwardCompatibleSerializationFormatConfig#INSTANCE}, this informs Flink that when managed
-	 * state serialized using this serializer is restored, there is no need to check for migration with the new
-	 * serializer for the same state. In other words, new serializers are always assumed to be fully compatible for the
-	 * serialized state.
-	 *
 	 * @see TypeSerializerConfigSnapshot
-	 * @see ForwardCompatibleSerializationFormatConfig
 	 *
 	 * @return snapshot of the serializer's current configuration.
 	 */
@@ -209,43 +198,11 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 *     restored to read the old data, the provided convert deserializer can be used.</li>
 	 * </ul>
 	 *
-	 * <p>This method is guaranteed to only be invoked if the preceding serializer's configuration snapshot is not the
-	 * singleton {@link ForwardCompatibleSerializationFormatConfig#INSTANCE} configuration. In such cases, Flink always
-	 * assume that the migration strategy is {@link CompatibilityDecision#requiresMigration(TypeSerializer)}.
-	 *
 	 * @see CompatibilityDecision
 	 *
 	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
 	 *
 	 * @return the result of the reconfiguration.
 	 */
-	protected abstract CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot);
-
-	/**
-	 * Get the migration strategy to use this serializer based on the configuration snapshot of a preceding
-	 * serializer that was registered for serialization of the same managed state (if any - this method is only
-	 * relevant if this serializer is registered for serialization of managed state).
-	 *
-	 * <p>This method is not part of the public user-facing API, and cannot be overriden. External operations
-	 * providing a configuration snapshot of preceding serializer can only do so through this method.
-	 *
-	 * <p>This method always assumes that the migration strategy is {@link CompatibilityDecision#compatible()} if
-	 * the provided configuration snapshot is the singleton {@link ForwardCompatibleSerializationFormatConfig#INSTANCE}.
-	 * Otherwise, the configuration snapshot is provided to the actual
-	 * {@link #ensureCompatibility(TypeSerializerConfigSnapshot)} (TypeSerializerConfigSnapshot)} implementation.
-	 *
-	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
-	 *
-	 * @return the result of the reconfiguration.
-	 */
-	@Internal
-	public final CompatibilityDecision<T> getMigrationStrategyFor(TypeSerializerConfigSnapshot configSnapshot) {
-		// reference equality is viable here, because the forward compatible
-		// marker config will always be explicitly restored with the singleton instance
-		if (configSnapshot != ForwardCompatibleSerializationFormatConfig.INSTANCE) {
-			return ensureCompatibility(configSnapshot);
-		} else {
-			return CompatibilityDecision.compatible();
-		}
-	}
+	public abstract CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot);
 }

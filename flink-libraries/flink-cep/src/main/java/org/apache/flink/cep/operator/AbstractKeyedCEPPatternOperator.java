@@ -507,9 +507,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		}
 
 		@Override
-		protected CompatibilityDecision<PriorityQueue<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public CompatibilityDecision<PriorityQueue<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
-				CompatibilityDecision<T> strategy = elementSerializer.getMigrationStrategyFor(
+				CompatibilityDecision<T> strategy = elementSerializer.ensureCompatibility(
 						((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
 				if (strategy.requireMigration()) {

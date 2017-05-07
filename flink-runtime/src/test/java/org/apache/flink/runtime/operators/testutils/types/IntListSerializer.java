@@ -136,7 +136,7 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 	}
 
 	@Override
-	protected CompatibilityDecision<IntList> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<IntList> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException();
 	}
 }

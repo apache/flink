@@ -219,9 +219,9 @@ public class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<Stream
 	}
 
 	@Override
-	protected CompatibilityDecision<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof MultiplexingStreamRecordSerializerConfigSnapshot) {
-			CompatibilityDecision<T> strategy = typeSerializer.getMigrationStrategyFor(
+			CompatibilityDecision<T> strategy = typeSerializer.ensureCompatibility(
 				((MultiplexingStreamRecordSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
 			if (strategy.requireMigration()) {

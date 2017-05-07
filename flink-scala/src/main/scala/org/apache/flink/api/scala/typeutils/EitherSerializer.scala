@@ -116,7 +116,7 @@ class EitherSerializer[A, B, T <: Either[A, B]](
       rightSerializer.snapshotConfiguration())
   }
 
-  override protected def ensureCompatibility(
+  override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot): CompatibilityDecision[T] = {
 
     configSnapshot match {
@@ -124,8 +124,8 @@ class EitherSerializer[A, B, T <: Either[A, B]](
         val leftRightConfigs =
           eitherSerializerConfig.getNestedSerializerConfigSnapshots
 
-        val leftStrategy = leftSerializer.getMigrationStrategyFor(leftRightConfigs(0))
-        val rightStrategy = rightSerializer.getMigrationStrategyFor(leftRightConfigs(1))
+        val leftStrategy = leftSerializer.ensureCompatibility(leftRightConfigs(0))
+        val rightStrategy = rightSerializer.ensureCompatibility(leftRightConfigs(1))
 
         if (leftStrategy.requireMigration || rightStrategy.requireMigration) {
           if (leftStrategy.getConvertDeserializer != null

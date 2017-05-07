@@ -162,20 +162,12 @@ public class TypeSerializerUtil {
 		public void write(DataOutputView out) throws IOException {
 			super.write(out);
 
-			if (serializerConfigSnapshot == ForwardCompatibleSerializationFormatConfig.INSTANCE) {
-				// if the config is actually the special forward compatible config,
-				// just write a flag to indicate that and write nothing else
-				out.writeBoolean(false);
-			} else {
-				out.writeBoolean(true);
+			// config snapshot class, so that we can re-instantiate the
+			// correct type of config snapshot instance when deserializing
+			out.writeUTF(serializerConfigSnapshot.getClass().getName());
 
-				// config snapshot class, so that we can re-instantiate the
-				// correct type of config snapshot instance when deserializing
-				out.writeUTF(serializerConfigSnapshot.getClass().getName());
-
-				// the actual configuration parameters
-				serializerConfigSnapshot.write(out);
-			}
+			// the actual configuration parameters
+			serializerConfigSnapshot.write(out);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -183,25 +175,20 @@ public class TypeSerializerUtil {
 		public void read(DataInputView in) throws IOException {
 			super.read(in);
 
-			if (in.readBoolean()) {
-				String serializerConfigClassname = in.readUTF();
-				Class<? extends TypeSerializerConfigSnapshot> serializerConfigSnapshotClass;
-				try {
-					serializerConfigSnapshotClass = (Class<? extends TypeSerializerConfigSnapshot>)
-						Class.forName(serializerConfigClassname, true, userCodeClassLoader);
-				} catch (ClassNotFoundException e) {
-					throw new IOException(
-						"Could not find requested TypeSerializerConfigSnapshot class "
-							+ serializerConfigClassname +  " in classpath.", e);
-				}
-
-				serializerConfigSnapshot = InstantiationUtil.instantiate(serializerConfigSnapshotClass);
-				serializerConfigSnapshot.setUserCodeClassLoader(userCodeClassLoader);
-				serializerConfigSnapshot.read(in);
-			} else {
-				// was a special forward compatible config; restore with the singleton instance
-				serializerConfigSnapshot = ForwardCompatibleSerializationFormatConfig.INSTANCE;
+			String serializerConfigClassname = in.readUTF();
+			Class<? extends TypeSerializerConfigSnapshot> serializerConfigSnapshotClass;
+			try {
+				serializerConfigSnapshotClass = (Class<? extends TypeSerializerConfigSnapshot>)
+					Class.forName(serializerConfigClassname, true, userCodeClassLoader);
+			} catch (ClassNotFoundException e) {
+				throw new IOException(
+					"Could not find requested TypeSerializerConfigSnapshot class "
+						+ serializerConfigClassname +  " in classpath.", e);
 			}
+
+			serializerConfigSnapshot = InstantiationUtil.instantiate(serializerConfigSnapshotClass);
+			serializerConfigSnapshot.setUserCodeClassLoader(userCodeClassLoader);
+			serializerConfigSnapshot.read(in);
 		}
 
 		@Override

@@ -556,7 +556,7 @@ public class CoGroupedStreams<T1, T2> {
 		}
 
 		@Override
-		protected CompatibilityDecision<TaggedUnion<T1, T2>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public CompatibilityDecision<TaggedUnion<T1, T2>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 		}
 	}

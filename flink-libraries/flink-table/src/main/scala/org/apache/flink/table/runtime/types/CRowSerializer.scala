@@ -81,12 +81,12 @@ class CRowSerializer(val rowSerializer: TypeSerializer[Row]) extends TypeSeriali
       rowSerializer.snapshotConfiguration())
   }
 
-  override protected def ensureCompatibility(
+  override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot): CompatibilityDecision[CRow] = {
 
     configSnapshot match {
       case crowSerializerConfigSnapshot: CRowSerializer.CRowSerializerConfigSnapshot =>
-        val strategy = rowSerializer.getMigrationStrategyFor(
+        val strategy = rowSerializer.ensureCompatibility(
             crowSerializerConfigSnapshot.getSingleNestedSerializerConfigSnapshot)
 
         if (strategy.requireMigration()) {

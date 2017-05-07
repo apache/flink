@@ -110,7 +110,7 @@ public class MigrationNamespaceSerializerProxy extends TypeSerializer<Serializab
 	}
 
 	@Override
-	protected CompatibilityDecision<Serializable> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<Serializable> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		return CompatibilityDecision.compatible();
 	}
 

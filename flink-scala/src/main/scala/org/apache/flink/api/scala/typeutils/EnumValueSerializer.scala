@@ -81,7 +81,7 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
       enum.getClass.asInstanceOf[Class[E]])
   }
 
-  override protected def ensureCompatibility(
+  override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot): CompatibilityDecision[E#Value] = {
 
     configSnapshot match {
