@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
@@ -516,7 +517,8 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 					return CompatibilityResult.compatible();
 				} else if (compatResult.getConvertDeserializer() != null) {
 					return CompatibilityResult.requiresMigration(
-						new PriorityQueueSerializer<>(compatResult.getConvertDeserializer(), factory));
+						new PriorityQueueSerializer<>(
+							new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer()), factory));
 				}
 			}
 

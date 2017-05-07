@@ -38,7 +38,7 @@ public final class CompatibilityResult<T> {
 	 *
 	 * <p>This is only relevant if migration is required.
 	 */
-	private final TypeSerializer<T> convertDeserializer;
+	private final TypeDeserializer<T> convertDeserializer;
 
 	/**
 	 * Returns a strategy that signals that the new serializer is compatible and no migration is required.
@@ -61,16 +61,16 @@ public final class CompatibilityResult<T> {
 	 *
 	 * @return a result that signals migration is necessary, possibly providing a convert deserializer.
 	 */
-	public static <T> CompatibilityResult<T> requiresMigration(TypeSerializer<T> convertDeserializer) {
+	public static <T> CompatibilityResult<T> requiresMigration(TypeDeserializer<T> convertDeserializer) {
 		return new CompatibilityResult<>(true, convertDeserializer);
 	}
 
-	private CompatibilityResult(boolean requiresMigration, TypeSerializer<T> convertDeserializer) {
+	private CompatibilityResult(boolean requiresMigration, TypeDeserializer<T> convertDeserializer) {
 		this.requiresMigration = requiresMigration;
 		this.convertDeserializer = convertDeserializer;
 	}
 
-	public TypeSerializer<T> getConvertDeserializer() {
+	public TypeDeserializer<T> getConvertDeserializer() {
 		return convertDeserializer;
 	}
 

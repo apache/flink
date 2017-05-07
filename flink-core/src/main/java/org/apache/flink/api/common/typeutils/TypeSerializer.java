@@ -36,7 +36,7 @@ import java.io.Serializable;
  * @param <T> The data type that the serializer serializes.
  */
 @PublicEvolving
-public abstract class TypeSerializer<T> implements Serializable {
+public abstract class TypeSerializer<T> implements TypeDeserializer<T>, Serializable {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -197,7 +197,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 *     has been reconfigured to be compatible, to continue reading previous data, and that the
 	 *     serialization schema remains the same. No migration needs to be performed.</li>
 	 *
-	 *     <li>{@link CompatibilityResult#requiresMigration(TypeSerializer)}: this signals Flink that
+	 *     <li>{@link CompatibilityResult#requiresMigration(TypeDeserializer)}: this signals Flink that
 	 *     migration needs to be performed, because this serializer is not compatible, or cannot be reconfigured to be
 	 *     compatible, for previous data. Furthermore, in the case that the preceding serializer cannot be found or
 	 *     restored to read the previous data to perform the migration, the provided convert deserializer can be

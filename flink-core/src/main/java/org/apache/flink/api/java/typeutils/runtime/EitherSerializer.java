@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -212,8 +213,8 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 				if (leftCompatResult.getConvertDeserializer() != null && rightCompatResult.getConvertDeserializer() != null) {
 					return CompatibilityResult.requiresMigration(
 						new EitherSerializer<>(
-							leftCompatResult.getConvertDeserializer(),
-							rightCompatResult.getConvertDeserializer()));
+							new TypeDeserializerAdapter<>(leftCompatResult.getConvertDeserializer()),
+							new TypeDeserializerAdapter<>(rightCompatResult.getConvertDeserializer())));
 				}
 			}
 		}
