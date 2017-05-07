@@ -143,7 +143,7 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 	 * Dummy TypeSerializer to avoid that data is lost when checkpointing again a serializer for which we encountered
 	 * a {@link ClassNotFoundException}.
 	 */
-	static final class ClassNotFoundDummyTypeSerializer<T> extends TypeSerializer<T> {
+	public static final class ClassNotFoundDummyTypeSerializer<T> extends TypeSerializer<T> {
 
 		private static final long serialVersionUID = 2526330533671642711L;
 		private final byte[] actualBytes;
@@ -203,6 +203,16 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 
 		@Override
 		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			throw new UnsupportedOperationException("This object is a dummy TypeSerializer.");
+		}
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			throw new UnsupportedOperationException("This object is a dummy TypeSerializer.");
+		}
+
+		@Override
+		public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException("This object is a dummy TypeSerializer.");
 		}
 

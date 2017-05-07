@@ -20,11 +20,13 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
+import com.esotericsoftware.kryo.Serializer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
+import java.util.Collection;
 
 /**
  * Convenience methods for Kryo
@@ -83,6 +85,31 @@ public class KryoUtils {
 			} catch (IOException ioe) {
 				throw new RuntimeException("Could not copy object by serializing/deserializing" +
 					" it.", ioe);
+			}
+		}
+	}
+
+	/**
+	 * Apply a list of {@link KryoRegistration} to a Kryo instance. The list of registrations is
+	 * assumed to already be a final resolution of all possible registration overwrites.
+	 *
+	 * <p>The registrations are applied in the given order and always specify the registration id as
+	 * the next available id in the Kryo instance (providing the id just extra ensures nothing is
+	 * overwritten, and isn't strictly required);
+	 *
+	 * @param kryo the Kryo instance to apply the registrations
+	 * @param resolvedRegistrations the registrations, which should already be resolved of all possible registration overwrites
+	 */
+	public static void applyRegistrations(Kryo kryo, Collection<KryoRegistration> resolvedRegistrations) {
+
+		Serializer<?> serializer;
+		for (KryoRegistration registration : resolvedRegistrations) {
+			serializer = registration.getSerializer(kryo);
+
+			if (serializer != null) {
+				kryo.register(registration.getRegisteredClass(), serializer, kryo.getNextRegistrationId());
+			} else {
+				kryo.register(registration.getRegisteredClass(), kryo.getNextRegistrationId());
 			}
 		}
 	}

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
@@ -31,18 +31,13 @@ import java.io.Serializable;
 
 @SuppressWarnings("serial")
 @Internal
-final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
+final class JavaSerializer<T extends Serializable> extends TypeSerializerSingleton<T> {
 
 	private static final long serialVersionUID = 5067491650263321234L;
 
 	@Override
 	public boolean isImmutableType() {
 		return false;
-	}
-
-	@Override
-	public TypeSerializer<T> duplicate() {
-		return this;
 	}
 
 	@Override
@@ -98,17 +93,7 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof JavaSerializer;
-	}
-
-	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof JavaSerializer;
-	}
-
-	@Override
-	public int hashCode() {
-		return getClass().hashCode();
 	}
 }

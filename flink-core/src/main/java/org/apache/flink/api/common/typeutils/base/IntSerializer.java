@@ -33,7 +33,6 @@ public final class IntSerializer extends TypeSerializerSingleton<Integer> {
 	
 	private static final Integer ZERO = Integer.valueOf(0);
 
-
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -82,5 +81,11 @@ public final class IntSerializer extends TypeSerializerSingleton<Integer> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof IntSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(IntValueSerializer.class.getCanonicalName());
 	}
 }

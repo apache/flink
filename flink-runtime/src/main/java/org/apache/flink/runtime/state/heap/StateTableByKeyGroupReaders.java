@@ -47,7 +47,8 @@ class StateTableByKeyGroupReaders {
 			case 1:
 				return new StateTableByKeyGroupReaderV1<>(table);
 			case 2:
-				return new StateTableByKeyGroupReaderV2<>(table);
+			case 3:
+				return new StateTableByKeyGroupReaderV2V3<>(table);
 			default:
 				throw new IllegalArgumentException("Unknown version: " + version);
 		}
@@ -110,10 +111,10 @@ class StateTableByKeyGroupReaders {
 		}
 	}
 
-	private static final class StateTableByKeyGroupReaderV2<K, N, S>
+	private static final class StateTableByKeyGroupReaderV2V3<K, N, S>
 			extends AbstractStateTableByKeyGroupReader<K, N, S> {
 
-		StateTableByKeyGroupReaderV2(StateTable<K, N, S> stateTable) {
+		StateTableByKeyGroupReaderV2V3(StateTable<K, N, S> stateTable) {
 			super(stateTable);
 		}
 

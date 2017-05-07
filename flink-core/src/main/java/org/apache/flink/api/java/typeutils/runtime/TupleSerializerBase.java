@@ -19,7 +19,10 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -114,5 +117,44 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof TupleSerializerBase;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & compatibility
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public TupleSerializerConfigSnapshot<T> snapshotConfiguration() {
+		return new TupleSerializerConfigSnapshot<>(
+				tupleClass,
+				TypeSerializerUtil.snapshotConfigurations(fieldSerializers));
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof TupleSerializerConfigSnapshot) {
+			final TupleSerializerConfigSnapshot<T> config = (TupleSerializerConfigSnapshot<T>) configSnapshot;
+
+			if (tupleClass.equals(config.getTupleClass())) {
+				TypeSerializerConfigSnapshot[] fieldSerializerConfigSnapshots =
+					((TupleSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
+
+				if (fieldSerializerConfigSnapshots.length == fieldSerializers.length) {
+
+					CompatibilityResult compatResult;
+					for (int i = 0; i < fieldSerializers.length; i++) {
+						compatResult = fieldSerializers[i].ensureCompatibility(fieldSerializerConfigSnapshots[i]);
+						if (compatResult.requiresMigration()) {
+							return CompatibilityResult.requiresMigration(null);
+						}
+					}
+
+					return CompatibilityResult.compatible();
+				}
+			}
+		}
+
+		return CompatibilityResult.requiresMigration(null);
 	}
 }
