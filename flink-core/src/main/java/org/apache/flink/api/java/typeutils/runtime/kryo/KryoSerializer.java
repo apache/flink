@@ -28,7 +28,7 @@ import org.apache.avro.generic.GenericData;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
@@ -379,7 +379,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected MigrationStrategy<T> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof KryoSerializerConfigSnapshot) {
 			final KryoSerializerConfigSnapshot<T> config = (KryoSerializerConfigSnapshot<T>) configSnapshot;
 
@@ -399,18 +399,18 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 							"proper serializer, because its previous serializer cannot be loaded or is no " +
 							"longer valid but a new serializer is not available", reconfiguredRegistrationEntry.getKey());
 
-						return MigrationStrategy.migrate();
+						return CompatibilityDecision.requiresMigration(null);
 					}
 				}
 
 				// there's actually no way to tell if new Kryo serializers are compatible with
 				// the previous ones they overwrite; we can only signal compatibly and hope for the best
 				this.kryoRegistrations = reconfiguredRegistrations;
-				return MigrationStrategy.noMigration();
+				return CompatibilityDecision.compatible();
 			}
 		}
 
-		return MigrationStrategy.migrate();
+		return CompatibilityDecision.requiresMigration(null);
 	}
 
 	public static final class KryoSerializerConfigSnapshot<T> extends KryoRegistrationSerializerConfigSnapshot<T> {

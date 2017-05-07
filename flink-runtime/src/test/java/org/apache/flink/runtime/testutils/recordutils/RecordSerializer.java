@@ -21,7 +21,7 @@ package org.apache.flink.runtime.testutils.recordutils;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -150,7 +150,7 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 	}
 
 	@Override
-	protected MigrationStrategy<Record> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected CompatibilityDecision<Record> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException();
 	}
 }

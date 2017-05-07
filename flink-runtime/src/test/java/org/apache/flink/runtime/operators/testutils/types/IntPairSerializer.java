@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators.testutils.types;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -145,7 +145,7 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 	}
 
 	@Override
-	protected MigrationStrategy<IntPair> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected CompatibilityDecision<IntPair> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		throw new UnsupportedOperationException();
 	}
 }

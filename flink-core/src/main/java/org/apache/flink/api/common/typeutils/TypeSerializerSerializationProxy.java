@@ -212,7 +212,7 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 		}
 
 		@Override
-		protected MigrationStrategy<T> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+		protected CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException("This object is a dummy TypeSerializer.");
 		}
 

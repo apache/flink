@@ -33,8 +33,8 @@ import java.util.Objects;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
@@ -70,7 +70,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	 * handled with the {@link #readObject(ObjectInputStream)} and {@link #writeObject(ObjectOutputStream)}
 	 * methods.
 	 *
-	 * <p>These may be reconfigured in {@link #getMigrationStrategy(TypeSerializerConfigSnapshot)}.
+	 * <p>These may be reconfigured in {@link #ensureCompatibility(TypeSerializerConfigSnapshot)}.
 	 */
 	private transient Field[] fields;
 	private TypeSerializer<Object>[] fieldSerializers;
@@ -80,7 +80,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	 * Registered subclasses and their serializers.
 	 * Each subclass to their registered class tag is maintained as a separate map ordered by the class tag.
 	 *
-	 * <p>These may be reconfigured in {@link #getMigrationStrategy(TypeSerializerConfigSnapshot)}.
+	 * <p>These may be reconfigured in {@link #ensureCompatibility(TypeSerializerConfigSnapshot)}.
 	 */
 	private LinkedHashMap<Class<?>, Integer> registeredClasses;
 	private TypeSerializer<?>[] registeredSerializers;
@@ -89,7 +89,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	 * Cache of non-registered subclasses to their serializers, created on-the-fly.
 	 *
 	 * <p>This cache is persisted and will be repopulated with reconfigured serializers
-	 * in {@link #getMigrationStrategy(TypeSerializerConfigSnapshot)}.
+	 * in {@link #ensureCompatibility(TypeSerializerConfigSnapshot)}.
 	 */
 	private transient HashMap<Class<?>, TypeSerializer<?>> subclassSerializerCache;
 
@@ -100,7 +100,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	 *
 	 * <p>Nested serializers created using this will have the most up-to-date configuration,
 	 * and can be resolved for backwards compatibility with previous configuration
-	 * snapshots in {@link #getMigrationStrategy(TypeSerializerConfigSnapshot)}.
+	 * snapshots in {@link #ensureCompatibility(TypeSerializerConfigSnapshot)}.
 	 */
 	private final ExecutionConfig executionConfig;
 
@@ -554,14 +554,14 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public MigrationStrategy<T> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof PojoSerializerConfigSnapshot) {
 			final PojoSerializerConfigSnapshot<T> config = (PojoSerializerConfigSnapshot<T>) configSnapshot;
 
 			if (clazz.equals(config.getTypeClass())) {
 				if (this.numFields == config.getFieldToSerializerConfigSnapshot().size()) {
 
-					MigrationStrategy<?> strategy;
+					CompatibilityDecision<?> strategy;
 
 					// ----------- check field order and migration requirement of field serializers -----------
 
@@ -581,12 +581,12 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 							strategy = fieldSerializers[fieldIndex].getMigrationStrategyFor(fieldToConfigSnapshotEntry.getValue());
 							if (strategy.requireMigration()) {
-								return MigrationStrategy.migrate();
+								return CompatibilityDecision.requiresMigration(null);
 							} else {
 								reorderedFieldSerializers[i] = fieldSerializers[fieldIndex];
 							}
 						} else {
-							return MigrationStrategy.migrate();
+							return CompatibilityDecision.requiresMigration(null);
 						}
 
 						i++;
@@ -619,7 +619,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 						// check migration requirement of subclass serializer
 						strategy = reorderedRegisteredSubclassSerializers[i].getMigrationStrategyFor(previousRegisteredSerializerConfig);
 						if (strategy.requireMigration()) {
-							return MigrationStrategy.migrate();
+							return CompatibilityDecision.requiresMigration(null);
 						}
 
 						i++;
@@ -639,7 +639,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 						strategy = cachedSerializer.getMigrationStrategyFor(previousCachedEntry.getValue());
 						if (strategy.requireMigration()) {
-							return MigrationStrategy.migrate();
+							return CompatibilityDecision.requiresMigration(null);
 						} else {
 							rebuiltCache.put(previousCachedEntry.getKey(), cachedSerializer);
 						}
@@ -656,12 +656,12 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 					this.subclassSerializerCache = rebuiltCache;
 
-					return MigrationStrategy.noMigration();
+					return CompatibilityDecision.compatible();
 				}
 			}
 		}
 
-		return MigrationStrategy.migrate();
+		return CompatibilityDecision.requiresMigration(null);
 	}
 
 	public static final class PojoSerializerConfigSnapshot<T> extends GenericTypeSerializerConfigSnapshot<T> {

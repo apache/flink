@@ -21,45 +21,31 @@ package org.apache.flink.api.common.typeutils;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * A {@code MigrationStrategy} contains information about how to perform migration of data written
+ * A {@code CompatibilityDecision} contains information about how to perform migration of data written
  * by an older serializer so that new serializers can continue to work on them.
  *
  * @param <T> the type of the data being migrated.
  */
 @PublicEvolving
-public final class MigrationStrategy<T> {
+public final class CompatibilityDecision<T> {
 
 	/** Whether or not migration is required. */
-	private final boolean requiresStateMigration;
+	private final boolean requiresMigration;
 
 	/**
 	 * The fallback deserializer to use, in the case the preceding serializer cannot be found.
 	 *
 	 * <p>This is only relevant if migration is required.
 	 */
-	private final TypeSerializer<T> fallbackDeserializer;
+	private final TypeSerializer<T> convertDeserializer;
 
 	/**
 	 * Returns a strategy that simply signals that no migration needs to be performed.
 	 *
 	 * @return a strategy that does not perform migration
 	 */
-	public static <T> MigrationStrategy<T> noMigration() {
-		return new MigrationStrategy<>(false, null);
-	}
-
-	/**
-	 * Returns a strategy that signals migration to be performed, and in the case that the
-	 * preceding serializer cannot be found, a provided fallback deserializer can be
-	 * used.
-	 *
-	 * @param fallbackDeserializer a fallback deserializer that can be used to read old data for the migration
-	 *                             in the case that the preceding serializer cannot be found.
-	 *
-	 * @return a strategy that performs migration with a fallback deserializer to read old data.
-	 */
-	public static <T> MigrationStrategy<T> migrateWithFallbackDeserializer(TypeSerializer<T> fallbackDeserializer) {
-		return new MigrationStrategy<>(true, fallbackDeserializer);
+	public static <T> CompatibilityDecision<T> compatible() {
+		return new CompatibilityDecision<>(false, null);
 	}
 
 	/**
@@ -68,20 +54,20 @@ public final class MigrationStrategy<T> {
 	 *
 	 * @return a strategy that performs migration, without a fallback deserializer.
 	 */
-	public static <T> MigrationStrategy<T> migrate() {
-		return new MigrationStrategy<>(true, null);
+	public static <T> CompatibilityDecision<T> requiresMigration(TypeSerializer<T> fallbackDeserializer) {
+		return new CompatibilityDecision<>(true, fallbackDeserializer);
 	}
 
-	private MigrationStrategy(boolean requiresStateMigration, TypeSerializer<T> fallbackDeserializer) {
-		this.requiresStateMigration = requiresStateMigration;
-		this.fallbackDeserializer = fallbackDeserializer;
+	private CompatibilityDecision(boolean requiresMigration, TypeSerializer<T> convertDeserializer) {
+		this.requiresMigration = requiresMigration;
+		this.convertDeserializer = convertDeserializer;
 	}
 
-	public TypeSerializer<T> getFallbackDeserializer() {
-		return fallbackDeserializer;
+	public TypeSerializer<T> getConvertDeserializer() {
+		return convertDeserializer;
 	}
 
 	public boolean requireMigration() {
-		return requiresStateMigration;
+		return requiresMigration;
 	}
 }

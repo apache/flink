@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -198,28 +198,28 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 	}
 
 	@Override
-	protected MigrationStrategy<Either<L, R>> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected CompatibilityDecision<Either<L, R>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof EitherSerializerConfigSnapshot) {
 			TypeSerializerConfigSnapshot[] leftRightSerializerConfigSnapshots =
 				((EitherSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
 
-			MigrationStrategy<L> leftStrategy = leftSerializer.getMigrationStrategyFor(leftRightSerializerConfigSnapshots[0]);
-			MigrationStrategy<R> rightStrategy = rightSerializer.getMigrationStrategyFor(leftRightSerializerConfigSnapshots[1]);
+			CompatibilityDecision<L> leftStrategy = leftSerializer.getMigrationStrategyFor(leftRightSerializerConfigSnapshots[0]);
+			CompatibilityDecision<R> rightStrategy = rightSerializer.getMigrationStrategyFor(leftRightSerializerConfigSnapshots[1]);
 
 			if (leftStrategy.requireMigration() || rightStrategy.requireMigration()) {
-				if (leftStrategy.getFallbackDeserializer() != null && rightStrategy.getFallbackDeserializer() != null) {
-					return MigrationStrategy.migrateWithFallbackDeserializer(
+				if (leftStrategy.getConvertDeserializer() != null && rightStrategy.getConvertDeserializer() != null) {
+					return CompatibilityDecision.requiresMigration(
 							new EitherSerializer<>(
-									leftStrategy.getFallbackDeserializer(),
-									rightStrategy.getFallbackDeserializer()));
+									leftStrategy.getConvertDeserializer(),
+									rightStrategy.getConvertDeserializer()));
 				} else {
-					return MigrationStrategy.migrate();
+					return CompatibilityDecision.requiresMigration(null);
 				}
 			} else {
-				return MigrationStrategy.noMigration();
+				return CompatibilityDecision.compatible();
 			}
 		} else {
-			return MigrationStrategy.migrate();
+			return CompatibilityDecision.requiresMigration(null);
 		}
 	}
 }

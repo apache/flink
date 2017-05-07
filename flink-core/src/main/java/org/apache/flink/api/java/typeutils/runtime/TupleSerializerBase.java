@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
@@ -132,7 +132,7 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected MigrationStrategy<T> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof TupleSerializerConfigSnapshot) {
 			final TupleSerializerConfigSnapshot<T> config = (TupleSerializerConfigSnapshot<T>) configSnapshot;
 
@@ -142,19 +142,19 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 				if (fieldSerializerConfigSnapshots.length == fieldSerializers.length) {
 
-					MigrationStrategy strategy;
+					CompatibilityDecision strategy;
 					for (int i = 0; i < fieldSerializers.length; i++) {
 						strategy = fieldSerializers[i].getMigrationStrategyFor(fieldSerializerConfigSnapshots[i]);
 						if (strategy.requireMigration()) {
-							return MigrationStrategy.migrate();
+							return CompatibilityDecision.requiresMigration(null);
 						}
 					}
 
-					return MigrationStrategy.noMigration();
+					return CompatibilityDecision.compatible();
 				}
 			}
 		}
 
-		return MigrationStrategy.migrate();
+		return CompatibilityDecision.requiresMigration(null);
 	}
 }

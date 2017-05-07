@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{MigrationStrategy, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils.{CompatibilityDecision, TypeSerializer, TypeSerializerConfigSnapshot}
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializerConfigSnapshot
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
@@ -116,8 +116,8 @@ class EitherSerializer[A, B, T <: Either[A, B]](
       rightSerializer.snapshotConfiguration())
   }
 
-  override protected def getMigrationStrategy(
-      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy[T] = {
+  override protected def ensureCompatibility(
+      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityDecision[T] = {
 
     configSnapshot match {
       case eitherSerializerConfig: EitherSerializerConfigSnapshot =>
@@ -128,24 +128,24 @@ class EitherSerializer[A, B, T <: Either[A, B]](
         val rightStrategy = rightSerializer.getMigrationStrategyFor(leftRightConfigs(1))
 
         if (leftStrategy.requireMigration || rightStrategy.requireMigration) {
-          if (leftStrategy.getFallbackDeserializer != null
-              && rightStrategy.getFallbackDeserializer != null) {
+          if (leftStrategy.getConvertDeserializer != null
+              && rightStrategy.getConvertDeserializer != null) {
 
-            MigrationStrategy.migrateWithFallbackDeserializer(
+            CompatibilityDecision.requiresMigration(
               new EitherSerializer[A, B, T](
-                leftStrategy.getFallbackDeserializer,
-                rightStrategy.getFallbackDeserializer
+                leftStrategy.getConvertDeserializer,
+                rightStrategy.getConvertDeserializer
               )
             )
 
           } else {
-            MigrationStrategy.migrate()
+            CompatibilityDecision.requiresMigration(null)
           }
         } else {
-          MigrationStrategy.noMigration()
+          CompatibilityDecision.compatible()
         }
 
-      case _ => MigrationStrategy.migrate()
+      case _ => CompatibilityDecision.requiresMigration(null)
     }
   }
 }

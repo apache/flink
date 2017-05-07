@@ -39,7 +39,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Unit tests related to {@link TypeSerializerConfigSnapshot}.
@@ -131,12 +130,12 @@ public class TypeSerializerConfigSnapshotTest {
 		TypeSerializer<?> mockSerializer = spy(TypeSerializer.class);
 
 		mockSerializer.getMigrationStrategyFor(ForwardCompatibleSerializationFormatConfig.INSTANCE);
-		verify(mockSerializer, never()).getMigrationStrategy(any(TypeSerializerConfigSnapshot.class));
+		verify(mockSerializer, never()).ensureCompatibility(any(TypeSerializerConfigSnapshot.class));
 
 		// make sure that is actually is called if its not the special marker
 		TypeSerializerConfigSnapshot nonForwardCompatibleConfig = new TestConfigSnapshot(123, "foobar");
 		mockSerializer.getMigrationStrategyFor(nonForwardCompatibleConfig);
-		verify(mockSerializer, times(1)).getMigrationStrategy(nonForwardCompatibleConfig);
+		verify(mockSerializer, times(1)).ensureCompatibility(nonForwardCompatibleConfig);
 	}
 
 	public static class TestConfigSnapshot extends TypeSerializerConfigSnapshot {

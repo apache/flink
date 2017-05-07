@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -658,7 +658,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		}
 
 		@Override
-		protected MigrationStrategy<Integer> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+		protected CompatibilityDecision<Integer> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException();
 		}
 	}

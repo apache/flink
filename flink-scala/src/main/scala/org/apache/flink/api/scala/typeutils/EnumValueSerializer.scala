@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.typeutils
 import java.io.IOException
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{MigrationStrategy, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils.{CompatibilityDecision, TypeSerializer, TypeSerializerConfigSnapshot}
 import org.apache.flink.api.common.typeutils.base.IntSerializer
 import org.apache.flink.api.java.typeutils.runtime.{DataInputViewStream, DataOutputViewStream}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
@@ -81,8 +81,8 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
       enum.getClass.asInstanceOf[Class[E]])
   }
 
-  override protected def getMigrationStrategy(
-      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy[E#Value] = {
+  override protected def ensureCompatibility(
+      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityDecision[E#Value] = {
 
     configSnapshot match {
       case enumSerializerConfigSnapshot: EnumValueSerializer.ScalaEnumSerializerConfigSnapshot[_] =>
@@ -95,16 +95,16 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
             // and original constants must be in the exact same order
 
             if (currentEnumConstants(i) != enumSerializerConfigSnapshot.getEnumConstants(i)) {
-              MigrationStrategy.migrate()
+              CompatibilityDecision.requiresMigration(null)
             }
           }
 
-          MigrationStrategy.noMigration()
+          CompatibilityDecision.compatible()
         } else {
-          MigrationStrategy.migrate()
+          CompatibilityDecision.requiresMigration(null)
         }
 
-      case _ => MigrationStrategy.migrate()
+      case _ => CompatibilityDecision.requiresMigration(null)
     }
   }
 }

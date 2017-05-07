@@ -23,7 +23,7 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -65,7 +65,7 @@ public class KryoSerializerMigrationTest {
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		MigrationStrategy<TestClassB> strategy = kryoSerializerForB.getMigrationStrategy(kryoSerializerConfigSnapshot);
+		CompatibilityDecision<TestClassB> strategy = kryoSerializerForB.ensureCompatibility(kryoSerializerConfigSnapshot);
 		assertTrue(strategy.requireMigration());
 	}
 
@@ -109,7 +109,7 @@ public class KryoSerializerMigrationTest {
 		}
 
 		// reconfigure - check reconfiguration result and that registration id remains the same
-		MigrationStrategy<TestClass> strategy = kryoSerializer.getMigrationStrategyFor(kryoSerializerConfigSnapshot);
+		CompatibilityDecision<TestClass> strategy = kryoSerializer.getMigrationStrategyFor(kryoSerializerConfigSnapshot);
 		assertFalse(strategy.requireMigration());
 		assertEquals(testClassId, kryoSerializer.getKryo().getRegistration(TestClass.class).getId());
 		assertEquals(testClassAId, kryoSerializer.getKryo().getRegistration(TestClassA.class).getId());

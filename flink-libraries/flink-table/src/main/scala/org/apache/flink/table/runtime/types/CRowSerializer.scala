@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.types
 
-import org.apache.flink.api.common.typeutils.{CompositeTypeSerializerConfigSnapshot, MigrationStrategy, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils.{CompositeTypeSerializerConfigSnapshot, CompatibilityDecision, TypeSerializer, TypeSerializerConfigSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 import org.apache.flink.types.Row
 
@@ -81,8 +81,8 @@ class CRowSerializer(val rowSerializer: TypeSerializer[Row]) extends TypeSeriali
       rowSerializer.snapshotConfiguration())
   }
 
-  override protected def getMigrationStrategy(
-      configSnapshot: TypeSerializerConfigSnapshot): MigrationStrategy[CRow] = {
+  override protected def ensureCompatibility(
+      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityDecision[CRow] = {
 
     configSnapshot match {
       case crowSerializerConfigSnapshot: CRowSerializer.CRowSerializerConfigSnapshot =>
@@ -90,18 +90,18 @@ class CRowSerializer(val rowSerializer: TypeSerializer[Row]) extends TypeSeriali
             crowSerializerConfigSnapshot.getSingleNestedSerializerConfigSnapshot)
 
         if (strategy.requireMigration()) {
-          if (strategy.getFallbackDeserializer != null) {
-            MigrationStrategy.migrateWithFallbackDeserializer(
-              new CRowSerializer(strategy.getFallbackDeserializer)
+          if (strategy.getConvertDeserializer != null) {
+            CompatibilityDecision.requiresMigration(
+              new CRowSerializer(strategy.getConvertDeserializer)
             )
           } else {
-            MigrationStrategy.migrate()
+            CompatibilityDecision.requiresMigration(null)
           }
         } else {
-          MigrationStrategy.noMigration()
+          CompatibilityDecision.compatible()
         }
 
-      case _ => MigrationStrategy.migrate()
+      case _ => CompatibilityDecision.requiresMigration(null)
     }
   }
 }

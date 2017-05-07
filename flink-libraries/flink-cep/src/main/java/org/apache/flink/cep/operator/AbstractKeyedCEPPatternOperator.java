@@ -21,7 +21,7 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
@@ -507,25 +507,25 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		}
 
 		@Override
-		protected MigrationStrategy<PriorityQueue<T>> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+		protected CompatibilityDecision<PriorityQueue<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
-				MigrationStrategy<T> strategy = elementSerializer.getMigrationStrategyFor(
+				CompatibilityDecision<T> strategy = elementSerializer.getMigrationStrategyFor(
 						((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
 				if (strategy.requireMigration()) {
-					if (strategy.getFallbackDeserializer() != null) {
-						return MigrationStrategy.migrateWithFallbackDeserializer(
+					if (strategy.getConvertDeserializer() != null) {
+						return CompatibilityDecision.requiresMigration(
 								new PriorityQueueSerializer<>(
-										strategy.getFallbackDeserializer(),
+										strategy.getConvertDeserializer(),
 										factory));
 					} else {
-						return MigrationStrategy.migrate();
+						return CompatibilityDecision.requiresMigration(null);
 					}
 				} else {
-					return MigrationStrategy.noMigration();
+					return CompatibilityDecision.compatible();
 				}
 			} else {
-				return MigrationStrategy.migrate();
+				return CompatibilityDecision.requiresMigration(null);
 			}
 		}
 	}

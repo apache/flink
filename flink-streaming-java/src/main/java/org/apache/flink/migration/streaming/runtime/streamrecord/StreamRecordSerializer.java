@@ -20,8 +20,8 @@ package org.apache.flink.migration.streaming.runtime.streamrecord;
 
 import java.io.IOException;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -158,23 +158,23 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	}
 
 	@Override
-	protected MigrationStrategy<StreamRecord<T>> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+	protected CompatibilityDecision<StreamRecord<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof StreamRecordSerializerConfigSnapshot) {
-			MigrationStrategy<T> strategy = typeSerializer.getMigrationStrategyFor(
+			CompatibilityDecision<T> strategy = typeSerializer.getMigrationStrategyFor(
 				((StreamRecordSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
 			if (strategy.requireMigration()) {
-				if (strategy.getFallbackDeserializer() != null) {
-					return MigrationStrategy.migrateWithFallbackDeserializer(
-						new StreamRecordSerializer<>(strategy.getFallbackDeserializer()));
+				if (strategy.getConvertDeserializer() != null) {
+					return CompatibilityDecision.requiresMigration(
+						new StreamRecordSerializer<>(strategy.getConvertDeserializer()));
 				} else {
-					return MigrationStrategy.migrate();
+					return CompatibilityDecision.requiresMigration(null);
 				}
 			} else {
-				return MigrationStrategy.noMigration();
+				return CompatibilityDecision.compatible();
 			}
 		} else {
-			return MigrationStrategy.migrate();
+			return CompatibilityDecision.requiresMigration(null);
 		}
 	}
 

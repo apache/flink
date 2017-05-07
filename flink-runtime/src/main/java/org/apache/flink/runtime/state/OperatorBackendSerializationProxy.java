@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Serialization proxy for all meta data in operator state backends. In the future we might also migrate the actual state
+ * Serialization proxy for all meta data in operator state backends. In the future we might also requiresMigration the actual state
  * serialization logic here.
  */
 public class OperatorBackendSerializationProxy extends VersionedIOReadableWritable {

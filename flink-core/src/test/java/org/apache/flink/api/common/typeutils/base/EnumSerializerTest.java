@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
@@ -72,7 +72,7 @@ public class EnumSerializerTest extends TestLogger {
 		assertEquals(PublicEnum.PAULA.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.PAULA).intValue());
 
 		// reconfigure and verify compatibility
-		MigrationStrategy<PublicEnum> strategy = serializer.getMigrationStrategyFor(
+		CompatibilityDecision<PublicEnum> strategy = serializer.getMigrationStrategyFor(
 			new EnumSerializer.EnumSerializerConfigSnapshot<>(PublicEnum.class, mockPreviousOrder));
 		assertFalse(strategy.requireMigration());
 
@@ -106,7 +106,7 @@ public class EnumSerializerTest extends TestLogger {
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		MigrationStrategy<PublicEnum> strategy = serializer.getMigrationStrategyFor(restoredConfig);
+		CompatibilityDecision<PublicEnum> strategy = serializer.getMigrationStrategyFor(restoredConfig);
 		assertFalse(strategy.requireMigration());
 
 		assertEquals(PublicEnum.FOO.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.FOO).intValue());
@@ -161,7 +161,7 @@ public class EnumSerializerTest extends TestLogger {
 		assertEquals(PublicEnum.PAULA.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.PAULA).intValue());
 
 		// reconfigure and verify compatibility
-		MigrationStrategy<PublicEnum> strategy = serializer.getMigrationStrategyFor(
+		CompatibilityDecision<PublicEnum> strategy = serializer.getMigrationStrategyFor(
 			new EnumSerializer.EnumSerializerConfigSnapshot<>(PublicEnum.class, mockPreviousOrder));
 		assertFalse(strategy.requireMigration());
 

@@ -26,7 +26,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
@@ -1521,15 +1521,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// in which case we can only simply assume that migration is not required
 
 			if (restoredMetaInfo.getNamespaceSerializerConfigSnapshot() != null) {
-				MigrationStrategy<N> namespaceMigrationStrategy = newMetaInfo.getNamespaceSerializer()
+				CompatibilityDecision<N> namespaceCompatibilityDecision = newMetaInfo.getNamespaceSerializer()
 					.getMigrationStrategyFor(restoredMetaInfo.getNamespaceSerializerConfigSnapshot());
 
 				TypeSerializer<N> finalOldNamespaceSerializer;
-				if (namespaceMigrationStrategy.requireMigration()) {
+				if (namespaceCompatibilityDecision.requireMigration()) {
 					requireMigration = true;
 
-					if (namespaceMigrationStrategy.getFallbackDeserializer() != null) {
-						finalOldNamespaceSerializer = namespaceMigrationStrategy.getFallbackDeserializer();
+					if (namespaceCompatibilityDecision.getConvertDeserializer() != null) {
+						finalOldNamespaceSerializer = namespaceCompatibilityDecision.getConvertDeserializer();
 					} else if (restoredMetaInfo.getNamespaceSerializer() != null
 						&& !(restoredMetaInfo.getNamespaceSerializer() instanceof MigrationNamespaceSerializerProxy)) {
 						finalOldNamespaceSerializer = restoredMetaInfo.getNamespaceSerializer();
@@ -1541,15 +1541,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			if (restoredMetaInfo.getStateSerializerConfigSnapshot() != null) {
-				MigrationStrategy<S> stateMigrationStrategy = newMetaInfo.getStateSerializer()
+				CompatibilityDecision<S> stateCompatibilityDecision = newMetaInfo.getStateSerializer()
 					.getMigrationStrategyFor(restoredMetaInfo.getStateSerializerConfigSnapshot());
 
 				TypeSerializer<S> finalOldStateSerializer;
-				if (stateMigrationStrategy.requireMigration()) {
+				if (stateCompatibilityDecision.requireMigration()) {
 					requireMigration = true;
 
-					if (stateMigrationStrategy.getFallbackDeserializer() != null) {
-						finalOldStateSerializer = stateMigrationStrategy.getFallbackDeserializer();
+					if (stateCompatibilityDecision.getConvertDeserializer() != null) {
+						finalOldStateSerializer = stateCompatibilityDecision.getConvertDeserializer();
 					} else if (restoredMetaInfo.getStateSerializer() != null
 						&& !(restoredMetaInfo.getStateSerializer() instanceof TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer)) {
 						finalOldStateSerializer = restoredMetaInfo.getStateSerializer();

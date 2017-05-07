@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import java.io.IOException;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -193,7 +193,7 @@ public class InternalTimer<K, N> implements Comparable<InternalTimer<K, N>> {
 		}
 
 		@Override
-		protected MigrationStrategy<InternalTimer<K, N>> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
+		protected CompatibilityDecision<InternalTimer<K, N>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 		}
 	}

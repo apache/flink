@@ -31,9 +31,9 @@ import java.util.Random;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.ForwardCompatibleSerializationFormatConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
@@ -300,7 +300,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		MigrationStrategy<SubTestUserClassA> strategy = pojoSerializer2.getMigrationStrategy(pojoSerializerConfigSnapshot);
+		CompatibilityDecision<SubTestUserClassA> strategy = pojoSerializer2.ensureCompatibility(pojoSerializerConfigSnapshot);
 		assertTrue(strategy.requireMigration());
 	}
 
@@ -340,7 +340,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		MigrationStrategy<TestUserClass> result = pojoSerializer.getMigrationStrategy(pojoSerializerConfigSnapshot);
+		CompatibilityDecision<TestUserClass> result = pojoSerializer.ensureCompatibility(pojoSerializerConfigSnapshot);
 		assertTrue(!result.requireMigration());
 
 		// reconfigure - check reconfiguration result and that registration ids remains the same
@@ -384,7 +384,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		}
 
 		// reconfigure - check reconfiguration result and that subclass serializer cache is repopulated
-		MigrationStrategy<TestUserClass> strategy = pojoSerializer.getMigrationStrategyFor(pojoSerializerConfigSnapshot);
+		CompatibilityDecision<TestUserClass> strategy = pojoSerializer.getMigrationStrategyFor(pojoSerializerConfigSnapshot);
 		assertFalse(strategy.requireMigration());
 		assertEquals(2, pojoSerializer.getSubclassSerializerCache().size());
 		assertTrue(pojoSerializer.getSubclassSerializerCache().containsKey(SubTestUserClassA.class));
@@ -446,7 +446,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		// reconfigure - check reconfiguration result and that
 		// 1) subclass serializer cache is repopulated
 		// 2) registrations also contain the now registered subclasses
-		MigrationStrategy<TestUserClass> strategy = pojoSerializer.getMigrationStrategyFor(pojoSerializerConfigSnapshot);
+		CompatibilityDecision<TestUserClass> strategy = pojoSerializer.getMigrationStrategyFor(pojoSerializerConfigSnapshot);
 		assertFalse(strategy.requireMigration());
 		assertEquals(2, pojoSerializer.getSubclassSerializerCache().size());
 		assertTrue(pojoSerializer.getSubclassSerializerCache().containsKey(SubTestUserClassA.class));
@@ -494,7 +494,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 				new HashMap<Class<?>, TypeSerializerConfigSnapshot>()); // empty; irrelevant for this test
 
 		// reconfigure - check reconfiguration result and that fields are reordered to the previous order
-		MigrationStrategy<TestUserClass> strategy = pojoSerializer.getMigrationStrategyFor(mockPreviousConfigSnapshot);
+		CompatibilityDecision<TestUserClass> strategy = pojoSerializer.getMigrationStrategyFor(mockPreviousConfigSnapshot);
 		assertFalse(strategy.requireMigration());
 		int i = 0;
 		for (Field field : mockOriginalFieldOrder) {

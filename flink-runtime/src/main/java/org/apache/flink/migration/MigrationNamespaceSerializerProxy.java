@@ -18,7 +18,7 @@
 
 package org.apache.flink.migration;
 
-import org.apache.flink.api.common.typeutils.MigrationStrategy;
+import org.apache.flink.api.common.typeutils.CompatibilityDecision;
 import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -110,8 +110,8 @@ public class MigrationNamespaceSerializerProxy extends TypeSerializer<Serializab
 	}
 
 	@Override
-	protected MigrationStrategy<Serializable> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot) {
-		return MigrationStrategy.noMigration();
+	protected CompatibilityDecision<Serializable> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		return CompatibilityDecision.compatible();
 	}
 
 	@Override

@@ -199,30 +199,27 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 *
 	 * <p>Implementations need to return the resolved migration strategy. The strategy can be one of the following:
 	 * <ul>
-	 *     <li>{@link MigrationStrategy#noMigration()}: this signals Flink that this serializer is compatible, or
+	 *     <li>{@link CompatibilityDecision#compatible()}: this signals Flink that this serializer is compatible, or
 	 *     has been reconfigured to be compatible, to continue reading old data, and that the
 	 *     serialization schema remains the same. No migration needs to be performed.</li>
 	 *
-	 *     <li>{@link MigrationStrategy#migrateWithFallbackDeserializer(TypeSerializer)}: this signals Flink that
+	 *     <li>{@link CompatibilityDecision#requiresMigration(TypeSerializer)}: this signals Flink that
 	 *     migration needs to be performed, because this serializer is not compatible, or cannot be reconfigured to be
 	 *     compatible, for old data. Furthermore, in the case that the preceding serializer cannot be found or
-	 *     restored to read the old data, the provided fallback deserializer can be used.</li>
-	 *
-	 *     <li>{@link MigrationStrategy#migrate()}: this signals Flink that migration needs to be performed, because
-	 *     this serializer is not compatible, or cannot be reconfigured to be compatible, for old data.</li>
+	 *     restored to read the old data, the provided convert deserializer can be used.</li>
 	 * </ul>
 	 *
 	 * <p>This method is guaranteed to only be invoked if the preceding serializer's configuration snapshot is not the
 	 * singleton {@link ForwardCompatibleSerializationFormatConfig#INSTANCE} configuration. In such cases, Flink always
-	 * assume that the migration strategy is {@link MigrationStrategy#migrate()}.
+	 * assume that the migration strategy is {@link CompatibilityDecision#requiresMigration(TypeSerializer)}.
 	 *
-	 * @see MigrationStrategy
+	 * @see CompatibilityDecision
 	 *
 	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
 	 *
 	 * @return the result of the reconfiguration.
 	 */
-	protected abstract MigrationStrategy<T> getMigrationStrategy(TypeSerializerConfigSnapshot configSnapshot);
+	protected abstract CompatibilityDecision<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot);
 
 	/**
 	 * Get the migration strategy to use this serializer based on the configuration snapshot of a preceding
@@ -232,23 +229,23 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * <p>This method is not part of the public user-facing API, and cannot be overriden. External operations
 	 * providing a configuration snapshot of preceding serializer can only do so through this method.
 	 *
-	 * <p>This method always assumes that the migration strategy is {@link MigrationStrategy#noMigration()} if
+	 * <p>This method always assumes that the migration strategy is {@link CompatibilityDecision#compatible()} if
 	 * the provided configuration snapshot is the singleton {@link ForwardCompatibleSerializationFormatConfig#INSTANCE}.
 	 * Otherwise, the configuration snapshot is provided to the actual
-	 * {@link #getMigrationStrategy(TypeSerializerConfigSnapshot)} (TypeSerializerConfigSnapshot)} implementation.
+	 * {@link #ensureCompatibility(TypeSerializerConfigSnapshot)} (TypeSerializerConfigSnapshot)} implementation.
 	 *
 	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
 	 *
 	 * @return the result of the reconfiguration.
 	 */
 	@Internal
-	public final MigrationStrategy<T> getMigrationStrategyFor(TypeSerializerConfigSnapshot configSnapshot) {
+	public final CompatibilityDecision<T> getMigrationStrategyFor(TypeSerializerConfigSnapshot configSnapshot) {
 		// reference equality is viable here, because the forward compatible
 		// marker config will always be explicitly restored with the singleton instance
 		if (configSnapshot != ForwardCompatibleSerializationFormatConfig.INSTANCE) {
-			return getMigrationStrategy(configSnapshot);
+			return ensureCompatibility(configSnapshot);
 		} else {
-			return MigrationStrategy.noMigration();
+			return CompatibilityDecision.compatible();
 		}
 	}
 }
