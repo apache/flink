@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
@@ -122,6 +123,9 @@ public abstract class AbstractKeyedStateBackend<K>
 	 */
 	@Override
 	public void dispose() {
+
+		IOUtils.closeQuietly(this);
+
 		if (kvStateRegistry != null) {
 			kvStateRegistry.unregisterAll();
 		}
