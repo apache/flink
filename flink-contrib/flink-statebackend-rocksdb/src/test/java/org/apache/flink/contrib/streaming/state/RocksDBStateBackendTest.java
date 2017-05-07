@@ -26,7 +26,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.checkpoint.BlockerCheckpointStreamFactory;
+import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -308,8 +308,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		waiter.await(); // wait for snapshot to run
 		waiter.reset();
 		runStateUpdates();
-		blocker.trigger(); // allow checkpointing to start writing
 		snapshot.cancel(true);
+		blocker.trigger(); // allow checkpointing to start writing
 		assertTrue(testStreamFactory.getLastCreatedStream().isClosed());
 		waiter.await(); // wait for snapshot stream writing to run
 		try {
