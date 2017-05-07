@@ -96,7 +96,8 @@ class CRowSerializer(val rowSerializer: TypeSerializer[Row]) extends TypeSeriali
         if (compatResult.requiresMigration()) {
           if (compatResult.getConvertDeserializer != null) {
             CompatibilityResult.requiresMigration(
-              new CRowSerializer(compatResult.getConvertDeserializer)
+              new CRowSerializer(
+                new TypeDeserializerAdapter(compatResult.getConvertDeserializer))
             )
           } else {
             CompatibilityResult.requiresMigration(null)

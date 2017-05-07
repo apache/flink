@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
@@ -155,7 +156,7 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 				return CompatibilityResult.compatible();
 			} else if (compatResult.getConvertDeserializer() != null) {
 				return CompatibilityResult.requiresMigration(
-					new ArrayListSerializer<>(compatResult.getConvertDeserializer()));
+					new ArrayListSerializer<>(new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer())));
 			}
 		}
 

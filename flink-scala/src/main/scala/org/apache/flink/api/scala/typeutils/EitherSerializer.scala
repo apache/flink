@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeDeserializerAdapter, TypeSerializer, TypeSerializerConfigSnapshot}
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializerConfigSnapshot
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
@@ -133,8 +133,8 @@ class EitherSerializer[A, B, T <: Either[A, B]](
 
             CompatibilityResult.requiresMigration(
               new EitherSerializer[A, B, T](
-                leftCompatResult.getConvertDeserializer,
-                rightCompatResult.getConvertDeserializer
+                new TypeDeserializerAdapter(leftCompatResult.getConvertDeserializer),
+                new TypeDeserializerAdapter(rightCompatResult.getConvertDeserializer)
               )
             )
 

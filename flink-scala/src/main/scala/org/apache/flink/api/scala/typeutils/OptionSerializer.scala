@@ -114,7 +114,8 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
         if (compatResult.requiresMigration()) {
           if (compatResult.getConvertDeserializer != null) {
             CompatibilityResult.requiresMigration(
-              new OptionSerializer[A](compatResult.getConvertDeserializer))
+              new OptionSerializer[A](
+                new TypeDeserializerAdapter(compatResult.getConvertDeserializer)))
           } else {
             CompatibilityResult.requiresMigration(null)
           }

@@ -24,6 +24,7 @@ import java.io.IOException;
 
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -228,7 +229,8 @@ public class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<Stream
 				return CompatibilityResult.compatible();
 			} else if (compatResult.getConvertDeserializer() != null) {
 				return CompatibilityResult.requiresMigration(
-					new MultiplexingStreamRecordSerializer<>(compatResult.getConvertDeserializer()));
+					new MultiplexingStreamRecordSerializer<>(
+						new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer())));
 			}
 		}
 

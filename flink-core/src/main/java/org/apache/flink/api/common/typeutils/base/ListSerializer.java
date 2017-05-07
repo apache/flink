@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -188,7 +189,7 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 				return CompatibilityResult.compatible();
 			} else if (compatResult.getConvertDeserializer() != null) {
 				return CompatibilityResult.requiresMigration(
-					new ListSerializer<>(compatResult.getConvertDeserializer()));
+					new ListSerializer<>(new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer())));
 			}
 		}
 

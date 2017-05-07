@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
@@ -276,7 +277,8 @@ public final class RowSerializer extends TypeSerializer<Row> {
 							// one of the field serializers cannot provide a fallback deserializer
 							return CompatibilityResult.requiresMigration(null);
 						} else {
-							convertDeserializers[i] = compatResult.getConvertDeserializer();
+							convertDeserializers[i] =
+								new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer());
 						}
 					}
 				}
