@@ -30,11 +30,53 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.table.api.java.stream.utils.StreamTestData;
 import org.junit.Test;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class SqlITCase extends StreamingMultipleProgramsTestBase {
+	
+	
+	@Test
+	public void testRowRegister() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+		StreamITCase.clear();
+
+		//DataStream<Tuple3<Integer, Long, String>> ds = StreamTestData.getSmall3TupleDataSet(env);
+		
+		//Tuple3<Integer, Long, String>
+		List<Row> data = new ArrayList<>();
+		data.add(Row.of(1, 1L, "Hi"));
+		data.add(Row.of(2, 2L, "Hello"));
+		data.add(Row.of(3, 2L, "Hello world"));
+		
+		RowTypeInfo typeInfo = new RowTypeInfo(
+				BasicTypeInfo.INT_TYPE_INFO,
+				BasicTypeInfo.LONG_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO);
+		
+		DataStream<Row> ds = env.fromCollection(data).returns(typeInfo);
+		
+		Table in = tableEnv.fromDataStream(ds, "a,b,c");
+		tableEnv.registerTable("MyTableRow", in);
+
+		String sqlQuery = "SELECT * FROM MyTableRow";
+		Table result = tableEnv.sql(sqlQuery);
+
+		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
+		resultSet.addSink(new StreamITCase.StringSink());
+		env.execute();
+
+		List<String> expected = new ArrayList<>();
+		expected.add("1,1,Hi");
+		expected.add("2,2,Hello");
+		expected.add("3,2,Hello world");
+
+		StreamITCase.compareWithList(expected);
+	}
 
 	@Test
 	public void testSelect() throws Exception {
