@@ -1066,7 +1066,7 @@ dataType = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOLEAN" | 
 
 as = composite , ".as(" , fieldReference , ")" ;
 
-aggregation = composite , ( ".sum" | ".min" | ".max" | ".count" | ".avg" | ".start" | ".end" ) , [ "()" ] ;
+aggregation = composite , ( ".sum" | ".sum0" | ".min" | ".max" | ".count" | ".avg" | ".start" | ".end" | ".stddev_pop" | ".stddev_samp" | ".var_pop" | ".var_samp" ) , [ "()" ] ;
 
 if = composite , ".?(" , expression , "," , expression , ")" ;
 
@@ -1482,6 +1482,7 @@ val result2 = tableEnv.sql(
 #### Limitations
 
 Joins, set operations, and non-windowed aggregations are not supported yet.
+`UNNEST` supports only arrays and does not support `WITH ORDINALITY` yet.
 
 {% top %}
 
@@ -1690,6 +1691,7 @@ tableReference:
 tablePrimary:
   [ TABLE ] [ [ catalogName . ] schemaName . ] tableName
   | LATERAL TABLE '(' functionName '(' expression [, expression ]* ')' ')'
+  | UNNEST '(' expression ')'
 
 values:
   VALUES expression [, expression ]*
@@ -1747,6 +1749,7 @@ The Table API is built on top of Flink's DataSet and DataStream API. Internally,
 | `Types.INTERVAL_MILLIS`| `INTERVAL DAY TO SECOND(3)` | `java.lang.Long`       |
 | `Types.PRIMITIVE_ARRAY`| `ARRAY`                     | e.g. `int[]`           |
 | `Types.OBJECT_ARRAY`   | `ARRAY`                     | e.g. `java.lang.Byte[]`|
+| `Types.MAP`            | `MAP`                       | `java.util.HashMap`    |
 
 
 Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and array types (object or primitive arrays) can be fields of a row. 
@@ -2156,6 +2159,138 @@ NUMERIC.floor()
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.sin()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.cos()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.tan()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.cot()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cotangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.asin()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.acos()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.atan()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.degrees()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from radians to degrees.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.radians()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from degrees to radians.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.sign()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the signum of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.round(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds the given number to <i>integer</i> places right to the decimal point.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+pi()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a value that is closer than any other value to pi.</p>
+      </td>
+    </tr>
+    
   </tbody>
 </table>
 
@@ -2661,7 +2796,18 @@ FIELD.sum
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the sum of the numeric field across all input values.</p>
+        <p>Returns the sum of the numeric field across all input values. If all values are null, null is returned.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.sum0
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sum of the numeric field across all input values. If all values are null, 0 is returned.</p>
       </td>
     </tr>
 
@@ -2684,6 +2830,51 @@ FIELD.min
       </td>
       <td>
         <p>Returns the minimum value of field across all input values.</p>
+      </td>
+    </tr>
+
+
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.stddevPop
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the population standard deviation of the numeric field across all input values.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.stddevSamp
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sample standard deviation of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.varPop
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the population variance (square of the population standard deviation) of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.varSamp
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sample variance (square of the sample standard deviation) of the numeric field across all input values.</p>
       </td>
     </tr>
 
@@ -3173,6 +3364,138 @@ NUMERIC.floor()
       </td>
       <td>
         <p>Calculates the largest integer less than or equal to a given number.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.sin()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.cos()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.tan()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cotangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.cot()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.asin()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.acos()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.atan()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.degrees()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from radians to degrees.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.radians()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from degrees to radians.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.sign()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the signum of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.round(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds the given number to <i>integer</i> places right to the decimal point.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+pi()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a value that is closer than any other value to pi.</p>
       </td>
     </tr>
 
@@ -3680,7 +4003,18 @@ FIELD.sum
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the sum of the numeric field across all input values.</p>
+        <p>Returns the sum of the numeric field across all input values. If all values are null, null is returned.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.sum0
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sum of the numeric field across all input values. If all values are null, 0 is returned.</p>
       </td>
     </tr>
 
@@ -3706,6 +4040,49 @@ FIELD.min
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.stddevPop
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the population standard deviation of the numeric field across all input values.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.stddevSamp
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sample standard deviation of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.varPop
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the population variance (square of the population standard deviation) of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.varSamp
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sample variance (square of the sample standard deviation) of the numeric field across all input values.</p>
+      </td>
+    </tr>
   </tbody>
 </table>
 
@@ -4331,6 +4708,7 @@ EXP(numeric)
       <td>
         {% highlight text %}
 CEIL(numeric)
+CEILING(numeric)
 {% endhighlight %}
       </td>
       <td>
@@ -4346,6 +4724,138 @@ FLOOR(numeric)
       </td>
       <td>
         <p>Rounds <i>numeric</i> down, and returns the largest number that is less than or equal to <i>numeric</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SIN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+COS(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+TAN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+COT(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the cotangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ASIN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc sine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ACOS(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc cosine of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ATAN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc tangent of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+DEGREES(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from radians to degrees.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+RADIANS(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts <i>numeric</i> from degrees to radians.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SIGN(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the signum of a given number.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ROUND(numeric, int)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds the given number to <i>integer</i> places right to the decimal point.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+PI()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a value that is closer than any other value to pi.</p>
       </td>
     </tr>
 
@@ -4835,7 +5345,7 @@ AVG(numeric)
         <p>Returns the average (arithmetic mean) of <i>numeric</i> across all input values.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight text %}
@@ -4866,6 +5376,49 @@ MIN(value)
       </td>
       <td>
         <p>Returns the minimum value of <i>value</i> across all input values.</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        {% highlight text %}
+STDDEV_POP(value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the population standard deviation of the numeric field across all input values.</p>
+      </td>
+    </tr>
+    
+<tr>
+      <td>
+        {% highlight text %}
+STDDEV_SAMP(value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sample standard deviation of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+VAR_POP(value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the population variance (square of the population standard deviation) of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+VAR_SAMP(value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sample variance (square of the sample standard deviation) of the numeric field across all input values.</p>
       </td>
     </tr>
   </tbody>

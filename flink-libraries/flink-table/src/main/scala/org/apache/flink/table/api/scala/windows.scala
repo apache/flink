@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.api.scala
 
+import org.apache.flink.table.api.{OverWindowWithOrderBy, SessionWithGap, SlideWithSize, TumbleWithSize}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.api.{TumbleWithSize, OverWindowWithOrderBy, SlideWithSize, SessionWithGap}
 
 /**
   * Helper object for creating a tumbling window. Tumbling windows are consecutive, non-overlapping

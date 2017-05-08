@@ -101,4 +101,16 @@ public final class SqlTimeSerializer extends TypeSerializerSingleton<Time> {
 	public boolean canEqual(Object obj) {
 		return obj instanceof SqlTimeSerializer;
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & reconfiguring
+	// --------------------------------------------------------------------------------------------
+
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(DateSerializer.class.getCanonicalName())
+			|| identifier.equals(SqlDateSerializer.class.getCanonicalName());
+	}
 }

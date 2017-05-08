@@ -24,7 +24,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.types.Row
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{PojoTableFunc, TableFunc2, _}
-import org.apache.flink.table.api.{TableEnvironment, Types}
+import org.apache.flink.table.api.{Table, TableEnvironment, Types}
 import org.junit.Test
 import org.mockito.Mockito._
 
@@ -54,24 +54,24 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     val func1 = new TableFunc1
     javaTableEnv.registerFunction("func1", func1)
     var scalaTable = in1.join(func1('c) as 's).select('c, 's)
-    var javaTable = in2.join("func1(c).as(s)").select("c, s")
+    var javaTable = in2.join(new Table(javaTableEnv, "func1(c).as(s)")).select("c, s")
     verifyTableEquals(scalaTable, javaTable)
 
     // test left outer join
     scalaTable = in1.leftOuterJoin(func1('c) as 's).select('c, 's)
-    javaTable = in2.leftOuterJoin("as(func1(c), s)").select("c, s")
+    javaTable = in2.leftOuterJoin(new Table(javaTableEnv, "as(func1(c), s)")).select("c, s")
     verifyTableEquals(scalaTable, javaTable)
 
     // test overloading
     scalaTable = in1.join(func1('c, "$") as 's).select('c, 's)
-    javaTable = in2.join("func1(c, '$') as (s)").select("c, s")
+    javaTable = in2.join(new Table(javaTableEnv, "func1(c, '$') as (s)")).select("c, s")
     verifyTableEquals(scalaTable, javaTable)
 
     // test custom result type
     val func2 = new TableFunc2
     javaTableEnv.registerFunction("func2", func2)
     scalaTable = in1.join(func2('c) as ('name, 'len)).select('c, 'name, 'len)
-    javaTable = in2.join("func2(c).as(name, len)").select("c, name, len")
+    javaTable = in2.join(new Table(javaTableEnv, "func2(c).as(name, len)")).select("c, name, len")
     verifyTableEquals(scalaTable, javaTable)
 
     // test hierarchy generic type
@@ -79,7 +79,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     javaTableEnv.registerFunction("hierarchy", hierarchy)
     scalaTable = in1.join(hierarchy('c) as ('name, 'adult, 'len))
       .select('c, 'name, 'len, 'adult)
-    javaTable = in2.join("AS(hierarchy(c), name, adult, len)")
+    javaTable = in2.join(new Table(javaTableEnv, "AS(hierarchy(c), name, adult, len)"))
       .select("c, name, len, adult")
     verifyTableEquals(scalaTable, javaTable)
 
@@ -88,21 +88,21 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     javaTableEnv.registerFunction("pojo", pojo)
     scalaTable = in1.join(pojo('c))
       .select('c, 'name, 'age)
-    javaTable = in2.join("pojo(c)")
+    javaTable = in2.join(new Table(javaTableEnv, "pojo(c)"))
       .select("c, name, age")
     verifyTableEquals(scalaTable, javaTable)
 
     // test with filter
     scalaTable = in1.join(func2('c) as ('name, 'len))
       .select('c, 'name, 'len).filter('len > 2)
-    javaTable = in2.join("func2(c) as (name, len)")
+    javaTable = in2.join(new Table(javaTableEnv, "func2(c) as (name, len)"))
       .select("c, name, len").filter("len > 2")
     verifyTableEquals(scalaTable, javaTable)
 
     // test with scalar function
     scalaTable = in1.join(func1('c.substring(2)) as 's)
       .select('a, 'c, 's)
-    javaTable = in2.join("func1(substring(c, 2)) as (s)")
+    javaTable = in2.join(new Table(javaTableEnv, "func1(substring(c, 2)) as (s)"))
       .select("a, c, s")
     verifyTableEquals(scalaTable, javaTable)
   }

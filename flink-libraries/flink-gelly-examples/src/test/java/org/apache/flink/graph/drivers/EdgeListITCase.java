@@ -18,7 +18,10 @@
 
 package org.apache.flink.graph.drivers;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.client.program.ProgramParametrizationException;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -27,8 +30,17 @@ import org.junit.runners.Parameterized;
 public class EdgeListITCase
 extends DriverBaseITCase {
 
-	public EdgeListITCase(TestExecutionMode mode) {
-		super(mode);
+	public EdgeListITCase(String idType, TestExecutionMode mode) {
+		super(idType, mode);
+	}
+
+	private String[] parameters(String input, String output, String... additionalParameters) {
+		String[] parameters = new String[] {
+			"--algorithm", "EdgeList",
+			"--input", input, "--type", idType,
+			"--output", output};
+
+		return ArrayUtils.addAll(parameters, additionalParameters);
 	}
 
 	@Test
@@ -43,198 +55,448 @@ extends DriverBaseITCase {
 
 	@Test
 	public void testHashWithCompleteGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x0000000006788c22, count 1722\n";
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x000000000217bbe2L;
+				break;
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "CompleteGraph", "--vertex_count", "42",
-				"--output", "hash"},
-			expected);
+			case "long":
+				checksum = 0x0000000006788c22L;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x000000007ddfd962L;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(
+			parameters("CompleteGraph", "hash", "--vertex_count", "42"),
+			1722, checksum);
+	}
+
+	@Test
+	public void testPrintWithCompleteGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+
+		expectedOutputChecksum(
+			parameters("CompleteGraph", "print", "--vertex_count", "42"),
+			new Checksum(1722, 0x0000031109a0c398L));
 	}
 
 	@Test
 	public void testHashWithCycleGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x000000000050cea4, count 84\n";
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x00000000001a2224L;
+				break;
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "CycleGraph", "--vertex_count", "42",
-				"--output", "hash"},
-			expected);
+			case "long":
+				checksum = 0x000000000050cea4L;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x000000000623e524L;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(
+			parameters("CycleGraph", "hash", "--vertex_count", "42"),
+			84, checksum);
+	}
+
+	@Test
+	public void testPrintWithCycleGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+
+		expectedOutputChecksum(
+			parameters("CycleGraph", "print", "--vertex_count", "42"),
+			new Checksum(84, 0x000000272a136fcaL));
 	}
 
 	@Test
 	public void testHashWithEmptyGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x0000000000000000, count 0\n";
-
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "EmptyGraph", "--vertex_count", "42",
-				"--output", "hash"},
-			expected);
+		expectedChecksum(
+			parameters("EmptyGraph", "hash", "--vertex_count", "42"),
+			0, 0x0000000000000000);
 	}
 
 	@Test
 	public void testHashWithGridGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x00000000357d33a6, count 2990\n";
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x00000000001ca34aL;
+				break;
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "GridGraph", "--dim0", "5:true", "--dim1", "8:false", "--dim2", "13:true",
-				"--output", "hash"},
-			expected);
+			case "long":
+				checksum = 0x000000000071408aL;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x00000000081ee80aL;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(
+			parameters("GridGraph", "hash", "--dim0", "2:true", "--dim1", "3:false", "--dim2", "5:true"),
+			130, checksum);
+	}
+
+	@Test
+	public void testPrintWithGridGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+
+		expectedOutputChecksum(
+			parameters("GridGraph", "print", "--dim0", "2:true", "--dim1", "3:false", "--dim2", "5:true"),
+			new Checksum(130, 0x00000033237d24eeL));
 	}
 
 	@Test
 	public void testHashWithHypercubeGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x0000000014a72800, count 2048\n";
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x00000000035df180L;
+				break;
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "HypercubeGraph", "--dimensions", "8",
-				"--output", "hash"},
-			expected);
+			case "long":
+				checksum = 0x0000000005a52180L;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x0000000273474480L;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(
+			parameters("HypercubeGraph", "hash", "--dimensions", "7"),
+			896, checksum);
+	}
+
+	@Test
+	public void testPrintWithHypercubeGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+
+		expectedOutputChecksum(
+			parameters("HypercubeGraph", "print", "--dimensions", "7"),
+			new Checksum(896, 0x000001f243ee33b2L));
 	}
 
 	@Test
 	public void testHashWithPathGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x00000000004ee21a, count 82\n";
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x00000000001982daL;
+				break;
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "PathGraph", "--vertex_count", "42",
-				"--output", "hash"},
-			expected);
+			case "long":
+				checksum = 0x00000000004ee21aL;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x00000000060a065aL;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(
+			parameters("PathGraph", "hash", "--vertex_count", "42"),
+			82, checksum);
 	}
 
 	@Test
-	public void testHashWithRMatIntegerGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x00000000ed469103, count 16384\n";
+	public void testPrintWithPathGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "RMatGraph", "--type", "integer",
-				"--output", "hash"},
-			expected);
+		expectedOutputChecksum(
+			parameters("PathGraph", "print", "--vertex_count", "42"),
+			new Checksum(82, 0x000000269be2d4c2L));
 	}
 
 	@Test
-	public void testHashWithRMatIntegerDirectedGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x00000000c53bfc9b, count 12009\n";
+	public void testHashWithRMatGraph() throws Exception {
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x0000000003bf67f7L;
+				break;
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "RMatGraph", "--type", "integer", "--simplify", "directed",
-				"--output", "hash"},
-			expected);
+			case "long":
+				checksum = 0x0000000008f467f7L;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x00000001660861bdL;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(
+			parameters("RMatGraph", "hash", "--scale", "7"),
+			2048, checksum);
 	}
 
 	@Test
-	public void testHashWithRMatIntegerUndirectedGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x00000001664eb9e4, count 20884\n";
+	public void testPrintWithRMatGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "RMatGraph", "--type", "integer", "--simplify", "undirected",
-				"--output", "hash"},
-			expected);
+		expectedOutputChecksum(
+			parameters("RMatGraph", "print", "--scale", "7"),
+			new Checksum(2048, 0x000002f737939f05L));
 	}
 
 	@Test
-	public void testHashWithRMatLongGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x0000000116ee9103, count 16384\n";
+	public void testHashWithDirectedRMatGraph() throws Exception {
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x00000000029aafb3L;
+				break;
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "RMatGraph", "--type", "long",
-				"--output", "hash"},
-			expected);
+			case "long":
+				checksum = 0x000000000592e9b3L;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x000000011b079691L;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(
+			parameters("RMatGraph", "hash", "--scale", "7", "--simplify", "directed"),
+			1168, checksum);
 	}
 
 	@Test
-	public void testPrintWithRMatLongGraph() throws Exception {
+	public void testPrintWithDirectedRMatGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedCount(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "RMatGraph", "--type", "long",
-				"--output", "print"},
-			16384);
+		expectedOutputChecksum(
+			parameters("RMatGraph", "print", "--scale", "7", "--simplify", "directed"),
+			new Checksum(1168, 0x0000020e35b0f35dL));
 	}
 
 	@Test
-	public void testHashWithRMatLongDirectedGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x00000000e3c4643b, count 12009\n";
+	public void testHashWithUndirectedRMatGraph() throws Exception {
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x0000000004627ab6L;
+				break;
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "RMatGraph", "--type", "long", "--simplify", "directed",
-				"--output", "hash"},
-			expected);
+			case "long":
+				checksum = 0x0000000009193576L;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x00000001e9adcf56L;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(
+			parameters("RMatGraph", "hash", "--scale", "7", "--simplify", "undirected"),
+			1854, checksum);
 	}
 
 	@Test
-	public void testHashWithRMatLongUndirectedGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x000000019b67ae64, count 20884\n";
+	public void testPrintWithUndirectedRMatGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "RMatGraph", "--type", "long", "--simplify", "undirected",
-				"--output", "hash"},
-			expected);
-	}
-
-	@Test
-	public void testHashWithRMatStringGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x00000071dc80a623, count 16384\n";
-
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "RMatGraph", "--type", "string",
-				"--output", "hash"},
-			expected);
-	}
-
-	@Test
-	public void testHashWithRMatStringDirectedGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x0000005d58b3fa7d, count 12009\n";
-
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "RMatGraph", "--type", "string", "--simplify", "directed",
-				"--output", "hash"},
-			expected);
-	}
-
-	@Test
-	public void testHashWithRMatStringUndirectedGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x000000aa54987304, count 20884\n";
-
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "RMatGraph", "--type", "string", "--simplify", "undirected",
-				"--output", "hash"},
-			expected);
+		expectedOutputChecksum(
+			parameters("RMatGraph", "print", "--scale", "7", "--simplify", "undirected"),
+			new Checksum(1854, 0x0000036fe5802162L));
 	}
 
 	@Test
 	public void testHashWithSingletonEdgeGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x0000000001af8ee8, count 200\n";
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x000000000034d5a4L;
+				break;
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "SingletonEdgeGraph", "--vertex_pair_count", "100",
-				"--output", "hash"},
-			expected);
+			case "long":
+				checksum = 0x00000000006b8224L;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x000000000757c6a4L;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(
+			parameters("SingletonEdgeGraph", "hash", "--vertex_pair_count", "42"),
+			84, checksum);
+	}
+
+	@Test
+	public void testPrintWithSingletonEdgeGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+
+		expectedOutputChecksum(
+			parameters("SingletonEdgeGraph", "print", "--vertex_pair_count", "42"),
+			new Checksum(84, 0x0000002e59e10d9aL));
 	}
 
 	@Test
 	public void testHashWithStarGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x000000000042789a, count 82\n";
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x00000000000d195aL;
+				break;
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "StarGraph", "--vertex_count", "42",
-				"--output", "hash"},
-			expected);
+			case "long":
+				checksum = 0x000000000042789aL;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x00000000032f0adaL;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(
+			parameters("StarGraph", "hash", "--vertex_count", "42"),
+			82, checksum);
+	}
+
+	@Test
+	public void testPrintWithStarGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+
+		expectedOutputChecksum(
+			parameters("StarGraph", "print", "--vertex_count", "42"),
+			new Checksum(82, 0x00000011ec3faee8L));
 	}
 }

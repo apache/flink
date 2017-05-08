@@ -23,7 +23,7 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.MasterState;
-import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 
 import org.junit.Test;
 
@@ -48,7 +48,7 @@ public class SavepointV2SerializerTest {
 
 		for (int i = 0; i < 100; ++i) {
 			final long checkpointId = rnd.nextLong() & 0x7fffffffffffffffL;
-			final Collection<TaskState> taskStates = Collections.emptyList();
+			final Collection<OperatorState> taskStates = Collections.emptyList();
 			final Collection<MasterState> masterStates = Collections.emptyList();
 
 			testCheckpointSerialization(checkpointId, taskStates, masterStates);
@@ -63,13 +63,13 @@ public class SavepointV2SerializerTest {
 		for (int i = 0; i < 100; ++i) {
 			final long checkpointId = rnd.nextLong() & 0x7fffffffffffffffL;
 
-			final Collection<TaskState> taskStates = Collections.emptyList();
+			final Collection<OperatorState> operatorStates = Collections.emptyList();
 
 			final int numMasterStates = rnd.nextInt(maxNumMasterStates) + 1;
 			final Collection<MasterState> masterStates = 
 					CheckpointTestUtils.createRandomMasterStates(rnd, numMasterStates);
 
-			testCheckpointSerialization(checkpointId, taskStates, masterStates);
+			testCheckpointSerialization(checkpointId, operatorStates, masterStates);
 		}
 	}
 
@@ -84,8 +84,8 @@ public class SavepointV2SerializerTest {
 
 			final int numTasks = rnd.nextInt(maxTaskStates) + 1;
 			final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
-			final Collection<TaskState> taskStates = 
-					CheckpointTestUtils.createTaskStates(rnd, numTasks, numSubtasks);
+			final Collection<OperatorState> taskStates = 
+					CheckpointTestUtils.createOperatorStates(rnd, numTasks, numSubtasks);
 
 			final Collection<MasterState> masterStates = Collections.emptyList();
 
@@ -106,8 +106,8 @@ public class SavepointV2SerializerTest {
 
 			final int numTasks = rnd.nextInt(maxTaskStates) + 1;
 			final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
-			final Collection<TaskState> taskStates =
-					CheckpointTestUtils.createTaskStates(rnd, numTasks, numSubtasks);
+			final Collection<OperatorState> taskStates =
+					CheckpointTestUtils.createOperatorStates(rnd, numTasks, numSubtasks);
 
 			final int numMasterStates = rnd.nextInt(maxNumMasterStates) + 1;
 			final Collection<MasterState> masterStates =
@@ -119,7 +119,7 @@ public class SavepointV2SerializerTest {
 
 	private void testCheckpointSerialization(
 			long checkpointId,
-			Collection<TaskState> taskStates,
+			Collection<OperatorState> operatorStates,
 			Collection<MasterState> masterStates) throws IOException {
 
 		SavepointV2Serializer serializer = SavepointV2Serializer.INSTANCE;
@@ -127,7 +127,7 @@ public class SavepointV2SerializerTest {
 		ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();
 		DataOutputStream out = new DataOutputViewStreamWrapper(baos);
 
-		serializer.serialize(new SavepointV2(checkpointId, taskStates, masterStates), out);
+		serializer.serialize(new SavepointV2(checkpointId, operatorStates, masterStates), out);
 		out.close();
 
 		byte[] bytes = baos.toByteArray();
@@ -136,7 +136,7 @@ public class SavepointV2SerializerTest {
 		SavepointV2 deserialized = serializer.deserialize(in, getClass().getClassLoader());
 
 		assertEquals(checkpointId, deserialized.getCheckpointId());
-		assertEquals(taskStates, deserialized.getTaskStates());
+		assertEquals(operatorStates, deserialized.getOperatorStates());
 
 		assertEquals(masterStates.size(), deserialized.getMasterStates().size());
 		for (Iterator<MasterState> a = masterStates.iterator(), b = deserialized.getMasterStates().iterator();

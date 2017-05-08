@@ -29,7 +29,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
-import org.apache.flink.table.functions.{EventTimeExtractor, ProcTimeExtractor}
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 
 import scala.collection.mutable
@@ -179,6 +178,12 @@ object FunctionGenerator {
     DOUBLE_TYPE_INFO,
     BuiltInMethods.POWER_DEC)
 
+  addSqlFunctionMethod(
+    POWER,
+    Seq(BIG_DEC_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.POWER_DEC_DEC)
+
   addSqlFunction(
     ABS,
     Seq(DOUBLE_TYPE_INFO),
@@ -208,6 +213,167 @@ object FunctionGenerator {
     CEIL,
     Seq(BIG_DEC_TYPE_INFO),
     new FloorCeilCallGen(BuiltInMethod.CEIL.method))
+
+  addSqlFunctionMethod(
+    SIN,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.SIN)
+
+  addSqlFunctionMethod(
+    SIN,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.SIN_DEC)
+
+  addSqlFunctionMethod(
+    COS,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COS)
+
+  addSqlFunctionMethod(
+    COS,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COS_DEC)
+
+  addSqlFunctionMethod(
+    TAN,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.TAN)
+
+  addSqlFunctionMethod(
+    TAN,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.TAN_DEC)
+
+  addSqlFunctionMethod(
+    COT,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COT)
+
+  addSqlFunctionMethod(
+    COT,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.COT_DEC)
+
+  addSqlFunctionMethod(
+    ASIN,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ASIN)
+
+  addSqlFunctionMethod(
+    ASIN,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ASIN_DEC)
+
+  addSqlFunctionMethod(
+    ACOS,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ACOS)
+
+  addSqlFunctionMethod(
+    ACOS,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ACOS_DEC)
+
+  addSqlFunctionMethod(
+    ATAN,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ATAN)
+
+  addSqlFunctionMethod(
+    ATAN,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ATAN_DEC)
+
+  addSqlFunctionMethod(
+    DEGREES,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.DEGREES)
+
+  addSqlFunctionMethod(
+    DEGREES,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.DEGREES_DEC)
+
+  addSqlFunctionMethod(
+    RADIANS,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.RADIANS)
+
+  addSqlFunctionMethod(
+    RADIANS,
+    Seq(BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.RADIANS_DEC)
+
+  addSqlFunctionMethod(
+    SIGN,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.SIGN_DOUBLE)
+
+  addSqlFunctionMethod(
+    SIGN,
+    Seq(INT_TYPE_INFO),
+    INT_TYPE_INFO,
+    BuiltInMethods.SIGN_INT)
+
+  addSqlFunctionMethod(
+    SIGN,
+    Seq(LONG_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethods.SIGN_LONG)
+
+  addSqlFunctionMethod(
+    SIGN,
+    Seq(BIG_DEC_TYPE_INFO),
+    BIG_DEC_TYPE_INFO,
+    BuiltInMethods.SIGN_DEC)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(LONG_TYPE_INFO, INT_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethods.ROUND_LONG)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(INT_TYPE_INFO, INT_TYPE_INFO),
+    INT_TYPE_INFO,
+    BuiltInMethods.ROUND_INT)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(BIG_DEC_TYPE_INFO, INT_TYPE_INFO),
+    BIG_DEC_TYPE_INFO,
+    BuiltInMethods.ROUND_DEC)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(DOUBLE_TYPE_INFO, INT_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ROUND_DOUBLE)
+
+  addSqlFunction(
+    PI,
+    Seq(),
+    new ConstantCallGen(DOUBLE_TYPE_INFO, Math.PI.toString))
 
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
@@ -328,15 +494,6 @@ object FunctionGenerator {
           resultType
         )
       )
-
-    // generate a constant for time indicator functions.
-    // this is a temporary solution and will be removed when FLINK-5884 is implemented.
-    case ProcTimeExtractor | EventTimeExtractor =>
-      Some(new CallGenerator {
-        override def generate(codeGenerator: CodeGenerator, operands: Seq[GeneratedExpression]) = {
-          GeneratedExpression("0L", "false", "", SqlTimeTypeInfo.TIMESTAMP)
-        }
-      })
 
     // built-in scalar function
     case _ =>

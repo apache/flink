@@ -139,9 +139,9 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<!-- Concrete logging framework - we only add this here to not tie
-			the projects to one specific framework and make it easier for
-			users to swap logging frameworks -->
+		<!-- Concrete logging framework - we add this only here (and not in the 
+			root POM to not tie the projects to one specific framework and make
+			it easier for users to swap logging frameworks -->
 
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -253,7 +253,24 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-hadoop2</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
 		<!-- end optional Flink libraries -->
+
+		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- end test dependencies -->
 	</dependencies>
 
 	<profiles>
@@ -311,6 +328,20 @@ under the License.
 
 	<build>
 		<plugins>
+
+			<!--unit tests-->
+			<!--plugin must appear BEFORE the shade-plugin to not mess up package order and include the non-uber JAR into the assembly-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<reuseForks>false</reuseForks>
+					<!-- <workingDirectory>${project.build.testOutputDirectory}</workingDirectory> -->
+					<systemPropertyVariables>
+						<log.level>WARN</log.level>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
 
 			<!-- binary compatibility checks -->
 			<plugin>
@@ -406,6 +437,20 @@ under the License.
 						<configuration>
 							<descriptors>
 								<descriptor>src/main/assemblies/opt.xml</descriptor>
+							</descriptors>
+							<finalName>flink-${project.version}-bin</finalName>
+							<appendAssemblyId>false</appendAssemblyId>
+						</configuration>
+					</execution>
+					<execution>
+						<id>lib</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<descriptors>
+								<descriptor>src/main/assemblies/lib.xml</descriptor>
 							</descriptors>
 							<finalName>flink-${project.version}-bin</finalName>
 							<appendAssemblyId>false</appendAssemblyId>

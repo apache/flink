@@ -33,7 +33,8 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo
 import java.util.{List => JList}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.slf4j.LoggerFactory
 
 /**
@@ -48,15 +49,15 @@ class ProcTimeBoundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     precedingOffset: Long,
     aggregatesTypeInfo: RowTypeInfo,
-    inputType: TypeInformation[Row])
-  extends ProcessFunction[Row, Row]
+    inputType: TypeInformation[CRow])
+  extends ProcessFunction[CRow, CRow]
     with Compiler[GeneratedAggregations] {
 
   Preconditions.checkArgument(precedingOffset > 0)
 
   private var accumulatorState: ValueState[Row] = _
   private var rowMapState: MapState[Long, JList[Row]] = _
-  private var output: Row = _
+  private var output: CRow = _
   private var counterState: ValueState[Long] = _
   private var smallestTsState: ValueState[Long] = _
 
@@ -73,13 +74,14 @@ class ProcTimeBoundedRowsOver(
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
 
-    output = function.createOutputRow()
+    output = new CRow(function.createOutputRow(), true)
     // We keep the elements received in a Map state keyed
     // by the ingestion time in the operator.
     // we also keep counter of processed elements
     // and timestamp of oldest element
     val rowListTypeInfo: TypeInformation[JList[Row]] =
-      new ListTypeInfo[Row](inputType).asInstanceOf[TypeInformation[JList[Row]]]
+      new ListTypeInfo[Row](inputType.asInstanceOf[CRowTypeInfo].rowType)
+        .asInstanceOf[TypeInformation[JList[Row]]]
 
     val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
       new MapStateDescriptor[Long, JList[Row]]("windowBufferMapState",
@@ -100,9 +102,11 @@ class ProcTimeBoundedRowsOver(
   }
 
   override def processElement(
-    input: Row,
-    ctx: ProcessFunction[Row, Row]#Context,
-    out: Collector[Row]): Unit = {
+    inputC: CRow,
+    ctx: ProcessFunction[CRow, CRow]#Context,
+    out: Collector[CRow]): Unit = {
+
+    val input = inputC.row
 
     val currentTime = ctx.timerService.currentProcessingTime
 
@@ -154,11 +158,11 @@ class ProcTimeBoundedRowsOver(
     }
 
     // copy forwarded fields in output row
-    function.setForwardedFields(input, output)
+    function.setForwardedFields(input, output.row)
 
     // accumulate current row and set aggregate in output row
     function.accumulate(accumulators, input)
-    function.setAggregationResults(accumulators, output)
+    function.setAggregationResults(accumulators, output.row)
 
     // update map state, accumulator state, counter and timestamp
     val currentTimeState = rowMapState.get(currentTime)

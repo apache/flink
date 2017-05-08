@@ -27,6 +27,8 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.types.Row
 import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMergeAndReset
+import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
 import org.junit.runner.RunWith
@@ -300,9 +302,11 @@ class AggregationsITCase(
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.registerFunction("countFun", new CountAggFunction)
+    tEnv.registerFunction("wAvgWithMergeAndReset", new WeightedAvgWithMergeAndReset)
 
     val sqlQuery =
-      "SELECT b, SUM(a), COUNT(*)" +
+      "SELECT b, SUM(a), countFun(c), wAvgWithMergeAndReset(b, a), wAvgWithMergeAndReset(a, a)" +
         "FROM T " +
         "GROUP BY b, TUMBLE(ts, INTERVAL '3' SECOND)"
 
@@ -313,12 +317,12 @@ class AggregationsITCase(
 
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect()
     val expected = Seq(
-      "1,1,1",
-      "2,2,1", "2,3,1",
-      "3,9,2", "3,6,1",
-      "4,15,2", "4,19,2",
-      "5,11,1", "5,39,3", "5,15,1",
-      "6,33,2", "6,57,3", "6,21,1"
+      "1,1,1,1,1",
+      "2,2,1,2,2", "2,3,1,2,3",
+      "3,9,2,3,4", "3,6,1,3,6",
+      "4,15,2,4,7", "4,19,2,4,9",
+      "5,11,1,5,11", "5,39,3,5,13", "5,15,1,5,15",
+      "6,33,2,6,16", "6,57,3,6,19", "6,21,1,6,21"
     ).mkString("\n")
 
     TestBaseUtils.compareResultAsText(result.asJava, expected)
@@ -329,11 +333,13 @@ class AggregationsITCase(
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.registerFunction("countFun", new CountAggFunction)
+    tEnv.registerFunction("wAvgWithMergeAndReset", new WeightedAvgWithMergeAndReset)
 
     env.setParallelism(1)
 
     val sqlQuery =
-      "SELECT b, SUM(a), COUNT(*)" +
+      "SELECT b, SUM(a), countFun(c), wAvgWithMergeAndReset(b, a), wAvgWithMergeAndReset(a, a)" +
         "FROM T " +
         "GROUP BY b, HOP(ts, INTERVAL '2' SECOND, INTERVAL '4' SECOND)"
 
@@ -344,12 +350,12 @@ class AggregationsITCase(
 
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect()
     val expected = Seq(
-      "1,1,1","1,1,1",
-      "2,5,2","2,5,2",
-      "3,9,2", "3,15,3", "3,6,1",
-      "4,7,1", "4,24,3", "4,27,3", "4,10,1",
-      "5,11,1", "5,36,3", "5,54,4", "5,29,2",
-      "6,33,2", "6,70,4", "6,78,4", "6,41,2"
+      "1,1,1,1,1","1,1,1,1,1",
+      "2,5,2,2,2","2,5,2,2,2",
+      "3,9,2,3,4", "3,15,3,3,5", "3,6,1,3,6",
+      "4,7,1,4,7", "4,24,3,4,8", "4,27,3,4,9", "4,10,1,4,10",
+      "5,11,1,5,11", "5,36,3,5,12", "5,54,4,5,13", "5,29,2,5,14",
+      "6,33,2,6,16", "6,70,4,6,17", "6,78,4,6,19", "6,41,2,6,20"
     ).mkString("\n")
 
     TestBaseUtils.compareResultAsText(result.asJava, expected)
@@ -360,11 +366,14 @@ class AggregationsITCase(
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.registerFunction("countFun", new CountAggFunction)
+    tEnv.registerFunction("wAvgWithMergeAndReset", new WeightedAvgWithMergeAndReset)
 
     env.setParallelism(1)
 
     val sqlQuery =
-      "SELECT MIN(a), MAX(a), SUM(a), COUNT(*)" +
+      "SELECT MIN(a), MAX(a), SUM(a), countFun(c), wAvgWithMergeAndReset(b, a), " +
+        "wAvgWithMergeAndReset(a, a)" +
         "FROM T " +
         "GROUP BY SESSION(ts, INTERVAL '4' SECOND)"
 
@@ -376,8 +385,8 @@ class AggregationsITCase(
 
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect()
     val expected = Seq(
-      "2,10,39,6",
-      "16,21,111,6"
+      "2,10,39,6,3,7",
+      "16,21,111,6,6,18"
     ).mkString("\n")
 
     TestBaseUtils.compareResultAsText(result.asJava, expected)

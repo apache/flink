@@ -33,7 +33,6 @@ public final class ByteSerializer extends TypeSerializerSingleton<Byte> {
 	
 	private static final Byte ZERO = Byte.valueOf((byte) 0);
 
-
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -82,5 +81,11 @@ public final class ByteSerializer extends TypeSerializerSingleton<Byte> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof ByteSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(ByteValueSerializer.class.getCanonicalName());
 	}
 }

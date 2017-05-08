@@ -41,6 +41,16 @@ public class MesosConfigKeys {
 	 */
 	public static final String ENV_JVM_ARGS = "JVM_ARGS";
 
+	/**
+	 * Standard environment variables used in DCOS environment
+	 */
+	public static final String ENV_TASK_NAME = "TASK_NAME";
+
+	/**
+ 	 * Standard environment variables used in DCOS environment
+ 	 */
+	public static final String ENV_FRAMEWORK_NAME = "FRAMEWORK_NAME";
+
 	/** Private constructor to prevent instantiation */
 	private MesosConfigKeys() {}
 }

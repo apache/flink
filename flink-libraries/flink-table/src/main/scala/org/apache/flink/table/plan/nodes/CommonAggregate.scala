@@ -50,7 +50,7 @@ trait CommonAggregate {
     val aggs = namedAggregates.map(_.getKey)
     val aggStrings = aggs.map( a => s"${a.getAggregation}(${
       if (a.getArgList.size() > 0) {
-        inFields(a.getArgList.get(0))
+        a.getArgList.asScala.map(inFields(_)).mkString(", ")
       } else {
         "*"
       }

@@ -34,7 +34,11 @@ import java.util.Objects;
  * tasks of a {@link org.apache.flink.runtime.jobgraph.JobVertex}.
  *
  * This class basically groups all non-partitioned state and key-group state belonging to the same job vertex together.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
+@Deprecated
+@SuppressWarnings("deprecation")
 public class TaskState implements CompositeStateHandle {
 
 	private static final long serialVersionUID = -4845578005863201810L;

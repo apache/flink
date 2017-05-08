@@ -22,8 +22,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.util.Iterator;
@@ -41,8 +42,9 @@ public class CollectITCase extends TestLogger {
 		try {
 			cluster.start();
 
-			final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
+			TestStreamEnvironment.setAsContext(cluster, 1);
+
+			final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 	
 			final long N = 10;
 			DataStream<Long> stream = env.generateSequence(1, N);
@@ -57,6 +59,7 @@ public class CollectITCase extends TestLogger {
 			assertEquals("received wrong number of elements", N + 1, i);
 		}
 		finally {
+			TestStreamEnvironment.unsetAsContext();
 			cluster.stop();
 		}
 	}

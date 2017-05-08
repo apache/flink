@@ -75,7 +75,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		}
 
 		private static void throwExceptionOnLoadingThisClass() {
-			throw new RuntimeException("Attempt to migrate RocksDB state created with semi async snapshot mode failed. "
+			throw new RuntimeException("Attempt to requiresMigration RocksDB state created with semi async snapshot mode failed. "
 					+ "Unfortunately, this is not supported. Please create a new savepoint for the job using fully "
 					+ "async mode in Flink 1.1 and run migration again with the new savepoint.");
 		}

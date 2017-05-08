@@ -25,7 +25,6 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,8 +52,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Since the network buffer pool size for outgoing partitions is usually
  * quite small, e.g. via the {@link TaskManagerOptions#NETWORK_BUFFERS_PER_CHANNEL}
  * and {@link TaskManagerOptions#NETWORK_EXTRA_BUFFERS_PER_GATE} parameters
- * for bounded channels or from the default value of
- * {@link TaskManagerOptions#NETWORK_NUM_BUFFERS}, most spillable partitions
+ * for bounded channels or from the default values of
+ * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_FRACTION},
+ * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MIN}, and
+ * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MAX}, most spillable partitions
  * will be spilled for real-world data sets.
  */
 class SpillableSubpartition extends ResultSubpartition {
@@ -164,7 +165,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public ResultSubpartitionView createReadView(BufferProvider bufferProvider, BufferAvailabilityListener availabilityListener) throws IOException {
+	public ResultSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
 		synchronized (buffers) {
 			if (!isFinished) {
 				throw new IllegalStateException("Subpartition has not been finished yet, " +
@@ -180,7 +181,7 @@ class SpillableSubpartition extends ResultSubpartition {
 			if (spillWriter != null) {
 				readView = new SpilledSubpartitionView(
 					this,
-					bufferProvider.getMemorySegmentSize(),
+					parent.getBufferProvider().getMemorySegmentSize(),
 					spillWriter,
 					getTotalNumberOfBuffers(),
 					availabilityListener);
@@ -189,7 +190,7 @@ class SpillableSubpartition extends ResultSubpartition {
 					this,
 					buffers,
 					ioManager,
-					bufferProvider.getMemorySegmentSize(),
+					parent.getBufferProvider().getMemorySegmentSize(),
 					availabilityListener);
 			}
 

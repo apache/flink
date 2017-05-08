@@ -36,6 +36,7 @@ import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -58,7 +59,9 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
+import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -90,6 +93,9 @@ public class ResourceManagerTest extends TestLogger {
 
 	private static Configuration config = new Configuration();
 
+	private TestingHighAvailabilityServices highAvailabilityServices;
+	private TestingLeaderRetrievalService jobManagerLeaderRetrievalService;
+
 	@BeforeClass
 	public static void setup() {
 		system = AkkaUtils.createLocalActorSystem(config);
@@ -98,6 +104,32 @@ public class ResourceManagerTest extends TestLogger {
 	@AfterClass
 	public static void teardown() {
 		JavaTestKit.shutdownActorSystem(system);
+	}
+
+	@Before
+	public void setupTest() {
+		jobManagerLeaderRetrievalService = new TestingLeaderRetrievalService();
+
+		highAvailabilityServices = new TestingHighAvailabilityServices();
+
+		highAvailabilityServices.setJobMasterLeaderRetriever(
+			HighAvailabilityServices.DEFAULT_JOB_ID,
+			jobManagerLeaderRetrievalService);
+	}
+
+	@After
+	public void teardownTest() throws Exception {
+		if (jobManagerLeaderRetrievalService != null) {
+			jobManagerLeaderRetrievalService.stop();
+
+			jobManagerLeaderRetrievalService = null;
+		}
+
+		if (highAvailabilityServices != null) {
+			highAvailabilityServices.closeAndCleanupAllData();
+
+			highAvailabilityServices = null;
+		}
 	}
 
 	/**
@@ -109,8 +141,20 @@ public class ResourceManagerTest extends TestLogger {
 		new Within(duration("10 seconds")) {
 		@Override
 		protected void run() {
-			fakeJobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
-			resourceManager = TestingUtils.createResourceManager(system, fakeJobManager.actor(), config);
+			fakeJobManager = TestingUtils.createForwardingActor(
+				system,
+				getTestActor(),
+				HighAvailabilityServices.DEFAULT_LEADER_ID,
+				Option.<String>empty());
+
+			jobManagerLeaderRetrievalService.notifyListener(
+				fakeJobManager.path(),
+				HighAvailabilityServices.DEFAULT_LEADER_ID);
+
+			resourceManager = TestingUtils.createResourceManager(
+				system,
+				config,
+				highAvailabilityServices);
 
 			expectMsgClass(RegisterResourceManager.class);
 
@@ -150,8 +194,20 @@ public class ResourceManagerTest extends TestLogger {
 			Configuration shortTimeoutConfig = config.clone();
 			shortTimeoutConfig.setString(ConfigConstants.AKKA_LOOKUP_TIMEOUT, "1 s");
 
-			fakeJobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
-			resourceManager = TestingUtils.createResourceManager(system, fakeJobManager.actor(), shortTimeoutConfig);
+			fakeJobManager = TestingUtils.createForwardingActor(
+				system,
+				getTestActor(),
+				HighAvailabilityServices.DEFAULT_LEADER_ID,
+				Option.<String>empty());
+
+			jobManagerLeaderRetrievalService.notifyListener(
+				fakeJobManager.path(),
+				HighAvailabilityServices.DEFAULT_LEADER_ID);
+
+			resourceManager = TestingUtils.createResourceManager(
+				system,
+				shortTimeoutConfig,
+				highAvailabilityServices);
 
 			// wait for registration message
 			RegisterResourceManager msg = expectMsgClass(RegisterResourceManager.class);
@@ -180,8 +236,20 @@ public class ResourceManagerTest extends TestLogger {
 			Configuration shortTimeoutConfig = config.clone();
 			shortTimeoutConfig.setString(ConfigConstants.AKKA_LOOKUP_TIMEOUT, "99999 s");
 
-			fakeJobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
-			resourceManager = TestingUtils.createResourceManager(system, fakeJobManager.actor(), shortTimeoutConfig);
+			fakeJobManager = TestingUtils.createForwardingActor(
+				system,
+				getTestActor(),
+				HighAvailabilityServices.DEFAULT_LEADER_ID,
+				Option.<String>empty());
+
+			jobManagerLeaderRetrievalService.notifyListener(
+				fakeJobManager.path(),
+				HighAvailabilityServices.DEFAULT_LEADER_ID);
+
+			resourceManager = TestingUtils.createResourceManager(
+				system,
+				shortTimeoutConfig,
+				highAvailabilityServices);
 
 			// wait for registration message
 			RegisterResourceManager msg = expectMsgClass(RegisterResourceManager.class);
@@ -212,8 +280,20 @@ public class ResourceManagerTest extends TestLogger {
 		@Override
 		protected void run() {
 
-			fakeJobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
-			resourceManager = TestingUtils.createResourceManager(system, fakeJobManager.actor(), config);
+			fakeJobManager = TestingUtils.createForwardingActor(
+				system,
+				getTestActor(),
+				HighAvailabilityServices.DEFAULT_LEADER_ID,
+				Option.<String>empty());
+
+			jobManagerLeaderRetrievalService.notifyListener(
+				fakeJobManager.path(),
+				HighAvailabilityServices.DEFAULT_LEADER_ID);
+
+			resourceManager = TestingUtils.createResourceManager(
+				system,
+				config,
+				highAvailabilityServices);
 
 			// register with JM
 			expectMsgClass(RegisterResourceManager.class);
@@ -270,8 +350,20 @@ public class ResourceManagerTest extends TestLogger {
 		@Override
 		protected void run() {
 
-			fakeJobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
-			resourceManager = TestingUtils.createResourceManager(system, fakeJobManager.actor(), config);
+			fakeJobManager = TestingUtils.createForwardingActor(
+				system,
+				getTestActor(),
+				HighAvailabilityServices.DEFAULT_LEADER_ID,
+				Option.<String>empty());
+
+			jobManagerLeaderRetrievalService.notifyListener(
+				fakeJobManager.path(),
+				HighAvailabilityServices.DEFAULT_LEADER_ID);
+
+			resourceManager = TestingUtils.createResourceManager(
+				system,
+				config,
+				highAvailabilityServices);
 
 			// register with JM
 			expectMsgClass(RegisterResourceManager.class);
@@ -321,8 +413,20 @@ public class ResourceManagerTest extends TestLogger {
 		@Override
 		protected void run() {
 
-			fakeJobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
-			resourceManager = TestingUtils.createResourceManager(system, fakeJobManager.actor(), config);
+			fakeJobManager = TestingUtils.createForwardingActor(
+				system,
+				getTestActor(),
+				HighAvailabilityServices.DEFAULT_LEADER_ID,
+				Option.<String>empty());
+
+			jobManagerLeaderRetrievalService.notifyListener(
+				fakeJobManager.path(),
+				HighAvailabilityServices.DEFAULT_LEADER_ID);
+
+			resourceManager = TestingUtils.createResourceManager(
+				system,
+				config,
+				highAvailabilityServices);
 
 			// register with JM
 			expectMsgClass(RegisterResourceManager.class);

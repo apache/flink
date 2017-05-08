@@ -91,7 +91,7 @@ under the License.
 			<version>${flink.version}</version>
 		</dependency>
 
-		<!-- explicitly add a standard loggin framework, as Flink does not (in the future) have
+		<!-- explicitly add a standard loggin framework, as Flink does not have
 			a hard dependency on one specific framework by default -->
 		<dependency>
 			<groupId>org.slf4j</groupId>

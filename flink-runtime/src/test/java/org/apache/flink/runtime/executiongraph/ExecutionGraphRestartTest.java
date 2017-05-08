@@ -60,15 +60,14 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.doCallRealMethod;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.never;
+
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
+
 
 public class ExecutionGraphRestartTest extends TestLogger {
 
@@ -271,12 +270,12 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		assertEquals(JobStatus.RESTARTING, executionGraph.getState());
 
 		// The restarting should not fail with an ordinary exception
-		executionGraph.fail(new Exception("Test exception"));
+		executionGraph.failGlobal(new Exception("Test exception"));
 
 		assertEquals(JobStatus.RESTARTING, executionGraph.getState());
 
 		// but it should fail when sending a SuppressRestartsException
-		executionGraph.fail(new SuppressRestartsException(new Exception("Test exception")));
+		executionGraph.failGlobal(new SuppressRestartsException(new Exception("Test exception")));
 
 		assertEquals(JobStatus.FAILED, executionGraph.getState());
 
@@ -288,54 +287,63 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	@Test
 	public void testCancelWhileFailing() throws Exception {
-		// We want to manually control the restart and delay
-		RestartStrategy restartStrategy = new InfiniteDelayRestartStrategy();
-		Tuple2<ExecutionGraph, Instance> executionGraphInstanceTuple = createSpyExecutionGraph(restartStrategy);
-		ExecutionGraph executionGraph = executionGraphInstanceTuple.f0;
-		Instance instance = executionGraphInstanceTuple.f1;
-		doNothing().when(executionGraph).jobVertexInFinalState();
+		final RestartStrategy restartStrategy = new InfiniteDelayRestartStrategy();
+		final ExecutionGraph graph = createExecutionGraph(restartStrategy).f0;
 
-		// Kill the instance...
-		instance.markDead();
+		assertEquals(JobStatus.RUNNING, graph.getState());
 
-		Deadline deadline = TestingUtils.TESTING_DURATION().fromNow();
-
-		// ...and wait for all vertices to be in state FAILED. The
-		// jobVertexInFinalState does nothing, that's why we don't wait on the
-		// job status.
-		boolean success = false;
-		while (deadline.hasTimeLeft() && !success) {
-			success = true;
-			for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
-				ExecutionState state = vertex.getExecutionState();
-				if (state != ExecutionState.FAILED && state != ExecutionState.CANCELED) {
-					success = false;
-					Thread.sleep(100);
-					break;
-				}
-			}
+		// switch all tasks to running
+		for (ExecutionVertex vertex : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {
+			vertex.getCurrentExecutionAttempt().switchToRunning();
 		}
 
-		// Still in failing
-		assertEquals(JobStatus.FAILING, executionGraph.getState());
+		graph.failGlobal(new Exception("test"));
 
-		// The cancel call needs to change the state to CANCELLING
-		executionGraph.cancel();
+		assertEquals(JobStatus.FAILING, graph.getState());
 
-		assertEquals(JobStatus.CANCELLING, executionGraph.getState());
+		graph.cancel();
 
-		// Unspy and finalize the job state
-		doCallRealMethod().when(executionGraph).jobVertexInFinalState();
+		assertEquals(JobStatus.CANCELLING, graph.getState());
 
-		executionGraph.jobVertexInFinalState();
+		// let all tasks finish cancelling
+		for (ExecutionVertex vertex : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {
+			vertex.getCurrentExecutionAttempt().cancelingComplete();
+		}
 
-		assertEquals(JobStatus.CANCELED, executionGraph.getState());
+		assertEquals(JobStatus.CANCELED, graph.getState());
+	}
+
+	@Test
+	public void testFailWhileCanceling() throws Exception {
+		final RestartStrategy restartStrategy = new NoRestartStrategy();
+		final ExecutionGraph graph = createExecutionGraph(restartStrategy).f0;
+
+		assertEquals(JobStatus.RUNNING, graph.getState());
+
+		// switch all tasks to running
+		for (ExecutionVertex vertex : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {
+			vertex.getCurrentExecutionAttempt().switchToRunning();
+		}
+
+		graph.cancel();
+
+		assertEquals(JobStatus.CANCELLING, graph.getState());
+
+		graph.failGlobal(new Exception("test"));
+
+		assertEquals(JobStatus.FAILING, graph.getState());
+
+		// let all tasks finish cancelling
+		for (ExecutionVertex vertex : graph.getVerticesTopologically().iterator().next().getTaskVertices()) {
+			vertex.getCurrentExecutionAttempt().cancelingComplete();
+		}
+
+		assertEquals(JobStatus.FAILED, graph.getState());
 	}
 
 	@Test
 	public void testNoRestartOnSuppressException() throws Exception {
-		Tuple2<ExecutionGraph, Instance> executionGraphInstanceTuple = createSpyExecutionGraph(new FixedDelayRestartStrategy(1, 1000));
-		ExecutionGraph eg = executionGraphInstanceTuple.f0;
+		final ExecutionGraph eg = createExecutionGraph(new FixedDelayRestartStrategy(Integer.MAX_VALUE, 0)).f0;
 
 		// Fail with unrecoverable Exception
 		eg.getAllExecutionVertices().iterator().next().fail(
@@ -347,21 +355,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			vertex.getCurrentExecutionAttempt().cancelingComplete();
 		}
 
-		FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
-
-		// Wait for async restart
-		Deadline deadline = timeout.fromNow();
-		while (deadline.hasTimeLeft() && eg.getState() != JobStatus.FAILED) {
-			Thread.sleep(100);
-		}
-
+		eg.waitUntilTerminal();
 		assertEquals(JobStatus.FAILED, eg.getState());
 
-		// No restart
-		verify(eg, never()).restart();
-
 		RestartStrategy restartStrategy = eg.getRestartStrategy();
-
 		assertTrue(restartStrategy instanceof FixedDelayRestartStrategy);
 
 		assertEquals(0, ((FixedDelayRestartStrategy) restartStrategy).getCurrentRestartAttempt());
@@ -433,7 +430,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	/**
 	 * Tests that a graph is not restarted after cancellation via a call to
-	 * {@link ExecutionGraph#fail(Throwable)}. This can happen when a slot is
+	 * {@link ExecutionGraph#failGlobal(Throwable)}. This can happen when a slot is
 	 * released concurrently with cancellation.
 	 */
 	@Test
@@ -480,7 +477,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	/**
 	 * Tests that it is possible to fail a graph via a call to
-	 * {@link ExecutionGraph#fail(Throwable)} after cancellation.
+	 * {@link ExecutionGraph#failGlobal(Throwable)} after cancellation.
 	 */
 	@Test
 	public void testFailExecutionGraphAfterCancel() throws Exception {
@@ -513,7 +510,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		eg.cancel();
 		assertEquals(JobStatus.CANCELLING, eg.getState());
 
-		eg.fail(new Exception("Test Exception"));
+		eg.failGlobal(new Exception("Test Exception"));
 		assertEquals(JobStatus.FAILING, eg.getState());
 
 		Execution execution = eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt();

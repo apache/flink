@@ -330,6 +330,26 @@ public final class StringUtils {
 		return true;
 	}
 
+	/**
+	 * If both string arguments are non-null, this method concatenates them with ' and '.
+	 * If only one of the arguments is non-null, this method returns the non-null argument.
+	 * If both arguments are null, this method returns null.
+	 * 
+	 * @param s1 The first string argument
+	 * @param s2 The second string argument
+	 * 
+	 * @return The concatenated string, or non-null argument, or null 
+	 */
+	@Nullable
+	public static String concatenateWithAnd(@Nullable String s1, @Nullable String s2) {
+		if (s1 != null) {
+			return s2 == null ? s1 : s1 + " and " + s2;
+		}
+		else {
+			return s2 != null ? s2 : null;
+		}
+	}
+
 	// ------------------------------------------------------------------------
 
 	/** Prevent instantiation of this utility class */

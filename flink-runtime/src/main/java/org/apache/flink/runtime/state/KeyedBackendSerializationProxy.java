@@ -18,10 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
-import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.VersionMismatchException;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -33,15 +31,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Serialization proxy for all meta data in keyed state backends. In the future we might also migrate the actual state
+ * Serialization proxy for all meta data in keyed state backends. In the future we might also requiresMigration the actual state
  * serialization logic here.
  */
 public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable {
 
-	public static final int VERSION = 2;
+	public static final int VERSION = 3;
 
-	private TypeSerializerSerializationProxy<?> keySerializerProxy;
-	private List<StateMetaInfo<?, ?>> namedStateSerializationProxies;
+	private TypeSerializer<?> keySerializer;
+	private List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots;
 
 	private int restoredVersion;
 	private ClassLoader userCodeClassLoader;
@@ -50,19 +48,25 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 	}
 
-	public KeyedBackendSerializationProxy(TypeSerializer<?> keySerializer, List<StateMetaInfo<?, ?>> namedStateSerializationProxies) {
-		this.keySerializerProxy = new TypeSerializerSerializationProxy<>(Preconditions.checkNotNull(keySerializer));
-		this.namedStateSerializationProxies = Preconditions.checkNotNull(namedStateSerializationProxies);
+	public KeyedBackendSerializationProxy(
+			TypeSerializer<?> keySerializer,
+			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots) {
+
+		this.keySerializer = Preconditions.checkNotNull(keySerializer);
+
+		Preconditions.checkNotNull(stateMetaInfoSnapshots);
+		Preconditions.checkArgument(stateMetaInfoSnapshots.size() <= Short.MAX_VALUE);
+		this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
+
 		this.restoredVersion = VERSION;
-		Preconditions.checkArgument(namedStateSerializationProxies.size() <= Short.MAX_VALUE);
 	}
 
-	public List<StateMetaInfo<?, ?>> getNamedStateSerializationProxies() {
-		return namedStateSerializationProxies;
+	public List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> getStateMetaInfoSnapshots() {
+		return stateMetaInfoSnapshots;
 	}
 
-	public TypeSerializerSerializationProxy<?> getKeySerializerProxy() {
-		return keySerializerProxy;
+	public TypeSerializer<?> getKeySerializer() {
+		return keySerializer;
 	}
 
 	@Override
@@ -82,20 +86,22 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 
 	@Override
 	public boolean isCompatibleVersion(int version) {
-		// we are compatible with version 2 (Flink 1.3.x) and version 1 (Flink 1.2.x)
-		return super.isCompatibleVersion(version) || version == 1;
+		// we are compatible with version 3 (Flink 1.3.x) and version 1 & 2 (Flink 1.2.x)
+		return super.isCompatibleVersion(version) || version == 2 || version == 1;
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
 
-		keySerializerProxy.write(out);
+		new TypeSerializerSerializationProxy<>(keySerializer).write(out);
 
-		out.writeShort(namedStateSerializationProxies.size());
+		out.writeShort(stateMetaInfoSnapshots.size());
 
-		for (StateMetaInfo<?, ?> kvState : namedStateSerializationProxies) {
-			kvState.write(out);
+		for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> metaInfo : stateMetaInfoSnapshots) {
+			KeyedBackendStateMetaInfoSnapshotReaderWriters
+				.getWriterForVersion(VERSION, metaInfo)
+				.writeStateMetaInfo(out);
 		}
 	}
 
@@ -103,132 +109,18 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
-		keySerializerProxy = new TypeSerializerSerializationProxy<>(userCodeClassLoader);
+		final TypeSerializerSerializationProxy<?> keySerializerProxy =
+			new TypeSerializerSerializationProxy<>(userCodeClassLoader);
 		keySerializerProxy.read(in);
+		this.keySerializer = keySerializerProxy.getTypeSerializer();
 
 		int numKvStates = in.readShort();
-		namedStateSerializationProxies = new ArrayList<>(numKvStates);
-		for (int i = 0; i < numKvStates; ++i) {
-			StateMetaInfo<?, ?> stateSerializationProxy = new StateMetaInfo<>(userCodeClassLoader);
-			stateSerializationProxy.read(in);
-			namedStateSerializationProxies.add(stateSerializationProxy);
-		}
-	}
-
-	//----------------------------------------------------------------------------------------------------------------------
-
-	/**
-	 * This is the serialization proxy for {@link RegisteredBackendStateMetaInfo} for a single registered state in a
-	 * keyed backend.
-	 */
-	public static class StateMetaInfo<N, S> implements IOReadableWritable {
-
-		private StateDescriptor.Type stateType;
-		private String stateName;
-		private TypeSerializerSerializationProxy<N> namespaceSerializerSerializationProxy;
-		private TypeSerializerSerializationProxy<S> stateSerializerSerializationProxy;
-
-		private ClassLoader userClassLoader;
-
-		StateMetaInfo(ClassLoader userClassLoader) {
-			this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
-		}
-
-		public StateMetaInfo(
-				StateDescriptor.Type stateType,
-				String name,
-				TypeSerializer<N> namespaceSerializer,
-				TypeSerializer<S> stateSerializer) {
-
-			this.stateType = Preconditions.checkNotNull(stateType);
-			this.stateName = Preconditions.checkNotNull(name);
-			this.namespaceSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(Preconditions.checkNotNull(namespaceSerializer));
-			this.stateSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(Preconditions.checkNotNull(stateSerializer));
-		}
-
-		public StateDescriptor.Type getStateType() {
-			return stateType;
-		}
-
-		public void setStateType(StateDescriptor.Type stateType) {
-			this.stateType = stateType;
-		}
-
-		public String getStateName() {
-			return stateName;
-		}
-
-		public void setStateName(String stateName) {
-			this.stateName = stateName;
-		}
-
-		public TypeSerializerSerializationProxy<N> getNamespaceSerializerSerializationProxy() {
-			return namespaceSerializerSerializationProxy;
-		}
-
-		public void setNamespaceSerializerSerializationProxy(TypeSerializerSerializationProxy<N> namespaceSerializerSerializationProxy) {
-			this.namespaceSerializerSerializationProxy = namespaceSerializerSerializationProxy;
-		}
-
-		public TypeSerializerSerializationProxy<S> getStateSerializerSerializationProxy() {
-			return stateSerializerSerializationProxy;
-		}
-
-		public void setStateSerializerSerializationProxy(TypeSerializerSerializationProxy<S> stateSerializerSerializationProxy) {
-			this.stateSerializerSerializationProxy = stateSerializerSerializationProxy;
-		}
-
-		@Override
-		public void write(DataOutputView out) throws IOException {
-			out.writeInt(getStateType().ordinal());
-			out.writeUTF(getStateName());
-
-			getNamespaceSerializerSerializationProxy().write(out);
-			getStateSerializerSerializationProxy().write(out);
-		}
-
-		@Override
-		public void read(DataInputView in) throws IOException {
-			int enumOrdinal = in.readInt();
-			setStateType(StateDescriptor.Type.values()[enumOrdinal]);
-			setStateName(in.readUTF());
-
-			namespaceSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(userClassLoader);
-			namespaceSerializerSerializationProxy.read(in);
-
-			stateSerializerSerializationProxy = new TypeSerializerSerializationProxy<>(userClassLoader);
-			stateSerializerSerializationProxy.read(in);
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-
-			StateMetaInfo<?, ?> that = (StateMetaInfo<?, ?>) o;
-
-			if (!getStateName().equals(that.getStateName())) {
-				return false;
-			}
-
-			if (!getNamespaceSerializerSerializationProxy().equals(that.getNamespaceSerializerSerializationProxy())) {
-				return false;
-			}
-
-			return getStateSerializerSerializationProxy().equals(that.getStateSerializerSerializationProxy());
-		}
-
-		@Override
-		public int hashCode() {
-			int result = getStateName().hashCode();
-			result = 31 * result + getNamespaceSerializerSerializationProxy().hashCode();
-			result = 31 * result + getStateSerializerSerializationProxy().hashCode();
-			return result;
+		stateMetaInfoSnapshots = new ArrayList<>(numKvStates);
+		for (int i = 0; i < numKvStates; i++) {
+			stateMetaInfoSnapshots.add(
+				KeyedBackendStateMetaInfoSnapshotReaderWriters
+					.getReaderForVersion(restoredVersion, userCodeClassLoader)
+					.readStateMetaInfo(in));
 		}
 	}
 }

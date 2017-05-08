@@ -31,8 +31,7 @@ public class CharValueSerializer extends TypeSerializerSingleton<CharValue> {
 	private static final long serialVersionUID = 1L;
 	
 	public static final CharValueSerializer INSTANCE = new CharValueSerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -83,5 +82,11 @@ public class CharValueSerializer extends TypeSerializerSingleton<CharValue> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof CharValueSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(CharSerializer.class.getCanonicalName());
 	}
 }

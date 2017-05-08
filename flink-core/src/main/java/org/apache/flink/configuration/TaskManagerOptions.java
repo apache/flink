@@ -29,22 +29,41 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class TaskManagerOptions {
 
 	// ------------------------------------------------------------------------
-	//  TaskManager Options
+	//  General TaskManager Options
 	// ------------------------------------------------------------------------
 
 	// @TODO Migrate 'taskmanager.*' config options from ConfigConstants
-	
-	/** Whether to kill the TaskManager when the task thread throws an OutOfMemoryError */
+
+	/**
+	 * JVM heap size (in megabytes) for the TaskManagers
+	 */
+	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY =
+			key("taskmanager.heap.mb")
+			.defaultValue(1024);
+
+	/**
+	 * Whether to kill the TaskManager when the task thread throws an OutOfMemoryError
+	 */
 	public static final ConfigOption<Boolean> KILL_ON_OUT_OF_MEMORY =
 			key("taskmanager.jvm-exit-on-oom")
 			.defaultValue(false);
 
-	/** JVM heap size (in megabytes) for the TaskManagers */
-	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY =
-			key("taskmanager.heap.mb")
-			.defaultValue(1024);
-		   
-	/** Size of memory buffers used by the network stack and the memory manager (in bytes). */
+	/**
+	 * Whether the quarantine monitor for task managers shall be started. The quarantine monitor
+	 * shuts down the actor system if it detects that it has quarantined another actor system
+	 * or if it has been quarantined by another actor system.
+	 */
+	public static final ConfigOption<Boolean> EXIT_ON_FATAL_AKKA_ERROR =
+			key("taskmanager.exit-on-fatal-akka-error")
+			.defaultValue(false);
+
+	// ------------------------------------------------------------------------
+	//  Managed Memory Options
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Size of memory buffers used by the network stack and the memory manager (in bytes).
+	 */
 	public static final ConfigOption<Integer> MEMORY_SEGMENT_SIZE =
 			key("taskmanager.memory.segment-size")
 			.defaultValue(32768);
@@ -73,7 +92,9 @@ public class TaskManagerOptions {
 			key("taskmanager.memory.off-heap")
 			.defaultValue(false);
 
-	/** Whether TaskManager managed memory should be pre-allocated when the TaskManager is starting. */
+	/**
+	 * Whether TaskManager managed memory should be pre-allocated when the TaskManager is starting.
+	 */
 	public static final ConfigOption<Boolean> MANAGED_MEMORY_PRE_ALLOCATE =
 			key("taskmanager.memory.preallocate")
 			.defaultValue(false);
@@ -85,21 +106,35 @@ public class TaskManagerOptions {
 	/**
 	 * Number of buffers used in the network stack. This defines the number of possible tasks and
 	 * shuffles.
+	 *
+	 * @deprecated use {@link #NETWORK_BUFFERS_MEMORY_FRACTION}, {@link #NETWORK_BUFFERS_MEMORY_MIN},
+	 * and {@link #NETWORK_BUFFERS_MEMORY_MAX} instead
 	 */
+	@Deprecated
 	public static final ConfigOption<Integer> NETWORK_NUM_BUFFERS =
 			key("taskmanager.network.numberOfBuffers")
 			.defaultValue(2048);
 
+	/**
+	 * Fraction of JVM memory to use for network buffers.
+	 */
+	public static final ConfigOption<Float> NETWORK_BUFFERS_MEMORY_FRACTION =
+			key("taskmanager.network.memory.fraction")
+			.defaultValue(0.1f);
 
-	/** Minimum backoff for partition requests of input channels. */
-	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_INITIAL =
-			key("taskmanager.net.request-backoff.initial")
-			.defaultValue(100);
+	/**
+	 * Minimum memory size for network buffers (in bytes)
+	 */
+	public static final ConfigOption<Long> NETWORK_BUFFERS_MEMORY_MIN =
+			key("taskmanager.network.memory.min")
+			.defaultValue(64L << 20); // 64 MB
 
-	/** Maximum backoff for partition requests of input channels. */
-	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_MAX =
-			key("taskmanager.net.request-backoff.max")
-			.defaultValue(10000);
+	/**
+	 * Maximum memory size for network buffers (in bytes)
+	 */
+	public static final ConfigOption<Long> NETWORK_BUFFERS_MEMORY_MAX =
+			key("taskmanager.network.memory.max")
+			.defaultValue(1024L << 20); // 1 GB
 
 	/**
 	 * Number of network buffers to use for each outgoing/ingoing channel (subpartition/input channel).
@@ -107,20 +142,38 @@ public class TaskManagerOptions {
 	 * Reasoning: 1 buffer for in-flight data in the subpartition + 1 buffer for parallel serialization
 	 */
 	public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
-		key("taskmanager.net.memory.buffers-per-channel")
+			key("taskmanager.network.memory.buffers-per-channel")
 			.defaultValue(2);
 
-	/** Number of extra network buffers to use for each outgoing/ingoing gate (result partition/input gate). */
+	/**
+	 * Number of extra network buffers to use for each outgoing/ingoing gate (result partition/input gate).
+	 */
 	public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
-		key("taskmanager.net.memory.extra-buffers-per-gate")
+			key("taskmanager.network.memory.floating-buffers-per-gate")
 			.defaultValue(8);
+
+	/**
+	 * Minimum backoff for partition requests of input channels.
+	 */
+	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_INITIAL =
+			key("taskmanager.network.request-backoff.initial")
+			.defaultValue(100)
+			.withDeprecatedKeys("taskmanager.net.request-backoff.initial");
+
+	/**
+	 * Maximum backoff for partition requests of input channels.
+	 */
+	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_MAX =
+			key("taskmanager.network.request-backoff.max")
+			.defaultValue(10000)
+			.withDeprecatedKeys("taskmanager.net.request-backoff.max");
 
 	/**
 	 * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
 	 * lengths.
 	 */
 	public static final ConfigOption<Boolean> NETWORK_DETAILED_METRICS =
-			key("taskmanager.net.detailed-metrics")
+			key("taskmanager.network.detailed-metrics")
 			.defaultValue(false);
 
 	// ------------------------------------------------------------------------
@@ -155,15 +208,6 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Long> TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT =
 			key("task.checkpoint.alignment.max-size")
 			.defaultValue(-1L);
-
-	/**
-	 * Whether the quarantine monitor for task managers shall be started. The quarantine monitor
-	 * shuts down the actor system if it detects that it has quarantined another actor system
-	 * or if it has been quarantined by another actor system.
-	 */
-	public static final ConfigOption<Boolean> EXIT_ON_FATAL_AKKA_ERROR =
-		key("taskmanager.exit-on-fatal-akka-error")
-		.defaultValue(false);
 
 	// ------------------------------------------------------------------------
 

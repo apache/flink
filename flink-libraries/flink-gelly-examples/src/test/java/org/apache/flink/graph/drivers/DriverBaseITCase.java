@@ -20,6 +20,7 @@ package org.apache.flink.graph.drivers;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.flink.graph.Runner;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.hamcrest.Description;
@@ -31,27 +32,55 @@ import org.junit.runners.Parameterized;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.regex.Pattern;
 
+/**
+ *
+ */
 public abstract class DriverBaseITCase
 extends MultipleProgramsTestBase {
 
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
 
-	protected DriverBaseITCase(TestExecutionMode mode) {
+	protected final String idType;
+
+	protected DriverBaseITCase(String idType, TestExecutionMode mode) {
 		super(mode);
+
+		this.idType = idType;
 	}
 
-	// extend MultipleProgramsTestBase default to include object reuse mode
-	@Parameterized.Parameters(name = "Execution mode = {0}")
+	@Parameterized.Parameters(name = "ID type = {0}, Execution mode = {1}")
 	public static Collection<Object[]> executionModes() {
-		return Arrays.asList(
-			new Object[] { TestExecutionMode.CLUSTER },
-			new Object[] { TestExecutionMode.CLUSTER_OBJECT_REUSE },
-			new Object[] { TestExecutionMode.COLLECTION });
+		List<Object[]> executionModes = new ArrayList<>();
+
+		for (String idType : new String[] {"byte", "nativeByte", "short", "nativeShort", "char", "nativeChar",
+								"integer", "nativeInteger", "long", "nativeLong", "string", "nativeString"}) {
+			for (TestExecutionMode executionMode : TestExecutionMode.values()) {
+				executionModes.add(new Object[] {idType, executionMode});
+			}
+		}
+
+		return executionModes;
+	}
+
+	/**
+	 * Simpler variant of {@link #expectedOutput(String[], String)}
+	 * that converts the {@link Checksum} to a string and ignores
+	 * leading and trailing newlines.
+	 *
+	 * @param parameters algorithm, input, and output arguments
+	 * @param expectedCount expected number of records
+	 * @param expectedChecksum expected checksum over records
+	 * @throws Exception on error
+	 */
+	protected void expectedChecksum(String[] parameters, long expectedCount, long expectedChecksum) throws Exception {
+		Checksum checksum = new Checksum(expectedCount, expectedChecksum);
+		expectedOutput(parameters, "\n*" + checksum.toString() + "\n*");
 	}
 
 	/**
@@ -87,6 +116,33 @@ extends MultipleProgramsTestBase {
 	}
 
 	/**
+	 * Simpler variant of {@link #expectedOutput(String[], String)}
+	 * that sums the hashCode() of each line of output.
+	 *
+	 * @param parameters algorithm, input, and output arguments
+	 * @param expected expected checksum over lines of output
+	 * @throws Exception on error
+	 */
+	protected void expectedOutputChecksum(String[] parameters, Checksum expected) throws Exception {
+		String output = getSystemOutput(parameters);
+
+		long count = 0;
+		long checksum = 0;
+
+		for (String line : output.split(System.getProperty("line.separator"))) {
+			if (line.length() > 0) {
+				count++;
+
+				// convert 32-bit integer to non-negative long
+				checksum += line.hashCode() & 0xffffffffL;
+			}
+		}
+
+		Assert.assertEquals(expected.getCount(), count);
+		Assert.assertEquals(expected.getChecksum(), checksum);
+	}
+
+	/**
 	 * Executes the driver with the provided arguments and compares the
 	 * exception and exception method with the given class and regular
 	 * expression.
@@ -96,7 +152,7 @@ extends MultipleProgramsTestBase {
 	 * @param exception expected exception
 	 * @throws Exception on error when not matching exception
 	 */
-	protected void expectedOutputFromException(String[] parameters, String expected,Class<? extends Throwable> exception) throws Exception {
+	protected void expectedOutputFromException(String[] parameters, String expected, Class<? extends Throwable> exception) throws Exception {
 		expectedException.expect(exception);
 		expectedException.expectMessage(RegexMatcher.matchesRegex(expected));
 

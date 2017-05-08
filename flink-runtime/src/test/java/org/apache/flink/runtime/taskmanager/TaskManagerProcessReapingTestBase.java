@@ -23,16 +23,20 @@ import akka.actor.ActorSystem;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
-import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
+import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import scala.Some;
 import scala.Tuple2;
@@ -55,7 +59,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests that the TaskManager process properly exits when the TaskManager actor dies.
  */
-public abstract class TaskManagerProcessReapingTestBase {
+public abstract class TaskManagerProcessReapingTestBase extends TestLogger {
 
 	/**
 	 * Called after the task manager has been started up. After calling this
@@ -71,11 +75,24 @@ public abstract class TaskManagerProcessReapingTestBase {
 	}
 
 	@Test
-	public void testReapProcessOnFailure() {
+	public void testReapProcessOnFailure() throws Exception {
 		Process taskManagerProcess = null;
 		ActorSystem jmActorSystem = null;
 
 		final StringWriter processOutput = new StringWriter();
+
+		final Configuration config = new Configuration();
+
+		final String jobManagerHostname = "localhost";
+		final int jobManagerPort = NetUtils.getAvailablePort();
+
+		config.setString(JobManagerOptions.ADDRESS, jobManagerHostname);
+		config.setInteger(JobManagerOptions.PORT, jobManagerPort);
+
+		final HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+			config,
+			TestingUtils.defaultExecutor(),
+			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 		try {
 			String javaCommand = getJavaCommandPath();
@@ -92,29 +109,23 @@ public abstract class TaskManagerProcessReapingTestBase {
 			tempLogFile.deleteOnExit();
 			CommonTestUtils.printLog4jDebugConfig(tempLogFile);
 
-			final int jobManagerPort = NetUtils.getAvailablePort();
-
 			// start a JobManager
-			Tuple2<String, Object> localAddress = new Tuple2<String, Object>("localhost", jobManagerPort);
-			jmActorSystem = AkkaUtils.createActorSystem(
-					new Configuration(), new Some<Tuple2<String, Object>>(localAddress));
+			Tuple2<String, Object> localAddress = new Tuple2<String, Object>(jobManagerHostname, jobManagerPort);
+			jmActorSystem = AkkaUtils.createActorSystem(config, new Some<>(localAddress));
 
 			ActorRef jmActor = JobManager.startJobManagerActors(
-				new Configuration(),
+				config,
 				jmActorSystem,
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
+				highAvailabilityServices,
 				JobManager.class,
 				MemoryArchivist.class)._1;
-
-			// start a ResourceManager
-			StandaloneLeaderRetrievalService standaloneLeaderRetrievalService =
-				new StandaloneLeaderRetrievalService(AkkaUtils.getAkkaURL(jmActorSystem, jmActor));
 
 			FlinkResourceManager.startResourceManagerActors(
 				new Configuration(),
 				jmActorSystem,
-				standaloneLeaderRetrievalService,
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 				StandaloneResourceManager.class);
 
 			final int taskManagerPort = NetUtils.getAvailablePort();
@@ -138,7 +149,7 @@ public abstract class TaskManagerProcessReapingTestBase {
 			// is started and the TaskManager is up
 			String taskManagerActorName = String.format("akka.tcp://flink@%s/user/%s",
 					"localhost:" + taskManagerPort,
-					TaskManager.TASK_MANAGER_NAME());
+					TaskExecutor.TASK_MANAGER_NAME);
 
 			ActorRef taskManagerRef = null;
 			Throwable lastError = null;
@@ -204,6 +215,9 @@ public abstract class TaskManagerProcessReapingTestBase {
 			if (jmActorSystem != null) {
 				jmActorSystem.shutdown();
 			}
+			if (highAvailabilityServices != null) {
+				highAvailabilityServices.closeAndCleanupAllData();
+			}
 		}
 	}
 
@@ -221,18 +235,28 @@ public abstract class TaskManagerProcessReapingTestBase {
 
 	public static class TaskManagerTestEntryPoint {
 
-		public static void main(String[] args) {
+		public static void main(String[] args) throws Exception {
+			int jobManagerPort = Integer.parseInt(args[0]);
+			int taskManagerPort = Integer.parseInt(args[1]);
+
+			Configuration cfg = new Configuration();
+			cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
+			cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
+			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+			cfg.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 256);
+
+			final HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+				cfg,
+				TestingUtils.defaultExecutor(),
+				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+
 			try {
-				int jobManagerPort = Integer.parseInt(args[0]);
-				int taskManagerPort = Integer.parseInt(args[1]);
-
-				Configuration cfg = new Configuration();
-				cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
-				cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
-				cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
-				cfg.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 256);
-
-				TaskManager.runTaskManager("localhost", ResourceID.generate(), taskManagerPort, cfg);
+				TaskManager.runTaskManager(
+					"localhost",
+					ResourceID.generate(),
+					taskManagerPort,
+					cfg,
+					highAvailabilityServices);
 
 				// wait forever
 				Object lock = new Object();
@@ -242,6 +266,8 @@ public abstract class TaskManagerProcessReapingTestBase {
 			}
 			catch (Throwable t) {
 				System.exit(1);
+			} finally {
+				highAvailabilityServices.closeAndCleanupAllData();
 			}
 		}
 	}

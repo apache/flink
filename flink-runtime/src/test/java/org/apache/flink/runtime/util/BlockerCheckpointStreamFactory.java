@@ -71,39 +71,67 @@ public class BlockerCheckpointStreamFactory implements CheckpointStreamFactory {
 			@Override
 			public void write(int b) throws IOException {
 
-				if (null != waiter) {
-					waiter.trigger();
-				}
+				unblockWaiter();
 
 				if (afterNInvocations > 0) {
 					--afterNInvocations;
+				} else {
+					awaitBlocker();
 				}
 
-				if (0 == afterNInvocations && null != streamBlocker) {
-					try {
-						streamBlocker.await();
-					} catch (InterruptedException ignored) {
-					}
-				}
 				try {
 					super.write(b);
 				} catch (IOException ex) {
-					if (null != streamWaiter) {
-						streamWaiter.trigger();
-					}
+					unblockWaiter();
 					throw ex;
 				}
 
-				if (0 == afterNInvocations && null != streamWaiter) {
-					streamWaiter.trigger();
+				if (0 == afterNInvocations) {
+					unblockWaiter();
+				}
+
+				// We also check for close here, in case the underlying stream does not do this
+				if (isClosed()) {
+					throw new IOException("Stream closed.");
+				}
+			}
+
+			//We override this to ensure that writes go through the blocking #write(int) method!
+			@Override
+			public void write(byte[] b, int off, int len) throws IOException {
+				for (int i = 0; i < len; i++) {
+					write(b[off + i]);
 				}
 			}
 
 			@Override
 			public void close() {
 				super.close();
+				// trigger all the latches, essentially all blocking ops on the stream should resume after close.
+				unblockAll();
+			}
+
+			private void unblockWaiter() {
 				if (null != streamWaiter) {
 					streamWaiter.trigger();
+				}
+			}
+
+			private void awaitBlocker() {
+				if (null != streamBlocker) {
+					try {
+						streamBlocker.await();
+					} catch (InterruptedException ignored) {
+					}
+				}
+			}
+
+			private void unblockAll() {
+				if (null != streamWaiter) {
+					streamWaiter.trigger();
+				}
+				if (null != streamBlocker) {
+					streamBlocker.trigger();
 				}
 			}
 		};
