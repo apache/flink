@@ -19,12 +19,18 @@
 package org.apache.flink.table.runtime.aggregate
 
 import org.apache.flink.api.common.functions.Function
+import org.apache.flink.table.functions.AggregateContext
 import org.apache.flink.types.Row
 
 /**
   * Base class for code-generated aggregations.
   */
 abstract class GeneratedAggregations extends Function {
+
+  /**
+    * Set the context to aggregates
+    */
+  def setAggregateContext(aggregateContext: AggregateContext)
 
   /**
     * Sets the results of the aggregations (partial or final) to the output row.

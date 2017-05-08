@@ -30,6 +30,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.table.functions.AggregateContext
 import org.slf4j.LoggerFactory
 
 /**
@@ -81,6 +82,7 @@ class RowTimeBoundedRowsOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.setAggregateContext(new AggregateContext(getRuntimeContext))
 
     output = new CRow(function.createOutputRow(), true)
 

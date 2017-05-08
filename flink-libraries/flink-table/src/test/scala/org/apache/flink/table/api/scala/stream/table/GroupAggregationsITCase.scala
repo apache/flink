@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{WeightedAvg, WeightedStateAvg}
 import org.apache.flink.table.api.scala.stream.utils.StreamITCase.RetractingSink
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
@@ -45,14 +46,17 @@ class GroupAggregationsITCase extends StreamingWithStateTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
 
+    val weightAvg = new WeightedAvg
+    val weightStateAvg = new WeightedStateAvg
+
     val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
-            .select('a.sum, 'b.sum)
+            .select('a.sum, 'b.sum, weightAvg('b, 'a), weightStateAvg('b, 'a))
 
     val results = t.toRetractStream[Row](queryConfig)
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
-    val expected = List("231,91")
+    val expected = List("231,91,5,5")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
@@ -63,15 +67,18 @@ class GroupAggregationsITCase extends StreamingWithStateTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
 
+    val weightAvg = new WeightedAvg
+    val weightStateAvg = new WeightedStateAvg
+
     val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
-      .select('b, 'a.sum)
+      .select('b, 'a.sum, weightAvg('b, 'a), weightStateAvg('b, 'a))
 
     val results = t.toRetractStream[Row](queryConfig)
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
 
-    val expected = List("1,1", "2,5", "3,15", "4,34", "5,65", "6,111")
+    val expected = List("1,1,1,1", "2,5,2,2", "3,15,3,3", "4,34,4,4", "5,65,5,5", "6,111,6,6")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
