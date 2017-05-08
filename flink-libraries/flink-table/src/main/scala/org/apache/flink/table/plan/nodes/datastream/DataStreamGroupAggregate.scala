@@ -115,7 +115,7 @@ class DataStreamGroupAggregate(
     val generator = new CodeGenerator(
       tableEnv.getConfig,
       false,
-      inputDS.getType)
+      inputSchema.physicalTypeInfo)
 
     val aggString = aggregationToString(
       inputSchema.logicalType,
