@@ -480,6 +480,13 @@ class JobManager(
           log.debug(s"Resource $resourceID has not been registered at job manager.")
       }
 
+    case msg: GetClusterStatus =>
+      sender ! decorateMessage(
+        new GetClusterStatusResponse(
+          instanceManager.getNumberOfRegisteredTaskManagers,
+          instanceManager.getTotalNumberOfSlots)
+      )
+
     case RequestNumberRegisteredTaskManager =>
       sender ! decorateMessage(instanceManager.getNumberOfRegisteredTaskManagers)
 
