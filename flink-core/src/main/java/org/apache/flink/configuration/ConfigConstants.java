@@ -277,8 +277,9 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_NUM_TASK_SLOTS = "taskmanager.numberOfTaskSlots";
 
 	/**
-	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
+	 * @deprecated use {@link TaskManagerOptions#DEBUG_MEMORY_USAGE_LOG_THREAD} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD = "taskmanager.debug.memory.startLogThread";
 
 	/**
@@ -1180,8 +1181,9 @@ public final class ConfigConstants {
 	public static final String DEFAULT_TASK_MANAGER_NETWORK_DEFAULT_IO_MODE = "sync";
 
 	/**
-	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
+	 * @deprecated use {@link TaskManagerOptions#DEBUG_MEMORY_USAGE_LOG_THREAD} instead
 	 */
+	@Deprecated
 	public static final boolean DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD = false;
 
 	/**

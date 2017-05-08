@@ -267,6 +267,17 @@ public class TaskManagerOptions {
 			.defaultValue(-1L);
 
 	// ------------------------------------------------------------------------
+	//  Debugging Options
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
+	 */
+	public static final ConfigOption<Boolean> DEBUG_MEMORY_USAGE_LOG_THREAD =
+		key("taskmanager.debug.memory.startLogThread")
+			.defaultValue(false);
+
+	// ------------------------------------------------------------------------
 
 	/** Not intended to be instantiated */
 	private TaskManagerOptions() {}
