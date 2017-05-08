@@ -18,19 +18,6 @@
 
 package org.apache.flink.test.checkpointing;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -49,6 +36,19 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * A simple test that runs a streaming topology with checkpointing enabled.
@@ -88,9 +88,9 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 			syncMemBackend,
 			asyncMemBackend,
 			syncFsBackend,
-			asyncFsBackend,
+			asyncFsBackend/**,
 			fullRocksDbBackend,
-			incRocksDbBackend);
+			incRocksDbBackend**/);
 	}
 
 	@Parameterized.Parameter

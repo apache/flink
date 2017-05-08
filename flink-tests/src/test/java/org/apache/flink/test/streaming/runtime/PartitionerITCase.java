@@ -30,6 +30,7 @@ import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.streaming.runtime.util.NoOpIntMap;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;

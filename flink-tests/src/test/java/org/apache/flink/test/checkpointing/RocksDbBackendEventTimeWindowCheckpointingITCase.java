@@ -18,6 +18,9 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.junit.Ignore;
+
+@Ignore
 public class RocksDbBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
 
 	public RocksDbBackendEventTimeWindowCheckpointingITCase() {
