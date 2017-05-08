@@ -1833,8 +1833,7 @@ object TaskManager {
         LOG.info("Starting periodic memory usage logger")
 
         val interval = configuration.getLong(
-          ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
-          ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
+          TaskManagerOptions.DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
 
         val logger = new MemoryLogger(LOG.logger, interval, taskManagerSystem)
         logger.start()

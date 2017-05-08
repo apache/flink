@@ -277,6 +277,13 @@ public class TaskManagerOptions {
 		key("taskmanager.debug.memory.startLogThread")
 			.defaultValue(false);
 
+	/**
+	 * The interval (in ms) for the log thread to log the current memory usage.
+	 */
+	public static final ConfigOption<Long> DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS =
+		key("taskmanager.debug.memory.logIntervalMs")
+			.defaultValue(5000L);
+
 	// ------------------------------------------------------------------------
 
 	/** Not intended to be instantiated */
