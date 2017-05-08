@@ -18,16 +18,17 @@
 
 package org.apache.flink.table.utils
 
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.tools.RuleSet
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 
 class MockTableEnvironment extends TableEnvironment(new TableConfig) {
 
-  override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = ???
+  override private[flink] def writeToSink[T](
+      table: Table,
+      sink: TableSink[T],
+      qConfig: QueryConfig): Unit = ???
 
   override protected def checkValidTableName(name: String): Unit = ???
 

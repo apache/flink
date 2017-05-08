@@ -26,9 +26,9 @@ import org.apache.flink.util.Collector
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.common.state.ValueState
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 import org.apache.flink.table.runtime.types.CRow
 
 /**
@@ -40,12 +40,19 @@ import org.apache.flink.table.runtime.types.CRow
 class GroupAggProcessFunction(
     private val genAggregations: GeneratedAggregationsFunction,
     private val aggregationStateType: RowTypeInfo,
-    private val generateRetraction: Boolean)
+    private val generateRetraction: Boolean,
+    private val qConfig: StreamQueryConfig)
   extends ProcessFunction[CRow, CRow]
     with Compiler[GeneratedAggregations] {
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  val LOG: Logger = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
+
+  private val minRetentionTime = qConfig.getMinIdleStateRetentionTime
+  private val maxRetentionTime = qConfig.getMaxIdleStateRetentionTime
+  private val stateCleaningEnabled = minRetentionTime > 1 && maxRetentionTime > 1
+  // interval in which clean-up timers are registered
+  private val cleanupTimerInterval = maxRetentionTime - minRetentionTime
 
   private var newRow: CRow = _
   private var prevRow: CRow = _
@@ -54,6 +61,8 @@ class GroupAggProcessFunction(
   private var state: ValueState[Row] = _
   // counts the number of added and retracted input records
   private var cntState: ValueState[JLong] = _
+  // holds the latest registered cleanup timer
+  private var cleanupTimeState: ValueState[JLong] = _
 
   override def open(config: Configuration) {
     LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
@@ -74,12 +83,35 @@ class GroupAggProcessFunction(
     val inputCntDescriptor: ValueStateDescriptor[JLong] =
       new ValueStateDescriptor[JLong]("GroupAggregateInputCounter", Types.LONG)
     cntState = getRuntimeContext.getState(inputCntDescriptor)
+
+    if (stateCleaningEnabled) {
+      val inputCntDescriptor: ValueStateDescriptor[JLong] =
+        new ValueStateDescriptor[JLong]("GroupAggregateCleanupTime", Types.LONG)
+      cleanupTimeState = getRuntimeContext.getState(inputCntDescriptor)
+    }
   }
 
   override def processElement(
       inputC: CRow,
       ctx: ProcessFunction[CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
+
+    if (stateCleaningEnabled) {
+
+      val currentTime = ctx.timerService().currentProcessingTime()
+      val earliestCleanup = currentTime + minRetentionTime
+
+      // last registered timer
+      val lastCleanupTime = cleanupTimeState.value()
+
+      if (lastCleanupTime == null || earliestCleanup >= lastCleanupTime + cleanupTimerInterval) {
+        // we need to register a new timer
+        val cleanupTime = earliestCleanup + cleanupTimerInterval
+        // register timer and remember clean-up time
+        ctx.timerService().registerProcessingTimeTimer(cleanupTime)
+        cleanupTimeState.update(cleanupTime)
+      }
+    }
 
     val input = inputC.row
 
@@ -144,4 +176,18 @@ class GroupAggProcessFunction(
       cntState.clear()
     }
   }
+
+  override def onTimer(
+      timestamp: Long,
+      ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+      out: Collector[CRow]): Unit = {
+
+    if (timestamp == cleanupTimeState.value()) {
+      // clear all state
+      this.state.clear()
+      this.cntState.clear()
+      this.cleanupTimeState.clear()
+    }
+  }
+
 }
