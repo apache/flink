@@ -1417,9 +1417,9 @@ object AggregateUtil {
           if (accType != null) {
             accType
           } else {
-            val accumulator = agg.createAccumulator()
             try {
-              TypeInformation.of(accumulator.getClass)
+              val method = agg.getClass.getMethod("createAccumulator")
+              TypeInformation.of(method.getReturnType)
             } catch {
               case ite: InvalidTypesException =>
                 throw new TableException(

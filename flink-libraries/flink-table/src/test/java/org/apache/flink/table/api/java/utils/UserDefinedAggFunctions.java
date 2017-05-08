@@ -17,9 +17,13 @@
  */
 package org.apache.flink.table.api.java.utils;
 
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.RichAggregateFunction;
 
+import java.io.IOException;
 import java.util.Iterator;
 
 public class UserDefinedAggFunctions {
@@ -92,4 +96,53 @@ public class UserDefinedAggFunctions {
             accumulator.count -= iWeight;
         }
     }
+
+	// Accumulator for WeightedAvg with state
+	public static class WeightedStateAvgAccum {
+		final String valueName = "valuestate";
+	}
+
+	// Base class for WeightedAvg with state
+	public static class WeightedStateAvg
+		extends RichAggregateFunction<Long, WeightedStateAvgAccum> {
+
+		@Override
+		public WeightedStateAvgAccum createAccumulator() {
+			WeightedStateAvgAccum accum = new WeightedStateAvgAccum();
+			registerValue(accum.valueName, new TupleTypeInfo<>(Types.LONG, Types.INT));
+
+			try {
+				getValueByStateName(accum.valueName).update(new Tuple2<>(0L, 0));
+			} catch (IOException e) {
+				throw new RuntimeException("init accumulator value failed!", e);
+			}
+			return accum;
+		}
+
+		@Override
+		public Long getValue(WeightedStateAvgAccum accumulator) {
+			try {
+				Tuple2<Long, Integer> avgPair =
+					(Tuple2<Long, Integer>) getValueByStateName(accumulator.valueName).value();
+				if (avgPair.f1 == 0)
+					return null;
+				else
+					return avgPair.f0 / avgPair.f1;
+			} catch (IOException e) {
+				throw new RuntimeException("getValue failed!", e);
+			}
+		}
+
+		public void accumulate(WeightedStateAvgAccum accumulator, long iValue, int iWeight) {
+			try {
+				Tuple2<Long, Integer> avgPair =
+					(Tuple2<Long, Integer>) getValueByStateName(accumulator.valueName).value();
+				avgPair.f0 += iValue * iWeight;
+				avgPair.f1 += iWeight;
+				getValueByStateName(accumulator.valueName).update(avgPair);
+			} catch (IOException e) {
+				throw new RuntimeException("accumulate failed!", e);
+			}
+		}
+	}
 }

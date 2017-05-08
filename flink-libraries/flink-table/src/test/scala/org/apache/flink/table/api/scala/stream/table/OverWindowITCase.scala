@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvg
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{WeightedAvg, WeightedStateAvg}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.stream.table.OverWindowITCase.RowTimeSourceFunction
 import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamingWithStateTestBase}
@@ -61,20 +61,22 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val table = stream.toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
+    val weightStateAvg = new WeightedStateAvg
 
     val windowedTable = table
       .window(
         Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
-      .select('c, countFun('b) over 'w as 'mycount, weightAvgFun('a, 'b) over 'w as 'wAvg)
-      .select('c, 'mycount, 'wAvg)
+      .select('c, countFun('b) over 'w as 'mycount, weightAvgFun('a, 'b) over 'w as 'wAvg,
+        weightStateAvg('a, 'b) over 'w as 'wStateAvg)
+      .select('c, 'mycount, 'wAvg, 'wStateAvg)
 
     val results = windowedTable.toDataStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
     val expected = Seq(
-      "Hello World,1,7", "Hello World,2,7", "Hello World,3,14",
-      "Hello,1,1", "Hello,2,1", "Hello,3,2", "Hello,4,3", "Hello,5,3", "Hello,6,4")
+      "Hello World,1,7,7", "Hello World,2,7,7", "Hello World,3,14,14",
+      "Hello,1,1,1", "Hello,2,1,1", "Hello,3,2,2", "Hello,4,3,3", "Hello,5,3,3", "Hello,6,4,4")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -110,6 +112,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
+    val weightStateAvg = new WeightedStateAvg
 
     val windowedTable = table
       .window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_RANGE following
@@ -121,26 +124,27 @@ class OverWindowITCase extends StreamingWithStateTestBase {
         'b.avg over 'w,
         'b.max over 'w,
         'b.min over 'w,
-        weightAvgFun('b, 'a) over 'w)
+        weightAvgFun('b, 'a) over 'w,
+        weightStateAvg('b, 'a) over 'w)
 
     val result = windowedTable.toDataStream[Row]
     result.addSink(new StreamITCase.StringSink)
     env.execute()
 
     val expected = mutable.MutableList(
-      "1,1,Hello,6,3,2,3,1,2",
-      "1,2,Hello,6,3,2,3,1,2",
-      "1,3,Hello world,6,3,2,3,1,2",
-      "1,1,Hi,7,4,1,3,1,1",
-      "2,1,Hello,1,1,1,1,1,1",
-      "2,2,Hello world,6,3,2,3,1,2",
-      "2,3,Hello world,6,3,2,3,1,2",
-      "1,4,Hello world,11,5,2,4,1,2",
-      "1,5,Hello world,29,8,3,7,1,3",
-      "1,6,Hello world,29,8,3,7,1,3",
-      "1,7,Hello world,29,8,3,7,1,3",
-      "2,4,Hello world,15,5,3,5,1,3",
-      "2,5,Hello world,15,5,3,5,1,3"
+      "1,1,Hello,6,3,2,3,1,2,2",
+      "1,2,Hello,6,3,2,3,1,2,2",
+      "1,3,Hello world,6,3,2,3,1,2,2",
+      "1,1,Hi,7,4,1,3,1,1,1",
+      "2,1,Hello,1,1,1,1,1,1,1",
+      "2,2,Hello world,6,3,2,3,1,2,2",
+      "2,3,Hello world,6,3,2,3,1,2,2",
+      "1,4,Hello world,11,5,2,4,1,2,2",
+      "1,5,Hello world,29,8,3,7,1,3,3",
+      "1,6,Hello world,29,8,3,7,1,3,3",
+      "1,7,Hello world,29,8,3,7,1,3,3",
+      "2,4,Hello world,15,5,3,5,1,3,3",
+      "2,5,Hello world,15,5,3,5,1,3,3"
     )
 
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
