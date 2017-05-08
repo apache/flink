@@ -241,7 +241,7 @@ public class TaskManagerStartupTest {
 
 			final Configuration cfg = new Configuration();
 			cfg.setString(TaskManagerOptions.HOST_NAME, "localhost");
-			cfg.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, blocker.getLocalPort());
+			cfg.setInteger(TaskManagerOptions.DATA_PORT, blocker.getLocalPort());
 			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 1L);
 
 			TaskManager.startTaskManagerComponentsAndActor(

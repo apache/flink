@@ -48,6 +48,14 @@ public class TaskManagerOptions {
 			.defaultValue(0);
 
 	/**
+	 * The default network port the task manager expects to receive transfer envelopes on. The {@code 0} means that
+	 * the TaskManager searches for a free port.
+	 */
+	public static final ConfigOption<Integer> DATA_PORT =
+		key("taskmanager.data.port")
+			.defaultValue(0);
+
+	/**
 	 * JVM heap size (in megabytes) for the TaskManagers
 	 */
 	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY =

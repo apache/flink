@@ -189,8 +189,9 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_IPC_PORT_KEY = "taskmanager.rpc.port";
 
 	/**
-	 * The config parameter defining the task manager's data port from the configuration.
+	 * @deprecated use {@link TaskManagerOptions#DATA_PORT} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_DATA_PORT_KEY = "taskmanager.data.port";
 
 	/**
@@ -1127,9 +1128,9 @@ public final class ConfigConstants {
 	public static final int DEFAULT_TASK_MANAGER_IPC_PORT = 0;
 
 	/**
-	 * The default network port the task manager expects to receive transfer envelopes on. The {@code 0} means that
-	 * the TaskManager searches for a free port.
+	 * @deprecated use {@link TaskManagerOptions#DATA_PORT} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = 0;
 
 	/**
