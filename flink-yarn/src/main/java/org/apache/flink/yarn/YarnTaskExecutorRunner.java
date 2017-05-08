@@ -117,14 +117,13 @@ public class YarnTaskExecutorRunner {
 			FileSystem.setDefaultScheme(configuration);
 
 			// configure local directory
-			String flinkTempDirs = configuration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, null);
-			if (flinkTempDirs == null) {
+			if (!configuration.contains(TaskManagerOptions.TMP_DIR)) {
 				LOG.info("Setting directories for temporary file " + localDirs);
-				configuration.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, localDirs);
+				configuration.setString(TaskManagerOptions.TMP_DIR, localDirs);
 			}
 			else {
 				LOG.info("Overriding YARN's temporary file directories with those " +
-						"specified in the Flink config: " + flinkTempDirs);
+						"specified in the Flink config: " + configuration.getString(TaskManagerOptions.TMP_DIR));
 			}
 
 			// tell akka to die in case of an error

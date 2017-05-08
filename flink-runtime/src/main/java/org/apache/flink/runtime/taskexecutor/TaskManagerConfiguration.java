@@ -136,9 +136,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			numberSlots = 1;
 		}
 
-		final String[] tmpDirPaths = configuration.getString(
-			ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|" + File.pathSeparator);
+		final String[] tmpDirPaths = configuration.getString(TaskManagerOptions.TMP_DIR)
+			.split(",|" + File.pathSeparator);
 
 		final Time timeout;
 

@@ -140,7 +140,7 @@ public class TaskManagerStartupTest {
 
 		try {
 			Configuration cfg = new Configuration();
-			cfg.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, nonWritable.getAbsolutePath());
+			cfg.setString(TaskManagerOptions.TMP_DIR, nonWritable.getAbsolutePath());
 			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 			cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 			cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 21656);

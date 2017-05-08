@@ -200,8 +200,9 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DATA_SSL_ENABLED = "taskmanager.data.ssl.enabled";
 
 	/**
-	 * The config parameter defining the directories for temporary files.
+	 * @deprecated use {@link TaskManagerOptions#TMP_DIR} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dirs";
 
 	/**
@@ -1139,8 +1140,9 @@ public final class ConfigConstants {
 	public static final boolean DEFAULT_TASK_MANAGER_DATA_SSL_ENABLED = true;
 
 	/**
-	 * The default directory for temporary files of the task manager.
+	 * @deprecated use {@link TaskManagerOptions#TMP_DIR} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_TMP_PATH = System.getProperty("java.io.tmpdir");
 
 	/**

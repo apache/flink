@@ -182,9 +182,8 @@ public class TaskManagerServicesConfiguration {
 			slots = 1;
 		}
 
-		final String[] tmpDirs = configuration.getString(
-			ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|" + File.pathSeparator);
+		final String[] tmpDirs = configuration.getString(TaskManagerOptions.TMP_DIR)
+			.split(",|" + File.pathSeparator);
 
 		final NetworkEnvironmentConfiguration networkConfig = parseNetworkEnvironmentConfiguration(
 			configuration,

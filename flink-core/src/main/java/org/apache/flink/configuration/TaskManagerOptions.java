@@ -63,6 +63,13 @@ public class TaskManagerOptions {
 			.defaultValue(1024);
 
 	/**
+	 * The config parameter defining the directories for temporary files.
+	 */
+	public static final ConfigOption<String> TMP_DIR =
+		key("taskmanager.tmp.dirs")
+			.defaultValue(System.getProperty("java.io.tmpdir"));
+
+	/**
 	 * Whether to kill the TaskManager when the task thread throws an OutOfMemoryError
 	 */
 	public static final ConfigOption<Boolean> KILL_ON_OUT_OF_MEMORY =
