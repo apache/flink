@@ -307,8 +307,9 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_MAX_REGISTARTION_PAUSE = "taskmanager.max-registration-pause";
 
 	/**
-	 * The pause after a registration has been refused by the job manager before retrying to connect.
+	 * @deprecated use {@link TaskManagerOptions#REFUSED_REGISTRATION_PAUSE} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "taskmanager.refused-registration-pause";
 
 	/**
@@ -1213,8 +1214,9 @@ public final class ConfigConstants {
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_PAUSE = "30 s";
 
 	/**
-	 * The default task manager's refused registration pause.
+	 * @deprecated use {@link TaskManagerOptions#REFUSED_REGISTRATION_PAUSE} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "10 s";
 
 	/**

@@ -126,6 +126,13 @@ public class TaskManagerOptions {
 		key("taskmanager.max-registration-pause")
 			.defaultValue("30 s");
 
+	/**
+	 * The pause after a registration has been refused by the job manager before retrying to connect.
+	 */
+	public static final ConfigOption<String> REFUSED_REGISTRATION_PAUSE =
+		key("taskmanager.refused-registration-pause")
+			.defaultValue("10 s");
+
 	// ------------------------------------------------------------------------
 	//  Managed Memory Options
 	// ------------------------------------------------------------------------

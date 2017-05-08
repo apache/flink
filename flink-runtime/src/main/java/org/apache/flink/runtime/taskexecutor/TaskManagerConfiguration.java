@@ -201,8 +201,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		final Time refusedRegistrationPause;
 		try {
 			Duration pause = Duration.create(configuration.getString(
-				ConfigConstants.TASK_MANAGER_REFUSED_REGISTRATION_PAUSE,
-				ConfigConstants.DEFAULT_TASK_MANAGER_REFUSED_REGISTRATION_PAUSE));
+				TaskManagerOptions.REFUSED_REGISTRATION_PAUSE));
 			if (pause.isFinite()) {
 				refusedRegistrationPause = Time.milliseconds(pause.toMillis());
 			} else {
@@ -210,7 +209,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			}
 		} catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +
-				ConfigConstants.TASK_MANAGER_REFUSED_REGISTRATION_PAUSE, e);
+				TaskManagerOptions.REFUSED_REGISTRATION_PAUSE.key(), e);
 		}
 
 		final boolean exitOnOom = configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY);
