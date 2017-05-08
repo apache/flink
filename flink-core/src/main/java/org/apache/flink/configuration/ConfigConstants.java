@@ -206,8 +206,9 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dirs";
 
 	/**
-	 * The config parameter defining the taskmanager log file location
+	 * @deprecated use {@link TaskManagerOptions#LOG_PATH} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_LOG_PATH_KEY = "taskmanager.log.path";
 
 	/**

@@ -820,12 +820,12 @@ class TaskManager(
       jobManager: ActorRef)
     : Unit = {
     val logFilePathOption = Option(config.getConfiguration().getString(
-      ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file")))
+      TaskManagerOptions.LOG_PATH, System.getProperty("log.file")))
     logFilePathOption match {
       case None => sender ! akka.actor.Status.Failure(
         new IOException("TaskManager log files are unavailable. " +
         "Log file location not found in environment variable log.file or configuration key "
-        + ConfigConstants.TASK_MANAGER_LOG_PATH_KEY + "."))
+        + TaskManagerOptions.LOG_PATH.key() + "."))
       case Some(logFilePath) =>
         val file: File = requestType match {
           case LogFileRequest => new File(logFilePath);

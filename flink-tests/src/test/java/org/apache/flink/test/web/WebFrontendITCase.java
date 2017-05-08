@@ -85,7 +85,7 @@ public class WebFrontendITCase extends TestLogger {
 		Files.createFile(outFile.toPath());
 		
 		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.getAbsolutePath());
-		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.getAbsolutePath());
+		config.setString(TaskManagerOptions.LOG_PATH, logFile.getAbsolutePath());
 
 		cluster = new LocalFlinkMiniCluster(config, false);
 		cluster.start();

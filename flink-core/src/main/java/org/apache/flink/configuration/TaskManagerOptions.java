@@ -70,6 +70,13 @@ public class TaskManagerOptions {
 			.defaultValue(System.getProperty("java.io.tmpdir"));
 
 	/**
+	 * The config parameter defining the taskmanager log file location
+	 */
+	public static final ConfigOption<String> LOG_PATH =
+		key("taskmanager.log.path")
+			.noDefaultValue();
+
+	/**
 	 * Whether to kill the TaskManager when the task thread throws an OutOfMemoryError
 	 */
 	public static final ConfigOption<Boolean> KILL_ON_OUT_OF_MEMORY =
