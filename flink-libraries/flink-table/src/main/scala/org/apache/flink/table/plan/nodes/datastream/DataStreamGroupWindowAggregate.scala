@@ -134,7 +134,7 @@ class DataStreamGroupWindowAggregate(
       namedAggregates,
       namedProperties)
 
-    val keyedAggOpName = s"groupBy: (${groupingToString(schema.logicalType, grouping)}), " +
+    val keyedAggOpName = s"groupBy: (${groupingToString(inputSchema.logicalType, grouping)}), " +
       s"window: ($window), " +
       s"select: ($aggString)"
     val nonKeyedAggOpName = s"window: ($window), select: ($aggString)"
