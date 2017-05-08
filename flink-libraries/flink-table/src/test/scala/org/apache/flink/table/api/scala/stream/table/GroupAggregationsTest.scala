@@ -23,10 +23,21 @@ import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.TableException
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.utils.TableTestUtil._
 
 class GroupAggregationsTest extends TableTestBase {
+
+  @Test(expected = classOf[TableException])
+  def testOverAggregation(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+    val overAgg = new OverAgg0
+    val result = table.select(overAgg('a, 'b))
+    util.verifyTable(result, "n/a")
+  }
 
   @Test(expected = classOf[ValidationException])
   def testGroupingOnNonExistentField(): Unit = {

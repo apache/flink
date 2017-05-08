@@ -19,8 +19,8 @@ package org.apache.flink.table.api.scala.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMerge
+import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{OverAgg0, WeightedAvgWithMerge}
 import org.apache.flink.table.expressions.WindowReference
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.utils.TableTestBase
@@ -32,6 +32,18 @@ class GroupWindowTest extends TableTestBase {
   //===============================================================================================
   // Common test
   //===============================================================================================
+
+  @Test(expected = classOf[TableException])
+  def testOverAggregation(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+    val overAgg = new OverAgg0
+    val result = table
+      .window(Tumble over 5.milli on 'long as 'w)
+      .groupBy('string,'w)
+      .select(overAgg('long, 'int))
+    util.verifyTable(result, "n/a")
+  }
 
   @Test(expected = classOf[ValidationException])
   def testGroupByWithoutWindowAlias(): Unit = {

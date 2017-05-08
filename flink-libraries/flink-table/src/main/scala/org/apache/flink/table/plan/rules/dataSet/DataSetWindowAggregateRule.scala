@@ -49,7 +49,13 @@ class DataSetWindowAggregateRule
       throw TableException("GROUPING SETS are currently not supported.")
     }
 
-    !distinctAggs && !groupSets && !agg.indicator
+    // check if we have over aggregates
+    val overAggs = agg.getAggCallList.exists(_.getAggregation.requiresOver())
+    if (overAggs) {
+      throw TableException("OVER clause is necessary for requires over window functions")
+    }
+
+    true
   }
 
   override def convert(rel: RelNode): RelNode = {

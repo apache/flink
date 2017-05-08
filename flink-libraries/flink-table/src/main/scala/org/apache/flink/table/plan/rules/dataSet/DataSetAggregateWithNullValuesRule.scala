@@ -23,6 +23,7 @@ import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.RexLiteral
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetAggregate
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalUnion, FlinkLogicalValues}
@@ -51,8 +52,17 @@ class DataSetAggregateWithNullValuesRule
 
     // check if we have distinct aggregates
     val distinctAggs = agg.getAggCallList.exists(_.isDistinct)
+    if (distinctAggs) {
+      throw TableException("DISTINCT aggregates are currently not supported.")
+    }
 
-    !distinctAggs
+    // check if we have over aggregates
+    val overAggs = agg.getAggCallList.exists(_.getAggregation.requiresOver())
+    if (overAggs) {
+      throw TableException("OVER clause is necessary for requires over window functions")
+    }
+
+    true
   }
 
   override def convert(rel: RelNode): RelNode = {
