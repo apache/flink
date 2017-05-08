@@ -27,13 +27,16 @@ import scala.collection.mutable
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 object StreamITCase {
 
-  var testResults = mutable.MutableList.empty[String]
+  var testResults: mutable.MutableList[String] = mutable.MutableList.empty[String]
+  var retractedResults: ArrayBuffer[String] = mutable.ArrayBuffer.empty[String]
 
   def clear = {
     StreamITCase.testResults.clear()
+    StreamITCase.retractedResults.clear()
   }
 
   def compareWithList(expected: java.util.List[String]): Unit = {
@@ -44,8 +47,37 @@ object StreamITCase {
   final class StringSink extends RichSinkFunction[Row]() {
     def invoke(value: Row) {
       testResults.synchronized {
-        testResults += value.toString 
+        testResults += value.toString
       }
     }
   }
+
+  final class RetractMessagesSink extends RichSinkFunction[(Boolean, Row)]() {
+    def invoke(v: (Boolean, Row)) {
+      testResults.synchronized {
+        testResults += (if (v._1) "+" else "-") + v._2
+      }
+    }
+  }
+
+  final class RetractingSink() extends RichSinkFunction[(Boolean, Row)] {
+    def invoke(v: (Boolean, Row)) {
+      retractedResults.synchronized {
+        val value = v._2.toString
+        if (v._1) {
+          retractedResults += value
+        } else {
+          val idx = retractedResults.indexOf(value)
+          if (idx >= 0) {
+            retractedResults.remove(idx)
+          } else {
+            throw new RuntimeException("Tried to retract a value that wasn't added first. " +
+              "This is probably an incorrectly implemented test. " +
+              "Try to set the parallelism of the sink to 1.")
+          }
+        }
+      }
+    }
+  }
+
 }

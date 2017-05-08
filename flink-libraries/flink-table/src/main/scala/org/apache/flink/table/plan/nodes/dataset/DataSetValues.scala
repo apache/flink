@@ -88,7 +88,7 @@ class DataSetValues(
       generatedRecords.map(_.code),
       returnType)
 
-    val inputFormat = new ValuesInputFormat[Row](
+    val inputFormat = new ValuesInputFormat(
       generatedFunction.name,
       generatedFunction.code,
       generatedFunction.returnType)

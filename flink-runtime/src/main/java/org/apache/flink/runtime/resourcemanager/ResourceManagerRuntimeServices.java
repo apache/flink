@@ -20,8 +20,8 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultSlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -29,16 +29,16 @@ import org.apache.flink.util.Preconditions;
  */
 public class ResourceManagerRuntimeServices {
 
-	private final SlotManagerFactory slotManagerFactory;
+	private final SlotManager slotManager;
 	private final JobLeaderIdService jobLeaderIdService;
 
-	public ResourceManagerRuntimeServices(SlotManagerFactory slotManagerFactory, JobLeaderIdService jobLeaderIdService) {
-		this.slotManagerFactory = Preconditions.checkNotNull(slotManagerFactory);
+	public ResourceManagerRuntimeServices(SlotManager slotManager, JobLeaderIdService jobLeaderIdService) {
+		this.slotManager = Preconditions.checkNotNull(slotManager);
 		this.jobLeaderIdService = Preconditions.checkNotNull(jobLeaderIdService);
 	}
 
-	public SlotManagerFactory getSlotManagerFactory() {
-		return slotManagerFactory;
+	public SlotManager getSlotManager() {
+		return slotManager;
 	}
 
 	public JobLeaderIdService getJobLeaderIdService() {
@@ -58,12 +58,19 @@ public class ResourceManagerRuntimeServices {
 			HighAvailabilityServices highAvailabilityServices,
 			ScheduledExecutor scheduledExecutor) throws Exception {
 
-		final SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
+		final SlotManagerConfiguration slotManagerConfiguration = configuration.getSlotManagerConfiguration();
+
+		final SlotManager slotManager = new SlotManager(
+			scheduledExecutor,
+			slotManagerConfiguration.getTaskManagerRequestTimeout(),
+			slotManagerConfiguration.getSlotRequestTimeout(),
+			slotManagerConfiguration.getTaskManagerTimeout());
+
 		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,
 			scheduledExecutor,
 			configuration.getJobTimeout());
 
-		return new ResourceManagerRuntimeServices(slotManagerFactory, jobLeaderIdService);
+		return new ResourceManagerRuntimeServices(slotManager, jobLeaderIdService);
 	}
 }

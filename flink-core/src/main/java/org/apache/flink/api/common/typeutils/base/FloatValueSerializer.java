@@ -31,8 +31,7 @@ public class FloatValueSerializer extends TypeSerializerSingleton<FloatValue> {
 	private static final long serialVersionUID = 1L;
 	
 	public static final FloatValueSerializer INSTANCE = new FloatValueSerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -83,5 +82,11 @@ public class FloatValueSerializer extends TypeSerializerSingleton<FloatValue> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof FloatValueSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(FloatSerializer.class.getCanonicalName());
 	}
 }

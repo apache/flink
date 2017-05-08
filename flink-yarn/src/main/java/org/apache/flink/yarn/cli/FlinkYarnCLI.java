@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -67,7 +66,7 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 *  -D fs.overwrite-files=true  -D taskmanager.network.numberOfBuffers=16368
+	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.network.memory.min=536346624</tt>
 	 */
 	private final Option DYNAMIC_PROPERTIES;
 
@@ -224,22 +223,14 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 			String applicationName,
 			CommandLine cmdLine,
 			Configuration config,
-			List<URL> userJarFiles) {
+			List<URL> userJarFiles) throws Exception {
 		Preconditions.checkNotNull(userJarFiles, "User jar files should not be null.");
 
 		YarnClusterDescriptorV2 yarnClusterDescriptor = createDescriptor(applicationName, cmdLine);
 		yarnClusterDescriptor.setFlinkConfiguration(config);
 		yarnClusterDescriptor.setProvidedUserJarFiles(userJarFiles);
 
-		YarnClusterClientV2 client = null;
-		try {
-			client = new YarnClusterClientV2(yarnClusterDescriptor, config);
-		}
-		catch (IOException e) {
-			throw new RuntimeException("Fail to create YarnClusterClientV2", e.getCause());
-		}
-		return client;
-
+		return new YarnClusterClientV2(yarnClusterDescriptor, config);
 	}
 
 	/**

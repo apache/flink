@@ -76,7 +76,7 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
-			resourceManagerRuntimeServices.getSlotManagerFactory(),
+			resourceManagerRuntimeServices.getSlotManager(),
 			metricRegistry,
 			resourceManagerRuntimeServices.getJobLeaderIdService(),
 			this);

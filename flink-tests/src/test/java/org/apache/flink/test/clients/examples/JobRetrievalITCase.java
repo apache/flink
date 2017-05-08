@@ -53,7 +53,8 @@ public class JobRetrievalITCase extends TestLogger {
 
 	@BeforeClass
 	public static void before() {
-		cluster = new TestingCluster(new Configuration(), false);
+		Configuration configuration = new Configuration();
+		cluster = new TestingCluster(configuration, false);
 		cluster.start();
 	}
 
@@ -72,7 +73,7 @@ public class JobRetrievalITCase extends TestLogger {
 
 		final JobGraph jobGraph = new JobGraph(jobID, "testjob", imalock);
 
-		final ClusterClient client = new StandaloneClusterClient(cluster.configuration());
+		final ClusterClient client = new StandaloneClusterClient(cluster.configuration(), cluster.highAvailabilityServices());
 
 		// acquire the lock to make sure that the job cannot complete until the job client
 		// has been attached in resumingThread
@@ -122,7 +123,7 @@ public class JobRetrievalITCase extends TestLogger {
 		try {
 			client.retrieveJob(jobID);
 			fail();
-		} catch (JobRetrievalException e) {
+		} catch (JobRetrievalException ignored) {
 			// this is what we want
 		}
 	}

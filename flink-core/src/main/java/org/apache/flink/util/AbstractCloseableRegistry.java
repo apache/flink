@@ -90,6 +90,10 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 	public void close() throws IOException {
 		synchronized (getSynchronizationLock()) {
 
+			if (closed) {
+				return;
+			}
+
 			IOUtils.closeAllQuietly(closeableToRef.keySet());
 
 			closeableToRef.clear();

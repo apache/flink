@@ -18,20 +18,12 @@
 
 package org.apache.flink.graph.drivers.input;
 
-import org.apache.commons.lang3.text.WordUtils;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.asm.translate.TranslateGraphIds;
-import org.apache.flink.graph.asm.translate.translators.LongValueToStringValue;
-import org.apache.flink.graph.asm.translate.translators.LongValueToUnsignedIntValue;
 import org.apache.flink.graph.drivers.parameter.BooleanParameter;
-import org.apache.flink.graph.drivers.parameter.ChoiceParameter;
 import org.apache.flink.graph.drivers.parameter.DoubleParameter;
 import org.apache.flink.graph.drivers.parameter.LongParameter;
-import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
-import org.apache.flink.graph.drivers.parameter.Simplify;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
 import org.apache.flink.types.IntValue;
@@ -46,22 +38,9 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * or {@link StringValue} keys.
  *
  * @see org.apache.flink.graph.generator.RMatGraph
- *
- * @param <K> key type
  */
-public class RMatGraph<K extends Comparable<K>>
-extends ParameterizedBase
-implements Input<K, NullValue, NullValue> {
-
-	private static final String INTEGER = "integer";
-
-	private static final String LONG = "long";
-
-	private static final String STRING = "string";
-
-	private ChoiceParameter type = new ChoiceParameter(this, "type")
-		.setDefaultValue(INTEGER)
-		.addChoices(LONG, STRING);
+public class RMatGraph
+extends GeneratedMultiGraph<LongValue> {
 
 	// generate graph with 2^scale vertices
 	private LongParameter scale = new LongParameter(this, "scale")
@@ -99,20 +78,23 @@ implements Input<K, NullValue, NullValue> {
 	private LongParameter seed = new LongParameter(this, "seed")
 		.setDefaultValue(JDKRandomGeneratorFactory.DEFAULT_SEED);
 
-	private Simplify simplify = new Simplify(this);
-
 	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")
 		.setDefaultValue(PARALLELISM_DEFAULT);
 
 	@Override
 	public String getName() {
-		return RMatGraph.class.getSimpleName();
+		return this.getClass().getSimpleName();
 	}
 
 	@Override
 	public String getIdentity() {
-		return getName() + WordUtils.capitalize(type.getValue()) +
-			" (s" + scale + "e" + edgeFactor + simplify.getShortString() + ")";
+		return getTypeName() + " " + getName() +
+			" (s" + scale + "e" + edgeFactor + getSimplifyShortString() + ")";
+	}
+
+	@Override
+	protected long vertexCount() {
+		return 1L << scale.getValue();
 	}
 
 	/**
@@ -121,7 +103,7 @@ implements Input<K, NullValue, NullValue> {
 	 * @param env Flink execution environment
 	 * @return input graph
 	 */
-	public Graph<K, NullValue, NullValue> create(ExecutionEnvironment env) throws Exception {
+	public Graph<LongValue, NullValue, NullValue> generate(ExecutionEnvironment env) throws Exception {
 		int lp = littleParallelism.getValue().intValue();
 
 		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
@@ -129,49 +111,11 @@ implements Input<K, NullValue, NullValue> {
 		long vertexCount = 1L << scale.getValue();
 		long edgeCount = vertexCount * edgeFactor.getValue();
 
-		Graph<LongValue, NullValue, NullValue> rmatGraph = new org.apache.flink.graph.generator.RMatGraph<>(
+		return new org.apache.flink.graph.generator.RMatGraph<>(
 				env, rnd, vertexCount, edgeCount)
 			.setConstants(a.getValue().floatValue(), b.getValue().floatValue(), c.getValue().floatValue())
 			.setNoise(noiseEnabled.getValue(), noise.getValue().floatValue())
 			.setParallelism(lp)
 			.generate();
-
-		Graph<K, NullValue, NullValue> graph;
-
-		switch (type.getValue()) {
-			case INTEGER:
-				if (scale.getValue() > 32) {
-					throw new ProgramParametrizationException(
-						"Scale '" + scale.getValue() + "' must be no greater than 32 for type 'integer'");
-				}
-				graph = (Graph<K, NullValue, NullValue>) rmatGraph
-					.run(new TranslateGraphIds<LongValue, IntValue, NullValue, NullValue>(new LongValueToUnsignedIntValue()));
-				break;
-
-			case LONG:
-				if (scale.getValue() > 64) {
-					throw new ProgramParametrizationException(
-						"Scale '" + scale.getValue() + "' must be no greater than 64 for type 'long'");
-				}
-				graph = (Graph<K, NullValue, NullValue>) rmatGraph;
-				break;
-
-			case STRING:
-				// scale bound is same as LONG since keys are generated as LongValue
-				if (scale.getValue() > 64) {
-					throw new ProgramParametrizationException(
-						"Scale '" + scale.getValue() + "' must be no greater than 64 for type 'string'");
-				}
-				graph = (Graph<K, NullValue, NullValue>) rmatGraph
-					.run(new TranslateGraphIds<LongValue, StringValue, NullValue, NullValue>(new LongValueToStringValue()));
-				break;
-
-			default:
-				throw new ProgramParametrizationException("Unknown type '" + type.getValue() + "'");
-		}
-
-		// simplify *after* the translation from LongValue to IntValue or
-		// StringValue to improve the performance of the simplify operators
-		return simplify.simplify(graph);
 	}
 }

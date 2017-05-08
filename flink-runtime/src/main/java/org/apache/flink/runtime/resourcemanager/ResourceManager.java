@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -40,14 +41,13 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
-import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestRejected;
-import org.apache.flink.runtime.resourcemanager.messages.jobmanager.RMSlotRequestReply;
 import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistration;
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
+import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceManagerActions;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
@@ -56,6 +56,7 @@ import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 
+import org.apache.flink.runtime.rpc.exceptions.LeaderSessionIDException;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
@@ -68,7 +69,6 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -86,6 +86,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class ResourceManager<WorkerType extends Serializable>
 		extends RpcEndpoint<ResourceManagerGateway>
 		implements LeaderContender {
+
+	public static final String RESOURCE_MANAGER_NAME = "resourcemanager";
 
 	/** Unique id of the resource manager */
 	private final ResourceID resourceId;
@@ -114,17 +116,14 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	/** The heartbeat manager with job managers. */
 	private final HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
 
-	/** The factory to construct the SlotManager. */
-	private final SlotManagerFactory slotManagerFactory;
-
 	/** Registry to use for metrics */
 	private final MetricRegistry metricRegistry;
 
 	/** Fatal error handler */
 	private final FatalErrorHandler fatalErrorHandler;
 
-	/** The SlotManager created by the slotManagerFactory when the ResourceManager is started. */
-	private SlotManager slotManager;
+	/** The slot manager maintains the available slots */
+	private final SlotManager slotManager;
 
 	/** The service to elect a ResourceManager leader. */
 	private LeaderElectionService leaderElectionService;
@@ -142,7 +141,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
-			SlotManagerFactory slotManagerFactory,
+			SlotManager slotManager,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
 			FatalErrorHandler fatalErrorHandler) {
@@ -152,7 +151,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		this.resourceId = checkNotNull(resourceId);
 		this.resourceManagerConfiguration = checkNotNull(resourceManagerConfiguration);
 		this.highAvailabilityServices = checkNotNull(highAvailabilityServices);
-		this.slotManagerFactory = checkNotNull(slotManagerFactory);
+		this.slotManager = checkNotNull(slotManager);
 		this.metricRegistry = checkNotNull(metricRegistry);
 		this.jobLeaderIdService = checkNotNull(jobLeaderIdService);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
@@ -187,13 +186,6 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		// start a leader
 		super.start();
 
-		try {
-			// SlotManager should start first
-			slotManager = slotManagerFactory.create(createResourceManagerServices());
-		} catch (Exception e) {
-			throw new ResourceManagerException("Could not create the slot manager.", e);
-		}
-
 		leaderElectionService = highAvailabilityServices.getResourceManagerLeaderElectionService();
 
 		try {
@@ -220,18 +212,24 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		jobManagerHeartbeatManager.stop();
 
 		try {
-			super.shutDown();
+			slotManager.close();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
-
-		clearState();
 
 		try {
 			leaderElectionService.stop();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
+
+		try {
+			super.shutDown();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		clearState();
 
 		if (exception != null) {
 			ExceptionUtils.rethrowException(exception, "Error while shutting the ResourceManager down.");
@@ -397,10 +395,10 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 */
 	@RpcMethod
 	public Future<RegistrationResponse> registerTaskExecutor(
-		final UUID resourceManagerLeaderId,
-		final String taskExecutorAddress,
+			final UUID resourceManagerLeaderId,
+			final String taskExecutorAddress,
 		final ResourceID taskExecutorResourceId,
-		final SlotReport slotReport) {
+			final SlotReport slotReport) {
 
 		if (Objects.equals(leaderSessionId, resourceManagerLeaderId)) {
 			Future<TaskExecutorGateway> taskExecutorGatewayFuture = getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class);
@@ -415,6 +413,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 						if (oldRegistration != null) {
 							// TODO :: suggest old taskExecutor to stop itself
 							log.info("Replacing old instance of worker for ResourceID {}", taskExecutorResourceId);
+
+							// remove old task manager registration from slot manager
+							slotManager.unregisterTaskManager(oldRegistration.getInstanceID());
 						}
 
 						WorkerType newWorker = workerStarted(taskExecutorResourceId);
@@ -422,7 +423,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 							new WorkerRegistration<>(taskExecutorGateway, newWorker);
 
 						taskExecutors.put(taskExecutorResourceId, registration);
-						slotManager.registerTaskExecutor(taskExecutorResourceId, registration, slotReport);
+
+						slotManager.registerTaskManager(registration, slotReport);
 
 						taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget<Void>() {
 							@Override
@@ -483,26 +485,34 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * @return Slot assignment
 	 */
 	@RpcMethod
-	public RMSlotRequestReply requestSlot(
+	public Acknowledge requestSlot(
 			UUID jobMasterLeaderID,
 			UUID resourceManagerLeaderID,
-			SlotRequest slotRequest) {
+			SlotRequest slotRequest) throws ResourceManagerException, LeaderSessionIDException {
 
-		log.info("Request slot with profile {} for job {} with allocation id {}.",
-			slotRequest.getResourceProfile(),
-			slotRequest.getJobId(),
-			slotRequest.getAllocationId());
+		if (!Objects.equals(resourceManagerLeaderID, leaderSessionId)) {
+			throw new LeaderSessionIDException(resourceManagerLeaderID, leaderSessionId);
+		}
 
 		JobID jobId = slotRequest.getJobId();
 		JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
 
-		if (jobManagerRegistration != null
-				&& jobMasterLeaderID.equals(jobManagerRegistration.getLeaderID())
-				&& resourceManagerLeaderID.equals(leaderSessionId)) {
-			return slotManager.requestSlot(slotRequest);
+		if (null != jobManagerRegistration) {
+			if (Objects.equals(jobMasterLeaderID, jobManagerRegistration.getLeaderID())) {
+				log.info("Request slot with profile {} for job {} with allocation id {}.",
+					slotRequest.getResourceProfile(),
+					slotRequest.getJobId(),
+					slotRequest.getAllocationId());
+
+				slotManager.registerSlotRequest(slotRequest);
+
+				return Acknowledge.get();
+			} else {
+				throw new LeaderSessionIDException(jobMasterLeaderID, jobManagerRegistration.getLeaderID());
+			}
+
 		} else {
-			log.info("Ignoring slot request for unknown JobMaster with JobID {}", jobId);
-			return new RMSlotRequestRejected(slotRequest.getAllocationId());
+			throw new ResourceManagerException("Could not find registered job manager for job " + jobId + '.');
 		}
 	}
 
@@ -511,23 +521,23 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * @param resourceManagerLeaderId TaskExecutor's resource manager leader id
 	 * @param instanceID TaskExecutor's instance id
 	 * @param slotId The slot id of the available slot
-	 * @return SlotAvailableReply
 	 */
 	@RpcMethod
 	public void notifySlotAvailable(
 			final UUID resourceManagerLeaderId,
 			final InstanceID instanceID,
-			final SlotID slotId) {
+			final SlotID slotId,
+			final AllocationID allocationId) {
 
-		if (resourceManagerLeaderId.equals(leaderSessionId)) {
+		if (Objects.equals(resourceManagerLeaderId, leaderSessionId)) {
 			final ResourceID resourceId = slotId.getResourceID();
 			WorkerRegistration<WorkerType> registration = taskExecutors.get(resourceId);
 
 			if (registration != null) {
 				InstanceID registrationId = registration.getInstanceID();
 
-				if (registrationId.equals(instanceID)) {
-					slotManager.notifySlotAvailable(resourceId, slotId);
+				if (Objects.equals(registrationId, instanceID)) {
+					slotManager.freeSlot(slotId, allocationId);
 				} else {
 					log.debug("Invalid registration id for slot available message. This indicates an" +
 						" outdated request.");
@@ -587,8 +597,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	/**
 	 * Cleanup application and shut down cluster
 	 *
-	 * @param finalStatus
-	 * @param optionalDiagnostics
+	 * @param finalStatus of the Flink application
+	 * @param optionalDiagnostics for the Flink application
 	 */
 	@RpcMethod
 	public void shutDownCluster(final ApplicationStatus finalStatus, final String optionalDiagnostics) {
@@ -597,12 +607,12 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	@RpcMethod
-	public Integer getNumberOfRegisteredTaskManagers(UUID leaderSessionId) throws LeaderIdMismatchException {
-		if (this.leaderSessionId != null && this.leaderSessionId.equals(leaderSessionId)) {
+	public Integer getNumberOfRegisteredTaskManagers(UUID requestLeaderSessionId) throws LeaderIdMismatchException {
+		if (Objects.equals(leaderSessionId, requestLeaderSessionId)) {
 			return taskExecutors.size();
 		}
 		else {
-			throw new LeaderIdMismatchException(this.leaderSessionId, leaderSessionId);
+			throw new LeaderIdMismatchException(leaderSessionId, requestLeaderSessionId);
 		}
 	}
 
@@ -628,7 +638,6 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		jobManagerRegistrations.clear();
 		jmResourceIdRegistrations.clear();
 		taskExecutors.clear();
-		slotManager.clearState();
 
 		try {
 			jobLeaderIdService.clear();
@@ -686,7 +695,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			log.info("Task manager {} failed because {}.", resourceID, cause);
 
 			// TODO :: suggest failed task executor to stop itself
-			slotManager.notifyTaskManagerFailure(resourceID);
+			slotManager.unregisterTaskManager(workerRegistration.getInstanceID());
 
 			workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
 		} else {
@@ -702,11 +711,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * @return True if the given leader id matches the actual leader id and is not null; otherwise false
 	 */
 	protected boolean isValid(UUID resourceManagerLeaderId) {
-		if (resourceManagerLeaderId == null) {
-			return false;
-		} else {
-			return resourceManagerLeaderId.equals(leaderSessionId);
-		}
+		return Objects.equals(resourceManagerLeaderId, leaderSessionId);
 	}
 
 	protected void removeJob(JobID jobId) {
@@ -725,7 +730,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		if (jobManagerRegistrations.containsKey(jobId)) {
 			JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
 
-			if (jobManagerRegistration.getLeaderID().equals(oldJobLeaderId)) {
+			if (Objects.equals(jobManagerRegistration.getLeaderID(), oldJobLeaderId)) {
 				disconnectJobManager(jobId, new Exception("Job leader lost leadership."));
 			} else {
 				log.debug("Discarding job leader lost leadership, because a new job leader was found for job {}. ", jobId);
@@ -806,6 +811,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 				leaderSessionId = newLeaderSessionID;
 
+				slotManager.start(leaderSessionId, getMainThreadExecutor(), new ResourceManagerActionsImpl());
+
 				getRpcService().execute(new Runnable() {
 					@Override
 					public void run() {
@@ -828,6 +835,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 				log.info("ResourceManager {} was revoked leadership.", getAddress());
 
 				clearState();
+
+				slotManager.suspend();
 
 				leaderSessionId = null;
 			}
@@ -874,6 +883,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	@VisibleForTesting
 	public abstract void startNewWorker(ResourceProfile resourceProfile);
 
+	public abstract void stopWorker(InstanceID instanceId);
+
 	/**
 	 * Callback when a worker was started.
 	 * @param resourceID The worker resource id
@@ -884,30 +895,21 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	//  Static utility classes
 	// ------------------------------------------------------------------------
 
-	protected ResourceManagerServices createResourceManagerServices() {
-		return new DefaultResourceManagerServices();
-	}
-
-	private class DefaultResourceManagerServices implements ResourceManagerServices {
+	private class ResourceManagerActionsImpl implements ResourceManagerActions {
 
 		@Override
-		public UUID getLeaderID() {
-			return ResourceManager.this.leaderSessionId;
+		public void releaseResource(InstanceID instanceId) {
+			stopWorker(instanceId);
 		}
 
 		@Override
-		public void allocateResource(ResourceProfile resourceProfile) {
-			ResourceManager.this.startNewWorker(resourceProfile);
+		public void allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException {
+			startNewWorker(resourceProfile);
 		}
 
 		@Override
-		public Executor getAsyncExecutor() {
-			return ResourceManager.this.getRpcService().getExecutor();
-		}
-
-		@Override
-		public Executor getMainThreadExecutor() {
-			return ResourceManager.this.getMainThreadExecutor();
+		public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
+			log.info("Slot request with allocation id {} for job {} failed.", allocationId, jobId, cause);
 		}
 	}
 

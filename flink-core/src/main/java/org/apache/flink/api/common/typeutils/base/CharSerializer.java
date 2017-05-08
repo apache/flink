@@ -33,7 +33,6 @@ public final class CharSerializer extends TypeSerializerSingleton<Character> {
 	
 	private static final Character ZERO = Character.valueOf((char)0);
 
-
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -82,5 +81,11 @@ public final class CharSerializer extends TypeSerializerSingleton<Character> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof CharSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(CharValueSerializer.class.getCanonicalName());
 	}
 }

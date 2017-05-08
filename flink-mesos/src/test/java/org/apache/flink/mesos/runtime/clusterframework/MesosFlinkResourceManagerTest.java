@@ -24,6 +24,7 @@ import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestProbe;
+import com.netflix.fenzo.ConstraintEvaluator;
 import junit.framework.AssertionFailedError;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -42,11 +43,12 @@ import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.messages.*;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
+import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.mesos.SchedulerDriver;
 import org.apache.mesos.Protos;
@@ -58,11 +60,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
+import java.util.*;
+
 import static java.util.Collections.singletonList;
-import java.util.HashMap;
 
 import static org.apache.flink.mesos.runtime.clusterframework.MesosFlinkResourceManager.extractGoalState;
 import static org.apache.flink.mesos.runtime.clusterframework.MesosFlinkResourceManager.extractResourceID;
@@ -143,11 +143,10 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 	/**
 	 * The context fixture.
 	 */
-	static class Context extends JavaTestKit {
+	static class Context extends JavaTestKit implements AutoCloseable {
 
 		// mocks
 		public ActorGateway jobManager;
-		public LeaderRetrievalService retrievalService;
 		public MesosConfiguration mesosConfig;
 		public MesosWorkerStore workerStore;
 		public MesosArtifactResolver artifactResolver;
@@ -164,6 +163,8 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 		public Protos.TaskID task2 = Protos.TaskID.newBuilder().setValue("taskmanager-00002").build();
 		public Protos.TaskID task3 = Protos.TaskID.newBuilder().setValue("taskmanager-00003").build();
 
+		private final TestingHighAvailabilityServices highAvailabilityServices;
+
 		/**
 		 * Create mock RM dependencies.
 		 */
@@ -171,8 +172,19 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 			super(system);
 
 			try {
-				jobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
-				retrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager.actor());
+				jobManager = TestingUtils.createForwardingActor(
+					system,
+					getTestActor(),
+					HighAvailabilityServices.DEFAULT_LEADER_ID,
+					Option.<String>empty());
+
+				highAvailabilityServices = new TestingHighAvailabilityServices();
+
+				highAvailabilityServices.setJobMasterLeaderRetriever(
+					HighAvailabilityServices.DEFAULT_JOB_ID,
+					new TestingLeaderRetrievalService(
+						jobManager.path(),
+						HighAvailabilityServices.DEFAULT_LEADER_ID));
 
 				// scheduler driver
 				schedulerDriver = mock(SchedulerDriver.class);
@@ -202,12 +214,26 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 			ContaineredTaskManagerParameters containeredParams =
 				new ContaineredTaskManagerParameters(1024, 768, 256, 4, new HashMap<String, String>());
 			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(
-				1.0, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams);
+				1.0, 
+				MesosTaskManagerParameters.ContainerType.MESOS, 
+				Option.<String>empty(), 
+				containeredParams, 
+				Collections.<Protos.Volume>emptyList(), 
+				Collections.<ConstraintEvaluator>emptyList(),
+				Option.<String>empty(),
+				Option.<String>empty());
 
 			TestActorRef<TestingMesosFlinkResourceManager> resourceManagerRef =
 				TestActorRef.create(system, MesosFlinkResourceManager.createActorProps(
 					TestingMesosFlinkResourceManager.class,
-					config, mesosConfig, workerStore, retrievalService, tmParams, containerSpecification, artifactResolver, LOG));
+					config,
+					mesosConfig,
+					workerStore,
+					highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+					tmParams,
+					containerSpecification,
+					artifactResolver,
+					LOG));
 			resourceManagerInstance = resourceManagerRef.underlyingActor();
 			resourceManager = new AkkaActorGateway(resourceManagerRef, HighAvailabilityServices.DEFAULT_LEADER_ID);
 
@@ -235,6 +261,11 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 				.setType(Protos.Offer.Operation.Type.LAUNCH)
 				.setLaunch(Protos.Offer.Operation.Launch.newBuilder().addAllTaskInfos(Arrays.asList(taskInfo))
 				).build();
+		}
+
+		@Override
+		public void close() throws Exception {
+			highAvailabilityServices.closeAndCleanupAllData();
 		}
 	}
 

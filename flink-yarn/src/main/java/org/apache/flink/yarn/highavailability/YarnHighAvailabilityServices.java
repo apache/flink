@@ -26,6 +26,7 @@ import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.FileSystemBlobStore;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
@@ -331,7 +332,10 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 		final HighAvailabilityMode mode = HighAvailabilityMode.fromConfig(flinkConfig);
 		switch (mode) {
 			case NONE:
-				return new YarnPreConfiguredMasterNonHaServices(flinkConfig, hadoopConfig);
+				return new YarnPreConfiguredMasterNonHaServices(
+					flinkConfig,
+					hadoopConfig,
+					HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
 
 			case ZOOKEEPER:
 				throw  new UnsupportedOperationException("to be implemented");

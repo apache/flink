@@ -159,18 +159,6 @@ public class ZooKeeperUtils {
 	/**
 	 * Creates a {@link ZooKeeperLeaderRetrievalService} instance.
 	 *
-	 * @param configuration {@link Configuration} object containing the configuration values
-	 * @return {@link ZooKeeperLeaderRetrievalService} instance.
-	 */
-	public static ZooKeeperLeaderRetrievalService createLeaderRetrievalService(
-			Configuration configuration) throws Exception {
-		final CuratorFramework client = startCuratorFramework(configuration);
-		return createLeaderRetrievalService(client, configuration);
-	}
-
-	/**
-	 * Creates a {@link ZooKeeperLeaderRetrievalService} instance.
-	 *
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object containing the configuration values
 	 * @return {@link ZooKeeperLeaderRetrievalService} instance.
@@ -204,21 +192,6 @@ public class ZooKeeperUtils {
 			ConfigConstants.ZOOKEEPER_LEADER_PATH) + pathSuffix;
 
 		return new ZooKeeperLeaderRetrievalService(client, leaderPath);
-	}
-
-	/**
-	 * Creates a {@link ZooKeeperLeaderElectionService} instance and a new {@link
-	 * CuratorFramework} client.
-	 *
-	 * @param configuration {@link Configuration} object containing the configuration values
-	 * @return {@link ZooKeeperLeaderElectionService} instance.
-	 */
-	public static ZooKeeperLeaderElectionService createLeaderElectionService(
-			Configuration configuration) throws Exception {
-
-		CuratorFramework client = startCuratorFramework(configuration);
-
-		return createLeaderElectionService(client, configuration);
 	}
 
 	/**

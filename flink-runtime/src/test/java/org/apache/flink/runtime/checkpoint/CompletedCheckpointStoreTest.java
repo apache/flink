@@ -20,8 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -39,6 +38,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -105,7 +105,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
 
 		for (int i = 1; i < expected.length; i++) {
-			Collection<TaskState> taskStates = expected[i - 1].getTaskStates().values();
+			Collection<OperatorState> taskStates = expected[i - 1].getOperatorStates().values();
 
 			checkpoints.addCheckpoint(expected[i]);
 
@@ -114,8 +114,8 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			assertTrue(expected[i - 1].isDiscarded());
 			assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
 
-			for (TaskState taskState : taskStates) {
-				for (SubtaskState subtaskState : taskState.getStates()) {
+			for (OperatorState operatorState : taskStates) {
+				for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
 					verify(subtaskState, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
 				}
 			}
@@ -198,51 +198,43 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	// ---------------------------------------------------------------------------------------------
 
 	protected TestCompletedCheckpoint createCheckpoint(int id) throws IOException {
-		return createCheckpoint(id, 4);
-	}
+		int numberOfStates = 4;
+		CheckpointProperties props = CheckpointProperties.forStandardCheckpoint();
 
-	protected TestCompletedCheckpoint createCheckpoint(int id, int numberOfStates)
-			throws IOException {
-		return createCheckpoint(id, numberOfStates, CheckpointProperties.forStandardCheckpoint());
-	}
+		OperatorID operatorID = new OperatorID();
 
-	protected TestCompletedCheckpoint createCheckpoint(int id, int numberOfStates, CheckpointProperties props)
-			throws IOException {
-
-		JobVertexID jvid = new JobVertexID();
-
-		Map<JobVertexID, TaskState> taskGroupStates = new HashMap<>();
-		TaskState taskState = new TaskState(jvid, numberOfStates, numberOfStates, 1);
-		taskGroupStates.put(jvid, taskState);
+		Map<OperatorID, OperatorState> operatorGroupState = new HashMap<>();
+		OperatorState operatorState = new OperatorState(operatorID, numberOfStates, numberOfStates);
+		operatorGroupState.put(operatorID, operatorState);
 
 		for (int i = 0; i < numberOfStates; i++) {
-			SubtaskState subtaskState = CheckpointCoordinatorTest.mockSubtaskState(jvid, i, new KeyGroupRange(i, i));
+			OperatorSubtaskState subtaskState = mock(OperatorSubtaskState.class);
 
-			taskState.putState(i, subtaskState);
+			operatorState.putState(i, subtaskState);
 		}
 
-		return new TestCompletedCheckpoint(new JobID(), id, 0, taskGroupStates, props);
+		return new TestCompletedCheckpoint(new JobID(), id, 0, operatorGroupState, props);
 	}
 
-	protected void resetCheckpoint(Collection<TaskState> taskStates) {
-		for (TaskState taskState : taskStates) {
-			for (SubtaskState subtaskState : taskState.getStates()) {
+	protected void resetCheckpoint(Collection<OperatorState> operatorStates) {
+		for (OperatorState operatorState : operatorStates) {
+			for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
 				Mockito.reset(subtaskState);
 			}
 		}
 	}
 
-	protected void verifyCheckpointRegistered(Collection<TaskState> taskStates, SharedStateRegistry registry) {
-		for (TaskState taskState : taskStates) {
-			for (SubtaskState subtaskState : taskState.getStates()) {
+	protected void verifyCheckpointRegistered(Collection<OperatorState> operatorStates, SharedStateRegistry registry) {
+		for (OperatorState operatorState : operatorStates) {
+			for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
 				verify(subtaskState, times(1)).registerSharedStates(eq(registry));
 			}
 		}
 	}
 
-	protected void verifyCheckpointDiscarded(Collection<TaskState> taskStates) {
-		for (TaskState taskState : taskStates) {
-			for (SubtaskState subtaskState : taskState.getStates()) {
+	protected void verifyCheckpointDiscarded(Collection<OperatorState> operatorStates) {
+		for (OperatorState operatorState : operatorStates) {
+			for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
 				verify(subtaskState, times(1)).discardState();
 			}
 		}
@@ -270,10 +262,9 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			JobID jobId,
 			long checkpointId,
 			long timestamp,
-			Map<JobVertexID, TaskState> taskGroupStates,
+			Map<OperatorID, OperatorState> operatorGroupState,
 			CheckpointProperties props) {
-
-			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, taskGroupStates, null, props);
+			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, operatorGroupState, null, props, null, null);
 		}
 
 		@Override

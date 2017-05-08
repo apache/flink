@@ -268,7 +268,7 @@ val strictNext: Pattern[Event, _] = start.next("middle")
 </div>
 
 Non-strict contiguity means that other events are allowed to occur in-between two matching events.
-A non-strict contiguity pattern state can be created via the `followedBy` method.
+A non-strict contiguity pattern state can be created via the `followedBy` or `followedByAny` method.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -282,6 +282,23 @@ Pattern<Event, ?> nonStrictNext = start.followedBy("middle");
 val nonStrictNext : Pattern[Event, _] = start.followedBy("middle")
 {% endhighlight %}
 </div>
+
+For non-strict contiguity one can specify if only the first succeeding matching event will be matched, or
+all. In the latter case multiple matches will be emitted for the same beginning.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Pattern<Event, ?> nonStrictNext = start.followedByAny("middle");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val nonStrictNext : Pattern[Event, _] = start.followedByAny("middle")
+{% endhighlight %}
+</div>
+
 </div>
 It is also possible to define a temporal constraint for the pattern to be valid.
 For example, one can define that a pattern should occur within 10 seconds via the `within` method. 

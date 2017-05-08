@@ -20,6 +20,7 @@ package org.apache.flink.cep.pattern;
 
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.cep.nfa.NFA;
+import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy;
 import org.apache.flink.cep.pattern.conditions.AndCondition;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.OrCondition;
@@ -56,8 +57,8 @@ public class Pattern<T, F extends T> {
 	/** Window length in which the pattern match has to occur. */
 	private Time windowTime;
 
-	/** A quantifier for the pattern. By default set to {@link Quantifier#ONE()}. */
-	private Quantifier quantifier = Quantifier.ONE();
+	/** A quantifier for the pattern. By default set to {@link Quantifier#ONE(ConsumingStrategy)}. */
+	private Quantifier quantifier = Quantifier.ONE(ConsumingStrategy.STRICT);
 
 	/**
 	 * Applicable to a {@code times} pattern, and holds
@@ -68,6 +69,15 @@ public class Pattern<T, F extends T> {
 	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
 		this.name = name;
 		this.previous = previous;
+	}
+
+	protected Pattern(
+			final String name,
+			final Pattern<T, ? extends T> previous,
+			final ConsumingStrategy consumingStrategy) {
+		this.name = name;
+		this.previous = previous;
+		this.quantifier = Quantifier.ONE(consumingStrategy);
 	}
 
 	public Pattern<T, ? extends T> getPrevious() {
@@ -117,8 +127,9 @@ public class Pattern<T, F extends T> {
 	 * @return The pattern with the new condition is set.
 	 */
 	public Pattern<T, F> where(IterativeCondition<F> condition) {
-		ClosureCleaner.clean(condition, true);
+		Preconditions.checkNotNull(condition, "The condition cannot be null.");
 
+		ClosureCleaner.clean(condition, true);
 		if (this.condition == null) {
 			this.condition = condition;
 		} else {
@@ -138,6 +149,8 @@ public class Pattern<T, F extends T> {
 	 * @return The pattern with the new condition is set.
 	 */
 	public Pattern<T, F> or(IterativeCondition<F> condition) {
+		Preconditions.checkNotNull(condition, "The condition cannot be null.");
+
 		ClosureCleaner.clean(condition, true);
 
 		if (this.condition == null) {
@@ -157,6 +170,8 @@ public class Pattern<T, F extends T> {
 	 * @return The same pattern with the new subtype constraint
 	 */
 	public <S extends F> Pattern<T, S> subtype(final Class<S> subtypeClass) {
+		Preconditions.checkNotNull(subtypeClass, "The class cannot be null.");
+
 		if (condition == null) {
 			this.condition = new SubtypeCondition<F>(subtypeClass);
 		} else {
@@ -195,7 +210,24 @@ public class Pattern<T, F extends T> {
 	 * @return A new pattern which is appended to this one
 	 */
 	public Pattern<T, T> next(final String name) {
-		return new Pattern<T, T>(name, this);
+		return new Pattern<>(name, this, ConsumingStrategy.STRICT);
+	}
+
+	/**
+	 * Appends a new pattern to the existing one. The new pattern enforces that there is no event matching this pattern
+	 * right after the preceding matched event.
+	 *
+	 * @param name Name of the new pattern
+	 * @return A new pattern which is appended to this one
+	 */
+	public Pattern<T, T> notNext(final String name) {
+		if (quantifier.hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
+			throw new UnsupportedOperationException(
+					"Specifying a pattern with an optional path to NOT condition is not supported yet. " +
+					"You can simulate such pattern with two independent patterns, one with and the other without " +
+					"the optional part.");
+		}
+		return new Pattern<>(name, this, ConsumingStrategy.NOT_NEXT);
 	}
 
 	/**
@@ -206,8 +238,39 @@ public class Pattern<T, F extends T> {
 	 * @param name Name of the new pattern
 	 * @return A new pattern which is appended to this one
 	 */
-	public FollowedByPattern<T, T> followedBy(final String name) {
-		return new FollowedByPattern<T, T>(name, this);
+	public Pattern<T, T> followedBy(final String name) {
+		return new Pattern<>(name, this, ConsumingStrategy.SKIP_TILL_NEXT);
+	}
+
+	/**
+	 * Appends a new pattern to the existing one. The new pattern enforces that there is no event matching this pattern
+	 * between the preceding pattern and succeeding this one.
+	 *
+	 * <p><b>NOTE:</b> There has to be other pattern after this one.
+	 *
+	 * @param name Name of the new pattern
+	 * @return A new pattern which is appended to this one
+	 */
+	public Pattern<T, T> notFollowedBy(final String name) {
+		if (quantifier.hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
+			throw new UnsupportedOperationException(
+					"Specifying a pattern with an optional path to NOT condition is not supported yet. " +
+					"You can simulate such pattern with two independent patterns, one with and the other without " +
+					"the optional part.");
+		}
+		return new Pattern<>(name, this, ConsumingStrategy.NOT_FOLLOW);
+	}
+
+	/**
+	 * Appends a new pattern to the existing one. The new pattern enforces non-strict
+	 * temporal contiguity. This means that a matching event of this pattern and the
+	 * preceding matching event might be interleaved with other events which are ignored.
+	 *
+	 * @param name Name of the new pattern
+	 * @return A new pattern which is appended to this one
+	 */
+	public Pattern<T, T> followedByAny(final String name) {
+		return new Pattern<>(name, this, ConsumingStrategy.SKIP_TILL_ANY);
 	}
 
 	/**
@@ -232,12 +295,13 @@ public class Pattern<T, F extends T> {
 	 * {@code A1 A2 B} appears, this will generate patterns:
 	 * {@code A1 B} and {@code A1 A2 B}. See also {@link #allowCombinations()}.
 	 *
-	 * @return The same pattern with a {@link Quantifier#ONE_OR_MORE()} quantifier applied.
+	 * @return The same pattern with a {@link Quantifier#ONE_OR_MORE(ConsumingStrategy)} quantifier applied.
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> oneOrMore() {
+		checkIfNoNotPattern();
 		checkIfQuantifierApplied();
-		this.quantifier = Quantifier.ONE_OR_MORE();
+		this.quantifier = Quantifier.ONE_OR_MORE(quantifier.getConsumingStrategy());
 		return this;
 	}
 
@@ -250,16 +314,17 @@ public class Pattern<T, F extends T> {
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> times(int times) {
+		checkIfNoNotPattern();
 		checkIfQuantifierApplied();
 		Preconditions.checkArgument(times > 0, "You should give a positive number greater than 0.");
-		this.quantifier = Quantifier.TIMES();
+		this.quantifier = Quantifier.TIMES(quantifier.getConsumingStrategy());
 		this.times = times;
 		return this;
 	}
 
 	/**
-	 * Applicable only to {@link Quantifier#ONE_OR_MORE()} and {@link Quantifier#TIMES()} patterns,
-	 * this option allows more flexibility to the matching events.
+	 * Applicable only to {@link Quantifier#ONE_OR_MORE(ConsumingStrategy)} and
+	 * {@link Quantifier#TIMES(ConsumingStrategy)} patterns, this option allows more flexibility to the matching events.
 	 *
 	 * <p>If {@code allowCombinations()} is not applied for a
 	 * pattern {@code A.oneOrMore().followedBy(B)} and a sequence of events
@@ -312,6 +377,13 @@ public class Pattern<T, F extends T> {
 	public Pattern<T, F> consecutive() {
 		quantifier.consecutive();
 		return this;
+	}
+
+	private void checkIfNoNotPattern() {
+		if (quantifier.getConsumingStrategy() == ConsumingStrategy.NOT_FOLLOW ||
+				quantifier.getConsumingStrategy() == ConsumingStrategy.NOT_NEXT) {
+			throw new MalformedPatternException("Option not applicable to NOT pattern");
+		}
 	}
 
 	private void checkIfQuantifierApplied() {

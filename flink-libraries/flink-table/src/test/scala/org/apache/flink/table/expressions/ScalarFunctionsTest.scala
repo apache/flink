@@ -696,6 +696,426 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "-1231")
   }
 
+  @Test
+  def testSin(): Unit = {
+    testAllApis(
+      'f2.sin(),
+      "f2.sin()",
+      "SIN(f2)",
+      math.sin(42.toByte).toString)
+
+    testAllApis(
+      'f3.sin(),
+      "f3.sin()",
+      "SIN(f3)",
+      math.sin(43.toShort).toString)
+
+    testAllApis(
+      'f4.sin(),
+      "f4.sin()",
+      "SIN(f4)",
+      math.sin(44.toLong).toString)
+
+    testAllApis(
+      'f5.sin(),
+      "f5.sin()",
+      "SIN(f5)",
+      math.sin(4.5.toFloat).toString)
+
+    testAllApis(
+      'f6.sin(),
+      "f6.sin()",
+      "SIN(f6)",
+      math.sin(4.6).toString)
+
+    testAllApis(
+      'f15.sin(),
+      "sin(f15)",
+      "SIN(f15)",
+      math.sin(-1231.1231231321321321111).toString)
+  }
+
+  @Test
+  def testCos(): Unit = {
+    testAllApis(
+      'f2.cos(),
+      "f2.cos()",
+      "COS(f2)",
+      math.cos(42.toByte).toString)
+
+    testAllApis(
+      'f3.cos(),
+      "f3.cos()",
+      "COS(f3)",
+      math.cos(43.toShort).toString)
+
+    testAllApis(
+      'f4.cos(),
+      "f4.cos()",
+      "COS(f4)",
+      math.cos(44.toLong).toString)
+
+    testAllApis(
+      'f5.cos(),
+      "f5.cos()",
+      "COS(f5)",
+      math.cos(4.5.toFloat).toString)
+
+    testAllApis(
+      'f6.cos(),
+      "f6.cos()",
+      "COS(f6)",
+      math.cos(4.6).toString)
+
+    testAllApis(
+      'f15.cos(),
+      "cos(f15)",
+      "COS(f15)",
+      math.cos(-1231.1231231321321321111).toString)
+  }
+
+  @Test
+  def testTan(): Unit = {
+    testAllApis(
+      'f2.tan(),
+      "f2.tan()",
+      "TAN(f2)",
+      math.tan(42.toByte).toString)
+
+    testAllApis(
+      'f3.tan(),
+      "f3.tan()",
+      "TAN(f3)",
+      math.tan(43.toShort).toString)
+
+    testAllApis(
+      'f4.tan(),
+      "f4.tan()",
+      "TAN(f4)",
+      math.tan(44.toLong).toString)
+
+    testAllApis(
+      'f5.tan(),
+      "f5.tan()",
+      "TAN(f5)",
+      math.tan(4.5.toFloat).toString)
+
+    testAllApis(
+      'f6.tan(),
+      "f6.tan()",
+      "TAN(f6)",
+      math.tan(4.6).toString)
+
+    testAllApis(
+      'f15.tan(),
+      "tan(f15)",
+      "TAN(f15)",
+      math.tan(-1231.1231231321321321111).toString)
+  }
+
+  @Test
+  def testCot(): Unit = {
+    testAllApis(
+      'f2.cot(),
+      "f2.cot()",
+      "COT(f2)",
+      (1.0d / math.tan(42.toByte)).toString)
+
+    testAllApis(
+      'f3.cot(),
+      "f3.cot()",
+      "COT(f3)",
+      (1.0d / math.tan(43.toShort)).toString)
+
+    testAllApis(
+      'f4.cot(),
+      "f4.cot()",
+      "COT(f4)",
+      (1.0d / math.tan(44.toLong)).toString)
+
+    testAllApis(
+      'f5.cot(),
+      "f5.cot()",
+      "COT(f5)",
+      (1.0d / math.tan(4.5.toFloat)).toString)
+
+    testAllApis(
+      'f6.cot(),
+      "f6.cot()",
+      "COT(f6)",
+      (1.0d / math.tan(4.6)).toString)
+
+    testAllApis(
+      'f15.cot(),
+      "cot(f15)",
+      "COT(f15)",
+      (1.0d / math.tan(-1231.1231231321321321111)).toString)
+  }
+
+  @Test
+  def testAsin(): Unit = {
+    testAllApis(
+      'f25.asin(),
+      "f25.asin()",
+      "ASIN(f25)",
+      math.asin(0.42.toByte).toString)
+
+    testAllApis(
+      'f26.asin(),
+      "f26.asin()",
+      "ASIN(f26)",
+      math.asin(0.toShort).toString)
+
+    testAllApis(
+      'f27.asin(),
+      "f27.asin()",
+      "ASIN(f27)",
+      math.asin(0.toLong).toString)
+
+    testAllApis(
+      'f28.asin(),
+      "f28.asin()",
+      "ASIN(f28)",
+      math.asin(0.45.toFloat).toString)
+
+    testAllApis(
+      'f29.asin(),
+      "f29.asin()",
+      "ASIN(f29)",
+      math.asin(0.46).toString)
+
+    testAllApis(
+      'f30.asin(),
+      "f30.asin()",
+      "ASIN(f30)",
+      math.asin(1).toString)
+
+    testAllApis(
+      'f31.asin(),
+      "f31.asin()",
+      "ASIN(f31)",
+      math.asin(-0.1231231321321321111).toString)
+  }
+
+  @Test
+  def testAcos(): Unit = {
+    testAllApis(
+      'f25.acos(),
+      "f25.acos()",
+      "ACOS(f25)",
+      math.acos(0.42.toByte).toString)
+
+    testAllApis(
+      'f26.acos(),
+      "f26.acos()",
+      "ACOS(f26)",
+      math.acos(0.toShort).toString)
+
+    testAllApis(
+      'f27.acos(),
+      "f27.acos()",
+      "ACOS(f27)",
+      math.acos(0.toLong).toString)
+
+    testAllApis(
+      'f28.acos(),
+      "f28.acos()",
+      "ACOS(f28)",
+      math.acos(0.45.toFloat).toString)
+
+    testAllApis(
+      'f29.acos(),
+      "f29.acos()",
+      "ACOS(f29)",
+      math.acos(0.46).toString)
+
+    testAllApis(
+      'f30.acos(),
+      "f30.acos()",
+      "ACOS(f30)",
+      math.acos(1).toString)
+
+    testAllApis(
+      'f31.acos(),
+      "f31.acos()",
+      "ACOS(f31)",
+      math.acos(-0.1231231321321321111).toString)
+  }
+
+  @Test
+  def testAtan(): Unit = {
+    testAllApis(
+      'f25.atan(),
+      "f25.atan()",
+      "ATAN(f25)",
+      math.atan(0.42.toByte).toString)
+
+    testAllApis(
+      'f26.atan(),
+      "f26.atan()",
+      "ATAN(f26)",
+      math.atan(0.toShort).toString)
+
+    testAllApis(
+      'f27.atan(),
+      "f27.atan()",
+      "ATAN(f27)",
+      math.atan(0.toLong).toString)
+
+    testAllApis(
+      'f28.atan(),
+      "f28.atan()",
+      "ATAN(f28)",
+      math.atan(0.45.toFloat).toString)
+
+    testAllApis(
+      'f29.atan(),
+      "f29.atan()",
+      "ATAN(f29)",
+      math.atan(0.46).toString)
+
+    testAllApis(
+      'f30.atan(),
+      "f30.atan()",
+      "ATAN(f30)",
+      math.atan(1).toString)
+
+    testAllApis(
+      'f31.atan(),
+      "f31.atan()",
+      "ATAN(f31)",
+      math.atan(-0.1231231321321321111).toString)
+  }
+
+  @Test
+  def testDegrees(): Unit = {
+    testAllApis(
+      'f2.degrees(),
+      "f2.degrees()",
+      "DEGREES(f2)",
+      math.toDegrees(42.toByte).toString)
+
+    testAllApis(
+      'f3.degrees(),
+      "f3.degrees()",
+      "DEGREES(f3)",
+      math.toDegrees(43.toShort).toString)
+
+    testAllApis(
+      'f4.degrees(),
+      "f4.degrees()",
+      "DEGREES(f4)",
+      math.toDegrees(44.toLong).toString)
+
+    testAllApis(
+      'f5.degrees(),
+      "f5.degrees()",
+      "DEGREES(f5)",
+      math.toDegrees(4.5.toFloat).toString)
+
+    testAllApis(
+      'f6.degrees(),
+      "f6.degrees()",
+      "DEGREES(f6)",
+      math.toDegrees(4.6).toString)
+
+    testAllApis(
+      'f15.degrees(),
+      "degrees(f15)",
+      "DEGREES(f15)",
+      math.toDegrees(-1231.1231231321321321111).toString)
+  }
+
+  @Test
+  def testRadians(): Unit = {
+    testAllApis(
+      'f2.radians(),
+      "f2.radians()",
+      "RADIANS(f2)",
+      math.toRadians(42.toByte).toString)
+
+    testAllApis(
+      'f3.radians(),
+      "f3.radians()",
+      "RADIANS(f3)",
+      math.toRadians(43.toShort).toString)
+
+    testAllApis(
+      'f4.radians(),
+      "f4.radians()",
+      "RADIANS(f4)",
+      math.toRadians(44.toLong).toString)
+
+    testAllApis(
+      'f5.radians(),
+      "f5.radians()",
+      "RADIANS(f5)",
+      math.toRadians(4.5.toFloat).toString)
+
+    testAllApis(
+      'f6.radians(),
+      "f6.radians()",
+      "RADIANS(f6)",
+      math.toRadians(4.6).toString)
+
+    testAllApis(
+      'f15.radians(),
+      "radians(f15)",
+      "RADIANS(f15)",
+      math.toRadians(-1231.1231231321321321111).toString)
+  }
+
+  @Test
+  def testSign(): Unit = {
+    testAllApis(
+      'f4.sign(),
+      "f4.sign()",
+      "SIGN(f4)",
+      1.toString)
+
+    testAllApis(
+      'f6.sign(),
+      "f6.sign()",
+      "SIGN(f6)",
+      1.0.toString)
+
+    testAllApis(
+      'f15.sign(),
+      "sign(f15)",
+      "SIGN(f15)",
+      (-1).toString)
+  }
+
+  @Test
+  def testRound(): Unit = {
+    testAllApis(
+      'f29.round('f30),
+      "f29.round(f30)",
+      "ROUND(f29, f30)",
+      0.5.toString)
+
+    testAllApis(
+      'f31.round('f7),
+      "f31.round(f7)",
+      "ROUND(f31, f7)",
+      (-0.123).toString)
+
+    testAllApis(
+      'f4.round('f32),
+      "f4.round(f32)",
+      "ROUND(f4, f32)",
+      40.toString)
+  }
+
+  @Test
+  def testPi(): Unit = {
+    testAllApis(
+      pi(),
+      "pi()",
+      "PI",
+      math.Pi.toString)
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
@@ -1103,7 +1523,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(25)
+    val testData = new Row(33)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -1129,6 +1549,14 @@ class ScalarFunctionsTest extends ExpressionTestBase {
     testData.setField(22, BigDecimal("2").bigDecimal)
     testData.setField(23, "%This is a test String.")
     testData.setField(24, "*_This is a test String.")
+    testData.setField(25, 0.42.toByte)
+    testData.setField(26, 0.toShort)
+    testData.setField(27, 0.toLong)
+    testData.setField(28, 0.45.toFloat)
+    testData.setField(29, 0.46)
+    testData.setField(30, 1)
+    testData.setField(31, BigDecimal("-0.1231231321321321111").bigDecimal)
+    testData.setField(32, -1)
     testData
   }
 
@@ -1158,7 +1586,15 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       Types.BOOLEAN,
       Types.DECIMAL,
       Types.STRING,
-      Types.STRING).asInstanceOf[TypeInformation[Any]]
+      Types.STRING,
+      Types.BYTE,
+      Types.SHORT,
+      Types.LONG,
+      Types.FLOAT,
+      Types.DOUBLE,
+      Types.INT,
+      Types.DECIMAL,
+      Types.INT).asInstanceOf[TypeInformation[Any]]
 
   }
 }

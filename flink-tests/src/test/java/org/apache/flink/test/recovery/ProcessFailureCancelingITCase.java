@@ -31,8 +31,11 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -70,12 +73,13 @@ import static org.junit.Assert.fail;
 public class ProcessFailureCancelingITCase extends TestLogger {
 	
 	@Test
-	public void testCancelingOnProcessFailure() {
+	public void testCancelingOnProcessFailure() throws Exception {
 		final StringWriter processOutput = new StringWriter();
 
 		ActorSystem jmActorSystem = null;
 		Process taskManagerProcess = null;
-		
+		HighAvailabilityServices highAvailabilityServices = null;
+
 		try {
 			// check that we run this test only if the java command
 			// is available on this machine
@@ -101,6 +105,13 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2000 s");
 			jmConfig.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 10);
 			jmConfig.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
+			jmConfig.setString(JobManagerOptions.ADDRESS, localAddress._1());
+			jmConfig.setInteger(JobManagerOptions.PORT, jobManagerPort);
+
+			highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+				jmConfig,
+				TestingUtils.defaultExecutor(),
+				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<>(localAddress));
 			ActorRef jmActor = JobManager.startJobManagerActors(
@@ -108,6 +119,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				jmActorSystem,
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
+				highAvailabilityServices,
 				JobManager.class,
 				MemoryArchivist.class)._1();
 
@@ -193,12 +205,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			// all seems well :-)
 		}
 		catch (Exception e) {
-			e.printStackTrace();
 			printProcessLog("TaskManager", processOutput.toString());
-			fail(e.getMessage());
+			throw e;
 		}
 		catch (Error e) {
-			e.printStackTrace();
 			printProcessLog("TaskManager 1", processOutput.toString());
 			throw e;
 		}
@@ -208,6 +218,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			}
 			if (jmActorSystem != null) {
 				jmActorSystem.shutdown();
+			}
+
+			if (highAvailabilityServices != null) {
+				highAvailabilityServices.closeAndCleanupAllData();
 			}
 		}
 	}
@@ -250,7 +264,11 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 		}
 		
 		// tell the JobManager to cancel the job
-		jobManager.tell(new JobManagerMessages.CancelJob(jobId), ActorRef.noSender());
+		jobManager.tell(
+			new JobManagerMessages.LeaderSessionMessage(
+				HighAvailabilityServices.DEFAULT_LEADER_ID,
+				new JobManagerMessages.CancelJob(jobId)),
+			ActorRef.noSender());
 	}
 
 	private void waitUntilNumTaskManagersAreRegistered(ActorRef jobManager, int numExpected, long maxDelay)

@@ -87,6 +87,21 @@ public class NFACompilerTest extends TestLogger {
 		NFACompiler.compile(invalidPattern, Event.createTypeSerializer(), false);
 	}
 
+	@Test
+	public void testNFACompilerPatternEndsWithNotFollowedBy() {
+
+		// adjust the rule
+		expectedException.expect(MalformedPatternException.class);
+		expectedException.expectMessage("NotFollowedBy is not supported as a last part of a Pattern!");
+
+		Pattern<Event, ?> invalidPattern = Pattern.<Event>begin("start").where(new TestFilter())
+			.followedBy("middle").where(new TestFilter())
+			.notFollowedBy("end").where(new TestFilter());
+
+		// here we must have an exception because of the two "start" patterns with the same name.
+		NFACompiler.compile(invalidPattern, Event.createTypeSerializer(), false);
+	}
+
 	/**
 	 * A filter implementation to test invalid pattern specification with
 	 * duplicate pattern names. Check {@link #testNFACompilerUniquePatternName()}.
@@ -150,43 +165,24 @@ public class NFACompilerTest extends TestLogger {
 	}
 
 	@Test
-	public void testNFACompilerWithKleeneStar() {
-
-		Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(startFilter)
-			.followedBy("middle").subtype(SubEvent.class).oneOrMore().optional()
+	public void testNoUnnecessaryStateCopiesCreated() {
+		final Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(startFilter)
+			.notFollowedBy("not").where(startFilter)
+			.followedBy("oneOrMore").where(startFilter).oneOrMore()
 			.followedBy("end").where(endFilter);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, serializer, false);
+		final NFACompiler.NFAFactoryCompiler<Event> nfaFactoryCompiler = new NFACompiler.NFAFactoryCompiler<>(pattern);
+		nfaFactoryCompiler.compileFactory();
 
-		Set<State<Event>> states = nfa.getStates();
-		assertEquals(5, states.size());
-
-
-		Set<Tuple2<String, Set<Tuple2<String, StateTransitionAction>>>> stateMap = new HashSet<>();
-		for (State<Event> state : states) {
-			stateMap.add(Tuple2.of(state.getName(), unfoldTransitions(state)));
+		int endStateCount = 0;
+		for (State<Event> state : nfaFactoryCompiler.getStates()) {
+			if (state.getName().equals("end")) {
+				endStateCount++;
+			}
 		}
 
-		assertEquals(stateMap, newHashSet(
-			Tuple2.of("start", newHashSet(Tuple2.of("middle", StateTransitionAction.TAKE))),
-			Tuple2.of("middle", newHashSet(
-				Tuple2.of("middle", StateTransitionAction.IGNORE),
-				Tuple2.of("middle", StateTransitionAction.TAKE)
-			)),
-		    Tuple2.of("middle", newHashSet(
-			    Tuple2.of("middle", StateTransitionAction.IGNORE),
-			    Tuple2.of("middle", StateTransitionAction.TAKE),
-			    Tuple2.of("end", StateTransitionAction.PROCEED)
-		    )),
-			Tuple2.of("end", newHashSet(
-				Tuple2.of(NFACompiler.ENDING_STATE_NAME, StateTransitionAction.TAKE),
-				Tuple2.of("end", StateTransitionAction.IGNORE)
-			)),
-		    Tuple2.of(NFACompiler.ENDING_STATE_NAME, Sets.newHashSet())
-		));
-
+		assertEquals(1, endStateCount);
 	}
-
 
 	private <T> Set<Tuple2<String, StateTransitionAction>> unfoldTransitions(final State<T> state) {
 		final Set<Tuple2<String, StateTransitionAction>> transitions = new HashSet<>();

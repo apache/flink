@@ -18,17 +18,29 @@
 
 package org.apache.flink.graph.drivers;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.client.program.ProgramParametrizationException;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
 public class JaccardIndexITCase
-extends DriverBaseITCase {
+extends CopyableValueDriverBaseITCase {
 
-	public JaccardIndexITCase(TestExecutionMode mode) {
-		super(mode);
+	public JaccardIndexITCase(String idType, TestExecutionMode mode) {
+		super(idType, mode);
+	}
+
+	private String[] parameters(int scale, String output, String... additionalParameters) {
+		String[] parameters = new String[] {
+			"--algorithm", "JaccardIndex", "--mirror_results",
+			"--input", "RMatGraph", "--scale", Integer.toString(scale), "--type", idType, "--simplify", "undirected",
+			"--output", output};
+
+		return ArrayUtils.addAll(parameters, additionalParameters);
 	}
 
 	@Test
@@ -42,22 +54,67 @@ extends DriverBaseITCase {
 	}
 
 	@Test
-	public void testHashWithRMatIntegerGraph() throws Exception {
-		String expected = "\nChecksumHashCode 0x0001b188570b2572, count 221628\n";
+	public void testHashWithSmallRMatGraph() throws Exception {
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "short":
+			case "char":
+			case "integer":
+				checksum = 0x0000164757052eebL;
+				break;
 
-		expectedOutput(
-			new String[]{"--algorithm", "JaccardIndex",
-				"--input", "RMatGraph", "--type", "integer", "--simplify", "undirected",
-				"--output", "hash"},
-			expected);
+			case "long":
+				checksum = 0x000016337a6a7270L;
+				break;
+
+			case "string":
+				checksum = 0x00001622a522a290L;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(parameters(7, "hash"), 11388, checksum);
 	}
 
 	@Test
-	public void testPrintWithRMatIntegerGraph() throws Exception {
-		expectedCount(
-			new String[]{"--algorithm", "JaccardIndex",
-				"--input", "RMatGraph", "--type", "integer", "--simplify", "undirected",
-				"--output", "print"},
-			221628);
+	public void testHashWithLargeRMatGraph() throws Exception {
+		// computation is too large for collection mode
+		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
+
+		long checksum;
+		switch (idType) {
+			case "byte":
+				return;
+
+			case "short":
+			case "char":
+			case "integer":
+				checksum = 0x0021ce158d811c4eL;
+				break;
+
+			case "long":
+				checksum = 0x0021d20fb3904720L;
+				break;
+
+			case "string":
+				checksum = 0x0021cd8fafec1524L;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(parameters(12, "hash"), 4432058, checksum);
+	}
+
+	@Test
+	public void testPrintWithSmallRMatGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+
+		expectedOutputChecksum(parameters(7, "print"), new Checksum(11388, 0x0000163b17088256L));
 	}
 }

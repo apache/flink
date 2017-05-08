@@ -60,7 +60,7 @@ public class AsmTestBase {
 		env = ExecutionEnvironment.createCollectionsEnvironment();
 		env.getConfig().enableObjectReuse();
 
-		// the "fish" graph
+		// a "fish" graph
 		Object[][] edges = new Object[][]{
 			new Object[]{0, 1},
 			new Object[]{0, 2},

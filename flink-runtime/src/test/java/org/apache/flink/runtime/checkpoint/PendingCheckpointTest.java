@@ -22,15 +22,15 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.SharedStateHandle;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 
 import java.io.File;
@@ -50,9 +50,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.when;
@@ -63,9 +61,13 @@ public class PendingCheckpointTest {
 	private static final ExecutionAttemptID ATTEMPT_ID = new ExecutionAttemptID();
 
 	static {
+		ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
+		when(jobVertex.getOperatorIDs()).thenReturn(Collections.singletonList(new OperatorID()));
+		
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		when(vertex.getMaxParallelism()).thenReturn(128);
 		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(1);
+		when(vertex.getJobVertex()).thenReturn(jobVertex);
 		ACK_TASKS.put(ATTEMPT_ID, vertex);
 	}
 
@@ -193,7 +195,7 @@ public class PendingCheckpointTest {
 		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
 		QueueExecutor executor = new QueueExecutor();
 
-		TaskState state = mock(TaskState.class);
+		OperatorState state = mock(OperatorState.class);
 		doNothing().when(state).registerSharedStates(any(SharedStateRegistry.class));
 		doNothing().when(state).unregisterSharedStates(any(SharedStateRegistry.class));
 
@@ -311,7 +313,7 @@ public class PendingCheckpointTest {
 	public void testNullSubtaskStateLeadsToStatelessTask() throws Exception {
 		PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
 		pending.acknowledgeTask(ATTEMPT_ID, null, mock(CheckpointMetrics.class));
-		Assert.assertTrue(pending.getTaskStates().isEmpty());
+		Assert.assertTrue(pending.getOperatorStates().isEmpty());
 	}
 
 	/**
@@ -324,7 +326,7 @@ public class PendingCheckpointTest {
 	public void testNonNullSubtaskStateLeadsToStatefulTask() throws Exception {
 		PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
 		pending.acknowledgeTask(ATTEMPT_ID, mock(SubtaskState.class), mock(CheckpointMetrics.class));
-		Assert.assertFalse(pending.getTaskStates().isEmpty());
+		Assert.assertFalse(pending.getOperatorStates().isEmpty());
 	}
 
 	@Test
@@ -367,12 +369,12 @@ public class PendingCheckpointTest {
 	}
 
 	@SuppressWarnings("unchecked")
-	static void setTaskState(PendingCheckpoint pending, TaskState state) throws NoSuchFieldException, IllegalAccessException {
-		Field field = PendingCheckpoint.class.getDeclaredField("taskStates");
+	static void setTaskState(PendingCheckpoint pending, OperatorState state) throws NoSuchFieldException, IllegalAccessException {
+		Field field = PendingCheckpoint.class.getDeclaredField("operatorStates");
 		field.setAccessible(true);
-		Map<JobVertexID, TaskState> taskStates = (Map<JobVertexID, TaskState>) field.get(pending);
+		Map<OperatorID, OperatorState> taskStates = (Map<OperatorID, OperatorState>) field.get(pending);
 
-		taskStates.put(new JobVertexID(), state);
+		taskStates.put(new OperatorID(), state);
 	}
 
 	private static final class QueueExecutor implements Executor {

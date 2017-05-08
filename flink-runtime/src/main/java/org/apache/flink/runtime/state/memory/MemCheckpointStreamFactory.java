@@ -24,6 +24,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * {@link CheckpointStreamFactory} that produces streams that write to in-memory byte arrays.
@@ -78,12 +79,13 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		private final int maxSize;
 
-		private boolean closed;
+		private AtomicBoolean closed;
 
 		boolean isEmpty = true;
 
 		public MemoryCheckpointOutputStream(int maxSize) {
 			this.maxSize = maxSize;
+			this.closed = new AtomicBoolean(false);
 		}
 
 		@Override
@@ -110,8 +112,9 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public void close() {
-			closed = true;
-			os.reset();
+			if (closed.compareAndSet(false, true)) {
+				closeInternal();
+			}
 		}
 
 		@Override
@@ -128,7 +131,7 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 		}
 
 		public boolean isClosed() {
-			return closed;
+			return closed.get();
 		}
 
 		/**
@@ -137,15 +140,18 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 		 * @throws IOException Thrown if the size of the data exceeds the maximal
 		 */
 		public byte[] closeAndGetBytes() throws IOException {
-			if (!closed) {
+			if (closed.compareAndSet(false, true)) {
 				checkSize(os.size(), maxSize);
 				byte[] bytes = os.toByteArray();
-				close();
+				closeInternal();
 				return bytes;
-			}
-			else {
+			} else {
 				throw new IOException("stream has already been closed");
 			}
+		}
+
+		private void closeInternal() {
+			os.reset();
 		}
 	}
 }

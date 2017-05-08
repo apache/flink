@@ -18,7 +18,7 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, TypeInformation, Types => JTypes}
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
 
@@ -99,5 +99,15 @@ object Types {
     */
   def OBJECT_ARRAY(elementType: TypeInformation[_]): TypeInformation[_] = {
     ObjectArrayTypeInfo.getInfoFor(elementType)
+  }
+
+  /**
+    * Generates type information for a Java HashMap.
+    *
+    * @param keyType type of the keys of the map e.g. Types.STRING
+    * @param valueType type of the values of the map e.g. Types.STRING
+    */
+  def MAP(keyType: TypeInformation[_], valueType: TypeInformation[_]): TypeInformation[_] = {
+    new MapTypeInfo(keyType, valueType)
   }
 }

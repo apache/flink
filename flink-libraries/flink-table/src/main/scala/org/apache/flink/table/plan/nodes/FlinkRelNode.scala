@@ -61,7 +61,8 @@ trait FlinkRelNode extends RelNode {
         val referenceExpr = getExpressionString(fa.getReferenceExpr, inFields, localExprsTable)
         val field = fa.getField.getName
         s"$referenceExpr.$field"
-
+      case cv: RexCorrelVariable =>
+        cv.toString
       case _ =>
         throw new IllegalArgumentException(s"Unknown expression type '${expr.getClass}': $expr")
     }
@@ -93,6 +94,9 @@ trait FlinkRelNode extends RelNode {
     case SqlTypeName.ARRAY =>
       // 16 is an arbitrary estimate
       estimateDataTypeSize(t.getComponentType) * 16
+    case SqlTypeName.MAP =>
+      // 16 is an arbitrary estimate
+      (estimateDataTypeSize(t.getKeyType) + estimateDataTypeSize(t.getValueType)) * 16
     case SqlTypeName.ANY => 128 // 128 is an arbitrary estimate
     case _ => throw TableException(s"Unsupported data type encountered: $t")
   }

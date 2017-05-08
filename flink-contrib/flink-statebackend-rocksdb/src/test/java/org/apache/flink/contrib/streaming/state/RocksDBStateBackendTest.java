@@ -26,14 +26,13 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.checkpoint.BlockerCheckpointStreamFactory;
+import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -42,6 +41,8 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.rocksdb.ColumnFamilyDescriptor;
@@ -55,6 +56,7 @@ import org.rocksdb.Snapshot;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.RunnableFuture;
@@ -73,6 +75,7 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 /**
  * Tests for the partitioned state part of {@link RocksDBStateBackend}.
  */
+@RunWith(Parameterized.class)
 public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBackend> {
 
 	private OneShotLatch blocker;
@@ -83,17 +86,25 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	private ValueState<Integer> testState1;
 	private ValueState<String> testState2;
 
+	@Parameterized.Parameters
+	public static Collection<Boolean> parameters() {
+		return Arrays.asList(false, true);
+	}
+
+	@Parameterized.Parameter
+	public boolean enableIncrementalCheckpointing;
+
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	// Store it because we need it for the cleanup test.
-	private String dbPath;
+	String dbPath;
 
 	@Override
 	protected RocksDBStateBackend getStateBackend() throws IOException {
 		dbPath = tempFolder.newFolder().getAbsolutePath();
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
-		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath));
+		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
 		backend.setDbStoragePath(dbPath);
 		return backend;
 	}
@@ -105,7 +116,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		testStreamFactory = new BlockerCheckpointStreamFactory(1024 * 1024);
 		testStreamFactory.setBlockerLatch(blocker);
 		testStreamFactory.setWaiterLatch(waiter);
-		testStreamFactory.setAfterNumberInvocations(100);
+		testStreamFactory.setAfterNumberInvocations(10);
 
 		RocksDBStateBackend backend = getStateBackend();
 		Environment env = new DummyEnvironment("TestTask", 1, 0);
@@ -118,6 +129,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				2,
 				new KeyGroupRange(0, 1),
 				mock(TaskKvStateRegistry.class));
+
+		keyedStateBackend.restore(null);
 
 		testState1 = keyedStateBackend.getPartitionedState(
 				VoidNamespace.INSTANCE,
@@ -178,8 +191,10 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 		RocksDB spyDB = keyedStateBackend.db;
 
-		verify(spyDB, times(1)).getSnapshot();
-		verify(spyDB, times(0)).releaseSnapshot(any(Snapshot.class));
+		if (!enableIncrementalCheckpointing) {
+			verify(spyDB, times(1)).getSnapshot();
+			verify(spyDB, times(0)).releaseSnapshot(any(Snapshot.class));
+		}
 
 		this.keyedStateBackend.dispose();
 		verify(spyDB, times(1)).close();
@@ -216,8 +231,10 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 		RocksDB spyDB = keyedStateBackend.db;
 
-		verify(spyDB, times(1)).getSnapshot();
-		verify(spyDB, times(0)).releaseSnapshot(any(Snapshot.class));
+		if (!enableIncrementalCheckpointing) {
+			verify(spyDB, times(1)).getSnapshot();
+			verify(spyDB, times(0)).releaseSnapshot(any(Snapshot.class));
+		}
 
 		this.keyedStateBackend.dispose();
 		verify(spyDB, times(1)).close();
@@ -291,8 +308,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		waiter.await(); // wait for snapshot to run
 		waiter.reset();
 		runStateUpdates();
-		blocker.trigger(); // allow checkpointing to start writing
 		snapshot.cancel(true);
+		blocker.trigger(); // allow checkpointing to start writing
 		assertTrue(testStreamFactory.getLastCreatedStream().isClosed());
 		waiter.await(); // wait for snapshot stream writing to run
 		try {
@@ -318,7 +335,6 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 		backend.setCurrentKey(1);
 		state.update("Hello");
-
 
 		Collection<File> allFilesInDbDir =
 				FileUtils.listFilesAndDirs(new File(dbPath), new AcceptAllFilter(), new AcceptAllFilter());
@@ -356,8 +372,10 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		assertNotNull(null, keyedStateBackend.db);
 		RocksDB spyDB = keyedStateBackend.db;
 
-		verify(spyDB, times(1)).getSnapshot();
-		verify(spyDB, times(1)).releaseSnapshot(any(Snapshot.class));
+		if (!enableIncrementalCheckpointing) {
+			verify(spyDB, times(1)).getSnapshot();
+			verify(spyDB, times(1)).releaseSnapshot(any(Snapshot.class));
+		}
 
 		keyedStateBackend.dispose();
 		verify(spyDB, times(1)).close();

@@ -136,6 +136,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private final BackPressureStatsTracker backPressureStatsTracker;
 
+	private final WebMonitorConfig cfg;
+
 	private AtomicBoolean cleanedUp = new AtomicBoolean();
 
 	private ExecutorService executorService;
@@ -150,8 +152,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		this.leaderRetrievalService = checkNotNull(leaderRetrievalService);
 		this.timeout = AkkaUtils.getTimeout(config);
 		this.retriever = new JobManagerRetriever(this, actorSystem, AkkaUtils.getTimeout(config), timeout);
-		
-		final WebMonitorConfig cfg = new WebMonitorConfig(config);
+		this.cfg = new WebMonitorConfig(config);
 
 		final String configuredAddress = cfg.getWebFrontendAddress();
 
@@ -515,7 +516,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	// ------------------------------------------------------------------------
 
 	private RuntimeMonitorHandler handler(RequestHandler handler) {
-		return new RuntimeMonitorHandler(handler, retriever, jobManagerAddressPromise.future(), timeout,
+		return new RuntimeMonitorHandler(cfg, handler, retriever, jobManagerAddressPromise.future(), timeout,
 			serverSSLContext !=  null);
 	}
 

@@ -33,8 +33,8 @@ extends DriverBaseITCase {
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
-	public RunnerITCase(TestExecutionMode mode) {
-		super(mode);
+	public RunnerITCase(String idType, TestExecutionMode mode) {
+		super(idType, mode);
 	}
 
 	@Test

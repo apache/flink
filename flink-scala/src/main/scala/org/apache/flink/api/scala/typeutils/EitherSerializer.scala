@@ -18,8 +18,9 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.core.memory.{DataOutputView, DataInputView}
+import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeDeserializerAdapter, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.java.typeutils.runtime.EitherSerializerConfigSnapshot
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /**
  * Serializer for [[Either]].
@@ -103,5 +104,48 @@ class EitherSerializer[A, B, T <: Either[A, B]](
 
   override def hashCode(): Int = {
     31 * leftSerializer.hashCode() + rightSerializer.hashCode()
+  }
+
+  // --------------------------------------------------------------------------------------------
+  // Serializer configuration snapshotting & compatibility
+  // --------------------------------------------------------------------------------------------
+
+  override def snapshotConfiguration(): EitherSerializerConfigSnapshot = {
+    new EitherSerializerConfigSnapshot(
+      leftSerializer.snapshotConfiguration(),
+      rightSerializer.snapshotConfiguration())
+  }
+
+  override def ensureCompatibility(
+      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[T] = {
+
+    configSnapshot match {
+      case eitherSerializerConfig: EitherSerializerConfigSnapshot =>
+        val leftRightConfigs =
+          eitherSerializerConfig.getNestedSerializerConfigSnapshots
+
+        val leftCompatResult = leftSerializer.ensureCompatibility(leftRightConfigs(0))
+        val rightCompatResult = rightSerializer.ensureCompatibility(leftRightConfigs(1))
+
+        if (leftCompatResult.requiresMigration || rightCompatResult.requiresMigration) {
+          if (leftCompatResult.getConvertDeserializer != null
+              && rightCompatResult.getConvertDeserializer != null) {
+
+            CompatibilityResult.requiresMigration(
+              new EitherSerializer[A, B, T](
+                new TypeDeserializerAdapter(leftCompatResult.getConvertDeserializer),
+                new TypeDeserializerAdapter(rightCompatResult.getConvertDeserializer)
+              )
+            )
+
+          } else {
+            CompatibilityResult.requiresMigration(null)
+          }
+        } else {
+          CompatibilityResult.compatible()
+        }
+
+      case _ => CompatibilityResult.requiresMigration(null)
+    }
   }
 }

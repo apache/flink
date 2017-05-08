@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
@@ -85,14 +85,14 @@ public abstract class AbstractMigrationRestoreStrategy<K, N, S> implements Migra
 			patchedNamespaceSerializer = (TypeSerializer<N>) VoidNamespaceSerializer.INSTANCE;
 		}
 
-		RegisteredBackendStateMetaInfo<N, S> registeredBackendStateMetaInfo =
-				new RegisteredBackendStateMetaInfo<>(
+		RegisteredKeyedBackendStateMetaInfo<N, S> registeredKeyedBackendStateMetaInfo =
+				new RegisteredKeyedBackendStateMetaInfo<>(
 						StateDescriptor.Type.UNKNOWN,
 						stateName,
 						patchedNamespaceSerializer,
 						stateSerializer);
 
-		final StateTable<K, N, S> stateTable = stateBackend.newStateTable(registeredBackendStateMetaInfo);
+		final StateTable<K, N, S> stateTable = stateBackend.newStateTable(registeredKeyedBackendStateMetaInfo);
 		final DataInputView inView = openDataInputView();
 		final int keyGroup = keyGroupRange.getStartKeyGroup();
 		final int numNamespaces = inView.readInt();

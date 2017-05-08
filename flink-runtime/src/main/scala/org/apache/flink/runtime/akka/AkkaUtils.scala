@@ -28,7 +28,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration}
 import org.apache.flink.runtime.net.SSLUtils
-import org.apache.flink.util.NetUtils
+import org.apache.flink.util.{ConfigurationException, NetUtils, Preconditions}
 import org.jboss.netty.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
 import org.slf4j.LoggerFactory
 
@@ -707,18 +707,15 @@ object AkkaUtils {
       "(d|day)|(h|hour)|(min|minute)|s|sec|second)|(ms|milli|millisecond)|" +
       "(µs|micro|microsecond)|(ns|nano|nanosecond)"
   }
-  
-  /** Returns the protocol field for the URL of the remote actor system given the user configuration
-    *
-    * @param config instance containing the user provided configuration values
-    * @return the remote url's protocol field
-    */
-  def getAkkaProtocol(config: Configuration): String = {
-    val sslEnabled = config.getBoolean(ConfigConstants.AKKA_SSL_ENABLED,
-        ConfigConstants.DEFAULT_AKKA_SSL_ENABLED) &&
-      SSLUtils.getSSLEnabled(config)
-    if (sslEnabled) "akka.ssl.tcp" else "akka.tcp"
-  }
 
+  /**
+    * Returns the local akka url for the given actor name.
+    *
+    * @param actorName Actor name identifying the actor
+    * @return Local Akka URL for the given actor
+    */
+  def getLocalAkkaURL(actorName: String): String = {
+    "akka://flink/user/" + actorName
+  }
 }
 

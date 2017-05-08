@@ -20,22 +20,6 @@ package org.apache.flink.cep.nfa.compiler;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.cep.nfa.NFA;
-import org.apache.flink.cep.nfa.State;
-import org.apache.flink.cep.nfa.StateTransition;
-import org.apache.flink.cep.nfa.StateTransitionAction;
-import org.apache.flink.cep.pattern.conditions.BooleanConditions;
-import org.apache.flink.cep.pattern.FollowedByPattern;
-import org.apache.flink.cep.pattern.MalformedPatternException;
-import org.apache.flink.cep.pattern.conditions.NotCondition;
-import org.apache.flink.cep.pattern.Pattern;
-import org.apache.flink.cep.pattern.Quantifier.QuantifierProperty;
-import org.apache.flink.cep.pattern.conditions.IterativeCondition;
-import org.apache.flink.streaming.api.windowing.time.Time;
-
-import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,6 +29,21 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.cep.nfa.NFA;
+import org.apache.flink.cep.nfa.State;
+import org.apache.flink.cep.nfa.StateTransition;
+import org.apache.flink.cep.nfa.StateTransitionAction;
+import org.apache.flink.cep.pattern.MalformedPatternException;
+import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.Quantifier;
+import org.apache.flink.cep.pattern.conditions.BooleanConditions;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.cep.pattern.conditions.NotCondition;
+import org.apache.flink.streaming.api.windowing.time.Time;
 
 /**
  * Compiler class containing methods to compile a {@link Pattern} into a {@link NFA} or a
@@ -103,13 +102,15 @@ public class NFACompiler {
 	 *
 	 * @param <T>
 	 */
-	private static class NFAFactoryCompiler<T> {
+	static class NFAFactoryCompiler<T> {
 
 		private final Set<String> usedNames = new HashSet<>();
+		private final Map<String, State<T>> stopStates = new HashMap<>();
 		private final List<State<T>> states = new ArrayList<>();
 
 		private long windowTime = 0;
 		private Pattern<T, ?> currentPattern;
+		private Pattern<T, ?> followingPattern;
 
 		NFAFactoryCompiler(final Pattern<T, ?> pattern) {
 			this.currentPattern = pattern;
@@ -120,6 +121,10 @@ public class NFACompiler {
 		 * multiple NFAs.
 		 */
 		void compileFactory() {
+			if (currentPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
+				throw new MalformedPatternException("NotFollowedBy is not supported as a last part of a Pattern!");
+			}
+
 			// we're traversing the pattern from the end to the beginning --> the first state is the final state
 			State<T> sinkState = createEndingState();
 			// add all the normal states
@@ -137,13 +142,45 @@ public class NFACompiler {
 		}
 
 		/**
+		 * Retrieves list of conditions resulting in Stop state and names of the corresponding NOT patterns.
+		 *
+		 * <p>A current not condition can be produced in two cases:
+		 * <ol>
+		 *     <li>the previous pattern is a {@link Quantifier.ConsumingStrategy#NOT_FOLLOW}</li>
+		 *     <li>exists a backward path of {@link Quantifier.QuantifierProperty#OPTIONAL} patterns to
+		 *       {@link Quantifier.ConsumingStrategy#NOT_FOLLOW}</li>
+		 * </ol>
+		 *
+		 * <p><b>WARNING:</b> for more info on the second case see: {@link NFAFactoryCompiler#copyWithoutTransitiveNots(State)}
+		 *
+		 * @return list of not conditions with corresponding names
+		 */
+		private List<Tuple2<IterativeCondition<T>, String>> getCurrentNotCondition() {
+			List<Tuple2<IterativeCondition<T>, String>> notConditions = new ArrayList<>();
+
+			Pattern<T, ? extends T> previousPattern = currentPattern;
+			while (previousPattern.getPrevious() != null && (
+				previousPattern.getPrevious().getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL) ||
+				previousPattern.getPrevious().getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW)) {
+
+				previousPattern = previousPattern.getPrevious();
+
+				if (previousPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
+					final IterativeCondition<T> notCondition = (IterativeCondition<T>) previousPattern.getCondition();
+					notConditions.add(Tuple2.of(notCondition, previousPattern.getName()));
+				}
+			}
+			return notConditions;
+		}
+
+		/**
 		 * Creates the dummy Final {@link State} of the NFA graph.
 		 * @return dummy Final state
 		 */
 		private State<T> createEndingState() {
+			checkPatternNameUniqueness(ENDING_STATE_NAME);
 			State<T> endState = new State<>(ENDING_STATE_NAME, State.StateType.Final);
 			states.add(endState);
-			usedNames.add(ENDING_STATE_NAME);
 
 			windowTime = currentPattern.getWindowTime() != null ? currentPattern.getWindowTime().toMilliseconds() : 0L;
 			return endState;
@@ -156,28 +193,30 @@ public class NFACompiler {
 		 * @return the next state after Start in the resulting graph
 		 */
 		private State<T> createMiddleStates(final State<T> sinkState) {
-
 			State<T> lastSink = sinkState;
 			while (currentPattern.getPrevious() != null) {
-				checkPatternNameUniqueness();
-				usedNames.add(currentPattern.getName());
 
-				if (currentPattern.getQuantifier().hasProperty(QuantifierProperty.LOOPING)) {
-					final State<T> looping = createLooping(lastSink);
+				if (currentPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
+					//skip notFollow patterns, they are converted into edge conditions
+				} else if (currentPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_NEXT) {
+					final State<T> notNext = createNormalState();
+					final IterativeCondition<T> notCondition = (IterativeCondition<T>) currentPattern.getCondition();
+					final State<T> stopState = createStopState(notCondition, currentPattern.getName());
 
-					if (!currentPattern.getQuantifier().hasProperty(QuantifierProperty.OPTIONAL)) {
-						lastSink = createFirstMandatoryStateOfLoop(looping);
-					} else if (currentPattern instanceof FollowedByPattern &&
-								currentPattern.getQuantifier().hasProperty(QuantifierProperty.CONSECUTIVE)) {
-						lastSink = createWaitingStateForZeroOrMore(looping, lastSink);
+					if (lastSink.isFinal()) {
+						//so that the proceed to final is not fired
+						notNext.addIgnore(lastSink, new NotCondition<>(notCondition));
 					} else {
-						lastSink = looping;
+						notNext.addProceed(lastSink, new NotCondition<>(notCondition));
 					}
-				} else if (currentPattern.getQuantifier().hasProperty(QuantifierProperty.TIMES)) {
-					lastSink = createTimesState(lastSink, currentPattern.getTimes());
+					notNext.addProceed(stopState, notCondition);
+					lastSink = notNext;
 				} else {
-					lastSink = createSingletonState(lastSink);
+					lastSink = convertPattern(lastSink);
 				}
+
+				// we traverse the pattern graph backwards
+				followingPattern = currentPattern;
 				currentPattern = currentPattern.getPrevious();
 
 				final Time currentWindowTime = currentPattern.getWindowTime();
@@ -186,40 +225,7 @@ public class NFACompiler {
 					windowTime = currentWindowTime.toMilliseconds();
 				}
 			}
-
 			return lastSink;
-		}
-
-		/**
-		 * Creates a pair of states that enables relaxed strictness before a zeroOrMore looping state.
-		 *
-		 * @param loopingState the first state of zeroOrMore complex state
-		 * @param lastSink     the state that the looping one points to
-		 * @return the newly created state
-		 */
-		private State<T> createWaitingStateForZeroOrMore(final State<T> loopingState, final State<T> lastSink) {
-			final State<T> followByState = createNormalState();
-			final State<T> followByStateWithoutProceed = createNormalState();
-
-			final IterativeCondition<T> currentFunction = (IterativeCondition<T>)currentPattern.getCondition();
-			final IterativeCondition<T> ignoreFunction = getIgnoreCondition(currentPattern);
-
-			followByState.addProceed(lastSink, BooleanConditions.<T>trueFunction());
-			followByState.addIgnore(followByStateWithoutProceed, ignoreFunction);
-			followByState.addTake(loopingState, currentFunction);
-
-			followByStateWithoutProceed.addIgnore(ignoreFunction);
-			followByStateWithoutProceed.addTake(loopingState, currentFunction);
-
-			return followByState;
-		}
-
-		private void checkPatternNameUniqueness() {
-			if (usedNames.contains(currentPattern.getName())) {
-				throw new MalformedPatternException(
-					"Duplicate pattern name: " + currentPattern.getName() + ". " +
-					"Pattern names must be unique.");
-			}
 		}
 
 		/**
@@ -230,163 +236,35 @@ public class NFACompiler {
 		 */
 		@SuppressWarnings("unchecked")
 		private State<T> createStartState(State<T> sinkState) {
-			checkPatternNameUniqueness();
-			usedNames.add(currentPattern.getName());
-
-			final State<T> beginningState;
-			if (currentPattern.getQuantifier().hasProperty(QuantifierProperty.LOOPING)) {
-				final State<T> loopingState = createLooping(sinkState);
-				if (!currentPattern.getQuantifier().hasProperty(QuantifierProperty.OPTIONAL)) {
-					beginningState = createFirstMandatoryStateOfLoop(loopingState);
-				} else {
-					beginningState = loopingState;
-				}
-			} else if (currentPattern.getQuantifier().hasProperty(QuantifierProperty.TIMES)) {
-				beginningState = createTimesState(sinkState, currentPattern.getTimes());
-			} else {
-				beginningState = createSingletonState(sinkState);
-			}
-
+			final State<T> beginningState = convertPattern(sinkState);
 			beginningState.makeStart();
-
 			return beginningState;
 		}
 
-		/**
-		 * Creates a "complex" state consisting of given number of states with
-		 * same {@link IterativeCondition}
-		 *
-		 * @param sinkState the state that the created state should point to
-		 * @param times     number of times the state should be copied
-		 * @return the first state of the "complex" state, next state should point to it
-		 */
-		private State<T> createTimesState(final State<T> sinkState, int times) {
-			State<T> lastSink = sinkState;
-			for (int i = 0; i < times - 1; i++) {
-				lastSink = createSingletonState(
-					lastSink,
-					!currentPattern.getQuantifier().hasProperty(QuantifierProperty.CONSECUTIVE),
-					false);
-			}
+		private State<T> convertPattern(final State<T> sinkState) {
+			final State<T> lastSink;
+			checkPatternNameUniqueness(currentPattern.getName());
 
-			// we created the intermediate states in the loop, now we create the start of the loop.
-			if (!currentPattern.getQuantifier().hasProperty(QuantifierProperty.OPTIONAL)) {
-				return createSingletonState(lastSink, currentPattern instanceof FollowedByPattern, false);
-			}
+			final Quantifier quantifier = currentPattern.getQuantifier();
+			if (quantifier.hasProperty(Quantifier.QuantifierProperty.LOOPING)) {
 
-			final IterativeCondition<T> currentFilterFunction = (IterativeCondition<T>) currentPattern.getCondition();
-			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
+				// if loop has started then all notPatterns previous to the optional states are no longer valid
+				final State<T> sink = copyWithoutTransitiveNots(sinkState);
+				final State<T> looping = createLooping(sink);
 
-			final State<T> singletonState = createNormalState();
-			singletonState.addTake(lastSink, currentFilterFunction);
-			singletonState.addProceed(sinkState, trueFunction);
-
-			if (currentPattern instanceof FollowedByPattern) {
-				State<T> ignoreState = createNormalState();
-				ignoreState.addTake(lastSink, currentFilterFunction);
-				ignoreState.addIgnore(trueFunction);
-				singletonState.addIgnore(ignoreState, trueFunction);
-			}
-			return singletonState;
-		}
-
-		/**
-		 * Creates a simple single state. For an OPTIONAL state it also consists
-		 * of a similar state without the PROCEED edge, so that for each PROCEED transition branches
-		 * in computation state graph  can be created only once.
-		 *
-		 * @param sinkState state that the state being converted should point to
-		 * @return the created state
-		 */
-		@SuppressWarnings("unchecked")
-		private State<T> createSingletonState(final State<T> sinkState) {
-			return createSingletonState(sinkState, currentPattern instanceof FollowedByPattern,
-					currentPattern.getQuantifier().hasProperty(QuantifierProperty.OPTIONAL));
-		}
-
-		/**
-		 * Creates a simple single state. For an OPTIONAL state it also consists
-		 * of a similar state without the PROCEED edge, so that for each PROCEED transition branches
-		 * in computation state graph  can be created only once.
-		 *
-		 * @param addIgnore if any IGNORE should be added
-		 * @param sinkState state that the state being converted should point to
-		 * @return the created state
-		 */
-		@SuppressWarnings("unchecked")
-		private State<T> createSingletonState(final State<T> sinkState, boolean addIgnore, boolean isOptional) {
-			final IterativeCondition<T> currentFilterFunction = (IterativeCondition<T>) currentPattern.getCondition();
-			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
-
-			final State<T> singletonState = createNormalState();
-			singletonState.addTake(sinkState, currentFilterFunction);
-
-			if (isOptional) {
-				singletonState.addProceed(sinkState, trueFunction);
-			}
-
-			if (addIgnore) {
-				final State<T> ignoreState;
-				if (isOptional) {
-					ignoreState = createNormalState();
-					ignoreState.addTake(sinkState, currentFilterFunction);
+				if (!quantifier.hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
+					lastSink = createInitMandatoryStateOfOneOrMore(looping);
 				} else {
-					ignoreState = singletonState;
+					lastSink = createInitOptionalStateOfZeroOrMore(looping, sinkState);
 				}
-				singletonState.addIgnore(ignoreState, getIgnoreCondition(currentPattern));
+			} else if (quantifier.hasProperty(Quantifier.QuantifierProperty.TIMES)) {
+				lastSink = createTimesState(sinkState, currentPattern.getTimes());
+			} else {
+				lastSink = createSingletonState(sinkState);
 			}
-			return singletonState;
-		}
+			addStopStates(lastSink);
 
-		/**
-		 * Patterns with quantifiers AT_LEAST_ONE_* are created as a pair of states: a singleton state and
-		 * looping state. This method creates the first of the two.
-		 *
-		 * @param sinkState the state the newly created state should point to, it should be a looping state
-		 * @return the newly created state
-		 */
-		@SuppressWarnings("unchecked")
-		private State<T> createFirstMandatoryStateOfLoop(final State<T> sinkState) {
-
-			final IterativeCondition<T> currentFilterFunction = (IterativeCondition<T>) currentPattern.getCondition();
-			final State<T> firstState = createNormalState();
-
-			firstState.addTake(sinkState, currentFilterFunction);
-			if (currentPattern instanceof FollowedByPattern) {
-				final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
-				firstState.addIgnore(ignoreCondition);
-			}
-			return firstState;
-		}
-
-		/**
-		 * Creates the given state as a looping one. Looping state is one with TAKE edge to itself and
-		 * PROCEED edge to the sinkState. It also consists of a similar state without the PROCEED edge, so that
-		 * for each PROCEED transition branches in computation state graph  can be created only once.
-		 *
-		 * @param sinkState the state that the converted state should point to
-		 * @return the first state of the created complex state
-		 */
-		@SuppressWarnings("unchecked")
-		private State<T> createLooping(final State<T> sinkState) {
-
-			final State<T> loopingState = createNormalState();
-			final IterativeCondition<T> filterFunction = (IterativeCondition<T>) currentPattern.getCondition();
-			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
-
-			loopingState.addProceed(sinkState, trueFunction);
-			loopingState.addTake(filterFunction);
-			if (!currentPattern.getQuantifier().hasProperty(QuantifierProperty.CONSECUTIVE)) {
-				final State<T> ignoreState = createNormalState();
-
-				final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
-
-				ignoreState.addTake(loopingState, filterFunction);
-				ignoreState.addIgnore(ignoreCondition);
-				loopingState.addIgnore(ignoreState, ignoreCondition);
-			}
-
-			return loopingState;
+			return lastSink;
 		}
 
 		/**
@@ -401,17 +279,304 @@ public class NFACompiler {
 			return state;
 		}
 
+		private State<T> createStopState(final IterativeCondition<T> notCondition, final String name) {
+			// We should not duplicate the notStates. All states from which we can stop should point to the same one.
+			State<T> stopState = stopStates.get(name);
+			if (stopState == null) {
+				stopState = new State<>(name, State.StateType.Stop);
+				states.add(stopState);
+				stopState.addTake(notCondition);
+				stopStates.put(name, stopState);
+			}
+			return stopState;
+		}
+
+		/**
+		 * This method creates an alternative state that is target for TAKE transition from an optional State.
+		 * Accepting an event in optional State discards all not Patterns that were present before it.
+		 *
+		 * <p>E.g for a Pattern begin("a").notFollowedBy("b").followedByAny("c").optional().followedByAny("d")
+		 * a sequence like : {a c b d} is a valid match, but {a b d} is not.
+		 *
+		 * <p><b>NOTICE:</b> This method creates copy only if it necessary.
+		 *
+		 * @param sinkState a state to create copy without transitive nots
+		 * @return the copy of the state itself if no modifications were needed
+		 */
+		private State<T> copyWithoutTransitiveNots(final State<T> sinkState) {
+			final List<Tuple2<IterativeCondition<T>, String>> currentNotCondition = getCurrentNotCondition();
+
+			if (currentNotCondition.isEmpty() ||
+				!currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
+				//we do not create an alternative path if we are NOT in an OPTIONAL state or there is no NOTs prior to
+				//the optional state
+				return sinkState;
+			}
+
+			final State<T> copyOfSink = new State<>(sinkState.getName(), sinkState.getStateType());
+			states.add(copyOfSink);
+
+			for (StateTransition<T> tStateTransition : sinkState.getStateTransitions()) {
+
+				if (tStateTransition.getAction() == StateTransitionAction.PROCEED) {
+					State<T> targetState = tStateTransition.getTargetState();
+					boolean remove = false;
+					if (targetState.isStop()) {
+						for (Tuple2<IterativeCondition<T>, String> notCondition : currentNotCondition) {
+							if (targetState.getName().equals(notCondition.f1)) {
+								remove = true;
+							}
+						}
+					} else {
+						targetState = copyWithoutTransitiveNots(tStateTransition.getTargetState());
+					}
+
+					if (!remove) {
+						copyOfSink.addStateTransition(tStateTransition.getAction(), targetState, tStateTransition.getCondition());
+					}
+				} else {
+					copyOfSink.addStateTransition(
+							tStateTransition.getAction(),
+							tStateTransition.getTargetState().equals(tStateTransition.getSourceState())
+									? copyOfSink
+									: tStateTransition.getTargetState(),
+							tStateTransition.getCondition()
+					);
+				}
+
+			}
+			return copyOfSink;
+		}
+
+		private void addStopStates(final State<T> state) {
+			for (Tuple2<IterativeCondition<T>, String> notCondition: getCurrentNotCondition()) {
+				final State<T> stopState = createStopState(notCondition.f0, notCondition.f1);
+				state.addProceed(stopState, notCondition.f0);
+			}
+		}
+
+		private void addStopStateToLooping(final State<T> loopingState) {
+			if (followingPattern != null &&
+					followingPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
+				final IterativeCondition<T> notCondition = (IterativeCondition<T>) followingPattern.getCondition();
+				final State<T> stopState = createStopState(notCondition, followingPattern.getName());
+				loopingState.addProceed(stopState, notCondition);
+			}
+		}
+
+		private void checkPatternNameUniqueness(String patternName) {
+			if (usedNames.contains(currentPattern.getName())) {
+				throw new MalformedPatternException(
+					"Duplicate pattern name: " + patternName + ". " +
+					"Pattern names must be unique.");
+			}
+			usedNames.add(patternName);
+		}
+
+		/**
+		 * Creates a "complex" state consisting of given number of states with
+		 * same {@link IterativeCondition}
+		 *
+		 * @param sinkState the state that the created state should point to
+		 * @param times     number of times the state should be copied
+		 * @return the first state of the "complex" state, next state should point to it
+		 */
+		private State<T> createTimesState(final State<T> sinkState, int times) {
+			State<T> lastSink = copyWithoutTransitiveNots(sinkState);
+			for (int i = 0; i < times - 1; i++) {
+				lastSink = createSingletonState(lastSink, getInnerIgnoreCondition(currentPattern), false);
+				addStopStateToLooping(lastSink);
+			}
+
+			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
+			final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
+
+			// we created the intermediate states in the loop, now we create the start of the loop.
+			if (!currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
+				return createSingletonState(lastSink, ignoreCondition, false);
+			}
+
+			final State<T> singletonState = createNormalState();
+			singletonState.addTake(lastSink, currentCondition);
+			singletonState.addProceed(sinkState, BooleanConditions.<T>trueFunction());
+
+			if (ignoreCondition != null) {
+				State<T> ignoreState = createNormalState();
+				ignoreState.addTake(lastSink, currentCondition);
+				ignoreState.addIgnore(ignoreCondition);
+				singletonState.addIgnore(ignoreState, ignoreCondition);
+				addStopStates(ignoreState);
+			}
+			return singletonState;
+		}
+
+		/**
+		 * Creates a simple single state. For an OPTIONAL state it also consists
+		 * of a similar state without the PROCEED edge, so that for each PROCEED transition branches
+		 * in computation state graph  can be created only once.
+		 *
+		 * @param sinkState state that the state being converted should point to
+		 * @return the created state
+		 */
+		@SuppressWarnings("unchecked")
+		private State<T> createSingletonState(final State<T> sinkState) {
+			return createSingletonState(
+				sinkState,
+				getIgnoreCondition(currentPattern),
+				currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.OPTIONAL));
+		}
+
+		/**
+		 * Creates a simple single state. For an OPTIONAL state it also consists
+		 * of a similar state without the PROCEED edge, so that for each PROCEED transition branches
+		 * in computation state graph  can be created only once.
+		 *
+		 * @param ignoreCondition condition that should be applied to IGNORE transition
+		 * @param sinkState state that the state being converted should point to
+		 * @return the created state
+		 */
+		@SuppressWarnings("unchecked")
+		private State<T> createSingletonState(final State<T> sinkState, final IterativeCondition<T> ignoreCondition, final boolean isOptional) {
+			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
+			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
+
+			final State<T> singletonState = createNormalState();
+			// if event is accepted then all notPatterns previous to the optional states are no longer valid
+			final State<T> sink = copyWithoutTransitiveNots(sinkState);
+			singletonState.addTake(sink, currentCondition);
+
+			if (isOptional) {
+				// if no element accepted the previous nots are still valid.
+				singletonState.addProceed(sinkState, trueFunction);
+			}
+
+			if (ignoreCondition != null) {
+				final State<T> ignoreState;
+				if (isOptional) {
+					ignoreState = createNormalState();
+					ignoreState.addTake(sink, currentCondition);
+					ignoreState.addIgnore(ignoreCondition);
+					addStopStates(ignoreState);
+				} else {
+					ignoreState = singletonState;
+				}
+				singletonState.addIgnore(ignoreState, ignoreCondition);
+			}
+			return singletonState;
+		}
+
+		/**
+		 * Creates the given state as a looping one. Looping state is one with TAKE edge to itself and
+		 * PROCEED edge to the sinkState. It also consists of a similar state without the PROCEED edge, so that
+		 * for each PROCEED transition branches in computation state graph  can be created only once.
+		 *
+		 * @param sinkState the state that the converted state should point to
+		 * @return the first state of the created complex state
+		 */
+		@SuppressWarnings("unchecked")
+		private State<T> createLooping(final State<T> sinkState) {
+			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
+			final IterativeCondition<T> ignoreCondition = getInnerIgnoreCondition(currentPattern);
+			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
+
+			final State<T> loopingState = createNormalState();
+			loopingState.addProceed(sinkState, trueFunction);
+			loopingState.addTake(currentCondition);
+
+			addStopStateToLooping(loopingState);
+
+			if (ignoreCondition != null) {
+				final State<T> ignoreState = createNormalState();
+				ignoreState.addTake(loopingState, currentCondition);
+				ignoreState.addIgnore(ignoreCondition);
+				loopingState.addIgnore(ignoreState, ignoreCondition);
+
+				addStopStateToLooping(ignoreState);
+			}
+			return loopingState;
+		}
+
+		/**
+		 * Patterns with quantifiers AT_LEAST_ONE_* are created as a pair of states: a singleton state and
+		 * looping state. This method creates the first of the two.
+		 *
+		 * @param sinkState the state the newly created state should point to, it should be a looping state
+		 * @return the newly created state
+		 */
+		@SuppressWarnings("unchecked")
+		private State<T> createInitMandatoryStateOfOneOrMore(final State<T> sinkState) {
+			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
+
+			final State<T> firstState = createNormalState();
+			firstState.addTake(sinkState, currentCondition);
+
+			final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
+			if (ignoreCondition != null) {
+				firstState.addIgnore(ignoreCondition);
+			}
+			return firstState;
+		}
+
+		/**
+		 * Creates a pair of states that enables relaxed strictness before a zeroOrMore looping state.
+		 *
+		 * @param loopingState the first state of zeroOrMore complex state
+		 * @param lastSink     the state that the looping one points to
+		 * @return the newly created state
+		 */
+		@SuppressWarnings("unchecked")
+		private State<T> createInitOptionalStateOfZeroOrMore(final State<T> loopingState, final State<T> lastSink) {
+			final IterativeCondition<T> currentCondition = (IterativeCondition<T>) currentPattern.getCondition();
+
+			final State<T> firstState = createNormalState();
+			firstState.addProceed(lastSink, BooleanConditions.<T>trueFunction());
+			firstState.addTake(loopingState, currentCondition);
+
+			final IterativeCondition<T> ignoreFunction = getIgnoreCondition(currentPattern);
+			if (ignoreFunction != null) {
+				final State<T> firstStateWithoutProceed = createNormalState();
+				firstState.addIgnore(firstStateWithoutProceed, ignoreFunction);
+				firstStateWithoutProceed.addIgnore(ignoreFunction);
+				firstStateWithoutProceed.addTake(loopingState, currentCondition);
+
+				addStopStates(firstStateWithoutProceed);
+			}
+			return firstState;
+		}
+
 		/**
 		 * @return The {@link IterativeCondition condition} for the {@code IGNORE} edge
-		 * that corresponds to the specified {@link Pattern}. If the pattern is
-		 * {@link QuantifierProperty#EAGER}, the negated user-specified condition is
-		 * returned. In other case, a condition that always evaluated to {@code true} is
-		 * returned.
+		 * that corresponds to the specified {@link Pattern}. It is applicable only for inner states of a complex
+		 * state like looping or times.
 		 */
+		@SuppressWarnings("unchecked")
+		private IterativeCondition<T> getInnerIgnoreCondition(Pattern<T, ?> pattern) {
+			switch (pattern.getQuantifier().getInnerConsumingStrategy()) {
+				case STRICT:
+					return null;
+				case SKIP_TILL_NEXT:
+					return new NotCondition<>((IterativeCondition<T>) pattern.getCondition());
+				case SKIP_TILL_ANY:
+					return BooleanConditions.trueFunction();
+			}
+			return null;
+		}
+
+		/**
+		 * @return The {@link IterativeCondition condition} for the {@code IGNORE} edge
+		 * that corresponds to the specified {@link Pattern}. For more on strategy see {@link Quantifier}
+		 */
+		@SuppressWarnings("unchecked")
 		private IterativeCondition<T> getIgnoreCondition(Pattern<T, ?> pattern) {
-			return pattern.getQuantifier().hasProperty(QuantifierProperty.EAGER)
-					? new NotCondition<>((IterativeCondition<T>) pattern.getCondition())
-					: BooleanConditions.<T>trueFunction();
+			switch (pattern.getQuantifier().getConsumingStrategy()) {
+				case STRICT:
+					return null;
+				case SKIP_TILL_NEXT:
+					return new NotCondition<>((IterativeCondition<T>) pattern.getCondition());
+				case SKIP_TILL_ANY:
+					return BooleanConditions.trueFunction();
+			}
+			return null;
 		}
 	}
 

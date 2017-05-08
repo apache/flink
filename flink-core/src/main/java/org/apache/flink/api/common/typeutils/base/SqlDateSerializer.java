@@ -102,4 +102,11 @@ public final class SqlDateSerializer extends TypeSerializerSingleton<Date> {
 	public boolean canEqual(Object obj) {
 		return obj instanceof SqlDateSerializer;
 	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(DateSerializer.class.getCanonicalName())
+			|| identifier.equals(SqlTimeSerializer.class.getCanonicalName());
+	}
 }

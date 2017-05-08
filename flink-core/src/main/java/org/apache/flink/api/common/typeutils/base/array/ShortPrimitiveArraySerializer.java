@@ -36,8 +36,7 @@ public final class ShortPrimitiveArraySerializer extends TypeSerializerSingleton
 	private static final short[] EMPTY = new short[0];
 
 	public static final ShortPrimitiveArraySerializer INSTANCE = new ShortPrimitiveArraySerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;

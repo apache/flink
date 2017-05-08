@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.runtime.checkpoint.MasterState;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.util.Preconditions;
 
@@ -65,6 +66,11 @@ public class SavepointV1 implements Savepoint {
 		// since checkpoints are never deserialized into this format,
 		// this method should never be called
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Collection<OperatorState> getOperatorStates() {
+		return null;
 	}
 
 	@Override

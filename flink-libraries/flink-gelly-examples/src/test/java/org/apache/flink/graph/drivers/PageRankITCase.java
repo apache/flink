@@ -19,6 +19,7 @@
 package org.apache.flink.graph.drivers;
 
 import org.apache.flink.client.program.ProgramParametrizationException;
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -27,8 +28,15 @@ import org.junit.runners.Parameterized;
 public class PageRankITCase
 extends DriverBaseITCase {
 
-	public PageRankITCase(TestExecutionMode mode) {
-		super(mode);
+	public PageRankITCase(String idType, TestExecutionMode mode) {
+		super(idType, mode);
+	}
+
+	private String[] parameters(int scale, String output) {
+		return new String[] {
+			"--algorithm", "PageRank",
+			"--input", "RMatGraph", "--scale", Integer.toString(scale), "--type", idType, "--simplify", "directed",
+			"--output", output};
 	}
 
 	@Test
@@ -42,11 +50,21 @@ extends DriverBaseITCase {
 	}
 
 	@Test
-	public void testPrintWithRMatIntegerGraph() throws Exception {
-		expectedCount(
-			new String[]{"--algorithm", "PageRank",
-				"--input", "RMatGraph", "--type", "integer", "--simplify", "directed",
-				"--output", "print"},
-			902);
+	public void testPrintWithSmallRMatGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+
+		expectedCount(parameters(8, "print"), 233);
+	}
+
+	@Test
+	public void testPrintWithLargeRMatGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+
+		// skip 'byte' which cannot store vertex IDs for scale > 8
+		Assume.assumeFalse(idType.equals("byte") || idType.equals("nativeByte"));
+
+		expectedCount(parameters(12, "print"), 3349);
 	}
 }
