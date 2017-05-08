@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.scala.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMerge
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.WindowReference
@@ -787,6 +787,45 @@ class GroupWindowTest extends TableTestBase {
         "start(WindowReference(w)) AS TMP_1",
         "end(WindowReference(w)) AS TMP_2")
     )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test
+  def testSlidingWindowWithUDAF(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String, Int, Int)](
+      'long,
+      'int,
+      'string,
+      'int2,
+      'int3,
+      'proctime.proctime)
+
+    val weightAvgFun = new WeightedAvg
+
+    val windowedTable = table
+      .window(Slide over 2.rows every 1.rows on 'proctime as 'w)
+      .groupBy('w, 'int2, 'int3, 'string)
+      .select(weightAvgFun('long, 'int))
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupWindowAggregate",
+          streamTableNode(0),
+          term("groupBy", "string, int2, int3"),
+          term("window", SlidingGroupWindow(WindowReference("w"), 'proctime,  2.rows, 1.rows)),
+          term(
+            "select",
+            "string",
+            "int2",
+            "int3",
+            "WeightedAvg(long, int) AS TMP_0")
+        ),
+        term("select","TMP_0")
+      )
 
     util.verifyTable(windowedTable, expected)
   }
