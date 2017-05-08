@@ -48,7 +48,7 @@ boolean wrapEndpoints = false;
 
 int parallelism = 4;
 
-Graph<LongValue,NullValue,NullValue> graph = new GridGraph(env)
+Graph<LongValue, NullValue, NullValue> graph = new GridGraph(env)
     .addDimension(2, wrapEndpoints)
     .addDimension(4, wrapEndpoints)
     .setParallelism(parallelism)
@@ -138,7 +138,8 @@ val graph = new CompleteGraph(env.getJavaEnv, vertexCount).generate()
 
 ## Cycle Graph
 
-An undirected graph where all edges form a single cycle.
+An undirected graph where the set of edges form a single cycle by connecting
+each vertex to two adjacent vertices in a chained loop.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -194,7 +195,7 @@ val graph = new CycleGraph(env.getJavaEnv, vertexCount).generate()
 
 ## Empty Graph
 
-The graph containing no edges.
+A graph containing no edges.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -316,7 +317,7 @@ val graph = new GridGraph(env.getJavaEnv).addDimension(2, wrapEndpoints).addDime
 
 ## Hypercube Graph
 
-An undirected graph where edges form an n-dimensional hypercube. Each vertex
+An undirected graph where edges form an `n`-dimensional hypercube. Each vertex
 in a hypercube connects to one other vertex in each dimension.
 
 <div class="codetabs" markdown="1">
@@ -391,7 +392,9 @@ val graph = new HypercubeGraph(env.getJavaEnv, dimensions).generate()
 
 ## Path Graph
 
-An undirected Graph where all edges form a single path.
+An undirected graph where the set of edges form a single path by connecting
+two `endpoint` vertices with degree `1` and all midpoint vertices with degree
+`2`. A path graph can be formed by removing a single edge from a cycle graph.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -443,7 +446,7 @@ val graph = new PathGraph(env.getJavaEnv, vertexCount).generate()
 
 ## RMat Graph
 
-A directed or undirected power-law graph generated using the
+A directed power-law multigraph generated using the
 [Recursive Matrix (R-Mat)](http://www.cs.cmu.edu/~christos/PUBLICATIONS/siam04.pdf) model.
 
 RMat is a stochastic generator configured with a source of randomness implementing the
@@ -528,7 +531,8 @@ val graph = new RMatGraph(env.getJavaEnv, rnd, vertexCount, edgeCount).setConsta
 
 ## Singleton Edge Graph
 
-An undirected graph containing isolated two-paths.
+An undirected graph containing isolated two-paths where every vertex has degree
+`1`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
