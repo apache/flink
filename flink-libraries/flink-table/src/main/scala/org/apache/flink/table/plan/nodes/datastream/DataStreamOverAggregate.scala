@@ -116,7 +116,7 @@ class DataStreamOverAggregate(
     val generator = new CodeGenerator(
       tableEnv.getConfig,
       false,
-      inputDS.getType)
+      inputSchema.physicalTypeInfo)
 
     val timeType = schema.logicalType
       .getFieldList
