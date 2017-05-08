@@ -29,11 +29,21 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
 import org.apache.flink.table.codegen.GeneratedAggregationsFunction
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.aggfunctions.{LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction, IntSumWithRetractAggFunction}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 class HarnessTestBase {
+
+  val longMinWithRetractAggFunction =
+    UserDefinedFunctionUtils.serialize(new LongMinWithRetractAggFunction)
+
+  val longMaxWithRetractAggFunction =
+    UserDefinedFunctionUtils.serialize(new LongMaxWithRetractAggFunction)
+
+  val intSumWithRetractAggFunction =
+    UserDefinedFunctionUtils.serialize(new IntSumWithRetractAggFunction)
 
   protected val MinMaxRowType = new RowTypeInfo(Array[TypeInformation[_]](
     INT_TYPE_INFO,
@@ -66,7 +76,7 @@ class HarnessTestBase {
     AggregateUtil.createAccumulatorRowType(sumAggregates)
 
   val minMaxCode: String =
-    """
+    s"""
       |public class MinMaxAggregateHelper
       |  extends org.apache.flink.table.runtime.aggregate.GeneratedAggregations {
       |
@@ -80,23 +90,11 @@ class HarnessTestBase {
       |
       |    fmin = (org.apache.flink.table.functions.aggfunctions.LongMinWithRetractAggFunction)
       |    org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-      |    .deserialize("rO0ABXNyAEtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbn" +
-      |    "MuTG9uZ01pbldpdGhSZXRyYWN0QWdnRnVuY3Rpb26oIdX_DaMPxQIAAHhyAEdvcmcuYXBhY2hlLmZsaW5rL" +
-      |    "nRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbnMuTWluV2l0aFJldHJhY3RBZ2dGdW5jdGlvbq_ZGuzxtA_S" +
-      |    "AgABTAADb3JkdAAVTHNjYWxhL21hdGgvT3JkZXJpbmc7eHIAMm9yZy5hcGFjaGUuZmxpbmsudGFibGUuZnV" +
-      |    "uY3Rpb25zLkFnZ3JlZ2F0ZUZ1bmN0aW9uTcYVPtJjNfwCAAB4cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS" +
-      |    "5mdW5jdGlvbnMuVXNlckRlZmluZWRGdW5jdGlvbi0B91QxuAyTAgAAeHBzcgAZc2NhbGEubWF0aC5PcmRlc" +
-      |    "mluZyRMb25nJOda0iCPo2ukAgAAeHA");
+      |    .deserialize("${longMinWithRetractAggFunction}");
       |
       |    fmax = (org.apache.flink.table.functions.aggfunctions.LongMaxWithRetractAggFunction)
       |    org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-      |    .deserialize("rO0ABXNyAEtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbn" +
-      |    "MuTG9uZ01heFdpdGhSZXRyYWN0QWdnRnVuY3Rpb25RmsI8azNGXwIAAHhyAEdvcmcuYXBhY2hlLmZsaW5rL" +
-      |    "nRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbnMuTWF4V2l0aFJldHJhY3RBZ2dGdW5jdGlvbvnwowlX0_Qf" +
-      |    "AgABTAADb3JkdAAVTHNjYWxhL21hdGgvT3JkZXJpbmc7eHIAMm9yZy5hcGFjaGUuZmxpbmsudGFibGUuZnV" +
-      |    "uY3Rpb25zLkFnZ3JlZ2F0ZUZ1bmN0aW9uTcYVPtJjNfwCAAB4cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS" +
-      |    "5mdW5jdGlvbnMuVXNlckRlZmluZWRGdW5jdGlvbi0B91QxuAyTAgAAeHBzcgAZc2NhbGEubWF0aC5PcmRlc" +
-      |    "mluZyRMb25nJOda0iCPo2ukAgAAeHA");
+      |    .deserialize("${longMaxWithRetractAggFunction}");
       |  }
       |
       |  public void setAggregationResults(
@@ -192,7 +190,7 @@ class HarnessTestBase {
     """.stripMargin
 
   val sumAggCode: String =
-    """
+    s"""
       |public final class SumAggregationHelper
       |  extends org.apache.flink.table.runtime.aggregate.GeneratedAggregations {
       |
@@ -209,17 +207,8 @@ class HarnessTestBase {
       |
       |sum = (org.apache.flink.table.functions.aggfunctions.IntSumWithRetractAggFunction)
       |org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-      |.deserialize
-      |("rO0ABXNyAEpvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbnMuSW50U3VtV2l0a" +
-      |"FJldHJhY3RBZ2dGdW5jdGlvblkfWkeNZDeDAgAAeHIAR29yZy5hcGFjaGUuZmxpbmsudGFibGUuZnVuY3Rpb25" +
-      |"zLmFnZ2Z1bmN0aW9ucy5TdW1XaXRoUmV0cmFjdEFnZ0Z1bmN0aW9ut2oWrOsLrs0CAAFMAAdudW1lcmljdAAUT" +
-      |"HNjYWxhL21hdGgvTnVtZXJpYzt4cgAyb3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuQWdncmVnYXR" +
-      |"lRnVuY3Rpb25NxhU-0mM1_AIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5Vc2VyRGVma" +
-      |"W5lZEZ1bmN0aW9uLQH3VDG4DJMCAAB4cHNyACFzY2FsYS5tYXRoLk51bWVyaWMkSW50SXNJbnRlZ3JhbCTw6XA" +
-      |"59sPAzAIAAHhw");
-      |
-      |
-      |  }
+      |.deserialize("${intSumWithRetractAggFunction}");
+      |}
       |
       |  public final void setAggregationResults(
       |    org.apache.flink.types.Row accs,

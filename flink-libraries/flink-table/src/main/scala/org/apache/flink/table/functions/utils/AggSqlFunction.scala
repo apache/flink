@@ -43,7 +43,8 @@ class AggSqlFunction(
     name: String,
     aggregateFunction: AggregateFunction[_, _],
     returnType: TypeInformation[_],
-    typeFactory: FlinkTypeFactory)
+    typeFactory: FlinkTypeFactory,
+    requiresOver: Boolean)
   extends SqlUserDefinedAggFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
     createReturnTypeInference(returnType, typeFactory),
@@ -51,7 +52,8 @@ class AggSqlFunction(
     createOperandTypeChecker(aggregateFunction),
     // Do not need to provide a calcite aggregateFunction here. Flink aggregateion function
     // will be generated when translating the calcite relnode to flink runtime execution plan
-    null
+    null,
+    requiresOver
   ) {
 
   def getFunction: AggregateFunction[_, _] = aggregateFunction
@@ -63,9 +65,10 @@ object AggSqlFunction {
       name: String,
       aggregateFunction: AggregateFunction[_, _],
       returnType: TypeInformation[_],
-      typeFactory: FlinkTypeFactory): AggSqlFunction = {
+      typeFactory: FlinkTypeFactory,
+      requiresOver: Boolean): AggSqlFunction = {
 
-    new AggSqlFunction(name, aggregateFunction, returnType, typeFactory)
+    new AggSqlFunction(name, aggregateFunction, returnType, typeFactory, requiresOver)
   }
 
   private[flink] def createOperandTypeInference(
