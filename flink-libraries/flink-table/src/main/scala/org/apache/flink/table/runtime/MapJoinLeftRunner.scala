@@ -26,7 +26,7 @@ class MapJoinLeftRunner[IN1, IN2, OUT](
     name: String,
     code: String,
     outerJoin: Boolean,
-    @transient returnType: TypeInformation[OUT],
+    returnType: TypeInformation[OUT],
     broadcastSetName: String)
   extends MapSideJoinRunner[IN1, IN2, IN2, IN1, OUT](name, code, returnType, broadcastSetName) {
 
