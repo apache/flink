@@ -154,7 +154,7 @@ public class SavepointITCase extends TestLogger {
 			// Flink configuration
 			final Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
+			config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
 
 			final File checkpointDir = new File(testRoot, "checkpoints");
 			final File savepointRootDir = new File(testRoot, "savepoints");
@@ -433,7 +433,7 @@ public class SavepointITCase extends TestLogger {
 			// Flink configuration
 			final Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
+			config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
 			config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
 				savepointDir.toURI().toString());
 
@@ -503,7 +503,7 @@ public class SavepointITCase extends TestLogger {
 			// Flink configuration
 			final Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
+			config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
 			config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
 					savepointDir.toURI().toString());
 
@@ -801,7 +801,7 @@ public class SavepointITCase extends TestLogger {
 		Configuration config = new Configuration();
 		config.addAll(jobGraph.getJobConfiguration());
 		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, -1L);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2 * jobGraph.getMaximumParallelism());
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2 * jobGraph.getMaximumParallelism());
 		final File checkpointDir = new File(tmpDir, "checkpoints");
 		final File savepointDir = new File(tmpDir, "savepoints");
 

@@ -58,7 +58,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 			Configuration config = new Configuration();
 			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_SLOTS / 2);
+			config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS / 2);
 			
 			cluster = new LocalFlinkMiniCluster(config);
 

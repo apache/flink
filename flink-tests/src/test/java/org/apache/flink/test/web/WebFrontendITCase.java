@@ -71,7 +71,7 @@ public class WebFrontendITCase extends TestLogger {
 	public static void initialize() throws Exception {
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_SLOTS);
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS);
 		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 12L);
 		config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
 
@@ -196,7 +196,7 @@ public class WebFrontendITCase extends TestLogger {
 			Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
 			assertEquals(
 				cluster.configuration().getString("taskmanager.numberOfTaskSlots", null),
-				conf.get(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS));
+				conf.get(TaskManagerOptions.NUM_TASK_SLOTS.key()));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

@@ -271,8 +271,9 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_NETWORK_DEFAULT_IO_MODE = "taskmanager.network.defaultIOMode";
 
 	/**
-	 * The config parameter defining the number of task slots of a task manager.
+	 * @deprecated use {@link TaskManagerOptions#NUM_TASK_SLOTS} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_NUM_TASK_SLOTS = "taskmanager.numberOfTaskSlots";
 
 	/**

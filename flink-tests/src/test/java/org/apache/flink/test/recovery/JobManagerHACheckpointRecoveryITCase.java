@@ -23,6 +23,7 @@ import akka.actor.ActorSystem;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -166,7 +167,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(ZooKeeper
 				.getConnectString(), FileStateBackendBasePath.getAbsoluteFile().toURI().toString());
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, Parallelism);
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, Parallelism);
 
 		ActorSystem testSystem = null;
 		final JobManagerProcess[] jobManagerProcess = new JobManagerProcess[2];

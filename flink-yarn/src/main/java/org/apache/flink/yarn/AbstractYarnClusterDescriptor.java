@@ -167,7 +167,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 			flinkConfigurationPath = new Path(confFile.getAbsolutePath());
 
-			slots = flinkConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+			slots = flinkConfiguration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 
 			jobManagerMemoryMb = flinkConfiguration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
 			taskManagerMemoryMb = flinkConfiguration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);

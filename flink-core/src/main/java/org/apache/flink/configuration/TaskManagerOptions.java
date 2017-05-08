@@ -92,6 +92,13 @@ public class TaskManagerOptions {
 			key("taskmanager.exit-on-fatal-akka-error")
 			.defaultValue(false);
 
+	/**
+	 * The config parameter defining the number of task slots of a task manager.
+	 */
+	public static final ConfigOption<Integer> NUM_TASK_SLOTS =
+		key("taskmanager.numberOfTaskSlots")
+			.defaultValue(1);
+
 	// ------------------------------------------------------------------------
 	//  Managed Memory Options
 	// ------------------------------------------------------------------------

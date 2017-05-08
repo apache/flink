@@ -73,7 +73,7 @@ public class IPv6HostnamesITCase extends TestLogger {
 			conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, addressString);
 			conf.setString(TaskManagerOptions.HOST_NAME, addressString);
 			conf.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-			conf.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
+			conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
 			conf.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
 			
 			flink = new LocalFlinkMiniCluster(conf, false);

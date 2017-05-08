@@ -408,7 +408,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
 				cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 				cfg.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
-				cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
+				cfg.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
 				cfg.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
 
 				TaskManager.selectNetworkInterfaceAndRunTaskManager(cfg,

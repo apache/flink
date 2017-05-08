@@ -23,6 +23,7 @@ import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
@@ -135,7 +136,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 					config,
 					highAvailabilityServices);
 
-				config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
+				config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, parallelism);
 
 				taskManager = TestingUtils.createTaskManager(
 					testActorSystem,

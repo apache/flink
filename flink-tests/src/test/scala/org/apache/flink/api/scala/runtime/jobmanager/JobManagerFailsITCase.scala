@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.runtime.jobmanager
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.configuration.{ConfigConstants, Configuration, TaskManagerOptions}
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobVertex}
 import org.apache.flink.runtime.testtasks.{BlockingNoOpInvokable, NoOpInvokable}
@@ -133,7 +133,7 @@ class JobManagerFailsITCase(_system: ActorSystem)
 
   def startDeathwatchCluster(numSlots: Int, numTaskmanagers: Int): TestingCluster = {
     val config = new Configuration()
-    config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
+    config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots)
     config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskmanagers)
 
     val cluster = new TestingCluster(config, singleActorSystem = false)

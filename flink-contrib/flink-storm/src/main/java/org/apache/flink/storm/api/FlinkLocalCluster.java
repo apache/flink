@@ -94,7 +94,7 @@ public class FlinkLocalCluster {
 			configuration.addAll(jobGraph.getJobConfiguration());
 
 			configuration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, -1L);
-			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
+			configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
 
 			this.flink = new LocalFlinkMiniCluster(configuration, true);
 			this.flink.start();
