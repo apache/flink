@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -51,6 +52,7 @@ import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -351,9 +353,9 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 				taskManagerParameters.taskManagerTotalMemoryMB(),
 				taskManagerParameters.taskManagerHeapSizeMB(),
 				taskManagerParameters.taskManagerDirectMemoryLimitMB());
-		int timeout = flinkConfig.getInteger(ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, 
-				DEFAULT_TASK_MANAGER_REGISTRATION_DURATION);
-		FiniteDuration teRegistrationTimeout = new FiniteDuration(timeout, TimeUnit.SECONDS);
+		Duration timeout = Duration.create(
+			flinkConfig.getString(TaskManagerOptions.MAX_REGISTRATION_DURATION));
+		FiniteDuration teRegistrationTimeout = Duration.create(timeout.toSeconds(), TimeUnit.SECONDS);
 		final Configuration taskManagerConfig = BootstrapTools.generateTaskManagerConfiguration(
 				flinkConfig, "", 0, 1, teRegistrationTimeout);
 		LOG.debug("TaskManager configuration: {}", taskManagerConfig);

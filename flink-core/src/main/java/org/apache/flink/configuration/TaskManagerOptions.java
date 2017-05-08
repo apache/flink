@@ -100,6 +100,18 @@ public class TaskManagerOptions {
 			.defaultValue(1);
 
 	// ------------------------------------------------------------------------
+	//  Distributed Coordination
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Defines the maximum time it can take for the TaskManager registration. If the duration is
+	 * exceeded without a successful registration, then the TaskManager terminates.
+	 */
+	public static final ConfigOption<String> MAX_REGISTRATION_DURATION =
+		key("taskmanager.maxRegistrationDuration")
+			.defaultValue("Inf");
+
+	// ------------------------------------------------------------------------
 	//  Managed Memory Options
 	// ------------------------------------------------------------------------
 

@@ -25,6 +25,7 @@ import akka.actor.Terminated;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
@@ -264,7 +265,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			try {
 				// registration timeout of 1 second
 				Configuration tmConfig = new Configuration();
-				tmConfig.setString(ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, "500 ms");
+				tmConfig.setString(TaskManagerOptions.MAX_REGISTRATION_DURATION, "500 ms");
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,

@@ -289,9 +289,9 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = "taskmanager.debug.memory.logIntervalMs";
 
 	/**
-	 * Defines the maximum time it can take for the TaskManager registration. If the duration is
-	 * exceeded without a successful registration, then the TaskManager terminates.
+	 * @deprecated use {@link TaskManagerOptions#MAX_REGISTRATION_DURATION} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
 
 	/**
@@ -1194,8 +1194,9 @@ public final class ConfigConstants {
 	public static final long DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = 5000L;
 
 	/**
-	 * The default task manager's maximum registration duration
+	 * @deprecated use {@link TaskManagerOptions#MAX_REGISTRATION_DURATION} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION = "Inf";
 
 	/**

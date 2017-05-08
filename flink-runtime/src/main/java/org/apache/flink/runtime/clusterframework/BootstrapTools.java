@@ -232,7 +232,7 @@ public class BootstrapTools {
 
 		cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerHostname);
 		cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
-		cfg.setString(ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, registrationTimeout.toString());
+		cfg.setString(TaskManagerOptions.MAX_REGISTRATION_DURATION, registrationTimeout.toString());
 		if (numSlots != -1){
 			cfg.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots);
 		}

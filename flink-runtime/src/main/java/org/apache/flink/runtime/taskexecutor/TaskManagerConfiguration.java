@@ -159,8 +159,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		try {
 			Duration maxRegistrationDuration = Duration.create(configuration.getString(
-				ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION,
-				ConfigConstants.DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION));
+				TaskManagerOptions.MAX_REGISTRATION_DURATION));
 			if (maxRegistrationDuration.isFinite()) {
 				finiteRegistrationDuration = Time.milliseconds(maxRegistrationDuration.toMillis());
 			} else {
@@ -168,7 +167,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			}
 		} catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Invalid format for parameter " +
-				ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, e);
+				TaskManagerOptions.MAX_REGISTRATION_DURATION.key(), e);
 		}
 
 		final Time initialRegistrationPause;
