@@ -146,6 +146,14 @@ public class TaskManagerOptions {
 			.defaultValue(true);
 
 	/**
+	 * The implementation to use for spillable/spilled intermediate results, which have both
+	 * synchronous and asynchronous implementations: "sync" or "async".
+	 */
+	public static final ConfigOption<String> NETWORK_IO_MODE =
+		key("taskmanager.network.defaultIOMode")
+			.defaultValue("sync");
+
+	/**
 	 * Number of buffers used in the network stack. This defines the number of possible tasks and
 	 * shuffles.
 	 *

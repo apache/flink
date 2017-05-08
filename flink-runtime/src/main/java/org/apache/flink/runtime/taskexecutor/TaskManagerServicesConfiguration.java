@@ -325,9 +325,7 @@ public class TaskManagerServicesConfiguration {
 		}
 
 		// Default spill I/O mode for intermediate results
-		final String syncOrAsync = configuration.getString(
-			ConfigConstants.TASK_MANAGER_NETWORK_DEFAULT_IO_MODE,
-			ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_DEFAULT_IO_MODE);
+		final String syncOrAsync = configuration.getString(TaskManagerOptions.NETWORK_IO_MODE);
 
 		final IOManager.IOMode ioMode;
 		if (syncOrAsync.equals("async")) {
