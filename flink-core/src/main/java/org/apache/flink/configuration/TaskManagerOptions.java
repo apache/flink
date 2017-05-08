@@ -119,6 +119,13 @@ public class TaskManagerOptions {
 		key("taskmanager.initial-registration-pause")
 			.defaultValue("500 ms");
 
+	/**
+	 * The maximum registration pause between two consecutive registration attempts.
+	 */
+	public static final ConfigOption<String> MAX_REGISTRATION_PAUSE =
+		key("taskmanager.max-registration-pause")
+			.defaultValue("30 s");
+
 	// ------------------------------------------------------------------------
 	//  Managed Memory Options
 	// ------------------------------------------------------------------------
