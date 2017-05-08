@@ -107,8 +107,15 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 
 	@After
 	public void teardownEnvironment() {
-		TestEnvironment.unsetAsContext();
-		CollectionTestEnvironment.unsetAsContext();
+		switch(mode) {
+			case CLUSTER:
+			case CLUSTER_OBJECT_REUSE:
+				TestEnvironment.unsetAsContext();
+				break;
+			case COLLECTION:
+				CollectionTestEnvironment.unsetAsContext();
+				break;
+		}
 	}
 
 	// ------------------------------------------------------------------------
