@@ -76,6 +76,7 @@ under the License.
 		<module>flink-mesos</module>
 		<module>flink-metrics</module>
 		<module>flink-yarn</module>
+		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
 	</modules>
 
@@ -490,14 +491,6 @@ under the License.
 			</properties>
 		</profile>
 
-		<!-- Profile to deactivate the YARN tests -->
-		<profile>
-			<id>include-yarn-tests</id>
-			<modules>
-				<module>flink-yarn-tests</module>
-			</modules>
-		</profile>
-		
 		<profile>
 			<id>vendor-repos</id>
 			<!-- Add vendor maven repositories -->
