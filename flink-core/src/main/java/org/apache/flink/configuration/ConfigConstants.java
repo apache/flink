@@ -177,8 +177,9 @@ public final class ConfigConstants {
 	public static final String LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = "library-cache-manager.cleanup.interval";
 
 	/**
-	 * The config parameter defining the task manager's hostname.
+	 * @deprecated use {@link TaskManagerOptions#HOST_NAME} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_HOSTNAME_KEY = "taskmanager.hostname";
 
 	/**

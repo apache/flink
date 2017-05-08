@@ -240,7 +240,7 @@ public class TaskManagerStartupTest {
 			blocker = new ServerSocket(0, 50, InetAddress.getByName("localhost"));
 
 			final Configuration cfg = new Configuration();
-			cfg.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
+			cfg.setString(TaskManagerOptions.HOST_NAME, "localhost");
 			cfg.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, blocker.getLocalPort());
 			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 1L);
 

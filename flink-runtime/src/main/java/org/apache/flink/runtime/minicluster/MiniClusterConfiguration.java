@@ -139,7 +139,7 @@ public class MiniClusterConfiguration {
 	public String getTaskManagerBindAddress() {
 		return commonBindAddress != null ?
 				commonBindAddress :
-				config.getString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
+				config.getString(TaskManagerOptions.HOST_NAME, "localhost");
 	}
 
 	public String getResourceManagerBindAddress() {

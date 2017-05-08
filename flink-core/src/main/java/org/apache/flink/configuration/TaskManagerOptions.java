@@ -32,7 +32,12 @@ public class TaskManagerOptions {
 	//  General TaskManager Options
 	// ------------------------------------------------------------------------
 
-	// @TODO Migrate 'taskmanager.*' config options from ConfigConstants
+	/**
+	 * The config parameter defining the task manager's hostname.
+	 */
+	public static final ConfigOption<String> HOST_NAME =
+		key("taskmanager.hostname")
+			.noDefaultValue();
 
 	/**
 	 * JVM heap size (in megabytes) for the TaskManagers

@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -51,7 +52,7 @@ public class TaskManagerConfigurationTest {
 		final String TEST_HOST_NAME = "testhostname";
 
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, TEST_HOST_NAME);
+		config.setString(TaskManagerOptions.HOST_NAME, TEST_HOST_NAME);
 		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 7891);
 
@@ -80,7 +81,7 @@ public class TaskManagerConfigurationTest {
 	public void testActorSystemPortConfig() throws Exception {
 		// config with pre-configured hostname to speed up tests (no interface selection)
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
+		config.setString(TaskManagerOptions.HOST_NAME, "localhost");
 		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 7891);
 

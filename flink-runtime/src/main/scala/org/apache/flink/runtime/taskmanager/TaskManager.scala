@@ -1674,8 +1674,7 @@ object TaskManager {
       highAvailabilityServices: HighAvailabilityServices)
     : (String, Int) = {
 
-    var taskManagerHostname = configuration.getString(
-      ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null)
+    var taskManagerHostname = configuration.getString(TaskManagerOptions.HOST_NAME)
 
     if (taskManagerHostname != null) {
       LOG.info("Using configured hostname/address for TaskManager: " + taskManagerHostname)
