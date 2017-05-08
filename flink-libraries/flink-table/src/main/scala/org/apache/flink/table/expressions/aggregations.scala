@@ -253,29 +253,20 @@ case class AggFunctionCall(
   override def toString(): String = s"${aggregateFunction.getClass.getSimpleName}($args)"
 
   override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
-    val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val sqlFunction = AggSqlFunction(aggregateFunction.getClass.getSimpleName,
-                                     aggregateFunction,
-                                     resultType,
-                                     typeFactory)
-    relBuilder.aggregateCall(sqlFunction, false, null, name, args.map(_.toRexNode): _*)
+    relBuilder.aggregateCall(this.getSqlAggFunction(), false, null, name, args.map(_.toRexNode): _*)
   }
 
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    AggSqlFunction(aggregateFunction.getClass.getSimpleName,
+    val sqlAgg = AggSqlFunction(aggregateFunction.getClass.getSimpleName,
                    aggregateFunction,
                    resultType,
-                   typeFactory)
+                   typeFactory,
+                   aggregateFunction.requiresOver)
+    sqlAgg
   }
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    relBuilder.call(
-      AggSqlFunction(aggregateFunction.getClass.getSimpleName,
-                     aggregateFunction,
-                     resultType,
-                     typeFactory),
-      args.map(_.toRexNode): _*)
+    relBuilder.call(this.getSqlAggFunction(), args.map(_.toRexNode): _*)
   }
 }
