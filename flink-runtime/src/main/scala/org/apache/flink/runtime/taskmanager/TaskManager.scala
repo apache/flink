@@ -1693,10 +1693,10 @@ object TaskManager {
     }
 
     // if no task manager port has been configured, use 0 (system will pick any free port)
-    val actorSystemPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0)
+    val actorSystemPort = configuration.getInteger(TaskManagerOptions.PORT)
     if (actorSystemPort < 0 || actorSystemPort > 65535) {
       throw new IllegalConfigurationException("Invalid value for '" +
-        ConfigConstants.TASK_MANAGER_IPC_PORT_KEY +
+        TaskManagerOptions.PORT.key() +
         "' (port for the TaskManager actor system) : " + actorSystemPort +
         " - Leave config parameter empty or use 0 to let the system choose a port automatically.")
     }

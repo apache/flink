@@ -183,8 +183,9 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_HOSTNAME_KEY = "taskmanager.hostname";
 
 	/**
-	 * The config parameter defining the task manager's IPC port from the configuration.
+	 * @deprecated use {@link TaskManagerOptions#PORT} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_IPC_PORT_KEY = "taskmanager.rpc.port";
 
 	/**
@@ -1120,9 +1121,9 @@ public final class ConfigConstants {
 	public static final String DEFAULT_BLOB_SERVER_PORT = "0";
 
 	/**
-	 * The default network port the task manager expects incoming IPC connections. The {@code 0} means that
-	 * the TaskManager searches for a free port.
+	 * @deprecated use {@link TaskManagerOptions#PORT} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_TASK_MANAGER_IPC_PORT = 0;
 
 	/**

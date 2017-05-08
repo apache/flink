@@ -96,12 +96,12 @@ public class TaskManagerConfigurationTest {
 
 			// pre-defined port
 			final int testPort = 22551;
-			config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, testPort);
+			config.setInteger(TaskManagerOptions.PORT, testPort);
 			assertEquals(testPort, TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices)._2());
 
 			// invalid port
 			try {
-				config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, -1);
+				config.setInteger(TaskManagerOptions.PORT, -1);
 				TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices);
 				fail("should fail with an exception");
 			}
@@ -111,7 +111,7 @@ public class TaskManagerConfigurationTest {
 
 			// invalid port
 			try {
-				config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 100000);
+				config.setInteger(TaskManagerOptions.PORT, 100000);
 				TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices);
 				fail("should fail with an exception");
 			}
