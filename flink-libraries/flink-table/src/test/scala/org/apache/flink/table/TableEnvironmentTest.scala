@@ -54,6 +54,28 @@ class TableEnvironmentTest extends TableTestBase {
   val genericRowType = new GenericTypeInfo[Row](classOf[Row])
 
   @Test
+  def testGetFieldInfoRow(): Unit = {
+    val fieldInfo = tEnv.getFieldInfo(rowType)
+
+    fieldInfo._1.zip(Array("f0", "f1", "f2")).foreach(x => assertEquals(x._2, x._1))
+    fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
+  }
+  
+  @Test
+  def testGetFieldInfoRowNames(): Unit = {
+    val fieldInfo = tEnv.getFieldInfo(
+      rowType,
+      Array(
+        UnresolvedFieldReference("name1"),
+        UnresolvedFieldReference("name2"),
+        UnresolvedFieldReference("name3")
+      ))
+
+    fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
+    fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
+  }
+  
+  @Test
   def testGetFieldInfoTuple(): Unit = {
     val fieldInfo = tEnv.getFieldInfo(tupleType)
 
