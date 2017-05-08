@@ -45,9 +45,6 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 		StreamITCase.clear();
 
-		//DataStream<Tuple3<Integer, Long, String>> ds = StreamTestData.getSmall3TupleDataSet(env);
-		
-		//Tuple3<Integer, Long, String>
 		List<Row> data = new ArrayList<>();
 		data.add(Row.of(1, 1L, "Hi"));
 		data.add(Row.of(2, 2L, "Hello"));

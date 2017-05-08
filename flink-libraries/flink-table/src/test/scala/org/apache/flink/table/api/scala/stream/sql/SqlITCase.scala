@@ -52,7 +52,6 @@ class SqlITCase extends StreamingWithStateTestBase {
       BasicTypeInfo.STRING_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO) // tpe is automatically 
     
-    
     val ds = env.fromCollection(data)
     
     val t = ds.toTable(tEnv).as('a, 'b, 'c)

@@ -678,19 +678,9 @@ abstract class TableEnvironment(val config: TableConfig) {
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
-      case r: RowTypeInfo => {
-        val names = r.getFieldNames
-
+      case r: RowTypeInfo =>
         r.getFieldNames().map(name => 
           (r.getFieldIndex(name),name))
-        /*
-        exprs.zipWithIndex flatMap {
-          case (UnresolvedFieldReference(r.getFieldNames()), idx) =>
-            Some((idx, r.getFieldNames()(idx)))
-          case _ => throw new TableException(
-            "Field reference expression or alias on field expression expected.")
-        }*/
-      }
       case tpe => throw new TableException(
         s"Source of type $tpe cannot be converted into Table.")
     }
