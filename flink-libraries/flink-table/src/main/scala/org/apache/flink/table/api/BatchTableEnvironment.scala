@@ -32,7 +32,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.explain.PlanJsonParser
-import org.apache.flink.table.expressions.{Expression, RowtimeAttribute, TimeAttribute}
+import org.apache.flink.table.expressions.{Expression, TimeAttribute}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
@@ -113,9 +113,20 @@ abstract class BatchTableEnvironment(
     *
     * @param table The [[Table]] to write.
     * @param sink The [[TableSink]] to write the [[Table]] to.
+    * @param qConfig The configuration for the query to generate.
     * @tparam T The expected type of the [[DataSet]] which represents the [[Table]].
     */
-  override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = {
+  override private[flink] def writeToSink[T](
+      table: Table,
+      sink: TableSink[T],
+      qConfig: QueryConfig): Unit = {
+
+    // We do not pass the configuration on, because there is nothing to configure for batch queries.
+    val bQConfig = qConfig match {
+      case batchConfig: BatchQueryConfig => batchConfig
+      case _ =>
+        throw new TableException("BatchQueryConfig required to configure batch query.")
+    }
 
     sink match {
       case batchSink: BatchTableSink[T] =>
@@ -125,7 +136,7 @@ abstract class BatchTableEnvironment(
         // Give the DataSet to the TableSink to emit it.
         batchSink.emitDataSet(result)
       case _ =>
-        throw new TableException("BatchTableSink required to emit batch Table")
+        throw new TableException("BatchTableSink required to emit batch Table.")
     }
   }
 
