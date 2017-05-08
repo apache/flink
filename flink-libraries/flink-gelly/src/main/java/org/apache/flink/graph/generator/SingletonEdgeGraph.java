@@ -31,8 +31,7 @@ import org.apache.flink.util.LongValueSequenceIterator;
 import org.apache.flink.util.Preconditions;
 
 /**
- * A singleton-edge {@link Graph} contains one or more isolated two-paths. The in- and out-degree
- * of every vertex is 1. For {@code n} vertices there are {@code n/2} components.
+ * A singleton-edge {@link Graph} contains one or more isolated two-paths.
  */
 public class SingletonEdgeGraph
 extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
@@ -46,7 +45,9 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	private long vertexPairCount;
 
 	/**
-	 * An undirected {@link Graph} containing isolated two-paths.
+	 * An undirected {@link Graph} containing one or more isolated two-paths.
+	 * The in- and out-degree of every vertex is 1. For {@code n} vertices
+	 * there are {@code n/2} components.
 	 *
 	 * @param env the Flink execution environment
 	 * @param vertexPairCount number of pairs of vertices
