@@ -63,6 +63,7 @@ import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable.HashMap
@@ -677,6 +678,9 @@ abstract class TableEnvironment(val config: TableConfig) {
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
+      case r: RowTypeInfo =>
+        r.getFieldNames().map(name => 
+          (r.getFieldIndex(name),name))
       case tpe => throw new TableException(
         s"Source of type $tpe cannot be converted into Table.")
     }
