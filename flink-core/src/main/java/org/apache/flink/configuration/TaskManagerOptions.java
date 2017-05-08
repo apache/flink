@@ -139,6 +139,13 @@ public class TaskManagerOptions {
 	// ------------------------------------------------------------------------
 
 	/**
+	 * Config parameter to override SSL support for taskmanager's data transport
+	 */
+	public static final ConfigOption<Boolean> DATA_SSL_ENABLED =
+		key("taskmanager.data.ssl.enabled")
+			.defaultValue(true);
+
+	/**
 	 * Number of buffers used in the network stack. This defines the number of possible tasks and
 	 * shuffles.
 	 *

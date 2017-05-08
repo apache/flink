@@ -195,8 +195,9 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DATA_PORT_KEY = "taskmanager.data.port";
 
 	/**
-	 * Config parameter to override SSL support for taskmanager's data transport
+	 * @deprecated use {@link TaskManagerOptions#DATA_SSL_ENABLED} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_DATA_SSL_ENABLED = "taskmanager.data.ssl.enabled";
 
 	/**
@@ -1136,8 +1137,9 @@ public final class ConfigConstants {
 	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = 0;
 
 	/**
-	 * The default value to override ssl support for task manager's data transport
+	 * @deprecated use {@link TaskManagerOptions#DATA_SSL_ENABLED} instead
 	 */
+	@Deprecated
 	public static final boolean DEFAULT_TASK_MANAGER_DATA_SSL_ENABLED = true;
 
 	/**
