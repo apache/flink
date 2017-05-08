@@ -21,7 +21,7 @@
 
 set -e
 
-VALID_VERSIONS=( 2.10 2.11 )
+VALID_VERSIONS=( 2.10 2.11 2.12 )
 
 usage() {
   echo "Usage: $(basename $0) [-h|--help] <scala version to be used>
@@ -46,12 +46,17 @@ check_scala_version() {
 
 check_scala_version "$TO_VERSION"
 
-if [ $TO_VERSION = "2.11" ]; then
+# This expects an order, fix this.
+if [ $TO_VERSION = "2.12" ]; then
   FROM_SUFFIX="_2\.10"
+  TO_SUFFIX="_2\.12"
+else if [ $TO_VERSION = "2.11" ]; then
+  FROM_SUFFIX="_2\.12"
   TO_SUFFIX="_2\.11"
 else
   FROM_SUFFIX="_2\.11"
   TO_SUFFIX="_2\.10"
+  fi
 fi
 
 sed_i() {
@@ -92,6 +97,17 @@ find "$BASEDIR/flink-dist" -name 'opt.xml' -not -path '*target*' -print \
 # fix for shading curator with Scala 2.11
 find "$BASEDIR/flink-runtime" -name 'pom.xml' -not -path '*target*' -print \
      -exec bash -c "sed_i 's/\(<include>org\.apache\.flink:flink-shaded-curator.*\)'$FROM_SUFFIX'<\/include>/\1'$TO_SUFFIX'<\/include>/g' {}" \;
+
+if [ "$TO_VERSION" == "2.12" ]; then
+  # set the profile activation to !scala-2.11 in parent pom, so that it activates by default
+  bash -c "sed_i 's/<name>scala-2.12<\/name>/<name>!scala-2.12<\/name>/g' $BASEDIR/pom.xml" \;
+  # set the profile activation in all sub modules to scala-2.11 (so that they are disabled by default)
+  find $BASEDIR/flink-* -name 'pom.xml' -not -path '*target*' -print \
+    -exec bash -c "sed_i 's/<name>!scala-2.12<\/name>/<name>scala-2.12<\/name>/g' {}" \;
+
+  # set the name of the shading artifact properly
+  bash -c "sed_i 's/\(shading-artifact.name>flink-shaded[a-z0-9\-]*\)'$FROM_SUFFIX'<\/shading-artifact.name>/\1'$TO_SUFFIX'<\/shading-artifact.name>/g' $BASEDIR/pom.xml" \;
+fi
 
 if [ "$TO_VERSION" == "2.11" ]; then
   # set the profile activation to !scala-2.11 in parent pom, so that it activates by default

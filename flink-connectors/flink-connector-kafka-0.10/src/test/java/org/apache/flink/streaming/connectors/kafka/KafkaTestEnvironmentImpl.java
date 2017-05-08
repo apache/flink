@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import kafka.admin.AdminUtils;
 import kafka.common.KafkaException;
+import kafka.metrics.KafkaMetricsReporter;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 import kafka.utils.SystemTime$;
@@ -42,6 +43,7 @@ import org.apache.kafka.common.protocol.SecurityProtocol;
 import org.apache.kafka.common.requests.MetadataResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.Seq$;
 
 import java.io.File;
 import java.net.BindException;
@@ -381,7 +383,9 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 			try {
 				scala.Option<String> stringNone = scala.Option.apply(null);
-				KafkaServer server = new KafkaServer(kafkaConfig, SystemTime$.MODULE$, stringNone);
+				scala.collection.Seq emptyReporter =
+					Seq$.MODULE$.<KafkaMetricsReporter>empty();
+				KafkaServer server = new KafkaServer(kafkaConfig, SystemTime$.MODULE$, stringNone, emptyReporter);
 				server.startup();
 				return server;
 			}

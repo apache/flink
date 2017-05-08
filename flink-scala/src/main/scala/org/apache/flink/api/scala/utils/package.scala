@@ -31,7 +31,7 @@ import org.apache.flink.api.java.operators.PartitionOperator
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.utils.{DataSetUtils => jutils}
 import org.apache.flink.util.AbstractID
-
+import org.apache.flink.api.java.tuple.Tuple2
 import _root_.scala.language.implicitConversions
 import _root_.scala.reflect.ClassTag
 
@@ -72,7 +72,8 @@ package object utils {
         BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]],
         implicitly[TypeInformation[T]]
       )
-      wrap(jutils.zipWithIndex(self.javaSet)).map { t => (t.f0.toLong, t.f1) }
+      wrap(jutils.zipWithIndex(self.javaSet))
+        .map { t: Tuple2[java.lang.Long, T] => (t.f0.toLong, t.f1) }
     }
 
     /**
@@ -85,7 +86,8 @@ package object utils {
         BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]],
         implicitly[TypeInformation[T]]
       )
-      wrap(jutils.zipWithUniqueId(self.javaSet)).map { t => (t.f0.toLong, t.f1) }
+      wrap(jutils.zipWithUniqueId(self.javaSet))
+        .map { t: Tuple2[java.lang.Long, T] => (t.f0.toLong, t.f1) }
     }
 
     // --------------------------------------------------------------------------------------------

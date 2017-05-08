@@ -33,6 +33,9 @@
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<breeze.version>0.13</breeze.version>
+	</properties>
 	<dependencies>
 
 		<!-- core dependencies -->
@@ -47,7 +50,7 @@
 		<dependency>
 			<groupId>org.scalanlp</groupId>
 			<artifactId>breeze_${scala.binary.version}</artifactId>
-			<version>0.12</version>
+			<version>${breeze.version}</version>
 		</dependency>
 
 		<!-- the dependencies below are already provided in Flink -->
@@ -201,4 +204,5 @@
 			</plugin>
 		</plugins>
 	</build>
+
 </project>

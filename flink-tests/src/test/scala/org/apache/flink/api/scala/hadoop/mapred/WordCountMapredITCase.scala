@@ -65,7 +65,7 @@ class WordCountMapredITCase extends JavaProgramTestBase {
       .sum(1)
 
     val words = counts
-      .map( t => (new Text(t._1), new LongWritable(t._2)) )
+      .map( (t: (String, Int)) => (new Text(t._1), new LongWritable(t._2)) )
 
     val hadoopOutputFormat = new HadoopOutputFormat[Text, LongWritable](
       new TextOutputFormat[Text, LongWritable],

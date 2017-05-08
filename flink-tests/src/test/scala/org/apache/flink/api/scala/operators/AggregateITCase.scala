@@ -61,7 +61,7 @@ class AggregateITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
       .aggregate(Aggregations.SUM,0)
       .and(Aggregations.MAX, 1)
       // Ensure aggregate operator correctly copies other fields
-      .filter(_._3 != null)
+      .filter((in: (Int, Long, String)) => in._3 != null)
       .map{ t => (t._1, t._2) }
 
     aggregateDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
@@ -81,7 +81,7 @@ class AggregateITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
       .groupBy(1)
       .aggregate(Aggregations.SUM, 0)
       // Ensure aggregate operator correctly copies other fields
-      .filter(_._3 != null)
+      .filter((in: (Int, Long, String)) => in._3 != null)
       .map { t => (t._2, t._1) }
 
     aggregateDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
@@ -102,7 +102,7 @@ class AggregateITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
       .aggregate(Aggregations.MIN, 0)
       .aggregate(Aggregations.MIN, 0)
       // Ensure aggregate operator correctly copies other fields
-      .filter(_._3 != null)
+      .filter((in: (Int, Long, String)) => in._3 != null)
       .map { t => new Tuple1(t._1) }
 
     aggregateDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)

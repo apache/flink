@@ -349,7 +349,7 @@ object SVM{
 
         // Count the number of vectors, but keep the value in a DataSet to broadcast it later
         // TODO: Once efficient count and intermediate result partitions are implemented, use count
-        val numberVectors = input map { x => 1 } reduce { _ + _ }
+        val numberVectors: DataSet[Int] = input map { x: LabeledVector => 1 } reduce { _ + _ }
 
         // Group the input data into blocks in round robin fashion
         val blockedInputNumberElements = FlinkMLTools.block(
@@ -357,7 +357,7 @@ object SVM{
           blocks,
           Some(ModuloKeyPartitioner)).
           cross(numberVectors).
-          map { x => x }
+          map { (x: (Block[LabeledVector], Int)) => x }
 
         val resultingWeights = initialWeights.iterate(iterations) {
           weights => {

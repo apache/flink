@@ -91,11 +91,6 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
-			<scope>test</scope>
-		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -132,5 +127,39 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>scala-2.12</id>
+			<activation>
+				<property>
+					<!-- this is the default scala profile -->
+					<name>scala-2.12</name>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-testkit_2.12</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>scala</id>
+			<activation>
+				<property>
+					<!-- this is the default scala profile -->
+					<name>!scala-2.12</name>
+				</property>
+			</activation>
+			<dependencies>
+
+				<dependency>
+					<groupId>com.data-artisans</groupId>
+					<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 	
 </project>

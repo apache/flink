@@ -16,7 +16,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
@@ -39,7 +39,7 @@ under the License.
 		<!-- scala command line parsing -->
 		<dependency>
 			<groupId>com.github.scopt</groupId>
-            <artifactId>scopt_${scala.binary.version}</artifactId>
+			<artifactId>scopt_${scala.binary.version}</artifactId>
 		</dependency>
 
 		<dependency>
@@ -121,13 +121,6 @@ under the License.
 						<jvmArg>-Xms128m</jvmArg>
 						<jvmArg>-Xmx512m</jvmArg>
 					</jvmArgs>
-					<compilerPlugins combine.children="append">
-						<compilerPlugin>
-							<groupId>org.scalamacros</groupId>
-							<artifactId>paradise_${scala.version}</artifactId>
-							<version>${scala.macros.version}</version>
-						</compilerPlugin>
-					</compilerPlugins>
 				</configuration>
 			</plugin>
 
@@ -214,8 +207,7 @@ under the License.
 			<id>scala-2.10</id>
 			<activation>
 				<property>
-					<!-- this is the default scala profile -->
-					<name>!scala-2.11</name>
+					<name>scala-2.10</name>
 				</property>
 			</activation>
 			<dependencies>
@@ -232,6 +224,33 @@ under the License.
 				</dependency>
 			</dependencies>
 		</profile>
+		<profile>
+			<id>scala</id>
+			<activation>
+				<property>
+					<name>!scala-2.12</name>
+				</property>
+			</activation>
+			<!-- Scala Compiler -->
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>net.alchim31.maven</groupId>
+						<artifactId>scala-maven-plugin</artifactId>
+						<configuration>
+							<compilerPlugins combine.children="append">
+								<compilerPlugin>
+									<groupId>org.scalamacros</groupId>
+									<artifactId>paradise_${scala.version}</artifactId>
+									<version>${scala.macros.version}</version>
+								</compilerPlugin>
+							</compilerPlugins>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
 	</profiles>
 
 </project>

@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.streaming.api.scala.function.{AllWindowFunction, ProcessAllWindowFunction, WindowFunction}
+import org.apache.flink.streaming.api.scala.function.{AllWindowFunction, ProcessAllWindowFunction}
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor
@@ -519,7 +519,8 @@ class AllWindowTranslationTest {
       .windowAll(TumblingEventTimeWindows.of(Time.seconds(1)))
       .reduce(
         { (x, _) => x },
-        { (_, in, out: Collector[(String, Int)]) => in foreach { x => out.collect(x)} })
+        { (_: TimeWindow, in: Iterable[(String, Int)], out: Collector[(String, Int)]) =>
+          in foreach { x => out.collect(x)} })
 
     val transform = window1
       .javaStream
@@ -756,7 +757,7 @@ class AllWindowTranslationTest {
       .windowAll(TumblingEventTimeWindows.of(Time.seconds(1)))
       .aggregate(
         new DummyAggregator(),
-        { (_, in: Iterable[(String, Int)], out: Collector[(String, Int)]) => {
+        { (_: TimeWindow, in: Iterable[(String, Int)], out: Collector[(String, Int)]) => {
           in foreach { x => out.collect(x)}
         } })
 
@@ -1104,7 +1105,7 @@ class AllWindowTranslationTest {
       .fold(
         ("", "", 1),
         { (acc: (String, String, Int), _) => acc },
-        { (_, in: Iterable[(String, String, Int)], out: Collector[(String, Int)]) =>
+        { (_: TimeWindow, in: Iterable[(String, String, Int)], out: Collector[(String, Int)]) =>
           in foreach { x => out.collect((x._1, x._3)) }
         })
 

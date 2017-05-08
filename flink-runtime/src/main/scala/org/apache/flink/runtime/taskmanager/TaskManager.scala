@@ -1351,8 +1351,8 @@ class TaskManager(
             accumulatorEvents.append(accumulators)
           } catch {
             case e: Exception =>
-              log.warn("Failed to take accumulator snapshot for task {}.",
-                execID, ExceptionUtils.getRootCause(e))
+              log.warn(s"Failed to take accumulator snapshot for task $execID.",
+                ExceptionUtils.getRootCause(e))
           }
       }
 

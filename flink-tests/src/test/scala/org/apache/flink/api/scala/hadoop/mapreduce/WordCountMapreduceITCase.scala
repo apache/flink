@@ -75,7 +75,7 @@ class WordCountMapreduceITCase extends JavaProgramTestBase {
       .sum(1)
 
     val words = counts
-      .map( t => (new Text(t._1), new LongWritable(t._2)) )
+      .map( (t: (String, Int)) => (new Text(t._1), new LongWritable(t._2)) )
 
     val job = Job.getInstance()
     val hadoopOutputFormat = new HadoopOutputFormat[Text, LongWritable](

@@ -51,7 +51,7 @@ import java.util.List;
  */
 public class GroupCombineITCase extends MultipleProgramsTestBase {
 
-	public GroupCombineITCase(TestExecutionMode mode) {
+	public GroupCombineITCase(MultipleProgramsTestBase.TestExecutionMode mode) {
 		super(mode);
 	}
 

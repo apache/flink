@@ -68,31 +68,11 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-actor_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-remote_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-camel_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
-			<scope>test</scope>
-		</dependency>
 
 		<!-- test dependencies -->
 
@@ -242,4 +222,64 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>scala-2.12</id>
+			<activation>
+				<property>
+					<!-- this is the default scala profile -->
+					<name>scala-2.12</name>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-actor_2.12</artifactId>
+				</dependency>
+				<dependency>
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-camel_2.12</artifactId>
+				</dependency>
+				<dependency>
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-remote_2.12</artifactId>
+				</dependency>
+				<dependency>
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-testkit_2.12</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>scala</id>
+			<activation>
+				<property>
+					<!-- this is the default scala profile -->
+					<name>!scala-2.12</name>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>com.data-artisans</groupId>
+					<artifactId>flakka-actor_${scala.binary.version}</artifactId>
+				</dependency>
+
+				<dependency>
+					<groupId>com.data-artisans</groupId>
+					<artifactId>flakka-remote_${scala.binary.version}</artifactId>
+				</dependency>
+
+				<dependency>
+					<groupId>com.data-artisans</groupId>
+					<artifactId>flakka-camel_${scala.binary.version}</artifactId>
+				</dependency>
+
+				<dependency>
+					<groupId>com.data-artisans</groupId>
+					<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 </project>

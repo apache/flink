@@ -242,11 +242,16 @@ deploy_to_maven() {
   cd flink
   cp ../../deploysettings.xml .
   
+  echo "Deploying Scala 2.12 version"
+  cd tools && ./change-scala-version.sh 2.12 && cd ..
+
+  $MVN clean deploy -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.executable=$GPG -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+
   echo "Deploying Scala 2.11 version"
   cd tools && ./change-scala-version.sh 2.11 && cd ..
 
   $MVN clean deploy -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.executable=$GPG -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
-  
+
   # It is important to first deploy scala 2.11 and then scala 2.10 so that the quickstarts (which are independent of the scala version)
   # are depending on scala 2.10.
   echo "Deploying Scala 2.10 version"

@@ -124,16 +124,9 @@
 						<jvmArg>-Xms128m</jvmArg>
 						<jvmArg>-Xmx512m</jvmArg>
 					</jvmArgs>
-					<compilerPlugins combine.children="append">
-						<compilerPlugin>
-							<groupId>org.scalamacros</groupId>
-							<artifactId>paradise_${scala.version}</artifactId>
-							<version>${scala.macros.version}</version>
-						</compilerPlugin>
-					</compilerPlugins>
 				</configuration>
 			</plugin>
-
+			
 			<!-- Eclipse Integration -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -222,4 +215,35 @@
 		</plugins>
 	</build>
 
+
+	<profiles>
+		<profile>
+			<id>scala</id>
+			<activation>
+				<property>
+					<name>!scala-2.12</name>
+				</property>
+			</activation>
+
+			<build>
+				<plugins>
+					<!-- Scala Compiler -->
+					<plugin>
+						<groupId>net.alchim31.maven</groupId>
+						<artifactId>scala-maven-plugin</artifactId>
+						<configuration>
+							<compilerPlugins combine.children="append">
+								<compilerPlugin>
+									<groupId>org.scalamacros</groupId>
+									<artifactId>paradise_${scala.version}</artifactId>
+									<version>${scala.macros.version}</version>
+								</compilerPlugin>
+							</compilerPlugins>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+	
 </project>

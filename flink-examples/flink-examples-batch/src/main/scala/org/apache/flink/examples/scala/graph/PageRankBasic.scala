@@ -114,7 +114,7 @@ object PageRankBasic {
           // collect ranks and sum them up
           .groupBy("pageId").aggregate(SUM, "rank")
           // apply dampening factor
-          .map { p =>
+          .map { p: Page =>
             Page(p.pageId, (p.rank * DAMPENING_FACTOR) + ((1 - DAMPENING_FACTOR) / numPages))
           }.withForwardedFields("pageId")
 
