@@ -848,7 +848,10 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String SECURITY_SSL_KEYSTORE = "security.ssl.keystore";
 
-	/** secret to decrypt the keystore file */
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_KEYSTORE_PASSWORD} instead
+	 */
+	@Deprecated
 	public static final String SECURITY_SSL_KEYSTORE_PASSWORD = "security.ssl.keystore-password";
 
 	/** secret to decrypt the server key */

@@ -88,7 +88,7 @@ public class NettyClientServerSslTest {
 
 		Configuration config = createSslConfig();
 		// Modify the keystore password to an incorrect one
-		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "invalidpassword");
+		config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "invalidpassword");
 
 		NettyConfig nettyConfig = new NettyConfig(
 			InetAddress.getLoopbackAddress(),
@@ -152,7 +152,7 @@ public class NettyClientServerSslTest {
 		Configuration flinkConfig = new Configuration();
 		flinkConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		flinkConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
-		flinkConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
+		flinkConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
 		flinkConfig.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
 		flinkConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
 		flinkConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD, "password");

@@ -84,4 +84,11 @@ public class SecurityOptions {
 	public static final ConfigOption<String> SSL_KEYSTORE =
 		key("security.ssl.keystore")
 			.noDefaultValue();
+
+	/**
+	 * Secret to decrypt the keystore file.
+	 */
+	public static final ConfigOption<String> SSL_KEYSTORE_PASSWORD =
+		key("security.ssl.keystore-password")
+			.noDefaultValue();
 }
