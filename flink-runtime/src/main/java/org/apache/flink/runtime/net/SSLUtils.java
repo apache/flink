@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.net;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.util.Preconditions;
@@ -106,8 +105,7 @@ public class SSLUtils {
 		Preconditions.checkNotNull(sslConfig);
 		Preconditions.checkNotNull(sslParams);
 
-		boolean verifyHostname = sslConfig.getBoolean(ConfigConstants.SECURITY_SSL_VERIFY_HOSTNAME,
-			ConfigConstants.DEFAULT_SECURITY_SSL_VERIFY_HOSTNAME);
+		boolean verifyHostname = sslConfig.getBoolean(SecurityOptions.SSL_VERIFY_HOSTNAME);
 		if (verifyHostname) {
 			sslParams.setEndpointIdentificationAlgorithm("HTTPS");
 		}

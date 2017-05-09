@@ -884,7 +884,10 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String SECURITY_SSL_ALGORITHMS = "security.ssl.algorithms";
 
-	/** Flag to enable/disable hostname verification for the ssl connections */
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_VERIFY_HOSTNAME} instead
+	 */
+	@Deprecated
 	public static final String SECURITY_SSL_VERIFY_HOSTNAME = "security.ssl.verify-hostname";
 
 	// ----------------------------- Streaming --------------------------------
@@ -1578,6 +1581,10 @@ public final class ConfigConstants {
 	@Deprecated
 	public static String DEFAULT_SECURITY_SSL_ALGORITHMS = "TLS_RSA_WITH_AES_128_CBC_SHA";
 
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_VERIFY_HOSTNAME} instead
+	 */
+	@Deprecated
 	public static boolean DEFAULT_SECURITY_SSL_VERIFY_HOSTNAME = true;
 
 	// ----------------------------- Streaming Values --------------------------

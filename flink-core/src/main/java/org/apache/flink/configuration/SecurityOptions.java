@@ -128,4 +128,11 @@ public class SecurityOptions {
 	public static final ConfigOption<String> SSL_ALGORITHMS =
 		key("security.ssl.algorithms")
 			.defaultValue("TLS_RSA_WITH_AES_128_CBC_SHA");
+
+	/**
+	 * Flag to enable/disable hostname verification for the ssl connections.
+	 */
+	public static final ConfigOption<Boolean> SSL_VERIFY_HOSTNAME =
+		key("security.ssl.verify-hostname")
+			.defaultValue(true);
 }
