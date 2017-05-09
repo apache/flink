@@ -59,8 +59,8 @@ ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFile);
 This allows getting arguments like `--input hdfs:///mydata --elements 42` from the command line.
 {% highlight java %}
 public static void main(String[] args) {
-	ParameterTool parameter = ParameterTool.fromArgs(args);
-	// .. regular code ..
+    ParameterTool parameter = ParameterTool.fromArgs(args);
+    // .. regular code ..
 {% endhighlight %}
 
 
@@ -114,17 +114,18 @@ The example below shows how to pass the parameters as a `Configuration` object t
 
 {% highlight java %}
 ParameterTool parameters = ParameterTool.fromArgs(args);
-DataSet<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).withParameters(parameters.getConfiguration())
+DataSet<Tuple2<String, Integer>> counts = text
+        .flatMap(new Tokenizer()).withParameters(parameters.getConfiguration())
 {% endhighlight %}
 
 In the `Tokenizer`, the object is now accessible in the `open(Configuration conf)` method:
 
 {% highlight java %}
 public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		parameters.getInteger("myInt", -1);
-		// .. do
+    @Override
+    public void open(Configuration parameters) throws Exception {
+	parameters.getInteger("myInt", -1);
+	// .. do
 {% endhighlight %}
 
 
@@ -147,11 +148,12 @@ Access them in any rich user function:
 {% highlight java %}
 public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
 
-	@Override
-	public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
-		ParameterTool parameters = (ParameterTool) getRuntimeContext().getExecutionConfig().getGlobalJobParameters();
-		parameters.getRequired("input");
-		// .. do more ..
+    @Override
+    public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
+	ParameterTool parameters = (ParameterTool)
+	    getRuntimeContext().getExecutionConfig().getGlobalJobParameters();
+	parameters.getRequired("input");
+	// .. do more ..
 {% endhighlight %}
 
 
@@ -198,8 +200,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MyClass implements MapFunction {
-	private static final Logger LOG = LoggerFactory.getLogger(MyClass.class);
-	// ...
+    private static final Logger LOG = LoggerFactory.getLogger(MyClass.class);
+    // ...
 {% endhighlight %}
 
 
