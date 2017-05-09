@@ -837,35 +837,57 @@ public final class ConfigConstants {
 	// ----------------------------- Transport SSL Settings--------------------
 
 	/**
-	 * Enable SSL support
+	 * @deprecated use {@link SecurityOptions#SSL_ENABLED} instead
 	 */
+	@Deprecated
 	public static final String SECURITY_SSL_ENABLED = "security.ssl.enabled";
 
-	/** The Java keystore file containing the flink endpoint key and certificate */
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_KEYSTORE} instead
+	 */
+	@Deprecated
 	public static final String SECURITY_SSL_KEYSTORE = "security.ssl.keystore";
 
-	/** secret to decrypt the keystore file */
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_KEYSTORE_PASSWORD} instead
+	 */
+	@Deprecated
 	public static final String SECURITY_SSL_KEYSTORE_PASSWORD = "security.ssl.keystore-password";
 
-	/** secret to decrypt the server key */
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_KEY_PASSWORD} instead
+	 */
+	@Deprecated
 	public static final String SECURITY_SSL_KEY_PASSWORD = "security.ssl.key-password";
 
-	/** The truststore file containing the public CA certificates to verify the ssl peers */
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_TRUSTSTORE} instead
+	 */
+	@Deprecated
 	public static final String SECURITY_SSL_TRUSTSTORE = "security.ssl.truststore";
 
-	/** Secret to decrypt the truststore */
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_TRUSTSTORE_PASSWORD} instead
+	 */
+	@Deprecated
 	public static final String SECURITY_SSL_TRUSTSTORE_PASSWORD = "security.ssl.truststore-password";
 
-	/** SSL protocol version to be supported */
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_PROTOCOL} instead
+	 */
+	@Deprecated
 	public static final String SECURITY_SSL_PROTOCOL = "security.ssl.protocol";
 
 	/**
-	 * The standard SSL algorithms to be supported
-	 * More options here - http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites
-	 * */
+	 * @deprecated use {@link SecurityOptions#SSL_ALGORITHMS} instead
+	 */
+	@Deprecated
 	public static final String SECURITY_SSL_ALGORITHMS = "security.ssl.algorithms";
 
-	/** Flag to enable/disable hostname verification for the ssl connections */
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_VERIFY_HOSTNAME} instead
+	 */
+	@Deprecated
 	public static final String SECURITY_SSL_VERIFY_HOSTNAME = "security.ssl.verify-hostname";
 
 	// ----------------------------- Streaming --------------------------------
@@ -1541,12 +1563,28 @@ public final class ConfigConstants {
 
 	// ----------------------------- SSL Values --------------------------------
 
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_ENABLED} instead
+	 */
+	@Deprecated
 	public static boolean DEFAULT_SECURITY_SSL_ENABLED = false;
 
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_PROTOCOL} instead
+	 */
+	@Deprecated
 	public static String DEFAULT_SECURITY_SSL_PROTOCOL = "TLSv1.2";
 
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_ALGORITHMS} instead
+	 */
+	@Deprecated
 	public static String DEFAULT_SECURITY_SSL_ALGORITHMS = "TLS_RSA_WITH_AES_128_CBC_SHA";
 
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_VERIFY_HOSTNAME} instead
+	 */
+	@Deprecated
 	public static boolean DEFAULT_SECURITY_SSL_VERIFY_HOSTNAME = true;
 
 	// ----------------------------- Streaming Values --------------------------

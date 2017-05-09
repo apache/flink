@@ -66,4 +66,73 @@ public class SecurityOptions {
 	public static final ConfigOption<String> ZOOKEEPER_SASL_LOGIN_CONTEXT_NAME =
 		key("zookeeper.sasl.login-context-name")
 			.defaultValue("Client");
+
+	// ------------------------------------------------------------------------
+	//  SSL Security Options
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Enable SSL support.
+	 */
+	public static final ConfigOption<Boolean> SSL_ENABLED =
+		key("security.ssl.enabled")
+			.defaultValue(false);
+
+	/**
+	 * The Java keystore file containing the flink endpoint key and certificate.
+	 */
+	public static final ConfigOption<String> SSL_KEYSTORE =
+		key("security.ssl.keystore")
+			.noDefaultValue();
+
+	/**
+	 * Secret to decrypt the keystore file.
+	 */
+	public static final ConfigOption<String> SSL_KEYSTORE_PASSWORD =
+		key("security.ssl.keystore-password")
+			.noDefaultValue();
+
+	/**
+	 * Secret to decrypt the server key.
+	 */
+	public static final ConfigOption<String> SSL_KEY_PASSWORD =
+		key("security.ssl.key-password")
+			.noDefaultValue();
+
+	/**
+	 * The truststore file containing the public CA certificates to verify the ssl peers.
+	 */
+	public static final ConfigOption<String> SSL_TRUSTSTORE =
+		key("security.ssl.truststore")
+			.noDefaultValue();
+
+	/**
+	 * Secret to decrypt the truststore.
+	 */
+	public static final ConfigOption<String> SSL_TRUSTSTORE_PASSWORD =
+		key("security.ssl.truststore-password")
+			.noDefaultValue();
+
+	/**
+	 * SSL protocol version to be supported.
+	 */
+	public static final ConfigOption<String> SSL_PROTOCOL =
+		key("security.ssl.protocol")
+			.defaultValue("TLSv1.2");
+
+	/**
+	 * The standard SSL algorithms to be supported.
+	 *
+	 * <p>More options here - http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites
+	 */
+	public static final ConfigOption<String> SSL_ALGORITHMS =
+		key("security.ssl.algorithms")
+			.defaultValue("TLS_RSA_WITH_AES_128_CBC_SHA");
+
+	/**
+	 * Flag to enable/disable hostname verification for the ssl connections.
+	 */
+	public static final ConfigOption<Boolean> SSL_VERIFY_HOSTNAME =
+		key("security.ssl.verify-hostname")
+			.defaultValue(true);
 }
