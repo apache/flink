@@ -105,7 +105,7 @@ public class JobManagerServices {
 			Configuration config,
 			HighAvailabilityServices haServices) throws Exception {
 
-		final BlobServer blobServer = new BlobServer(config, haServices);
+		final BlobServer blobServer = new BlobServer(config, haServices.createBlobStore());
 
 		final long cleanupInterval = config.getLong(
 			ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,

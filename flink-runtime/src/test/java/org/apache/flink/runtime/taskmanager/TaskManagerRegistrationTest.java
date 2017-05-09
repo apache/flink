@@ -26,6 +26,7 @@ import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -57,6 +58,7 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -601,7 +603,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 	}
 
 	@Test
-	public void testCheckForValidRegistrationSessionIDs() {
+	public void testCheckForValidRegistrationSessionIDs() throws IOException {
 		new JavaTestKit(actorSystem) {{
 
 			ActorGateway taskManagerGateway = null;
@@ -612,6 +614,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			HighAvailabilityServices mockedHighAvailabilityServices = mock(HighAvailabilityServices.class);
 			when(mockedHighAvailabilityServices.getJobManagerLeaderRetriever(Matchers.eq(HighAvailabilityServices.DEFAULT_JOB_ID)))
 				.thenReturn(new StandaloneLeaderRetrievalService(getTestActor().path().toString(), trueLeaderSessionID));
+			when(mockedHighAvailabilityServices.createBlobStore()).thenReturn(new VoidBlobStore());
 
 			try {
 				// we make the test actor (the test kit) the JobManager to intercept

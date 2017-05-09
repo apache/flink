@@ -39,8 +39,8 @@ public class BlobServerRangeTest extends TestLogger {
 	public void testOnEphemeralPort() throws IOException {
 		Configuration conf = new Configuration();
 		conf.setString(BlobServerOptions.PORT, "0");
-		BlobServer srv = new BlobServer(conf);
-		srv.shutdown();
+		BlobServer srv = new BlobServer(conf, new VoidBlobStore());
+		srv.close();
 	}
 
 	/**
@@ -63,7 +63,7 @@ public class BlobServerRangeTest extends TestLogger {
 
 		// this thing is going to throw an exception
 		try {
-			BlobServer srv = new BlobServer(conf);
+			BlobServer srv = new BlobServer(conf, new VoidBlobStore());
 		} finally {
 			socket.close();
 		}
@@ -92,9 +92,9 @@ public class BlobServerRangeTest extends TestLogger {
 
 		// this thing is going to throw an exception
 		try {
-			BlobServer srv = new BlobServer(conf);
+			BlobServer srv = new BlobServer(conf, new VoidBlobStore());
 			Assert.assertEquals(availablePort, srv.getPort());
-			srv.shutdown();
+			srv.close();
 		} finally {
 			sockets[0].close();
 			sockets[1].close();
