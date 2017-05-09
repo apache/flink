@@ -58,7 +58,7 @@ class AkkaSslITCase(_system: ActorSystem)
       config.setString(SecurityOptions.SSL_KEYSTORE,
         getClass.getResource("/local127.keystore").getPath)
       config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password")
-      config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password")
+      config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password")
       config.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE,
         getClass.getResource("/local127.truststore").getPath)
 
@@ -85,7 +85,7 @@ class AkkaSslITCase(_system: ActorSystem)
         config.setString(SecurityOptions.SSL_KEYSTORE,
           getClass.getResource("/local127.keystore").getPath)
         config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password")
-        config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password")
+        config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password")
         config.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE,
           getClass.getResource("/local127.truststore").getPath)
 
@@ -124,7 +124,7 @@ class AkkaSslITCase(_system: ActorSystem)
         config.setBoolean(SecurityOptions.SSL_ENABLED, true)
         config.setString(SecurityOptions.SSL_KEYSTORE, "invalid.keystore")
         config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password")
-        config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password")
+        config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password")
         config.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, "invalid.keystore")
         config.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD, "password")
 

@@ -197,9 +197,7 @@ public class SSLUtils {
 
 			String keystorePassword = sslConfig.getString(SecurityOptions.SSL_KEYSTORE_PASSWORD);
 
-			String certPassword = sslConfig.getString(
-				ConfigConstants.SECURITY_SSL_KEY_PASSWORD,
-				null);
+			String certPassword = sslConfig.getString(SecurityOptions.SSL_KEY_PASSWORD);
 
 			String sslProtocolVersion = sslConfig.getString(
 				ConfigConstants.SECURITY_SSL_PROTOCOL,
@@ -207,7 +205,7 @@ public class SSLUtils {
 
 			Preconditions.checkNotNull(keystoreFilePath, SecurityOptions.SSL_KEYSTORE.key() + " was not configured.");
 			Preconditions.checkNotNull(keystorePassword, SecurityOptions.SSL_KEYSTORE_PASSWORD.key() + " was not configured.");
-			Preconditions.checkNotNull(certPassword, ConfigConstants.SECURITY_SSL_KEY_PASSWORD + " was not configured.");
+			Preconditions.checkNotNull(certPassword, SecurityOptions.SSL_KEY_PASSWORD.key() + " was not configured.");
 
 			KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
 			FileInputStream keyStoreFile = null;

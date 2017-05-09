@@ -91,4 +91,11 @@ public class SecurityOptions {
 	public static final ConfigOption<String> SSL_KEYSTORE_PASSWORD =
 		key("security.ssl.keystore-password")
 			.noDefaultValue();
+
+	/**
+	 * Secret to decrypt the server key.
+	 */
+	public static final ConfigOption<String> SSL_KEY_PASSWORD =
+		key("security.ssl.key-password")
+			.noDefaultValue();
 }

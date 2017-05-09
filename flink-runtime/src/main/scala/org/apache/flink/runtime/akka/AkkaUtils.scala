@@ -305,9 +305,7 @@ object AkkaUtils {
 
     val akkaSSLKeyStorePassword = configuration.getString(SecurityOptions.SSL_KEYSTORE_PASSWORD)
 
-    val akkaSSLKeyPassword = configuration.getString(
-      ConfigConstants.SECURITY_SSL_KEY_PASSWORD,
-      null)
+    val akkaSSLKeyPassword = configuration.getString(SecurityOptions.SSL_KEY_PASSWORD)
 
     val akkaSSLTrustStore = configuration.getString(
       ConfigConstants.SECURITY_SSL_TRUSTSTORE,
