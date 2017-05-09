@@ -24,6 +24,7 @@ import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.util.NetUtils;
 import org.junit.Assert;
 import org.junit.Test;
@@ -149,7 +150,7 @@ public class NettyClientServerSslTest {
 	private Configuration createSslConfig() throws Exception {
 
 		Configuration flinkConfig = new Configuration();
-		flinkConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+		flinkConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		flinkConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
 		flinkConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
 		flinkConfig.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.net;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -54,8 +55,7 @@ public class SSLUtils {
 
 		Preconditions.checkNotNull(sslConfig);
 
-		return sslConfig.getBoolean( ConfigConstants.SECURITY_SSL_ENABLED,
-			ConfigConstants.DEFAULT_SECURITY_SSL_ENABLED);
+		return sslConfig.getBoolean(SecurityOptions.SSL_ENABLED);
 	}
 
 	/**

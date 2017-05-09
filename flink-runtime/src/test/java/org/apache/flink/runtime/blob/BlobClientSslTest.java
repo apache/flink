@@ -35,6 +35,7 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
@@ -67,15 +68,14 @@ public class BlobClientSslTest extends TestLogger {
 	@BeforeClass
 	public static void startSSLServer() throws IOException {
 		Configuration config = new Configuration();
-		config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+		config.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
 		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
 		config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
 		BLOB_SSL_SERVER = new BlobServer(config, new VoidBlobStore());
 
-
 		sslClientConfig = new Configuration();
-		sslClientConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+		sslClientConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		sslClientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
 		sslClientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD, "password");
 	}
@@ -86,7 +86,7 @@ public class BlobClientSslTest extends TestLogger {
 	@BeforeClass
 	public static void startNonSSLServer() throws IOException {
 		Configuration config = new Configuration();
-		config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+		config.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		config.setBoolean(BlobServerOptions.SSL_ENABLED, false);
 		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
 		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
@@ -94,7 +94,7 @@ public class BlobClientSslTest extends TestLogger {
 		BLOB_SERVER = new BlobServer(config, new VoidBlobStore());
 
 		clientConfig = new Configuration();
-		clientConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+		clientConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		clientConfig.setBoolean(BlobServerOptions.SSL_ENABLED, false);
 		clientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
 		clientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD, "password");

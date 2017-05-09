@@ -66,4 +66,15 @@ public class SecurityOptions {
 	public static final ConfigOption<String> ZOOKEEPER_SASL_LOGIN_CONTEXT_NAME =
 		key("zookeeper.sasl.login-context-name")
 			.defaultValue("Client");
+
+	// ------------------------------------------------------------------------
+	//  SSL Security Options
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Enable SSL support.
+	 */
+	public static final ConfigOption<Boolean> SSL_ENABLED =
+		key("security.ssl.enabled")
+			.defaultValue(false);
 }

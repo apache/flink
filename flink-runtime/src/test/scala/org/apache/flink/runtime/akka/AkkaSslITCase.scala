@@ -20,8 +20,8 @@ package org.apache.flink.runtime.akka
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration}
-import org.apache.flink.runtime.testingUtils.{TestingCluster, TestingUtils, ScalaTestingUtils}
+import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration, SecurityOptions}
+import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatest.junit.JUnitRunner
@@ -54,7 +54,7 @@ class AkkaSslITCase(_system: ActorSystem)
       config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)
       config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
 
-      config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true)
+      config.setBoolean(SecurityOptions.SSL_ENABLED, true)
       config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE,
         getClass.getResource("/local127.keystore").getPath)
       config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password")
@@ -81,7 +81,7 @@ class AkkaSslITCase(_system: ActorSystem)
         config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)
         config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
 
-        config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true)
+        config.setBoolean(SecurityOptions.SSL_ENABLED, true)
         config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE,
           getClass.getResource("/local127.keystore").getPath)
         config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password")
@@ -103,7 +103,7 @@ class AkkaSslITCase(_system: ActorSystem)
       val config = new Configuration()
       config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)
       config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
-      config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, false)
+      config.setBoolean(SecurityOptions.SSL_ENABLED, false)
 
       val cluster = new TestingCluster(config, false)
 
@@ -121,7 +121,7 @@ class AkkaSslITCase(_system: ActorSystem)
         config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
         config.setString(AkkaOptions.ASK_TIMEOUT, "2 s")
 
-        config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true)
+        config.setBoolean(SecurityOptions.SSL_ENABLED, true)
         config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "invalid.keystore")
         config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password")
         config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password")
@@ -143,7 +143,7 @@ class AkkaSslITCase(_system: ActorSystem)
         config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
         config.setString(AkkaOptions.ASK_TIMEOUT, "2 s")
 
-        config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true)
+        config.setBoolean(SecurityOptions.SSL_ENABLED, true)
 
         val cluster = new TestingCluster(config, false)
 
