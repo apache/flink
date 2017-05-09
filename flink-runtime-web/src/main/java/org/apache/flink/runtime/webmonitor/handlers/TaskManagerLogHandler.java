@@ -50,6 +50,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.BiFunction;
@@ -62,6 +63,7 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
 import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandlerBase;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,6 +118,8 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 
 	private final Time timeTimeout;
 
+	private final BlobView blobView;
+
 	public enum FileMode {
 		LOG,
 		STDOUT
@@ -128,7 +132,8 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 		FiniteDuration timeout,
 		FileMode fileMode,
 		Configuration config,
-		boolean httpsEnabled) {
+		boolean httpsEnabled,
+		BlobView blobView) {
 		super(retriever, localJobManagerAddressPromise, timeout, httpsEnabled);
 
 		this.executor = checkNotNull(executor);
@@ -141,6 +146,8 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 				serveLogFile = false;
 				break;
 		}
+
+		this.blobView = Preconditions.checkNotNull(blobView, "blobView");
 
 		timeTimeout = Time.milliseconds(timeout.toMillis());
 	}
@@ -167,7 +174,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 					Option<String> hostOption = jobManager.actor().path().address().host();
 					String host = hostOption.isDefined() ? hostOption.get() : "localhost";
 					int port = (int) result;
-					return new BlobCache(new InetSocketAddress(host, port), config);
+					return new BlobCache(new InetSocketAddress(host, port), config, blobView);
 				}
 			}, executor);
 

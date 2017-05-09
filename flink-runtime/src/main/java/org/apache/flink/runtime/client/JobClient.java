@@ -191,7 +191,8 @@ public class JobClient {
 	public static ClassLoader retrieveClassLoader(
 		JobID jobID,
 		ActorGateway jobManager,
-		Configuration config)
+		Configuration config,
+		HighAvailabilityServices highAvailabilityServices)
 		throws JobRetrievalException {
 
 		final Object jmAnswer;
@@ -213,7 +214,8 @@ public class JobClient {
 			InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, props.blobManagerPort());
 			final BlobCache blobClient;
 			try {
-				blobClient = new BlobCache(serverAddress, config);
+				// TODO: Fix lifecycle of BlobCache to properly close it upon usage
+				blobClient = new BlobCache(serverAddress, config, highAvailabilityServices.createBlobStore());
 			} catch (IOException e) {
 				throw new JobRetrievalException(jobID,
 					"Failed to setup blob cache", e);
@@ -229,7 +231,12 @@ public class JobClient {
 				try {
 					allURLs[pos++] = blobClient.getURL(blobKey);
 				} catch (Exception e) {
-					blobClient.shutdown();
+					try {
+						blobClient.close();
+					} catch (IOException ioe) {
+						LOG.warn("Could not properly close the BlobClient.", ioe);
+					}
+
 					throw new JobRetrievalException(jobID, "Failed to download BlobKey " + blobKey, e);
 				}
 			}

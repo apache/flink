@@ -44,10 +44,13 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
 
 	private final RunningJobsRegistry runningJobsRegistry;
 
+	private final VoidBlobStore voidBlobStore;
+
 	private boolean shutdown;
 
 	public AbstractNonHaServices() {
 		this.runningJobsRegistry = new StandaloneRunningJobsRegistry();
+		this.voidBlobStore = new VoidBlobStore();
 
 		shutdown = false;
 	}
@@ -88,7 +91,7 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
 		synchronized (lock) {
 			checkNotShutdown();
 
-			return new VoidBlobStore();
+			return voidBlobStore;
 		}
 	}
 

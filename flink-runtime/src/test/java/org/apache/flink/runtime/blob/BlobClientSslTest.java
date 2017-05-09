@@ -36,6 +36,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -43,7 +44,7 @@ import org.junit.Test;
 /**
  * This class contains unit tests for the {@link BlobClient} with ssl enabled.
  */
-public class BlobClientSslTest {
+public class BlobClientSslTest extends TestLogger {
 
 	/** The buffer size used during the tests in bytes. */
 	private static final int TEST_BUFFER_SIZE = 17 * 1000;
@@ -64,19 +65,14 @@ public class BlobClientSslTest {
 	 * Starts the SSL enabled BLOB server.
 	 */
 	@BeforeClass
-	public static void startSSLServer() {
-		try {
-			Configuration config = new Configuration();
-			config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
-			config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
-			config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
-			config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
-			BLOB_SSL_SERVER = new BlobServer(config);
-		}
-		catch (IOException e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+	public static void startSSLServer() throws IOException {
+		Configuration config = new Configuration();
+		config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
+		config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
+		BLOB_SSL_SERVER = new BlobServer(config, new VoidBlobStore());
+
 
 		sslClientConfig = new Configuration();
 		sslClientConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
@@ -88,20 +84,14 @@ public class BlobClientSslTest {
 	 * Starts the SSL disabled BLOB server.
 	 */
 	@BeforeClass
-	public static void startNonSSLServer() {
-		try {
-			Configuration config = new Configuration();
-			config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
-			config.setBoolean(BlobServerOptions.SSL_ENABLED, false);
-			config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
-			config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
-			config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
-			BLOB_SERVER = new BlobServer(config);
-		}
-		catch (IOException e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+	public static void startNonSSLServer() throws IOException {
+		Configuration config = new Configuration();
+		config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+		config.setBoolean(BlobServerOptions.SSL_ENABLED, false);
+		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
+		config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
+		BLOB_SERVER = new BlobServer(config, new VoidBlobStore());
 
 		clientConfig = new Configuration();
 		clientConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
@@ -114,13 +104,13 @@ public class BlobClientSslTest {
 	 * Shuts the BLOB server down.
 	 */
 	@AfterClass
-	public static void stopServers() {
+	public static void stopServers() throws IOException {
 		if (BLOB_SSL_SERVER != null) {
-			BLOB_SSL_SERVER.shutdown();
+			BLOB_SSL_SERVER.close();
 		}
 
 		if (BLOB_SERVER != null) {
-			BLOB_SERVER.shutdown();
+			BLOB_SERVER.close();
 		}
 	}
 

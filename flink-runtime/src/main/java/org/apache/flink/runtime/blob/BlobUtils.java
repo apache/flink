@@ -22,8 +22,10 @@ import com.google.common.io.BaseEncoding;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.StringUtils;
@@ -41,6 +43,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
 
 /**
  * Utility class to work with blob data.
@@ -78,16 +81,47 @@ public class BlobUtils {
 	 * @throws IOException
 	 * 		thrown if the (distributed) file storage cannot be created
 	 */
-	static BlobStore createBlobStoreFromConfig(Configuration config) throws IOException {
+	public static BlobStoreService createBlobStoreFromConfig(Configuration config) throws IOException {
 		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
 
 		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
 			return new VoidBlobStore();
 		} else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
-			return ZooKeeperHaServices.createBlobStore(config);
+			return createFileSystemBlobStore(config);
 		} else {
 			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + "'.");
 		}
+	}
+
+	private static BlobStoreService createFileSystemBlobStore(Configuration configuration) throws IOException {
+		String storagePath = configuration.getValue(
+			HighAvailabilityOptions.HA_STORAGE_PATH);
+		if (isNullOrWhitespaceOnly(storagePath)) {
+			throw new IllegalConfigurationException("Configuration is missing the mandatory parameter: " +
+				HighAvailabilityOptions.HA_STORAGE_PATH);
+		}
+
+		final Path path;
+		try {
+			path = new Path(storagePath);
+		} catch (Exception e) {
+			throw new IOException("Invalid path for highly available storage (" +
+				HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
+		}
+
+		final FileSystem fileSystem;
+		try {
+			fileSystem = path.getFileSystem();
+		} catch (Exception e) {
+			throw new IOException("Could not create FileSystem for highly available storage (" +
+				HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
+		}
+
+		final String clusterId =
+			configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
+		storagePath += "/" + clusterId;
+
+		return new FileSystemBlobStore(fileSystem, storagePath);
 	}
 
 	/**
@@ -246,10 +280,10 @@ public class BlobUtils {
 			@Override
 			public void run() {
 				try {
-					service.shutdown();
+					service.close();
 				}
 				catch (Throwable t) {
-					logger.error("Error during shutdown of blob service via JVM shutdown hook: " + t.getMessage(), t);
+					logger.error("Error during shutdown of blob service via JVM shutdown hook.", t);
 				}
 			}
 		});

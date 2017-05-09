@@ -40,13 +40,13 @@ public class BlobServerGetTest {
 	private final Random rnd = new Random();
 
 	@Test
-	public void testGetFailsDuringLookup() {
+	public void testGetFailsDuringLookup() throws IOException {
 		BlobServer server = null;
 		BlobClient client = null;
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -66,37 +66,27 @@ public class BlobServerGetTest {
 			try {
 				client.get(key);
 				fail("This should not succeed.");
-			}
-			catch (IOException e) {
+			} catch (IOException e) {
 				// expected
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
+				client.close();
 			}
 			if (server != null) {
-				server.shutdown();
+				server.close();
 			}
 		}
 	}
 
 	@Test
-	public void testGetFailsDuringStreaming() {
+	public void testGetFailsDuringStreaming() throws IOException {
 		BlobServer server = null;
 		BlobClient client = null;
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -129,21 +119,12 @@ public class BlobServerGetTest {
 			catch (IOException e) {
 				// expected
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
+				client.close();
 			}
 			if (server != null) {
-				server.shutdown();
+				server.close();
 			}
 		}
 	}

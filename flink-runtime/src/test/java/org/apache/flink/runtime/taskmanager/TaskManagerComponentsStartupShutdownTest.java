@@ -149,9 +149,6 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 
 			network.start();
 
-			LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(
-				HighAvailabilityServices.DEFAULT_JOB_ID);
-
 			MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
 
 			// create the task manager
@@ -164,7 +161,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				ioManager,
 				network,
 				numberOfSlots,
-				leaderRetrievalService,
+				highAvailabilityServices,
 				new MetricRegistry(metricRegistryConfiguration));
 
 			taskManager = actorSystem.actorOf(tmProps);

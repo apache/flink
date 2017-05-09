@@ -41,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>This is used in addition to the local blob storage for high availability.
  */
-public class FileSystemBlobStore implements BlobStore {
+public class FileSystemBlobStore implements BlobStoreService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileSystemBlobStore.class);
 
@@ -157,14 +157,19 @@ public class FileSystemBlobStore implements BlobStore {
 	}
 
 	@Override
-	public void cleanUp() {
+	public void closeAndCleanupAllData() {
 		try {
 			LOG.debug("Cleaning up {}.", basePath);
 
 			fileSystem.delete(new Path(basePath), true);
 		}
 		catch (Exception e) {
-			LOG.error("Failed to clean up recovery directory.");
+			LOG.error("Failed to clean up recovery directory.", e);
 		}
+	}
+
+	@Override
+	public void close() throws IOException {
+		// nothing to do for the FileSystemBlobStore
 	}
 }

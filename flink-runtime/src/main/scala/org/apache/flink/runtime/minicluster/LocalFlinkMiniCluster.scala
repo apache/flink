@@ -143,7 +143,8 @@ class LocalFlinkMiniCluster(
     metricsRegistry) = JobManager.createJobManagerComponents(
       config,
       futureExecutor,
-      ioExecutor)
+      ioExecutor,
+      highAvailabilityServices.createBlobStore())
 
     if (config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
       metricsRegistry.get.startQueryService(system, null)
@@ -249,8 +250,6 @@ class LocalFlinkMiniCluster(
       taskManagerServices.getMemoryManager(),
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment,
-      highAvailabilityServices.getJobManagerLeaderRetriever(
-        HighAvailabilityServices.DEFAULT_JOB_ID),
       metricRegistry)
 
     if (config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
@@ -315,7 +314,6 @@ class LocalFlinkMiniCluster(
     memoryManager: MemoryManager,
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
-    leaderRetrievalService: LeaderRetrievalService,
     metricsRegistry: MetricRegistry): Props = {
 
     TaskManager.getTaskManagerProps(
@@ -326,7 +324,7 @@ class LocalFlinkMiniCluster(
       memoryManager,
       ioManager,
       networkEnvironment,
-      leaderRetrievalService,
+      highAvailabilityServices,
       metricsRegistry)
   }
 
