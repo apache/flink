@@ -112,4 +112,11 @@ public class SecurityOptions {
 	public static final ConfigOption<String> SSL_TRUSTSTORE_PASSWORD =
 		key("security.ssl.truststore-password")
 			.noDefaultValue();
+
+	/**
+	 * SSL protocol version to be supported.
+	 */
+	public static final ConfigOption<String> SSL_PROTOCOL =
+		key("security.ssl.protocol")
+			.defaultValue("TLSv1.2");
 }

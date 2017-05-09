@@ -141,7 +141,7 @@ public class SSLUtilsTest {
 		serverConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
 		serverConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
 		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_PROTOCOL, "TLSv1,TLSv1.2");
+		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1,TLSv1.2");
 
 		try {
 			SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
@@ -162,7 +162,7 @@ public class SSLUtilsTest {
 		serverConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
 		serverConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
 		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_PROTOCOL, "TLSv1.1");
+		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1.1");
 		serverConfig.setString(ConfigConstants.SECURITY_SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA256");
 
 		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
@@ -203,7 +203,7 @@ public class SSLUtilsTest {
 		serverConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
 		serverConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
 		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_PROTOCOL, "TLSv1");
+		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1");
 		serverConfig.setString(ConfigConstants.SECURITY_SSL_ALGORITHMS, "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA256");
 
 		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);

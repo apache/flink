@@ -67,9 +67,7 @@ public class SSLUtils {
 	 */
 	public static void setSSLVerAndCipherSuites(ServerSocket socket, Configuration config) {
 		if (socket instanceof SSLServerSocket) {
-			final String[] protocols = config.getString(
-					ConfigConstants.SECURITY_SSL_PROTOCOL,
-					ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL).split(",");
+			final String[] protocols = config.getString(SecurityOptions.SSL_PROTOCOL).split(",");
 
 			final String[] cipherSuites = config.getString(
 					ConfigConstants.SECURITY_SSL_ALGORITHMS,
@@ -93,9 +91,7 @@ public class SSLUtils {
 	 *        The application configuration
 	 */
 	public static void setSSLVerAndCipherSuites(SSLEngine engine, Configuration config) {
-		engine.setEnabledProtocols(config.getString(
-			ConfigConstants.SECURITY_SSL_PROTOCOL,
-			ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL).split(","));
+		engine.setEnabledProtocols(config.getString(SecurityOptions.SSL_PROTOCOL).split(","));
 		engine.setEnabledCipherSuites(config.getString(
 			ConfigConstants.SECURITY_SSL_ALGORITHMS,
 			ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS).split(","));
@@ -141,9 +137,7 @@ public class SSLUtils {
 
 			String trustStoreFilePath = sslConfig.getString(SecurityOptions.SSL_TRUSTSTORE);
 			String trustStorePassword = sslConfig.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD);
-			String sslProtocolVersion = sslConfig.getString(
-				ConfigConstants.SECURITY_SSL_PROTOCOL,
-				ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL);
+			String sslProtocolVersion = sslConfig.getString(SecurityOptions.SSL_PROTOCOL);
 
 			Preconditions.checkNotNull(trustStoreFilePath, SecurityOptions.SSL_TRUSTSTORE.key() + " was not configured.");
 			Preconditions.checkNotNull(trustStorePassword, SecurityOptions.SSL_TRUSTSTORE_PASSWORD.key() + " was not configured.");
@@ -195,9 +189,7 @@ public class SSLUtils {
 
 			String certPassword = sslConfig.getString(SecurityOptions.SSL_KEY_PASSWORD);
 
-			String sslProtocolVersion = sslConfig.getString(
-				ConfigConstants.SECURITY_SSL_PROTOCOL,
-				ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL);
+			String sslProtocolVersion = sslConfig.getString(SecurityOptions.SSL_PROTOCOL);
 
 			Preconditions.checkNotNull(keystoreFilePath, SecurityOptions.SSL_KEYSTORE.key() + " was not configured.");
 			Preconditions.checkNotNull(keystorePassword, SecurityOptions.SSL_KEYSTORE_PASSWORD.key() + " was not configured.");
