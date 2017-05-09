@@ -190,65 +190,73 @@ public class PatternTest extends TestLogger {
 	@Test(expected = MalformedPatternException.class)
 	public void testPatternCanHaveQuantifierSpecifiedOnce1() throws Exception {
 
-		Pattern.begin("start").where(new SimpleCondition<Object>() {
-			private static final long serialVersionUID = 8876425689668531458L;
-
-			@Override
-			public boolean filter(Object value) throws Exception {
-				return true;
-			}
-		}).oneOrMore().oneOrMore().optional();
+		Pattern.begin("start").where(dummyCondition()).oneOrMore().oneOrMore().optional();
 	}
 
 	@Test(expected = MalformedPatternException.class)
 	public void testPatternCanHaveQuantifierSpecifiedOnce2() throws Exception {
 
-		Pattern.begin("start").where(new SimpleCondition<Object>() {
-			private static final long serialVersionUID = 8311890695733430258L;
-
-			@Override
-			public boolean filter(Object value) throws Exception {
-				return true;
-			}
-		}).oneOrMore().optional().times(1);
+		Pattern.begin("start").where(dummyCondition()).oneOrMore().optional().times(1);
 	}
 
 	@Test(expected = MalformedPatternException.class)
 	public void testPatternCanHaveQuantifierSpecifiedOnce3() throws Exception {
 
-		Pattern.begin("start").where(new SimpleCondition<Object>() {
-			private static final long serialVersionUID = 8093713196099078214L;
-
-			@Override
-			public boolean filter(Object value) throws Exception {
-				return true;
-			}
-		}).times(1).oneOrMore();
+		Pattern.begin("start").where(dummyCondition()).times(1).oneOrMore();
 	}
 
 	@Test(expected = MalformedPatternException.class)
 	public void testPatternCanHaveQuantifierSpecifiedOnce4() throws Exception {
 
-		Pattern.begin("start").where(new SimpleCondition<Object>() {
-			private static final long serialVersionUID = -2995187062849334113L;
-
-			@Override
-			public boolean filter(Object value) throws Exception {
-				return true;
-			}
-		}).oneOrMore().oneOrMore();
+		Pattern.begin("start").where(dummyCondition()).oneOrMore().oneOrMore();
 	}
 
 	@Test(expected = MalformedPatternException.class)
 	public void testPatternCanHaveQuantifierSpecifiedOnce5() throws Exception {
 
-		Pattern.begin("start").where(new SimpleCondition<Object>() {
+		Pattern.begin("start").where(dummyCondition()).oneOrMore().oneOrMore().optional();
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testNotNextCannotBeOneOrMore() throws Exception {
+		Pattern.begin("start").where(dummyCondition()).notNext("not").where(dummyCondition()).oneOrMore();
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testNotNextCannotBeTimes() throws Exception {
+		Pattern.begin("start").where(dummyCondition()).notNext("not").where(dummyCondition()).times(3);
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testNotNextCannotBeOptional() throws Exception {
+
+		Pattern.begin("start").where(dummyCondition()).notNext("not").where(dummyCondition()).optional();
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testNotFollowedCannotBeOneOrMore() throws Exception {
+		Pattern.begin("start").where(dummyCondition()).notFollowedBy("not").where(dummyCondition()).oneOrMore();
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testNotFollowedCannotBeTimes() throws Exception {
+		Pattern.begin("start").where(dummyCondition()).notFollowedBy("not").where(dummyCondition()).times(3);
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testNotFollowedCannotBeOptional() throws Exception {
+
+		Pattern.begin("start").where(dummyCondition()).notFollowedBy("not").where(dummyCondition()).optional();
+	}
+
+	private SimpleCondition<Object> dummyCondition() {
+		return new SimpleCondition<Object>() {
 			private static final long serialVersionUID = -2205071036073867531L;
 
 			@Override
 			public boolean filter(Object value) throws Exception {
 				return true;
 			}
-		}).oneOrMore().oneOrMore().optional();
+		};
 	}
 }

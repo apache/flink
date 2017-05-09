@@ -22,7 +22,10 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -31,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A serializer for arrays of objects.
  * 
- * @param <C> The component type
+ * @param <C> The component type.
  */
 @Internal
 public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
@@ -185,5 +188,37 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	@Override
 	public String toString() {
 		return "Serializer " + componentClass.getName() + "[]";
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & compatibility
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public GenericArraySerializerConfigSnapshot snapshotConfiguration() {
+		return new GenericArraySerializerConfigSnapshot<>(componentClass, componentSerializer.snapshotConfiguration());
+	}
+
+	@Override
+	public CompatibilityResult<C[]> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof GenericArraySerializerConfigSnapshot) {
+			final GenericArraySerializerConfigSnapshot config = (GenericArraySerializerConfigSnapshot) configSnapshot;
+
+			if (componentClass.equals(config.getComponentClass())) {
+				CompatibilityResult<C> compatResult = componentSerializer.ensureCompatibility(
+					config.getSingleNestedSerializerConfigSnapshot());
+
+				if (!compatResult.requiresMigration()) {
+					return CompatibilityResult.requiresMigration(null);
+				} else if (compatResult.getConvertDeserializer() != null) {
+					return CompatibilityResult.requiresMigration(
+						new GenericArraySerializer<>(
+							componentClass,
+							new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer())));
+				}
+			}
+		}
+
+		return CompatibilityResult.requiresMigration(null);
 	}
 }

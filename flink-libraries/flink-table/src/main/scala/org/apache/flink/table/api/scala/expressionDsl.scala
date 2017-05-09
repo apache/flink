@@ -27,6 +27,7 @@ import org.apache.flink.table.api.{TableException, CurrentRow, CurrentRange, Unb
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions.AggregateFunction
 
 import scala.language.implicitConversions
 
@@ -162,9 +163,16 @@ trait ImplicitExpressionOperations {
 
   /**
     * Returns the sum of the numeric field across all input values.
+    * If all values are null, null is returned.
     */
   def sum = Sum(expr)
 
+  /**
+    * Returns the sum of the numeric field across all input values.
+    * If all values are null, 0 is returned.
+    */
+  def sum0 = Sum0(expr)
+  
   /**
     * Returns the minimum value of field across all input values.
     */
@@ -184,6 +192,26 @@ trait ImplicitExpressionOperations {
     * Returns the average (arithmetic mean) of the numeric field across all input values.
     */
   def avg = Avg(expr)
+
+  /**
+    * Returns the population standard deviation of an expression (the square root of varPop()).
+    */
+  def stddevPop = StddevPop(expr)
+
+  /**
+    * Returns the sample standard deviation of an expression (the square root of varSamp()).
+    */
+  def stddevSamp = StddevSamp(expr)
+
+  /**
+    * Returns the population standard variance of an expression.
+    */
+  def varPop = VarPop(expr)
+
+  /**
+    *  Returns the sample variance of a given expression.
+    */
+  def varSamp = VarSamp(expr)
 
   /**
     * Converts a value to a given type.
@@ -598,7 +626,7 @@ trait ImplicitExpressionOperations {
     */
   def millis = milli
 
-  // row interval type
+  // Row interval type
 
   /**
     * Creates an interval of rows.
@@ -606,6 +634,8 @@ trait ImplicitExpressionOperations {
     * @return interval of rows
     */
   def rows = toRowInterval(expr)
+
+  // Advanced type helper functions
 
   /**
     * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by name and
@@ -653,6 +683,20 @@ trait ImplicitExpressionOperations {
     * @return the first and only element of an array with a single element
     */
   def element() = ArrayElement(expr)
+
+  // Schema definition
+
+  /**
+    * Declares a field as the rowtime attribute for indicating, accessing, and working in
+    * Flink's event time.
+    */
+  def rowtime = RowtimeAttribute(expr)
+
+  /**
+    * Declares a field as the proctime attribute for indicating, accessing, and working in
+    * Flink's processing time.
+    */
+  def proctime = ProctimeAttribute(expr)
 }
 
 /**
@@ -747,6 +791,8 @@ trait ImplicitExpressionConversions {
   implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression =
     Literal(sqlTimestamp)
   implicit def array2ArrayConstructor(array: Array[_]): Expression = convertArray(array)
+  implicit def userDefinedAggFunctionConstructor[T: TypeInformation, ACC]
+      (udagg: AggregateFunction[T, ACC]): UDAGGExpression[T, ACC] = UDAGGExpression(udagg)
 }
 
 // ------------------------------------------------------------------------------------------------

@@ -21,21 +21,21 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.checkpoint.BlockerCheckpointStreamFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend.PartitionableListState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.util.FutureUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.io.File;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.concurrent.CancellationException;
@@ -97,7 +97,7 @@ public class OperatorStateBackendTest {
 		assertEquals(2, operatorStateBackend.getRegisteredStateNames().size());
 
 		// make sure that type registrations are forwarded
-		TypeSerializer<?> serializer = ((PartitionableListState<?>) listState).getPartitionStateSerializer();
+		TypeSerializer<?> serializer = ((PartitionableListState<?>) listState).getStateMetaInfo().getPartitionStateSerializer();
 		assertTrue(serializer instanceof KryoSerializer);
 		assertTrue(((KryoSerializer<?>) serializer).getKryo().getSerializer(registeredType)
 				instanceof com.esotericsoftware.kryo.serializers.JavaSerializer);
@@ -477,18 +477,20 @@ public class OperatorStateBackendTest {
 
 		executorService.submit(runnableFuture);
 
-		// wait until the async checkpoint is in the write code, then continue
+		// wait until the async checkpoint is in the stream's write code, then continue
 		waiterLatch.await();
 
+		// cancel the future, which should close the underlying stream
 		runnableFuture.cancel(true);
+		Assert.assertTrue(streamFactory.getLastCreatedStream().isClosed());
 
+		// we allow the stream under test to proceed
 		blockerLatch.trigger();
 
 		try {
 			runnableFuture.get(60, TimeUnit.SECONDS);
 			Assert.fail();
 		} catch (CancellationException ignore) {
-
 		}
 	}
 

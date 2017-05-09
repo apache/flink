@@ -18,12 +18,18 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Row;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.Arrays;
 
 import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.readIntoAndCopyNullMask;
@@ -35,12 +41,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Serializer for {@link Row}.
  */
 @Internal
-public class RowSerializer extends TypeSerializer<Row> {
+public final class RowSerializer extends TypeSerializer<Row> {
 
 	private static final long serialVersionUID = 1L;
-	private final boolean[] nullMask;
+
 	private final TypeSerializer<Object>[] fieldSerializers;
 
+	private transient boolean[] nullMask;
+
+	@SuppressWarnings("unchecked")
 	public RowSerializer(TypeSerializer<?>[] fieldSerializers) {
 		this.fieldSerializers = (TypeSerializer<Object>[]) checkNotNull(fieldSerializers);
 		this.nullMask = new boolean[fieldSerializers.length];
@@ -230,5 +239,75 @@ public class RowSerializer extends TypeSerializer<Row> {
 	@Override
 	public int hashCode() {
 		return Arrays.hashCode(fieldSerializers);
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+		this.nullMask = new boolean[fieldSerializers.length];
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & compatibility
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public RowSerializerConfigSnapshot snapshotConfiguration() {
+		return new RowSerializerConfigSnapshot(TypeSerializerUtil.snapshotConfigurations(fieldSerializers));
+	}
+
+	@Override
+	public CompatibilityResult<Row> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof RowSerializerConfigSnapshot) {
+			TypeSerializerConfigSnapshot[] fieldSerializerConfigSnapshots =
+				((RowSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
+
+			if (fieldSerializerConfigSnapshots.length == fieldSerializers.length) {
+				boolean requireMigration = false;
+				TypeSerializer<?>[] convertDeserializers = new TypeSerializer<?>[fieldSerializers.length];
+
+				CompatibilityResult<?> compatResult;
+				for (int i = 0; i < fieldSerializers.length; i++) {
+					compatResult = fieldSerializers[i].ensureCompatibility(fieldSerializerConfigSnapshots[i]);
+					if (compatResult.requiresMigration()) {
+						requireMigration = true;
+
+						if (compatResult.getConvertDeserializer() == null) {
+							// one of the field serializers cannot provide a fallback deserializer
+							return CompatibilityResult.requiresMigration(null);
+						} else {
+							convertDeserializers[i] =
+								new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer());
+						}
+					}
+				}
+
+				if (requireMigration) {
+					return CompatibilityResult.requiresMigration(new RowSerializer(convertDeserializers));
+				} else {
+					return CompatibilityResult.compatible();
+				}
+			}
+		}
+
+		return CompatibilityResult.requiresMigration(null);
+	}
+
+	public static final class RowSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+
+		private static final int VERSION = 1;
+
+		/** This empty nullary constructor is required for deserializing the configuration. */
+		public RowSerializerConfigSnapshot() {}
+
+		public RowSerializerConfigSnapshot(TypeSerializerConfigSnapshot[] fieldSerializerConfigSnapshots) {
+			super(fieldSerializerConfigSnapshots);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
 	}
 }

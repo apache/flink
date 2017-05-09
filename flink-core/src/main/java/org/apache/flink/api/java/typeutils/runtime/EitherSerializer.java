@@ -19,7 +19,10 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Either;
@@ -182,5 +185,40 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 	@Override
 	public int hashCode() {
 		return 17 * leftSerializer.hashCode() + rightSerializer.hashCode();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & compatibility
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public EitherSerializerConfigSnapshot snapshotConfiguration() {
+		return new EitherSerializerConfigSnapshot(
+				leftSerializer.snapshotConfiguration(),
+				rightSerializer.snapshotConfiguration());
+	}
+
+	@Override
+	public CompatibilityResult<Either<L, R>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof EitherSerializerConfigSnapshot) {
+			TypeSerializerConfigSnapshot[] leftRightSerializerConfigSnapshots =
+				((EitherSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
+
+			CompatibilityResult<L> leftCompatResult = leftSerializer.ensureCompatibility(leftRightSerializerConfigSnapshots[0]);
+			CompatibilityResult<R> rightCompatResult = rightSerializer.ensureCompatibility(leftRightSerializerConfigSnapshots[1]);
+
+			if (!leftCompatResult.requiresMigration() && !rightCompatResult.requiresMigration()) {
+				return CompatibilityResult.compatible();
+			} else {
+				if (leftCompatResult.getConvertDeserializer() != null && rightCompatResult.getConvertDeserializer() != null) {
+					return CompatibilityResult.requiresMigration(
+						new EitherSerializer<>(
+							new TypeDeserializerAdapter<>(leftCompatResult.getConvertDeserializer()),
+							new TypeDeserializerAdapter<>(rightCompatResult.getConvertDeserializer())));
+				}
+			}
+		}
+
+		return CompatibilityResult.requiresMigration(null);
 	}
 }

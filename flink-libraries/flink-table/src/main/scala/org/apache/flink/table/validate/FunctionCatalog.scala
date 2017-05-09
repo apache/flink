@@ -23,8 +23,8 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
-import org.apache.flink.table.functions.{EventTimeExtractor, RowTime, ScalarFunction, TableFunction, _}
+import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -96,6 +96,15 @@ class FunctionCatalog {
         val typeInfo = tableSqlFunction.getRowTypeInfo
         val function = tableSqlFunction.getTableFunction
         TableFunctionCall(name, function, children, typeInfo)
+
+      // user-defined aggregate function call
+      case af if classOf[AggregateFunction[_, _]].isAssignableFrom(af) =>
+        val aggregateFunction = sqlFunctions
+          .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[AggSqlFunction])
+          .getOrElse(throw ValidationException(s"Undefined table function: $name"))
+          .asInstanceOf[AggSqlFunction]
+        val function = aggregateFunction.getFunction
+        AggFunctionCall(function, children)
 
       // general expression call
       case expression if classOf[Expression].isAssignableFrom(expression) =>
@@ -169,6 +178,11 @@ object FunctionCatalog {
     "max" -> classOf[Max],
     "min" -> classOf[Min],
     "sum" -> classOf[Sum],
+    "sum0" -> classOf[Sum0],
+    "stddevPop" -> classOf[StddevPop],
+    "stddevSamp" -> classOf[StddevSamp],
+    "varPop" -> classOf[VarPop],
+    "varSamp" -> classOf[VarSamp],
 
     // string functions
     "charLength" -> classOf[CharLength],
@@ -230,16 +244,13 @@ object FunctionCatalog {
     "at" -> classOf[ArrayElementAt],
     "element" -> classOf[ArrayElement],
 
+    // random functions
+    "rand" -> classOf[Rand],
+    "rand_integer" -> classOf[RandInteger]
+    
     // TODO implement function overloading here
     // "floor" -> classOf[TemporalFloor]
     // "ceil" -> classOf[TemporalCeil]
-
-    // extensions to support streaming query
-    "rowtime" -> classOf[RowTime],
-    "proctime" -> classOf[ProcTime],
-
-    "rand" -> classOf[Rand],
-    "rand_integer" -> classOf[RandInteger]
   )
 
   /**
@@ -308,10 +319,15 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.GROUPING_ID,
     // AGGREGATE OPERATORS
     SqlStdOperatorTable.SUM,
+    SqlStdOperatorTable.SUM0,
     SqlStdOperatorTable.COUNT,
     SqlStdOperatorTable.MIN,
     SqlStdOperatorTable.MAX,
     SqlStdOperatorTable.AVG,
+    SqlStdOperatorTable.STDDEV_POP,
+    SqlStdOperatorTable.STDDEV_SAMP,
+    SqlStdOperatorTable.VAR_POP,
+    SqlStdOperatorTable.VAR_SAMP,
     // ARRAY OPERATORS
     SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR,
     SqlStdOperatorTable.ITEM,
@@ -378,8 +394,6 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.ROUND,
     SqlStdOperatorTable.PI,
     // EXTENSIONS
-    EventTimeExtractor,
-    ProcTimeExtractor,
     SqlStdOperatorTable.TUMBLE,
     SqlStdOperatorTable.TUMBLE_START,
     SqlStdOperatorTable.TUMBLE_END,

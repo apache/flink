@@ -191,10 +191,6 @@ public class WindowedStream<T, K, W extends Window> {
 	 */
 	@PublicEvolving
 	public WindowedStream<T, K, W> evictor(Evictor<? super T, ? super W> evictor) {
-		if (windowAssigner instanceof MergingWindowAssigner) {
-			throw new UnsupportedOperationException("Cannot use a merging WindowAssigner with an Evictor.");
-		}
-
 		if (windowAssigner instanceof BaseAlignedWindowAssigner) {
 			throw new UnsupportedOperationException("Cannot use a " + windowAssigner.getClass().getSimpleName() + " with an Evictor.");
 		}

@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
@@ -52,9 +51,7 @@ import org.junit.Test;
 import org.mockito.Matchers;
 
 import java.io.IOException;
-import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -133,10 +130,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 				new SerializedValue<ExecutionConfig>(null),
 				timeout,
 				testingRestartStrategy,
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				scheduler,
-				getClass().getClassLoader());
+				scheduler);
 
 			RestartTimeGauge restartingTime = new RestartTimeGauge(executionGraph);
 
@@ -242,8 +236,8 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			// now lets fail the job while it is in restarting and see whether the restarting time then stops to increase
 			// for this to work, we have to use a SuppressRestartException
-			executionGraph.fail(new SuppressRestartsException(new Exception()));
-
+			executionGraph.failGlobal(new SuppressRestartsException(new Exception()));
+	
 			assertEquals(JobStatus.FAILED, executionGraph.getState());
 
 			previousRestartingTime = restartingTime.getValue();

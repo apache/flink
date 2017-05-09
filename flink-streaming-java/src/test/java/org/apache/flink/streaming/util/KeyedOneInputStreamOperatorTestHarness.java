@@ -116,9 +116,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 							keyGroupRange,
 							mockTask.getEnvironment().getTaskKvStateRegistry());
 
-					if (restoredKeyedState != null) {
-						keyedStateBackend.restore(restoredKeyedState);
-					}
+					keyedStateBackend.restore(restoredKeyedState);
 
 					return keyedStateBackend;
 				}

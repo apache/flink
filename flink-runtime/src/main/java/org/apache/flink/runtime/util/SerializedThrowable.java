@@ -108,6 +108,8 @@ public class SerializedThrowable extends Exception implements Serializable {
 			this.originalErrorClassName = other.originalErrorClassName;
 			this.fullStingifiedStackTrace = other.fullStingifiedStackTrace;
 			this.cachedException = other.cachedException;
+			this.setStackTrace(other.getStackTrace());
+			this.initCause(other.getCause());
 		}
 	}
 
@@ -131,6 +133,10 @@ public class SerializedThrowable extends Exception implements Serializable {
 			}
 		}
 		return cached;
+	}
+
+	public String getOriginalErrorClassName() {
+		return originalErrorClassName;
 	}
 
 	// ------------------------------------------------------------------------

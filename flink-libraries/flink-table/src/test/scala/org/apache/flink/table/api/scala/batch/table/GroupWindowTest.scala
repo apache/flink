@@ -20,6 +20,7 @@ package org.apache.flink.table.api.scala.batch.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.expressions.WindowReference
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.utils.TableTestBase
@@ -62,25 +63,38 @@ class GroupWindowTest extends TableTestBase {
   //===============================================================================================
 
   @Test(expected = classOf[ValidationException])
-  def testProcessingTimeTumblingGroupWindowOverTime(): Unit = {
+  def testInvalidProcessingTimeDefinition(): Unit = {
     val util = batchTestUtil()
-    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
-
-    table
-      .window(Tumble over 50.milli as 'w)   // require a time attribute
-      .groupBy('w, 'string)
-      .select('string, 'int.count)
+    // proctime is not allowed
+    util.addTable[(Long, Int, String)]('long.proctime, 'int, 'string)
   }
 
   @Test(expected = classOf[ValidationException])
-  def testProcessingTimeTumblingGroupWindowOverCount(): Unit = {
+  def testInvalidProcessingTimeDefinition2(): Unit = {
+    val util = batchTestUtil()
+    // proctime is not allowed
+    util.addTable[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidEventTimeDefinition(): Unit = {
+    val util = batchTestUtil()
+    // definition must not extend schema
+    util.addTable[(Long, Int, String)]('long, 'int, 'string, 'rowtime.rowtime)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testTumblingGroupWindowWithInvalidUdAggArgs(): Unit = {
     val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
+    val myWeightedAvg = new WeightedAvgWithMerge
+
     table
-      .window(Tumble over 2.rows as 'w)   // require a time attribute
-      .groupBy('w, 'string)
-      .select('string, 'int.count)
+      .window(Tumble over 2.minutes on 'rowtime as 'w)
+      .groupBy('w, 'long)
+      // invalid function arguments
+      .select(myWeightedAvg('int, 'string))
   }
 
   @Test
@@ -97,8 +111,31 @@ class GroupWindowTest extends TableTestBase {
       "DataSetWindowAggregate",
       batchTableNode(0),
       term("groupBy", "string"),
-      term("window", EventTimeTumblingGroupWindow(WindowReference("w"), 'long, 2.rows)),
+      term("window", TumblingGroupWindow(WindowReference("w"), 'long, 2.rows)),
       term("select", "string", "COUNT(int) AS TMP_0")
+    )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test
+  def testEventTimeTumblingGroupWindowOverTimeWithUdAgg(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    val myWeightedAvg = new WeightedAvgWithMerge
+
+    val windowedTable = table
+      .window(Tumble over 5.milli on 'long as 'w)
+      .groupBy('w, 'string)
+      .select('string, myWeightedAvg('long, 'int))
+
+    val expected = unaryNode(
+      "DataSetWindowAggregate",
+      batchTableNode(0),
+      term("groupBy", "string"),
+      term("window", TumblingGroupWindow(WindowReference("w"), 'long, 5.milli)),
+      term("select", "string", "WeightedAvgWithMerge(long, int) AS TMP_0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -118,7 +155,7 @@ class GroupWindowTest extends TableTestBase {
       "DataSetWindowAggregate",
       batchTableNode(0),
       term("groupBy", "string"),
-      term("window", EventTimeTumblingGroupWindow(WindowReference("w"), 'long, 5.milli)),
+      term("window", TumblingGroupWindow(WindowReference("w"), 'long, 5.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
@@ -126,25 +163,17 @@ class GroupWindowTest extends TableTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
-  def testAllProcessingTimeTumblingGroupWindowOverTime(): Unit = {
+  def testAllTumblingGroupWindowWithInvalidUdAggArgs(): Unit = {
     val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
-    table
-      .window(Tumble over 50.milli as 'w) // require a time attribute
-      .groupBy('w)
-      .select('string, 'int.count)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testAllProcessingTimeTumblingGroupWindowOverCount(): Unit = {
-    val util = batchTestUtil()
-    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+    val myWeightedAvg = new WeightedAvgWithMerge
 
     table
-      .window(Tumble over 2.rows as 'w) // require a time attribute
+      .window(Tumble over 2.minutes on 'rowtime as 'w)
       .groupBy('w)
-      .select('int.count)
+      // invalid function arguments
+      .select(myWeightedAvg('int, 'string))
   }
 
   @Test
@@ -164,7 +193,7 @@ class GroupWindowTest extends TableTestBase {
         batchTableNode(0),
         term("select", "int", "long")
       ),
-      term("window", EventTimeTumblingGroupWindow(WindowReference("w"), 'long, 5.milli)),
+      term("window", TumblingGroupWindow(WindowReference("w"), 'long, 5.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
 
@@ -188,7 +217,7 @@ class GroupWindowTest extends TableTestBase {
         batchTableNode(0),
         term("select", "int", "long")
       ),
-      term("window", EventTimeTumblingGroupWindow(WindowReference("w"), 'long, 2.rows)),
+      term("window", TumblingGroupWindow(WindowReference("w"), 'long, 2.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
 
@@ -200,25 +229,17 @@ class GroupWindowTest extends TableTestBase {
   //===============================================================================================
 
   @Test(expected = classOf[ValidationException])
-  def testProcessingTimeSlidingGroupWindowOverTime(): Unit = {
+  def testSlidingGroupWindowWithInvalidUdAggArgs(): Unit = {
     val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
-    table
-      .window(Slide over 50.milli every 50.milli as 'w) // require on a time attribute
-      .groupBy('w, 'string)
-      .select('string, 'int.count)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testProcessingTimeSlidingGroupWindowOverCount(): Unit = {
-    val util = batchTestUtil()
-    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+    val myWeightedAvg = new WeightedAvgWithMerge
 
     table
-      .window(Slide over 10.rows every 5.rows as 'w) // require on a time attribute
-      .groupBy('w, 'string)
-      .select('string, 'int.count)
+      .window(Slide over 2.minutes every 1.minute on 'rowtime as 'w)
+      .groupBy('w, 'long)
+      // invalid function arguments
+      .select(myWeightedAvg('int, 'string))
   }
 
   @Test
@@ -236,7 +257,7 @@ class GroupWindowTest extends TableTestBase {
       batchTableNode(0),
       term("groupBy", "string"),
       term("window",
-        EventTimeSlidingGroupWindow(WindowReference("w"), 'long, 8.milli, 10.milli)),
+        SlidingGroupWindow(WindowReference("w"), 'long, 8.milli, 10.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
@@ -258,22 +279,49 @@ class GroupWindowTest extends TableTestBase {
       batchTableNode(0),
       term("groupBy", "string"),
       term("window",
-        EventTimeSlidingGroupWindow(WindowReference("w"), 'long, 2.rows, 1.rows)),
+        SlidingGroupWindow(WindowReference("w"), 'long, 2.rows, 1.rows)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
     util.verifyTable(windowedTable, expected)
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testAllProcessingTimeSlidingGroupWindowOverCount(): Unit = {
+  @Test
+  def testEventTimeSlidingGroupWindowOverTimeWithUdAgg(): Unit = {
     val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
+    val myWeightedAvg = new WeightedAvgWithMerge
+
+    val windowedTable = table
+      .window(Slide over 8.milli every 10.milli on 'long as 'w)
+      .groupBy('w, 'string)
+      .select('string, myWeightedAvg('long, 'int))
+
+    val expected = unaryNode(
+      "DataSetWindowAggregate",
+      batchTableNode(0),
+      term("groupBy", "string"),
+      term("window",
+           SlidingGroupWindow(WindowReference("w"), 'long, 8.milli, 10.milli)),
+      term("select", "string", "WeightedAvgWithMerge(long, int) AS TMP_0")
+    )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testAllSlidingGroupWindowWithInvalidUdAggArgs(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    val myWeightedAvg = new WeightedAvgWithMerge
+
     table
-      .window(Slide over 2.rows every 1.rows as 'w) // require on a time attribute
+      .window(Slide over 2.minutes every 1.minute on 'long as 'w)
       .groupBy('w)
-      .select('int.count)
+      // invalid function arguments
+      .select(myWeightedAvg('int, 'string))
   }
 
   @Test
@@ -294,7 +342,7 @@ class GroupWindowTest extends TableTestBase {
         term("select", "int", "long")
       ),
       term("window",
-        EventTimeSlidingGroupWindow(WindowReference("w"), 'long, 8.milli, 10.milli)),
+        SlidingGroupWindow(WindowReference("w"), 'long, 8.milli, 10.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
 
@@ -319,7 +367,7 @@ class GroupWindowTest extends TableTestBase {
         term("select", "int", "long")
       ),
       term("window",
-        EventTimeSlidingGroupWindow(WindowReference("w"), 'long, 2.rows, 1.rows)),
+        SlidingGroupWindow(WindowReference("w"), 'long, 2.rows, 1.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
 
@@ -344,22 +392,62 @@ class GroupWindowTest extends TableTestBase {
       "DataSetWindowAggregate",
       batchTableNode(0),
       term("groupBy", "string"),
-      term("window", EventTimeSessionGroupWindow(WindowReference("w"), 'long, 7.milli)),
+      term("window", SessionGroupWindow(WindowReference("w"), 'long, 7.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
     util.verifyTable(windowedTable, expected)
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testProcessingTimeSessionGroupWindowOverTime(): Unit = {
+  @Test
+  def testEventTimeSessionGroupWindowOverTimeWithUdAgg(): Unit = {
     val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
+    val myWeightedAvg = new WeightedAvgWithMerge
+
     val windowedTable = table
-      .window(Session withGap 7.milli as 'w) // require on a time attribute
-      .groupBy('string, 'w)
-      .select('string, 'int.count)
+      .window(Session withGap 7.milli on 'long as 'w)
+      .groupBy('w, 'string)
+      .select('string, myWeightedAvg('long, 'int))
+
+    val expected = unaryNode(
+      "DataSetWindowAggregate",
+      batchTableNode(0),
+      term("groupBy", "string"),
+      term("window", SessionGroupWindow(WindowReference("w"), 'long, 7.milli)),
+      term("select", "string", "WeightedAvgWithMerge(long, int) AS TMP_0")
+    )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testSessionGroupWindowWithInvalidUdAggArgs(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    val myWeightedAvg = new WeightedAvgWithMerge
+
+    table
+      .window(Session withGap 2.minutes on 'rowtime as 'w)
+      .groupBy('w, 'long)
+      // invalid function arguments
+      .select(myWeightedAvg('int, 'string))
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testAllSessionGroupWindowWithInvalidUdAggArgs(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    val myWeightedAvg = new WeightedAvgWithMerge
+
+    table
+      .window(Session withGap 2.minutes on 'rowtime as 'w)
+      .groupBy('w)
+      // invalid function arguments
+      .select(myWeightedAvg('int, 'string))
   }
 
 }

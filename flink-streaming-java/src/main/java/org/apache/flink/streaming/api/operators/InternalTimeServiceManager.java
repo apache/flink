@@ -34,8 +34,8 @@ import org.apache.flink.util.Preconditions;
 
 /**
  * An entity keeping all the time-related services available to all operators extending the
- * {@link AbstractStreamOperator}. These are the different {@link HeapInternalTimerService timer services}
- * and the {@link InternalWatermarkCallbackService}.
+ * {@link AbstractStreamOperator}. Right now, this is only a
+ * {@link HeapInternalTimerService timer services}.
  *
  * <b>NOTE:</b> These services are only available to keyed operators.
  *
@@ -52,7 +52,6 @@ class InternalTimeServiceManager<K, N> {
 	private final ProcessingTimeService processingTimeService;
 
 	private final Map<String, HeapInternalTimerService<K, N>> timerServices;
-	private final InternalWatermarkCallbackService<K> watermarkCallbackService;
 
 	InternalTimeServiceManager(
 			int totalKeyGroups,
@@ -68,16 +67,6 @@ class InternalTimeServiceManager<K, N> {
 		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
 
 		this.timerServices = new HashMap<>();
-		this.watermarkCallbackService = new InternalWatermarkCallbackService<>(totalKeyGroups, localKeyGroupRange, keyContext);
-	}
-
-	/**
-	 * Returns an {@link InternalWatermarkCallbackService} which  allows to register a
-	 * {@link OnWatermarkCallback} and multiple keys, for which
-	 * the callback will be invoked every time a new {@link Watermark} is received.
-	 */
-	public InternalWatermarkCallbackService<K> getWatermarkCallbackService() {
-		return watermarkCallbackService;
 	}
 
 	/**
@@ -117,7 +106,6 @@ class InternalTimeServiceManager<K, N> {
 		for (HeapInternalTimerService<?, ?> service : timerServices.values()) {
 			service.advanceWatermark(watermark.getTimestamp());
 		}
-		watermarkCallbackService.invokeOnWatermarkCallback(watermark);
 	}
 
 	//////////////////				Fault Tolerance Methods				///////////////////
@@ -131,15 +119,6 @@ class InternalTimeServiceManager<K, N> {
 
 			stream.writeUTF(serviceName);
 			timerService.snapshotTimersForKeyGroup(stream, keyGroupIdx);
-		}
-
-		// write a byte indicating if there was a key
-		// registry service instantiated (1) or not (0).
-		if (watermarkCallbackService != null) {
-			stream.writeByte(1);
-			watermarkCallbackService.snapshotKeysForKeyGroup(stream, keyGroupIdx);
-		} else {
-			stream.writeByte(0);
 		}
 	}
 
@@ -161,11 +140,6 @@ class InternalTimeServiceManager<K, N> {
 			}
 			timerService.restoreTimersForKeyGroup(stream, keyGroupIdx, userCodeClassLoader);
 		}
-
-		byte hadKeyRegistry = stream.readByte();
-		if (hadKeyRegistry == 1) {
-			watermarkCallbackService.restoreKeysForKeyGroup(stream, keyGroupIdx, userCodeClassLoader);
-		}
 	}
 
 	////////////////////			Methods used ONLY IN TESTS				////////////////////
@@ -186,10 +160,5 @@ class InternalTimeServiceManager<K, N> {
 			count += timerService.numEventTimeTimers();
 		}
 		return count;
-	}
-
-	@VisibleForTesting
-	public int numKeysForWatermarkCallback() {
-		return watermarkCallbackService.numKeysForWatermarkCallback();
 	}
 }

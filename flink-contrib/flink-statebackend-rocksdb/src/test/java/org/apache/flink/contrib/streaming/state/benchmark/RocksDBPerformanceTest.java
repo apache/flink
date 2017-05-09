@@ -19,6 +19,8 @@
 package org.apache.flink.contrib.streaming.state.benchmark;
 
 import org.apache.flink.core.memory.MemoryUtils;
+import org.apache.flink.testutils.junit.RetryOnFailure;
+import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -26,6 +28,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import org.rocksdb.CompactionStyle;
+import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
@@ -46,9 +49,16 @@ public class RocksDBPerformanceTest extends TestLogger {
 	@Rule
 	public final TemporaryFolder TMP = new TemporaryFolder();
 
+	@Rule
+	public final RetryRule retry = new RetryRule();
+
 	@Test(timeout = 2000)
+	@RetryOnFailure(times = 3)
 	public void testRocksDbMergePerformance() throws Exception {
-		final File rocksDir = TMP.newFolder("rdb");
+		final File rocksDir = TMP.newFolder();
+
+		// ensure the RocksDB library is loaded to a distinct location each retry
+		NativeLibraryLoader.getInstance().loadLibrary(rocksDir.getAbsolutePath());
 
 		final String key = "key";
 		final String value = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
@@ -121,8 +131,12 @@ public class RocksDBPerformanceTest extends TestLogger {
 	}
 
 	@Test(timeout = 2000)
+	@RetryOnFailure(times = 3)
 	public void testRocksDbRangeGetPerformance() throws Exception {
-		final File rocksDir = TMP.newFolder("rdb");
+		final File rocksDir = TMP.newFolder();
+
+		// ensure the RocksDB library is loaded to a distinct location each retry
+		NativeLibraryLoader.getInstance().loadLibrary(rocksDir.getAbsolutePath());
 
 		final String key = "key";
 		final String value = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";

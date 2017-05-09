@@ -235,7 +235,9 @@ public class MiniCluster {
 
 				// create the high-availability services
 				LOG.info("Starting high-availability services");
-				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(configuration);
+				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+					configuration,
+					commonRpcService.getExecutor());
 
 				heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 

@@ -71,6 +71,8 @@ import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+
+import org.apache.flink.util.WrappingRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -726,6 +728,11 @@ public class Task implements Runnable, TaskActions {
 			}
 		}
 		catch (Throwable t) {
+
+			// unwrap wrapped exceptions to make stack traces more compact
+			if (t instanceof WrappingRuntimeException) {
+				t = ((WrappingRuntimeException) t).unwrap();
+			}
 
 			// ----------------------------------------------------------------
 			// the execution failed. either the invokable code properly failed, or

@@ -1333,6 +1333,12 @@ public final class ConfigConstants {
 		key("jobmanager.web.address")
 			.noDefaultValue();
 
+	/** The config parameter defining the Access-Control-Allow-Origin header for all
+	 * responses from the web-frontend. */
+	public static final ConfigOption<String> JOB_MANAGER_WEB_ACCESS_CONTROL_ALLOW_ORIGIN =
+		key("jobmanager.web.access-control-allow-origin")
+			.defaultValue("*");
+
 	/** The config key for the port of the JobManager web frontend.
 	 * Setting this value to {@code -1} disables the web frontend. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;

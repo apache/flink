@@ -29,6 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.query.AkkaKvStateLocationLookupService.FixedDelayLookupRetryStrategyFactory;
 import org.apache.flink.runtime.query.AkkaKvStateLocationLookupService.LookupRetryStrategyFactory;
@@ -38,7 +39,6 @@ import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.query.netty.UnknownKeyOrNamespace;
 import org.apache.flink.runtime.query.netty.UnknownKvStateID;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,14 +102,16 @@ public class QueryableStateClient {
 	 * system and another for the network client.
 	 *
 	 * @param config Configuration to use.
+	 * @param highAvailabilityServices Service factory for high availability services
 	 * @throws Exception Failures are forwarded
 	 */
-	public QueryableStateClient(Configuration config) throws Exception {
+	public QueryableStateClient(
+			Configuration config,
+			HighAvailabilityServices highAvailabilityServices) throws Exception {
 		Preconditions.checkNotNull(config, "Configuration");
 
 		// Create a leader retrieval service
-		LeaderRetrievalService leaderRetrievalService = LeaderRetrievalUtils
-				.createLeaderRetrievalService(config);
+		LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
 
 		// Get the ask timeout
 		String askTimeoutString = config.getString(

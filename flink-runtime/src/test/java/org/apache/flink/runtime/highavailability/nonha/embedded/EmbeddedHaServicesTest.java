@@ -1,0 +1,167 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.runtime.highavailability.nonha.embedded;
+
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.leaderelection.LeaderContender;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.TestLogger;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+
+import java.util.UUID;
+
+import static junit.framework.TestCase.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Tests for the {@link EmbeddedHaServices}.
+ */
+public class EmbeddedHaServicesTest extends TestLogger {
+
+	private EmbeddedHaServices embeddedHaServices;
+
+	@Before
+	public void setupTest() {
+		embeddedHaServices = new EmbeddedHaServices(Executors.directExecutor());
+	}
+
+	@After
+	public void teardownTest() throws Exception {
+		if (embeddedHaServices != null) {
+			embeddedHaServices.closeAndCleanupAllData();
+			embeddedHaServices = null;
+		}
+	}
+
+	/**
+	 * Tests that exactly one JobManager is elected as the leader for a given job id.
+	 */
+	@Test
+	public void testJobManagerLeaderElection() throws Exception {
+		JobID jobId1 = new JobID();
+		JobID jobId2 = new JobID();
+
+		LeaderContender leaderContender1 = mock(LeaderContender.class);
+		LeaderContender leaderContender2 = mock(LeaderContender.class);
+		LeaderContender leaderContenderDifferentJobId = mock(LeaderContender.class);
+
+		LeaderElectionService leaderElectionService1 = embeddedHaServices.getJobManagerLeaderElectionService(jobId1);
+		LeaderElectionService leaderElectionService2 = embeddedHaServices.getJobManagerLeaderElectionService(jobId1);
+		LeaderElectionService leaderElectionServiceDifferentJobId = embeddedHaServices.getJobManagerLeaderElectionService(jobId2);
+
+		leaderElectionService1.start(leaderContender1);
+		leaderElectionService2.start(leaderContender2);
+		leaderElectionServiceDifferentJobId.start(leaderContenderDifferentJobId);
+
+		ArgumentCaptor<UUID> leaderIdArgumentCaptor1 = ArgumentCaptor.forClass(UUID.class);
+		ArgumentCaptor<UUID> leaderIdArgumentCaptor2 = ArgumentCaptor.forClass(UUID.class);
+		verify(leaderContender1, atLeast(0)).grantLeadership(leaderIdArgumentCaptor1.capture());
+		verify(leaderContender2, atLeast(0)).grantLeadership(leaderIdArgumentCaptor2.capture());
+
+		assertTrue(leaderIdArgumentCaptor1.getAllValues().isEmpty() ^ leaderIdArgumentCaptor2.getAllValues().isEmpty());
+
+		verify(leaderContenderDifferentJobId).grantLeadership(any(UUID.class));
+	}
+
+	/**
+	 * Tests that exactly one ResourceManager is elected as the leader.
+	 */
+	@Test
+	public void testResourceManagerLeaderElection() throws Exception {
+		LeaderContender leaderContender1 = mock(LeaderContender.class);
+		LeaderContender leaderContender2 = mock(LeaderContender.class);
+
+		LeaderElectionService leaderElectionService1 = embeddedHaServices.getResourceManagerLeaderElectionService();
+		LeaderElectionService leaderElectionService2 = embeddedHaServices.getResourceManagerLeaderElectionService();
+
+		leaderElectionService1.start(leaderContender1);
+		leaderElectionService2.start(leaderContender2);
+
+		ArgumentCaptor<UUID> leaderIdArgumentCaptor1 = ArgumentCaptor.forClass(UUID.class);
+		ArgumentCaptor<UUID> leaderIdArgumentCaptor2 = ArgumentCaptor.forClass(UUID.class);
+		verify(leaderContender1, atLeast(0)).grantLeadership(leaderIdArgumentCaptor1.capture());
+		verify(leaderContender2, atLeast(0)).grantLeadership(leaderIdArgumentCaptor2.capture());
+
+		assertTrue(leaderIdArgumentCaptor1.getAllValues().isEmpty() ^ leaderIdArgumentCaptor2.getAllValues().isEmpty());
+	}
+
+	/**
+	 * Tests the JobManager leader retrieval for a given job.
+	 */
+	@Test
+	public void testJobManagerLeaderRetrieval() throws Exception {
+		final String address = "foobar";
+		JobID jobId = new JobID();
+		LeaderRetrievalListener leaderRetrievalListener = mock(LeaderRetrievalListener.class);
+		LeaderContender leaderContender = mock(LeaderContender.class);
+		when(leaderContender.getAddress()).thenReturn(address);
+
+		LeaderElectionService leaderElectionService = embeddedHaServices.getJobManagerLeaderElectionService(jobId);
+		LeaderRetrievalService leaderRetrievalService = embeddedHaServices.getJobManagerLeaderRetriever(jobId);
+
+		leaderRetrievalService.start(leaderRetrievalListener);
+		leaderElectionService.start(leaderContender);
+
+		ArgumentCaptor<UUID> leaderIdArgumentCaptor = ArgumentCaptor.forClass(UUID.class);
+		verify(leaderContender).grantLeadership(leaderIdArgumentCaptor.capture());
+
+		final UUID leaderId = leaderIdArgumentCaptor.getValue();
+
+		leaderElectionService.confirmLeaderSessionID(leaderId);
+
+		verify(leaderRetrievalListener).notifyLeaderAddress(eq(address), eq(leaderId));
+	}
+
+	/**
+	 * Tests the ResourceManager leader retrieval for a given job.
+	 */
+	@Test
+	public void testResourceManagerLeaderRetrieval() throws Exception {
+		final String address = "foobar";
+		LeaderRetrievalListener leaderRetrievalListener = mock(LeaderRetrievalListener.class);
+		LeaderContender leaderContender = mock(LeaderContender.class);
+		when(leaderContender.getAddress()).thenReturn(address);
+
+		LeaderElectionService leaderElectionService = embeddedHaServices.getResourceManagerLeaderElectionService();
+		LeaderRetrievalService leaderRetrievalService = embeddedHaServices.getResourceManagerLeaderRetriever();
+
+		leaderRetrievalService.start(leaderRetrievalListener);
+		leaderElectionService.start(leaderContender);
+
+		ArgumentCaptor<UUID> leaderIdArgumentCaptor = ArgumentCaptor.forClass(UUID.class);
+		verify(leaderContender).grantLeadership(leaderIdArgumentCaptor.capture());
+
+		final UUID leaderId = leaderIdArgumentCaptor.getValue();
+
+		leaderElectionService.confirmLeaderSessionID(leaderId);
+
+		verify(leaderRetrievalListener).notifyLeaderAddress(eq(address), eq(leaderId));
+	}
+}

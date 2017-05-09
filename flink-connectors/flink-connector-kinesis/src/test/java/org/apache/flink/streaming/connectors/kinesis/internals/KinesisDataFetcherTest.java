@@ -18,9 +18,14 @@
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import com.amazonaws.services.kinesis.model.Shard;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
+import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDataFetcher;
@@ -42,6 +47,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(TestableKinesisDataFetcher.class)
@@ -66,8 +73,6 @@ public class KinesisDataFetcherTest {
 				new LinkedList<KinesisStreamShardState>(),
 				subscribedStreamsToLastSeenShardIdsUnderTest,
 				FakeKinesisBehavioursFactory.noShardsFoundForRequestedStreamsBehaviour());
-
-		fetcher.setIsRestoringFromFailure(false); // not restoring
 
 		fetcher.runFetcher(); // this should throw RuntimeException
 	}
@@ -100,23 +105,30 @@ public class KinesisDataFetcherTest {
 				subscribedStreamsToLastSeenShardIdsUnderTest,
 				FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(streamToShardCount));
 
-		fetcher.setIsRestoringFromFailure(false);
+		Properties testConfig = new Properties();
+		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+
+		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(testConfig, fetcher);
 
 		PowerMockito.whenNew(ShardConsumer.class).withAnyArguments().thenReturn(Mockito.mock(ShardConsumer.class));
-		Thread runFetcherThread = new Thread(new Runnable() {
+		Thread consumerThread = new Thread(new Runnable() {
 			@Override
 			public void run() {
 				try {
-					fetcher.runFetcher();
+					consumer.run(mock(SourceFunction.SourceContext.class));
 				} catch (Exception e) {
 					//
 				}
 			}
 		});
-		runFetcherThread.start();
-		Thread.sleep(1000); // sleep a while before closing
-		fetcher.shutdownFetcher();
+		consumerThread.start();
 
+		fetcher.waitUntilRun();
+		consumer.cancel();
+		consumerThread.join();
 
 		// assert that the streams tracked in the state are identical to the subscribed streams
 		Set<String> streamsInState = subscribedStreamsToLastSeenShardIdsUnderTest.keySet();
@@ -191,8 +203,6 @@ public class KinesisDataFetcherTest {
 			fetcher.registerNewSubscribedShardState(
 				new KinesisStreamShardState(restoredState.getKey(), new SequenceNumber(restoredState.getValue())));
 		}
-
-		fetcher.setIsRestoringFromFailure(true);
 
 		PowerMockito.whenNew(ShardConsumer.class).withAnyArguments().thenReturn(Mockito.mock(ShardConsumer.class));
 		Thread runFetcherThread = new Thread(new Runnable() {
@@ -283,8 +293,6 @@ public class KinesisDataFetcherTest {
 			fetcher.registerNewSubscribedShardState(
 				new KinesisStreamShardState(restoredState.getKey(), new SequenceNumber(restoredState.getValue())));
 		}
-
-		fetcher.setIsRestoringFromFailure(true);
 
 		PowerMockito.whenNew(ShardConsumer.class).withAnyArguments().thenReturn(Mockito.mock(ShardConsumer.class));
 		Thread runFetcherThread = new Thread(new Runnable() {
@@ -379,8 +387,6 @@ public class KinesisDataFetcherTest {
 			fetcher.registerNewSubscribedShardState(
 				new KinesisStreamShardState(restoredState.getKey(), new SequenceNumber(restoredState.getValue())));
 		}
-
-		fetcher.setIsRestoringFromFailure(true);
 
 		PowerMockito.whenNew(ShardConsumer.class).withAnyArguments().thenReturn(Mockito.mock(ShardConsumer.class));
 		Thread runFetcherThread = new Thread(new Runnable() {
@@ -477,8 +483,6 @@ public class KinesisDataFetcherTest {
 				new KinesisStreamShardState(restoredState.getKey(), new SequenceNumber(restoredState.getValue())));
 		}
 
-		fetcher.setIsRestoringFromFailure(true);
-
 		PowerMockito.whenNew(ShardConsumer.class).withAnyArguments().thenReturn(Mockito.mock(ShardConsumer.class));
 		Thread runFetcherThread = new Thread(new Runnable() {
 			@Override
@@ -506,5 +510,34 @@ public class KinesisDataFetcherTest {
 			KinesisShardIdGenerator.generateFromShardOrder(4)));
 		assertTrue(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream3") == null);
 		assertTrue(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream4") == null);
+	}
+
+	private static class DummyFlinkKafkaConsumer<T> extends FlinkKinesisConsumer<T> {
+		private static final long serialVersionUID = 1L;
+
+		private KinesisDataFetcher<T> fetcher;
+
+		@SuppressWarnings("unchecked")
+		DummyFlinkKafkaConsumer(Properties properties, KinesisDataFetcher<T> fetcher) {
+			super("test", mock(KinesisDeserializationSchema.class), properties);
+			this.fetcher = fetcher;
+		}
+
+		@Override
+		protected KinesisDataFetcher<T> createFetcher(List<String> streams,
+													  SourceFunction.SourceContext<T> sourceContext,
+													  RuntimeContext runtimeContext,
+													  Properties configProps,
+													  KinesisDeserializationSchema<T> deserializationSchema) {
+			return fetcher;
+		}
+
+		@Override
+		public RuntimeContext getRuntimeContext() {
+			RuntimeContext context = mock(RuntimeContext.class);
+			when(context.getIndexOfThisSubtask()).thenReturn(0);
+			when(context.getNumberOfParallelSubtasks()).thenReturn(1);
+			return context;
+		}
 	}
 }

@@ -32,6 +32,8 @@ object BuiltInMethods {
   val POWER = Types.lookupMethod(classOf[Math], "pow", classOf[Double], classOf[Double])
   val POWER_DEC = Types.lookupMethod(
     classOf[MathFunctions], "power", classOf[Double], classOf[JBigDecimal])
+  val POWER_DEC_DEC = Types.lookupMethod(
+    classOf[SqlFunctions], "power", classOf[JBigDecimal], classOf[JBigDecimal])
 
   val LN = Types.lookupMethod(classOf[Math], "log", classOf[Double])
 

@@ -26,6 +26,7 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
+import org.junit.Assert.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -373,6 +374,59 @@ class JoinITCase(
     val result = tEnv.sql(sqlQuery1).count()
 
     Assert.assertEquals(0, result)
+  }
+
+  @Test
+  def testCrossWithUnnest(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val data = List(
+      (1, 1L, Array("Hi", "w")),
+      (2, 2L, Array("Hello", "k")),
+      (3, 2L, Array("Hello world", "x"))
+    )
+    val stream = env.fromCollection(data)
+    tEnv.registerDataSet("T", stream, 'a, 'b, 'c)
+
+    val sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) as A (s)"
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = List("1,Hi", "1,w", "2,Hello", "2,k", "3,Hello world", "3,x")
+    val results = result.toDataSet[Row].collect().toList
+    assertEquals(expected.toString(), results.sortWith(_.toString < _.toString).toString())
+  }
+
+  @Test
+  def testJoinWithUnnestOfTuple(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val data = List(
+      (1, Array((12, "45.6"), (2, "45.612"))),
+      (2, Array((13, "41.6"), (1, "45.2136"))),
+      (3, Array((18, "42.6")))
+    )
+    val stream = env.fromCollection(data)
+    tEnv.registerDataSet("T", stream, 'a, 'b)
+
+    val sqlQuery = "" +
+      "SELECT a, b, x, y " +
+      "FROM " +
+      "  (SELECT a, b FROM T WHERE a < 3) as tf, " +
+      "  UNNEST(tf.b) as A (x, y) " +
+      "WHERE x > a"
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = List(
+      "1,[(12,45.6), (2,45.612)],12,45.6",
+      "1,[(12,45.6), (2,45.612)],2,45.612",
+      "2,[(13,41.6), (1,45.2136)],13,41.6").mkString(", ")
+    val results = result.toDataSet[Row].collect().map(_.toString)
+    assertEquals(expected, results.sorted.mkString(", "))
   }
 
   @Test(expected = classOf[TableException])

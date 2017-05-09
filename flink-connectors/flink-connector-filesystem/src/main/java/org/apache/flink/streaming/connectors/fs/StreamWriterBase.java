@@ -21,12 +21,14 @@ import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.hdfs.client.HdfsDataOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.EnumSet;
 
 /**
  * Base class for {@link Writer Writers} that write to a {@link FSDataOutputStream}.
@@ -70,6 +72,10 @@ public abstract class StreamWriterBase<T> implements Writer<T> {
 			// At this point the refHflushOrSync cannot be null,
 			// since register method would have thrown if it was.
 			this.refHflushOrSync.invoke(os);
+
+			if (os instanceof HdfsDataOutputStream) {
+				((HdfsDataOutputStream) os).hsync(EnumSet.of(HdfsDataOutputStream.SyncFlag.UPDATE_LENGTH));
+			}
 		} catch (InvocationTargetException e) {
 			String msg = "Error while trying to hflushOrSync!";
 			LOG.error(msg + " " + e.getCause());

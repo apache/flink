@@ -263,7 +263,11 @@ public class CliFrontend {
 		}
 		finally {
 			if (client != null) {
-				client.shutdown();
+				try {
+					client.shutdown();
+				} catch (Exception e) {
+					LOG.warn("Could not properly shut down the cluster client.", e);
+				}
 			}
 			if (program != null) {
 				program.deleteExtractedLibraries();

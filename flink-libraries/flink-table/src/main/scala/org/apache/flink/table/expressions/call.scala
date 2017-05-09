@@ -106,22 +106,15 @@ case class OverCall(
       .getTypeFactory.asInstanceOf[FlinkTypeFactory]
       .createTypeFromTypeInfo(agg.resultType)
 
-    val aggChildName = agg.asInstanceOf[Aggregation].child.asInstanceOf[ResolvedFieldReference].name
-    val aggExprs = List(relBuilder.field(aggChildName).asInstanceOf[RexNode]).asJava
+    // assemble exprs by agg children
+    val aggExprs = agg.asInstanceOf[Aggregation].children.map(_.toRexNode(relBuilder)).asJava
 
     // assemble order by key
-    val orderKey = orderBy match {
-      case _: RowTime =>
-        new RexFieldCollation(relBuilder.call(EventTimeExtractor), Set[SqlKind]().asJava)
-      case _: ProcTime =>
-        new RexFieldCollation(relBuilder.call(ProcTimeExtractor), Set[SqlKind]().asJava)
-      case _ =>
-        throw new ValidationException("Invalid OrderBy expression.")
-    }
+    val orderKey = new RexFieldCollation(orderBy.toRexNode, Set[SqlKind]().asJava)
     val orderKeys = ImmutableList.of(orderKey)
 
     // assemble partition by keys
-    val partitionKeys = partitionBy.map(_.toRexNode(relBuilder)).asJava
+    val partitionKeys = partitionBy.map(_.toRexNode).asJava
 
     // assemble bounds
     val isPhysical: Boolean = preceding.resultType.isInstanceOf[RowIntervalTypeInfo]
@@ -249,6 +242,11 @@ case class OverCall(
         return ValidationFailure("Preceding and following must be of same interval type.")
     }
 
+    // check time field
+    if (!ExpressionUtils.isTimeAttribute(orderBy)) {
+      return ValidationFailure("Ordering must be defined on a time attribute.")
+    }
+
     ValidationSuccess
   }
 }
@@ -281,16 +279,19 @@ case class ScalarFunctionCall(
   override def toString =
     s"${scalarFunction.getClass.getCanonicalName}(${parameters.mkString(", ")})"
 
-  override private[flink] def resultType = getResultType(scalarFunction, foundSignature.get)
+  override private[flink] def resultType =
+    getResultTypeOfScalarFunction(
+      scalarFunction,
+      foundSignature.get)
 
   override private[flink] def validateInput(): ValidationResult = {
     val signature = children.map(_.resultType)
     // look for a signature that matches the input types
-    foundSignature = getSignature(scalarFunction, signature)
+    foundSignature = getEvalMethodSignature(scalarFunction, signature)
     if (foundSignature.isEmpty) {
       ValidationFailure(s"Given parameters do not match any signature. \n" +
         s"Actual: ${signatureToString(signature)} \n" +
-        s"Expected: ${signaturesToString(scalarFunction)}")
+        s"Expected: ${signaturesToString(scalarFunction, "eval")}")
     } else {
       ValidationSuccess
     }

@@ -48,15 +48,17 @@ import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableE
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
-import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer}
+import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer, GeneratedFunction}
 import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.RelTable
-import org.apache.flink.table.runtime.MapRunner
+import org.apache.flink.table.plan.schema.{RelTable, RowSchema}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.validate.FunctionCatalog
@@ -79,7 +81,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   private val rootSchema: SchemaPlus = internalSchema.plus()
 
   // Table API/SQL function catalog
-  private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuiltIns
+  private[flink] val functionCatalog: FunctionCatalog = FunctionCatalog.withBuiltIns
 
   // the configuration to create a Calcite planner
   private lazy val frameworkConfig: FrameworkConfig = Frameworks
@@ -352,6 +354,27 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
+    * Registers an [[AggregateFunction]] under a unique name. Replaces already existing
+    * user-defined functions under this name.
+    */
+  private[flink] def registerAggregateFunctionInternal[T: TypeInformation, ACC](
+      name: String, function: AggregateFunction[T, ACC]): Unit = {
+    // check if class not Scala object
+    checkNotSingleton(function.getClass)
+    // check if class could be instantiated
+    checkForInstantiation(function.getClass)
+
+    val typeInfo: TypeInformation[_] = implicitly[TypeInformation[T]]
+
+    // register in Table API
+    functionCatalog.registerFunction(name, function.getClass)
+
+    // register in SQL API
+    val sqlFunctions = createAggregateSqlFunction(name, function, typeInfo, typeFactory)
+    functionCatalog.registerSqlFunction(sqlFunctions)
+  }
+
+  /**
     * Registers a [[Table]] under a unique name in the TableEnvironment's catalog.
     * Registered tables can be referenced in SQL queries.
     *
@@ -577,16 +600,17 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   /**
     * Returns field names and field positions for a given [[TypeInformation]] and [[Array]] of
-    * [[Expression]].
+    * [[Expression]]. It does not handle time attributes but considers them in indices.
     *
     * @param inputType The [[TypeInformation]] against which the [[Expression]]s are evaluated.
-    * @param exprs The expressions that define the field names.
+    * @param exprs     The expressions that define the field names.
     * @tparam A The type of the TypeInformation.
     * @return A tuple of two arrays holding the field names and corresponding field positions.
     */
   protected[flink] def getFieldInfo[A](
-    inputType: TypeInformation[A],
-    exprs: Array[Expression]): (Array[String], Array[Int]) = {
+      inputType: TypeInformation[A],
+      exprs: Array[Expression])
+    : (Array[String], Array[Int]) = {
 
     TableEnvironment.validateType(inputType)
 
@@ -595,52 +619,61 @@ abstract class TableEnvironment(val config: TableConfig) {
         throw new TableException(
           "An input of GenericTypeInfo<Row> cannot be converted to Table. " +
             "Please specify the type of the input with a RowTypeInfo.")
-      case a: AtomicType[A] =>
-        if (exprs.length != 1) {
-          throw new TableException("Table of atomic type can only have a single field.")
-        }
-        exprs.map {
-          case UnresolvedFieldReference(name) => (0, name)
+      case a: AtomicType[_] =>
+        exprs.zipWithIndex flatMap {
+          case (UnresolvedFieldReference(name), idx) =>
+            if (idx > 0) {
+              throw new TableException("Table of atomic type can only have a single field.")
+            }
+            Some((0, name))
           case _ => throw new TableException("Field reference expression requested.")
         }
       case t: TupleTypeInfo[A] =>
-        exprs.zipWithIndex.map {
-          case (UnresolvedFieldReference(name), idx) => (idx, name)
+        exprs.zipWithIndex flatMap {
+          case (UnresolvedFieldReference(name), idx) =>
+            Some((idx, name))
           case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
             val idx = t.getFieldIndex(origName)
             if (idx < 0) {
               throw new TableException(s"$origName is not a field of type $t")
             }
-            (idx, name)
+            Some((idx, name))
+          case (_: TimeAttribute, _) =>
+            None
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
       case c: CaseClassTypeInfo[A] =>
-        exprs.zipWithIndex.map {
-          case (UnresolvedFieldReference(name), idx) => (idx, name)
+        exprs.zipWithIndex flatMap {
+          case (UnresolvedFieldReference(name), idx) =>
+            Some((idx, name))
           case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
             val idx = c.getFieldIndex(origName)
             if (idx < 0) {
               throw new TableException(s"$origName is not a field of type $c")
             }
-            (idx, name)
+            Some((idx, name))
+          case (_: TimeAttribute, _) =>
+            None
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
       case p: PojoTypeInfo[A] =>
-        exprs.map {
+        exprs flatMap {
           case (UnresolvedFieldReference(name)) =>
             val idx = p.getFieldIndex(name)
             if (idx < 0) {
               throw new TableException(s"$name is not a field of type $p")
             }
-            (idx, name)
+            Some((idx, name))
           case Alias(UnresolvedFieldReference(origName), name, _) =>
             val idx = p.getFieldIndex(origName)
             if (idx < 0) {
               throw new TableException(s"$origName is not a field of type $p")
             }
-            (idx, name)
+            Some((idx, name))
+          case _: TimeAttribute =>
+            None
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
@@ -657,52 +690,32 @@ abstract class TableEnvironment(val config: TableConfig) {
     (fieldNames.toArray, fieldIndexes.toArray)
   }
 
-  /**
-    * Creates a final converter that maps the internal row type to external type.
-    *
-    * @param physicalRowTypeInfo the input of the sink
-    * @param logicalRowType the logical type with correct field names (esp. for POJO field mapping)
-    * @param requestedTypeInfo the output type of the sink
-    * @param functionName name of the map function. Must not be unique but has to be a
-    *                     valid Java class identifier.
-    */
-  protected def sinkConversion[T](
-      physicalRowTypeInfo: TypeInformation[Row],
-      logicalRowType: RelDataType,
-      requestedTypeInfo: TypeInformation[T],
-      functionName: String)
-    : Option[MapFunction[Row, T]] = {
+  protected def generateRowConverterFunction[OUT](
+      inputTypeInfo: TypeInformation[Row],
+      schema: RowSchema,
+      requestedTypeInfo: TypeInformation[OUT],
+      functionName: String):
+    GeneratedFunction[MapFunction[Row, OUT], OUT] = {
 
     // validate that at least the field types of physical and logical type match
     // we do that here to make sure that plan translation was correct
-    val logicalRowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(logicalRowType)
-    if (physicalRowTypeInfo != logicalRowTypeInfo) {
+    if (schema.physicalTypeInfo != inputTypeInfo) {
       throw TableException("The field types of physical and logical row types do not match." +
         "This is a bug and should not happen. Please file an issue.")
     }
 
-    // requested type is a generic Row, no conversion needed
-    if (requestedTypeInfo.isInstanceOf[GenericTypeInfo[_]] &&
-          requestedTypeInfo.getTypeClass == classOf[Row]) {
-      return None
-    }
-
-    // convert to type information
-    val logicalFieldTypes = logicalRowType.getFieldList.asScala map { relDataType =>
-      FlinkTypeFactory.toTypeInfo(relDataType.getType)
-    }
-    // field names
-    val logicalFieldNames = logicalRowType.getFieldNames.asScala
+    val fieldTypes = schema.physicalFieldTypeInfo
+    val fieldNames = schema.physicalFieldNames
 
     // validate requested type
-    if (requestedTypeInfo.getArity != logicalFieldTypes.length) {
+    if (requestedTypeInfo.getArity != fieldTypes.length) {
       throw new TableException("Arity of result does not match requested type.")
     }
-    requestedTypeInfo match {
 
+    requestedTypeInfo match {
       // POJO type requested
       case pt: PojoTypeInfo[_] =>
-        logicalFieldNames.zip(logicalFieldTypes) foreach {
+        fieldNames.zip(fieldTypes) foreach {
           case (fName, fType) =>
             val pojoIdx = pt.getFieldIndex(fName)
             if (pojoIdx < 0) {
@@ -717,7 +730,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
       // Tuple/Case class/Row type requested
       case tt: TupleTypeInfoBase[_] =>
-        logicalFieldTypes.zipWithIndex foreach {
+        fieldTypes.zipWithIndex foreach {
           case (fieldTypeInfo, i) =>
             val requestedTypeInfo = tt.getTypeAt(i)
             if (fieldTypeInfo != requestedTypeInfo) {
@@ -728,11 +741,11 @@ abstract class TableEnvironment(val config: TableConfig) {
 
       // Atomic type requested
       case at: AtomicType[_] =>
-        if (logicalFieldTypes.size != 1) {
+        if (fieldTypes.size != 1) {
           throw new TableException(s"Requested result type is an atomic type but " +
             s"result has more or less than a single field.")
         }
-        val fieldTypeInfo = logicalFieldTypes.head
+        val fieldTypeInfo = fieldTypes.head
         if (fieldTypeInfo != at) {
           throw new TableException(s"Result field does not match requested type. " +
             s"Requested: $at; Actual: $fieldTypeInfo")
@@ -746,13 +759,13 @@ abstract class TableEnvironment(val config: TableConfig) {
     val generator = new CodeGenerator(
       config,
       false,
-      physicalRowTypeInfo,
+      inputTypeInfo,
       None,
       None)
 
     val conversion = generator.generateConverterResultExpression(
       requestedTypeInfo,
-      logicalFieldNames)
+      fieldNames)
 
     val body =
       s"""
@@ -760,20 +773,12 @@ abstract class TableEnvironment(val config: TableConfig) {
          |return ${conversion.resultTerm};
          |""".stripMargin
 
-    val genFunction = generator.generateFunction(
+    generator.generateFunction(
       functionName,
-      classOf[MapFunction[Row, T]],
+      classOf[MapFunction[Row, OUT]],
       body,
       requestedTypeInfo)
-
-    val mapFunction = new MapRunner[Row, T](
-      genFunction.name,
-      genFunction.code,
-      genFunction.returnType)
-
-    Some(mapFunction)
   }
-
 }
 
 /**
@@ -781,6 +786,10 @@ abstract class TableEnvironment(val config: TableConfig) {
   * environment.
   */
 object TableEnvironment {
+
+  // default names that can be used in in TableSources etc.
+  val DEFAULT_ROWTIME_ATTRIBUTE = "rowtime"
+  val DEFAULT_PROCTIME_ATTRIBUTE = "proctime"
 
   /**
     * Returns a [[JavaBatchTableEnv]] for a Java [[JavaBatchExecEnv]].

@@ -109,6 +109,9 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	/** Whether we already lazily initialized our local storage directories. */
 	private transient boolean isInitialized = false;
 
+	/** True if incremental checkpointing is enabled */
+	private boolean enableIncrementalCheckpointing;
+
 
 	/**
 	 * Creates a new {@code RocksDBStateBackend} that stores its checkpoint data in the
@@ -123,7 +126,24 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public RocksDBStateBackend(String checkpointDataUri) throws IOException {
-		this(new Path(checkpointDataUri).toUri());
+		this(new Path(checkpointDataUri).toUri(), false);
+	}
+
+	/**
+	 * Creates a new {@code RocksDBStateBackend} that stores its checkpoint data in the
+	 * file system and location defined by the given URI.
+	 *
+	 * <p>A state backend that stores checkpoints in HDFS or S3 must specify the file system
+	 * host and port in the URI, or have the Hadoop configuration that describes the file system
+	 * (host / high-availability group / possibly credentials) either referenced from the Flink
+	 * config, or included in the classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem and path to the checkpoint data directory.
+	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled.
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 */
+	public RocksDBStateBackend(String checkpointDataUri, boolean enableIncrementalCheckpointing) throws IOException {
+		this(new Path(checkpointDataUri).toUri(), enableIncrementalCheckpointing);
 	}
 
 	/**
@@ -139,7 +159,24 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public RocksDBStateBackend(URI checkpointDataUri) throws IOException {
-		this(new FsStateBackend(checkpointDataUri));
+		this(new FsStateBackend(checkpointDataUri), false);
+	}
+
+	/**
+	 * Creates a new {@code RocksDBStateBackend} that stores its checkpoint data in the
+	 * file system and location defined by the given URI.
+	 *
+	 * <p>A state backend that stores checkpoints in HDFS or S3 must specify the file system
+	 * host and port in the URI, or have the Hadoop configuration that describes the file system
+	 * (host / high-availability group / possibly credentials) either referenced from the Flink
+	 * config, or included in the classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem and path to the checkpoint data directory.
+	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled.
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 */
+	public RocksDBStateBackend(URI checkpointDataUri, boolean enableIncrementalCheckpointing) throws IOException {
+		this(new FsStateBackend(checkpointDataUri), enableIncrementalCheckpointing);
 	}
 
 	/**
@@ -154,6 +191,22 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 */
 	public RocksDBStateBackend(AbstractStateBackend checkpointStreamBackend) {
 		this.checkpointStreamBackend = requireNonNull(checkpointStreamBackend);
+	}
+
+	/**
+	 * Creates a new {@code RocksDBStateBackend} that uses the given state backend to store its
+	 * checkpoint data streams. Typically, one would supply a filesystem or database state backend
+	 * here where the snapshots from RocksDB would be stored.
+	 *
+	 * <p>The snapshots of the RocksDB state will be stored using the given backend's
+	 * {@link AbstractStateBackend#createStreamFactory(JobID, String) checkpoint stream}.
+	 *
+	 * @param checkpointStreamBackend The backend to store the
+	 * @param enableIncrementalCheckpointing True if incremental checkponting is enabled
+	 */
+	public RocksDBStateBackend(AbstractStateBackend checkpointStreamBackend, boolean enableIncrementalCheckpointing) {
+		this.checkpointStreamBackend = requireNonNull(checkpointStreamBackend);
+		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
 	}
 
 	// ------------------------------------------------------------------------
@@ -260,7 +313,8 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				keySerializer,
 				numberOfKeyGroups,
 				keyGroupRange,
-				env.getExecutionConfig());
+				env.getExecutionConfig(),
+				enableIncrementalCheckpointing);
 	}
 
 	// ------------------------------------------------------------------------
