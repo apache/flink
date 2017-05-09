@@ -28,14 +28,14 @@ import org.slf4j.LoggerFactory
 class MapRunner[IN, OUT](
     name: String,
     code: String,
-    @transient returnType: TypeInformation[OUT])
+    @transient var returnType: TypeInformation[OUT])
   extends RichMapFunction[IN, OUT]
   with ResultTypeQueryable[OUT]
   with Compiler[MapFunction[IN, OUT]] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
-  private var function: MapFunction[IN, OUT] = null
+  private var function: MapFunction[IN, OUT] = _
 
   override def open(parameters: Configuration): Unit = {
     LOG.debug(s"Compiling MapFunction: $name \n\n Code:\n$code")

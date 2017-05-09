@@ -39,8 +39,13 @@ public final class InternalIterableWindowFunction<IN, OUT, KEY, W extends Window
 	}
 
 	@Override
-	public void apply(KEY key, W window, Iterable<IN> input, Collector<OUT> out) throws Exception {
+	public void process(KEY key, W window, InternalWindowContext context, Iterable<IN> input, Collector<OUT> out) throws Exception {
 		wrappedFunction.apply(key, window, input, out);
+	}
+
+	@Override
+	public void clear(W window, InternalWindowContext context) throws Exception {
+
 	}
 
 	@Override

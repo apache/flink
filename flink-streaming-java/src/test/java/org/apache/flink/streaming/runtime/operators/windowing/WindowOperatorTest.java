@@ -686,7 +686,7 @@ public class WindowOperatorTest extends TestLogger {
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-		
+
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
@@ -801,38 +801,6 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testMergeAndEvictor() throws Exception {
-		// verify that merging WindowAssigner and Evictor cannot be used together
-
-		StreamExecutionEnvironment env = LocalStreamEnvironment.createLocalEnvironment();
-
-		WindowedStream<String, String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
-				.keyBy(new KeySelector<String, String>() {
-					private static final long serialVersionUID = -887743259776124087L;
-
-					@Override
-					public String getKey(String value) throws Exception {
-						return value;
-					}
-				})
-				.window(EventTimeSessionWindows.withGap(Time.seconds(5)));
-
-		try {
-			windowedStream.evictor(CountEvictor.of(13));
-
-		} catch (UnsupportedOperationException e) {
-			// expected
-			// use a catch to ensure that the exception is thrown by the fold
-			return;
-		}
-
-		fail("The evictor call should fail.");
-
-		env.execute();
-
-	}
-
-	@Test
 	@SuppressWarnings("unchecked")
 	/**
 	 * This tests a custom Session window assigner that assigns some elements to "point windows",
@@ -862,7 +830,7 @@ public class WindowOperatorTest extends TestLogger {
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-		
+
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
@@ -1296,9 +1264,9 @@ public class WindowOperatorTest extends TestLogger {
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-		
+
 		testHarness.open();
-		
+
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 		ConcurrentLinkedQueue<Object> lateExpected = new ConcurrentLinkedQueue<>();
 
@@ -1366,7 +1334,7 @@ public class WindowOperatorTest extends TestLogger {
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-		
+
 		testHarness.open();
 
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
@@ -1500,7 +1468,7 @@ public class WindowOperatorTest extends TestLogger {
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.open();
-		
+
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 		ConcurrentLinkedQueue<Object> sideExpected = new ConcurrentLinkedQueue<>();
 
@@ -1579,7 +1547,7 @@ public class WindowOperatorTest extends TestLogger {
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.open();
-		
+
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 		ConcurrentLinkedQueue<Object> sideExpected = new ConcurrentLinkedQueue<>();
 
@@ -1671,7 +1639,7 @@ public class WindowOperatorTest extends TestLogger {
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.open();
-		
+
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 		ConcurrentLinkedQueue<Object> sideExpected = new ConcurrentLinkedQueue<>();
 
@@ -1848,7 +1816,7 @@ public class WindowOperatorTest extends TestLogger {
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.open();
-		
+
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
@@ -1949,7 +1917,7 @@ public class WindowOperatorTest extends TestLogger {
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.open();
-		
+
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
@@ -2560,7 +2528,7 @@ public class WindowOperatorTest extends TestLogger {
 					if (comparison != 0) {
 						return comparison;
 					}
-					return (int) (sr0.getValue().f1 - sr1.getValue().f1);
+					return (int) (sr0.getValue().f2 - sr1.getValue().f2);
 				}
 			}
 		}

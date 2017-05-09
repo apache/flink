@@ -25,6 +25,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.messages.StopClusterSuccessful;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testingUtils.TestingMessages;
@@ -32,11 +34,15 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import scala.Option;
+
+import java.util.Arrays;
 
 /**
  * Runs tests to ensure that a cluster is shutdown properly.
@@ -46,6 +52,19 @@ public class ClusterShutdownITCase extends TestLogger {
 	private static ActorSystem system;
 
 	private static Configuration config = new Configuration();
+
+	private HighAvailabilityServices highAvailabilityServices;
+
+	@Before
+	public void setupTest() {
+		highAvailabilityServices = new EmbeddedHaServices(TestingUtils.defaultExecutor());
+	}
+
+	@After
+	public void tearDownTest() throws Exception {
+		highAvailabilityServices.closeAndCleanupAllData();
+		highAvailabilityServices = null;
+	}
 
 	@BeforeClass
 	public static void setup() {
@@ -68,37 +87,51 @@ public class ClusterShutdownITCase extends TestLogger {
 		@Override
 		protected void run() {
 
-			ActorGateway me =
-				TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
+			ActorGateway jobManager = null;
+			ActorGateway taskManager = null;
+			ActorGateway forwardingActor = null;
 
-			// start job manager which doesn't shutdown the actor system
-			ActorGateway jobManager =
-				TestingUtils.createJobManager(
-					system,
-					TestingUtils.defaultExecutor(),
-					TestingUtils.defaultExecutor(),
-					config,
-					"jobmanager1");
+			try {
+				// start job manager which doesn't shutdown the actor system
+				jobManager =
+					TestingUtils.createJobManager(
+						system,
+						TestingUtils.defaultExecutor(),
+						TestingUtils.defaultExecutor(),
+						config,
+						highAvailabilityServices,
+						"jobmanager1");
 
-			// Tell the JobManager to inform us of shutdown actions
-			jobManager.tell(TestingMessages.getNotifyOfComponentShutdown(), me);
+				forwardingActor =
+					TestingUtils.createForwardingActor(
+						system,
+						getTestActor(),
+						jobManager.leaderSessionID(),
+						Option.<String>empty());
 
-			// Register a TaskManager
-			ActorGateway taskManager =
-				TestingUtils.createTaskManager(system, jobManager, config, true, true);
+				// Tell the JobManager to inform us of shutdown actions
+				jobManager.tell(TestingMessages.getNotifyOfComponentShutdown(), forwardingActor);
 
-			// Tell the TaskManager to inform us of TaskManager shutdowns
-			taskManager.tell(TestingMessages.getNotifyOfComponentShutdown(), me);
+				// Register a TaskManager
+				taskManager =
+					TestingUtils.createTaskManager(system, highAvailabilityServices, config, true, true);
+
+				// Tell the TaskManager to inform us of TaskManager shutdowns
+				taskManager.tell(TestingMessages.getNotifyOfComponentShutdown(), forwardingActor);
 
 
-			// No resource manager connected
-			jobManager.tell(new StopCluster(ApplicationStatus.SUCCEEDED, "Shutting down."), me);
+				// No resource manager connected
+				jobManager.tell(new StopCluster(ApplicationStatus.SUCCEEDED, "Shutting down."), forwardingActor);
 
-			expectMsgAllOf(
-				new TestingMessages.ComponentShutdown(taskManager.actor()),
-				new TestingMessages.ComponentShutdown(jobManager.actor()),
-				StopClusterSuccessful.getInstance()
-			);
+				expectMsgAllOf(
+					new TestingMessages.ComponentShutdown(taskManager.actor()),
+					new TestingMessages.ComponentShutdown(jobManager.actor()),
+					StopClusterSuccessful.getInstance()
+				);
+			} finally {
+				TestingUtils.stopActorGatewaysGracefully(Arrays.asList(
+					jobManager, taskManager, forwardingActor));
+			}
 
 		}};
 		}};
@@ -115,50 +148,68 @@ public class ClusterShutdownITCase extends TestLogger {
 		@Override
 		protected void run() {
 
-			ActorGateway me =
-				TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
+			ActorGateway jobManager = null;
+			ActorGateway taskManager = null;
+			ActorGateway resourceManager = null;
+			ActorGateway forwardingActor = null;
 
-			// start job manager which doesn't shutdown the actor system
-			ActorGateway jobManager =
-				TestingUtils.createJobManager(
-					system,
-					TestingUtils.defaultExecutor(),
-					TestingUtils.defaultExecutor(),
-					config,
-					"jobmanager2");
+			try {
+				// start job manager which doesn't shutdown the actor system
+				jobManager =
+					TestingUtils.createJobManager(
+						system,
+						TestingUtils.defaultExecutor(),
+						TestingUtils.defaultExecutor(),
+						config,
+						highAvailabilityServices,
+						"jobmanager2");
 
-			// Tell the JobManager to inform us of shutdown actions
-			jobManager.tell(TestingMessages.getNotifyOfComponentShutdown(), me);
+				forwardingActor =
+					TestingUtils.createForwardingActor(
+						system,
+						getTestActor(),
+						jobManager.leaderSessionID(),
+						Option.<String>empty());
 
-			// Register a TaskManager
-			ActorGateway taskManager =
-				TestingUtils.createTaskManager(system, jobManager, config, true, true);
+				// Tell the JobManager to inform us of shutdown actions
+				jobManager.tell(TestingMessages.getNotifyOfComponentShutdown(), forwardingActor);
 
-			// Tell the TaskManager to inform us of TaskManager shutdowns
-			taskManager.tell(TestingMessages.getNotifyOfComponentShutdown(), me);
+				// Register a TaskManager
+				taskManager =
+					TestingUtils.createTaskManager(system, highAvailabilityServices, config, true, true);
 
-			// Start resource manager and let it register
-			ActorGateway resourceManager =
-				TestingUtils.createResourceManager(system, jobManager.actor(), config);
+				// Tell the TaskManager to inform us of TaskManager shutdowns
+				taskManager.tell(TestingMessages.getNotifyOfComponentShutdown(), forwardingActor);
 
-			// Tell the ResourceManager to inform us of ResourceManager shutdowns
-			resourceManager.tell(TestingMessages.getNotifyOfComponentShutdown(), me);
+				// Start resource manager and let it register
+				resourceManager =
+					TestingUtils.createResourceManager(
+						system,
+						config,
+						highAvailabilityServices);
 
-			// notify about a resource manager registration at the job manager
-			resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), me);
+				// Tell the ResourceManager to inform us of ResourceManager shutdowns
+				resourceManager.tell(TestingMessages.getNotifyOfComponentShutdown(), forwardingActor);
 
-			// Wait for resource manager
-			expectMsgEquals(Acknowledge.get());
+				// notify about a resource manager registration at the job manager
+				resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), forwardingActor);
 
-			// Shutdown cluster with resource manager connected
-			jobManager.tell(new StopCluster(ApplicationStatus.SUCCEEDED, "Shutting down."), me);
+				// Wait for resource manager
+				expectMsgEquals(Acknowledge.get());
 
-			expectMsgAllOf(
-				new TestingMessages.ComponentShutdown(taskManager.actor()),
-				new TestingMessages.ComponentShutdown(jobManager.actor()),
-				new TestingMessages.ComponentShutdown(resourceManager.actor()),
-				StopClusterSuccessful.getInstance()
-			);
+				// Shutdown cluster with resource manager connected
+				jobManager.tell(new StopCluster(ApplicationStatus.SUCCEEDED, "Shutting down."), forwardingActor);
+
+				expectMsgAllOf(
+					new TestingMessages.ComponentShutdown(taskManager.actor()),
+					new TestingMessages.ComponentShutdown(jobManager.actor()),
+					new TestingMessages.ComponentShutdown(resourceManager.actor()),
+					StopClusterSuccessful.getInstance()
+				);
+			} finally {
+				TestingUtils.stopActorGatewaysGracefully(Arrays.asList(
+					jobManager, taskManager, resourceManager, forwardingActor));
+			}
 
 		}};
 		}};

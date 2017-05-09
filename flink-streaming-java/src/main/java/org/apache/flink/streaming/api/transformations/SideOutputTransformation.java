@@ -20,11 +20,10 @@ package org.apache.flink.streaming.api.transformations;
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.collect.Lists;
-import org.apache.flink.util.OutputTag;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-
 import java.util.Collection;
 import java.util.List;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.util.OutputTag;
 
 
 /**

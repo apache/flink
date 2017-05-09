@@ -26,6 +26,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -34,12 +36,12 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.taskmanager.TaskManager;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerActorTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
-import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
@@ -170,6 +172,10 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 		final JobManagerProcess[] jobManagerProcess = new JobManagerProcess[2];
 		LeaderRetrievalService leaderRetrievalService = null;
 		ActorSystem taskManagerSystem = null;
+		final HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+			config,
+			TestingUtils.defaultExecutor(),
+			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 		try {
 			final Deadline deadline = TestTimeOut.fromNow();
@@ -187,16 +193,21 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 			// Leader listener
 			TestingListener leaderListener = new TestingListener();
-			leaderRetrievalService = ZooKeeperUtils.createLeaderRetrievalService(config);
+			leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
 			leaderRetrievalService.start(leaderListener);
 
 			// The task manager
 			taskManagerSystem = AkkaUtils.createActorSystem(
 					config, Option.apply(new Tuple2<String, Object>("localhost", 0)));
 			TaskManager.startTaskManagerComponentsAndActor(
-					config, ResourceID.generate(), taskManagerSystem, "localhost",
-					Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
-					false, TaskManager.class);
+				config,
+				ResourceID.generate(),
+				taskManagerSystem,
+				highAvailabilityServices,
+				"localhost",
+				Option.<String>empty(),
+				false,
+				TaskManager.class);
 
 			{
 				// Initial submission
@@ -298,6 +309,8 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 			if (testSystem != null) {
 				testSystem.shutdown();
 			}
+
+			highAvailabilityServices.closeAndCleanupAllData();
 		}
 	}
 
@@ -323,6 +336,10 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 		LeaderRetrievalService leaderRetrievalService = null;
 		ActorSystem taskManagerSystem = null;
 		ActorSystem testActorSystem = null;
+		final HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+			config,
+			TestingUtils.defaultExecutor(),
+			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 		try {
 			// Test actor system
@@ -338,16 +355,21 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 			// Leader listener
 			TestingListener leaderListener = new TestingListener();
-			leaderRetrievalService = ZooKeeperUtils.createLeaderRetrievalService(config);
+			leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
 			leaderRetrievalService.start(leaderListener);
 
 			// The task manager
 			taskManagerSystem = AkkaUtils.createActorSystem(
 					config, Option.apply(new Tuple2<String, Object>("localhost", 0)));
 			TaskManager.startTaskManagerComponentsAndActor(
-					config, ResourceID.generate(), taskManagerSystem, "localhost",
-					Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
-					false, TaskManager.class);
+				config,
+				ResourceID.generate(),
+				taskManagerSystem,
+				highAvailabilityServices,
+				"localhost",
+				Option.<String>empty(),
+				false,
+				TaskManager.class);
 
 			// Get the leader
 			leaderListener.waitForNewLeader(testDeadline.timeLeft().toMillis());
@@ -453,6 +475,8 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 			if (testActorSystem != null) {
 				testActorSystem.shutdown();
 			}
+
+			highAvailabilityServices.closeAndCleanupAllData();
 		}
 	}
 

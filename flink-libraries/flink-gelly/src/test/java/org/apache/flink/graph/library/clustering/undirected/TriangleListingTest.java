@@ -68,7 +68,7 @@ extends AsmTestBase {
 	@Test
 	public void testRMatGraph()
 			throws Exception {
-		DataSet<Result<LongValue>> tl = undirectedRMatGraph
+		DataSet<Result<LongValue>> tl = undirectedRMatGraph(10, 16)
 			.run(new TriangleListing<LongValue, NullValue, NullValue>()
 				.setSortTriangleVertices(true));
 

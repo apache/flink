@@ -25,12 +25,13 @@ import com.typesafe.config.Config;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.NetUtils;
@@ -46,6 +47,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.BindException;
 import java.net.ServerSocket;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -165,17 +167,20 @@ public class BootstrapTools {
 
 	/**
 	 * Starts the web frontend.
+	 *
 	 * @param config The Flink config.
+	 * @param highAvailabilityServices Service factory for high availability services
 	 * @param actorSystem The ActorSystem to start the web frontend in.
 	 * @param logger Logger for log output
 	 * @return WebMonitor instance.
 	 * @throws Exception
 	 */
 	public static WebMonitor startWebMonitorIfConfigured(
-				Configuration config,
-				ActorSystem actorSystem,
-				ActorRef jobManager,
-				Logger logger) throws Exception {
+			Configuration config,
+			HighAvailabilityServices highAvailabilityServices,
+			ActorSystem actorSystem,
+			ActorRef jobManager,
+			Logger logger) throws Exception {
 
 
 		// this ensures correct values are present in the web frontend
@@ -186,8 +191,8 @@ public class BootstrapTools {
 		if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
 			logger.info("Starting JobManager Web Frontend");
 
-			LeaderRetrievalService leaderRetrievalService = 
-				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager);
+			LeaderRetrievalService leaderRetrievalService =
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
 
 			// start the web frontend. we need to load this dynamically
 			// because it is not in the same project/dependencies
@@ -304,7 +309,7 @@ public class BootstrapTools {
 	 * Get an instance of the dynamic properties option.
 	 *
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 *  -Dfs.overwrite-files=true  -Dtaskmanager.network.numberOfBuffers=16368
+	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.network.memory.min=536346624</tt>
      */
 	public static Option newDynamicPropertiesOption() {
 		return new Option(DYNAMIC_PROPERTIES_OPT, true, "Dynamic properties");
@@ -355,10 +360,18 @@ public class BootstrapTools {
 
 		final Map<String, String> startCommandValues = new HashMap<>();
 		startCommandValues.put("java", "$JAVA_HOME/bin/java");
-		startCommandValues
-			.put("jvmmem", 	"-Xms" + tmParams.taskManagerHeapSizeMB() + "m " +
-							"-Xmx" + tmParams.taskManagerHeapSizeMB() + "m " +
-							"-XX:MaxDirectMemorySize=" + tmParams.taskManagerDirectMemoryLimitMB() + "m");
+
+		ArrayList<String> params = new ArrayList<>();
+		params.add(String.format("-Xms%dm", tmParams.taskManagerHeapSizeMB()));
+		params.add(String.format("-Xmx%dm", tmParams.taskManagerHeapSizeMB()));
+
+		if (tmParams.taskManagerDirectMemoryLimitMB() >= 0) {
+			params.add(String.format("-XX:MaxDirectMemorySize=%dm",
+				tmParams.taskManagerDirectMemoryLimitMB()));
+		}
+
+		startCommandValues.put("jvmmem", StringUtils.join(params, ' '));
+
 		String javaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
 		if (flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS).length() > 0) {
 			javaOpts += " " + flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS);

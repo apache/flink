@@ -18,22 +18,25 @@
 
 package org.apache.flink.streaming.runtime.streamrecord;
 
+import static java.util.Objects.requireNonNull;
+
+import java.io.IOException;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 
-import java.io.IOException;
-
-import static java.util.Objects.requireNonNull;
-
 /**
- * Serializer for {@link StreamRecord}, {@link Watermark}, {@link LatencyMarker}, and {@link StreamStatus}.
+ * Serializer for {@link StreamRecord}, {@link Watermark}, {@link LatencyMarker}, and
+ * {@link StreamStatus}.
  *
- * <p>
- * This does not behave like a normal {@link TypeSerializer}, instead, this is only used at the
+ * <p>This does not behave like a normal {@link TypeSerializer}, instead, this is only used at the
  * stream task/operator level for transmitting StreamRecords and Watermarks.
  *
  * @param <T> The type of value in the StreamRecord
@@ -42,17 +45,17 @@ import static java.util.Objects.requireNonNull;
 public final class StreamElementSerializer<T> extends TypeSerializer<StreamElement> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final int TAG_REC_WITH_TIMESTAMP = 0;
 	private static final int TAG_REC_WITHOUT_TIMESTAMP = 1;
 	private static final int TAG_WATERMARK = 2;
 	private static final int TAG_LATENCY_MARKER = 3;
 	private static final int TAG_STREAM_STATUS = 4;
-	
-	
+
+
 	private final TypeSerializer<T> typeSerializer;
 
-	
+
 	public StreamElementSerializer(TypeSerializer<T> serializer) {
 		if (serializer instanceof StreamElementSerializer) {
 			throw new RuntimeException("StreamRecordSerializer given to StreamRecordSerializer as value TypeSerializer: " + serializer);
@@ -67,7 +70,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -82,7 +85,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public StreamRecord<T> createInstance() {
 		return new StreamRecord<T>(typeSerializer.createInstance());
@@ -160,7 +163,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	public void serialize(StreamElement value, DataOutputView target) throws IOException {
 		if (value.isRecord()) {
 			StreamRecord<T> record = value.asRecord();
-			
+
 			if (record.hasTimestamp()) {
 				target.write(TAG_REC_WITH_TIMESTAMP);
 				target.writeLong(record.getTimestamp());
@@ -187,7 +190,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 			throw new RuntimeException();
 		}
 	}
-	
+
 	@Override
 	public StreamElement deserialize(DataInputView source) throws IOException {
 		int tag = source.readByte();
@@ -242,7 +245,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof StreamElementSerializer) {
@@ -262,5 +265,56 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	@Override
 	public int hashCode() {
 		return typeSerializer.hashCode();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & compatibility
+	//
+	// This serializer may be used by Flink internal operators that need to checkpoint
+	// buffered records. Therefore, it may be part of managed state and need to implement
+	// the configuration snapshot and compatibility methods.
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public StreamElementSerializerConfigSnapshot snapshotConfiguration() {
+		return new StreamElementSerializerConfigSnapshot(typeSerializer.snapshotConfiguration());
+	}
+
+	@Override
+	public CompatibilityResult<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof StreamElementSerializerConfigSnapshot) {
+			CompatibilityResult<T> compatResult = typeSerializer.ensureCompatibility(
+				((StreamElementSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+
+			if (!compatResult.requiresMigration()) {
+				return CompatibilityResult.compatible();
+			} else if (compatResult.getConvertDeserializer() != null) {
+				return CompatibilityResult.requiresMigration(
+					new StreamElementSerializer<>(
+						new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer())));
+			}
+		}
+
+		return CompatibilityResult.requiresMigration(null);
+	}
+
+	/**
+	 * Configuration snapshot specific to the {@link StreamElementSerializer}.
+	 */
+	public static final class StreamElementSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+
+		private static final int VERSION = 1;
+
+		/** This empty nullary constructor is required for deserializing the configuration. */
+		public StreamElementSerializerConfigSnapshot() {}
+
+		public StreamElementSerializerConfigSnapshot(TypeSerializerConfigSnapshot typeSerializerConfigSnapshot) {
+			super(typeSerializerConfigSnapshot);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
 	}
 }

@@ -23,7 +23,7 @@ import org.apache.flink.table.functions.AggregateFunction
 /**
   * Test case for built-in count aggregate function
   */
-class CountAggFunctionTest extends AggFunctionTestBase[Long] {
+class CountAggFunctionTest extends AggFunctionTestBase[Long, CountAccumulator] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq("a", "b", null, "c", null, "d", "e", null, "f"),
@@ -32,5 +32,7 @@ class CountAggFunctionTest extends AggFunctionTestBase[Long] {
 
   override def expectedResults: Seq[Long] = Seq(6L, 0L)
 
-  override def aggregator: AggregateFunction[Long] = new CountAggFunction()
+  override def aggregator: AggregateFunction[Long, CountAccumulator] = new CountAggFunction()
+
+  override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }

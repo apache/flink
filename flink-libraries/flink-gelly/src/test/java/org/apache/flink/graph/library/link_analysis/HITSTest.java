@@ -110,7 +110,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		DataSet<Result<LongValue>> hits = directedRMatGraph
+		DataSet<Result<LongValue>> hits = directedRMatGraph(10, 16)
 			.run(new HITS<LongValue, NullValue, NullValue>(0.000001));
 
 		Map<Long, Result<LongValue>> results = new HashMap<>();

@@ -97,7 +97,7 @@ extends AsmTestBase {
 		Result expectedResult = new Result(902, 8875, 1567, 1003442, 463, 334, 342, 106953);
 
 		Result withoutZeroDegreeVertices = new VertexMetrics<LongValue, NullValue, NullValue>()
-			.run(directedRMatGraph)
+			.run(directedRMatGraph(10, 16))
 			.execute();
 
 		assertEquals(expectedResult, withoutZeroDegreeVertices);

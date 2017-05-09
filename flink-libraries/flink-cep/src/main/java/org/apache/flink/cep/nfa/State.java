@@ -18,9 +18,14 @@
 
 package org.apache.flink.cep.nfa;
 
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -36,14 +41,18 @@ public class State<T> implements Serializable {
 	private static final long serialVersionUID = 6658700025989097781L;
 
 	private final String name;
-	private final StateType stateType;
+	private StateType stateType;
 	private final Collection<StateTransition<T>> stateTransitions;
 
 	public State(final String name, final StateType stateType) {
 		this.name = name;
 		this.stateType = stateType;
 
-		stateTransitions = new ArrayList<StateTransition<T>>();
+		stateTransitions = new ArrayList<>();
+	}
+
+	public StateType getStateType() {
+		return stateType;
 	}
 
 	public boolean isFinal() {
@@ -60,8 +69,35 @@ public class State<T> implements Serializable {
 		return stateTransitions;
 	}
 
-	public void addStateTransition(final StateTransition<T> stateTransition) {
-		stateTransitions.add(stateTransition);
+	public void makeStart() {
+		this.stateType = StateType.Start;
+	}
+
+	public void addStateTransition(
+			final StateTransitionAction action,
+			final State<T> targetState,
+			final IterativeCondition<T> condition) {
+		stateTransitions.add(new StateTransition<T>(this, action, targetState, condition));
+	}
+
+	public void addIgnore(final IterativeCondition<T> condition) {
+		addStateTransition(StateTransitionAction.IGNORE, this, condition);
+	}
+
+	public void addIgnore(final State<T> targetState,final IterativeCondition<T> condition) {
+		addStateTransition(StateTransitionAction.IGNORE, targetState, condition);
+	}
+
+	public void addTake(final State<T> targetState, final IterativeCondition<T> condition) {
+		addStateTransition(StateTransitionAction.TAKE, targetState, condition);
+	}
+
+	public void addProceed(final State<T> targetState, final IterativeCondition<T> condition) {
+		addStateTransition(StateTransitionAction.PROCEED, targetState, condition);
+	}
+
+	public void addTake(final IterativeCondition<T> condition) {
+		addStateTransition(StateTransitionAction.TAKE, this, condition);
 	}
 
 	@Override
@@ -98,12 +134,32 @@ public class State<T> implements Serializable {
 		return Objects.hash(name, stateType, stateTransitions);
 	}
 
+	public boolean isStop() {
+		return stateType == StateType.Stop;
+	}
+
 	/**
 	 * Set of valid state types.
 	 */
 	public enum StateType {
 		Start, // the state is a starting state for the NFA
 		Final, // the state is a final state for the NFA
-		Normal // the state is neither a start nor a final state
+		Normal, // the state is neither a start nor a final state
+		Stop
+	}
+
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		ois.defaultReadObject();
+
+		//Backward compatibility. Previous version of StateTransition did not have source state
+		if (!stateTransitions.isEmpty() && stateTransitions.iterator().next().getSourceState() == null) {
+			final List<StateTransition<T>> tmp = new ArrayList<>();
+			tmp.addAll(this.stateTransitions);
+
+			this.stateTransitions.clear();
+			for (StateTransition<T> transition : tmp) {
+				addStateTransition(transition.getAction(), transition.getTargetState(), transition.getCondition());
+			}
+		}
 	}
 }

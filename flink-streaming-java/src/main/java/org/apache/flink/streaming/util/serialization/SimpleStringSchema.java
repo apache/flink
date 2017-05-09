@@ -17,20 +17,19 @@
 
 package org.apache.flink.streaming.util.serialization;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
  * Very simple serialization schema for strings.
- * 
+ *
  * <p>By default, the serializer uses "UTF-8" for string/byte conversion.
  */
 @PublicEvolving
@@ -51,7 +50,7 @@ public class SimpleStringSchema implements DeserializationSchema<String>, Serial
 
 	/**
 	 * Creates a new SimpleStringSchema that uses the given charset to convert between strings and bytes.
-	 * 
+	 *
 	 * @param charset The charset to use to convert between strings and bytes.
 	 */
 	public SimpleStringSchema(Charset charset) {

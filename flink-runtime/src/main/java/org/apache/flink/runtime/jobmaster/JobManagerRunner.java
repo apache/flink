@@ -188,10 +188,10 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 			// now start the JobManager
 			this.jobManager = new JobMaster(
+				rpcService,
 				resourceId,
 				jobGraph,
 				configuration,
-				rpcService,
 				haServices,
 				heartbeatServices,
 				jobManagerServices.executorService,

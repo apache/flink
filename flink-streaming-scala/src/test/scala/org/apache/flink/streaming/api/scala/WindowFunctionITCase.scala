@@ -30,12 +30,13 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
+import org.apache.flink.util.TestLogger
 import org.junit.Assert._
 import org.junit.{Ignore, Test}
 
 import scala.collection.mutable
 
-class WindowFunctionITCase {
+class WindowFunctionITCase extends TestLogger {
 
   @Test
   def testRichWindowFunction(): Unit = {

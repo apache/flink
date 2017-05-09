@@ -18,18 +18,17 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import java.util.Collection;
+import java.util.List;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
-
-import java.util.Collection;
-import java.util.List;
 
 /**
  * This class holds all state handles for one operator.
@@ -42,16 +41,16 @@ public class OperatorStateHandles {
 
 	private final StreamStateHandle legacyOperatorState;
 
-	private final Collection<KeyGroupsStateHandle> managedKeyedState;
-	private final Collection<KeyGroupsStateHandle> rawKeyedState;
+	private final Collection<KeyedStateHandle> managedKeyedState;
+	private final Collection<KeyedStateHandle> rawKeyedState;
 	private final Collection<OperatorStateHandle> managedOperatorState;
 	private final Collection<OperatorStateHandle> rawOperatorState;
 
 	public OperatorStateHandles(
 			int operatorChainIndex,
 			StreamStateHandle legacyOperatorState,
-			Collection<KeyGroupsStateHandle> managedKeyedState,
-			Collection<KeyGroupsStateHandle> rawKeyedState,
+			Collection<KeyedStateHandle> managedKeyedState,
+			Collection<KeyedStateHandle> rawKeyedState,
 			Collection<OperatorStateHandle> managedOperatorState,
 			Collection<OperatorStateHandle> rawOperatorState) {
 
@@ -83,11 +82,11 @@ public class OperatorStateHandles {
 		return legacyOperatorState;
 	}
 
-	public Collection<KeyGroupsStateHandle> getManagedKeyedState() {
+	public Collection<KeyedStateHandle> getManagedKeyedState() {
 		return managedKeyedState;
 	}
 
-	public Collection<KeyGroupsStateHandle> getRawKeyedState() {
+	public Collection<KeyedStateHandle> getRawKeyedState() {
 		return rawKeyedState;
 	}
 

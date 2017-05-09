@@ -28,6 +28,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 /**
  * The old version of the {@link org.apache.flink.api.common.state.ListStateDescriptor}, retained for
  * serialization backwards compatibility.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Internal
 @Deprecated

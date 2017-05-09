@@ -17,14 +17,13 @@
 
 package org.apache.flink.streaming.api.collector.selector;
 
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
 
 
 /**

@@ -23,7 +23,6 @@ import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.ExecutionEnvironment
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.configuration.Configuration
@@ -49,6 +48,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Gets the config object.
    */
   def getConfig = javaEnv.getConfig
+
+  /**
+    * Gets cache files.
+    */
+  def getCachedFiles = javaEnv.getCachedFiles
 
   /**
    * Sets the parallelism for operations executed through this environment.
@@ -669,10 +673,70 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     }
     f
   }
+
+
+  /**
+    * Registers a file at the distributed cache under the given name. The file will be accessible
+    * from any user-defined function in the (distributed) runtime under a local path. Files
+    * may be local files (as long as all relevant workers have access to it), or files in a
+    * distributed file system. The runtime will copy the files temporarily to a local cache,
+    * if needed.
+    * <p>
+    * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs
+    * via {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and
+    * provides access {@link org.apache.flink.api.common.cache.DistributedCache} via
+    * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
+    *
+    * @param filePath The path of the file, as a URI (e.g. "file:///some/path" or
+    *                 "hdfs://host:port/and/path")
+    * @param name     The name under which the file is registered.
+    */
+  def registerCachedFile(filePath: String, name: String): Unit = {
+    javaEnv.registerCachedFile(filePath, name)
+  }
+
+
+  /**
+    * Registers a file at the distributed cache under the given name. The file will be accessible
+    * from any user-defined function in the (distributed) runtime under a local path. Files
+    * may be local files (as long as all relevant workers have access to it), or files in a
+    * distributed file system. The runtime will copy the files temporarily to a local cache,
+    * if needed.
+    * <p>
+    * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs
+    * via {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and
+    * provides access {@link org.apache.flink.api.common.cache.DistributedCache} via
+    * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
+    *
+    * @param filePath   The path of the file, as a URI (e.g. "file:///some/path" or
+    *                   "hdfs://host:port/and/path")
+    * @param name       The name under which the file is registered.
+    * @param executable flag indicating whether the file should be executable
+    */
+  def registerCachedFile(filePath: String, name: String, executable: Boolean): Unit = {
+    javaEnv.registerCachedFile(filePath, name, executable)
+  }
 }
 
 object StreamExecutionEnvironment {
 
+  /**
+   * Sets the default parallelism that will be used for the local execution
+   * environment created by [[createLocalEnvironment()]].
+   *
+   * @param parallelism The default parallelism to use for local execution.
+   */
+  @PublicEvolving
+  def setDefaultLocalParallelism(parallelism: Int) : Unit =
+    JavaEnv.setDefaultLocalParallelism(parallelism)
+
+  /**
+   * Gets the default parallelism that will be used for the local execution environment created by
+   * [[createLocalEnvironment()]].
+   */
+  @PublicEvolving
+  def getDefaultLocalParallelism: Int = JavaEnv.getDefaultLocalParallelism
+  
   // --------------------------------------------------------------------------
   //  context environment
   // --------------------------------------------------------------------------
@@ -694,14 +758,13 @@ object StreamExecutionEnvironment {
   /**
    * Creates a local execution environment. The local execution environment will run the
    * program in a multi-threaded fashion in the same JVM as the environment was created in.
+   *
+   * This method sets the environment's default parallelism to given parameter, which
+   * defaults to the value set via [[setDefaultLocalParallelism(Int)]].
    */
-  def createLocalEnvironment(parallelism: Int = -1):
+  def createLocalEnvironment(parallelism: Int = JavaEnv.getDefaultLocalParallelism):
       StreamExecutionEnvironment = {
-    if (parallelism == -1) {
-      new StreamExecutionEnvironment(JavaEnv.createLocalEnvironment())
-    } else {
-      new StreamExecutionEnvironment(JavaEnv.createLocalEnvironment(parallelism))
-    }
+    new StreamExecutionEnvironment(JavaEnv.createLocalEnvironment(parallelism))
   }
 
   /**

@@ -19,7 +19,7 @@ package org.apache.flink.table.expressions
 
 import org.apache.calcite.avatica.util.DateTimeUtils.{MILLIS_PER_DAY, MILLIS_PER_HOUR, MILLIS_PER_MINUTE, MILLIS_PER_SECOND}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.api.ExpressionParserException
+import org.apache.flink.table.api.{ExpressionParserException, CurrentRow, CurrentRange, UnboundedRow, UnboundedRange}
 import org.apache.flink.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions.TimePointUnit.TimePointUnit
@@ -57,6 +57,11 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val SUM: Keyword = Keyword("sum")
   lazy val START: Keyword = Keyword("start")
   lazy val END: Keyword = Keyword("end")
+  lazy val SUM0: Keyword = Keyword("sum0")
+  lazy val STDDEV_POP: Keyword = Keyword("stddevPop")
+  lazy val STDDEV_SAMP: Keyword = Keyword("stddevSamp")
+  lazy val VAR_POP: Keyword = Keyword("varPop")
+  lazy val VAR_SAMP: Keyword = Keyword("varSamp")
   lazy val CAST: Keyword = Keyword("cast")
   lazy val NULL: Keyword = Keyword("Null")
   lazy val IF: Keyword = Keyword("?")
@@ -87,11 +92,22 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val STAR: Keyword = Keyword("*")
   lazy val GET: Keyword = Keyword("get")
   lazy val FLATTEN: Keyword = Keyword("flatten")
+  lazy val OVER: Keyword = Keyword("over")
+  lazy val CURRENT_ROW: Keyword = Keyword("current_row")
+  lazy val CURRENT_RANGE: Keyword = Keyword("current_range")
+  lazy val UNBOUNDED_ROW: Keyword = Keyword("unbounded_row")
+  lazy val UNBOUNDED_RANGE: Keyword = Keyword("unbounded_range")
+  lazy val ASIN: Keyword = Keyword("asin")
+  lazy val ROWTIME: Keyword = Keyword("rowtime")
+  lazy val PROCTIME: Keyword = Keyword("proctime")
 
   def functionIdent: ExpressionParser.Parser[String] =
     not(ARRAY) ~ not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
-      not(SUM) ~ not(START) ~ not(END)~ not(CAST) ~ not(NULL) ~
-      not(IF) ~> super.ident
+      not(SUM0) ~ not(STDDEV_POP) ~ not(STDDEV_SAMP) ~ not(VAR_POP) ~ not(VAR_SAMP) ~
+      not(SUM) ~ not(START) ~ not(END)~ not(CAST) ~ not(NULL) ~ not(IF) ~
+      not(ROWTIME) ~ not(PROCTIME) ~
+      not(CURRENT_ROW) ~ not(UNBOUNDED_ROW) ~ not(CURRENT_RANGE) ~ not(UNBOUNDED_RANGE) ~>
+      super.ident
 
   // symbols
 
@@ -166,8 +182,25 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     dt => Null(dt)
   }
 
+  // OVER constants
+  lazy val currentRange: PackratParser[Expression] = CURRENT_RANGE ^^ {
+    _ => CurrentRange()
+  }
+  lazy val currentRow: PackratParser[Expression] = CURRENT_ROW ^^ {
+    _ => CurrentRow()
+  }
+  lazy val unboundedRange: PackratParser[Expression] = UNBOUNDED_RANGE ^^ {
+    _ => UnboundedRange()
+  }
+  lazy val unboundedRow: PackratParser[Expression] = UNBOUNDED_ROW ^^ {
+    _ => UnboundedRow()
+  }
+  lazy val overConstant: PackratParser[Expression] =
+    currentRange | currentRow | unboundedRange | unboundedRow
+
   lazy val literalExpr: PackratParser[Expression] =
-    numberLiteral | stringLiteralFlink | singleQuoteStringLiteral | boolLiteral | nullLiteral
+    numberLiteral | stringLiteralFlink | singleQuoteStringLiteral | boolLiteral | nullLiteral |
+      overConstant
 
   lazy val fieldReference: PackratParser[NamedExpression] = (STAR | ident) ^^ {
     sym => UnresolvedFieldReference(sym)
@@ -180,6 +213,21 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val suffixSum: PackratParser[Expression] =
     composite <~ "." ~ SUM ~ opt("()") ^^ { e => Sum(e) }
+
+  lazy val suffixSum0: PackratParser[Expression] =
+    composite <~ "." ~ SUM0 ~ opt("()") ^^ { e => Sum0(e) }
+
+  lazy val suffixStddevPop: PackratParser[Expression] =
+    composite <~ "." ~ STDDEV_POP ~ opt("()") ^^ { e => StddevPop(e) }
+
+  lazy val suffixStddevSamp: PackratParser[Expression] =
+    composite <~ "." ~ STDDEV_SAMP ~ opt("()") ^^ { e => StddevSamp(e) }
+
+  lazy val suffixVarSamp: PackratParser[Expression] =
+    composite <~ "." ~ VAR_SAMP ~ opt("()") ^^ { e => VarSamp(e) }
+
+  lazy val suffixVarPop: PackratParser[Expression] =
+    composite <~ "." ~ VAR_POP ~ opt("()") ^^ { e => VarPop(e) }
 
   lazy val suffixMin: PackratParser[Expression] =
     composite <~ "." ~ MIN ~ opt("()") ^^ { e => Min(e) }
@@ -289,12 +337,18 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val suffixFlattening: PackratParser[Expression] =
     composite <~ "." ~ FLATTEN ~ opt("()") ^^ { e => Flattening(e) }
 
+  lazy val suffixAgg: PackratParser[Expression] =
+    suffixSum0 | suffixStddevPop | suffixStddevSamp | suffixVarPop | suffixVarSamp |
+      suffixSum | suffixMin | suffixMax | suffixCount | suffixAvg
+
+  lazy val suffixAsin: PackratParser[Expression] =
+    composite <~ "." ~ ASIN ~ opt("()") ^^ { e => Asin(e) }
+
   lazy val suffixed: PackratParser[Expression] =
-    suffixTimeInterval | suffixRowInterval | suffixSum | suffixMin | suffixMax | suffixStart |
-      suffixEnd | suffixCount | suffixAvg | suffixCast | suffixAs | suffixTrim |
-      suffixTrimWithoutArgs | suffixIf | suffixAsc | suffixDesc | suffixToDate |
-      suffixToTimestamp | suffixToTime | suffixExtract | suffixFloor | suffixCeil |
-      suffixGet | suffixFlattening |
+    suffixTimeInterval | suffixRowInterval | suffixStart | suffixEnd | suffixAgg |
+      suffixCast | suffixAs | suffixTrim | suffixTrimWithoutArgs | suffixIf | suffixAsc |
+      suffixDesc | suffixToDate | suffixToTimestamp | suffixToTime | suffixExtract |
+      suffixFloor | suffixCeil | suffixGet | suffixFlattening | suffixAsin |
       suffixFunctionCall | suffixFunctionCallOneArg // function call must always be at the end
 
   // prefix operators
@@ -304,6 +358,21 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val prefixSum: PackratParser[Expression] =
     SUM ~ "(" ~> expression <~ ")" ^^ { e => Sum(e) }
+
+  lazy val prefixSum0: PackratParser[Expression] =
+    SUM0 ~ "(" ~> expression <~ ")" ^^ { e => Sum0(e) }
+
+  lazy val prefixStddevPop: PackratParser[Expression] =
+    STDDEV_POP ~ "(" ~> expression <~ ")" ^^ { e => StddevPop(e) }
+
+  lazy val prefixStddevSamp: PackratParser[Expression] =
+    STDDEV_SAMP ~ "(" ~> expression <~ ")" ^^ { e => StddevSamp(e) }
+
+  lazy val prefixVarPop: PackratParser[Expression] =
+    VAR_POP ~ "(" ~> expression <~ ")" ^^ { e => VarPop(e) }
+
+  lazy val prefixVarSamp: PackratParser[Expression] =
+    VAR_SAMP ~ "(" ~> expression <~ ")" ^^ { e => VarSamp(e) }
 
   lazy val prefixMin: PackratParser[Expression] =
     MIN ~ "(" ~> expression <~ ")" ^^ { e => Min(e) }
@@ -375,15 +444,30 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val prefixFlattening: PackratParser[Expression] =
     FLATTEN ~ "(" ~> composite <~ ")" ^^ { e => Flattening(e) }
 
+  lazy val prefixAgg: PackratParser[Expression] =
+    prefixSum0 | prefixStddevPop | prefixStddevSamp | prefixVarPop | prefixVarSamp |
+      prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg
+
+  lazy val prefixAsin: PackratParser[Expression] =
+    ASIN ~ "(" ~> composite <~ ")" ^^ { e => Asin(e) }
+
   lazy val prefixed: PackratParser[Expression] =
-    prefixArray | prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
-      prefixStart | prefixEnd | prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs |
-      prefixIf | prefixExtract | prefixFloor | prefixCeil | prefixGet | prefixFlattening |
-      prefixFunctionCall | prefixFunctionCallOneArg // function call must always be at the end
+    prefixArray | prefixAgg | prefixStart | prefixEnd | prefixCast | prefixAs | prefixTrim |
+      prefixTrimWithoutArgs | prefixIf | prefixExtract | prefixFloor | prefixCeil | prefixGet |
+      prefixFlattening | prefixAsin | prefixFunctionCall |
+      prefixFunctionCallOneArg // function call must always be at the end
+
+  // over
+
+  lazy val over: PackratParser[Expression] = suffixAgg ~ OVER ~ fieldReference ^^ {
+    case agg ~ _ ~ windowRef => UnresolvedOverCall(agg, windowRef)
+  } | prefixAgg ~ OVER ~ fieldReference ^^ {
+    case agg ~ _ ~ windowRef => UnresolvedOverCall(agg, windowRef)
+  }
 
   // suffix/prefix composite
 
-  lazy val composite: PackratParser[Expression] = suffixed | prefixed | atom |
+  lazy val composite: PackratParser[Expression] = suffixed | over | prefixed | atom |
     failure("Composite expression expected.")
 
   // unary ops
@@ -451,11 +535,24 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // alias
 
-  lazy val alias: PackratParser[Expression] = logic ~ AS ~ fieldReference ^^ {
+  lazy val alias: PackratParser[Expression] = timeIndicator |
+    logic ~ AS ~ fieldReference ^^ {
       case e ~ _ ~ name => Alias(e, name.name)
   } | logic ~ AS ~ "(" ~ rep1sep(fieldReference, ",") ~ ")" ^^ {
     case e ~ _ ~ _ ~ names ~ _ => Alias(e, names.head.name, names.tail.map(_.name))
   } | logic
+
+  // time indicators
+
+  lazy val timeIndicator: PackratParser[Expression] = procTime | rowTime
+
+  lazy val procTime: PackratParser[Expression] = fieldReference ~ "." ~ PROCTIME ^^ {
+    case f ~ _ ~ _ => ProctimeAttribute(f)
+  }
+
+  lazy val rowTime: PackratParser[Expression] = fieldReference ~ "." ~ ROWTIME ^^ {
+    case f ~ _ ~ _ => RowtimeAttribute(f)
+  }
 
   lazy val expression: PackratParser[Expression] = alias |
     failure("Invalid expression.")

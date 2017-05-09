@@ -39,17 +39,17 @@ public class SourceFunctionUtil {
 
 	public static <T extends Serializable> List<T> runSourceFunction(SourceFunction<T> sourceFunction) throws Exception {
 		final List<T> outputs = new ArrayList<T>();
-		
+
 		if (sourceFunction instanceof RichFunction) {
 
 			AbstractStreamOperator<?> operator = mock(AbstractStreamOperator.class);
 			when(operator.getExecutionConfig()).thenReturn(new ExecutionConfig());
-			
+
 			RuntimeContext runtimeContext =  new StreamingRuntimeContext(
 					operator,
 					new MockEnvironment("MockTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
 					new HashMap<String, Accumulator<?, ?>>());
-			
+
 			((RichFunction) sourceFunction).setRuntimeContext(runtimeContext);
 
 			((RichFunction) sourceFunction).open(new Configuration());

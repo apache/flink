@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import java.io.Serializable;
+
 /**
  * Base of all handles that represent checkpointed state in some form. The object may hold
  * the (small) state directly, or contain a file path (state is in the file), or contain the
@@ -33,10 +35,10 @@ package org.apache.flink.runtime.state;
  * compatibility, they are not stored via {@link java.io.Serializable Java Serialization},
  * but through custom serializers.
  */
-public interface StateObject extends java.io.Serializable {
+public interface StateObject extends Serializable {
 
 	/**
-	 * Discards the state referred to by this handle, to free up resources in
+	 * Discards the state referred to and solemnly owned by this handle, to free up resources in
 	 * the persistent storage. This method is called when the state represented by this
 	 * object will not be used any more.
 	 */

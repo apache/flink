@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,12 @@
 
 package org.apache.flink.streaming.api.functions.windowing;
 
+import java.util.Collections;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
-
-import java.util.Collections;
 
 /**
  * A {@link AllWindowFunction} that composes an {@link AggregateFunction} and {@link AllWindowFunction}.

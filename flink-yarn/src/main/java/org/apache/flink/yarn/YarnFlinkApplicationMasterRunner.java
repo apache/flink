@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -66,7 +67,7 @@ import java.io.ObjectInputStream;
  * It starts actor system and the actors for {@link JobManagerRunner}
  * and {@link YarnResourceManager}.
  *
- * The JobMasnagerRunner start a {@link org.apache.flink.runtime.jobmaster.JobMaster}
+ * The JobManagerRunner start a {@link org.apache.flink.runtime.jobmaster.JobMaster}
  * JobMaster handles Flink job execution, while the YarnResourceManager handles container
  * allocation and failure detection.
  */
@@ -102,9 +103,6 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	@GuardedBy("lock")
 	private JobManagerRunner jobManagerRunner;
 
-	@GuardedBy("lock")
-	private JobGraph jobGraph;
-
 	// ------------------------------------------------------------------------
 	//  Program entry point
 	// ------------------------------------------------------------------------
@@ -138,12 +136,16 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 
 			synchronized (lock) {
 				LOG.info("Starting High Availability Services");
-				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config);
+				commonRpcService = createRpcService(config, appMasterHostname, amPortRange);
+
+				haServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+					config,
+					commonRpcService.getExecutor(),
+					HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 				heartbeatServices = HeartbeatServices.fromConfiguration(config);
 				
 				metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
-				commonRpcService = createRpcService(config, appMasterHostname, amPortRange);
 
 				// ---- (2) init resource manager -------
 				resourceManager = createResourceManager(config);
@@ -198,21 +200,25 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 			haServices,
 			commonRpcService.getScheduledExecutor());
 
-		return new YarnResourceManager(config,
-				ENV,
-				commonRpcService,
-				resourceManagerConfiguration,
-				haServices,
-				resourceManagerRuntimeServices.getSlotManagerFactory(),
-				metricRegistry,
-				resourceManagerRuntimeServices.getJobLeaderIdService(),
-				this);
+		return new YarnResourceManager(
+			commonRpcService,
+			FlinkResourceManager.RESOURCE_MANAGER_NAME,
+			ResourceID.generate(),
+			config,
+			ENV,
+			resourceManagerConfiguration,
+			haServices,
+			heartbeatServices,
+			resourceManagerRuntimeServices.getSlotManager(),
+			metricRegistry,
+			resourceManagerRuntimeServices.getJobLeaderIdService(),
+			this);
 	}
 
 	private JobManagerRunner createJobManagerRunner(Configuration config) throws Exception{
 		// first get JobGraph from local resources
 		//TODO: generate the job graph from user's jar
-		jobGraph = loadJobGraph(config);
+		JobGraph jobGraph = loadJobGraph(config);
 
 		// now the JobManagerRunner
 		return new JobManagerRunner(
@@ -227,13 +233,6 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	}
 
 	protected void shutdown(ApplicationStatus status, String msg) {
-		// Need to clear the job state in the HA services before shutdown
-		try {
-			haServices.getRunningJobsRegistry().clearJob(jobGraph.getJobID());
-		}
-		catch (Throwable t) {
-			LOG.warn("Could not clear the job at the high-availability services", t);
-		}
 
 		synchronized (lock) {
 			if (jobManagerRunner != null) {

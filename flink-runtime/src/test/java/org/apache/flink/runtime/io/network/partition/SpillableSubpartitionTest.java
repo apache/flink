@@ -26,8 +26,8 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
-import org.apache.flink.runtime.io.network.util.TestInfiniteBufferProvider;
 import org.junit.AfterClass;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -67,8 +67,12 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	}
 
 	@Override
-	ResultSubpartition createSubpartition() {
-		return new SpillableSubpartition(0, mock(ResultPartition.class), ioManager);
+	SpillableSubpartition createSubpartition() {
+		ResultPartition parent = mock(ResultPartition.class);
+		BufferProvider bufferProvider = mock(BufferProvider.class);
+		when(parent.getBufferProvider()).thenReturn(bufferProvider);
+		when(bufferProvider.getMemorySegmentSize()).thenReturn(32 * 1024);
+		return new SpillableSubpartition(0, parent, ioManager);
 	}
 
 	/**
@@ -138,14 +142,13 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	@Test
 	public void testReleasePartitionAndGetNext() throws Exception {
 		// Create partition and add some buffers
-		SpillableSubpartition partition = new SpillableSubpartition(
-			0, mock(ResultPartition.class), ioManager);
+		SpillableSubpartition partition = createSubpartition();
 
 		partition.finish();
 
 		// Create the read view
 		ResultSubpartitionView readView = spy(partition
-			.createReadView(new TestInfiniteBufferProvider(), new BufferAvailabilityListener() {
+			.createReadView(new BufferAvailabilityListener() {
 				@Override
 				public void notifyBuffersAvailable(long numBuffers) {
 
@@ -168,11 +171,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	 */
 	@Test
 	public void testConsumeSpilledPartition() throws Exception {
-		ResultPartition parent = mock(ResultPartition.class);
-		SpillableSubpartition partition = new SpillableSubpartition(
-			0,
-			parent,
-			ioManager);
+		SpillableSubpartition partition = createSubpartition();
 
 		Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096), FreeingBufferRecycler.INSTANCE);
 		buffer.retain();
@@ -187,7 +186,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		partition.finish();
 
 		BufferAvailabilityListener listener = mock(BufferAvailabilityListener.class);
-		SpilledSubpartitionView reader = (SpilledSubpartitionView) partition.createReadView(new TestInfiniteBufferProvider(), listener);
+		SpilledSubpartitionView reader = (SpilledSubpartitionView) partition.createReadView(listener);
 
 		verify(listener, times(1)).notifyBuffersAvailable(eq(4L));
 
@@ -216,11 +215,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	 */
 	@Test
 	public void testConsumeSpillablePartitionSpilledDuringConsume() throws Exception {
-		ResultPartition parent = mock(ResultPartition.class);
-		SpillableSubpartition partition = new SpillableSubpartition(
-			0,
-			parent,
-			ioManager);
+		SpillableSubpartition partition = createSubpartition();
 
 		Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096), FreeingBufferRecycler.INSTANCE);
 		buffer.retain();
@@ -232,7 +227,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		partition.finish();
 
 		AwaitableBufferAvailablityListener listener = new AwaitableBufferAvailablityListener();
-		SpillableSubpartitionView reader = (SpillableSubpartitionView) partition.createReadView(new TestInfiniteBufferProvider(), listener);
+		SpillableSubpartitionView reader = (SpillableSubpartitionView) partition.createReadView(listener);
 
 		// Initial notification
 		assertEquals(1, listener.getNumNotifiedBuffers());

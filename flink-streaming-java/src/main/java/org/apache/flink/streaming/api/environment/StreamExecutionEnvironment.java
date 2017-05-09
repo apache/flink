@@ -17,13 +17,23 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 import com.esotericsoftware.kryo.Serializer;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -37,6 +47,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.TextInputFormat;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
@@ -49,6 +60,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -75,16 +87,6 @@ import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * The StreamExecutionEnvironment is the context in which a streaming program is executed. A
  * {@link LocalStreamEnvironment} will cause execution in the current JVM, a
@@ -99,24 +101,29 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Public
 public abstract class StreamExecutionEnvironment {
 
-	/** The default name to use for a streaming job if no other name has been specified */
+	/** The default name to use for a streaming job if no other name has been specified. */
 	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
 
-	/** The time characteristic that is used if none other is set */
+	/** The time characteristic that is used if none other is set. */
 	private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC = TimeCharacteristic.ProcessingTime;
 
-	/** The default buffer timeout (max delay of records in the network stack) */
+	/** The default buffer timeout (max delay of records in the network stack). */
 	private static final long DEFAULT_NETWORK_BUFFER_TIMEOUT = 100L;
 
-	/** The environment of the context (local by default, cluster if invoked through command line) */
+	/**
+	 * The environment of the context (local by default, cluster if invoked through command line).
+	 */
 	private static StreamExecutionEnvironmentFactory contextEnvironmentFactory;
+
+	/** The default parallelism used when creating a local environment. */
+	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
 
 	// ------------------------------------------------------------------------
 
-	/** The execution configuration for this environment */
+	/** The execution configuration for this environment. */
 	private final ExecutionConfig config = new ExecutionConfig();
 
-	/** Settings that control the checkpointing behavior */
+	/** Settings that control the checkpointing behavior. */
 	private final CheckpointConfig checkpointCfg = new CheckpointConfig();
 
 	protected final List<StreamTransformation<?>> transformations = new ArrayList<>();
@@ -125,34 +132,31 @@ public abstract class StreamExecutionEnvironment {
 
 	protected boolean isChainingEnabled = true;
 
-	/** The state backend used for storing k/v state and state snapshots */
+	/** The state backend used for storing k/v state and state snapshots. */
 	private AbstractStateBackend defaultStateBackend;
 
-	/** The time characteristic used by the data streams */
+	/** The time characteristic used by the data streams. */
 	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
-	/** The parallelism to use when no parallelism is set on an operation. */
-	private final int defaultParallelism;
+	protected final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
 
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
 	// --------------------------------------------------------------------------------------------
 
-
-	public StreamExecutionEnvironment() {
-		this(ConfigConstants.DEFAULT_PARALLELISM);
-	}
-
-	public StreamExecutionEnvironment(int defaultParallelism) {
-		this.defaultParallelism = defaultParallelism;
-	}
-
 	/**
 	 * Gets the config object.
 	 */
 	public ExecutionConfig getConfig() {
 		return config;
+	}
+
+	/**
+	* Get the list of cached files that were registered for distribution among the task managers.
+	*/
+	public List<Tuple2<String, DistributedCache.DistributedCacheEntry>> getCachedFiles() {
+		return cacheFile;
 	}
 
 	/**
@@ -168,19 +172,29 @@ public abstract class StreamExecutionEnvironment {
 	 * @param parallelism The parallelism
 	 */
 	public StreamExecutionEnvironment setParallelism(int parallelism) {
+		if (parallelism < 1) {
+			throw new IllegalArgumentException("parallelism must be at least one.");
+		}
 		config.setParallelism(parallelism);
 		return this;
 	}
 
 	/**
-	 * Sets the maximum degree of parallelism defined for the program. The upper limit (inclusive) is Short.MAX_VALUE.
+	 * Sets the maximum degree of parallelism defined for the program. The upper limit (inclusive)
+	 * is Short.MAX_VALUE.
 	 *
-	 * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+	 * <p>The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
 	 * defines the number of key groups used for partitioned state.
 	 *
-	 * @param maxParallelism Maximum degree of parallelism to be used for the program., with 0 < maxParallelism <= 2^15 - 1
+	 * @param maxParallelism Maximum degree of parallelism to be used for the program.,
+	 *              with 0 < maxParallelism <= 2^15 - 1
 	 */
 	public StreamExecutionEnvironment setMaxParallelism(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0 &&
+						maxParallelism <= KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
+				"maxParallelism is out of bounds 0 < maxParallelism <= " +
+						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM + ". Found: " + maxParallelism);
+
 		config.setMaxParallelism(maxParallelism);
 		return this;
 	}
@@ -200,7 +214,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Gets the maximum degree of parallelism defined for the program.
 	 *
-	 * The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
+	 * <p>The maximum degree of parallelism specifies the upper limit for dynamic scaling. It also
 	 * defines the number of key groups used for partitioned state.
 	 *
 	 * @return Maximum degree of parallelism
@@ -214,15 +228,12 @@ public abstract class StreamExecutionEnvironment {
 	 * output buffers. By default the output buffers flush frequently to provide
 	 * low latency and to aid smooth developer experience. Setting the parameter
 	 * can result in three logical modes:
-	 * <p>
+	 *
 	 * <ul>
-	 * <li>
-	 * A positive integer triggers flushing periodically by that integer</li>
-	 * <li>
-	 * 0 triggers flushing after every record thus minimizing latency</li>
-	 * <li>
-	 * -1 triggers flushing only when the output buffer is full thus maximizing
-	 * throughput</li>
+	 *   <li>A positive integer triggers flushing periodically by that integer</li>
+	 *   <li>0 triggers flushing after every record thus minimizing latency</li>
+	 *   <li>-1 triggers flushing only when the output buffer is full thus maximizing
+	 *      throughput</li>
 	 * </ul>
 	 *
 	 * @param timeoutMillis
@@ -292,12 +303,12 @@ public abstract class StreamExecutionEnvironment {
 	 * {@link CheckpointingMode#EXACTLY_ONCE} guarantees.
 	 *
 	 * <p>The job draws checkpoints periodically, in the given interval. The state will be
-	 * stored in the configured state backend.</p>
+	 * stored in the configured state backend.
 	 *
 	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
 	 * the moment. For that reason, iterative jobs will not be started if used
 	 * with enabled checkpointing. To override this mechanism, use the
-	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
+	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.
 	 *
 	 * @param interval Time interval between state checkpoints in milliseconds.
 	 */
@@ -313,12 +324,12 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * <p>The job draws checkpoints periodically, in the given interval. The system uses the
 	 * given {@link CheckpointingMode} for the checkpointing ("exactly once" vs "at least once").
-	 * The state will be stored in the configured state backend.</p>
+	 * The state will be stored in the configured state backend.
 	 *
 	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
 	 * the moment. For that reason, iterative jobs will not be started if used
 	 * with enabled checkpointing. To override this mechanism, use the
-	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
+	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.
 	 *
 	 * @param interval
 	 *             Time interval between state checkpoints in milliseconds.
@@ -337,11 +348,11 @@ public abstract class StreamExecutionEnvironment {
 	 * dataflow will be restarted from the latest completed checkpoint.
 	 *
 	 * <p>The job draws checkpoints periodically, in the given interval. The state will be
-	 * stored in the configured state backend.</p>
+	 * stored in the configured state backend.
 	 *
 	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
 	 * the moment. If the "force" parameter is set to true, the system will execute the
-	 * job nonetheless.</p>
+	 * job nonetheless.
 	 *
 	 * @param interval
 	 *            Time interval between state checkpoints in millis.
@@ -349,6 +360,9 @@ public abstract class StreamExecutionEnvironment {
 	 *            The checkpointing mode, selecting between "exactly once" and "at least once" guaranteed.
 	 * @param force
 	 *            If true checkpointing will be enabled for iterative jobs as well.
+	 *
+	 * @deprecated Use {@link #enableCheckpointing(long, CheckpointingMode)} instead.
+	 * Forcing checkpoints will be removed in the future.
 	 */
 	@Deprecated
 	@SuppressWarnings("deprecation")
@@ -367,12 +381,12 @@ public abstract class StreamExecutionEnvironment {
 	 * {@link CheckpointingMode#EXACTLY_ONCE} guarantees.
 	 *
 	 * <p>The job draws checkpoints periodically, in the default interval. The state will be
-	 * stored in the configured state backend.</p>
+	 * stored in the configured state backend.
 	 *
 	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
 	 * the moment. For that reason, iterative jobs will not be started if used
 	 * with enabled checkpointing. To override this mechanism, use the
-	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
+	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.
 	 *
 	 * @deprecated Use {@link #enableCheckpointing(long)} instead.
 	 */
@@ -396,6 +410,8 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Returns whether checkpointing is force-enabled.
+	 *
+	 * @deprecated Forcing checkpoints will be removed in future version.
 	 */
 	@Deprecated
 	@SuppressWarnings("deprecation")
@@ -515,8 +531,8 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Adds a new Kryo default serializer to the Runtime.
-	 * <p>
-	 * Note that the serializer instance must be serializable (as defined by
+	 *
+	 * <p>Note that the serializer instance must be serializable (as defined by
 	 * java.io.Serializable), because it may be distributed to the worker nodes
 	 * by java serialization.
 	 *
@@ -543,8 +559,8 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Registers the given type with a Kryo Serializer.
-	 * <p>
-	 * Note that the serializer instance must be serializable (as defined by
+	 *
+	 * <p>Note that the serializer instance must be serializable (as defined by
 	 * java.io.Serializable), because it may be distributed to the worker nodes
 	 * by java serialization.
 	 *
@@ -559,7 +575,7 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Registers the given Serializer via its class as a serializer for the
-	 * given type at the KryoSerializer
+	 * given type at the KryoSerializer.
 	 *
 	 * @param type
 	 * 		The class of the types serialized with the given serializer.
@@ -602,8 +618,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Sets the time characteristic for all streams create from this environment, e.g., processing
 	 * time, event time, or ingestion time.
 	 *
-	 * <p>
-	 * If you set the characteristic to IngestionTime of EventTime this will set a default
+	 * <p>If you set the characteristic to IngestionTime of EventTime this will set a default
 	 * watermark update interval of 200 ms. If this is not applicable for your application
 	 * you should change it using {@link ExecutionConfig#setAutoWatermarkInterval(long)}.
 	 *
@@ -655,15 +670,15 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a new data stream that contains the given elements. The elements must all be of the same type, for
-	 * example, all of the {@link String} or {@link Integer}.
-	 * <p>
-	 * The framework will try and determine the exact type from the elements. In case of generic elements, it may be
-	 * necessary to manually supply the type information via {@link #fromCollection(java.util.Collection,
-	 * org.apache.flink.api.common.typeinfo.TypeInformation)}.
-	 * <p>
-	 * Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
-	 * degree of parallelism one.
+	 * Creates a new data stream that contains the given elements. The elements must all be of the
+	 * same type, for example, all of the {@link String} or {@link Integer}.
+	 *
+	 * <p>The framework will try and determine the exact type from the elements. In case of generic
+	 * elements, it may be necessary to manually supply the type information via
+	 * {@link #fromCollection(java.util.Collection, org.apache.flink.api.common.typeinfo.TypeInformation)}.
+	 *
+	 * <p>Note that this operation will result in a non-parallel data stream source, i.e. a data
+	 * stream source with a degree of parallelism one.
 	 *
 	 * @param data
 	 * 		The array of elements to create the data stream from.
@@ -728,10 +743,10 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * <p>The framework will try and determine the exact type from the collection elements. In case of generic
 	 * elements, it may be necessary to manually supply the type information via
-	 * {@link #fromCollection(java.util.Collection, org.apache.flink.api.common.typeinfo.TypeInformation)}.</p>
+	 * {@link #fromCollection(java.util.Collection, org.apache.flink.api.common.typeinfo.TypeInformation)}.
 	 *
 	 * <p>Note that this operation will result in a non-parallel data stream source, i.e. a data stream source with a
-	 * parallelism one.</p>
+	 * parallelism one.
 	 *
 	 * @param data
 	 * 		The collection of elements to create the data stream from.
@@ -767,7 +782,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Creates a data stream from the given non-empty collection.
 	 *
 	 * <p>Note that this operation will result in a non-parallel data stream source,
-	 * i.e., a data stream source with a parallelism one.</p>
+	 * i.e., a data stream source with a parallelism one.
 	 *
 	 * @param data
 	 * 		The collection of elements to create the data stream from
@@ -798,10 +813,10 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * <p>Because the iterator will remain unmodified until the actual execution happens,
 	 * the type of data returned by the iterator must be given explicitly in the form of the type
-	 * class (this is due to the fact that the Java compiler erases the generic type information).</p>
+	 * class (this is due to the fact that the Java compiler erases the generic type information).
 	 *
 	 * <p>Note that this operation will result in a non-parallel data stream source, i.e.,
-	 * a data stream source with a parallelism of one.</p>
+	 * a data stream source with a parallelism of one.
 	 *
 	 * @param data
 	 * 		The iterator of elements to create the data stream from
@@ -823,10 +838,10 @@ public abstract class StreamExecutionEnvironment {
 	 * the type of data returned by the iterator must be given explicitly in the form of the type
 	 * information. This method is useful for cases where the type is generic.
 	 * In that case, the type class (as given in
-	 * {@link #fromCollection(java.util.Iterator, Class)} does not supply all type information.</p>
+	 * {@link #fromCollection(java.util.Iterator, Class)} does not supply all type information.
 	 *
 	 * <p>Note that this operation will result in a non-parallel data stream source, i.e.,
-	 * a data stream source with a parallelism one.</p>
+	 * a data stream source with a parallelism one.
 	 *
 	 * @param data
 	 * 		The iterator of elements to create the data stream from
@@ -844,12 +859,13 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a new data stream that contains elements in the iterator. The iterator is splittable, allowing the
-	 * framework to create a parallel data stream source that returns the elements in the iterator.
+	 * Creates a new data stream that contains elements in the iterator. The iterator is splittable,
+	 * allowing the framework to create a parallel data stream source that returns the elements in
+	 * the iterator.
 	 *
-	 * <p>Because the iterator will remain unmodified until the actual execution happens, the type of data returned by the
-	 * iterator must be given explicitly in the form of the type class (this is due to the fact that the Java compiler
-	 * erases the generic type information).</p>
+	 * <p>Because the iterator will remain unmodified until the actual execution happens, the type
+	 * of data returned by the iterator must be given explicitly in the form of the type class
+	 * (this is due to the fact that the Java compiler erases the generic type information).
 	 *
 	 * @param iterator
 	 * 		The iterator that produces the elements of the data stream
@@ -864,13 +880,16 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a new data stream that contains elements in the iterator. The iterator is splittable, allowing the
-	 * framework to create a parallel data stream source that returns the elements in the iterator.
-	 * <p>
-	 * Because the iterator will remain unmodified until the actual execution happens, the type of data returned by the
-	 * iterator must be given explicitly in the form of the type information. This method is useful for cases where the
-	 * type is generic. In that case, the type class (as given in {@link #fromParallelCollection(org.apache.flink.util.SplittableIterator,
-	 * Class)} does not supply all type information.
+	 * Creates a new data stream that contains elements in the iterator. The iterator is splittable,
+	 * allowing the framework to create a parallel data stream source that returns the elements in
+	 * the iterator.
+	 *
+	 * <p>Because the iterator will remain unmodified until the actual execution happens, the type
+	 * of data returned by the iterator must be given explicitly in the form of the type
+	 * information. This method is useful for cases where the type is generic. In that case, the
+	 * type class (as given in
+	 * {@link #fromParallelCollection(org.apache.flink.util.SplittableIterator, Class)} does not
+	 * supply all type information.
 	 *
 	 * @param iterator
 	 * 		The iterator that produces the elements of the data stream
@@ -892,15 +911,15 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Reads the given file line-by-line and creates a data stream that contains a string with the contents of each such
-	 * line. The file will be read with the system's default character set.
+	 * Reads the given file line-by-line and creates a data stream that contains a string with the
+	 * contents of each such line. The file will be read with the system's default character set.
 	 *
-	 * <p>
-	 * <b> NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
-	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
-	 * forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
-	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint
-	 * barriers are going to be forwarded after the source exits, thus having no checkpoints after that point.
+	 * <p><b>NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
+	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards
+	 * them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
+	 * and exits, without waiting for the readers to finish reading. This implies that no more
+	 * checkpoint barriers are going to be forwarded after the source exits, thus having no
+	 * checkpoints after that point.
 	 *
 	 * @param filePath
 	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
@@ -911,11 +930,11 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Reads the given file line-by-line and creates a data stream that contains a string with the contents of each such
-	 * line. The {@link java.nio.charset.Charset} with the given name will be used to read the files.
+	 * Reads the given file line-by-line and creates a data stream that contains a string with the
+	 * contents of each such line. The {@link java.nio.charset.Charset} with the given name will be
+	 * used to read the files.
 	 *
-	 * <p>
-	 * <b> NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
+	 * <p><b>NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
 	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
 	 * forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
 	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint
@@ -942,16 +961,14 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Reads the contents of the user-specified {@code filePath} based on the given {@link FileInputFormat}.
 	 *
-	 * <p>
-	 * Since all data streams need specific information about their types, this method needs to determine the
+	 * <p>Since all data streams need specific information about their types, this method needs to determine the
 	 * type of the data produced by the input format. It will attempt to determine the data type by reflection,
 	 * unless the input format implements the {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable} interface.
 	 * In the latter case, this method will invoke the
 	 * {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable#getProducedType()} method to determine data
 	 * type produced by the input format.
 	 *
-	 * <p>
-	 * <b> NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
+	 * <p><b>NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the
 	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed,
 	 * forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
 	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint
@@ -971,11 +988,10 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 *
 	 * Reads the contents of the user-specified {@code filePath} based on the given {@link FileInputFormat}. Depending
 	 * on the provided {@link FileProcessingMode}.
-	 * <p>
-	 * See {@link #readFile(FileInputFormat, String, FileProcessingMode, long)}
+	 *
+	 * <p>See {@link #readFile(FileInputFormat, String, FileProcessingMode, long)}
 	 *
 	 * @param inputFormat
 	 * 		The input format used to create the data stream
@@ -1023,16 +1039,14 @@ public abstract class StreamExecutionEnvironment {
 	 * can specify a custom {@link FilePathFilter}. As a default implementation you can use
 	 * {@link FilePathFilter#createDefaultFilter()}.
 	 *
-	 * <p>
-	 * Since all data streams need specific information about their types, this method needs to determine the
+	 * <p>Since all data streams need specific information about their types, this method needs to determine the
 	 * type of the data produced by the input format. It will attempt to determine the data type by reflection,
 	 * unless the input format implements the {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable} interface.
 	 * In the latter case, this method will invoke the
 	 * {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable#getProducedType()} method to determine data
 	 * type produced by the input format.
 	 *
-	 * <p>
-	 * <b> NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link FileProcessingMode#PROCESS_ONCE},
+	 * <p><b>NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link FileProcessingMode#PROCESS_ONCE},
 	 * the source monitors the path <b>once</b>, creates the {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits}
 	 * to be processed, forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
 	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint barriers
@@ -1103,8 +1117,7 @@ public abstract class StreamExecutionEnvironment {
 	 * the user can specify a custom {@link FilePathFilter}. As a default implementation you can use
 	 * {@link FilePathFilter#createDefaultFilter()}.
 	 *
-	 * <p>
-	 *  <b> NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link FileProcessingMode#PROCESS_ONCE},
+	 * <p><b>NOTES ON CHECKPOINTING: </b> If the {@code watchType} is set to {@link FileProcessingMode#PROCESS_ONCE},
 	 * the source monitors the path <b>once</b>, creates the {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits}
 	 * to be processed, forwards them to the downstream {@link ContinuousFileReaderOperator readers} to read the actual data,
 	 * and exits, without waiting for the readers to finish reading. This implies that no more checkpoint barriers
@@ -1143,8 +1156,8 @@ public abstract class StreamExecutionEnvironment {
 	 * Creates a new data stream that contains the strings received infinitely from a socket. Received strings are
 	 * decoded by the system's default character set. On the termination of the socket server connection retries can be
 	 * initiated.
-	 * <p>
-	 * Let us note that the socket itself does not report on abort and as a consequence retries are only initiated when
+	 *
+	 * <p>Let us note that the socket itself does not report on abort and as a consequence retries are only initiated when
 	 * the socket was gracefully terminated.
 	 *
 	 * @param hostname
@@ -1172,8 +1185,8 @@ public abstract class StreamExecutionEnvironment {
 	 * Creates a new data stream that contains the strings received infinitely from a socket. Received strings are
 	 * decoded by the system's default character set. On the termination of the socket server connection retries can be
 	 * initiated.
-	 * <p>
-	 * Let us note that the socket itself does not report on abort and as a consequence retries are only initiated when
+	 *
+	 * <p>Let us note that the socket itself does not report on abort and as a consequence retries are only initiated when
 	 * the socket was gracefully terminated.
 	 *
 	 * @param hostname
@@ -1254,16 +1267,15 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Generic method to create an input data stream with {@link org.apache.flink.api.common.io.InputFormat}.
-	 * <p>
-	 * Since all data streams need specific information about their types, this method needs to determine the
+	 *
+	 * <p>Since all data streams need specific information about their types, this method needs to determine the
 	 * type of the data produced by the input format. It will attempt to determine the data type by reflection,
 	 * unless the input format implements the {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable} interface.
 	 * In the latter case, this method will invoke the
 	 * {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable#getProducedType()} method to determine data
 	 * type produced by the input format.
 	 *
-	 * <p>
-	 * <b> NOTES ON CHECKPOINTING: </b> In the case of a {@link FileInputFormat}, the source
+	 * <p><b>NOTES ON CHECKPOINTING: </b> In the case of a {@link FileInputFormat}, the source
 	 * (which executes the {@link ContinuousFileMonitoringFunction}) monitors the path, creates the
 	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards
 	 * them to the downstream {@link ContinuousFileReaderOperator} to read the actual data, and exits,
@@ -1283,13 +1295,12 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Generic method to create an input data stream with {@link org.apache.flink.api.common.io.InputFormat}.
-	 * <p>
-	 * The data stream is typed to the given TypeInformation. This method is intended for input formats
+	 *
+	 * <p>The data stream is typed to the given TypeInformation. This method is intended for input formats
 	 * where the return type cannot be determined by reflection analysis, and that do not implement the
 	 * {@link org.apache.flink.api.java.typeutils.ResultTypeQueryable} interface.
 	 *
-	 * <p>
-	 * <b> NOTES ON CHECKPOINTING: </b> In the case of a {@link FileInputFormat}, the source
+	 * <p><b>NOTES ON CHECKPOINTING: </b> In the case of a {@link FileInputFormat}, the source
 	 * (which executes the {@link ContinuousFileMonitoringFunction}) monitors the path, creates the
 	 * {@link org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards
 	 * them to the downstream {@link ContinuousFileReaderOperator} to read the actual data, and exits,
@@ -1359,8 +1370,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Adds a Data Source to the streaming topology.
 	 *
-	 * <p>
-	 * By default sources have a parallelism of 1. To enable parallel execution, the user defined source should
+	 * <p>By default sources have a parallelism of 1. To enable parallel execution, the user defined source should
 	 * implement {@link org.apache.flink.streaming.api.functions.source.ParallelSourceFunction} or extend {@link
 	 * org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction}. In these cases the resulting source
 	 * will have the parallelism of the environment. To change this afterwards call {@link
@@ -1431,7 +1441,7 @@ public abstract class StreamExecutionEnvironment {
 	@SuppressWarnings("unchecked")
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
 
-		if(typeInfo == null) {
+		if (typeInfo == null) {
 			if (function instanceof ResultTypeQueryable) {
 				typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
 			} else {
@@ -1461,7 +1471,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Casts the source function into a SourceFunction implementing the StoppableFunction.
 	 *
-	 * This method should only be used if the source function was checked to implement the
+	 * <p>This method should only be used if the source function was checked to implement the
 	 * {@link StoppableFunction} interface.
 	 *
 	 * @param sourceFunction Source function to cast
@@ -1478,8 +1488,8 @@ public abstract class StreamExecutionEnvironment {
 	 * Triggers the program execution. The environment will execute all parts of
 	 * the program that have resulted in a "sink" operation. Sink operations are
 	 * for example printing results or forwarding them to a message queue.
-	 * <p>
-	 * The program execution will be logged and displayed with a generated
+	 *
+	 * <p>The program execution will be logged and displayed with a generated
 	 * default name.
 	 *
 	 * @return The result of the job execution, containing elapsed time and accumulators.
@@ -1493,8 +1503,8 @@ public abstract class StreamExecutionEnvironment {
 	 * Triggers the program execution. The environment will execute all parts of
 	 * the program that have resulted in a "sink" operation. Sink operations are
 	 * for example printing results or forwarding them to a message queue.
-	 * <p>
-	 * The program execution will be logged and displayed with the provided name
+	 *
+	 * <p>The program execution will be logged and displayed with the provided name
 	 *
 	 * @param jobName
 	 * 		Desired name of the job
@@ -1513,7 +1523,7 @@ public abstract class StreamExecutionEnvironment {
 		if (transformations.size() <= 0) {
 			throw new IllegalStateException("No operators defined in streaming topology. Cannot execute.");
 		}
-		return StreamGraphGenerator.generate(this, transformations, defaultParallelism);
+		return StreamGraphGenerator.generate(this, transformations);
 	}
 
 	/**
@@ -1545,12 +1555,10 @@ public abstract class StreamExecutionEnvironment {
 	 * Adds an operator to the list of operators that should be executed when calling
 	 * {@link #execute}.
 	 *
-	 * <p>
-	 * When calling {@link #execute()} only the operators that where previously added to the list
+	 * <p>When calling {@link #execute()} only the operators that where previously added to the list
 	 * are executed.
 	 *
-	 * <p>
-	 * This is not meant to be used by users. The API methods that create operators must call
+	 * <p>This is not meant to be used by users. The API methods that create operators must call
 	 * this method.
 	 */
 	@Internal
@@ -1601,7 +1609,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A local execution environment.
 	 */
 	public static LocalStreamEnvironment createLocalEnvironment() {
-		return new LocalStreamEnvironment();
+		return createLocalEnvironment(defaultLocalParallelism);
 	}
 
 	/**
@@ -1610,12 +1618,14 @@ public abstract class StreamExecutionEnvironment {
 	 * environment was created in. It will use the parallelism specified in the
 	 * parameter.
 	 *
-	 * @param defaultParallelism The default parallelism for the local environment.
-	 * 
+	 * @param parallelism
+	 * 		The parallelism for the local environment.
 	 * @return A local execution environment with the specified parallelism.
 	 */
-	public static LocalStreamEnvironment createLocalEnvironment(int defaultParallelism) {
-		return new LocalStreamEnvironment(defaultParallelism);
+	public static LocalStreamEnvironment createLocalEnvironment(int parallelism) {
+		LocalStreamEnvironment env = new LocalStreamEnvironment();
+		env.setParallelism(parallelism);
+		return env;
 	}
 
 	/**
@@ -1624,23 +1634,26 @@ public abstract class StreamExecutionEnvironment {
 	 * environment was created in. It will use the parallelism specified in the
 	 * parameter.
 	 *
-	 * @param defaultParallelism The parallelism for the local environment.
-	 * @param configuration Pass a custom configuration into the cluster
-	 *
+	 * @param parallelism
+	 * 		The parallelism for the local environment.
+	 * 	@param configuration
+	 * 		Pass a custom configuration into the cluster
 	 * @return A local execution environment with the specified parallelism.
 	 */
-	public static LocalStreamEnvironment createLocalEnvironment(int defaultParallelism, Configuration configuration) {
-		return new LocalStreamEnvironment(configuration, defaultParallelism);
+	public static LocalStreamEnvironment createLocalEnvironment(int parallelism, Configuration configuration) {
+		LocalStreamEnvironment currentEnvironment = new LocalStreamEnvironment(configuration);
+		currentEnvironment.setParallelism(parallelism);
+		return currentEnvironment;
 	}
 
 	/**
 	 * Creates a {@link LocalStreamEnvironment} for local program execution that also starts the
 	 * web monitoring UI.
-	 * 
+	 *
 	 * <p>The local execution environment will run the program in a multi-threaded fashion in
 	 * the same JVM as the environment was created in. It will use the parallelism specified in the
 	 * parameter.
-	 * 
+	 *
 	 * <p>If the configuration key 'jobmanager.web.port' was set in the configuration, that particular
 	 * port will be used for the web UI. Otherwise, the default port (8081) will be used.
 	 */
@@ -1655,6 +1668,7 @@ public abstract class StreamExecutionEnvironment {
 		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
 
 		LocalStreamEnvironment localEnv = new LocalStreamEnvironment(conf);
+		localEnv.setParallelism(defaultLocalParallelism);
 
 		return localEnv;
 	}
@@ -1706,8 +1720,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A remote environment that executes the program on a cluster.
 	 */
 	public static StreamExecutionEnvironment createRemoteEnvironment(
-			String host, int port, int parallelism, String... jarFiles)
-	{
+			String host, int port, int parallelism, String... jarFiles) {
 		RemoteStreamEnvironment env = new RemoteStreamEnvironment(host, port, jarFiles);
 		env.setParallelism(parallelism);
 		return env;
@@ -1735,9 +1748,30 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A remote environment that executes the program on a cluster.
 	 */
 	public static StreamExecutionEnvironment createRemoteEnvironment(
-			String host, int port, Configuration clientConfig, String... jarFiles)
-	{
+			String host, int port, Configuration clientConfig, String... jarFiles) {
 		return new RemoteStreamEnvironment(host, port, clientConfig, jarFiles);
+	}
+
+	/**
+	 * Gets the default parallelism that will be used for the local execution environment created by
+	 * {@link #createLocalEnvironment()}.
+	 *
+	 * @return The default local parallelism
+	 */
+	@PublicEvolving
+	public static int getDefaultLocalParallelism() {
+		return defaultLocalParallelism;
+	}
+
+	/**
+	 * Sets the default parallelism that will be used for the local execution
+	 * environment created by {@link #createLocalEnvironment()}.
+	 *
+	 * @param parallelism The parallelism to use as the default local parallelism.
+	 */
+	@PublicEvolving
+	public static void setDefaultLocalParallelism(int parallelism) {
+		defaultLocalParallelism = parallelism;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1747,8 +1781,45 @@ public abstract class StreamExecutionEnvironment {
 	protected static void initializeContextEnvironment(StreamExecutionEnvironmentFactory ctx) {
 		contextEnvironmentFactory = ctx;
 	}
-	
+
 	protected static void resetContextEnvironment() {
 		contextEnvironmentFactory = null;
+	}
+
+	/**
+	 * Registers a file at the distributed cache under the given name. The file will be accessible
+	 * from any user-defined function in the (distributed) runtime under a local path. Files
+	 * may be local files (as long as all relevant workers have access to it), or files in a distributed file system.
+	 * The runtime will copy the files temporarily to a local cache, if needed.
+	 *
+	 * <p>The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
+	 * {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and provides access
+	 * {@link org.apache.flink.api.common.cache.DistributedCache} via
+	 * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
+	 *
+	 * @param filePath The path of the file, as a URI (e.g. "file:///some/path" or "hdfs://host:port/and/path")
+	 * @param name The name under which the file is registered.
+	 */
+	public void registerCachedFile(String filePath, String name) {
+		registerCachedFile(filePath, name, false);
+	}
+
+	/**
+	 * Registers a file at the distributed cache under the given name. The file will be accessible
+	 * from any user-defined function in the (distributed) runtime under a local path. Files
+	 * may be local files (as long as all relevant workers have access to it), or files in a distributed file system.
+	 * The runtime will copy the files temporarily to a local cache, if needed.
+	 *
+	 * <p>The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
+	 * {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and provides access
+	 * {@link org.apache.flink.api.common.cache.DistributedCache} via
+	 * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
+	 *
+	 * @param filePath The path of the file, as a URI (e.g. "file:///some/path" or "hdfs://host:port/and/path")
+	 * @param name The name under which the file is registered.
+	 * @param executable flag indicating whether the file should be executable
+	 */
+	public void registerCachedFile(String filePath, String name, boolean executable) {
+		this.cacheFile.add(new Tuple2<>(name, new DistributedCache.DistributedCacheEntry(filePath, executable)));
 	}
 }

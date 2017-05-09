@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
@@ -28,9 +31,10 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
-
+/**
+ * A {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing
+ * {@link CoProcessFunction CoProcessFunctions}.
+ */
 @Internal
 public class CoProcessOperator<IN1, IN2, OUT>
 		extends AbstractUdfStreamOperator<OUT, CoProcessFunction<IN1, IN2, OUT>>

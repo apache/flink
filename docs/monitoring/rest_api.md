@@ -660,6 +660,19 @@ The `savepointPath` points to the external path of the savepoint, which can be u
 
 It is possible to upload, run, and list Flink programs via the REST APIs and web frontend.
 
+#### Upload a new JAR file
+
+Send a `POST` request to `/jars/upload` with your jar file sent as multi-part data under the `jarfile` file.
+Also make sure that the multi-part data includes the `Content-Type` of the file itself, some http libraries do not add the header by default.
+
+The multi-part payload should start like
+
+```
+------BoundaryXXXX
+Content-Disposition: form-data; name="jarfile"; filename="YourFileName.jar"
+Content-Type: application/x-java-archive
+```
+
 #### Run a Program (POST)
 
 Send a `POST` request to `/jars/:jarid/run`. The `jarid` parameter is the file name of the program JAR in the configured web frontend upload directory (configuration key `jobmanager.web.upload.dir`).

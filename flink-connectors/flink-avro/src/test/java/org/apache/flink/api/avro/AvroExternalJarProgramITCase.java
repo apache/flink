@@ -19,18 +19,21 @@
 package org.apache.flink.api.avro;
 
 import java.io.File;
+import java.net.URL;
+import java.util.Collections;
 
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
+import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class AvroExternalJarProgramITCase {
+public class AvroExternalJarProgramITCase extends TestLogger {
 
 	private static final String JAR_FILE = "maven-test-jar.jar";
 
@@ -42,8 +45,9 @@ public class AvroExternalJarProgramITCase {
 		LocalFlinkMiniCluster testMiniCluster = null;
 
 		try {
+			int parallelism = 4;
 			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
 			testMiniCluster = new LocalFlinkMiniCluster(config, false);
 			testMiniCluster.start();
 
@@ -52,15 +56,16 @@ public class AvroExternalJarProgramITCase {
 
 			PackagedProgram program = new PackagedProgram(new File(jarFile), new String[] { testData });
 
+			TestEnvironment.setAsContext(
+				testMiniCluster,
+				parallelism,
+				Collections.singleton(new Path(jarFile)),
+				Collections.<URL>emptyList());
 
 			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, testMiniCluster.getLeaderRPCPort());
 
-			ClusterClient client = new StandaloneClusterClient(config);
-
-			client.setPrintStatusDuringExecution(false);
-			client.run(program, 4);
-
+			program.invokeInteractiveModeForExecution();
 		}
 		catch (Throwable t) {
 			System.err.println(t.getMessage());
@@ -68,6 +73,8 @@ public class AvroExternalJarProgramITCase {
 			Assert.fail("Error during the packaged program execution: " + t.getMessage());
 		}
 		finally {
+			TestEnvironment.unsetAsContext();
+
 			if (testMiniCluster != null) {
 				try {
 					testMiniCluster.stop();

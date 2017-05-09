@@ -40,11 +40,11 @@ public class LongValueToSignedIntValueTest {
 
 	@Test(expected=IllegalArgumentException.class)
 	public void testUpperOutOfRange() throws Exception {
-		assertEquals(new IntValue(), translator.translate(new LongValue((long)Integer.MAX_VALUE + 1), reuse));
+		translator.translate(new LongValue((long)Integer.MAX_VALUE + 1), reuse);
 	}
 
 	@Test(expected=IllegalArgumentException.class)
 	public void testLowerOutOfRange() throws Exception {
-		assertEquals(new IntValue(), translator.translate(new LongValue((long)Integer.MIN_VALUE - 1), reuse));
+		translator.translate(new LongValue((long)Integer.MIN_VALUE - 1), reuse);
 	}
 }

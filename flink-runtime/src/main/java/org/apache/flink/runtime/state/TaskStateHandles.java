@@ -35,15 +35,20 @@ public class TaskStateHandles implements Serializable {
 
 	private static final long serialVersionUID = 267686583583579359L;
 
-	/** State handle with the (non-partitionable) legacy operator state*/
+	/**
+	 * State handle with the (non-partitionable) legacy operator state
+	 *
+	 * @deprecated Non-repartitionable operator state that has been deprecated.
+	 * Can be removed when we remove the APIs for non-repartitionable operator state.
+	 */
 	@Deprecated
 	private final ChainedStateHandle<StreamStateHandle> legacyOperatorState;
 
 	/** Collection of handles which represent the managed keyed state of the head operator */
-	private final Collection<KeyGroupsStateHandle> managedKeyedState;
+	private final Collection<KeyedStateHandle> managedKeyedState;
 
 	/** Collection of handles which represent the raw/streamed keyed state of the head operator */
-	private final Collection<KeyGroupsStateHandle> rawKeyedState;
+	private final Collection<KeyedStateHandle> rawKeyedState;
 
 	/** Outer list represents the operator chain, each collection holds handles for managed state of a single operator */
 	private final List<Collection<OperatorStateHandle>> managedOperatorState;
@@ -67,8 +72,8 @@ public class TaskStateHandles implements Serializable {
 			ChainedStateHandle<StreamStateHandle> legacyOperatorState,
 			List<Collection<OperatorStateHandle>> managedOperatorState,
 			List<Collection<OperatorStateHandle>> rawOperatorState,
-			Collection<KeyGroupsStateHandle> managedKeyedState,
-			Collection<KeyGroupsStateHandle> rawKeyedState) {
+			Collection<KeyedStateHandle> managedKeyedState,
+			Collection<KeyedStateHandle> rawKeyedState) {
 
 		this.legacyOperatorState = legacyOperatorState;
 		this.managedKeyedState = managedKeyedState;
@@ -77,16 +82,20 @@ public class TaskStateHandles implements Serializable {
 		this.rawOperatorState = rawOperatorState;
 	}
 
+	/**
+	 * @deprecated Non-repartitionable operator state that has been deprecated.
+	 * Can be removed when we remove the APIs for non-repartitionable operator state.
+	 */
 	@Deprecated
 	public ChainedStateHandle<StreamStateHandle> getLegacyOperatorState() {
 		return legacyOperatorState;
 	}
 
-	public Collection<KeyGroupsStateHandle> getManagedKeyedState() {
+	public Collection<KeyedStateHandle> getManagedKeyedState() {
 		return managedKeyedState;
 	}
 
-	public Collection<KeyGroupsStateHandle> getRawKeyedState() {
+	public Collection<KeyedStateHandle> getRawKeyedState() {
 		return rawKeyedState;
 	}
 
@@ -110,8 +119,8 @@ public class TaskStateHandles implements Serializable {
 		return out;
 	}
 
-	private static List<KeyGroupsStateHandle> transform(KeyGroupsStateHandle in) {
-		return in == null ? Collections.<KeyGroupsStateHandle>emptyList() : Collections.singletonList(in);
+	private static <T> List<T> transform(T in) {
+		return in == null ? Collections.<T>emptyList() : Collections.singletonList(in);
 	}
 
 	@Override

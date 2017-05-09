@@ -26,17 +26,17 @@ import org.junit.Before;
 import org.junit.Test;
 
 public class RebalancePartitionerTest {
-	
+
 	private RebalancePartitioner<Tuple> distributePartitioner;
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>(null);
 	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(
 			null);
-	
+
 	@Before
 	public void setPartitioner() {
 		distributePartitioner = new RebalancePartitioner<Tuple>();
 	}
-	
+
 	@Test
 	public void testSelectChannelsLength() {
 		sd.setInstance(streamRecord);
@@ -44,7 +44,7 @@ public class RebalancePartitionerTest {
 		assertEquals(1, distributePartitioner.selectChannels(sd, 2).length);
 		assertEquals(1, distributePartitioner.selectChannels(sd, 1024).length);
 	}
-	
+
 	@Test
 	public void testSelectChannelsInterval() {
 		sd.setInstance(streamRecord);

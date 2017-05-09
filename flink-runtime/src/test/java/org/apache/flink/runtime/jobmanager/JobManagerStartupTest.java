@@ -36,6 +36,7 @@ import org.apache.flink.runtime.util.StartupUtils;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,7 +45,7 @@ import org.junit.Test;
  * Tests that verify the startup behavior of the JobManager in failure
  * situations, when the JobManager cannot be started.
  */
-public class JobManagerStartupTest {
+public class JobManagerStartupTest extends TestLogger {
 
 	private final static String DOES_NOT_EXISTS_NO_SIR = "does-not-exist-no-sir";
 
@@ -101,7 +102,7 @@ public class JobManagerStartupTest {
 					throw (BindException) cause;
 				}	
 			}
-			fail("this should throw a BindException");
+			throw e;
 		}
 		finally {
 			try {

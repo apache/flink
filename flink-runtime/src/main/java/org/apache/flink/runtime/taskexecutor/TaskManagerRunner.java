@@ -30,7 +30,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.RpcServiceUtils;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.taskexecutor.utils.TaskExecutorMetricsInitializer;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 
@@ -123,9 +123,9 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		TaskExecutorMetricsInitializer.instantiateStatusMetrics(taskManagerMetricGroup, taskManagerServices.getNetworkEnvironment());
 
 		this.taskManager = new TaskExecutor(
+			rpcService,
 			taskManagerConfiguration,
 			taskManagerServices.getTaskManagerLocation(),
-			rpcService,
 			taskManagerServices.getMemoryManager(),
 			taskManagerServices.getIOManager(),
 			taskManagerServices.getNetworkEnvironment(),
@@ -219,6 +219,6 @@ public class TaskManagerRunner implements FatalErrorHandler {
 				"use 0 to let the system choose port automatically.",
 			ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, rpcPort);
 
-		return RpcServiceUtils.createRpcService(taskManagerHostname, rpcPort, configuration);
+		return AkkaRpcServiceUtils.createRpcService(taskManagerHostname, rpcPort, configuration);
 	}
 }

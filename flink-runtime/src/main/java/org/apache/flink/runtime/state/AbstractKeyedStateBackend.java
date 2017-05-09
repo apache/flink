@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
@@ -61,7 +62,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <K> Type of the key by which state is keyed.
  */
 public abstract class AbstractKeyedStateBackend<K>
-		implements KeyedStateBackend<K>, Snapshotable<KeyGroupsStateHandle>, Closeable {
+		implements KeyedStateBackend<K>, Snapshotable<KeyedStateHandle>, Closeable, CheckpointListener {
 
 	/** {@link TypeSerializer} for our key. */
 	protected final TypeSerializer<K> keySerializer;
@@ -122,6 +123,9 @@ public abstract class AbstractKeyedStateBackend<K>
 	 */
 	@Override
 	public void dispose() {
+
+		IOUtils.closeQuietly(this);
+
 		if (kvStateRegistry != null) {
 			kvStateRegistry.unregisterAll();
 		}
@@ -277,7 +281,7 @@ public abstract class AbstractKeyedStateBackend<K>
 		}
 
 		if (!stateDescriptor.isSerializerInitialized()) {
-			throw new IllegalStateException("The serializer of the descriptor has not been initialized!"); 
+			stateDescriptor.initializeSerializerUnlessSet(executionConfig);
 		}
 
 		InternalKvState<?> existing = keyValueStatesByName.get(stateDescriptor.getName());
@@ -354,8 +358,6 @@ public abstract class AbstractKeyedStateBackend<K>
 			final StateDescriptor<S, ?> stateDescriptor) throws Exception {
 
 		checkNotNull(namespace, "Namespace");
-
-		stateDescriptor.initializeSerializerUnlessSet(executionConfig);
 
 		if (lastName != null && lastName.equals(stateDescriptor.getName())) {
 			lastState.setCurrentNamespace(namespace);

@@ -32,7 +32,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * {@link CompletedCheckpointStore} for JobManagers running in {@link HighAvailabilityMode#NONE}.
  */
-public class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
+public class StandaloneCompletedCheckpointStore extends AbstractCompletedCheckpointStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StandaloneCompletedCheckpointStore.class);
 
@@ -62,10 +62,15 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 
 	@Override
 	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
-		checkpoints.add(checkpoint);
+		
+		checkpoints.addLast(checkpoint);
+
+		checkpoint.registerSharedStates(sharedStateRegistry);
+
 		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
 			try {
-				checkpoints.remove().subsume();
+				CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
+				checkpointToSubsume.discardOnSubsume(sharedStateRegistry);
 			} catch (Exception e) {
 				LOG.warn("Fail to subsume the old checkpoint.", e);
 			}
@@ -98,7 +103,7 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 			LOG.info("Shutting down");
 
 			for (CompletedCheckpoint checkpoint : checkpoints) {
-				checkpoint.discard(jobStatus);
+				checkpoint.discardOnShutdown(jobStatus, sharedStateRegistry);
 			}
 		} finally {
 			checkpoints.clear();

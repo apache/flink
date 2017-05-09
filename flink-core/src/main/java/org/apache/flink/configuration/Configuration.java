@@ -595,6 +595,36 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		}
 	}
 
+	/**
+	 * Checks whether there is an entry for the given config option
+	 *
+	 * @param configOption The configuration option
+	 *
+	 * @return <tt>true</tt> if a valid (current or deprecated) key of the config option is stored,
+	 * <tt>false</tt> otherwise
+	 */
+	@PublicEvolving
+	public boolean contains(ConfigOption<?> configOption) {
+		synchronized (this.confData){
+			// first try the current key
+			if (this.confData.containsKey(configOption.key())) {
+				return true;
+			}
+			else if (configOption.hasDeprecatedKeys()) {
+				// try the deprecated keys
+				for (String deprecatedKey : configOption.deprecatedKeys()) {
+					if (this.confData.containsKey(deprecatedKey)) {
+						LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
+							deprecatedKey, configOption.key());
+						return true;
+					}
+				}
+			}
+
+			return false;
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override

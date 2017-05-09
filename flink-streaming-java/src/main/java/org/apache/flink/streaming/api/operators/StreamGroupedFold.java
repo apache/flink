@@ -32,25 +32,29 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+/**
+ * A {@link StreamOperator} for executing a {@link FoldFunction} on a
+ * {@link org.apache.flink.streaming.api.datastream.KeyedStream}.
+ */
 @Internal
 public class StreamGroupedFold<IN, OUT, KEY>
 		extends AbstractUdfStreamOperator<OUT, FoldFunction<IN, OUT>>
 		implements OneInputStreamOperator<IN, OUT>, OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final String STATE_NAME = "_op_state";
 
 	// Grouped values
 	private transient ValueState<OUT> values;
-	
+
 	private transient OUT initialValue;
-	
+
 	// Initial value serialization
 	private byte[] serializedInitialValue;
-	
+
 	private TypeSerializer<OUT> outTypeSerializer;
-	
+
 	public StreamGroupedFold(FoldFunction<IN, OUT> folder, OUT initialValue) {
 		super(folder);
 		this.initialValue = initialValue;
@@ -66,11 +70,10 @@ public class StreamGroupedFold<IN, OUT, KEY>
 		}
 
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
-			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais))
-		{
+			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais)) {
 			initialValue = outTypeSerializer.deserialize(in);
 		}
-		
+
 		ValueStateDescriptor<OUT> stateId = new ValueStateDescriptor<>(STATE_NAME, outTypeSerializer);
 		values = getPartitionedState(stateId);
 	}

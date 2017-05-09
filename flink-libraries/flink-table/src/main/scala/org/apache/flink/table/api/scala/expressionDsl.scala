@@ -17,14 +17,16 @@
  */
 package org.apache.flink.table.api.scala
 
+import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.table.api.{TableException, CurrentRow, CurrentRange, UnboundedRow, UnboundedRange}
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions._
-import java.math.{BigDecimal => JBigDecimal}
+import org.apache.flink.table.functions.AggregateFunction
 
 import scala.language.implicitConversions
 
@@ -160,9 +162,16 @@ trait ImplicitExpressionOperations {
 
   /**
     * Returns the sum of the numeric field across all input values.
+    * If all values are null, null is returned.
     */
   def sum = Sum(expr)
 
+  /**
+    * Returns the sum of the numeric field across all input values.
+    * If all values are null, 0 is returned.
+    */
+  def sum0 = Sum0(expr)
+  
   /**
     * Returns the minimum value of field across all input values.
     */
@@ -182,6 +191,26 @@ trait ImplicitExpressionOperations {
     * Returns the average (arithmetic mean) of the numeric field across all input values.
     */
   def avg = Avg(expr)
+
+  /**
+    * Returns the population standard deviation of an expression (the square root of varPop()).
+    */
+  def stddevPop = StddevPop(expr)
+
+  /**
+    * Returns the sample standard deviation of an expression (the square root of varSamp()).
+    */
+  def stddevSamp = StddevSamp(expr)
+
+  /**
+    * Returns the population standard variance of an expression.
+    */
+  def varPop = VarPop(expr)
+
+  /**
+    *  Returns the sample variance of a given expression.
+    */
+  def varSamp = VarSamp(expr)
 
   /**
     * Converts a value to a given type.
@@ -274,6 +303,61 @@ trait ImplicitExpressionOperations {
     */
   def ceil() = Ceil(expr)
 
+  /**
+    * Calculates the sine of a given number.
+    */
+  def sin() = Sin(expr)
+
+  /**
+    * Calculates the cosine of a given number.
+    */
+  def cos() = Cos(expr)
+
+  /**
+    * Calculates the tangent of a given number.
+    */
+  def tan() = Tan(expr)
+
+  /**
+    * Calculates the cotangent of a given number.
+    */
+  def cot() = Cot(expr)
+
+  /**
+    * Calculates the arc sine of a given number.
+    */
+  def asin() = Asin(expr)
+
+  /**
+    * Calculates the arc cosine of a given number.
+    */
+  def acos() = Acos(expr)
+
+  /**
+    * Calculates the arc tangent of a given number.
+    */
+  def atan() = Atan(expr)
+
+  /**
+    * Converts numeric from radians to degrees.
+    */
+  def degrees() = Degrees(expr)
+
+  /**
+    * Converts numeric from degrees to radians.
+    */
+  def radians() = Radians(expr)
+
+  /**
+    * Calculates the signum of a given number.
+    */
+  def sign() = Sign(expr)
+
+  /**
+    * Rounds the given number to integer places right to the decimal point.
+    */
+  def round(places: Expression) = Round(expr, places)
+
   // String operations
 
   /**
@@ -362,6 +446,23 @@ trait ImplicitExpressionOperations {
     * e.g. "a".position("bbbbba") leads to 6
     */
   def position(haystack: Expression) = Position(expr, haystack)
+
+  /**
+    * For windowing function to config over window
+    * e.g.:
+    * table
+    *   .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
+    *   .select('c, 'a, 'a.count over 'w, 'a.sum over 'w)
+    */
+  def over(alias: Expression) = {
+    expr match {
+      case _: Aggregation => UnresolvedOverCall(
+        expr.asInstanceOf[Aggregation],
+        alias)
+      case _ => throw new TableException(
+        "The over method can only using with aggregation expression.")
+    }
+  }
 
   /**
     * Replaces a substring of string with a string starting at a position (starting at 1).
@@ -524,7 +625,7 @@ trait ImplicitExpressionOperations {
     */
   def millis = milli
 
-  // row interval type
+  // Row interval type
 
   /**
     * Creates an interval of rows.
@@ -532,6 +633,8 @@ trait ImplicitExpressionOperations {
     * @return interval of rows
     */
   def rows = toRowInterval(expr)
+
+  // Advanced type helper functions
 
   /**
     * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by name and
@@ -579,6 +682,20 @@ trait ImplicitExpressionOperations {
     * @return the first and only element of an array with a single element
     */
   def element() = ArrayElement(expr)
+
+  // Schema definition
+
+  /**
+    * Declares a field as the rowtime attribute for indicating, accessing, and working in
+    * Flink's event time.
+    */
+  def rowtime = RowtimeAttribute(expr)
+
+  /**
+    * Declares a field as the proctime attribute for indicating, accessing, and working in
+    * Flink's processing time.
+    */
+  def proctime = ProctimeAttribute(expr)
 }
 
 /**
@@ -586,6 +703,13 @@ trait ImplicitExpressionOperations {
  * to [[ImplicitExpressionOperations]].
  */
 trait ImplicitExpressionConversions {
+
+  implicit val UNBOUNDED_ROW = UnboundedRow()
+  implicit val UNBOUNDED_RANGE = UnboundedRange()
+
+  implicit val CURRENT_ROW = CurrentRow()
+  implicit val CURRENT_RANGE = CurrentRange()
+
   implicit class WithOperations(e: Expression) extends ImplicitExpressionOperations {
     def expr = e
   }
@@ -666,6 +790,8 @@ trait ImplicitExpressionConversions {
   implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression =
     Literal(sqlTimestamp)
   implicit def array2ArrayConstructor(array: Array[_]): Expression = convertArray(array)
+  implicit def userDefinedAggFunctionConstructor[T: TypeInformation, ACC]
+      (udagg: AggregateFunction[T, ACC]): UDAGGExpression[T, ACC] = UDAGGExpression(udagg)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -779,6 +905,19 @@ object array {
     */
   def apply(head: Expression, tail: Expression*): Expression = {
     ArrayConstructor(head +: tail.toSeq)
+  }
+}
+
+/**
+  * Returns a value that is closer than any other value to pi.
+  */
+object pi {
+
+  /**
+    * Returns a value that is closer than any other value to pi.
+    */
+  def apply(): Expression = {
+    Pi()
   }
 }
 

@@ -31,6 +31,8 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 
 object Literal {
+  private[flink] val GMT = TimeZone.getTimeZone("GMT")
+
   private[flink] def apply(l: Any): Literal = l match {
     case i: Int => Literal(i, BasicTypeInfo.INT_TYPE_INFO)
     case s: Short => Literal(s, BasicTypeInfo.SHORT_TYPE_INFO)
@@ -103,7 +105,7 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
 
   private def dateToCalendar: Calendar = {
     val date = value.asInstanceOf[java.util.Date]
-    val cal = Calendar.getInstance()
+    val cal = Calendar.getInstance(Literal.GMT)
     val t = date.getTime
     // according to Calcite's SqlFunctions.internalToXXX methods
     cal.setTimeInMillis(t + TimeZone.getDefault.getOffset(t))

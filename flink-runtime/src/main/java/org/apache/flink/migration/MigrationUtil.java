@@ -19,17 +19,17 @@
 package org.apache.flink.migration;
 
 import org.apache.flink.migration.state.MigrationKeyGroupStateHandle;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 
 import java.util.Collection;
 
 public class MigrationUtil {
 
 	@SuppressWarnings("deprecation")
-	public static boolean isOldSavepointKeyedState(Collection<KeyGroupsStateHandle> keyGroupsStateHandles) {
-		return (keyGroupsStateHandles != null)
-				&& (keyGroupsStateHandles.size() == 1)
-				&& (keyGroupsStateHandles.iterator().next() instanceof MigrationKeyGroupStateHandle);
+	public static boolean isOldSavepointKeyedState(Collection<KeyedStateHandle> keyedStateHandles) {
+		return (keyedStateHandles != null)
+				&& (keyedStateHandles.size() == 1)
+				&& (keyedStateHandles.iterator().next() instanceof MigrationKeyGroupStateHandle);
 	}
 
 }

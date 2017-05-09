@@ -24,20 +24,18 @@ import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExt
 /**
  * Interface for user functions that extract timestamps from elements.
  *
- * <p>
- * The extractor must also keep track of the current watermark. The system will periodically
- * retrieve this watermark using {@link #getCurrentWatermark()} and submit it throughout the topology.
+ * <p>The extractor must also keep track of the current watermark. The system will periodically
+ * retrieve this watermark using {@link #getCurrentWatermark()} and submit it throughout the
+ * topology.
  *
- * <p>
- * Note: If you know that timestamps are monotonically increasing you can use
- * {@link AscendingTimestampExtractor}. This will
- * keep track of watermarks.
+ * <p>Note: If you know that timestamps are monotonically increasing you can use
+ * {@link AscendingTimestampExtractor}. This will keep track of watermarks.
  *
  * @param <T> The type of the elements that this function can extract timestamps from
  *
  * @deprecated This class has been replaced by {@link AssignerWithPeriodicWatermarks} and
  *             {@link AssignerWithPunctuatedWatermarks}
- *             
+ *
  * @see AssignerWithPeriodicWatermarks
  * @see AssignerWithPunctuatedWatermarks
  */

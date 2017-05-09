@@ -31,8 +31,7 @@ public final class ByteValueSerializer extends TypeSerializerSingleton<ByteValue
 	private static final long serialVersionUID = 1L;
 	
 	public static final ByteValueSerializer INSTANCE = new ByteValueSerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -83,5 +82,11 @@ public final class ByteValueSerializer extends TypeSerializerSingleton<ByteValue
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof ByteValueSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+				|| identifier.equals(ByteSerializer.class.getCanonicalName());
 	}
 }

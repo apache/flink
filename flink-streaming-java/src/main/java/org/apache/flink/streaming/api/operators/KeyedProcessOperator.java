@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -27,9 +30,10 @@ import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
-
+/**
+ * A {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing keyed
+ * {@link ProcessFunction ProcessFunctions}.
+ */
 @Internal
 public class KeyedProcessOperator<K, IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, ProcessFunction<IN, OUT>>

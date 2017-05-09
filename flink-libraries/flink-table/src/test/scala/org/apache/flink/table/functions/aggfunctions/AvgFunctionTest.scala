@@ -25,7 +25,7 @@ import org.apache.flink.table.functions.AggregateFunction
   *
   * @tparam T the type for the aggregation result
   */
-abstract class AvgAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T] {
+abstract class AvgAggFunctionTestBase[T: Numeric, ACC] extends AggFunctionTestBase[T, ACC] {
 
   private val numeric: Numeric[T] = implicitly[Numeric[T]]
 
@@ -91,9 +91,11 @@ abstract class AvgAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T]
     numeric.fromInt(3),
     null.asInstanceOf[T]
   )
+
+  override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
 
-class ByteAvgAggFunctionTest extends AvgAggFunctionTestBase[Byte] {
+class ByteAvgAggFunctionTest extends AvgAggFunctionTestBase[Byte, IntegralAvgAccumulator] {
 
   override def minVal = (Byte.MinValue + 1).toByte
 
@@ -102,7 +104,7 @@ class ByteAvgAggFunctionTest extends AvgAggFunctionTestBase[Byte] {
   override def aggregator = new ByteAvgAggFunction()
 }
 
-class ShortAvgAggFunctionTest extends AvgAggFunctionTestBase[Short] {
+class ShortAvgAggFunctionTest extends AvgAggFunctionTestBase[Short, IntegralAvgAccumulator] {
 
   override def minVal = (Short.MinValue + 1).toShort
 
@@ -111,7 +113,7 @@ class ShortAvgAggFunctionTest extends AvgAggFunctionTestBase[Short] {
   override def aggregator = new ShortAvgAggFunction()
 }
 
-class IntAvgAggFunctionTest extends AvgAggFunctionTestBase[Int] {
+class IntAvgAggFunctionTest extends AvgAggFunctionTestBase[Int, IntegralAvgAccumulator] {
 
   override def minVal = Int.MinValue + 1
 
@@ -120,7 +122,7 @@ class IntAvgAggFunctionTest extends AvgAggFunctionTestBase[Int] {
   override def aggregator = new IntAvgAggFunction()
 }
 
-class LongAvgAggFunctionTest extends AvgAggFunctionTestBase[Long] {
+class LongAvgAggFunctionTest extends AvgAggFunctionTestBase[Long, BigIntegralAvgAccumulator] {
 
   override def minVal = Long.MinValue + 1
 
@@ -129,7 +131,7 @@ class LongAvgAggFunctionTest extends AvgAggFunctionTestBase[Long] {
   override def aggregator = new LongAvgAggFunction()
 }
 
-class FloatAvgAggFunctionTest extends AvgAggFunctionTestBase[Float] {
+class FloatAvgAggFunctionTest extends AvgAggFunctionTestBase[Float, FloatingAvgAccumulator] {
 
   override def minVal = Float.MinValue
 
@@ -138,7 +140,7 @@ class FloatAvgAggFunctionTest extends AvgAggFunctionTestBase[Float] {
   override def aggregator = new FloatAvgAggFunction()
 }
 
-class DoubleAvgAggFunctionTest extends AvgAggFunctionTestBase[Double] {
+class DoubleAvgAggFunctionTest extends AvgAggFunctionTestBase[Double, FloatingAvgAccumulator] {
 
   override def minVal = Float.MinValue
 
@@ -147,7 +149,7 @@ class DoubleAvgAggFunctionTest extends AvgAggFunctionTestBase[Double] {
   override def aggregator = new DoubleAvgAggFunction()
 }
 
-class DecimalAvgAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
+class DecimalAvgAggFunctionTest extends AggFunctionTestBase[BigDecimal, DecimalAvgAccumulator] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
@@ -182,5 +184,8 @@ class DecimalAvgAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
     null
   )
 
-  override def aggregator: AggregateFunction[BigDecimal] = new DecimalAvgAggFunction()
+  override def aggregator: AggregateFunction[BigDecimal, DecimalAvgAccumulator] =
+    new DecimalAvgAggFunction()
+
+  override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }

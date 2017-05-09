@@ -23,7 +23,7 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-libraries</artifactId>
-		<version>1.3-SNAPSHOT</version>
+		<version>1.4-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -80,6 +80,13 @@
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils_2.10</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-tests_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -163,7 +170,7 @@
 				<configuration>
 					<archive>
 						<manifestEntries>
-							<Main-Class>org.apache.flink.graph.Usage</Main-Class>
+							<Main-Class>org.apache.flink.graph.Runner</Main-Class>
 						</manifestEntries>
 					</archive>
 				</configuration>

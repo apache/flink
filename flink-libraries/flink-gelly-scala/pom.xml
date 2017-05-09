@@ -23,7 +23,7 @@ under the License.
     <parent>
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-libraries</artifactId>
-        <version>1.3-SNAPSHOT</version>
+        <version>1.4-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -216,7 +216,7 @@ under the License.
 				</configuration>
 			</plugin>
 
-            <!-- build a har-with-dependencies, to be included in the 'opt' build folder -->
+            <!-- build a jar-with-dependencies, to be included in the 'opt' build folder -->
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>

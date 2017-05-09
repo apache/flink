@@ -24,14 +24,15 @@ import akka.testkit.JavaTestKit;
 import org.apache.curator.test.TestingServer;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
@@ -56,7 +57,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 	protected static ActorSystem actorSystem;
 
-	protected static final int numberApplicationAttempts = 10;
+	protected static final int numberApplicationAttempts = 3;
 
 	@Rule
 	public TemporaryFolder temp = new TemporaryFolder();
@@ -128,9 +129,19 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 		final FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
 
+		HighAvailabilityServices highAvailabilityServices = null;
+
 		try {
 			yarnCluster = flinkYarnClient.deploy();
-			final Configuration config = yarnCluster.getFlinkConfiguration();
+
+			final ClusterClient finalYarnCluster = yarnCluster;
+
+			highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+				yarnCluster.getFlinkConfiguration(),
+				Executors.directExecutor(),
+				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
+
+			final HighAvailabilityServices finalHighAvailabilityServices = highAvailabilityServices;
 
 			new JavaTestKit(actorSystem) {{
 				for (int attempt = 0; attempt < numberKillingAttempts; attempt++) {
@@ -138,8 +149,10 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 						@Override
 						protected void run() {
 							try {
-								LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config);
-								ActorGateway gateway = LeaderRetrievalUtils.retrieveLeaderGateway(lrs, actorSystem, timeout);
+								ActorGateway gateway = LeaderRetrievalUtils.retrieveLeaderGateway(
+									finalHighAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+									actorSystem,
+									timeout);
 								ActorGateway selfGateway = new AkkaActorGateway(getRef(), gateway.leaderSessionID());
 
 								gateway.tell(new TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered(1), selfGateway);
@@ -158,10 +171,13 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 					@Override
 					protected void run() {
 						try {
-							LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config);
-							ActorGateway gateway2 = LeaderRetrievalUtils.retrieveLeaderGateway(lrs, actorSystem, timeout);
-							ActorGateway selfGateway = new AkkaActorGateway(getRef(), gateway2.leaderSessionID());
-							gateway2.tell(new TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered(1), selfGateway);
+							ActorGateway gateway = LeaderRetrievalUtils.retrieveLeaderGateway(
+								finalHighAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+								actorSystem,
+								timeout);
+							ActorGateway selfGateway = new AkkaActorGateway(getRef(), gateway.leaderSessionID());
+
+							gateway.tell(new TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered(1), selfGateway);
 
 							expectMsgEquals(Acknowledge.get());
 						} catch (Exception e) {
@@ -174,6 +190,10 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		} finally {
 			if (yarnCluster != null) {
 				yarnCluster.shutdown();
+			}
+
+			if (highAvailabilityServices != null) {
+				highAvailabilityServices.closeAndCleanupAllData();
 			}
 		}
 	}

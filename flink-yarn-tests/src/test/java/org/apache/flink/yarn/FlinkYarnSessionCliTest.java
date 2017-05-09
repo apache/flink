@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import akka.actor.ActorSystem;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -27,7 +26,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.RunOptions;
-import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
@@ -36,7 +34,6 @@ import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.client.api.YarnClient;
-import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -129,7 +126,7 @@ public class FlinkYarnSessionCliTest {
 		Assert.assertEquals(2, descriptor.getTaskManagerCount());
 
 		Configuration config = new Configuration();
-		CliFrontend.setJobManagerAddressInConfig(config, new InetSocketAddress("test", 9000));
+		CliFrontend.setJobManagerAddressInConfig(config, new InetSocketAddress("localhost", 9000));
 		ClusterClient client = new TestingYarnClusterClient(descriptor, config);
 		Assert.assertEquals(6, client.getMaxSlots());
 	}
@@ -175,7 +172,7 @@ public class FlinkYarnSessionCliTest {
 
 	private static class TestingYarnClusterClient extends YarnClusterClient {
 
-		public TestingYarnClusterClient(AbstractYarnClusterDescriptor descriptor, Configuration config) throws IOException, YarnException {
+		public TestingYarnClusterClient(AbstractYarnClusterDescriptor descriptor, Configuration config) throws Exception {
 			super(descriptor,
 				Mockito.mock(YarnClient.class),
 				Mockito.mock(ApplicationReport.class),

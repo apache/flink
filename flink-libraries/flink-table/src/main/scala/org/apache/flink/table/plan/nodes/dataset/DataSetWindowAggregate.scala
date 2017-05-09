@@ -24,14 +24,16 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable
+import org.apache.flink.api.java.typeutils.{ResultTypeQueryable, RowTypeInfo}
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.expressions.ExpressionUtils._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.{CalcitePair, _}
-import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
+import org.apache.flink.table.typeutils.TypeCheckUtils.{isLong, isTimePoint}
 import org.apache.flink.types.Row
 
 /**
@@ -105,54 +107,67 @@ class DataSetWindowAggregate(
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
-    val config = tableEnv.getConfig
-
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+
+    val generator = new CodeGenerator(
+      tableEnv.getConfig,
+      false,
+      inputDS.getType)
 
     // whether identifiers are matched case-sensitively
     val caseSensitive = tableEnv.getFrameworkConfig.getParserConfig.caseSensitive()
 
     window match {
-      case EventTimeTumblingGroupWindow(_, _, size) =>
+      case TumblingGroupWindow(_, timeField, size)
+          if isTimePoint(timeField.resultType) || isLong(timeField.resultType) =>
         createEventTimeTumblingWindowDataSet(
+          generator,
           inputDS,
-          isTimeInterval(size.resultType),
+          isTimeIntervalLiteral(size),
           caseSensitive)
 
-      case EventTimeSessionGroupWindow(_, _, gap) =>
-        createEventTimeSessionWindowDataSet(inputDS, caseSensitive)
+      case SessionGroupWindow(_, timeField, gap)
+          if isTimePoint(timeField.resultType) || isLong(timeField.resultType) =>
+        createEventTimeSessionWindowDataSet(generator, inputDS, caseSensitive)
 
-      case EventTimeSlidingGroupWindow(_, _, size, slide) =>
+      case SlidingGroupWindow(_, timeField, size, slide)
+          if isTimePoint(timeField.resultType) || isLong(timeField.resultType) =>
         createEventTimeSlidingWindowDataSet(
+          generator,
           inputDS,
-          isTimeInterval(size.resultType),
+          isTimeIntervalLiteral(size),
           asLong(size),
           asLong(slide),
           caseSensitive)
 
-      case _: ProcessingTimeGroupWindow =>
+      case _ =>
         throw new UnsupportedOperationException(
-          "Processing-time tumbling windows are not supported in a batch environment, " +
-            "windows in a batch environment must declare a time attribute over which " +
-            "the query is evaluated.")
+          s"Window $window is not supported in a batch environment.")
     }
   }
 
   private def createEventTimeTumblingWindowDataSet(
+      generator: CodeGenerator,
       inputDS: DataSet[Row],
       isTimeWindow: Boolean,
       isParserCaseSensitive: Boolean): DataSet[Row] = {
 
+    val input = inputNode.asInstanceOf[DataSetRel]
+
     val mapFunction = createDataSetWindowPrepareMapFunction(
+      generator,
       window,
       namedAggregates,
       grouping,
-      inputType,
+      input.getRowType,
+      inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
       isParserCaseSensitive)
     val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
+      generator,
       window,
       namedAggregates,
-      inputType,
+      input.getRowType,
+      inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
       getRowType,
       grouping,
       namedProperties)
@@ -195,18 +210,23 @@ class DataSetWindowAggregate(
   }
 
   private[this] def createEventTimeSessionWindowDataSet(
+      generator: CodeGenerator,
       inputDS: DataSet[Row],
       isParserCaseSensitive: Boolean): DataSet[Row] = {
+
+    val input = inputNode.asInstanceOf[DataSetRel]
 
     val groupingKeys = grouping.indices.toArray
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     // create mapFunction for initializing the aggregations
     val mapFunction = createDataSetWindowPrepareMapFunction(
+      generator,
       window,
       namedAggregates,
       grouping,
-      inputType,
+      input.getRowType,
+      inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
       isParserCaseSensitive)
 
     val mappedInput = inputDS.map(mapFunction).name(prepareOperatorName)
@@ -229,16 +249,20 @@ class DataSetWindowAggregate(
       if (groupingKeys.length > 0) {
         // create groupCombineFunction for combine the aggregations
         val combineGroupFunction = createDataSetWindowAggregationCombineFunction(
+          generator,
           window,
           namedAggregates,
-          inputType,
+          input.getRowType,
+          inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
           grouping)
 
         // create groupReduceFunction for calculating the aggregations
         val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
+          generator,
           window,
           namedAggregates,
-          inputType,
+          input.getRowType,
+          inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
           rowRelDataType,
           grouping,
           namedProperties,
@@ -257,16 +281,20 @@ class DataSetWindowAggregate(
       } else {
         // non-grouping window
         val mapPartitionFunction = createDataSetWindowAggregationMapPartitionFunction(
+          generator,
           window,
           namedAggregates,
-          inputType,
+          input.getRowType,
+          inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
           grouping)
 
         // create groupReduceFunction for calculating the aggregations
         val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
+          generator,
           window,
           namedAggregates,
-          inputType,
+          input.getRowType,
+          inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
           rowRelDataType,
           grouping,
           namedProperties,
@@ -288,9 +316,11 @@ class DataSetWindowAggregate(
 
         // create groupReduceFunction for calculating the aggregations
         val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
+          generator,
           window,
           namedAggregates,
-          inputType,
+          input.getRowType,
+          inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
           rowRelDataType,
           grouping,
           namedProperties)
@@ -303,9 +333,11 @@ class DataSetWindowAggregate(
       } else {
         // non-grouping window
         val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
+          generator,
           window,
           namedAggregates,
-          inputType,
+          input.getRowType,
+          inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
           rowRelDataType,
           grouping,
           namedProperties)
@@ -320,6 +352,7 @@ class DataSetWindowAggregate(
   }
 
   private def createEventTimeSlidingWindowDataSet(
+      generator: CodeGenerator,
       inputDS: DataSet[Row],
       isTimeWindow: Boolean,
       size: Long,
@@ -327,13 +360,17 @@ class DataSetWindowAggregate(
       isParserCaseSensitive: Boolean)
     : DataSet[Row] = {
 
+    val input = inputNode.asInstanceOf[DataSetRel]
+
     // create MapFunction for initializing the aggregations
     // it aligns the rowtime for pre-tumbling in case of a time-window for partial aggregates
     val mapFunction = createDataSetWindowPrepareMapFunction(
+      generator,
       window,
       namedAggregates,
       grouping,
-      inputType,
+      input.getRowType,
+      inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
       isParserCaseSensitive)
 
     val mappedDataSet = inputDS
@@ -365,10 +402,12 @@ class DataSetWindowAggregate(
         // create GroupReduceFunction
         // for pre-tumbling and replicating/omitting the content for each pane
         val prepareReduceFunction = createDataSetSlideWindowPrepareGroupReduceFunction(
+          generator,
           window,
           namedAggregates,
           grouping,
-          inputType,
+          input.getRowType,
+          inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
           isParserCaseSensitive)
 
         mappedDataSet.asInstanceOf[DataSet[Row]]
@@ -401,9 +440,11 @@ class DataSetWindowAggregate(
 
     // create GroupReduceFunction for final aggregation and conversion to output row
     val aggregateReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
+      generator,
       window,
       namedAggregates,
-      inputType,
+      input.getRowType,
+      inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
       rowRelDataType,
       grouping,
       namedProperties,

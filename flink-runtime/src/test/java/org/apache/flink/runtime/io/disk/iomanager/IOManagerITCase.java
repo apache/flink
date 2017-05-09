@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.After;
 import org.junit.Before;
@@ -40,7 +41,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 /**
  * Integration test case for the I/O manager.
  */
-public class IOManagerITCase {
+public class IOManagerITCase extends TestLogger {
 	
 	private static final long SEED = 649180756312423613L;
 

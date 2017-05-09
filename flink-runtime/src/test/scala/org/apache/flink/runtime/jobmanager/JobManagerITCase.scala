@@ -27,7 +27,7 @@ import org.apache.flink.runtime.checkpoint.{CheckpointCoordinator, CompletedChec
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType
-import org.apache.flink.runtime.jobgraph.tasks.{ExternalizedCheckpointSettings, JobSnapshottingSettings}
+import org.apache.flink.runtime.jobgraph.tasks.{ExternalizedCheckpointSettings, JobCheckpointingSettings}
 import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobVertex, ScheduleMode}
 import org.apache.flink.runtime.jobmanager.Tasks._
 import org.apache.flink.runtime.jobmanager.scheduler.{NoResourceAvailableException, SlotSharingGroup}
@@ -765,6 +765,11 @@ class JobManagerITCase(_system: ActorSystem)
           val jobManager = flinkCluster
             .getLeaderGateway(deadline.timeLeft)
 
+          // we have to make sure that the job manager knows also that he is the leader
+          // in case of standalone leader retrieval this can happen after the getLeaderGateway call
+          val leaderFuture = jobManager.ask(NotifyWhenLeader, timeout.duration)
+          Await.ready(leaderFuture, timeout.duration)
+
           val jobId = new JobID()
 
           // Trigger savepoint for non-existing job
@@ -827,7 +832,7 @@ class JobManagerITCase(_system: ActorSystem)
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
           val jobGraph = new JobGraph(jobVertex)
-          jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+          jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
@@ -887,7 +892,7 @@ class JobManagerITCase(_system: ActorSystem)
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
           val jobGraph = new JobGraph(jobVertex)
-          jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+          jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
@@ -955,7 +960,7 @@ class JobManagerITCase(_system: ActorSystem)
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
           val jobGraph = new JobGraph(jobVertex)
-          jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+          jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),

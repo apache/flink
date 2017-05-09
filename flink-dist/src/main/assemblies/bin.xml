@@ -54,6 +54,7 @@ under the License.
 			<fileMode>0644</fileMode>
 		</file>
 
+		<!-- copy the config file -->
 		<file>
 			<source>src/main/resources/flink-conf.yaml</source>
 			<outputDirectory>conf</outputDirectory>
@@ -173,12 +174,36 @@ under the License.
 			</excludes>
 		</fileSet>
 
+		<!-- copy jar files of the gelly examples -->
+		<fileSet>
+			<directory>../flink-libraries/flink-gelly-examples/target</directory>
+			<outputDirectory>examples/gelly</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>original-*.jar</exclude>
+				<exclude>*-tests.jar</exclude>
+			</excludes>
+		</fileSet>
+
 		<!-- copy python package -->
 		<fileSet>
 			<directory>../flink-libraries/flink-python/src/main/python/org/apache/flink/python/api</directory>
 			<outputDirectory>resources/python</outputDirectory>
 			<fileMode>0755</fileMode>
+			<excludes>
+				<exclude>**/example/**</exclude>
+			</excludes>
 		</fileSet>
+		<!-- copy python example to examples of dist -->
+		<fileSet>
+			<directory>../flink-libraries/flink-python/src/main/python/org/apache/flink/python/api/flink/example</directory>
+			<outputDirectory>examples/python</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
 	</fileSets>
 
 </assembly>

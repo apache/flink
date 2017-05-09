@@ -136,20 +136,18 @@ class ExternalCatalogSchema(
 object ExternalCatalogSchema {
 
   /**
-    * Creates a FlinkExternalCatalogSchema.
+    * Registers an external catalog in a Calcite schema.
     *
-    * @param parentSchema              Parent schema
-    * @param externalCatalogIdentifier External catalog identifier
-    * @param externalCatalog           External catalog object
-    * @return Created schema
+    * @param parentSchema              Parent schema into which the catalog is registered
+    * @param externalCatalogIdentifier Identifier of the external catalog
+    * @param externalCatalog           The external catalog to register
     */
-  def create(
+  def registerCatalog(
       parentSchema: SchemaPlus,
       externalCatalogIdentifier: String,
-      externalCatalog: ExternalCatalog): ExternalCatalogSchema = {
+      externalCatalog: ExternalCatalog): Unit = {
     val newSchema = new ExternalCatalogSchema(externalCatalogIdentifier, externalCatalog)
     val schemaPlusOfNewSchema = parentSchema.add(externalCatalogIdentifier, newSchema)
     newSchema.registerSubSchemas(schemaPlusOfNewSchema)
-    newSchema
   }
 }

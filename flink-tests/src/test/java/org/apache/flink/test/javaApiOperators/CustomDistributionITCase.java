@@ -66,7 +66,7 @@ public class CustomDistributionITCase extends TestLogger {
 
 	@Before
 	public void prepare() {
-		TestEnvironment clusterEnv = new TestEnvironment(cluster, 1);
+		TestEnvironment clusterEnv = new TestEnvironment(cluster, 1, false);
 		clusterEnv.setAsContext();
 	}
 

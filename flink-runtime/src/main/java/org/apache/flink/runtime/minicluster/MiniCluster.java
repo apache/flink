@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -234,14 +235,21 @@ public class MiniCluster {
 
 				// create the high-availability services
 				LOG.info("Starting high-availability services");
-				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(configuration);
+				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+					configuration,
+					commonRpcService.getExecutor());
 
 				heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
 				// bring up the ResourceManager(s)
 				LOG.info("Starting {} ResourceManger(s)", numResourceManagers);
 				resourceManagerRunners = startResourceManagers(
-						configuration, haServices, metricRegistry, numResourceManagers, resourceManagerRpcServices);
+					configuration,
+					haServices,
+					heartbeatServices,
+					metricRegistry,
+					numResourceManagers,
+					resourceManagerRpcServices);
 
 				// bring up the TaskManager(s) for the mini cluster
 				LOG.info("Starting {} TaskManger(s)", numTaskManagers);
@@ -508,6 +516,7 @@ public class MiniCluster {
 	protected ResourceManagerRunner[] startResourceManagers(
 			Configuration configuration,
 			HighAvailabilityServices haServices,
+			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
 			int numResourceManagers,
 			RpcService[] resourceManagerRpcServices) throws Exception {
@@ -517,9 +526,12 @@ public class MiniCluster {
 		for (int i = 0; i < numResourceManagers; i++) {
 
 			resourceManagerRunners[i] = new ResourceManagerRunner(
+				ResourceID.generate(),
+				FlinkResourceManager.RESOURCE_MANAGER_NAME + '_' + i,
 				configuration,
 				resourceManagerRpcServices[i],
 				haServices,
+				heartbeatServices,
 				metricRegistry);
 
 			resourceManagerRunners[i].start();

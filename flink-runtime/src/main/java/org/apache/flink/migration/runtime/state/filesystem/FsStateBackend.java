@@ -23,6 +23,9 @@ import org.apache.flink.migration.runtime.state.AbstractStateBackend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
+ */
 @Deprecated
 @SuppressWarnings("deprecation")
 public class FsStateBackend extends AbstractStateBackend {

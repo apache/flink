@@ -65,7 +65,10 @@ class ExpressionReducer(config: TableConfig)
         )
 
       // we don't support object literals yet, we skip those constant expressions
-      case (SqlTypeName.ANY, _) | (SqlTypeName.ROW, _) | (SqlTypeName.ARRAY, _) => None
+      case (SqlTypeName.ANY, _) |
+           (SqlTypeName.ROW, _) |
+           (SqlTypeName.ARRAY, _) |
+           (SqlTypeName.MAP, _) => None
 
       case (_, e) => Some(e)
     }
@@ -103,7 +106,7 @@ class ExpressionReducer(config: TableConfig)
       val unreduced = constExprs.get(i)
       unreduced.getType.getSqlTypeName match {
         // we insert the original expression for object literals
-        case SqlTypeName.ANY | SqlTypeName.ROW | SqlTypeName.ARRAY =>
+        case SqlTypeName.ANY | SqlTypeName.ROW | SqlTypeName.ARRAY | SqlTypeName.MAP =>
           reducedValues.add(unreduced)
         case _ =>
           val reducedValue = reduced.getField(reducedIdx)

@@ -33,7 +33,6 @@ public final class FloatSerializer extends TypeSerializerSingleton<Float> {
 	
 	private static final Float ZERO = Float.valueOf(0);
 
-	
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -82,5 +81,11 @@ public final class FloatSerializer extends TypeSerializerSingleton<Float> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof FloatSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(FloatValueSerializer.class.getCanonicalName());
 	}
 }

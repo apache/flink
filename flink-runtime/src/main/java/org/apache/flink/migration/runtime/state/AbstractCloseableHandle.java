@@ -28,6 +28,8 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  * 
  * Offers to register a stream (or other closable object) that close calls are delegated to if
  * the handle is closed or was already closed.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
 @SuppressWarnings("deprecation")

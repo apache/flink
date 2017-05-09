@@ -247,7 +247,6 @@ public class StreamGraphGeneratorTest {
 	public void testSetupOfKeyGroupPartitioner() {
 		int maxParallelism = 42;
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().setParallelism(12);
 		env.getConfig().setMaxParallelism(maxParallelism);
 
 		DataStream<Integer> source = env.fromElements(1, 2, 3);
@@ -279,7 +278,6 @@ public class StreamGraphGeneratorTest {
 		int keyedResult2MaxParallelism = 17;
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().setParallelism(12);
 		env.getConfig().setMaxParallelism(globalMaxParallelism);
 
 		DataStream<Integer> source = env.fromElements(1, 2, 3);
@@ -386,7 +384,6 @@ public class StreamGraphGeneratorTest {
 		DataStream<Integer> input1 = env.fromElements(1, 2, 3, 4).setMaxParallelism(128);
 		DataStream<Integer> input2 = env.fromElements(1, 2, 3, 4).setMaxParallelism(129);
 
-		env.setParallelism(12);
 		env.getConfig().setMaxParallelism(maxParallelism);
 
 		DataStream<Integer> keyedResult = input1.connect(input2).keyBy(

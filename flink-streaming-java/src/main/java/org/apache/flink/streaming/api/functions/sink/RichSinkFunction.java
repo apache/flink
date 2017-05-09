@@ -20,6 +20,9 @@ package org.apache.flink.streaming.api.functions.sink;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 
+/**
+ * A {@link org.apache.flink.api.common.functions.RichFunction} version of {@link SinkFunction}.
+ */
 @Public
 public abstract class RichSinkFunction<IN> extends AbstractRichFunction implements SinkFunction<IN> {
 

@@ -52,6 +52,7 @@ public class StandaloneLeaderRetrievalService implements LeaderRetrievalService 
 	 * The leaderId will be null.
 	 *
 	 * @param leaderAddress The leader's pre-configured address
+	 * @deprecated Use {@link #StandaloneLeaderRetrievalService(String, UUID)} instead
 	 */
 	@Deprecated
 	public StandaloneLeaderRetrievalService(String leaderAddress) {

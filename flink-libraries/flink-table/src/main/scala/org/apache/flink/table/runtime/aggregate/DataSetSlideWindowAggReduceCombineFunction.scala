@@ -20,7 +20,8 @@ package org.apache.flink.table.runtime.aggregate
 import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.CombineFunction
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.codegen.GeneratedAggregationsFunction
 import org.apache.flink.types.Row
 
 /**
@@ -30,87 +31,62 @@ import org.apache.flink.types.Row
   *
   * It is used for sliding on batch for both time and count-windows.
   *
-  * @param aggregates aggregate functions.
-  * @param groupKeysMapping index mapping of group keys between intermediate aggregate Row
-  *                         and output Row.
-  * @param aggregateMapping index mapping between aggregate function list and aggregated value
-  *                         index in output Row.
-  * @param finalRowArity output row field count
+  * @param genPreAggregations Code-generated [[GeneratedAggregations]] for partial aggregation.
+  * @param genFinalAggregations Code-generated [[GeneratedAggregations]] for final aggregation.
+  * @param keysAndAggregatesArity The total arity of keys and aggregates
   * @param finalRowWindowStartPos relative window-start position to last field of output row
   * @param finalRowWindowEndPos relative window-end position to last field of output row
   * @param windowSize size of the window, used to determine window-end for output row
   */
 class DataSetSlideWindowAggReduceCombineFunction(
-    aggregates: Array[AggregateFunction[_ <: Any]],
-    groupKeysMapping: Array[(Int, Int)],
-    aggregateMapping: Array[(Int, Int)],
-    finalRowArity: Int,
+    genPreAggregations: GeneratedAggregationsFunction,
+    genFinalAggregations: GeneratedAggregationsFunction,
+    keysAndAggregatesArity: Int,
     finalRowWindowStartPos: Option[Int],
     finalRowWindowEndPos: Option[Int],
     windowSize: Long)
   extends DataSetSlideWindowAggReduceGroupFunction(
-    aggregates,
-    groupKeysMapping,
-    aggregateMapping,
-    finalRowArity,
+    genFinalAggregations,
+    keysAndAggregatesArity,
     finalRowWindowStartPos,
     finalRowWindowEndPos,
     windowSize)
   with CombineFunction[Row, Row] {
 
-  private val intermediateRowArity: Int = groupKeysMapping.length + aggregateMapping.length + 1
-  private val intermediateRow: Row = new Row(intermediateRowArity)
+  private val intermediateRow: Row = new Row(keysAndAggregatesArity + 1)
+
+  protected var preAggfunction: GeneratedAggregations = _
+
+  override def open(config: Configuration): Unit = {
+    super.open(config)
+
+    LOG.debug(s"Compiling AggregateHelper: $genPreAggregations.name \n\n " +
+      s"Code:\n$genPreAggregations.code")
+    val clazz = compile(
+      getClass.getClassLoader,
+      genPreAggregations.name,
+      genPreAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    preAggfunction = clazz.newInstance()
+  }
 
   override def combine(records: Iterable[Row]): Row = {
 
-    // reset first accumulator
-    var i = 0
-    while (i < aggregates.length) {
-      aggregates(i).resetAccumulator(accumulatorList(i).get(0))
-      i += 1
-    }
+    // reset accumulator
+    preAggfunction.resetAccumulator(accumulators)
 
     val iterator = records.iterator()
+    var record: Row = null
     while (iterator.hasNext) {
-      val record = iterator.next()
-
-      // accumulate
-      i = 0
-      while (i < aggregates.length) {
-        // insert received accumulator into acc list
-        val newAcc = record.getField(groupKeysMapping.length + i).asInstanceOf[Accumulator]
-        accumulatorList(i).set(1, newAcc)
-        // merge acc list
-        val retAcc = aggregates(i).merge(accumulatorList(i))
-        // insert result into acc list
-        accumulatorList(i).set(0, retAcc)
-        i += 1
-      }
-
-      // check if this record is the last record
-      if (!iterator.hasNext) {
-        // set group keys
-        i = 0
-        while (i < groupKeysMapping.length) {
-          intermediateRow.setField(i, record.getField(i))
-          i += 1
-        }
-
-        // set the partial accumulated result
-        i = 0
-        while (i < aggregates.length) {
-          intermediateRow.setField(groupKeysMapping.length + i, accumulatorList(i).get(0))
-          i += 1
-        }
-
-        intermediateRow.setField(windowStartPos, record.getField(windowStartPos))
-
-        return intermediateRow
-      }
+      record = iterator.next()
+      preAggfunction.mergeAccumulatorsPair(accumulators, record)
     }
+    // set group keys and partial accumulated result
+    preAggfunction.setAggregationResults(accumulators, intermediateRow)
+    preAggfunction.setForwardedFields(record, intermediateRow)
 
-    // this code path should never be reached as we return before the loop finishes
-    // we need this to prevent a compiler error
-    throw new IllegalArgumentException("Group is empty. This should never happen.")
+    intermediateRow.setField(windowStartPos, record.getField(windowStartPos))
+
+    intermediateRow
   }
 }

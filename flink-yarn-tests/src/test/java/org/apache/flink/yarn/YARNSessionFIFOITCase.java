@@ -224,7 +224,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 * Test the YARN Java API
 	 */
 	@Test
-	public void testJavaAPI() {
+	public void testJavaAPI() throws Exception {
 		final int WAIT_TIME = 15;
 		LOG.info("Starting testJavaAPI()");
 

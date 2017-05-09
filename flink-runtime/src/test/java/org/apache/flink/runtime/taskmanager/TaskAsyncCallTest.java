@@ -46,6 +46,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateHandles;
@@ -157,6 +158,9 @@ public class TaskAsyncCallTest {
 		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
 
+		TaskMetricGroup taskMetricGroup = mock(TaskMetricGroup.class);
+		when(taskMetricGroup.getIOMetricGroup()).thenReturn(mock(TaskIOMetricGroup.class));
+
 		JobInformation jobInformation = new JobInformation(
 			new JobID(),
 			"Job Name",
@@ -194,7 +198,7 @@ public class TaskAsyncCallTest {
 			libCache,
 			mock(FileCache.class),
 			new TestingTaskManagerRuntimeInfo(),
-			mock(TaskMetricGroup.class),
+			taskMetricGroup,
 			consumableNotifier,
 			partitionProducerStateChecker,
 			executor);

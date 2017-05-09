@@ -38,7 +38,7 @@ public class SlotStatus implements Serializable {
 	private final SlotID slotID;
 
 	/** the resource profile of the slot */
-	private final ResourceProfile profiler;
+	private final ResourceProfile resourceProfile;
 
 	/** if the slot is allocated, allocationId identify its allocation; else, allocationId is null */
 	private final AllocationID allocationID;
@@ -46,16 +46,17 @@ public class SlotStatus implements Serializable {
 	/** if the slot is allocated, jobId identify which job this slot is allocated to; else, jobId is null */
 	private final JobID jobID;
 
-	public SlotStatus(SlotID slotID, ResourceProfile profiler) {
-		this(slotID, profiler, null, null);
+	public SlotStatus(SlotID slotID, ResourceProfile resourceProfile) {
+		this(slotID, resourceProfile, null, null);
 	}
 
 	public SlotStatus(
-			SlotID slotID, ResourceProfile profiler,
+			SlotID slotID,
+			ResourceProfile resourceProfile,
 			JobID jobID,
 			AllocationID allocationID) {
 		this.slotID = checkNotNull(slotID, "slotID cannot be null");
-		this.profiler = checkNotNull(profiler, "profile cannot be null");
+		this.resourceProfile = checkNotNull(resourceProfile, "profile cannot be null");
 		this.allocationID = allocationID;
 		this.jobID = jobID;
 	}
@@ -74,8 +75,8 @@ public class SlotStatus implements Serializable {
 	 *
 	 * @return The resource profile
 	 */
-	public ResourceProfile getProfiler() {
-		return profiler;
+	public ResourceProfile getResourceProfile() {
+		return resourceProfile;
 	}
 
 	/**
@@ -110,7 +111,7 @@ public class SlotStatus implements Serializable {
 		if (!slotID.equals(that.slotID)) {
 			return false;
 		}
-		if (!profiler.equals(that.profiler)) {
+		if (!resourceProfile.equals(that.resourceProfile)) {
 			return false;
 		}
 		if (allocationID != null ? !allocationID.equals(that.allocationID) : that.allocationID != null) {
@@ -123,7 +124,7 @@ public class SlotStatus implements Serializable {
 	@Override
 	public int hashCode() {
 		int result = slotID.hashCode();
-		result = 31 * result + profiler.hashCode();
+		result = 31 * result + resourceProfile.hashCode();
 		result = 31 * result + (allocationID != null ? allocationID.hashCode() : 0);
 		result = 31 * result + (jobID != null ? jobID.hashCode() : 0);
 		return result;

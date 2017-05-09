@@ -22,6 +22,7 @@ import java.io.Serializable
 
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.functions.Function
+import org.apache.flink.api.common.state.KeyedStateStore
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
@@ -49,13 +50,42 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function
   def process(key: KEY, context: Context, elements: Iterable[IN], out: Collector[OUT])
 
   /**
+    * Deletes any state in the [[Context]] when the Window is purged.
+    *
+    * @param context The context to which the window is being evaluated
+    * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
+    */
+  @throws[Exception]
+  def clear(context: Context) {}
+
+  /**
     * The context holding window metadata
     */
   abstract class Context {
     /**
-      * @return The window that is being evaluated.
+      * Returns the window that is being evaluated.
       */
     def window: W
+
+    /**
+      * Returns the current processing time.
+      */
+    def currentProcessingTime: Long
+
+    /**
+      * Returns the current event-time watermark.
+      */
+    def currentWatermark: Long
+
+    /**
+      * State accessor for per-key and per-window state.
+      */
+    def windowState: KeyedStateStore
+
+    /**
+      * State accessor for per-key global state.
+      */
+    def globalState: KeyedStateStore
   }
 
 }

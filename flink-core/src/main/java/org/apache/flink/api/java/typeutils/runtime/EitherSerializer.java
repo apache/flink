@@ -19,7 +19,10 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Either;
@@ -51,7 +54,7 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 
 	@Override
 	public boolean isImmutableType() {
-		return leftSerializer.isImmutableType() && rightSerializer.isImmutableType();
+		return false;
 	}
 
 	@Override
@@ -91,23 +94,16 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 
 	@Override
 	public Either<L, R> copy(Either<L, R> from, Either<L, R> reuse) {
-		if (from.isRight()) {
-			final R right = from.right();
-			if (reuse.isRight()) {
-				R copyRight = rightSerializer.copy(right, reuse.right());
-				return Right(copyRight);
-			}
-			else {
-				// if the reuse record isn't a right value, we cannot reuse
-				R copyRight = rightSerializer.copy(right);
-				return Right(copyRight);
-			}
-		}
-		else {
-			L left = from.left();
-			// reuse record is never a left value because we always create a right instance
-			L copyLeft = leftSerializer.copy(left);
-			return Left(copyLeft);
+		if (from.isLeft()) {
+			Left<L, R> to = Either.obtainLeft(reuse, leftSerializer);
+			L left = leftSerializer.copy(from.left(), to.left());
+			to.setValue(left);
+			return to;
+		} else {
+			Right<L, R> to = Either.obtainRight(reuse, rightSerializer);
+			R right = rightSerializer.copy(from.right(), to.right());
+			to.setValue(right);
+			return to;
 		}
 	}
 
@@ -142,18 +138,16 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 	@Override
 	public Either<L, R> deserialize(Either<L, R> reuse, DataInputView source) throws IOException {
 		boolean isLeft = source.readBoolean();
-		if (!isLeft) {
-			if (reuse.isRight()) {
-				return Right(rightSerializer.deserialize(reuse.right(), source));
-			}
-			else {
-				// if the reuse record isn't a right value, we cannot reuse
-				return Right(rightSerializer.deserialize(source));
-			}
-		}
-		else {
-			// reuse record is never a left value because we always create a right instance
-			return Left(leftSerializer.deserialize(source));
+		if (isLeft) {
+			Left<L, R> to = Either.obtainLeft(reuse, leftSerializer);
+			L left = leftSerializer.deserialize(to.left(), source);
+			to.setValue(left);
+			return to;
+		} else {
+			Right<L, R> to = Either.obtainRight(reuse, rightSerializer);
+			R right = rightSerializer.deserialize(to.right(), source);
+			to.setValue(right);
+			return to;
 		}
 	}
 
@@ -191,5 +185,40 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 	@Override
 	public int hashCode() {
 		return 17 * leftSerializer.hashCode() + rightSerializer.hashCode();
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & compatibility
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public EitherSerializerConfigSnapshot snapshotConfiguration() {
+		return new EitherSerializerConfigSnapshot(
+				leftSerializer.snapshotConfiguration(),
+				rightSerializer.snapshotConfiguration());
+	}
+
+	@Override
+	public CompatibilityResult<Either<L, R>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof EitherSerializerConfigSnapshot) {
+			TypeSerializerConfigSnapshot[] leftRightSerializerConfigSnapshots =
+				((EitherSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
+
+			CompatibilityResult<L> leftCompatResult = leftSerializer.ensureCompatibility(leftRightSerializerConfigSnapshots[0]);
+			CompatibilityResult<R> rightCompatResult = rightSerializer.ensureCompatibility(leftRightSerializerConfigSnapshots[1]);
+
+			if (!leftCompatResult.requiresMigration() && !rightCompatResult.requiresMigration()) {
+				return CompatibilityResult.compatible();
+			} else {
+				if (leftCompatResult.getConvertDeserializer() != null && rightCompatResult.getConvertDeserializer() != null) {
+					return CompatibilityResult.requiresMigration(
+						new EitherSerializer<>(
+							new TypeDeserializerAdapter<>(leftCompatResult.getConvertDeserializer()),
+							new TypeDeserializerAdapter<>(rightCompatResult.getConvertDeserializer())));
+				}
+			}
+		}
+
+		return CompatibilityResult.requiresMigration(null);
 	}
 }

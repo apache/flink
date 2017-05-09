@@ -17,48 +17,58 @@
  */
 package org.apache.flink.api.java.io.jdbc.split;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 import java.io.Serializable;
 
 /** 
  * 
- * This query generator assumes that the query to parameterize contains a BETWEEN constraint on a numeric column.
- * The generated query set will be of size equal to the configured fetchSize (apart the last one range),
- * ranging from the min value up to the max.
+ * This query parameters generator is an helper class to parameterize from/to queries on a numeric column.
+ * The generated array of from/to values will be equally sized to fetchSize (apart from the last one),
+ * ranging from minVal up to maxVal.
  * 
  * For example, if there's a table <CODE>BOOKS</CODE> with a numeric PK <CODE>id</CODE>, using a query like:
  * <PRE>
  *   SELECT * FROM BOOKS WHERE id BETWEEN ? AND ?
  * </PRE>
  *
- * you can use this class to automatically generate the parameters of the BETWEEN clause,
+ * you can take advantage of this class to automatically generate the parameters of the BETWEEN clause,
  * based on the passed constructor parameters.
  * 
  * */
 public class NumericBetweenParametersProvider implements ParameterValuesProvider {
 
-	private long fetchSize;
-	private final long min;
-	private final long max;
+	private final long fetchSize;
+	private final long minVal;
+	private final long maxVal;
 	
-	public NumericBetweenParametersProvider(long fetchSize, long min, long max) {
+	/**
+	 * NumericBetweenParametersProvider constructor.
+	 * 
+	 * @param fetchSize the max distance between the produced from/to pairs
+	 * @param minVal the lower bound of the produced "from" values
+	 * @param maxVal the upper bound of the produced "to" values
+	 */
+	public NumericBetweenParametersProvider(long fetchSize, long minVal, long maxVal) {
+		checkArgument(fetchSize > 0, "Fetch size must be greater than 0.");
+		checkArgument(minVal <= maxVal, "Min value cannot be greater than max value.");
 		this.fetchSize = fetchSize;
-		this.min = min;
-		this.max = max;
+		this.minVal = minVal;
+		this.maxVal = maxVal;
 	}
 
 	@Override
-	public Serializable[][] getParameterValues(){
-		double maxElemCount = (max - min) + 1;
-		int size = new Double(Math.ceil(maxElemCount / fetchSize)).intValue();
-		Serializable[][] parameters = new Serializable[size][2];
-		int count = 0;
-		for (long i = min; i < max; i += fetchSize, count++) {
-			long currentLimit = i + fetchSize - 1;
-			parameters[count] = new Long[]{i,currentLimit};
-			if (currentLimit + 1 + fetchSize > max) {
-				parameters[count + 1] = new Long[]{currentLimit + 1, max};
-				break;
+	public Serializable[][] getParameterValues() {
+		double maxElemCount = (maxVal - minVal) + 1;
+		int numBatches = new Double(Math.ceil(maxElemCount / fetchSize)).intValue();
+		Serializable[][] parameters = new Serializable[numBatches][2];
+		int batchIndex = 0;
+		for (long start = minVal; start <= maxVal; start += fetchSize, batchIndex++) {
+			long end = start + fetchSize - 1;
+			if (end > maxVal) {
+				end = maxVal;
 			}
+			parameters[batchIndex] = new Long[]{start, end};
 		}
 		return parameters;
 	}

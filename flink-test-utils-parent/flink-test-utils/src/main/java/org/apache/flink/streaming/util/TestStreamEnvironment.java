@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -26,30 +27,89 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFact
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.Preconditions;
 
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+
 /**
- * A StreamExecutionEnvironment that executes its jobs on a test cluster.
+ * A {@link StreamExecutionEnvironment} that executes its jobs on {@link LocalFlinkMiniCluster}.
  */
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	
 	/** The mini cluster in which this environment executes its jobs */
-	private LocalFlinkMiniCluster executor;
-	
+	private final LocalFlinkMiniCluster miniCluster;
 
-	public TestStreamEnvironment(LocalFlinkMiniCluster executor, int parallelism) {
-		super(parallelism);
-		this.executor = Preconditions.checkNotNull(executor);
+	private final Collection<Path> jarFiles;
+
+	private final Collection<URL> classPaths;
+
+	public TestStreamEnvironment(
+			LocalFlinkMiniCluster miniCluster,
+			int parallelism,
+			Collection<Path> jarFiles,
+			Collection<URL> classPaths) {
+
+		this.miniCluster = Preconditions.checkNotNull(miniCluster);
+		this.jarFiles = Preconditions.checkNotNull(jarFiles);
+		this.classPaths = Preconditions.checkNotNull(classPaths);
+
 		setParallelism(parallelism);
 	}
+
+	public TestStreamEnvironment(
+			LocalFlinkMiniCluster miniCluster,
+			int parallelism) {
+		this(miniCluster, parallelism, Collections.<Path>emptyList(), Collections.<URL>emptyList());
+	}
+
 	
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		final StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
 		final JobGraph jobGraph = streamGraph.getJobGraph();
-		return executor.submitJobAndWait(jobGraph, false);
+
+		for (Path jarFile: jarFiles) {
+			jobGraph.addJar(jarFile);
+		}
+
+		jobGraph.setClasspaths(new ArrayList<>(classPaths));
+
+		return miniCluster.submitJobAndWait(jobGraph, false);
 	}
 
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
+	 * the given cluster with the given default parallelism and the specified jar files and class
+	 * paths.
+	 *
+	 * @param cluster The test cluster to run the test program on.
+	 * @param parallelism The default parallelism for the test programs.
+	 * @param jarFiles Additional jar files to execute the job with
+	 * @param classpaths Additional class paths to execute the job with
+	 */
+	public static void setAsContext(
+			final LocalFlinkMiniCluster cluster,
+			final int parallelism,
+			final Collection<Path> jarFiles,
+			final Collection<URL> classpaths) {
+
+		StreamExecutionEnvironmentFactory factory = new StreamExecutionEnvironmentFactory() {
+			@Override
+			public StreamExecutionEnvironment createExecutionEnvironment() {
+				return new TestStreamEnvironment(
+					cluster,
+					parallelism,
+					jarFiles,
+					classpaths);
+			}
+		};
+
+		initializeContextEnvironment(factory);
+	}
 
 	/**
 	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
@@ -59,15 +119,11 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	 * @param parallelism The default parallelism for the test programs.
 	 */
 	public static void setAsContext(final LocalFlinkMiniCluster cluster, final int parallelism) {
-		
-		StreamExecutionEnvironmentFactory factory = new StreamExecutionEnvironmentFactory() {
-			@Override
-			public StreamExecutionEnvironment createExecutionEnvironment() {
-				return new TestStreamEnvironment(cluster, parallelism);
-			}
-		};
-
-		initializeContextEnvironment(factory);
+		setAsContext(
+			cluster,
+			parallelism,
+			Collections.<Path>emptyList(),
+			Collections.<URL>emptyList());
 	}
 
 	/**

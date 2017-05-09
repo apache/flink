@@ -21,101 +21,66 @@ import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.types.Row
-import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.util.Collector
+import org.slf4j.LoggerFactory
 
 /**
   * [[RichGroupReduceFunction]] to compute aggregates that do not support pre-aggregation for batch
   * (DataSet) queries.
   *
-  * @param aggregates The aggregate functions.
-  * @param aggInFields The positions of the aggregation input fields.
-  * @param gkeyOutMapping The mapping of group keys between input and output positions.
-  * @param aggOutMapping  The mapping of aggregates to output positions.
-  * @param groupingSetsMapping The mapping of grouping set keys between input and output positions.
-  * @param finalRowArity The arity of the final resulting row.
+  * @param genAggregations Code-generated [[GeneratedAggregations]]
   */
 class DataSetAggFunction(
-    private val aggregates: Array[AggregateFunction[_ <: Any]],
-    private val aggInFields: Array[Int],
-    private val aggOutMapping: Array[(Int, Int)],
-    private val gkeyOutMapping: Array[(Int, Int)],
-    private val groupingSetsMapping: Array[(Int, Int)],
-    private val finalRowArity: Int)
-  extends RichGroupReduceFunction[Row, Row] {
-
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(aggInFields)
-  Preconditions.checkNotNull(aggOutMapping)
-  Preconditions.checkNotNull(gkeyOutMapping)
-  Preconditions.checkNotNull(groupingSetsMapping)
+    private val genAggregations: GeneratedAggregationsFunction)
+  extends RichGroupReduceFunction[Row, Row]
+    with Compiler[GeneratedAggregations] {
 
   private var output: Row = _
+  private var accumulators: Row = _
 
-  private var intermediateGKeys: Option[Array[Int]] = None
-  private var accumulators: Array[Accumulator] = _
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
-    accumulators = new Array(aggregates.length)
-    output = new Row(finalRowArity)
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getClass.getClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
 
-    if (!groupingSetsMapping.isEmpty) {
-      intermediateGKeys = Some(gkeyOutMapping.map(_._1))
-    }
+    output = function.createOutputRow()
+    accumulators = function.createAccumulators()
   }
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
-    // create accumulators
-    var i = 0
-    while (i < aggregates.length) {
-      accumulators(i) = aggregates(i).createAccumulator()
-      i += 1
-    }
+    // reset accumulators
+    function.resetAccumulator(accumulators)
 
     val iterator = records.iterator()
 
+    var record: Row = null
     while (iterator.hasNext) {
-      val record = iterator.next()
+      record = iterator.next()
 
       // accumulate
-      i = 0
-      while (i < aggregates.length) {
-        aggregates(i).accumulate(accumulators(i), record.getField(aggInFields(i)))
-        i += 1
-      }
-
-      // check if this record is the last record
-      if (!iterator.hasNext) {
-        // set group keys value to final output
-        i = 0
-        while (i < gkeyOutMapping.length) {
-          val (out, in) = gkeyOutMapping(i)
-          output.setField(out, record.getField(in))
-          i += 1
-        }
-
-        // set agg results to output
-        i = 0
-        while (i < aggOutMapping.length) {
-          val (out, in) = aggOutMapping(i)
-          output.setField(out, aggregates(in).getValue(accumulators(in)))
-          i += 1
-        }
-
-        // set grouping set flags to output
-        if (intermediateGKeys.isDefined) {
-          i = 0
-          while (i < groupingSetsMapping.length) {
-            val (in, out) = groupingSetsMapping(i)
-            output.setField(out, !intermediateGKeys.get.contains(in))
-            i += 1
-          }
-        }
-
-        out.collect(output)
-      }
+      function.accumulate(accumulators, record)
     }
+
+    // set group keys value to final output
+    function.setForwardedFields(record, output)
+
+    // set agg results to output
+    function.setAggregationResults(accumulators, output)
+
+    // set grouping set flags to output
+    function.setConstantFlags(output)
+
+    out.collect(output)
   }
 }

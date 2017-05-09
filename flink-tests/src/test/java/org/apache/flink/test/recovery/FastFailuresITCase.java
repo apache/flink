@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -45,18 +46,19 @@ public class FastFailuresITCase extends TestLogger {
 	
 	@Test
 	public void testThis() {
+		final int parallelism = 4;
+
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
 		
 		LocalFlinkMiniCluster cluster = new LocalFlinkMiniCluster(config, false);
 		cluster.start();
-		
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
 
+		TestStreamEnvironment env = new TestStreamEnvironment(cluster, parallelism);
+		
 		env.getConfig().disableSysoutLogging();
-		env.setParallelism(4);
+		env.setParallelism(parallelism);
 		env.enableCheckpointing(1000);
 		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(210, 0));
 		

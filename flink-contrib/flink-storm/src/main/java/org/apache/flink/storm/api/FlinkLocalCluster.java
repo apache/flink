@@ -18,6 +18,7 @@
 
 package org.apache.flink.storm.api;
 
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.storm.LocalCluster;
 import org.apache.storm.generated.ClusterSummary;
 import org.apache.storm.generated.KillOptions;
@@ -92,7 +93,7 @@ public class FlinkLocalCluster {
 			Configuration configuration = new Configuration();
 			configuration.addAll(jobGraph.getJobConfiguration());
 
-			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
+			configuration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, -1L);
 			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
 
 			this.flink = new LocalFlinkMiniCluster(configuration, true);

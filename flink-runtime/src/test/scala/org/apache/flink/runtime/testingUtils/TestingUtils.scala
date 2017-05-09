@@ -23,22 +23,22 @@ import java.util.{Collections, UUID}
 import java.util.concurrent._
 
 import akka.actor.{ActorRef, ActorSystem, Kill, Props}
-import akka.pattern.ask
+import akka.pattern.{Patterns, ask}
 import com.google.common.util.concurrent.MoreExecutors
 import com.typesafe.config.ConfigFactory
 import grizzled.slf4j.Logger
-import org.apache.flink.api.common.JobExecutionResult
-import org.apache.flink.configuration.{ConfigConstants, Configuration, HighAvailabilityOptions}
+import org.apache.flink.api.common.time.Time
+import org.apache.flink.configuration.{ConfigConstants, Configuration, HighAvailabilityOptions, TaskManagerOptions}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.client.JobClient
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.concurrent.{ScheduledExecutor, ScheduledExecutorServiceAdapter}
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
-import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
+import org.apache.flink.runtime.jobmaster.JobMaster
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
-import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
+import org.apache.flink.runtime.messages.TaskManagerMessages.{NotifyWhenRegisteredAtJobManager, RegisteredAtJobManager}
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testutils.TestingResourceManager
 import org.apache.flink.runtime.util.LeaderRetrievalUtils
@@ -60,6 +60,8 @@ object TestingUtils {
   
   val TESTING_DURATION = 2 minute
 
+  val TESTING_TIMEOUT = 1 minute
+
   val DEFAULT_AKKA_ASK_TIMEOUT = "200 s"
 
   def getDefaultTestingActorSystemConfigString: String = {
@@ -76,6 +78,10 @@ object TestingUtils {
   }
 
   def getDefaultTestingActorSystemConfig = testConfig
+
+  def infiniteTime: Time = {
+    Time.milliseconds(Integer.MAX_VALUE);
+  }
   
 
   def startTestingCluster(numSlots: Int, numTMs: Int = 1,
@@ -105,11 +111,17 @@ object TestingUtils {
   def defaultExecutor: ScheduledExecutorService = {
     synchronized {
       if (sharedExecutorInstance == null || sharedExecutorInstance.isShutdown) {
-        sharedExecutorInstance = Executors.newSingleThreadScheduledExecutor()
+        sharedExecutorInstance = Executors.newSingleThreadScheduledExecutor();
       }
 
       sharedExecutorInstance
     }
+  }
+
+  def defaultScheduledExecutor: ScheduledExecutor = {
+    val scheduledExecutorService = defaultExecutor
+
+    new ScheduledExecutorServiceAdapter(scheduledExecutorService)
   }
 
   /** Returns an [[ExecutionContext]] which uses the current thread to execute the runnable.
@@ -206,69 +218,13 @@ object TestingUtils {
     }
   }
 
-  def createTaskManager(
-    actorSystem: ActorSystem,
-    jobManager: ActorRef,
-    configuration: Configuration,
-    useLocalCommunication: Boolean,
-    waitForRegistration: Boolean)
-  : ActorGateway = {
-    val jobManagerURL = AkkaUtils.getAkkaURL(actorSystem, jobManager)
-
-    createTaskManager(
-      actorSystem,
-      jobManagerURL,
-      configuration,
-      useLocalCommunication,
-      waitForRegistration
-    )
-  }
-
-  def createTaskManager(
-    actorSystem: ActorSystem,
-    jobManager: ActorGateway,
-    configuration: Configuration,
-    useLocalCommunication: Boolean,
-    waitForRegistration: Boolean,
-    taskManagerClass: Class[_ <: TaskManager])
-  : ActorGateway = {
-    val jobManagerURL = AkkaUtils.getAkkaURL(actorSystem, jobManager.actor)
-
-    createTaskManager(
-      actorSystem,
-      jobManagerURL,
-      configuration,
-      useLocalCommunication,
-      waitForRegistration,
-      taskManagerClass
-    )
-  }
-
-  def createTaskManager(
-      actorSystem: ActorSystem,
-      jobManager: ActorGateway,
-      configuration: Configuration,
-      useLocalCommunication: Boolean,
-      waitForRegistration: Boolean)
-    : ActorGateway = {
-    val jobManagerURL = AkkaUtils.getAkkaURL(actorSystem, jobManager.actor)
-
-    createTaskManager(
-      actorSystem,
-      jobManagerURL,
-      configuration,
-      useLocalCommunication,
-      waitForRegistration
-    )
-  }
-
   /** Creates a local TaskManager in the given ActorSystem. It is given a
     * [[StandaloneLeaderRetrievalService]] which returns the given jobManagerURL. After creating
     * the TaskManager, waitForRegistration specifies whether one waits until the TaskManager has
     * registered at the JobManager. An ActorGateway to the TaskManager is returned.
     *
     * @param actorSystem ActorSystem in which the TaskManager shall be started
-    * @param jobManagerURL URL of the JobManager to connect to
+    * @param highAvailabilityServices Service factory for high availability
     * @param configuration Configuration
     * @param useLocalCommunication true if the network stack shall use exclusively local
     *                              communication
@@ -277,15 +233,15 @@ object TestingUtils {
     * @return ActorGateway of the created TaskManager
     */
   def createTaskManager(
-    actorSystem: ActorSystem,
-    jobManagerURL: String,
-    configuration: Configuration,
-    useLocalCommunication: Boolean,
-    waitForRegistration: Boolean)
-  : ActorGateway = {
+      actorSystem: ActorSystem,
+      highAvailabilityServices: HighAvailabilityServices,
+      configuration: Configuration,
+      useLocalCommunication: Boolean,
+      waitForRegistration: Boolean)
+    : ActorGateway = {
     createTaskManager(
       actorSystem,
-      jobManagerURL,
+      highAvailabilityServices,
       configuration,
       useLocalCommunication,
       waitForRegistration,
@@ -295,7 +251,7 @@ object TestingUtils {
 
   def createTaskManager(
       actorSystem: ActorSystem,
-      jobManagerURL: String,
+      highAvailabilityServices: HighAvailabilityServices,
       configuration: Configuration,
       useLocalCommunication: Boolean,
       waitForRegistration: Boolean,
@@ -304,30 +260,31 @@ object TestingUtils {
 
     val resultingConfiguration = new Configuration()
 
-    resultingConfiguration.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10)
+    resultingConfiguration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 10L)
 
     resultingConfiguration.addAll(configuration)
-
-    val leaderRetrievalService = Option(new StandaloneLeaderRetrievalService(jobManagerURL))
 
     val taskManager = TaskManager.startTaskManagerComponentsAndActor(
       resultingConfiguration,
       ResourceID.generate(),
       actorSystem,
+      highAvailabilityServices,
       "localhost",
       None,
-      leaderRetrievalService,
       useLocalCommunication,
       taskManagerClass
     )
 
-    if (waitForRegistration) {
+    val leaderId = if (waitForRegistration) {
       val notificationResult = (taskManager ? NotifyWhenRegisteredAtJobManager)(TESTING_DURATION)
+        .mapTo[RegisteredAtJobManager]
 
-      Await.ready(notificationResult, TESTING_DURATION)
+      Await.result(notificationResult, TESTING_DURATION).leaderId
+    } else {
+      HighAvailabilityServices.DEFAULT_LEADER_ID
     }
 
-    new AkkaActorGateway(taskManager, HighAvailabilityServices.DEFAULT_LEADER_ID)
+    new AkkaActorGateway(taskManager, leaderId)
   }
 
   /** Stops the given actor by sending it a Kill message
@@ -340,7 +297,7 @@ object TestingUtils {
     }
   }
 
-  /** Stops the given actro by sending it a Kill message
+  /** Stops the given actor by sending it a Kill message
     *
     * @param actorGateway
     */
@@ -348,6 +305,56 @@ object TestingUtils {
     if (actorGateway != null) {
       stopActor(actorGateway.actor())
     }
+  }
+
+  def stopActorGracefully(actor: ActorRef): Unit = {
+    val gracefulStopFuture = Patterns.gracefulStop(actor, TestingUtils.TESTING_TIMEOUT)
+
+    Await.result(gracefulStopFuture, TestingUtils.TESTING_TIMEOUT)
+  }
+
+  def stopActorGracefully(actorGateway: ActorGateway): Unit = {
+    stopActorGracefully(actorGateway.actor())
+  }
+
+  def stopActorsGracefully(actors: ActorRef*): Unit = {
+    val gracefulStopFutures = actors.flatMap{
+      actor =>
+        Option(actor) match {
+          case Some(actorRef) => Some(Patterns.gracefulStop(actorRef, TestingUtils.TESTING_TIMEOUT))
+          case None => None
+        }
+    }
+
+    implicit val executionContext = defaultExecutionContext
+
+    val globalStopFuture = scala.concurrent.Future.sequence(gracefulStopFutures)
+
+    Await.result(globalStopFuture, TestingUtils.TESTING_TIMEOUT)
+  }
+
+  def stopActorsGracefully(actors: java.util.List[ActorRef]): Unit = {
+    import scala.collection.JavaConverters._
+
+    stopActorsGracefully(actors.asScala: _*)
+  }
+
+  def stopActorGatewaysGracefully(actorGateways: ActorGateway*): Unit = {
+    val actors = actorGateways.flatMap {
+      actorGateway =>
+        Option(actorGateway) match {
+          case Some(actorGateway) => Some(actorGateway.actor())
+          case None => None
+        }
+    }
+
+    stopActorsGracefully(actors: _*)
+  }
+
+  def stopActorGatewaysGracefully(actorGateways: java.util.List[ActorGateway]): Unit = {
+    import scala.collection.JavaConverters._
+
+    stopActorGatewaysGracefully(actorGateways.asScala: _*)
   }
 
   /** Creates a testing JobManager using the default recovery mode (standalone)
@@ -362,13 +369,15 @@ object TestingUtils {
       actorSystem: ActorSystem,
       futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
-      configuration: Configuration)
+      configuration: Configuration,
+      highAvailabilityServices: HighAvailabilityServices)
     : ActorGateway = {
     createJobManager(
       actorSystem,
       futureExecutor,
       ioExecutor,
       configuration,
+      highAvailabilityServices,
       classOf[TestingJobManager],
       ""
     )
@@ -389,6 +398,7 @@ object TestingUtils {
       futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       configuration: Configuration,
+      highAvailabilityServices: HighAvailabilityServices,
       prefix: String)
     : ActorGateway = {
     createJobManager(
@@ -396,6 +406,7 @@ object TestingUtils {
       futureExecutor,
       ioExecutor,
       configuration,
+      highAvailabilityServices,
       classOf[TestingJobManager],
       prefix
     )
@@ -408,6 +419,7 @@ object TestingUtils {
     * @param futureExecutor to run the JobManager's futures
     * @param ioExecutor to run blocking io operations
     * @param configuration Configuration to use
+    * @param highAvailabilityServices Service factory for high availability
     * @param jobManagerClass JobManager class to instantiate
     * @return
     */
@@ -416,10 +428,18 @@ object TestingUtils {
       futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       configuration: Configuration,
+      highAvailabilityServices: HighAvailabilityServices,
       jobManagerClass: Class[_ <: JobManager])
     : ActorGateway = {
 
-    createJobManager(actorSystem, futureExecutor, ioExecutor, configuration, jobManagerClass, "")
+    createJobManager(
+      actorSystem,
+      futureExecutor,
+      ioExecutor,
+      configuration,
+      highAvailabilityServices,
+      jobManagerClass,
+      "")
   }
 
   /**
@@ -430,6 +450,7 @@ object TestingUtils {
     * @param futureExecutor to run the JobManager's futures
     * @param ioExecutor to run blocking io operations
     * @param configuration Configuration to use
+    * @param highAvailabilityServices Service factory for high availability
     * @param jobManagerClass JobManager class to instantiate
     * @param prefix The prefix to use for the Actor names
    * @return
@@ -439,6 +460,7 @@ object TestingUtils {
       futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       configuration: Configuration,
+      highAvailabilityServices: HighAvailabilityServices,
       jobManagerClass: Class[_ <: JobManager],
       prefix: String)
     : ActorGateway = {
@@ -452,24 +474,33 @@ object TestingUtils {
         actorSystem,
         futureExecutor,
         ioExecutor,
-        Some(prefix + JobManager.JOB_MANAGER_NAME),
-        Some(prefix + JobManager.ARCHIVE_NAME),
+        highAvailabilityServices,
+        Some(prefix + JobMaster.JOB_MANAGER_NAME),
+        Some(prefix + JobMaster.ARCHIVE_NAME),
         jobManagerClass,
         classOf[MemoryArchivist])
 
-    new AkkaActorGateway(actor, HighAvailabilityServices.DEFAULT_LEADER_ID)
+
+    val leaderId = LeaderRetrievalUtils.retrieveLeaderSessionId(
+        highAvailabilityServices.getJobManagerLeaderRetriever(
+          HighAvailabilityServices.DEFAULT_JOB_ID),
+        TestingUtils.TESTING_TIMEOUT)
+
+    new AkkaActorGateway(actor, leaderId)
   }
 
   /** Creates a forwarding JobManager which sends all received message to the forwarding target.
     *
     * @param actorSystem The actor system to start the actor in.
     * @param forwardingTarget Target to forward to.
+    * @param leaderId leader id for the actor gateway
     * @param actorName Name for forwarding Actor
     * @return
     */
   def createForwardingActor(
       actorSystem: ActorSystem,
       forwardingTarget: ActorRef,
+      leaderId: UUID,
       actorName: Option[String] = None)
     : ActorGateway = {
 
@@ -479,7 +510,7 @@ object TestingUtils {
           Props(
             classOf[ForwardingActor],
             forwardingTarget,
-            Option(HighAvailabilityServices.DEFAULT_LEADER_ID)),
+            Option(leaderId)),
           name
         )
       case None =>
@@ -487,60 +518,40 @@ object TestingUtils {
           Props(
             classOf[ForwardingActor],
             forwardingTarget,
-            Option(HighAvailabilityServices.DEFAULT_LEADER_ID))
+            Option(leaderId))
         )
     }
 
-    new AkkaActorGateway(actor, HighAvailabilityServices.DEFAULT_LEADER_ID)
+    new AkkaActorGateway(actor, leaderId)
   }
 
-  def submitJobAndWait(
-      actorSystem: ActorSystem,
-      jobManager: ActorGateway,
-      jobGraph: JobGraph,
-      config: Configuration)
-    : JobExecutionResult = {
-
-    val jobManagerURL = AkkaUtils.getAkkaURL(actorSystem, jobManager.actor)
-    val leaderRetrievalService = new StandaloneLeaderRetrievalService(jobManagerURL)
-
-    JobClient.submitJobAndWait(
-      actorSystem,
-      config,
-      leaderRetrievalService,
-      jobGraph,
-      TESTING_DURATION,
-      false,
-      Thread.currentThread().getContextClassLoader
-    )
-  }
-
-  /** Creates a testing JobManager using the default recovery mode (standalone)
+  /** Creates a testing JobManager using the given configuration and high availability services.
     *
     * @param actorSystem The actor system to start the actor
-    * @param jobManager The jobManager for the standalone leader service.
     * @param configuration The configuration
+    * @param highAvailabilityServices The high availability services to use
     * @return
     */
   def createResourceManager(
       actorSystem: ActorSystem,
-      jobManager: ActorRef,
-      configuration: Configuration)
+      configuration: Configuration,
+      highAvailabilityServices: HighAvailabilityServices)
   : ActorGateway = {
 
-    configuration.setString(
-      HighAvailabilityOptions.HA_MODE,
-      ConfigConstants.DEFAULT_HA_MODE)
-
-    val actor = FlinkResourceManager.startResourceManagerActors(
+    val resourceManager = FlinkResourceManager.startResourceManagerActors(
       configuration,
       actorSystem,
-      LeaderRetrievalUtils.createLeaderRetrievalService(configuration, jobManager),
+      highAvailabilityServices.getJobManagerLeaderRetriever(
+        HighAvailabilityServices.DEFAULT_JOB_ID),
       classOf[TestingResourceManager])
 
-    new AkkaActorGateway(actor, HighAvailabilityServices.DEFAULT_LEADER_ID)
-  }
+    val leaderId = LeaderRetrievalUtils.retrieveLeaderSessionId(
+      highAvailabilityServices.getJobManagerLeaderRetriever(
+        HighAvailabilityServices.DEFAULT_JOB_ID),
+      TestingUtils.TESTING_TIMEOUT)
 
+    new AkkaActorGateway(resourceManager, leaderId)
+  }
 
   class ForwardingActor(val target: ActorRef, val leaderSessionID: Option[UUID])
     extends FlinkActor with LeaderSessionMessageFilter with LogMessages {

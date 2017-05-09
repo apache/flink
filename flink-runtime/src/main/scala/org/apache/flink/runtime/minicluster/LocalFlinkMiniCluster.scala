@@ -24,7 +24,7 @@ import java.util.concurrent.{Executor, ScheduledExecutorService}
 import akka.actor.{ActorRef, ActorSystem, Props}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.io.FileOutputFormat
-import org.apache.flink.configuration.{ConfigConstants, Configuration, QueryableStateOptions}
+import org.apache.flink.configuration.{ConfigConstants, Configuration, QueryableStateOptions, TaskManagerOptions}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
@@ -32,23 +32,25 @@ import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceMa
 import org.apache.flink.runtime.clusterframework.types.{ResourceID, ResourceIDRetrievable}
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
+import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist, SubmittedJobGraphStore}
+import org.apache.flink.runtime.jobmaster.JobMaster
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages
 import org.apache.flink.runtime.messages.JobManagerMessages.{RunningJobsStatus, StoppingFailure, StoppingResponse}
 import org.apache.flink.runtime.metrics.MetricRegistry
-import org.apache.flink.runtime.taskexecutor.{TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
+import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
 import org.apache.flink.runtime.util.EnvironmentInformation
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.FiniteDuration
 
 /**
@@ -62,7 +64,20 @@ import scala.concurrent.duration.FiniteDuration
  */
 class LocalFlinkMiniCluster(
     userConfiguration: Configuration,
-    singleActorSystem: Boolean) extends FlinkMiniCluster(userConfiguration, singleActorSystem) {
+    highAvailabilityServices: HighAvailabilityServices,
+    singleActorSystem: Boolean) extends FlinkMiniCluster(
+  userConfiguration,
+  highAvailabilityServices,
+  singleActorSystem) {
+
+  def this(userConfiguration: Configuration, useSingleActorSystem: Boolean) = {
+    this(
+      userConfiguration,
+       HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+         userConfiguration,
+         ExecutionContext.global),
+      useSingleActorSystem)
+  }
 
   def this(userConfiguration: Configuration) = this(userConfiguration, true)
 
@@ -124,15 +139,11 @@ class LocalFlinkMiniCluster(
     timeout,
     archiveCount,
     archivePath,
-    leaderElectionService,
-    submittedJobGraphStore,
-    checkpointRecoveryFactory,
     jobRecoveryTimeout,
     metricsRegistry) = JobManager.createJobManagerComponents(
       config,
       futureExecutor,
-      ioExecutor,
-      createLeaderElectionService())
+      ioExecutor)
 
     if (config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
       metricsRegistry.get.startQueryService(system, null)
@@ -157,9 +168,10 @@ class LocalFlinkMiniCluster(
         archive,
         restartStrategyFactory,
         timeout,
-        leaderElectionService,
-        submittedJobGraphStore,
-        checkpointRecoveryFactory,
+        highAvailabilityServices.getJobManagerLeaderElectionService(
+          HighAvailabilityServices.DEFAULT_JOB_ID),
+        highAvailabilityServices.getSubmittedJobGraphStore(),
+        highAvailabilityServices.getCheckpointRecoveryFactory(),
         jobRecoveryTimeout,
         metricsRegistry),
       jobManagerName)
@@ -181,7 +193,8 @@ class LocalFlinkMiniCluster(
     val resourceManagerProps = getResourceManagerProps(
       resourceManagerClass,
       config,
-      createLeaderRetrievalService())
+      highAvailabilityServices.getJobManagerLeaderRetriever(
+        HighAvailabilityServices.DEFAULT_JOB_ID))
 
     system.actorOf(resourceManagerProps, resourceManagerName)
   }
@@ -207,9 +220,9 @@ class LocalFlinkMiniCluster(
     val localExecution = numTaskManagers == 1
 
     val taskManagerActorName = if (singleActorSystem) {
-      TaskManager.TASK_MANAGER_NAME + "_" + (index + 1)
+      TaskExecutor.TASK_MANAGER_NAME + "_" + (index + 1)
     } else {
-      TaskManager.TASK_MANAGER_NAME
+      TaskExecutor.TASK_MANAGER_NAME
     }
 
     val resourceID = ResourceID.generate() // generate random resource id
@@ -236,7 +249,8 @@ class LocalFlinkMiniCluster(
       taskManagerServices.getMemoryManager(),
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment,
-      createLeaderRetrievalService(),
+      highAvailabilityServices.getJobManagerLeaderRetriever(
+        HighAvailabilityServices.DEFAULT_JOB_ID),
       metricRegistry)
 
     if (config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
@@ -331,10 +345,6 @@ class LocalFlinkMiniCluster(
   // Helper methods
   //------------------------------------------------------------------------------------------------
 
-  def createLeaderElectionService(): Option[LeaderElectionService] = {
-    None
-  }
-
   def initializeIOFormatClasses(configuration: Configuration): Unit = {
     try {
       val om = classOf[FileOutputFormat[_]].getDeclaredMethod("initDefaultsFromConfiguration",
@@ -350,23 +360,14 @@ class LocalFlinkMiniCluster(
 
   def setMemory(config: Configuration): Unit = {
     // set this only if no memory was pre-configured
-    if (config.getInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1) == -1) {
-
-      val bufferSize: Int = config.getInteger(
-        ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
-        ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE)
-
-      val bufferMem: Long = config.getLong(
-        ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
-        ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS) * bufferSize.toLong
+    if (config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE) ==
+        TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) {
 
       val numTaskManager = config.getInteger(
         ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
         ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER)
 
-      val memoryFraction = config.getFloat(
-        ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
-        ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION)
+      val memoryFraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION)
 
       // full memory size
       var memorySize: Long = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag
@@ -375,11 +376,11 @@ class LocalFlinkMiniCluster(
       // each TaskManagers and each JobManager
       memorySize /= numTaskManager + 1 // the +1 is the job manager
 
-      // for each TaskManager, subtract the memory needed for memory buffers
-      memorySize -= bufferMem
+      // for each TaskManager, subtract the memory needed for network memory buffers
+      memorySize -= TaskManagerServices.calculateNetworkBufferMemory(memorySize, config)
       memorySize = (memorySize * memoryFraction).toLong
-      memorySize >>>= 20 // bytes to megabytes
-      config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize)
+      memorySize >>= 20 // bytes to megabytes
+      config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, memorySize)
     }
   }
 
@@ -401,9 +402,9 @@ class LocalFlinkMiniCluster(
 
   protected def getJobManagerName(index: Int): String = {
     if(singleActorSystem) {
-      JobManager.JOB_MANAGER_NAME + "_" + (index + 1)
+      JobMaster.JOB_MANAGER_NAME + "_" + (index + 1)
     } else {
-      JobManager.JOB_MANAGER_NAME
+      JobMaster.JOB_MANAGER_NAME
     }
   }
 
@@ -417,9 +418,9 @@ class LocalFlinkMiniCluster(
 
   protected def getArchiveName(index: Int): String = {
     if(singleActorSystem) {
-      JobManager.ARCHIVE_NAME + "_" + (index + 1)
+      JobMaster.ARCHIVE_NAME + "_" + (index + 1)
     } else {
-      JobManager.ARCHIVE_NAME
+      JobMaster.ARCHIVE_NAME
     }
   }
 
