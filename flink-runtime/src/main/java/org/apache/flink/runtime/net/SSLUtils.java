@@ -193,9 +193,7 @@ public class SSLUtils {
 		if (getSSLEnabled(sslConfig)) {
 			LOG.debug("Creating server SSL context from configuration");
 
-			String keystoreFilePath = sslConfig.getString(
-				ConfigConstants.SECURITY_SSL_KEYSTORE,
-				null);
+			String keystoreFilePath = sslConfig.getString(SecurityOptions.SSL_KEYSTORE);
 
 			String keystorePassword = sslConfig.getString(
 				ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD,
@@ -209,7 +207,7 @@ public class SSLUtils {
 				ConfigConstants.SECURITY_SSL_PROTOCOL,
 				ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL);
 
-			Preconditions.checkNotNull(keystoreFilePath, ConfigConstants.SECURITY_SSL_KEYSTORE + " was not configured.");
+			Preconditions.checkNotNull(keystoreFilePath, SecurityOptions.SSL_KEYSTORE.key() + " was not configured.");
 			Preconditions.checkNotNull(keystorePassword, ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD + " was not configured.");
 			Preconditions.checkNotNull(certPassword, ConfigConstants.SECURITY_SSL_KEY_PASSWORD + " was not configured.");
 

@@ -77,4 +77,11 @@ public class SecurityOptions {
 	public static final ConfigOption<Boolean> SSL_ENABLED =
 		key("security.ssl.enabled")
 			.defaultValue(false);
+
+	/**
+	 * The Java keystore file containing the flink endpoint key and certificate.
+	 */
+	public static final ConfigOption<String> SSL_KEYSTORE =
+		key("security.ssl.keystore")
+			.noDefaultValue();
 }

@@ -127,7 +127,7 @@ public class NettyClientServerSslTest {
 		Configuration config = createSslConfig();
 
 		// Use a server certificate which is not present in the truststore
-		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/untrusted.keystore");
+		config.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/untrusted.keystore");
 
 		NettyConfig nettyConfig = new NettyConfig(
 			InetAddress.getLoopbackAddress(),
@@ -151,7 +151,7 @@ public class NettyClientServerSslTest {
 
 		Configuration flinkConfig = new Configuration();
 		flinkConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
-		flinkConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		flinkConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
 		flinkConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
 		flinkConfig.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
 		flinkConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, "src/test/resources/local127.truststore");

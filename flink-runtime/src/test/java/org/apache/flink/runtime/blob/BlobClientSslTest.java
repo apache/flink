@@ -69,7 +69,7 @@ public class BlobClientSslTest extends TestLogger {
 	public static void startSSLServer() throws IOException {
 		Configuration config = new Configuration();
 		config.setBoolean(SecurityOptions.SSL_ENABLED, true);
-		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		config.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
 		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
 		config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
 		BLOB_SSL_SERVER = new BlobServer(config, new VoidBlobStore());
@@ -88,7 +88,7 @@ public class BlobClientSslTest extends TestLogger {
 		Configuration config = new Configuration();
 		config.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		config.setBoolean(BlobServerOptions.SSL_ENABLED, false);
-		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		config.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
 		config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
 		config.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
 		BLOB_SERVER = new BlobServer(config, new VoidBlobStore());

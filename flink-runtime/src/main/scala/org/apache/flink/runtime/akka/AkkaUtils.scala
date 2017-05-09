@@ -26,7 +26,7 @@ import akka.actor._
 import akka.pattern.{ask => akkaAsk}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration}
+import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration, SecurityOptions}
 import org.apache.flink.runtime.net.SSLUtils
 import org.apache.flink.util.{ConfigurationException, NetUtils, Preconditions}
 import org.jboss.netty.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
@@ -301,9 +301,7 @@ object AkkaUtils {
 
     val akkaEnableSSL = if (akkaEnableSSLConfig) "on" else "off"
 
-    val akkaSSLKeyStore = configuration.getString(
-      ConfigConstants.SECURITY_SSL_KEYSTORE,
-      null)
+    val akkaSSLKeyStore = configuration.getString(SecurityOptions.SSL_KEYSTORE)
 
     val akkaSSLKeyStorePassword = configuration.getString(
       ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD,
