@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.clusterframework.overlays;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
@@ -50,7 +49,7 @@ public class SSLStoreOverlayTest extends ContainerOverlayTestBase {
 		assertEquals(TARGET_KEYSTORE_PATH.getPath(), spec.getDynamicConfiguration().getString(SecurityOptions.SSL_KEYSTORE));
 		checkArtifact(spec, TARGET_KEYSTORE_PATH);
 
-		assertEquals(TARGET_TRUSTSTORE_PATH.getPath(), spec.getDynamicConfiguration().getString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, null));
+		assertEquals(TARGET_TRUSTSTORE_PATH.getPath(), spec.getDynamicConfiguration().getString(SecurityOptions.SSL_TRUSTSTORE));
 		checkArtifact(spec, TARGET_TRUSTSTORE_PATH);
 	}
 
@@ -70,7 +69,7 @@ public class SSLStoreOverlayTest extends ContainerOverlayTestBase {
 		File truststore = tempFolder.newFile();
 
 		conf.setString(SecurityOptions.SSL_KEYSTORE, keystore.getAbsolutePath());
-		conf.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, truststore.getAbsolutePath());
+		conf.setString(SecurityOptions.SSL_TRUSTSTORE, truststore.getAbsolutePath());
 
 		SSLStoreOverlay.Builder builder = SSLStoreOverlay.newBuilder().fromEnvironment(conf);
 		assertEquals(builder.keystorePath, keystore);

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.clusterframework.overlays;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
@@ -73,7 +72,7 @@ public class SSLStoreOverlay extends AbstractContainerOverlay {
 				.setDest(TARGET_TRUSTSTORE_PATH)
 				.setCachable(false)
 				.build());
-			container.getDynamicConfiguration().setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, TARGET_TRUSTSTORE_PATH.getPath());
+			container.getDynamicConfiguration().setString(SecurityOptions.SSL_TRUSTSTORE, TARGET_TRUSTSTORE_PATH.getPath());
 		}
 	}
 
@@ -107,11 +106,11 @@ public class SSLStoreOverlay extends AbstractContainerOverlay {
 				}
 			}
 
-			String truststore = globalConfiguration.getString(ConfigConstants.SECURITY_SSL_TRUSTSTORE, null);
+			String truststore = globalConfiguration.getString(SecurityOptions.SSL_TRUSTSTORE);
 			if(truststore != null) {
 				truststorePath = new File(truststore);
 				if(!truststorePath.exists()) {
-					throw new IllegalStateException("Invalid configuration for " + ConfigConstants.SECURITY_SSL_TRUSTSTORE);
+					throw new IllegalStateException("Invalid configuration for " + SecurityOptions.SSL_TRUSTSTORE.key());
 				}
 			}
 

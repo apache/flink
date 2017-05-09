@@ -98,4 +98,11 @@ public class SecurityOptions {
 	public static final ConfigOption<String> SSL_KEY_PASSWORD =
 		key("security.ssl.key-password")
 			.noDefaultValue();
+
+	/**
+	 * The truststore file containing the public CA certificates to verify the ssl peers.
+	 */
+	public static final ConfigOption<String> SSL_TRUSTSTORE =
+		key("security.ssl.truststore")
+			.noDefaultValue();
 }
