@@ -679,8 +679,6 @@ abstract class TableEnvironment(val config: TableConfig) {
             "Field reference expression or alias on field expression expected.")
         }
       case r: RowTypeInfo => {
-       // r.getFieldNames().map(name => 
-       //   (r.getFieldIndex(name),name))
         exprs.zipWithIndex flatMap {
           case (UnresolvedFieldReference(name), idx) =>
             Some((idx, name))
@@ -690,6 +688,8 @@ abstract class TableEnvironment(val config: TableConfig) {
               throw new TableException(s"$origName is not a field of type $r")
             }
             Some((idx, name))
+          case (_: TimeAttribute, _) =>
+            None
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
