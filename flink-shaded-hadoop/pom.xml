@@ -113,19 +113,7 @@ under the License.
 							</transformers>
 							<artifactSet>
 								<includes>
-									<include>com.google.guava:*</include>
-									<include>com.google.protobuf:*</include>
-									<include>com.google.code.findbugs:*</include>
-									<include>asm:asm</include>
-									<include>io.netty:netty:*</include>
-									<include>org.apache.curator:*</include>
-									<include>org.apache.hadoop:*</include>
-									<include>org.htrace:htrace-core</include>
-
-									<!-- This dependency needs to be included to properly get rid of the HTTP Components dependency -->
-									<include>net.java.dev.jets3t:jets3t</include>
-									<include>org.apache.httpcomponents:*</include>
-									<include>commons-httpclient:commons-httpclient</include>
+									<include>*:*</include>
 								</includes>
 							</artifactSet>
 							<relocations>
