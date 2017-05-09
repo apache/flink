@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -29,7 +30,10 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
-public class RowTypeInfoTest {
+/**
+ * Test for {@link RowTypeInfo}.
+ */
+public class RowTypeInfoTest extends TypeInformationTestBase<RowTypeInfo> {
 	private static TypeInformation<?>[] typeList = new TypeInformation<?>[]{
 		BasicTypeInfo.INT_TYPE_INFO,
 		new RowTypeInfo(
@@ -37,6 +41,15 @@ public class RowTypeInfoTest {
 			BasicTypeInfo.BIG_DEC_TYPE_INFO),
 		BasicTypeInfo.STRING_TYPE_INFO
 	};
+
+	@Override
+	protected RowTypeInfo[] getTestData() {
+		return new RowTypeInfo[] {
+			new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+			new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO),
+			new RowTypeInfo(typeList)
+		};
+	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrongNumberOfFieldNames() {
@@ -92,13 +105,7 @@ public class RowTypeInfoTest {
 
 	@Test
 	public void testGetTypeAt() {
-		RowTypeInfo typeInfo = new RowTypeInfo(
-			BasicTypeInfo.INT_TYPE_INFO,
-			new RowTypeInfo(
-				BasicTypeInfo.SHORT_TYPE_INFO,
-				BasicTypeInfo.BIG_DEC_TYPE_INFO
-			),
-			BasicTypeInfo.STRING_TYPE_INFO);
+		RowTypeInfo typeInfo = new RowTypeInfo(typeList);
 
 
 		assertArrayEquals(new String[]{"f0", "f1", "f2"}, typeInfo.getFieldNames());
@@ -109,44 +116,11 @@ public class RowTypeInfoTest {
 	}
 
 	@Test
-	public void testRowTypeInfoEquality() {
-		RowTypeInfo typeInfo1 = new RowTypeInfo(
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
-
-		RowTypeInfo typeInfo2 = new RowTypeInfo(
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
-
-		assertEquals(typeInfo1, typeInfo2);
-		assertEquals(typeInfo1.hashCode(), typeInfo2.hashCode());
-	}
-
-	@Test
-	public void testRowTypeInfoInequality() {
-		RowTypeInfo typeInfo1 = new RowTypeInfo(
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
-
-		RowTypeInfo typeInfo2 = new RowTypeInfo(
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.BOOLEAN_TYPE_INFO);
-
-		assertNotEquals(typeInfo1, typeInfo2);
-		assertNotEquals(typeInfo1.hashCode(), typeInfo2.hashCode());
-	}
-
-	@Test
 	public void testNestedRowTypeInfo() {
-		RowTypeInfo typeInfo = new RowTypeInfo(
-			BasicTypeInfo.INT_TYPE_INFO,
-			new RowTypeInfo(
-				BasicTypeInfo.SHORT_TYPE_INFO,
-				BasicTypeInfo.BIG_DEC_TYPE_INFO
-			),
-			BasicTypeInfo.STRING_TYPE_INFO);
+		RowTypeInfo typeInfo = new RowTypeInfo(typeList);
 
 		assertEquals("Row(f0: Short, f1: BigDecimal)", typeInfo.getTypeAt("f1").toString());
 		assertEquals("Short", typeInfo.getTypeAt("f1.f0").toString());
 	}
+
 }

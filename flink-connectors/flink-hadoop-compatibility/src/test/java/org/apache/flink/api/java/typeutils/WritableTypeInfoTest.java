@@ -18,34 +18,23 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.flink.util.TestLogger;
-import org.apache.hadoop.io.Writable;
-import org.junit.Test;
-
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+import org.apache.hadoop.io.Writable;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+/**
+ * Test for {@link WritableTypeInfo}.
+ */
+public class WritableTypeInfoTest extends TypeInformationTestBase<WritableTypeInfo<?>> {
 
-public class WritableTypeInfoTest extends TestLogger {
-	
-	@Test
-	public void testWritableTypeInfoEquality() {
-		WritableTypeInfo<TestClass> tpeInfo1 = new WritableTypeInfo<>(TestClass.class);
-		WritableTypeInfo<TestClass> tpeInfo2 = new WritableTypeInfo<>(TestClass.class);
-
-		assertEquals(tpeInfo1, tpeInfo2);
-		assertEquals(tpeInfo1.hashCode(), tpeInfo2.hashCode());
-	}
-
-	@Test
-	public void testWritableTypeInfoInequality() {
-		WritableTypeInfo<TestClass> tpeInfo1 = new WritableTypeInfo<>(TestClass.class);
-		WritableTypeInfo<AlternateClass> tpeInfo2 = new WritableTypeInfo<>(AlternateClass.class);
-
-		assertNotEquals(tpeInfo1, tpeInfo2);
+	@Override
+	protected WritableTypeInfo<?>[] getTestData() {
+		return new WritableTypeInfo<?>[] {
+			new WritableTypeInfo<>(TestClass.class),
+			new WritableTypeInfo<>(AlternateClass.class)
+		};
 	}
 
 	// ------------------------------------------------------------------------

@@ -18,75 +18,21 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import static org.junit.Assert.*;
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.util.InstantiationUtil;
-import org.junit.Test;
+/**
+ * Test for {@link PojoTypeInfo}.
+ */
+public class PojoTypeInfoTest extends TypeInformationTestBase<PojoTypeInfo<?>>{
 
-import java.io.IOException;
-
-public class PojoTypeInfoTest {
-
-	@Test
-	public void testPojoTypeInfoEquality() {
-		try {
-			TypeInformation<TestPojo> info1 = TypeExtractor.getForClass(TestPojo.class);
-			TypeInformation<TestPojo> info2 = TypeExtractor.getForClass(TestPojo.class);
-			
-			assertTrue(info1 instanceof PojoTypeInfo);
-			assertTrue(info2 instanceof PojoTypeInfo);
-			
-			assertTrue(info1.equals(info2));
-			assertTrue(info1.hashCode() == info2.hashCode());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testPojoTypeInfoInequality() {
-		try {
-			TypeInformation<TestPojo> info1 = TypeExtractor.getForClass(TestPojo.class);
-			TypeInformation<AlternatePojo> info2 = TypeExtractor.getForClass(AlternatePojo.class);
-
-			assertTrue(info1 instanceof PojoTypeInfo);
-			assertTrue(info2 instanceof PojoTypeInfo);
-
-			assertFalse(info1.equals(info2));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testSerializabilityOfPojoTypeInfo() throws IOException, ClassNotFoundException {
-		PojoTypeInfo<TestPojo> pojoTypeInfo = (PojoTypeInfo<TestPojo>)TypeExtractor.getForClass(TestPojo.class);
-
-		byte[] serializedPojoTypeInfo = InstantiationUtil.serializeObject(pojoTypeInfo);
-		PojoTypeInfo<TestPojo> deserializedPojoTypeInfo = (PojoTypeInfo<TestPojo>)InstantiationUtil.deserializeObject(
-			serializedPojoTypeInfo,
-			getClass().getClassLoader());
-
-		assertEquals(pojoTypeInfo, deserializedPojoTypeInfo);
-	}
-
-	@Test
-	public void testPrimitivePojo() {
-		TypeInformation<PrimitivePojo> info1 = TypeExtractor.getForClass(PrimitivePojo.class);
-
-		assertTrue(info1 instanceof PojoTypeInfo);
-	}
-
-	@Test
-	public void testUnderscorePojo() {
-		TypeInformation<UnderscorePojo> info1 = TypeExtractor.getForClass(UnderscorePojo.class);
-
-		assertTrue(info1 instanceof PojoTypeInfo);
+	@Override
+	protected PojoTypeInfo<?>[] getTestData() {
+		return new PojoTypeInfo<?>[] {
+			(PojoTypeInfo<?>) TypeExtractor.getForClass(TestPojo.class),
+			(PojoTypeInfo<?>) TypeExtractor.getForClass(AlternatePojo.class),
+			(PojoTypeInfo<?>) TypeExtractor.getForClass(PrimitivePojo.class),
+			(PojoTypeInfo<?>) TypeExtractor.getForClass(UnderscorePojo.class)
+		};
 	}
 
 	public static final class TestPojo {
