@@ -140,7 +140,7 @@ public class TaskManagerStartupTest {
 
 		try {
 			Configuration cfg = new Configuration();
-			cfg.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, nonWritable.getAbsolutePath());
+			cfg.setString(TaskManagerOptions.TMP_DIR, nonWritable.getAbsolutePath());
 			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 			cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 			cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 21656);
@@ -240,8 +240,8 @@ public class TaskManagerStartupTest {
 			blocker = new ServerSocket(0, 50, InetAddress.getByName("localhost"));
 
 			final Configuration cfg = new Configuration();
-			cfg.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
-			cfg.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, blocker.getLocalPort());
+			cfg.setString(TaskManagerOptions.HOST_NAME, "localhost");
+			cfg.setInteger(TaskManagerOptions.DATA_PORT, blocker.getLocalPort());
 			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 1L);
 
 			TaskManager.startTaskManagerComponentsAndActor(

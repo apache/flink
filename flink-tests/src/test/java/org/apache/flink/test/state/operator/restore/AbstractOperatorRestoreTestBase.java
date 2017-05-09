@@ -21,8 +21,8 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -116,7 +116,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 		archiver = new AkkaActorGateway(master._2(), jobManager.leaderSessionID());
 
 		Configuration tmConfig = new Configuration();
-		tmConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
+		tmConfig.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 4);
 
 		ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
 			tmConfig,

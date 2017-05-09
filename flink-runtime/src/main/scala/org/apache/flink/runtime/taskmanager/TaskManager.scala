@@ -820,12 +820,12 @@ class TaskManager(
       jobManager: ActorRef)
     : Unit = {
     val logFilePathOption = Option(config.getConfiguration().getString(
-      ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file")))
+      TaskManagerOptions.LOG_PATH, System.getProperty("log.file")))
     logFilePathOption match {
       case None => sender ! akka.actor.Status.Failure(
         new IOException("TaskManager log files are unavailable. " +
         "Log file location not found in environment variable log.file or configuration key "
-        + ConfigConstants.TASK_MANAGER_LOG_PATH_KEY + "."))
+        + TaskManagerOptions.LOG_PATH.key() + "."))
       case Some(logFilePath) =>
         val file: File = requestType match {
           case LogFileRequest => new File(logFilePath);
@@ -1674,8 +1674,7 @@ object TaskManager {
       highAvailabilityServices: HighAvailabilityServices)
     : (String, Int) = {
 
-    var taskManagerHostname = configuration.getString(
-      ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null)
+    var taskManagerHostname = configuration.getString(TaskManagerOptions.HOST_NAME)
 
     if (taskManagerHostname != null) {
       LOG.info("Using configured hostname/address for TaskManager: " + taskManagerHostname)
@@ -1694,10 +1693,10 @@ object TaskManager {
     }
 
     // if no task manager port has been configured, use 0 (system will pick any free port)
-    val actorSystemPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0)
+    val actorSystemPort = configuration.getInteger(TaskManagerOptions.PORT)
     if (actorSystemPort < 0 || actorSystemPort > 65535) {
       throw new IllegalConfigurationException("Invalid value for '" +
-        ConfigConstants.TASK_MANAGER_IPC_PORT_KEY +
+        TaskManagerOptions.PORT.key() +
         "' (port for the TaskManager actor system) : " + actorSystemPort +
         " - Leave config parameter empty or use 0 to let the system choose a port automatically.")
     }
@@ -1829,14 +1828,12 @@ object TaskManager {
       // if desired, start the logging daemon that periodically logs the
       // memory usage information
       if (LOG.isInfoEnabled && configuration.getBoolean(
-        ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD,
-        ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD))
+        TaskManagerOptions.DEBUG_MEMORY_USAGE_LOG_THREAD))
       {
         LOG.info("Starting periodic memory usage logger")
 
         val interval = configuration.getLong(
-          ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
-          ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
+          TaskManagerOptions.DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
 
         val logger = new MemoryLogger(LOG.logger, interval, taskManagerSystem)
         logger.start()

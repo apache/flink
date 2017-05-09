@@ -21,10 +21,10 @@ package org.apache.flink.mesos.runtime.clusterframework;
 import com.netflix.fenzo.ConstraintEvaluator;
 import com.netflix.fenzo.functions.Func1;
 import com.netflix.fenzo.plugins.HostAttrValueConstraint;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.util.Preconditions;
 import org.apache.mesos.Protos;
@@ -49,7 +49,7 @@ public class MesosTaskManagerParameters {
 	public static final Pattern TASK_ID_PATTERN = Pattern.compile("_TASK_", Pattern.LITERAL);
 
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_SLOTS =
-		key(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS)
+		key(TaskManagerOptions.NUM_TASK_SLOTS.key())
 		.defaultValue(1);
 
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_MEMORY_MB =

@@ -22,8 +22,8 @@ import com.netflix.fenzo.ConstraintEvaluator;
 import com.netflix.fenzo.TaskAssignmentResult;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.VMTaskFitnessCalculator;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.mesos.Utils;
 import org.apache.flink.mesos.scheduler.LaunchableTask;
 import org.apache.flink.mesos.util.MesosArtifactResolver;
@@ -210,7 +210,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 				.matcher(taskManagerHostnameOption.get())
 				.replaceAll(Matcher.quoteReplacement(taskID.getValue()));
 
-			dynamicProperties.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, taskManagerHostname);
+			dynamicProperties.setString(TaskManagerOptions.HOST_NAME, taskManagerHostname);
 		}
 
 		// use the assigned ports for the TM

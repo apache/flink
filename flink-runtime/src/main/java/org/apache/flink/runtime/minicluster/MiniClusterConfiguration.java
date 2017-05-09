@@ -93,7 +93,7 @@ public class MiniClusterConfiguration {
 
 	public void setNumTaskManagerSlots(int numTaskSlots) {
 		checkArgument(numTaskSlots >= 1, "must have at least one task slot per TaskManager");
-		this.config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numTaskSlots);
+		this.config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numTaskSlots);
 	}
 
 	public void setCommonRpcBindAddress(String bindAddress) {
@@ -127,7 +127,7 @@ public class MiniClusterConfiguration {
 	}
 
 	public int getNumSlotsPerTaskManager() {
-		return config.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+		return config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 	}
 
 	public String getJobManagerBindAddress() {
@@ -139,7 +139,7 @@ public class MiniClusterConfiguration {
 	public String getTaskManagerBindAddress() {
 		return commonBindAddress != null ?
 				commonBindAddress :
-				config.getString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
+				config.getString(TaskManagerOptions.HOST_NAME, "localhost");
 	}
 
 	public String getResourceManagerBindAddress() {

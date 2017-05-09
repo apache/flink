@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
@@ -195,7 +195,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		checkNotNull(configuration);
 		checkNotNull(haServices);
 
-		String taskManagerHostname = configuration.getString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null);
+		String taskManagerHostname = configuration.getString(TaskManagerOptions.HOST_NAME);
 
 		if (taskManagerHostname != null) {
 			LOG.info("Using configured hostname/address for TaskManager: {}.", taskManagerHostname);
@@ -212,12 +212,12 @@ public class TaskManagerRunner implements FatalErrorHandler {
 				taskManagerHostname, taskManagerAddress.getHostAddress());
 		}
 
-		final int rpcPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0);
+		final int rpcPort = configuration.getInteger(TaskManagerOptions.PORT);
 
 		Preconditions.checkState(rpcPort >= 0 && rpcPort <= 65535, "Invalid value for " +
 				"'%s' (port for the TaskManager actor system) : %d - Leave config parameter empty or " +
 				"use 0 to let the system choose port automatically.",
-			ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, rpcPort);
+			TaskManagerOptions.PORT.key(), rpcPort);
 
 		return AkkaRpcServiceUtils.createRpcService(taskManagerHostname, rpcPort, configuration);
 	}

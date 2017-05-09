@@ -32,7 +32,28 @@ public class TaskManagerOptions {
 	//  General TaskManager Options
 	// ------------------------------------------------------------------------
 
-	// @TODO Migrate 'taskmanager.*' config options from ConfigConstants
+	/**
+	 * The config parameter defining the task manager's hostname.
+	 */
+	public static final ConfigOption<String> HOST_NAME =
+		key("taskmanager.hostname")
+			.noDefaultValue();
+
+	/**
+	 * The default network port the task manager expects incoming IPC connections. The {@code 0} means that
+	 * the TaskManager searches for a free port.
+	 */
+	public static final ConfigOption<Integer> PORT =
+		key("taskmanager.rpc.port")
+			.defaultValue(0);
+
+	/**
+	 * The default network port the task manager expects to receive transfer envelopes on. The {@code 0} means that
+	 * the TaskManager searches for a free port.
+	 */
+	public static final ConfigOption<Integer> DATA_PORT =
+		key("taskmanager.data.port")
+			.defaultValue(0);
 
 	/**
 	 * JVM heap size (in megabytes) for the TaskManagers
@@ -40,6 +61,20 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY =
 			key("taskmanager.heap.mb")
 			.defaultValue(1024);
+
+	/**
+	 * The config parameter defining the directories for temporary files.
+	 */
+	public static final ConfigOption<String> TMP_DIR =
+		key("taskmanager.tmp.dirs")
+			.defaultValue(System.getProperty("java.io.tmpdir"));
+
+	/**
+	 * The config parameter defining the taskmanager log file location
+	 */
+	public static final ConfigOption<String> LOG_PATH =
+		key("taskmanager.log.path")
+			.noDefaultValue();
 
 	/**
 	 * Whether to kill the TaskManager when the task thread throws an OutOfMemoryError
@@ -56,6 +91,47 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Boolean> EXIT_ON_FATAL_AKKA_ERROR =
 			key("taskmanager.exit-on-fatal-akka-error")
 			.defaultValue(false);
+
+	/**
+	 * The config parameter defining the number of task slots of a task manager.
+	 */
+	public static final ConfigOption<Integer> NUM_TASK_SLOTS =
+		key("taskmanager.numberOfTaskSlots")
+			.defaultValue(1);
+
+	// ------------------------------------------------------------------------
+	//  Distributed Coordination
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Defines the maximum time it can take for the TaskManager registration. If the duration is
+	 * exceeded without a successful registration, then the TaskManager terminates.
+	 */
+	public static final ConfigOption<String> MAX_REGISTRATION_DURATION =
+		key("taskmanager.maxRegistrationDuration")
+			.defaultValue("Inf");
+
+	/**
+	 * The initial registration pause between two consecutive registration attempts. The pause
+	 * is doubled for each new registration attempt until it reaches the maximum registration pause.
+	 */
+	public static final ConfigOption<String> INITIAL_REGISTRATION_PAUSE =
+		key("taskmanager.initial-registration-pause")
+			.defaultValue("500 ms");
+
+	/**
+	 * The maximum registration pause between two consecutive registration attempts.
+	 */
+	public static final ConfigOption<String> MAX_REGISTRATION_PAUSE =
+		key("taskmanager.max-registration-pause")
+			.defaultValue("30 s");
+
+	/**
+	 * The pause after a registration has been refused by the job manager before retrying to connect.
+	 */
+	public static final ConfigOption<String> REFUSED_REGISTRATION_PAUSE =
+		key("taskmanager.refused-registration-pause")
+			.defaultValue("10 s");
 
 	// ------------------------------------------------------------------------
 	//  Managed Memory Options
@@ -102,6 +178,21 @@ public class TaskManagerOptions {
 	// ------------------------------------------------------------------------
 	//  Network Options
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Config parameter to override SSL support for taskmanager's data transport
+	 */
+	public static final ConfigOption<Boolean> DATA_SSL_ENABLED =
+		key("taskmanager.data.ssl.enabled")
+			.defaultValue(true);
+
+	/**
+	 * The implementation to use for spillable/spilled intermediate results, which have both
+	 * synchronous and asynchronous implementations: "sync" or "async".
+	 */
+	public static final ConfigOption<String> NETWORK_IO_MODE =
+		key("taskmanager.network.defaultIOMode")
+			.defaultValue("sync");
 
 	/**
 	 * Number of buffers used in the network stack. This defines the number of possible tasks and
@@ -208,6 +299,24 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Long> TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT =
 			key("task.checkpoint.alignment.max-size")
 			.defaultValue(-1L);
+
+	// ------------------------------------------------------------------------
+	//  Debugging Options
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
+	 */
+	public static final ConfigOption<Boolean> DEBUG_MEMORY_USAGE_LOG_THREAD =
+		key("taskmanager.debug.memory.startLogThread")
+			.defaultValue(false);
+
+	/**
+	 * The interval (in ms) for the log thread to log the current memory usage.
+	 */
+	public static final ConfigOption<Long> DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS =
+		key("taskmanager.debug.memory.logIntervalMs")
+			.defaultValue(5000L);
 
 	// ------------------------------------------------------------------------
 

@@ -78,7 +78,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			// Cluster
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+			config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 			config.setInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE, 4096);
 			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 8);
 

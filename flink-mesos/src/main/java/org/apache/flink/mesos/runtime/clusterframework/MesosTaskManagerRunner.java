@@ -29,6 +29,7 @@ import org.apache.commons.cli.PosixParser;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -89,14 +90,13 @@ public class MesosTaskManagerRunner {
 		final String tmpDirs = envs.get(MesosConfigKeys.ENV_FLINK_TMP_DIR);
 
 		// configure local directory
-		String flinkTempDirs = configuration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, null);
-		if (flinkTempDirs != null) {
+		if (configuration.contains(TaskManagerOptions.TMP_DIR)) {
 			LOG.info("Overriding Mesos temporary file directories with those " +
-				"specified in the Flink config: {}", flinkTempDirs);
+				"specified in the Flink config: {}", configuration.getString(TaskManagerOptions.TMP_DIR));
 		}
 		else if (tmpDirs != null) {
 			LOG.info("Setting directories for temporary files to: {}", tmpDirs);
-			configuration.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, tmpDirs);
+			configuration.setString(TaskManagerOptions.TMP_DIR, tmpDirs);
 		}
 
 		// configure the default filesystem

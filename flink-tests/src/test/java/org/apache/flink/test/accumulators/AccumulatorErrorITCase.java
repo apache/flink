@@ -55,7 +55,7 @@ public class AccumulatorErrorITCase extends TestLogger {
 	public static void startCluster() {
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 3);
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 12L);
 		cluster = new LocalFlinkMiniCluster(config, false);
 

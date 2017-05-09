@@ -25,6 +25,7 @@ import java.util.Collections;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
@@ -47,7 +48,7 @@ public class AvroExternalJarProgramITCase extends TestLogger {
 		try {
 			int parallelism = 4;
 			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
+			config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, parallelism);
 			testMiniCluster = new LocalFlinkMiniCluster(config, false);
 			testMiniCluster.start();
 

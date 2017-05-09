@@ -87,7 +87,7 @@ public abstract class CancelingTestBase extends TestLogger {
 		Configuration config = new Configuration();
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 4);
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
 		config.setInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE, 4096);
 		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 2048);

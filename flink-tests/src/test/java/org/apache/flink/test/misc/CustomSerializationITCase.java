@@ -21,7 +21,6 @@ package org.apache.flink.test.misc;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.DataInputView;
@@ -53,7 +52,7 @@ public class CustomSerializationITCase extends TestLogger {
 	@BeforeClass
 	public static void startCluster() {
 		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARLLELISM);
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, PARLLELISM);
 		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 30L);
 		cluster = new LocalFlinkMiniCluster(config, false);
 		cluster.start();
