@@ -109,9 +109,9 @@ class DataStreamGroupWindowAggregate(
 
   override def translateToPlan(
       tableEnv: StreamTableEnvironment,
-      qConfig: StreamQueryConfig): DataStream[CRow] = {
+      queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
-    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, qConfig)
+    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
     val physicalNamedAggregates = namedAggregates.map { namedAggregate =>
       new CalcitePair[AggregateCall, String](

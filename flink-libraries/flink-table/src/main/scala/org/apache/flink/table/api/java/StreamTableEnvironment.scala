@@ -150,7 +150,7 @@ class StreamTableEnvironment(
     * @return The converted [[DataStream]].
     */
   def toDataStream[T](table: Table, clazz: Class[T]): DataStream[T] = {
-    toDataStream(table, clazz, qConf)
+    toDataStream(table, clazz, queryConfig)
   }
 
   /**
@@ -170,7 +170,7 @@ class StreamTableEnvironment(
     * @return The converted [[DataStream]].
     */
   def toDataStream[T](table: Table, typeInfo: TypeInformation[T]): DataStream[T] = {
-    toDataStream(table, typeInfo, qConf)
+    toDataStream(table, typeInfo, queryConfig)
   }
 
   /**
@@ -186,14 +186,17 @@ class StreamTableEnvironment(
     *
     * @param table The [[Table]] to convert.
     * @param clazz The class of the type of the resulting [[DataStream]].
-    * @param qConfig The configuration of the query to generate.
+    * @param queryConfig The configuration of the query to generate.
     * @tparam T The type of the resulting [[DataStream]].
     * @return The converted [[DataStream]].
     */
-  def toDataStream[T](table: Table, clazz: Class[T], qConfig: StreamQueryConfig): DataStream[T] = {
+  def toDataStream[T](
+      table: Table,
+      clazz: Class[T],
+      queryConfig: StreamQueryConfig): DataStream[T] = {
     val typeInfo = TypeExtractor.createTypeInfo(clazz)
     TableEnvironment.validateType(typeInfo)
-    translate[T](table, qConfig, updatesAsRetraction = false, withChangeFlag = false)(typeInfo)
+    translate[T](table, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(typeInfo)
   }
 
   /**
@@ -209,16 +212,16 @@ class StreamTableEnvironment(
     *
     * @param table The [[Table]] to convert.
     * @param typeInfo The [[TypeInformation]] that specifies the type of the [[DataStream]].
-    * @param qConfig The configuration of the query to generate.
+    * @param queryConfig The configuration of the query to generate.
     * @tparam T The type of the resulting [[DataStream]].
     * @return The converted [[DataStream]].
     */
   def toDataStream[T](
       table: Table,
       typeInfo: TypeInformation[T],
-      qConfig: StreamQueryConfig): DataStream[T] = {
+      queryConfig: StreamQueryConfig): DataStream[T] = {
     TableEnvironment.validateType(typeInfo)
-    translate[T](table, qConfig, updatesAsRetraction = false, withChangeFlag = false)(typeInfo)
+    translate[T](table, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(typeInfo)
   }
 
   /**
@@ -242,7 +245,7 @@ class StreamTableEnvironment(
       table: Table,
       clazz: Class[T]): DataStream[JTuple2[JBool, T]] = {
 
-    toRetractStream(table, clazz, qConf)
+    toRetractStream(table, clazz, queryConfig)
   }
 
   /**
@@ -266,7 +269,7 @@ class StreamTableEnvironment(
       table: Table,
       typeInfo: TypeInformation[T]): DataStream[JTuple2[JBool, T]] = {
 
-    toRetractStream(table, typeInfo, qConf)
+    toRetractStream(table, typeInfo, queryConfig)
   }
 
   /**
@@ -283,21 +286,21 @@ class StreamTableEnvironment(
     *
     * @param table The [[Table]] to convert.
     * @param clazz The class of the requested record type.
-    * @param qConfig The configuration of the query to generate.
+    * @param queryConfig The configuration of the query to generate.
     * @tparam T The type of the requested record type.
     * @return The converted [[DataStream]].
     */
   def toRetractStream[T](
       table: Table,
       clazz: Class[T],
-      qConfig: StreamQueryConfig): DataStream[JTuple2[JBool, T]] = {
+      queryConfig: StreamQueryConfig): DataStream[JTuple2[JBool, T]] = {
 
     val typeInfo = TypeExtractor.createTypeInfo(clazz)
     TableEnvironment.validateType(typeInfo)
     val resultType = new TupleTypeInfo[JTuple2[JBool, T]](Types.BOOLEAN, typeInfo)
     translate[JTuple2[JBool, T]](
       table,
-      qConfig,
+      queryConfig,
       updatesAsRetraction = true,
       withChangeFlag = true)(resultType)
   }
@@ -316,14 +319,14 @@ class StreamTableEnvironment(
     *
     * @param table The [[Table]] to convert.
     * @param typeInfo The [[TypeInformation]] of the requested record type.
-    * @param qConfig The configuration of the query to generate.
+    * @param queryConfig The configuration of the query to generate.
     * @tparam T The type of the requested record type.
     * @return The converted [[DataStream]].
     */
   def toRetractStream[T](
       table: Table,
       typeInfo: TypeInformation[T],
-      qConfig: StreamQueryConfig): DataStream[JTuple2[JBool, T]] = {
+      queryConfig: StreamQueryConfig): DataStream[JTuple2[JBool, T]] = {
 
     TableEnvironment.validateType(typeInfo)
     val resultTypeInfo = new TupleTypeInfo[JTuple2[JBool, T]](
@@ -332,7 +335,7 @@ class StreamTableEnvironment(
     )
     translate[JTuple2[JBool, T]](
       table,
-      qConfig,
+      queryConfig,
       updatesAsRetraction = true,
       withChangeFlag = true)(resultTypeInfo)
   }

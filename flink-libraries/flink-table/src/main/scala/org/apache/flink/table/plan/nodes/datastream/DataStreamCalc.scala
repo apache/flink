@@ -85,11 +85,12 @@ class DataStreamCalc(
 
   override def translateToPlan(
       tableEnv: StreamTableEnvironment,
-      qConfig: StreamQueryConfig): DataStream[CRow] = {
+      queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     val config = tableEnv.getConfig
 
-    val inputDataStream = getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, qConfig)
+    val inputDataStream =
+      getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
     val inputRowType = inputDataStream.getType.asInstanceOf[CRowTypeInfo].rowType
 
     val generator = new CodeGenerator(config, false, inputRowType)

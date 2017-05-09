@@ -59,12 +59,12 @@ class TableConversions(table: Table) {
 
   /** Converts the [[Table]] to a [[DataStream]] of the specified type.
     *
-    * @param qConfig The configuration for the generated query.
+    * @param queryConfig The configuration for the generated query.
     */
-  def toDataStream[T: TypeInformation](qConfig: StreamQueryConfig): DataStream[T] = {
+  def toDataStream[T: TypeInformation](queryConfig: StreamQueryConfig): DataStream[T] = {
     table.tableEnv match {
       case tEnv: ScalaStreamTableEnv =>
-        tEnv.toDataStream(table, qConfig)
+        tEnv.toDataStream(table, queryConfig)
       case _ =>
         throw new TableException(
           "Only tables that originate from Scala DataStreams " +
@@ -97,14 +97,15 @@ class TableConversions(table: Table) {
     *
     * A true [[Boolean]] flag indicates an add message, a false flag indicates a retract message.
     *
-    * @param qConfig The configuration for the generated query.
+    * @param queryConfig The configuration for the generated query.
     *
     */
-  def toRetractStream[T: TypeInformation](qConfig: StreamQueryConfig): DataStream[(Boolean, T)] = {
+  def toRetractStream[T: TypeInformation](
+      queryConfig: StreamQueryConfig): DataStream[(Boolean, T)] = {
 
     table.tableEnv match {
       case tEnv: ScalaStreamTableEnv =>
-        tEnv.toRetractStream(table, qConfig)
+        tEnv.toRetractStream(table, queryConfig)
       case _ =>
         throw new TableException(
           "Only tables that originate from Scala DataStreams " +
