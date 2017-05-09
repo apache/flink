@@ -43,7 +43,7 @@ public class SSLUtilsTest {
 		Configuration clientConfig = new Configuration();
 		clientConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		clientConfig.setString(SecurityOptions.SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
-		clientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD, "password");
+		clientConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 
 		SSLContext clientContext = SSLUtils.createSSLClientContext(clientConfig);
 		Assert.assertNotNull(clientContext);
@@ -71,7 +71,7 @@ public class SSLUtilsTest {
 		Configuration clientConfig = new Configuration();
 		clientConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		clientConfig.setString(SecurityOptions.SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
-		clientConfig.setString(ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD, "badpassword");
+		clientConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "badpassword");
 
 		try {
 			SSLContext clientContext = SSLUtils.createSSLClientContext(clientConfig);

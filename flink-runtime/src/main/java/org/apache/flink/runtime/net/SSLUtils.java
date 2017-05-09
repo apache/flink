@@ -140,15 +140,13 @@ public class SSLUtils {
 			LOG.debug("Creating client SSL context from configuration");
 
 			String trustStoreFilePath = sslConfig.getString(SecurityOptions.SSL_TRUSTSTORE);
-			String trustStorePassword = sslConfig.getString(
-				ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD,
-				null);
+			String trustStorePassword = sslConfig.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD);
 			String sslProtocolVersion = sslConfig.getString(
 				ConfigConstants.SECURITY_SSL_PROTOCOL,
 				ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL);
 
 			Preconditions.checkNotNull(trustStoreFilePath, SecurityOptions.SSL_TRUSTSTORE.key() + " was not configured.");
-			Preconditions.checkNotNull(trustStorePassword, ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD + " was not configured.");
+			Preconditions.checkNotNull(trustStorePassword, SecurityOptions.SSL_TRUSTSTORE_PASSWORD.key() + " was not configured.");
 
 			KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
 

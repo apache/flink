@@ -105,4 +105,11 @@ public class SecurityOptions {
 	public static final ConfigOption<String> SSL_TRUSTSTORE =
 		key("security.ssl.truststore")
 			.noDefaultValue();
+
+	/**
+	 * Secret to decrypt the truststore.
+	 */
+	public static final ConfigOption<String> SSL_TRUSTSTORE_PASSWORD =
+		key("security.ssl.truststore-password")
+			.noDefaultValue();
 }
