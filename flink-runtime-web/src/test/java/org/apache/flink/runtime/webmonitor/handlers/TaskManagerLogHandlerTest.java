@@ -28,6 +28,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -53,7 +54,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Matchers.any;
@@ -71,7 +71,8 @@ public class TaskManagerLogHandlerTest {
 			AkkaUtils.getDefaultClientTimeout(),
 			TaskManagerLogHandler.FileMode.LOG,
 			new Configuration(),
-			false);
+			false,
+			new VoidBlobStore());
 		String[] pathsLog = handlerLog.getPaths();
 		Assert.assertEquals(1, pathsLog.length);
 		Assert.assertEquals("/taskmanagers/:taskmanagerid/log", pathsLog[0]);
@@ -83,7 +84,8 @@ public class TaskManagerLogHandlerTest {
 			AkkaUtils.getDefaultClientTimeout(),
 			TaskManagerLogHandler.FileMode.STDOUT,
 			new Configuration(),
-			false);
+			false,
+			new VoidBlobStore());
 		String[] pathsOut = handlerOut.getPaths();
 		Assert.assertEquals(1, pathsOut.length);
 		Assert.assertEquals("/taskmanagers/:taskmanagerid/stdout", pathsOut[0]);
@@ -131,7 +133,8 @@ public class TaskManagerLogHandlerTest {
 			AkkaUtils.getDefaultClientTimeout(),
 			TaskManagerLogHandler.FileMode.LOG,
 			new Configuration(),
-			false);
+			false,
+			new VoidBlobStore());
 
 		final AtomicReference<String> exception = new AtomicReference<>();
 		

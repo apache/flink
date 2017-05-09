@@ -44,10 +44,11 @@ public class BlobServerDeleteTest {
 	public void testDeleteSingle() {
 		BlobServer server = null;
 		BlobClient client = null;
+		BlobStore blobStore = new VoidBlobStore();
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, blobStore);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -93,10 +94,11 @@ public class BlobServerDeleteTest {
 	public void testDeleteAll() {
 		BlobServer server = null;
 		BlobClient client = null;
+		BlobStore blobStore = new VoidBlobStore();
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, blobStore);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -156,10 +158,11 @@ public class BlobServerDeleteTest {
 	public void testDeleteAlreadyDeletedByBlobKey() {
 		BlobServer server = null;
 		BlobClient client = null;
+		BlobStore blobStore = new VoidBlobStore();
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, blobStore);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -195,10 +198,11 @@ public class BlobServerDeleteTest {
 	public void testDeleteAlreadyDeletedByName() {
 		BlobServer server = null;
 		BlobClient client = null;
+		BlobStore blobStore = new VoidBlobStore();
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, blobStore);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -237,10 +241,11 @@ public class BlobServerDeleteTest {
 
 		BlobServer server = null;
 		BlobClient client = null;
+		BlobStore blobStore = new VoidBlobStore();
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, blobStore);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -289,7 +294,11 @@ public class BlobServerDeleteTest {
 			}
 		}
 		if (server != null) {
-			server.shutdown();
+			try {
+				server.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 }

@@ -23,6 +23,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobStore;
+import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.FileSystemBlobStore;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -91,6 +92,9 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 	 * HA services clean up */
 	protected final Path haDataDirectory;
 
+	/** Blob store service to be used for the BlobServer and BlobCache */
+	protected final BlobStoreService blobStoreService;
+
 	/** Flag marking this instance as shut down */
 	private volatile boolean closed;
 
@@ -153,6 +157,8 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 		}
 
 		LOG.info("Flink YARN application will store recovery data at {}", haDataDirectory);
+
+		blobStoreService = new FileSystemBlobStore(flinkFileSystem, haDataDirectory.toString());
 	}
 
 	// ------------------------------------------------------------------------
@@ -163,7 +169,7 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 	public BlobStore createBlobStore() throws IOException {
 		enter();
 		try {
-			return new FileSystemBlobStore(flinkFileSystem, haDataDirectory.toString());
+			return blobStoreService;
 		} finally {
 			exit();
 		}
@@ -192,11 +198,23 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 			}
 			closed = true;
 
+			Throwable exception = null;
+
+			try {
+				blobStoreService.close();
+			} catch (Throwable t) {
+				exception = t;
+			}
+
 			// we do not propagate exceptions here, but only log them
 			try {
 				hadoopFileSystem.close();
 			} catch (Throwable t) {
-				LOG.warn("Error closing Hadoop FileSystem", t);
+				exception = ExceptionUtils.firstOrSuppressed(t, exception);
+			}
+
+			if (exception != null) {
+				ExceptionUtils.rethrowException(exception, "Could not properly close the YarnHighAvailabilityServices.");
 			}
 		}
 		finally {
@@ -213,12 +231,18 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 			// we remember exceptions only, then continue cleanup, and re-throw at the end
 			Throwable exception = null;
 
+			try {
+				blobStoreService.closeAndCleanupAllData();
+			} catch (Throwable t) {
+				exception = t;
+			}
+
 			// first, we delete all data in Flink's data directory
 			try {
 				flinkFileSystem.delete(haDataDirectory, true);
 			}
 			catch (Throwable t) {
-				exception = t;
+				exception = ExceptionUtils.firstOrSuppressed(t, exception);
 			}
 
 			// now we actually close the services

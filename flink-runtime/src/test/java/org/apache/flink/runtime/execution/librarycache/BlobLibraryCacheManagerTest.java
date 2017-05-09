@@ -18,13 +18,12 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.OperatingSystem;
@@ -45,7 +44,7 @@ import java.util.List;
 public class BlobLibraryCacheManagerTest {
 
 	@Test
-	public void testLibraryCacheManagerCleanup() {
+	public void testLibraryCacheManagerCleanup() throws IOException, InterruptedException {
 
 		JobID jid = new JobID();
 		List<BlobKey> keys = new ArrayList<BlobKey>();
@@ -56,7 +55,7 @@ public class BlobLibraryCacheManagerTest {
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress blobSocketAddress = new InetSocketAddress(server.getPort());
 			BlobClient bc = new BlobClient(blobSocketAddress, config);
 
@@ -108,14 +107,9 @@ public class BlobLibraryCacheManagerTest {
 			assertEquals(2, caughtExceptions);
 
 			bc.close();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			if (server != null) {
-				server.shutdown();
+				server.close();
 			}
 
 			if (libraryCacheManager != null) {
@@ -130,7 +124,7 @@ public class BlobLibraryCacheManagerTest {
 	}
 
 	@Test
-	public void testRegisterAndDownload() {
+	public void testRegisterAndDownload() throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
 		BlobServer server = null;
@@ -139,9 +133,9 @@ public class BlobLibraryCacheManagerTest {
 		try {
 			// create the blob transfer services
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, new VoidBlobStore());
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			cache = new BlobCache(serverAddress, config);
+			cache = new BlobCache(serverAddress, config, new VoidBlobStore());
 
 			// upload some meaningless data to the server
 			BlobClient uploader = new BlobClient(serverAddress, config);
@@ -210,22 +204,17 @@ public class BlobLibraryCacheManagerTest {
 			catch (IOException e) {
 				// splendid!
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			if (cacheDir != null) {
 				if (!cacheDir.setWritable(true, false)) {
 					System.err.println("Could not re-add write permissions to cache directory.");
 				}
 			}
 			if (cache != null) {
-				cache.shutdown();
+				cache.close();
 			}
 			if (server != null) {
-				server.shutdown();
+				server.close();
 			}
 		}
 	}
