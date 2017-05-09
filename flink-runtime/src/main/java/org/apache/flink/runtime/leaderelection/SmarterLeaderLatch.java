@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -58,10 +58,11 @@ import org.apache.flink.util.Preconditions;
  * <p>
  * Smarter Leader Latch will handle temporary disconnection duller. It will revoke leadership until
  * disconnection timeout.
+ * Adopted from Apache Curator's *org.apache.curator.framework.recipes.leader.LeaderLatch*, removing
+ * some unused codes and modify `handleStateChanged(ConnectionState newState)` methods.
  * </p>
  */
-public class SmarterLeaderLatch implements Closeable
-{
+public class SmarterLeaderLatch implements Closeable {
 	private final Logger log = LoggerFactory.getLogger(getClass());
 	private final CuratorFramework client;
 	private final String latchPath;
@@ -73,28 +74,23 @@ public class SmarterLeaderLatch implements Closeable
 	private final CloseMode closeMode;
 	private final AtomicReference<Future<?>> startTask = new AtomicReference<Future<?>>();
 
-	private final ConnectionStateListener listener = new ConnectionStateListener()
-	{
+	private final ConnectionStateListener listener = new ConnectionStateListener() {
 		@Override
-		public void stateChanged(CuratorFramework client, ConnectionState newState)
-		{
+		public void stateChanged(CuratorFramework client, ConnectionState newState) {
 			handleStateChange(newState);
 		}
 	};
 
 	private static final String LOCK_NAME = "latch-";
 
-	private static final LockInternalsSorter sorter = new LockInternalsSorter()
-	{
+	private static final LockInternalsSorter sorter = new LockInternalsSorter() {
 		@Override
-		public String fixForSorting(String str, String lockName)
-		{
+		public String fixForSorting(String str, String lockName) {
 			return StandardLockInternalsDriver.standardFixForSorting(str, lockName);
 		}
 	};
 
-	public enum State
-	{
+	public enum State {
 		LATENT,
 		STARTED,
 		CLOSED
@@ -103,8 +99,7 @@ public class SmarterLeaderLatch implements Closeable
 	/**
 	 * How to handle listeners when the latch is closed
 	 */
-	public enum CloseMode
-	{
+	public enum CloseMode {
 		/**
 		 * When the latch is closed, listeners will *not* be notified (default behavior)
 		 */
@@ -120,8 +115,7 @@ public class SmarterLeaderLatch implements Closeable
 	 * @param client    the client
 	 * @param latchPath the path for this leadership group
 	 */
-	public SmarterLeaderLatch(CuratorFramework client, String latchPath)
-	{
+	public SmarterLeaderLatch(CuratorFramework client, String latchPath) {
 		this(client, latchPath, "", CloseMode.SILENT);
 	}
 
@@ -131,8 +125,7 @@ public class SmarterLeaderLatch implements Closeable
 	 * @param id        participant ID
 	 * @param closeMode behaviour of listener on explicit close.
 	 */
-	public SmarterLeaderLatch(CuratorFramework client, String latchPath, String id, CloseMode closeMode)
-	{
+	public SmarterLeaderLatch(CuratorFramework client, String latchPath, String id, CloseMode closeMode) {
 		this.client = Preconditions.checkNotNull(client, "client cannot be null");
 		this.latchPath = PathUtils.validatePath(latchPath);
 		this.id = Preconditions.checkNotNull(id, "id cannot be null");
@@ -144,21 +137,15 @@ public class SmarterLeaderLatch implements Closeable
 	 *
 	 * @throws Exception errors
 	 */
-	public void start() throws Exception
-	{
+	public void start() throws Exception {
 		Preconditions.checkState(state.compareAndSet(State.LATENT, State.STARTED), "Cannot be started more than once");
 
-		startTask.set(AfterConnectionEstablished.execute(client, new Runnable()
-		{
+		startTask.set(AfterConnectionEstablished.execute(client, new Runnable() {
 			@Override
-			public void run()
-			{
-				try
-				{
+			public void run() {
+				try {
 					internalStart();
-				}
-				finally
-				{
+				} finally {
 					startTask.set(null);
 				}
 			}
@@ -173,8 +160,7 @@ public class SmarterLeaderLatch implements Closeable
 	 * @throws IOException errors
 	 */
 	@Override
-	public void close() throws IOException
-	{
+	public void close() throws IOException {
 		close(closeMode);
 	}
 
@@ -186,36 +172,27 @@ public class SmarterLeaderLatch implements Closeable
 	 * @param closeMode allows the default close mode to be overridden at the time the latch is closed.
 	 * @throws IOException errors
 	 */
-	public synchronized void close(CloseMode closeMode) throws IOException
-	{
+	public synchronized void close(CloseMode closeMode) throws IOException {
 		Preconditions.checkState(state.compareAndSet(State.STARTED, State.CLOSED), "Already closed or has not been started");
 		Preconditions.checkNotNull(closeMode, "closeMode cannot be null");
 
 		cancelStartTask();
 
-		try
-		{
+		try {
 			setNode(null);
-		}
-		catch ( Exception e )
-		{
+		} catch (Exception e) {
 			throw new IOException(e);
-		}
-		finally
-		{
+		} finally {
 			client.getConnectionStateListenable().removeListener(listener);
 
-			switch ( closeMode )
-			{
-				case NOTIFY_LEADER:
-				{
+			switch (closeMode) {
+				case NOTIFY_LEADER: {
 					setLeadership(false);
 					listeners.clear();
 					break;
 				}
 
-				default:
-				{
+				default: {
 					listeners.clear();
 					setLeadership(false);
 					break;
@@ -224,11 +201,9 @@ public class SmarterLeaderLatch implements Closeable
 		}
 	}
 
-	protected boolean cancelStartTask()
-	{
+	protected boolean cancelStartTask() {
 		Future<?> localStartTask = startTask.getAndSet(null);
-		if ( localStartTask != null )
-		{
+		if (localStartTask != null) {
 			localStartTask.cancel(true);
 			return true;
 		}
@@ -247,8 +222,7 @@ public class SmarterLeaderLatch implements Closeable
 	 *
 	 * @param listener the listener to attach
 	 */
-	public void addListener(LeaderLatchListener listener)
-	{
+	public void addListener(LeaderLatchListener listener) {
 		listeners.addListener(listener);
 	}
 
@@ -265,8 +239,7 @@ public class SmarterLeaderLatch implements Closeable
 	 * @param listener the listener to attach
 	 * @param executor An executor to run the methods for the listener on.
 	 */
-	public void addListener(LeaderLatchListener listener, Executor executor)
-	{
+	public void addListener(LeaderLatchListener listener, Executor executor) {
 		listeners.addListener(listener, executor);
 	}
 
@@ -275,8 +248,7 @@ public class SmarterLeaderLatch implements Closeable
 	 *
 	 * @param listener the listener to remove
 	 */
-	public void removeListener(LeaderLatchListener listener)
-	{
+	public void removeListener(LeaderLatchListener listener) {
 		listeners.removeListener(listener);
 	}
 
@@ -307,17 +279,13 @@ public class SmarterLeaderLatch implements Closeable
 	 * @throws EOFException         if the instance is {@linkplain #close() closed}
 	 *                              while waiting
 	 */
-	public void await() throws InterruptedException, EOFException
-	{
-		synchronized(this)
-		{
-			while ( (state.get() == State.STARTED) && !hasLeadership.get() )
-			{
+	public void await() throws InterruptedException, EOFException {
+		synchronized (this) {
+			while ((state.get() == State.STARTED) && !hasLeadership.get()) {
 				wait();
 			}
 		}
-		if ( state.get() != State.STARTED )
-		{
+		if (state.get() != State.STARTED) {
 			throw new EOFException();
 		}
 	}
@@ -360,14 +328,11 @@ public class SmarterLeaderLatch implements Closeable
 	 * @throws InterruptedException if the current thread is interrupted
 	 *                              while waiting
 	 */
-	public boolean await(long timeout, TimeUnit unit) throws InterruptedException
-	{
+	public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
 		long waitNanos = TimeUnit.NANOSECONDS.convert(timeout, unit);
 
-		synchronized(this)
-		{
-			while ( (waitNanos > 0) && (state.get() == State.STARTED) && !hasLeadership.get() )
-			{
+		synchronized (this) {
+			while ((waitNanos > 0) && (state.get() == State.STARTED) && !hasLeadership.get()) {
 				long startNanos = System.nanoTime();
 				TimeUnit.NANOSECONDS.timedWait(this, waitNanos);
 				long elapsed = System.nanoTime() - startNanos;
@@ -382,8 +347,7 @@ public class SmarterLeaderLatch implements Closeable
 	 *
 	 * @return participant Id
 	 */
-	public String getId()
-	{
+	public String getId() {
 		return id;
 	}
 
@@ -395,8 +359,7 @@ public class SmarterLeaderLatch implements Closeable
 	 *
 	 * @return the state of the current instance
 	 */
-	public State getState()
-	{
+	public State getState() {
 		return state.get();
 	}
 
@@ -405,43 +368,32 @@ public class SmarterLeaderLatch implements Closeable
 	 *
 	 * @return true/false
 	 */
-	public boolean hasLeadership()
-	{
+	public boolean hasLeadership() {
 		return (state.get() == State.STARTED) && hasLeadership.get();
 	}
 
 	volatile CountDownLatch debugResetWaitLatch = null;
 
-	void reset() throws Exception
-	{
+	void reset() throws Exception {
 		setLeadership(false);
 		setNode(null);
 
-		BackgroundCallback callback = new BackgroundCallback()
-		{
+		BackgroundCallback callback = new BackgroundCallback() {
 			@Override
-			public void processResult(CuratorFramework client, CuratorEvent event) throws Exception
-			{
-				if ( debugResetWaitLatch != null )
-				{
+			public void processResult(CuratorFramework client, CuratorEvent event) throws Exception {
+				if (debugResetWaitLatch != null) {
 					debugResetWaitLatch.await();
 					debugResetWaitLatch = null;
 				}
 
-				if ( event.getResultCode() == KeeperException.Code.OK.intValue() )
-				{
+				if (event.getResultCode() == KeeperException.Code.OK.intValue()) {
 					setNode(event.getName());
-					if ( state.get() == State.CLOSED )
-					{
+					if (state.get() == State.CLOSED) {
 						setNode(null);
-					}
-					else
-					{
+					} else {
 						getChildren();
 					}
-				}
-				else
-				{
+				} else {
 					log.error("getChildren() failed. rc = " + event.getResultCode());
 				}
 			}
@@ -449,65 +401,45 @@ public class SmarterLeaderLatch implements Closeable
 		client.create().creatingParentsIfNeeded().withProtection().withMode(CreateMode.EPHEMERAL_SEQUENTIAL).inBackground(callback).forPath(ZKPaths.makePath(latchPath, LOCK_NAME), id.getBytes("UTF-8"));
 	}
 
-	private synchronized void internalStart()
-	{
-		if ( state.get() == State.STARTED )
-		{
+	private synchronized void internalStart() {
+		if (state.get() == State.STARTED) {
 			client.getConnectionStateListenable().addListener(listener);
-			try
-			{
+			try {
 				reset();
-			}
-			catch ( Exception e )
-			{
+			} catch (Exception e) {
 				log.error("An error occurred checking resetting leadership.", e);
 			}
 		}
 	}
 
-	private void checkLeadership(List<String> children) throws Exception
-	{
+	private void checkLeadership(List<String> children) throws Exception {
 		final String localOurPath = ourPath.get();
 		List<String> sortedChildren = LockInternals.getSortedChildren(LOCK_NAME, sorter, children);
 		int ourIndex = (localOurPath != null) ? sortedChildren.indexOf(ZKPaths.getNodeFromPath(localOurPath)) : -1;
-		if ( ourIndex < 0 )
-		{
+		if (ourIndex < 0) {
 			log.error("Can't find our node. Resetting. Index: " + ourIndex);
 			reset();
-		}
-		else if ( ourIndex == 0 )
-		{
+		} else if (ourIndex == 0) {
 			setLeadership(true);
-		}
-		else
-		{
+		} else {
 			String watchPath = sortedChildren.get(ourIndex - 1);
-			Watcher watcher = new Watcher()
-			{
+			Watcher watcher = new Watcher() {
 				@Override
-				public void process(WatchedEvent event)
-				{
-					if ( (state.get() == State.STARTED) && (event.getType() == Event.EventType.NodeDeleted) && (localOurPath != null) )
-					{
-						try
-						{
+				public void process(WatchedEvent event) {
+					if ((state.get() == State.STARTED) && (event.getType() == Event.EventType.NodeDeleted) && (localOurPath != null)) {
+						try {
 							getChildren();
-						}
-						catch ( Exception ex )
-						{
+						} catch (Exception ex) {
 							log.error("An error occurred checking the leadership.", ex);
 						}
 					}
 				}
 			};
 
-			BackgroundCallback callback = new BackgroundCallback()
-			{
+			BackgroundCallback callback = new BackgroundCallback() {
 				@Override
-				public void processResult(CuratorFramework client, CuratorEvent event) throws Exception
-				{
-					if ( event.getResultCode() == KeeperException.Code.NONODE.intValue() )
-					{
+				public void processResult(CuratorFramework client, CuratorEvent event) throws Exception {
+					if (event.getResultCode() == KeeperException.Code.NONODE.intValue()) {
 						// previous node is gone - reset
 						reset();
 					}
@@ -518,15 +450,11 @@ public class SmarterLeaderLatch implements Closeable
 		}
 	}
 
-	private void getChildren() throws Exception
-	{
-		BackgroundCallback callback = new BackgroundCallback()
-		{
+	private void getChildren() throws Exception {
+		BackgroundCallback callback = new BackgroundCallback() {
 			@Override
-			public void processResult(CuratorFramework client, CuratorEvent event) throws Exception
-			{
-				if ( event.getResultCode() == KeeperException.Code.OK.intValue() )
-				{
+			public void processResult(CuratorFramework client, CuratorEvent event) throws Exception {
+				if (event.getResultCode() == KeeperException.Code.OK.intValue()) {
 					checkLeadership(event.getChildren());
 				}
 			}
@@ -534,27 +462,19 @@ public class SmarterLeaderLatch implements Closeable
 		client.getChildren().inBackground(callback).forPath(ZKPaths.makePath(latchPath, null));
 	}
 
-	private void handleStateChange(ConnectionState newState)
-	{
-		switch ( newState )
-		{
-			default:
-			{
+	private void handleStateChange(ConnectionState newState) {
+		switch (newState) {
+			default: {
 				// NOP
 				break;
 			}
 
-			case RECONNECTED:
-			{
+			case RECONNECTED: {
 				if (!hasLeadership()) {
-					try
-					{
+					try {
 						reset();
-					}
-					catch ( Exception e )
-					{
-						if ( e instanceof InterruptedException )
-						{
+					} catch (Exception e) {
+						if (e instanceof InterruptedException) {
 							Thread.currentThread().interrupt();
 						}
 						log.error("Could not reset leader latch", e);
@@ -564,8 +484,7 @@ public class SmarterLeaderLatch implements Closeable
 				break;
 			}
 
-			case SUSPENDED:
-			{
+			case SUSPENDED: {
 				Thread t = new Thread("Suspend state waiting handler") {
 					@Override
 					public void run() {
@@ -600,37 +519,28 @@ public class SmarterLeaderLatch implements Closeable
 				break;
 			}
 
-			case LOST:
-			{
+			case LOST: {
 				setLeadership(false);
 				break;
 			}
 		}
 	}
 
-	private synchronized void setLeadership(boolean newValue)
-	{
+	private synchronized void setLeadership(boolean newValue) {
 		boolean oldValue = hasLeadership.getAndSet(newValue);
 
-		if ( oldValue && !newValue )
-		{ // Lost leadership, was true, now false
-			listeners.forEach(new Function<LeaderLatchListener, Void>()
-			{
+		if (oldValue && !newValue) { // Lost leadership, was true, now false
+			listeners.forEach(new Function<LeaderLatchListener, Void>() {
 				@Override
-				public Void apply(LeaderLatchListener listener)
-				{
+				public Void apply(LeaderLatchListener listener) {
 					listener.notLeader();
 					return null;
 				}
 			});
-		}
-		else if ( !oldValue && newValue )
-		{ // Gained leadership, was false, now true
-			listeners.forEach(new Function<LeaderLatchListener, Void>()
-			{
+		} else if (!oldValue && newValue) { // Gained leadership, was false, now true
+			listeners.forEach(new Function<LeaderLatchListener, Void>() {
 				@Override
-				public Void apply(LeaderLatchListener input)
-				{
+				public Void apply(LeaderLatchListener input) {
 					input.isLeader();
 					return null;
 				}
@@ -640,11 +550,9 @@ public class SmarterLeaderLatch implements Closeable
 		notifyAll();
 	}
 
-	private void setNode(String newValue) throws Exception
-	{
+	private void setNode(String newValue) throws Exception {
 		String oldPath = ourPath.getAndSet(newValue);
-		if ( oldPath != null )
-		{
+		if (oldPath != null) {
 			client.delete().guaranteed().inBackground().forPath(oldPath);
 		}
 	}
