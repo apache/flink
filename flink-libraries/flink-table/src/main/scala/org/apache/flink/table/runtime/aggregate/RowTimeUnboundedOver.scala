@@ -28,6 +28,7 @@ import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.streaming.api.operators.TimestampedCollector
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.slf4j.LoggerFactory
@@ -43,8 +44,9 @@ import org.slf4j.LoggerFactory
 abstract class RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
-    inputType: TypeInformation[CRow])
-  extends ProcessFunction[CRow, CRow]
+    inputType: TypeInformation[CRow],
+    qConfig: StreamQueryConfig)
+  extends ProcessFunctionWithCleanupState[CRow, CRow](qConfig)
     with Compiler[GeneratedAggregations] {
 
   protected var output: CRow = _
@@ -83,6 +85,8 @@ abstract class RowTimeUnboundedOver(
       new MapStateDescriptor[Long, JList[Row]]("rowmapstate",
         BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]], rowListTypeInfo)
     rowMapState = getRuntimeContext.getMapState(mapStateDescriptor)
+
+    initCleanupTimeState("RowTimeUnboundedOverCleanupTime")
   }
 
   /**
@@ -102,6 +106,10 @@ abstract class RowTimeUnboundedOver(
     val input = inputC.row
 
     val timestamp = ctx.timestamp()
+
+    // register state-cleanup timer
+    registerEventCleanupTimer(ctx, timestamp)
+
     val curWatermark = ctx.timerService().currentWatermark()
 
     // discard late record
@@ -135,6 +143,12 @@ abstract class RowTimeUnboundedOver(
 
     Preconditions.checkArgument(out.isInstanceOf[TimestampedCollector[CRow]])
     val collector = out.asInstanceOf[TimestampedCollector[CRow]]
+
+    val isCleanup = cleanupStateOnTimer(timestamp, rowMapState, accumulatorState)
+
+    if (isCleanup) {
+      return
+    }
 
     val keyIterator = rowMapState.keys.iterator
     if (keyIterator.hasNext) {
@@ -221,11 +235,13 @@ abstract class RowTimeUnboundedOver(
 class RowTimeUnboundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
-    inputType: TypeInformation[CRow])
+    inputType: TypeInformation[CRow],
+    qConfig: StreamQueryConfig)
   extends RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
-    inputType) {
+    inputType,
+    qConfig) {
 
   override def processElementsWithSameTimestamp(
     curRowList: JList[Row],
@@ -259,11 +275,13 @@ class RowTimeUnboundedRowsOver(
 class RowTimeUnboundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
-    inputType: TypeInformation[CRow])
+    inputType: TypeInformation[CRow],
+    qConfig: StreamQueryConfig)
   extends RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
-    inputType) {
+    inputType,
+    qConfig) {
 
   override def processElementsWithSameTimestamp(
     curRowList: JList[Row],

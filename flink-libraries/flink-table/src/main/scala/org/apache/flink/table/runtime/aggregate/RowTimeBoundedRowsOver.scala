@@ -26,6 +26,7 @@ import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.types.Row
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -43,8 +44,9 @@ class RowTimeBoundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     aggregationStateType: RowTypeInfo,
     inputRowType: CRowTypeInfo,
-    precedingOffset: Long)
-  extends ProcessFunction[CRow, CRow]
+    precedingOffset: Long,
+    qConfig: StreamQueryConfig)
+extends ProcessFunctionWithCleanupState[CRow, CRow](qConfig)
     with Compiler[GeneratedAggregations] {
 
   Preconditions.checkNotNull(aggregationStateType)
@@ -106,6 +108,8 @@ class RowTimeBoundedRowsOver(
         valueTypeInformation)
 
     dataState = getRuntimeContext.getMapState(mapStateDescriptor)
+
+    initCleanupTimeState("RowTimeBoundedRowsOverCleanupTime")
   }
 
   override def processElement(
@@ -117,6 +121,9 @@ class RowTimeBoundedRowsOver(
 
     // triggering timestamp for trigger calculation
     val triggeringTs = ctx.timestamp
+
+    // register state-cleanup timer
+    registerEventCleanupTimer(ctx, triggeringTs)
 
     val lastTriggeringTs = lastTriggeringTsState.value
     // check if the data is expired, if not, save the data and register event time timer
@@ -141,6 +148,16 @@ class RowTimeBoundedRowsOver(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
 
+    val isCleanup = cleanupStateOnTimer(
+      timestamp,
+      lastTriggeringTsState,
+      dataCountState,
+      accumulatorState,
+      dataState)
+
+    if (isCleanup) {
+      return
+    }
     // gets all window data from state for the calculation
     val inputs: JList[Row] = dataState.get(timestamp)
 

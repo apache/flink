@@ -42,17 +42,11 @@ class GroupAggProcessFunction(
     private val aggregationStateType: RowTypeInfo,
     private val generateRetraction: Boolean,
     private val qConfig: StreamQueryConfig)
-  extends ProcessFunction[CRow, CRow]
+  extends ProcessFunctionWithCleanupState[CRow, CRow](qConfig)
     with Compiler[GeneratedAggregations] {
 
   val LOG: Logger = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
-
-  private val minRetentionTime = qConfig.getMinIdleStateRetentionTime
-  private val maxRetentionTime = qConfig.getMaxIdleStateRetentionTime
-  private val stateCleaningEnabled = minRetentionTime > 1 && maxRetentionTime > 1
-  // interval in which clean-up timers are registered
-  private val cleanupTimerInterval = maxRetentionTime - minRetentionTime
 
   private var newRow: CRow = _
   private var prevRow: CRow = _
@@ -62,7 +56,6 @@ class GroupAggProcessFunction(
   // counts the number of added and retracted input records
   private var cntState: ValueState[JLong] = _
   // holds the latest registered cleanup timer
-  private var cleanupTimeState: ValueState[JLong] = _
 
   override def open(config: Configuration) {
     LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
@@ -84,11 +77,7 @@ class GroupAggProcessFunction(
       new ValueStateDescriptor[JLong]("GroupAggregateInputCounter", Types.LONG)
     cntState = getRuntimeContext.getState(inputCntDescriptor)
 
-    if (stateCleaningEnabled) {
-      val inputCntDescriptor: ValueStateDescriptor[JLong] =
-        new ValueStateDescriptor[JLong]("GroupAggregateCleanupTime", Types.LONG)
-      cleanupTimeState = getRuntimeContext.getState(inputCntDescriptor)
-    }
+    initCleanupTimeState("GroupAggregateCleanupTime")
   }
 
   override def processElement(
@@ -96,22 +85,9 @@ class GroupAggProcessFunction(
       ctx: ProcessFunction[CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
 
-    if (stateCleaningEnabled) {
-
-      val currentTime = ctx.timerService().currentProcessingTime()
-      val earliestCleanup = currentTime + minRetentionTime
-
-      // last registered timer
-      val lastCleanupTime = cleanupTimeState.value()
-
-      if (lastCleanupTime == null || earliestCleanup >= lastCleanupTime + cleanupTimerInterval) {
-        // we need to register a new timer
-        val cleanupTime = earliestCleanup + cleanupTimerInterval
-        // register timer and remember clean-up time
-        ctx.timerService().registerProcessingTimeTimer(cleanupTime)
-        cleanupTimeState.update(cleanupTime)
-      }
-    }
+    val currentTime = ctx.timerService().currentProcessingTime()
+    // register state-cleanup timer
+    registerProcessingCleanupTimer(ctx, currentTime)
 
     val input = inputC.row
 
@@ -181,13 +157,7 @@ class GroupAggProcessFunction(
       timestamp: Long,
       ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
       out: Collector[CRow]): Unit = {
-
-    if (timestamp == cleanupTimeState.value()) {
-      // clear all state
-      this.state.clear()
-      this.cntState.clear()
-      this.cleanupTimeState.clear()
-    }
+    cleanupStateOnTimer(timestamp, state, cntState)
   }
 
 }

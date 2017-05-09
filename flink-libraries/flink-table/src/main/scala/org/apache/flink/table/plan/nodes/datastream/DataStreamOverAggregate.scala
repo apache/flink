@@ -138,6 +138,7 @@ class DataStreamOverAggregate(
         if (overWindow.lowerBound.isUnbounded && overWindow.upperBound.isCurrentRow) {
           // unbounded OVER window
           createUnboundedAndCurrentRowOverWindow(
+            qConfig,
             generator,
             inputDS,
             isRowTimeType = false,
@@ -147,6 +148,7 @@ class DataStreamOverAggregate(
             overWindow.upperBound.isCurrentRow) {
           // bounded OVER window
           createBoundedAndCurrentRowOverWindow(
+            qConfig,
             generator,
             inputDS,
             isRowTimeType = false,
@@ -162,6 +164,7 @@ class DataStreamOverAggregate(
           overWindow.lowerBound.isUnbounded && overWindow.upperBound.isCurrentRow) {
           // unbounded OVER window
           createUnboundedAndCurrentRowOverWindow(
+            qConfig,
             generator,
             inputDS,
             isRowTimeType = true,
@@ -169,6 +172,7 @@ class DataStreamOverAggregate(
         } else if (overWindow.lowerBound.isPreceding && overWindow.upperBound.isCurrentRow) {
           // bounded OVER window
           createBoundedAndCurrentRowOverWindow(
+            qConfig,
             generator,
             inputDS,
             isRowTimeType = true,
@@ -185,6 +189,7 @@ class DataStreamOverAggregate(
   }
 
   def createUnboundedAndCurrentRowOverWindow(
+    qConfig: StreamQueryConfig,
     generator: CodeGenerator,
     inputDS: DataStream[CRow],
     isRowTimeType: Boolean,
@@ -210,6 +215,7 @@ class DataStreamOverAggregate(
       inputSchema.physicalType,
       inputSchema.physicalTypeInfo,
       inputSchema.physicalFieldTypeInfo,
+      qConfig,
       isRowTimeType,
       partitionKeys.nonEmpty,
       isRowsClause)
@@ -242,6 +248,7 @@ class DataStreamOverAggregate(
   }
 
   def createBoundedAndCurrentRowOverWindow(
+    qConfig: StreamQueryConfig,
     generator: CodeGenerator,
     inputDS: DataStream[CRow],
     isRowTimeType: Boolean,
@@ -269,6 +276,7 @@ class DataStreamOverAggregate(
       inputSchema.physicalTypeInfo,
       inputSchema.physicalFieldTypeInfo,
       precedingOffset,
+      qConfig,
       isRowsClause,
       isRowTimeType
     )
