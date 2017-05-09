@@ -342,6 +342,9 @@ under the License.
 						<classpathDependencyExclude>org.apache.curator:curator-client</classpathDependencyExclude>
 						<classpathDependencyExclude>org.apache.curator:curator-framework</classpathDependencyExclude>
 					</classpathDependencyExcludes>
+					<!-- We override the fork behaviour for those expensive tests to avoid process
+					kills due to container limits on travis -->
+					<forkCount>${flink.forkCountTestPackage}</forkCount>
 					<reuseForks>false</reuseForks>
 					<environmentVariables>
 						<!-- Make sure external hadoop environment will not affect maven building -->
