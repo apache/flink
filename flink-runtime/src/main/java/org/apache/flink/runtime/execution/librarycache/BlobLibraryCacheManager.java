@@ -208,7 +208,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 			LOG.warn("Failed to run clean up task before shutdown", t);
 		}
 
-		blobService.shutdown();
+		blobService.close();
 		cleanupTimer.cancel();
 	}
 	

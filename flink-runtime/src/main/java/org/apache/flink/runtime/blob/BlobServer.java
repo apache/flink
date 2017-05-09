@@ -21,9 +21,9 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
 
@@ -94,19 +94,14 @@ public class BlobServer extends Thread implements BlobService {
 	/**
 	 * Instantiates a new BLOB server and binds it to a free network port.
 	 *
+	 * @param config Configuration to be used to instantiate the BlobServer
+	 * @param blobStore BlobStore to store blobs persistently
+	 *
 	 * @throws IOException
 	 * 		thrown if the BLOB server cannot bind to a free network port or if the
 	 * 		(local or distributed) file storage cannot be created or is not usable
 	 */
-	public BlobServer(Configuration config) throws IOException {
-		this(config, BlobUtils.createBlobStoreFromConfig(config));
-	}
-
-	public BlobServer(Configuration config, HighAvailabilityServices haServices) throws IOException {
-		this(config, haServices.createBlobStore());
-	}
-
-	private BlobServer(Configuration config, BlobStore blobStore) throws IOException {
+	public BlobServer(Configuration config, BlobStore blobStore) throws IOException {
 		this.blobServiceConfiguration = checkNotNull(config);
 		this.blobStore = checkNotNull(blobStore);
 
@@ -271,7 +266,12 @@ public class BlobServer extends Thread implements BlobService {
 		catch (Throwable t) {
 			if (!this.shutdownRequested.get()) {
 				LOG.error("BLOB server stopped working. Shutting down", t);
-				shutdown();
+
+				try {
+					close();
+				} catch (Throwable closeThrowable) {
+					LOG.error("Could not properly close the BlobServer.", closeThrowable);
+				}
 			}
 		}
 	}
@@ -280,13 +280,15 @@ public class BlobServer extends Thread implements BlobService {
 	 * Shuts down the BLOB server.
 	 */
 	@Override
-	public void shutdown() {
+	public void close() throws IOException {
 		if (shutdownRequested.compareAndSet(false, true)) {
+			Exception exception = null;
+
 			try {
 				this.serverSocket.close();
 			}
 			catch (IOException ioe) {
-				LOG.debug("Error while closing the server socket.", ioe);
+				exception = ioe;
 			}
 
 			// wake the thread up, in case it is waiting on some operation
@@ -296,13 +298,15 @@ public class BlobServer extends Thread implements BlobService {
 				join();
 			}
 			catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
+
 				LOG.debug("Error while waiting for this thread to die.", ie);
 			}
 
 			synchronized (activeConnections) {
 				if (!activeConnections.isEmpty()) {
 					for (BlobServerConnection conn : activeConnections) {
-						LOG.debug("Shutting down connection " + conn.getName());
+						LOG.debug("Shutting down connection {}.", conn.getName());
 						conn.close();
 					}
 					activeConnections.clear();
@@ -314,7 +318,7 @@ public class BlobServer extends Thread implements BlobService {
 				FileUtils.deleteDirectory(storageDir);
 			}
 			catch (IOException e) {
-				LOG.error("BLOB server failed to properly clean up its storage directory.");
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
 			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
@@ -327,13 +331,15 @@ public class BlobServer extends Thread implements BlobService {
 					// race, JVM is in shutdown already, we can safely ignore this
 				}
 				catch (Throwable t) {
-					LOG.warn("Exception while unregistering BLOB server's cleanup shutdown hook.");
+					LOG.warn("Exception while unregistering BLOB server's cleanup shutdown hook.", t);
 				}
 			}
 
 			if(LOG.isInfoEnabled()) {
 				LOG.info("Stopped BLOB server at {}:{}", serverSocket.getInetAddress().getHostAddress(), getPort());
 			}
+
+			ExceptionUtils.tryRethrowIOException(exception);
 		}
 	}
 

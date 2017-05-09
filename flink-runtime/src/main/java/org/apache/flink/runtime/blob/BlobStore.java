@@ -26,7 +26,7 @@ import java.io.IOException;
 /**
  * A blob store.
  */
-public interface BlobStore {
+public interface BlobStore extends BlobView {
 
 	/**
 	 * Copies the local file to the blob store.
@@ -48,25 +48,6 @@ public interface BlobStore {
 	 * @throws IOException If the copy fails
 	 */
 	void put(File localFile, JobID jobId, String key) throws IOException;
-
-	/**
-	 * Copies a blob to a local file.
-	 *
-	 * @param blobKey   The blob ID
-	 * @param localFile The local file to copy to
-	 * @throws IOException If the copy fails
-	 */
-	void get(BlobKey blobKey, File localFile) throws IOException;
-
-	/**
-	 * Copies a blob to a local file.
-	 *
-	 * @param jobId     The JobID part of ID for the blob
-	 * @param key       The String part of ID for the blob
-	 * @param localFile The local file to copy to
-	 * @throws IOException If the copy fails
-	 */
-	void get(JobID jobId, String key, File localFile) throws IOException;
 
 	/**
 	 * Tries to delete a blob from storage.
@@ -95,9 +76,4 @@ public interface BlobStore {
 	 * @param jobId The JobID part of all blobs to delete
 	 */
 	void deleteAll(JobID jobId);
-
-	/**
-	 * Cleans up the store and deletes all blobs.
-	 */
-	void cleanUp();
 }

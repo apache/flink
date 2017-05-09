@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -153,6 +154,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				webMonitor[i] = new WebRuntimeMonitor(
 					config,
 					highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+					highAvailabilityServices.createBlobStore(),
 					jobManagerSystem[i]);
 			}
 
@@ -293,9 +295,11 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 			actorSystem = AkkaUtils.createDefaultActorSystem();
 
-			LeaderRetrievalService leaderRetrievalService = mock(LeaderRetrievalService.class);
 			webRuntimeMonitor = new WebRuntimeMonitor(
-					config, leaderRetrievalService, actorSystem);
+				config,
+				mock(LeaderRetrievalService.class),
+				mock(BlobView.class),
+				actorSystem);
 
 			webRuntimeMonitor.start("akka://schmakka");
 
@@ -466,10 +470,12 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
 		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
 
+		HighAvailabilityServices highAvailabilityServices = flink.highAvailabilityServices();
+
 		WebRuntimeMonitor webMonitor = new WebRuntimeMonitor(
 			config,
-			flink.highAvailabilityServices().getJobManagerLeaderRetriever(
-				HighAvailabilityServices.DEFAULT_JOB_ID),
+			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+			highAvailabilityServices.createBlobStore(),
 			jmActorSystem);
 
 		webMonitor.start(jobManagerAddress);
