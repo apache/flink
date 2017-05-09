@@ -26,9 +26,9 @@ import akka.actor._
 import akka.pattern.{ask => akkaAsk}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration}
+import org.apache.flink.configuration.{AkkaOptions, Configuration, SecurityOptions}
 import org.apache.flink.runtime.net.SSLUtils
-import org.apache.flink.util.{ConfigurationException, NetUtils, Preconditions}
+import org.apache.flink.util.NetUtils
 import org.jboss.netty.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
 import org.slf4j.LoggerFactory
 
@@ -301,33 +301,19 @@ object AkkaUtils {
 
     val akkaEnableSSL = if (akkaEnableSSLConfig) "on" else "off"
 
-    val akkaSSLKeyStore = configuration.getString(
-      ConfigConstants.SECURITY_SSL_KEYSTORE,
-      null)
+    val akkaSSLKeyStore = configuration.getString(SecurityOptions.SSL_KEYSTORE)
 
-    val akkaSSLKeyStorePassword = configuration.getString(
-      ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD,
-      null)
+    val akkaSSLKeyStorePassword = configuration.getString(SecurityOptions.SSL_KEYSTORE_PASSWORD)
 
-    val akkaSSLKeyPassword = configuration.getString(
-      ConfigConstants.SECURITY_SSL_KEY_PASSWORD,
-      null)
+    val akkaSSLKeyPassword = configuration.getString(SecurityOptions.SSL_KEY_PASSWORD)
 
-    val akkaSSLTrustStore = configuration.getString(
-      ConfigConstants.SECURITY_SSL_TRUSTSTORE,
-      null)
+    val akkaSSLTrustStore = configuration.getString(SecurityOptions.SSL_TRUSTSTORE)
 
-    val akkaSSLTrustStorePassword = configuration.getString(
-      ConfigConstants.SECURITY_SSL_TRUSTSTORE_PASSWORD,
-      null)
+    val akkaSSLTrustStorePassword = configuration.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD)
 
-    val akkaSSLProtocol = configuration.getString(
-      ConfigConstants.SECURITY_SSL_PROTOCOL,
-      ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL)
+    val akkaSSLProtocol = configuration.getString(SecurityOptions.SSL_PROTOCOL)
 
-    val akkaSSLAlgorithmsString = configuration.getString(
-      ConfigConstants.SECURITY_SSL_ALGORITHMS,
-      ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS)
+    val akkaSSLAlgorithmsString = configuration.getString(SecurityOptions.SSL_ALGORITHMS)
     val akkaSSLAlgorithms = akkaSSLAlgorithmsString.split(",").toList.mkString("[", ",", "]")
 
     val configString =
