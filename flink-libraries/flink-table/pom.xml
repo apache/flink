@@ -237,6 +237,16 @@ under the License.
 									<shadedPattern>org.apache.flink.shaded.calcite.org.eigenbase</shadedPattern>
 								</relocation>
 							</relocations>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+									<resource>META-INF/PACKAGED_LICENSES/janino/LICENSE</resource>
+									<file>./src/main/resources/janino/LICENSE</file>
+								</transformer>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+									<resource>META-INF/PACKAGED_LICENSES/reflections/LICENSE</resource>
+									<file>./src/main/resources/reflections/LICENSE</file>
+								</transformer>
+							</transformers>
 						</configuration>
 					</execution>
 				</executions>
