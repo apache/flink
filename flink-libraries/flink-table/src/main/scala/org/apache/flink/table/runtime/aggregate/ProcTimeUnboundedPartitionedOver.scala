@@ -24,6 +24,7 @@ import org.apache.flink.util.Collector
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.common.state.ValueState
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.CRow
 import org.slf4j.LoggerFactory
@@ -36,8 +37,9 @@ import org.slf4j.LoggerFactory
   */
 class ProcTimeUnboundedPartitionedOver(
     genAggregations: GeneratedAggregationsFunction,
-    aggregationStateType: RowTypeInfo)
-  extends ProcessFunction[CRow, CRow]
+    aggregationStateType: RowTypeInfo,
+    queryConfig: StreamQueryConfig)
+  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
 
   private var output: CRow = _
@@ -59,12 +61,17 @@ class ProcTimeUnboundedPartitionedOver(
     val stateDescriptor: ValueStateDescriptor[Row] =
       new ValueStateDescriptor[Row]("overState", aggregationStateType)
     state = getRuntimeContext.getState(stateDescriptor)
+
+    initCleanupTimeState("ProcTimeUnboundedPartitionedOverCleanupTime")
   }
 
   override def processElement(
     inputC: CRow,
     ctx: ProcessFunction[CRow, CRow]#Context,
     out: Collector[CRow]): Unit = {
+
+    // register state-cleanup timer
+    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
     val input = inputC.row
 
@@ -83,4 +90,13 @@ class ProcTimeUnboundedPartitionedOver(
     out.collect(output)
   }
 
+  override def onTimer(
+    timestamp: Long,
+    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+    out: Collector[CRow]): Unit = {
+
+    if (needToCleanupState(timestamp)) {
+      cleanupState(state)
+    }
+  }
 }

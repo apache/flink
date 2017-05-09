@@ -100,7 +100,7 @@ class StreamTableSourceScan(
 
   override def translateToPlan(
       tableEnv: StreamTableEnvironment,
-      qConfig: StreamQueryConfig): DataStream[CRow] = {
+      queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     val config = tableEnv.getConfig
     val inputDataStream = tableSource.getDataStream(tableEnv.execEnv).asInstanceOf[DataStream[Any]]

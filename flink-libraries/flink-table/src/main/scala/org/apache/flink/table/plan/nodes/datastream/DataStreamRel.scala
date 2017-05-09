@@ -29,12 +29,12 @@ trait DataStreamRel extends FlinkRelNode {
     * Translates the FlinkRelNode into a Flink operator.
     *
     * @param tableEnv The [[StreamTableEnvironment]] of the translated Table.
-    * @param qConfig The configuration for the query to generate.
+    * @param queryConfig The configuration for the query to generate.
     * @return DataStream of type [[CRow]]
     */
   def translateToPlan(
     tableEnv: StreamTableEnvironment,
-    qConfig: StreamQueryConfig): DataStream[CRow]
+    queryConfig: StreamQueryConfig): DataStream[CRow]
 
   /**
     * Whether the [[DataStreamRel]] requires that update and delete changes are sent with retraction

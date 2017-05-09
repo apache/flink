@@ -764,13 +764,13 @@ class Table(
     */
   def writeToSink[T](sink: TableSink[T]): Unit = {
 
-    def qConfig = this.tableEnv match {
-      case s: StreamTableEnvironment => s.qConf
+    def queryConfig = this.tableEnv match {
+      case s: StreamTableEnvironment => s.queryConfig
       case b: BatchTableEnvironment => new BatchQueryConfig
       case _ => null
     }
 
-    writeToSink(sink, qConfig)
+    writeToSink(sink, queryConfig)
   }
 
   /**
