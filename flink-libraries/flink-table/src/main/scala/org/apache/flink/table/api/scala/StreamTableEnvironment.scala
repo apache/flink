@@ -143,7 +143,7 @@ class StreamTableEnvironment(
     * @return The converted [[DataStream]].
     */
   def toDataStream[T: TypeInformation](table: Table): DataStream[T] = {
-    toDataStream(table, qConf)
+    toDataStream(table, queryConfig)
   }
 
   /**
@@ -158,14 +158,16 @@ class StreamTableEnvironment(
     * - POJO [[DataStream]] types: Fields are mapped by field name, field types must match.
     *
     * @param table The [[Table]] to convert.
-    * @param qConfig The configuration of the query to generate.
+    * @param queryConfig The configuration of the query to generate.
     * @tparam T The type of the resulting [[DataStream]].
     * @return The converted [[DataStream]].
     */
-  def toDataStream[T: TypeInformation](table: Table, qConfig: StreamQueryConfig): DataStream[T] = {
+  def toDataStream[T: TypeInformation](
+    table: Table,
+    queryConfig: StreamQueryConfig): DataStream[T] = {
     val returnType = createTypeInformation[T]
-    asScalaStream(
-      translate(table, qConfig, updatesAsRetraction = false, withChangeFlag = false)(returnType))
+    asScalaStream(translate(
+      table, queryConfig, updatesAsRetraction = false, withChangeFlag = false)(returnType))
   }
 
 /**
@@ -180,7 +182,7 @@ class StreamTableEnvironment(
   * @return The converted [[DataStream]].
   */
   def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)] = {
-    toRetractStream(table, qConf)
+    toRetractStream(table, queryConfig)
   }
 
   /**
@@ -191,16 +193,16 @@ class StreamTableEnvironment(
     * A true [[Boolean]] flag indicates an add message, a false flag indicates a retract message.
     *
     * @param table The [[Table]] to convert.
-    * @param qConfig The configuration of the query to generate.
+    * @param queryConfig The configuration of the query to generate.
     * @tparam T The type of the requested data type.
     * @return The converted [[DataStream]].
     */
   def toRetractStream[T: TypeInformation](
       table: Table,
-      qConfig: StreamQueryConfig): DataStream[(Boolean, T)] = {
+      queryConfig: StreamQueryConfig): DataStream[(Boolean, T)] = {
     val returnType = createTypeInformation[(Boolean, T)]
     asScalaStream(
-      translate(table, qConfig, updatesAsRetraction = true, withChangeFlag = true)(returnType))
+      translate(table, queryConfig, updatesAsRetraction = true, withChangeFlag = true)(returnType))
   }
 
   /**

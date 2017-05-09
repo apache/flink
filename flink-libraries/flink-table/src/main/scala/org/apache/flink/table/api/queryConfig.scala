@@ -31,7 +31,7 @@ class BatchQueryConfig private[table] extends QueryConfig
 /**
   * The [[StreamQueryConfig]] holds parameters to configure the behavior of streaming queries.
   *
-  * An empty [[StreamQueryConfig]] can be generated using the [[StreamTableEnvironment.qConf]]
+  * An empty [[StreamQueryConfig]] can be generated using the [[StreamTableEnvironment.queryConfig]]
   * method.
   */
 class StreamQueryConfig private[table] extends QueryConfig {
@@ -56,15 +56,15 @@ class StreamQueryConfig private[table] extends QueryConfig {
     * When new data arrives for previously cleaned-up state, the new data will be handled as if it
     * was the first data. This can result in previous results being overwritten.
     *
-    * Note: [[setIdleStateRetentionTime(minTime: Time, maxTime: Time)]] allows to set a minimum and
+    * Note: [[withIdleStateRetentionTime(minTime: Time, maxTime: Time)]] allows to set a minimum and
     * maximum time for state to be retained. This method is more efficient, because the system has
     * to do less bookkeeping to identify the time at which state must be cleared.
     *
     * @param time The time interval for how long idle state is retained. Set to 0 (zero) to never
     *             clean-up the state.
     */
-  def setIdleStateRetentionTime(time: Time): StreamQueryConfig = {
-    setIdleStateRetentionTime(time, time)
+  def withIdleStateRetentionTime(time: Time): StreamQueryConfig = {
+    withIdleStateRetentionTime(time, time)
   }
 
   /**
@@ -83,7 +83,7 @@ class StreamQueryConfig private[table] extends QueryConfig {
     * @param maxTime The maximum time interval for which idle state is retained. May not be smaller
     *                than than minTime. Set to 0 (zero) to never clean-up the state.
     */
-  def setIdleStateRetentionTime(minTime: Time, maxTime: Time): StreamQueryConfig = {
+  def withIdleStateRetentionTime(minTime: Time, maxTime: Time): StreamQueryConfig = {
     if (maxTime.toMilliseconds < minTime.toMilliseconds) {
       throw new IllegalArgumentException("maxTime may not be smaller than minTime.")
     }

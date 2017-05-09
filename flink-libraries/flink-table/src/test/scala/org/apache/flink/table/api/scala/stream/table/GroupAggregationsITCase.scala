@@ -18,11 +18,12 @@
 
 package org.apache.flink.table.api.scala.stream.table
 
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
 import org.apache.flink.table.api.scala.stream.utils.StreamITCase.RetractingSink
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
@@ -34,6 +35,8 @@ import scala.collection.mutable
   * Tests of groupby (without window) aggregations
   */
 class GroupAggregationsITCase extends StreamingWithStateTestBase {
+  private val queryConfig = new StreamQueryConfig()
+  queryConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
 
   @Test
   def testNonKeyedGroupAggregate(): Unit = {
@@ -45,7 +48,7 @@ class GroupAggregationsITCase extends StreamingWithStateTestBase {
     val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
             .select('a.sum, 'b.sum)
 
-    val results = t.toRetractStream[Row]
+    val results = t.toRetractStream[Row](queryConfig)
     results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
@@ -64,7 +67,7 @@ class GroupAggregationsITCase extends StreamingWithStateTestBase {
       .groupBy('b)
       .select('b, 'a.sum)
 
-    val results = t.toRetractStream[Row]
+    val results = t.toRetractStream[Row](queryConfig)
     results.addSink(new StreamITCase.RetractingSink)
     env.execute()
 
@@ -85,7 +88,7 @@ class GroupAggregationsITCase extends StreamingWithStateTestBase {
       .groupBy('cnt)
       .select('cnt, 'b.count as 'freq)
 
-    val results = t.toRetractStream[Row]
+    val results = t.toRetractStream[Row](queryConfig)
 
     results.addSink(new RetractingSink)
     env.execute()
@@ -104,7 +107,7 @@ class GroupAggregationsITCase extends StreamingWithStateTestBase {
       .groupBy('e, 'b % 3)
       .select('c.min, 'e, 'a.avg, 'd.count)
 
-    val results = t.toRetractStream[Row]
+    val results = t.toRetractStream[Row](queryConfig)
     results.addSink(new RetractingSink)
     env.execute()
 

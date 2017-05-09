@@ -33,6 +33,7 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo
 import java.util.{List => JList}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.slf4j.LoggerFactory
@@ -49,8 +50,9 @@ class ProcTimeBoundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     precedingOffset: Long,
     aggregatesTypeInfo: RowTypeInfo,
-    inputType: TypeInformation[CRow])
-  extends ProcessFunction[CRow, CRow]
+    inputType: TypeInformation[CRow],
+    queryConfig: StreamQueryConfig)
+  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
 
   Preconditions.checkArgument(precedingOffset > 0)
@@ -99,6 +101,8 @@ class ProcTimeBoundedRowsOver(
     val smallestTimestampDescriptor : ValueStateDescriptor[Long] =
        new ValueStateDescriptor[Long]("smallestTSState", classOf[Long])
     smallestTsState = getRuntimeContext.getState(smallestTimestampDescriptor)
+
+    initCleanupTimeState("ProcTimeBoundedRowsOverCleanupTime")
   }
 
   override def processElement(
@@ -109,6 +113,9 @@ class ProcTimeBoundedRowsOver(
     val input = inputC.row
 
     val currentTime = ctx.timerService.currentProcessingTime
+
+    // register state-cleanup timer
+    registerProcessingCleanupTimer(ctx, currentTime)
 
     // initialize state for the processed element
     var accumulators = accumulatorState.value
@@ -180,4 +187,13 @@ class ProcTimeBoundedRowsOver(
     out.collect(output)
   }
 
+  override def onTimer(
+    timestamp: Long,
+    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+    out: Collector[CRow]): Unit = {
+
+    if (needToCleanupState(timestamp)) {
+      cleanupState(rowMapState, accumulatorState, counterState, smallestTsState)
+    }
+  }
 }

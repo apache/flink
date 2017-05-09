@@ -113,17 +113,17 @@ abstract class BatchTableEnvironment(
     *
     * @param table The [[Table]] to write.
     * @param sink The [[TableSink]] to write the [[Table]] to.
-    * @param qConfig The configuration for the query to generate.
+    * @param queryConfig The configuration for the query to generate.
     * @tparam T The expected type of the [[DataSet]] which represents the [[Table]].
     */
   override private[flink] def writeToSink[T](
       table: Table,
       sink: TableSink[T],
-      qConfig: QueryConfig): Unit = {
+      queryConfig: QueryConfig): Unit = {
 
     // We do not pass the configuration on, because there is nothing to configure for batch queries.
-    val bQConfig = qConfig match {
-      case batchConfig: BatchQueryConfig => batchConfig
+    queryConfig match {
+      case _: BatchQueryConfig =>
       case _ =>
         throw new TableException("BatchQueryConfig required to configure batch query.")
     }

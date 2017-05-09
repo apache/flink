@@ -28,7 +28,7 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
   override private[flink] def writeToSink[T](
       table: Table,
       sink: TableSink[T],
-      qConfig: QueryConfig): Unit = ???
+      queryConfig: QueryConfig): Unit = ???
 
   override protected def checkValidTableName(name: String): Unit = ???
 

@@ -31,6 +31,7 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo
 import java.util.{ArrayList, List => JList}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.slf4j.LoggerFactory
@@ -48,9 +49,11 @@ class ProcTimeBoundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
     precedingTimeBoundary: Long,
     aggregatesTypeInfo: RowTypeInfo,
-    inputType: TypeInformation[CRow])
-  extends ProcessFunction[CRow, CRow]
+    inputType: TypeInformation[CRow],
+    queryConfig: StreamQueryConfig)
+  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
+
   private var output: CRow = _
   private var accumulatorState: ValueState[Row] = _
   private var rowMapState: MapState[Long, JList[Row]] = _
@@ -81,6 +84,8 @@ class ProcTimeBoundedRangeOver(
     val stateDescriptor: ValueStateDescriptor[Row] =
       new ValueStateDescriptor[Row]("overState", aggregatesTypeInfo)
     accumulatorState = getRuntimeContext.getState(stateDescriptor)
+
+    initCleanupTimeState("ProcTimeBoundedRangeOverCleanupTime")
   }
 
   override def processElement(
@@ -89,6 +94,9 @@ class ProcTimeBoundedRangeOver(
     out: Collector[CRow]): Unit = {
 
     val currentTime = ctx.timerService.currentProcessingTime
+    // register state-cleanup timer
+    registerProcessingCleanupTimer(ctx, currentTime)
+
     // buffer the event incoming event
 
     // add current element to the window list of elements with corresponding timestamp
@@ -109,7 +117,15 @@ class ProcTimeBoundedRangeOver(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
 
-    // we consider the original timestamp of events that have registered this time trigger 1 ms ago
+    if (needToCleanupState(timestamp)) {
+      // clean up and return
+      cleanupState(rowMapState, accumulatorState)
+      return
+    }
+
+    // we consider the original timestamp of events
+    // that have registered this time trigger 1 ms ago
+
     val currentTime = timestamp - 1
     var i = 0
 
@@ -153,7 +169,8 @@ class ProcTimeBoundedRangeOver(
 
     // get the list of elements of current proctime
     val currentElements = rowMapState.get(currentTime)
-    // add current elements to aggregator. Multiple elements might have arrived in the same proctime
+    // add current elements to aggregator. Multiple elements might
+    // have arrived in the same proctime
     // the same accumulator value will be computed for all elements
     var iElemenets = 0
     while (iElemenets < currentElements.size()) {
@@ -178,7 +195,6 @@ class ProcTimeBoundedRangeOver(
 
     // update the value of accumulators for future incremental computation
     accumulatorState.update(accumulators)
-
   }
 
 }

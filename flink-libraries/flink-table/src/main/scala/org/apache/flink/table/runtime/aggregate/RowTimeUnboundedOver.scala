@@ -28,6 +28,7 @@ import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.streaming.api.operators.TimestampedCollector
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.slf4j.LoggerFactory
@@ -43,8 +44,9 @@ import org.slf4j.LoggerFactory
 abstract class RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
-    inputType: TypeInformation[CRow])
-  extends ProcessFunction[CRow, CRow]
+    inputType: TypeInformation[CRow],
+    queryConfig: StreamQueryConfig)
+  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
 
   protected var output: CRow = _
@@ -83,6 +85,8 @@ abstract class RowTimeUnboundedOver(
       new MapStateDescriptor[Long, JList[Row]]("rowmapstate",
         BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]], rowListTypeInfo)
     rowMapState = getRuntimeContext.getMapState(mapStateDescriptor)
+
+    initCleanupTimeState("RowTimeUnboundedOverCleanupTime")
   }
 
   /**
@@ -100,6 +104,9 @@ abstract class RowTimeUnboundedOver(
      out: Collector[CRow]): Unit = {
 
     val input = inputC.row
+
+    // register state-cleanup timer
+    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
     val timestamp = ctx.timestamp()
     val curWatermark = ctx.timerService().currentWatermark()
@@ -132,6 +139,24 @@ abstract class RowTimeUnboundedOver(
       timestamp: Long,
       ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
       out: Collector[CRow]): Unit = {
+
+    if (isProcessingTimeTimer(ctx.asInstanceOf[OnTimerContext])) {
+      if (needToCleanupState(timestamp)) {
+
+        // we check whether there are still records which have not been processed yet
+        val noRecordsToProcess = !rowMapState.keys.iterator().hasNext
+        if (noRecordsToProcess) {
+          // we clean the state
+          cleanupState(rowMapState, accumulatorState)
+        } else {
+          // There are records left to process because a watermark has not been received yet.
+          // This would only happen if the input stream has stopped. So we don't need to clean up.
+          // We leave the state as it is and schedule a new cleanup timer
+          registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+        }
+      }
+      return
+    }
 
     Preconditions.checkArgument(out.isInstanceOf[TimestampedCollector[CRow]])
     val collector = out.asInstanceOf[TimestampedCollector[CRow]]
@@ -178,6 +203,9 @@ abstract class RowTimeUnboundedOver(
         ctx.timerService.registerEventTimeTimer(curWatermark + 1)
       }
     }
+
+    // update cleanup timer
+    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
   }
 
   /**
@@ -221,11 +249,13 @@ abstract class RowTimeUnboundedOver(
 class RowTimeUnboundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
-    inputType: TypeInformation[CRow])
+    inputType: TypeInformation[CRow],
+    queryConfig: StreamQueryConfig)
   extends RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
-    inputType) {
+    inputType,
+    queryConfig) {
 
   override def processElementsWithSameTimestamp(
     curRowList: JList[Row],
@@ -259,11 +289,13 @@ class RowTimeUnboundedRowsOver(
 class RowTimeUnboundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
-    inputType: TypeInformation[CRow])
+    inputType: TypeInformation[CRow],
+    queryConfig: StreamQueryConfig)
   extends RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
-    inputType) {
+    inputType,
+    queryConfig) {
 
   override def processElementsWithSameTimestamp(
     curRowList: JList[Row],
