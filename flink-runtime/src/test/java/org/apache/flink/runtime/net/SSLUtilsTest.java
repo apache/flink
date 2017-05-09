@@ -17,7 +17,6 @@
  */
 package org.apache.flink.runtime.net;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.junit.Assert;
@@ -163,7 +162,7 @@ public class SSLUtilsTest {
 		serverConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
 		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
 		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1.1");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA256");
+		serverConfig.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA256");
 
 		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
 		ServerSocket socket = null;
@@ -204,7 +203,7 @@ public class SSLUtilsTest {
 		serverConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
 		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
 		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1");
-		serverConfig.setString(ConfigConstants.SECURITY_SSL_ALGORITHMS, "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA256");
+		serverConfig.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA256");
 
 		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
 		SSLEngine engine = serverContext.createSSLEngine();

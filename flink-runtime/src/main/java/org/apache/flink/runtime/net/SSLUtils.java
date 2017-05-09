@@ -69,9 +69,7 @@ public class SSLUtils {
 		if (socket instanceof SSLServerSocket) {
 			final String[] protocols = config.getString(SecurityOptions.SSL_PROTOCOL).split(",");
 
-			final String[] cipherSuites = config.getString(
-					ConfigConstants.SECURITY_SSL_ALGORITHMS,
-					ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS).split(",");
+			final String[] cipherSuites = config.getString(SecurityOptions.SSL_ALGORITHMS).split(",");
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Configuring TLS version and cipher suites on SSL socket {} / {}",
@@ -92,9 +90,7 @@ public class SSLUtils {
 	 */
 	public static void setSSLVerAndCipherSuites(SSLEngine engine, Configuration config) {
 		engine.setEnabledProtocols(config.getString(SecurityOptions.SSL_PROTOCOL).split(","));
-		engine.setEnabledCipherSuites(config.getString(
-			ConfigConstants.SECURITY_SSL_ALGORITHMS,
-			ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS).split(","));
+		engine.setEnabledCipherSuites(config.getString(SecurityOptions.SSL_ALGORITHMS).split(","));
 	}
 
 	/**

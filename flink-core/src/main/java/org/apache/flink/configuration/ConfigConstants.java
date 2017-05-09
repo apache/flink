@@ -879,9 +879,9 @@ public final class ConfigConstants {
 	public static final String SECURITY_SSL_PROTOCOL = "security.ssl.protocol";
 
 	/**
-	 * The standard SSL algorithms to be supported
-	 * More options here - http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites
-	 * */
+	 * @deprecated use {@link SecurityOptions#SSL_ALGORITHMS} instead
+	 */
+	@Deprecated
 	public static final String SECURITY_SSL_ALGORITHMS = "security.ssl.algorithms";
 
 	/** Flag to enable/disable hostname verification for the ssl connections */
@@ -1572,6 +1572,10 @@ public final class ConfigConstants {
 	@Deprecated
 	public static String DEFAULT_SECURITY_SSL_PROTOCOL = "TLSv1.2";
 
+	/**
+	 * @deprecated use {@link SecurityOptions#SSL_ALGORITHMS} instead
+	 */
+	@Deprecated
 	public static String DEFAULT_SECURITY_SSL_ALGORITHMS = "TLS_RSA_WITH_AES_128_CBC_SHA";
 
 	public static boolean DEFAULT_SECURITY_SSL_VERIFY_HOSTNAME = true;

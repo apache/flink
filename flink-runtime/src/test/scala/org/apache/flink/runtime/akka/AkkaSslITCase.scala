@@ -90,7 +90,7 @@ class AkkaSslITCase(_system: ActorSystem)
           getClass.getResource("/local127.truststore").getPath)
 
         config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password")
-        config.setString(ConfigConstants.SECURITY_SSL_ALGORITHMS, "TLSv1,TLSv1.1")
+        config.setString(SecurityOptions.SSL_ALGORITHMS, "TLSv1,TLSv1.1")
 
         val cluster = new TestingCluster(config, false)
 

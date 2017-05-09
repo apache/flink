@@ -119,4 +119,13 @@ public class SecurityOptions {
 	public static final ConfigOption<String> SSL_PROTOCOL =
 		key("security.ssl.protocol")
 			.defaultValue("TLSv1.2");
+
+	/**
+	 * The standard SSL algorithms to be supported.
+	 *
+	 * <p>More options here - http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites
+	 */
+	public static final ConfigOption<String> SSL_ALGORITHMS =
+		key("security.ssl.algorithms")
+			.defaultValue("TLS_RSA_WITH_AES_128_CBC_SHA");
 }

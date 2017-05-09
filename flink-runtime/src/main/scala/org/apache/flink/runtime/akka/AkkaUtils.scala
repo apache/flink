@@ -313,9 +313,7 @@ object AkkaUtils {
 
     val akkaSSLProtocol = configuration.getString(SecurityOptions.SSL_PROTOCOL)
 
-    val akkaSSLAlgorithmsString = configuration.getString(
-      ConfigConstants.SECURITY_SSL_ALGORITHMS,
-      ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS)
+    val akkaSSLAlgorithmsString = configuration.getString(SecurityOptions.SSL_ALGORITHMS)
     val akkaSSLAlgorithms = akkaSSLAlgorithmsString.split(",").toList.mkString("[", ",", "]")
 
     val configString =
