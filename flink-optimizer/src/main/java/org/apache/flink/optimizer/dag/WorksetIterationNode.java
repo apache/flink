@@ -434,7 +434,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		for (PlanNode worksetCandidate : worksetCandidates) {
 			for (PlanNode solutionSetCandidate : solutionSetDeltaCandidates) {
 				// check whether they have the same operator at their latest branching point
-				if (this.singleRoot.areBranchCompatible(solutionSetCandidate, worksetCandidate)) {
+				if (this.singleRoot.areBranchCompatible(solutionSetCandidate, worksetCandidate) && solutionSetCandidate instanceof SingleInputPlanNode) {
 					
 					SingleInputPlanNode siSolutionDeltaCandidate = (SingleInputPlanNode) solutionSetCandidate;
 					boolean immediateDeltaUpdate;
