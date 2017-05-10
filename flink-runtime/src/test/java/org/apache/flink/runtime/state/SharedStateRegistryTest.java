@@ -19,9 +19,14 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.junit.Test;
 
+import java.io.IOException;
+
+import static junit.framework.TestCase.assertFalse;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class SharedStateRegistryTest {
 
@@ -30,24 +35,50 @@ public class SharedStateRegistryTest {
 	 */
 	@Test
 	public void testRegistryNormal() {
+
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		// register one state
 		TestSharedState firstState = new TestSharedState("first");
-		assertEquals(1, sharedStateRegistry.register(firstState));
+		SharedStateRegistry.Result result = sharedStateRegistry.registerNewReference(firstState.getRegistrationKey(), firstState);
+		assertEquals(1, result.getReferenceCount());
+		assertTrue(firstState == result.getReference());
+		assertFalse(firstState.isDiscarded());
 
 		// register another state
 		TestSharedState secondState = new TestSharedState("second");
-		assertEquals(1, sharedStateRegistry.register(secondState));
+		result = sharedStateRegistry.registerNewReference(secondState.getRegistrationKey(), secondState);
+		assertEquals(1, result.getReferenceCount());
+		assertTrue(secondState == result.getReference());
+		assertFalse(firstState.isDiscarded());
+		assertFalse(secondState.isDiscarded());
 
-		// register the first state again
-		assertEquals(2, sharedStateRegistry.register(firstState));
+		// attempt to register state under an existing key
+		TestSharedState firstStatePrime = new TestSharedState(firstState.getRegistrationKey().getKeyString());
+		result = sharedStateRegistry.registerNewReference(firstState.getRegistrationKey(), firstStatePrime);
+		assertEquals(2, result.getReferenceCount());
+		assertFalse(firstStatePrime == result.getReference());
+		assertTrue(firstState == result.getReference());
+		assertTrue(firstStatePrime.isDiscarded());
+		assertFalse(firstState.isDiscarded());
+
+		// reference the first state again
+		result = sharedStateRegistry.obtainReference(firstState.getRegistrationKey());
+		assertEquals(3, result.getReferenceCount());
+		assertTrue(firstState == result.getReference());
+		assertFalse(firstState.isDiscarded());
 
 		// unregister the second state
-		assertEquals(0, sharedStateRegistry.unregister(secondState));
+		result = sharedStateRegistry.releaseReference(secondState.getRegistrationKey());
+		assertEquals(0, result.getReferenceCount());
+		assertTrue(result.getReference() == null);
+		assertTrue(secondState.isDiscarded());
 
 		// unregister the first state
-		assertEquals(1, sharedStateRegistry.unregister(firstState));
+		result = sharedStateRegistry.releaseReference(firstState.getRegistrationKey());
+		assertEquals(2, result.getReferenceCount());
+		assertTrue(firstState == result.getReference());
+		assertFalse(firstState.isDiscarded());
 	}
 
 	/**
@@ -56,51 +87,47 @@ public class SharedStateRegistryTest {
 	@Test(expected = IllegalStateException.class)
 	public void testUnregisterWithUnexistedKey() {
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-
-		sharedStateRegistry.unregister(new TestSharedState("unexisted"));
+		sharedStateRegistry.releaseReference(new SharedStateRegistryKey("non-existent"));
 	}
 
-	private static class TestSharedState implements SharedStateHandle {
+	private static class TestSharedState implements StreamStateHandle {
 		private static final long serialVersionUID = 4468635881465159780L;
 
-		private String key;
+		private SharedStateRegistryKey key;
+
+		private boolean discarded;
 
 		TestSharedState(String key) {
-			this.key = key;
+			this.key = new SharedStateRegistryKey(key);
+			this.discarded = false;
 		}
 
-		@Override
-		public String getRegistrationKey() {
+		public SharedStateRegistryKey getRegistrationKey() {
 			return key;
 		}
 
 		@Override
 		public void discardState() throws Exception {
-			// nothing to do
+			this.discarded = true;
 		}
 
 		@Override
 		public long getStateSize() {
-			return key.length();
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-
-			TestSharedState testState = (TestSharedState) o;
-
-			return key.equals(testState.key);
+			return key.toString().length();
 		}
 
 		@Override
 		public int hashCode() {
 			return key.hashCode();
+		}
+
+		@Override
+		public FSDataInputStream openInputStream() throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		public boolean isDiscarded() {
+			return discarded;
 		}
 	}
 }
