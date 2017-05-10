@@ -20,8 +20,13 @@ package org.apache.flink.streaming.api.graph;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+import java.io.IOException;
+
+import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
+import org.apache.flink.util.SerializedValue;
 
 /**
  * Utility class that turns a {@link WithMasterCheckpointHook} into a
@@ -31,15 +36,27 @@ class FunctionMasterCheckpointHookFactory implements MasterTriggerRestoreHook.Fa
 
 	private static final long serialVersionUID = 2L;
 
-	private final WithMasterCheckpointHook<?> creator;
+	private final SerializedValue<UserCodeObjectWrapper<?>> serializedCreator;
 
 	FunctionMasterCheckpointHookFactory(WithMasterCheckpointHook<?> creator) {
-		this.creator = checkNotNull(creator);
+		UserCodeObjectWrapper<?> wrapper = new UserCodeObjectWrapper<>(checkNotNull(creator));
+		try {
+			serializedCreator = new SerializedValue<UserCodeObjectWrapper<?>>(wrapper);
+		} catch (IOException e) {
+			throw new InvalidProgramException("The implementation of WithMasterCheckpointHook is not serializable.", e);
+		}
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <V> MasterTriggerRestoreHook<V> create() {
+	public <V> MasterTriggerRestoreHook<V> create(ClassLoader userClassLoader) {
+		UserCodeObjectWrapper<WithMasterCheckpointHook<?>> wrapper;
+		try {
+			wrapper = (UserCodeObjectWrapper<WithMasterCheckpointHook<?>>) serializedCreator.deserializeValue(userClassLoader);
+		} catch (ClassNotFoundException | IOException e) {
+			throw new InvalidProgramException("The implementation of WithMasterCheckpointHook is not serializable.", e);
+		}
+		WithMasterCheckpointHook<?> creator = wrapper.getUserCodeObject(WithMasterCheckpointHook.class, userClassLoader);
 		return (MasterTriggerRestoreHook<V>) creator.createMasterTriggerRestoreHook();
 	}
 }

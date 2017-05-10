@@ -134,7 +134,9 @@ public interface MasterTriggerRestoreHook<T> {
 
 		/**
 		 * Instantiates the {@code MasterTriggerRestoreHook}.
+		 *
+		 * @param userClassLoader User-code class loader associated with the job
 		 */
-		<V> MasterTriggerRestoreHook<V> create();
+		<V> MasterTriggerRestoreHook<V> create(ClassLoader userClassLoader);
 	}
 }
