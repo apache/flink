@@ -148,7 +148,7 @@ public class BlobServer extends Thread implements BlobService {
 
 		//  ----------------------- start the server -------------------
 
-		String serverPortRange = config.getString(ConfigConstants.BLOB_SERVER_PORT, ConfigConstants.DEFAULT_BLOB_SERVER_PORT);
+		String serverPortRange = config.getString(BlobServerOptions.PORT);
 
 		Iterator<Integer> ports = NetUtils.getPortRangeFromString(serverPortRange);
 

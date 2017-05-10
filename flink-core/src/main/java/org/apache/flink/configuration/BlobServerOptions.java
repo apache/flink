@@ -54,4 +54,16 @@ public class BlobServerOptions {
 	public static final ConfigOption<Integer> FETCH_BACKLOG =
 		key("blob.fetch.backlog")
 			.defaultValue(1000);
+
+	/**
+	 * The config parameter defining the server port of the blob service.
+	 * The port can either be a port, such as "9123",
+	 * a range of ports: "50100-50200"
+	 * or a list of ranges and or points: "50100-50200,50300-50400,51234"
+	 *
+	 * Setting the port to 0 will let the OS choose an available port.
+	 */
+	public static final ConfigOption<String> PORT =
+		key("blob.server.port")
+			.defaultValue("0");
 }
