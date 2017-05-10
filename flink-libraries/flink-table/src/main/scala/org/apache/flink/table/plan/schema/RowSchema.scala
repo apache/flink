@@ -20,11 +20,12 @@ package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField, RelRecordType}
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rex.{RexInputRef, RexNode, RexShuttle}
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexShuttle}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.TimeMaterializationSqlFunction
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
@@ -75,6 +76,14 @@ class RowSchema(private val logicalRowType: RelDataType) {
 
     override def visitInputRef(inputRef: RexInputRef): RexNode = {
       new RexInputRef(mapIndex(inputRef.getIndex), inputRef.getType)
+    }
+
+    override def visitCall(call: RexCall): RexNode = call.getOperator match {
+      // we leave time indicators unchanged yet
+      // the index becomes invalid but right now we are only
+      // interested in the type of the input reference
+      case TimeMaterializationSqlFunction => call
+      case _ => super.visitCall(call)
     }
   }
 

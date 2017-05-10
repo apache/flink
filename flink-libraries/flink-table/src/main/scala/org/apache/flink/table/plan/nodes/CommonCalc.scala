@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.plan.{RelOptCost, RelOptPlanner}
 import org.apache.calcite.rex._
-import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.flink.api.common.functions.Function
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedFunction}
@@ -30,16 +30,17 @@ import org.apache.flink.types.Row
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
-trait CommonCalc[T] {
+trait CommonCalc {
 
-  private[flink] def generateFunction(
+  private[flink] def generateFunction[T <: Function](
       generator: CodeGenerator,
       ruleDescription: String,
       inputSchema: RowSchema,
       returnSchema: RowSchema,
       calcProgram: RexProgram,
-      config: TableConfig):
-    GeneratedFunction[FlatMapFunction[Row, Row], Row] = {
+      config: TableConfig,
+      functionClass: Class[T]):
+    GeneratedFunction[T, Row] = {
 
     val expandedExpressions = calcProgram
       .getProjectList
@@ -92,7 +93,7 @@ trait CommonCalc[T] {
 
     generator.generateFunction(
       ruleDescription,
-      classOf[FlatMapFunction[Row, Row]],
+      functionClass,
       body,
       returnSchema.physicalTypeInfo)
   }

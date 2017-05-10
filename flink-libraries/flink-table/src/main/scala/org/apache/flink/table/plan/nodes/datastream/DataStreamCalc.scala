@@ -25,11 +25,12 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
-import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.plan.nodes.CommonCalc
-import org.apache.flink.table.runtime.CRowFlatMapRunner
+import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.CRowProcessRunner
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 /**
@@ -45,7 +46,7 @@ class DataStreamCalc(
     calcProgram: RexProgram,
     ruleDescription: String)
   extends Calc(cluster, traitSet, input, calcProgram)
-  with CommonCalc[CRow]
+  with CommonCalc
   with DataStreamRel {
 
   override def deriveRowType(): RelDataType = schema.logicalType
@@ -101,17 +102,18 @@ class DataStreamCalc(
       inputSchema,
       schema,
       calcProgram,
-      config)
+      config,
+      classOf[ProcessFunction[CRow, CRow]])
 
     val inputParallelism = inputDataStream.getParallelism
 
-    val mapFunc = new CRowFlatMapRunner(
+    val processFunc = new CRowProcessRunner(
       genFunction.name,
       genFunction.code,
       CRowTypeInfo(schema.physicalTypeInfo))
 
     inputDataStream
-      .flatMap(mapFunc)
+      .process(processFunc)
       .name(calcOpName(calcProgram, getExpressionString))
       // keep parallelism to ensure order of accumulate and retract messages
       .setParallelism(inputParallelism)

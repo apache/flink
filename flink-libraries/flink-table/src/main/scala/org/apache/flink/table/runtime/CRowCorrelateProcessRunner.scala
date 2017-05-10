@@ -19,47 +19,68 @@
 package org.apache.flink.table.runtime
 
 import org.apache.flink.api.common.functions.util.FunctionUtils
-import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 
 /**
-  * FlatMapRunner with [[CRow]] input and [[CRow]] output.
+  * A CorrelateProcessRunner with [[CRow]] input and [[CRow]] output.
   */
-class CRowFlatMapRunner(
-    name: String,
-    code: String,
+class CRowCorrelateProcessRunner(
+    processName: String,
+    processCode: String,
+    collectorName: String,
+    collectorCode: String,
     @transient var returnType: TypeInformation[CRow])
-  extends RichFlatMapFunction[CRow, CRow]
+  extends ProcessFunction[CRow, CRow]
   with ResultTypeQueryable[CRow]
-  with Compiler[FlatMapFunction[Row, Row]] {
+  with Compiler[Any] {
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  val LOG: Logger = LoggerFactory.getLogger(this.getClass)
 
-  private var function: FlatMapFunction[Row, Row] = _
+  private var function: ProcessFunction[Row, Row] = _
+  private var collector: TableFunctionCollector[_] = _
   private var cRowWrapper: CRowWrappingCollector = _
 
   override def open(parameters: Configuration): Unit = {
-    LOG.debug(s"Compiling FlatMapFunction: $name \n\n Code:\n$code")
-    val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
-    LOG.debug("Instantiating FlatMapFunction.")
-    function = clazz.newInstance()
+    LOG.debug(s"Compiling TableFunctionCollector: $collectorName \n\n Code:\n$collectorCode")
+    val clazz = compile(getRuntimeContext.getUserCodeClassLoader, collectorName, collectorCode)
+    LOG.debug("Instantiating TableFunctionCollector.")
+    collector = clazz.newInstance().asInstanceOf[TableFunctionCollector[_]]
+    this.cRowWrapper = new CRowWrappingCollector()
+
+    LOG.debug(s"Compiling ProcessFunction: $processName \n\n Code:\n$processCode")
+    val processClazz = compile(getRuntimeContext.getUserCodeClassLoader, processName, processCode)
+    val constructor = processClazz.getConstructor(classOf[TableFunctionCollector[_]])
+    LOG.debug("Instantiating ProcessFunction.")
+    function = constructor.newInstance(collector).asInstanceOf[ProcessFunction[Row, Row]]
     FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
     FunctionUtils.openFunction(function, parameters)
-
-    this.cRowWrapper = new CRowWrappingCollector()
   }
 
-  override def flatMap(in: CRow, out: Collector[CRow]): Unit = {
+  override def processElement(
+      in: CRow,
+      ctx: ProcessFunction[CRow, CRow]#Context,
+      out: Collector[CRow])
+    : Unit = {
+
     cRowWrapper.out = out
     cRowWrapper.setChange(in.change)
-    function.flatMap(in.row, cRowWrapper)
+
+    collector.setCollector(cRowWrapper)
+    collector.setInput(in.row)
+    collector.reset()
+
+    function.processElement(
+      in.row,
+      ctx.asInstanceOf[ProcessFunction[Row, Row]#Context],
+      cRowWrapper)
   }
 
   override def getProducedType: TypeInformation[CRow] = returnType
@@ -68,5 +89,3 @@ class CRowFlatMapRunner(
     FunctionUtils.closeFunction(function)
   }
 }
-
-
