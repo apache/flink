@@ -27,7 +27,7 @@ package org.apache.flink.table.sources
   * the event-time attribute. The attribute will be added to the schema of the
   * [[org.apache.flink.table.api.Table]] produced by the [[TableSource]].
   */
-trait DefinedRowTimeAttribute {
+trait DefinedRowtimeAttribute {
 
   /**
     * Defines a name of the event-time attribute that represents Flink's
@@ -47,7 +47,7 @@ trait DefinedRowTimeAttribute {
   * the processing-time attribute. The attribute will be added to the schema of the
   * [[org.apache.flink.table.api.Table]] produced by the [[TableSource]].
   */
-trait DefinedProcTimeAttribute {
+trait DefinedProctimeAttribute {
 
   /**
     * Defines a name of the processing-time attribute that represents Flink's

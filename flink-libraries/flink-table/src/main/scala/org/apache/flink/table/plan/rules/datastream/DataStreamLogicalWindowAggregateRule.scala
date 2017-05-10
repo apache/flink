@@ -26,7 +26,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.table.api.{TableException, Window}
 import org.apache.flink.table.api.scala.{Session, Slide, Tumble}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.{Literal, UnresolvedFieldReference}
+import org.apache.flink.table.expressions.{Literal, ResolvedFieldReference, UnresolvedFieldReference}
 import org.apache.flink.table.plan.rules.common.LogicalWindowAggregateRule
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 
@@ -68,10 +68,12 @@ class DataStreamLogicalWindowAggregateRule
         case _ => throw new TableException("Only constant window descriptors are supported.")
       }
 
-    def getOperandAsTimeIndicator(call: RexCall, idx: Int): String =
+    def getOperandAsTimeIndicator(call: RexCall, idx: Int): ResolvedFieldReference =
       call.getOperands.get(idx) match {
         case v: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(v.getType) =>
-          rowType.getFieldList.get(v.getIndex).getName
+          ResolvedFieldReference(
+            rowType.getFieldList.get(v.getIndex).getName,
+            FlinkTypeFactory.toTypeInfo(v.getType))
         case _ =>
           throw new TableException("Window can only be defined over a time attribute column.")
       }
@@ -82,7 +84,7 @@ class DataStreamLogicalWindowAggregateRule
         val interval = getOperandAsLong(windowExpr, 1)
         val w = Tumble.over(Literal(interval, TimeIntervalTypeInfo.INTERVAL_MILLIS))
 
-        w.on(UnresolvedFieldReference(time)).as("w$")
+        w.on(time).as("w$")
 
       case SqlStdOperatorTable.HOP =>
         val time = getOperandAsTimeIndicator(windowExpr, 0)
@@ -91,14 +93,14 @@ class DataStreamLogicalWindowAggregateRule
           .over(Literal(size, TimeIntervalTypeInfo.INTERVAL_MILLIS))
           .every(Literal(slide, TimeIntervalTypeInfo.INTERVAL_MILLIS))
 
-        w.on(UnresolvedFieldReference(time)).as("w$")
+        w.on(time).as("w$")
 
       case SqlStdOperatorTable.SESSION =>
         val time = getOperandAsTimeIndicator(windowExpr, 0)
         val gap = getOperandAsLong(windowExpr, 1)
         val w = Session.withGap(Literal(gap, TimeIntervalTypeInfo.INTERVAL_MILLIS))
 
-        w.on(UnresolvedFieldReference(time)).as("w$")
+        w.on(time).as("w$")
     }
   }
 }

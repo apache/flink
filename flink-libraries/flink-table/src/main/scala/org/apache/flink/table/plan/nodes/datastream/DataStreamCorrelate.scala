@@ -23,12 +23,13 @@ import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.runtime.CRowCorrelateFlatMapRunner
+import org.apache.flink.table.runtime.CRowCorrelateProcessRunner
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 /**
@@ -46,7 +47,7 @@ class DataStreamCorrelate(
     joinType: SemiJoinType,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
-  with CommonCorrelate[CRow]
+  with CommonCorrelate
   with DataStreamRel {
 
   override def deriveRowType() = schema.logicalType
@@ -90,7 +91,6 @@ class DataStreamCorrelate(
 
     // we do not need to specify input type
     val inputDS = getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
-    val inputType = inputDS.getType.asInstanceOf[CRowTypeInfo]
 
     val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
@@ -98,37 +98,36 @@ class DataStreamCorrelate(
     val pojoFieldMapping = Some(sqlFunction.getPojoFieldMapping)
     val udtfTypeInfo = sqlFunction.getRowTypeInfo.asInstanceOf[TypeInformation[Any]]
 
-    val flatMap = generateFunction(
+    val process = generateFunction(
       config,
       inputSchema,
       udtfTypeInfo,
       schema,
-      getRowType,
       joinType,
       rexCall,
       pojoFieldMapping,
-      ruleDescription)
+      ruleDescription,
+      classOf[ProcessFunction[CRow, CRow]])
 
     val collector = generateCollector(
       config,
       inputSchema,
       udtfTypeInfo,
       schema,
-      getRowType,
       condition,
       pojoFieldMapping)
 
-    val mapFunc = new CRowCorrelateFlatMapRunner(
-      flatMap.name,
-      flatMap.code,
+    val processFunc = new CRowCorrelateProcessRunner(
+      process.name,
+      process.code,
       collector.name,
       collector.code,
-      CRowTypeInfo(flatMap.returnType))
+      CRowTypeInfo(process.returnType))
 
     val inputParallelism = inputDS.getParallelism
 
     inputDS
-      .flatMap(mapFunc)
+      .process(processFunc)
       // preserve input parallelism to ensure that acc and retract messages remain in order
       .setParallelism(inputParallelism)
       .name(correlateOpName(rexCall, sqlFunction, schema.logicalType))
