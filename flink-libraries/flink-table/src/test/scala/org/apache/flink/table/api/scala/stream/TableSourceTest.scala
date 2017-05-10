@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.sources.{DefinedProcTimeAttribute, DefinedRowTimeAttribute, StreamTableSource}
+import org.apache.flink.table.sources.{DefinedProctimeAttribute, DefinedRowtimeAttribute, StreamTableSource}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil.{term, unaryNode}
 import org.apache.flink.types.Row
@@ -35,7 +35,7 @@ class TableSourceTest extends TableTestBase {
   @Test
   def testRowTimeTableSourceSimple(): Unit = {
     val util = streamTestUtil()
-    util.tEnv.registerTableSource("rowTimeT", new TestRowTimeSource("addTime"))
+    util.tEnv.registerTableSource("rowTimeT", new TestRowtimeSource("addTime"))
 
     val t = util.tEnv.scan("rowTimeT").select("addTime, id, name, val")
 
@@ -43,7 +43,7 @@ class TableSourceTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         "StreamTableSourceScan(table=[[rowTimeT]], fields=[id, val, name, addTime])",
-        term("select", "addTime", "id", "name", "val")
+        term("select", "TIME_MATERIALIZATION(addTime) AS addTime", "id", "name", "val")
       )
     util.verifyTable(t, expected)
   }
@@ -51,7 +51,7 @@ class TableSourceTest extends TableTestBase {
   @Test
   def testRowTimeTableSourceGroupWindow(): Unit = {
     val util = streamTestUtil()
-    util.tEnv.registerTableSource("rowTimeT", new TestRowTimeSource("addTime"))
+    util.tEnv.registerTableSource("rowTimeT", new TestRowtimeSource("addTime"))
 
     val t = util.tEnv.scan("rowTimeT")
       .filter("val > 100")
@@ -82,7 +82,7 @@ class TableSourceTest extends TableTestBase {
   @Test
   def testProcTimeTableSourceSimple(): Unit = {
     val util = streamTestUtil()
-    util.tEnv.registerTableSource("procTimeT", new TestProcTimeSource("pTime"))
+    util.tEnv.registerTableSource("procTimeT", new TestProctimeSource("pTime"))
 
     val t = util.tEnv.scan("procTimeT").select("pTime, id, name, val")
 
@@ -90,7 +90,7 @@ class TableSourceTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         "StreamTableSourceScan(table=[[procTimeT]], fields=[id, val, name, pTime])",
-        term("select", "pTime", "id", "name", "val")
+        term("select", "TIME_MATERIALIZATION(pTime) AS pTime", "id", "name", "val")
       )
     util.verifyTable(t, expected)
   }
@@ -98,7 +98,7 @@ class TableSourceTest extends TableTestBase {
   @Test
   def testProcTimeTableSourceOverWindow(): Unit = {
     val util = streamTestUtil()
-    util.tEnv.registerTableSource("procTimeT", new TestProcTimeSource("pTime"))
+    util.tEnv.registerTableSource("procTimeT", new TestProctimeSource("pTime"))
 
     val t = util.tEnv.scan("procTimeT")
       .window(Over partitionBy 'id orderBy 'pTime preceding 2.hours as 'w)
@@ -123,8 +123,8 @@ class TableSourceTest extends TableTestBase {
   }
 }
 
-class TestRowTimeSource(timeField: String)
-    extends StreamTableSource[Row] with DefinedRowTimeAttribute {
+class TestRowtimeSource(timeField: String)
+    extends StreamTableSource[Row] with DefinedRowtimeAttribute {
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = ???
 
@@ -137,8 +137,8 @@ class TestRowTimeSource(timeField: String)
   }
 }
 
-class TestProcTimeSource(timeField: String)
-    extends StreamTableSource[Row] with DefinedProcTimeAttribute {
+class TestProctimeSource(timeField: String)
+    extends StreamTableSource[Row] with DefinedProctimeAttribute {
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = ???
 

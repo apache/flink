@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexShuttle}
 import org.apache.calcite.sql.SemiJoinType
-import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.codegen.CodeGenUtils.primitiveDefaultValue
@@ -36,22 +36,22 @@ import scala.collection.JavaConverters._
 /**
   * Join a user-defined table function
   */
-trait CommonCorrelate[T] {
+trait CommonCorrelate {
 
   /**
     * Generates the flat map function to run the user-defined table function.
     */
-  private[flink] def generateFunction(
+  private[flink] def generateFunction[T <: Function](
     config: TableConfig,
     inputSchema: RowSchema,
     udtfTypeInfo: TypeInformation[Any],
     returnSchema: RowSchema,
-    rowType: RelDataType,
     joinType: SemiJoinType,
     rexCall: RexCall,
     pojoFieldMapping: Option[Array[Int]],
-    ruleDescription: String):
-  GeneratedFunction[FlatMapFunction[Row, Row], Row] = {
+    ruleDescription: String,
+    functionClass: Class[T]):
+  GeneratedFunction[T, Row] = {
 
     val functionGenerator = new CodeGenerator(
       config,
@@ -89,7 +89,7 @@ trait CommonCorrelate[T] {
       val outerResultExpr = functionGenerator.generateResultExpression(
         input1AccessExprs ++ input2NullExprs,
         returnSchema.physicalTypeInfo,
-        rowType.getFieldNames.asScala)
+        returnSchema.physicalFieldNames)
       body +=
         s"""
            |boolean hasOutput = $collectorTerm.isCollected();
@@ -104,7 +104,7 @@ trait CommonCorrelate[T] {
 
     functionGenerator.generateFunction(
       ruleDescription,
-      classOf[FlatMapFunction[Row, Row]],
+      functionClass,
       body,
       returnSchema.physicalTypeInfo)
   }
@@ -117,7 +117,6 @@ trait CommonCorrelate[T] {
     inputSchema: RowSchema,
     udtfTypeInfo: TypeInformation[Any],
     returnSchema: RowSchema,
-    rowType: RelDataType,
     condition: Option[RexNode],
     pojoFieldMapping: Option[Array[Int]])
   : GeneratedCollector = {
@@ -135,7 +134,7 @@ trait CommonCorrelate[T] {
     val crossResultExpr = generator.generateResultExpression(
       input1AccessExprs ++ input2AccessExprs,
       returnSchema.physicalTypeInfo,
-      rowType.getFieldNames.asScala)
+      returnSchema.physicalFieldNames)
 
     val collectorCode = if (condition.isEmpty) {
       s"""
