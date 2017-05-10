@@ -19,18 +19,15 @@
 package org.apache.flink.table.api.scala.stream
 
 import java.lang.{Integer => JInt, Long => JLong}
-import java.util.Collections
-import java.util.{List => JList}
 
 import org.apache.flink.api.java.tuple.{Tuple5 => JTuple5}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecEnv}
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{TableEnvironment, TableException, Types}
 import org.apache.flink.table.api.java.{StreamTableEnvironment => JStreamTableEnv}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{TableEnvironment, TableException, Types}
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 import org.mockito.Mockito.{mock, when}
