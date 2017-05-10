@@ -90,7 +90,7 @@ public class CEPMigration11to13Test {
 		// simulate snapshot/restore with empty element queue but NFA state
 		StreamTaskState snapshot = harness.snapshot(1, 1);
 		FileOutputStream out = new FileOutputStream(
-				"src/test/resources/cep-keyed-snapshot-1.1");
+				"src/test/resources/cep-keyed-1_1-snapshot");
 		ObjectOutputStream oos = new ObjectOutputStream(out);
 		oos.writeObject(snapshot);
 		out.close();
@@ -109,7 +109,7 @@ public class CEPMigration11to13Test {
 						BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.setup();
-		harness.initializeStateFromLegacyCheckpoint(getResourceFilename("cep-keyed-snapshot-1.1"));
+		harness.initializeStateFromLegacyCheckpoint(getResourceFilename("cep-keyed-1_1-snapshot"));
 		harness.open();
 
 		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
@@ -209,7 +209,7 @@ public class CEPMigration11to13Test {
 		// simulate snapshot/restore with empty element queue but NFA state
 		StreamTaskState snapshot = harness.snapshot(1, 1);
 		FileOutputStream out = new FileOutputStream(
-				"src/test/resources/cep-non-keyed-snapshot-1.1");
+				"src/test/resources/cep-non-keyed-1.1-snapshot");
 		ObjectOutputStream oos = new ObjectOutputStream(out);
 		oos.writeObject(snapshot);
 		out.close();
@@ -230,7 +230,7 @@ public class CEPMigration11to13Test {
 						BasicTypeInfo.BYTE_TYPE_INFO);
 
 		harness.setup();
-		harness.initializeStateFromLegacyCheckpoint(getResourceFilename("cep-non-keyed-snapshot-1.1"));
+		harness.initializeStateFromLegacyCheckpoint(getResourceFilename("cep-non-keyed-1.1-snapshot"));
 		harness.open();
 
 		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
