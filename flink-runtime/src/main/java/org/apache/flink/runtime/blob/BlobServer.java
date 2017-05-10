@@ -44,6 +44,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -85,6 +87,9 @@ public class BlobServer extends Thread implements BlobService {
 	/** The maximum number of concurrent connections */
 	private final int maxConnections;
 
+	/** Lock guarding concurrent file accesses */
+	private final ReadWriteLock readWriteLock;
+
 	/**
 	 * Shutdown hook thread to ensure deletion of the storage directory (or <code>null</code> if
 	 * the configured high availability mode does not equal{@link HighAvailabilityMode#NONE})
@@ -104,6 +109,7 @@ public class BlobServer extends Thread implements BlobService {
 	public BlobServer(Configuration config, BlobStore blobStore) throws IOException {
 		this.blobServiceConfiguration = checkNotNull(config);
 		this.blobStore = checkNotNull(blobStore);
+		this.readWriteLock = new ReentrantReadWriteLock();
 
 		// configure and create the storage directory
 		String storageDirectory = config.getString(BlobServerOptions.STORAGE_DIRECTORY);
@@ -233,6 +239,13 @@ public class BlobServer extends Thread implements BlobService {
 	 */
 	BlobStore getBlobStore() {
 		return blobStore;
+	}
+
+	/**
+	 * Returns the lock used to guard file accesses
+	 */
+	public ReadWriteLock getReadWriteLock() {
+		return readWriteLock;
 	}
 
 	@Override
@@ -395,13 +408,19 @@ public class BlobServer extends Thread implements BlobService {
 	public void delete(BlobKey key) throws IOException {
 		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
 
-		if (localFile.exists()) {
-			if (!localFile.delete()) {
-				LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
-			}
-		}
+		readWriteLock.writeLock().lock();
 
-		blobStore.delete(key);
+		try {
+			if (localFile.exists()) {
+				if (!localFile.delete()) {
+					LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
+				}
+			}
+
+			blobStore.delete(key);
+		} finally {
+			readWriteLock.writeLock().unlock();
+		}
 	}
 
 	/**
