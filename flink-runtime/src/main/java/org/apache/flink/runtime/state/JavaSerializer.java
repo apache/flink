@@ -24,12 +24,12 @@ import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.io.Serializable;
 
-@SuppressWarnings("serial")
 @Internal
 final class JavaSerializer<T extends Serializable> extends TypeSerializerSingleton<T> {
 
@@ -47,11 +47,10 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializerSinglet
 
 	@Override
 	public T copy(T from) {
-
 		try {
-			return InstantiationUtil.clone(from);
+			return InstantiationUtil.clone(from, Thread.currentThread().getContextClassLoader());
 		} catch (IOException | ClassNotFoundException e) {
-			throw new RuntimeException("Could not copy instance of " + from + '.', e);
+			throw new FlinkRuntimeException("Could not copy element via serialization: " + from, e);
 		}
 	}
 
@@ -62,7 +61,7 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializerSinglet
 
 	@Override
 	public int getLength() {
-		return 0;
+		return -1;
 	}
 
 	@Override
@@ -74,7 +73,8 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializerSinglet
 	public T deserialize(DataInputView source) throws IOException {
 		try {
 			return InstantiationUtil.deserializeObject(
-					new DataInputViewStream(source), Thread.currentThread().getContextClassLoader());
+					new DataInputViewStream(source),
+					Thread.currentThread().getContextClassLoader());
 		} catch (ClassNotFoundException e) {
 			throw new IOException("Could not deserialize object.", e);
 		}
@@ -87,9 +87,8 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializerSinglet
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		int size = source.readInt();
-		target.writeInt(size);
-		target.write(source, size);
+		T tmp = deserialize(source);
+		serialize(tmp, target);
 	}
 
 	@Override
