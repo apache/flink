@@ -286,9 +286,7 @@ public class TaskConfig implements Serializable {
 	public <T> UserCodeWrapper<T> getStubWrapper(ClassLoader cl) {
 		try {
 			return (UserCodeWrapper<T>) InstantiationUtil.readObjectFromConfig(this.config, STUB_OBJECT, cl);
-		} catch (ClassNotFoundException e) {
-			throw new CorruptConfigurationException("Could not read the user code wrapper: " + e.getMessage(), e);
-		} catch (IOException e) {
+		} catch (ClassNotFoundException | IOException e) {
 			throw new CorruptConfigurationException("Could not read the user code wrapper: " + e.getMessage(), e);
 		}
 	}
