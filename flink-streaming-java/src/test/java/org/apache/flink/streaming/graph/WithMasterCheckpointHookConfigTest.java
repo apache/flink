@@ -84,7 +84,7 @@ public class WithMasterCheckpointHookConfigTest {
 
 		// check that all hooks are contained and exist exactly once
 		for (Factory f : jg.getCheckpointingSettings().getMasterHooks()) {
-			MasterTriggerRestoreHook<?> hook = f.create();
+			MasterTriggerRestoreHook<?> hook = f.create(Thread.currentThread().getContextClassLoader());
 			assertTrue(hooks.remove(hook));
 		}
 		assertTrue(hooks.isEmpty());

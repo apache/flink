@@ -244,14 +244,18 @@ public class ExecutionGraphBuilder {
 			final MasterTriggerRestoreHook.Factory[] hookFactories = snapshotSettings.getMasterHooks();
 			final List<MasterTriggerRestoreHook<?>> hooks;
 
-			if (hookFactories == null || hookFactories.length == 0) {
-				hooks = Collections.emptyList();
-			}
-			else {
-				hooks = new ArrayList<>(hookFactories.length);
-				for (MasterTriggerRestoreHook.Factory factory : hookFactories) {
-					hooks.add(factory.create());
+			try {
+				if (hookFactories == null || hookFactories.length == 0) {
+					hooks = Collections.emptyList();
+				} else {
+					hooks = new ArrayList<>(hookFactories.length);
+					for (MasterTriggerRestoreHook.Factory factory : hookFactories) {
+						hooks.add(factory.create(classLoader));
+					}
 				}
+			}
+			catch(Exception e) {
+				throw new JobExecutionException(jobId, "Could not instantiate user-defined checkpoint hooks", e);
 			}
 
 			executionGraph.enableCheckpointing(
