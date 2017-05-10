@@ -33,6 +33,8 @@ class MapJoinRightRunner[IN1, IN2, OUT](
   override def flatMap(multiInput: IN2, out: Collector[OUT]): Unit = {
     broadcastSet match {
       case Some(singleInput) => function.join(singleInput, multiInput, out)
+      case None if outerJoin => function.
+                                join(null.asInstanceOf[IN1], multiInput, out)
       case None =>
         if (outerJoin && isRowClass(multiInput) && returnType.getTypeClass.equals(classOf[Row])) {
           val inputRow = multiInput.asInstanceOf[Row]

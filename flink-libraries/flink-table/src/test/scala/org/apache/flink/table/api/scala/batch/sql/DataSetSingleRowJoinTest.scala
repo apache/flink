@@ -239,55 +239,6 @@ class DataSetSingleRowJoinTest extends TableTestBase {
   }
 
   @Test
-  def testSingleRowJoinRightOuterJoin(): Unit = {
-    val util = batchTestUtil()
-    util.addTable[(Long, Int)]("A", 'a1, 'a2)
-    util.addTable[(Int, Int)]("B", 'b1, 'b2)
-
-    val queryRightJoin =
-      "SELECT a2 FROM A " +
-        "RIGHT JOIN " +
-        "(SELECT COUNT(*) AS cnt FROM B) " +
-        "AS x " +
-        "ON a1 = cnt"
-
-    //val queryRightJoin =
-    //  "SELECT a2 FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON a1 < cnt"
-
-    val expected =
-      unaryNode(
-        "DataSetCalc",
-        unaryNode(
-          "DataSetJoin",
-          batchTableNode(0),
-          term("where", "=(a1, cnt)"),
-          term("join", "a1", "a2", "cnt"),
-          term("joinType", "RightOuterJoin")
-        ),
-        term("select", "a2")
-      ) + "\n" +
-        unaryNode(
-          "DataSetAggregate",
-          unaryNode(
-            "DataSetUnion",
-            unaryNode(
-              "DataSetValues",
-              unaryNode(
-                "DataSetCalc",
-                batchTableNode(1),
-                term("select", "0 AS $f0")),
-              tuples(List(null)), term("values", "$f0")
-            ),
-            term("union", "$f0")
-          ),
-          term("select", "COUNT(*) AS cnt")
-        )
-
-    util.verifySql(queryRightJoin, expected)
-  }
-
-
-  @Test
   def testSingleRowJoinInnerJoin(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Int)]("A", 'a1, 'a2)

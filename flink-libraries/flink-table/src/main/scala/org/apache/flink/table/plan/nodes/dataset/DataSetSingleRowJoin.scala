@@ -153,29 +153,29 @@ class DataSetSingleRowJoin(
          |}
          |""".stripMargin
     } else {
-        val singleNode =
-          if (!leftIsSingle) {
-            rightNode
-          }
-          else {
-            leftNode
-          }
-
-        val notSuitedToCondition = singleNode
-          .getRowType
-          .getFieldList
-          .map(field => getRowType.getFieldNames.indexOf(field.getName))
-          .map(i => s"${conversion.resultTerm}.setField($i,null);")
-
-          s"""
-             |${condition.code}
-             |${conversion.code}
-             |if(!${condition.resultTerm}){
-             |${notSuitedToCondition.mkString("\n")}
-             |}
-             |${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
-             |""".stripMargin
+      val singleNode =
+        if (!leftIsSingle) {
+          rightNode
         }
+        else {
+          leftNode
+        }
+
+      val notSuitedToCondition = singleNode
+        .getRowType
+        .getFieldList
+        .map(field => getRowType.getFieldNames.indexOf(field.getName))
+        .map(i => s"${conversion.resultTerm}.setField($i,null);")
+
+        s"""
+           |${condition.code}
+           |${conversion.code}
+           |if(!${condition.resultTerm}){
+           |${notSuitedToCondition.mkString("\n")}
+           |}
+           |${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
+           |""".stripMargin
+    }
 
     val genFunction = codeGenerator.generateFunction(
       ruleDescription,
@@ -183,21 +183,21 @@ class DataSetSingleRowJoin(
       joinMethodBody,
       returnType)
 
-      if (!leftIsSingle) {
-        new MapJoinLeftRunner[Row, Row, Row](
-          genFunction.name,
-          genFunction.code,
-          isOuterJoin,
-          genFunction.returnType,
-          broadcastInputSetName)
-      } else {
-        new MapJoinRightRunner[Row, Row, Row](
-          genFunction.name,
-          genFunction.code,
-          isOuterJoin,
-          genFunction.returnType,
-          broadcastInputSetName)
-      }
+    if (!leftIsSingle) {
+      new MapJoinLeftRunner[Row, Row, Row](
+        genFunction.name,
+        genFunction.code,
+        isOuterJoin,
+        genFunction.returnType,
+        broadcastInputSetName)
+    } else {
+      new MapJoinRightRunner[Row, Row, Row](
+        genFunction.name,
+        genFunction.code,
+        isOuterJoin,
+        genFunction.returnType,
+        broadcastInputSetName)
+    }
   }
 
   private def getMapOperatorName: String = {
