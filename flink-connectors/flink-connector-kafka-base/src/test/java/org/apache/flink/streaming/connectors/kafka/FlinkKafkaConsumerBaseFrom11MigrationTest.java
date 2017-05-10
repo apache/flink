@@ -67,7 +67,7 @@ public class FlinkKafkaConsumerBaseFrom11MigrationTest {
 		testHarness.setup();
 		// restore state from binary snapshot file using legacy method
 		testHarness.initializeStateFromLegacyCheckpoint(
-			getResourceFilename("kafka-consumer-migration-test-flink1.1-snapshot-empty-state"));
+			getResourceFilename("kafka-consumer-migration-test-flink1.1-empty-state-snapshot"));
 		testHarness.open();
 
 		// assert that no partitions were found and is empty
@@ -101,10 +101,10 @@ public class FlinkKafkaConsumerBaseFrom11MigrationTest {
 		testHarness.setup();
 		// restore state from binary snapshot file using legacy method
 		testHarness.initializeStateFromLegacyCheckpoint(
-			getResourceFilename("kafka-consumer-migration-test-flink1.1-snapshot-empty-state"));
+			getResourceFilename("kafka-consumer-migration-test-flink1.1-empty-state-snapshot"));
 		testHarness.open();
 
-		// the expected state in "kafka-consumer-migration-test-flink1.1-snapshot-empty-state";
+		// the expected state in "kafka-consumer-migration-test-flink1.1-empty-state-snapshot";
 		// since the state is empty, the consumer should reflect on the startup mode to determine start offsets.
 		final HashMap<KafkaTopicPartition, Long> expectedSubscribedPartitionsWithStartOffsets = new HashMap<>();
 		expectedSubscribedPartitionsWithStartOffsets.put(new KafkaTopicPartition("abc", 13), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);

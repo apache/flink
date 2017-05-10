@@ -76,7 +76,7 @@ public class FlinkKafkaConsumerBaseFrom12MigrationTest {
 		writeSnapshot("src/test/resources/kafka-consumer-migration-test-flink1.2-snapshot", PARTITION_STATE);
 
 		final HashMap<KafkaTopicPartition, Long> emptyState = new HashMap<>();
-		writeSnapshot("src/test/resources/kafka-consumer-migration-test-flink1.2-snapshot-empty-state", emptyState);
+		writeSnapshot("src/test/resources/kafka-consumer-migration-test-flink1.2-empty-state-snapshot", emptyState);
 	}
 
 	private void writeSnapshot(String path, HashMap<KafkaTopicPartition, Long> state) throws Exception {
@@ -166,7 +166,7 @@ public class FlinkKafkaConsumerBaseFrom12MigrationTest {
 		// restore state from binary snapshot file
 		testHarness.initializeState(
 				OperatorSnapshotUtil.readStateHandle(
-						OperatorSnapshotUtil.getResourceFilename("kafka-consumer-migration-test-flink1.2-snapshot-empty-state")));
+						OperatorSnapshotUtil.getResourceFilename("kafka-consumer-migration-test-flink1.2-empty-state-snapshot")));
 		testHarness.open();
 
 		// assert that no partitions were found and is empty
@@ -202,10 +202,10 @@ public class FlinkKafkaConsumerBaseFrom12MigrationTest {
 		// restore state from binary snapshot file
 		testHarness.initializeState(
 				OperatorSnapshotUtil.readStateHandle(
-						OperatorSnapshotUtil.getResourceFilename("kafka-consumer-migration-test-flink1.2-snapshot-empty-state")));
+						OperatorSnapshotUtil.getResourceFilename("kafka-consumer-migration-test-flink1.2-empty-state-snapshot")));
 		testHarness.open();
 
-		// the expected state in "kafka-consumer-migration-test-flink1.2-snapshot-empty-state";
+		// the expected state in "kafka-consumer-migration-test-flink1.2-empty-state-snapshot";
 		// since the state is empty, the consumer should reflect on the startup mode to determine start offsets.
 		final HashMap<KafkaTopicPartition, Long> expectedSubscribedPartitionsWithStartOffsets = new HashMap<>();
 		for (KafkaTopicPartition partition : PARTITION_STATE.keySet()) {
