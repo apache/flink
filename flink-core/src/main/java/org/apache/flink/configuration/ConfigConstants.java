@@ -145,8 +145,9 @@ public final class ConfigConstants {
 	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
 
 	/**
-	 * The config parameter defining number of retires for failed BLOB fetches.
+	 * @deprecated use {@link BlobServerOptions#FETCH_RETRIES} instead
 	 */
+	@Deprecated
 	public static final String BLOB_FETCH_RETRIES_KEY = "blob.fetch.retries";
 
 	/**
@@ -1100,8 +1101,9 @@ public final class ConfigConstants {
 	public static final boolean DEFAULT_BLOB_SERVICE_SSL_ENABLED = true;
 
 	/**
-	 * Default number of retries for failed BLOB fetches.
+	 * @deprecated use {@link BlobServerOptions#FETCH_RETRIES} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_BLOB_FETCH_RETRIES = 5;
 
 	/**

@@ -33,4 +33,11 @@ public class BlobServerOptions {
 	public static final ConfigOption<String> STORAGE_DIRECTORY =
 		key("blob.storage.directory")
 			.noDefaultValue();
+
+	/**
+	 * The config parameter defining number of retires for failed BLOB fetches.
+	 */
+	public static final ConfigOption<Integer> FETCH_RETRIES =
+		key("blob.fetch.retries")
+			.defaultValue(5);
 }
