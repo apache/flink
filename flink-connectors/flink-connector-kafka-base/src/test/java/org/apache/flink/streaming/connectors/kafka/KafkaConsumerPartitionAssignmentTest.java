@@ -18,18 +18,17 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
-
-import org.junit.Test;
-
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -57,6 +56,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 					i,
 					inPartitions.size(),
 					StartupMode.GROUP_OFFSETS,
+					null,
 					null);
 
 				List<KafkaTopicPartition> subscribedPartitions = new ArrayList<>(subscribedPartitionsToStartOffsets.keySet());
@@ -97,6 +97,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 					i,
 					numConsumers,
 					StartupMode.GROUP_OFFSETS,
+					null,
 					null);
 
 				List<KafkaTopicPartition> subscribedPartitions = new ArrayList<>(subscribedPartitionsToStartOffsets.keySet());
@@ -141,6 +142,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 					i,
 					numConsumers,
 					StartupMode.GROUP_OFFSETS,
+					null,
 					null);
 
 				List<KafkaTopicPartition> subscribedPartitions = new ArrayList<>(subscribedPartitionsToStartOffsets.keySet());
@@ -173,6 +175,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 				2,
 				4,
 				StartupMode.GROUP_OFFSETS,
+				null,
 				null);
 			assertTrue(subscribedPartitionsToStartOffsets.entrySet().isEmpty());
 
@@ -183,6 +186,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 				0,
 				1,
 				StartupMode.GROUP_OFFSETS,
+				null,
 				null);
 			assertTrue(subscribedPartitionsToStartOffsets.entrySet().isEmpty());
 		}
@@ -224,6 +228,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 				0,
 				numConsumers,
 				StartupMode.GROUP_OFFSETS,
+				null,
 				null);
 
 			FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
@@ -232,6 +237,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 				1,
 				numConsumers,
 				StartupMode.GROUP_OFFSETS,
+				null,
 				null);
 
 			FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
@@ -240,6 +246,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 				2,
 				numConsumers,
 				StartupMode.GROUP_OFFSETS,
+				null,
 				null);
 
 			List<KafkaTopicPartition> subscribedPartitions1 = new ArrayList<>(subscribedPartitionsToStartOffsets1.keySet());
@@ -283,6 +290,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 				0,
 				numConsumers,
 				StartupMode.GROUP_OFFSETS,
+				null,
 				null);
 
 			FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
@@ -291,6 +299,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 				1,
 				numConsumers,
 				StartupMode.GROUP_OFFSETS,
+				null,
 				null);
 
 			FlinkKafkaConsumerBase.initializeSubscribedPartitionsToStartOffsets(
@@ -299,6 +308,7 @@ public class KafkaConsumerPartitionAssignmentTest {
 				2,
 				numConsumers,
 				StartupMode.GROUP_OFFSETS,
+				null,
 				null);
 
 			List<KafkaTopicPartition> subscribedPartitions1New = new ArrayList<>(subscribedPartitionsToStartOffsets1.keySet());

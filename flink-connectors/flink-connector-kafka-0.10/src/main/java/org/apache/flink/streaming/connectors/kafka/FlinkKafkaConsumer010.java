@@ -17,23 +17,30 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka010Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.PropertiesUtil;
 import org.apache.flink.util.SerializedValue;
-
-import java.util.Collections;
-import java.util.Map;
-import java.util.List;
-import java.util.Properties;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
+import org.apache.kafka.common.TopicPartition;
 
 
 /**
@@ -128,6 +135,53 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	}
 
 	@Override
+	public FlinkKafkaConsumerBase<T> setStartFromSpecificDate(Date date) {
+		Preconditions.checkArgument(null != date && date.getTime() >= System.currentTimeMillis(), "Startup time must before curr time.");
+		this.startupMode = StartupMode.SPECIFIC_TIMESTAMP;
+		this.specificStartupDate = date;
+		this.specificStartupOffsets = null;
+		return this;
+	}
+
+	/**
+	 * Convert flink topic partition to kafka topic partition
+	 * @param flinkTopicPartitionMap
+	 * @return
+	 */
+	private Map<TopicPartition, Long> convertFlinkToKafkaTopicPartition(Map<KafkaTopicPartition, Long> flinkTopicPartitionMap) {
+		Map<TopicPartition, Long> topicPartitionMap = new HashMap<>(flinkTopicPartitionMap.size());
+		for(Map.Entry<KafkaTopicPartition, Long> entry : flinkTopicPartitionMap.entrySet()) {
+			topicPartitionMap.put(new TopicPartition(entry.getKey().getTopic(), entry.getKey().getPartition()), entry.getValue());
+		}
+
+		return topicPartitionMap;
+		
+	}
+
+	/**
+	 * Search offset from timestamp for each topic in kafka. If no offset exist, use the latest offset.
+	 * @param partitionTimesMap Kafka topic partition and timestamp
+	 * @return Kafka topic partition and the earliest offset after the timestamp. If no offset exist, use the latest offset in kafka
+	 */
+	private Map<KafkaTopicPartition, Long> convertTimestampToOffset(Map<KafkaTopicPartition, Long> partitionTimesMap) {
+		Map<KafkaTopicPartition, Long> partitionOffsetMap = new HashMap<>(partitionTimesMap.size());
+		Map<TopicPartition, Long> kafkaPartitionTimesMap = convertFlinkToKafkaTopicPartition(partitionTimesMap);
+
+		try (KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(this.properties)) {
+			Map<TopicPartition, OffsetAndTimestamp> topicPartitionOffsetMap = consumer.offsetsForTimes(kafkaPartitionTimesMap);
+			for(Map.Entry<TopicPartition, OffsetAndTimestamp> entry : topicPartitionOffsetMap.entrySet()) {
+				if(entry.getValue() == null) {
+					partitionOffsetMap.put(new KafkaTopicPartition(entry.getKey().topic(), entry.getKey().partition()), StartupMode.LATEST.getStateSentinel());
+				} else {
+					partitionOffsetMap.put(new KafkaTopicPartition(entry.getKey().topic(), entry.getKey().partition()), entry.getValue().offset());
+				}
+			}
+		}
+
+		return partitionOffsetMap;
+	}
+	
+	@Override
 	protected AbstractFetcher<T, ?> createFetcher(
 			SourceContext<T> sourceContext,
 			Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
@@ -138,9 +192,16 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 
 		boolean useMetrics = !PropertiesUtil.getBoolean(properties, KEY_DISABLE_METRICS, false);
 
+		Map<KafkaTopicPartition, Long> partitionOffsetMap;
+		if(this.startupMode == StartupMode.SPECIFIC_TIMESTAMP) {
+			partitionOffsetMap = convertTimestampToOffset(assignedPartitionsWithInitialOffsets);
+		} else {
+			partitionOffsetMap = assignedPartitionsWithInitialOffsets;
+		}
+
 		return new Kafka010Fetcher<>(
 				sourceContext,
-				assignedPartitionsWithInitialOffsets,
+				partitionOffsetMap,
 				watermarksPeriodic,
 				watermarksPunctuated,
 				runtimeContext.getProcessingTimeService(),

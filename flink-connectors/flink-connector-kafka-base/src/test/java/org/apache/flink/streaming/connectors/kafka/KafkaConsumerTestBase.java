@@ -18,6 +18,24 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
@@ -87,24 +105,6 @@ import org.apache.kafka.common.errors.TimeoutException;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
-
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Random;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
@@ -350,7 +350,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			(o3 != null) ? o3.intValue() : 0
 		));
 
-		readSequence(env2, StartupMode.GROUP_OFFSETS, null, standardProps, topicName, partitionsToValuesCountAndStartOffset);
+		readSequence(env2, StartupMode.GROUP_OFFSETS, null, null, standardProps, topicName, partitionsToValuesCountAndStartOffset);
 
 		kafkaOffsetHandler.close();
 		deleteTestTopic(topicName);
@@ -466,7 +466,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		kafkaOffsetHandler.setCommittedOffset(topicName, 1, 31);
 		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
 
-		readSequence(env, StartupMode.EARLIEST, null, readProps, parallelism, topicName, recordsInEachPartition, 0);
+		readSequence(env, StartupMode.EARLIEST, null, null, readProps, parallelism, topicName, recordsInEachPartition, 0);
 
 		kafkaOffsetHandler.close();
 		deleteTestTopic(topicName);
@@ -646,7 +646,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		partitionsToValueCountAndStartOffsets.put(1, new Tuple2<>(50, 0)); // partition 1 should read offset 0-49
 		partitionsToValueCountAndStartOffsets.put(2, new Tuple2<>(7, 43));	// partition 2 should read offset 43-49
 
-		readSequence(env, StartupMode.GROUP_OFFSETS, null, readProps, topicName, partitionsToValueCountAndStartOffsets);
+		readSequence(env, StartupMode.GROUP_OFFSETS, null, null, readProps, topicName, partitionsToValueCountAndStartOffsets);
 
 		kafkaOffsetHandler.close();
 		deleteTestTopic(topicName);
@@ -710,7 +710,40 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		partitionsToValueCountAndStartOffsets.put(2, new Tuple2<>(28, 22));	// partition 2 should read offset 22-49
 		partitionsToValueCountAndStartOffsets.put(3, new Tuple2<>(50, 0));	// partition 3 should read offset 0-49
 
-		readSequence(env, StartupMode.SPECIFIC_OFFSETS, specificStartupOffsets, readProps, topicName, partitionsToValueCountAndStartOffsets);
+		readSequence(env, StartupMode.SPECIFIC_OFFSETS, specificStartupOffsets, null, readProps, topicName, partitionsToValueCountAndStartOffsets);
+
+		kafkaOffsetHandler.close();
+		deleteTestTopic(topicName);
+	}
+	
+	/**
+	 * This test ensures that the consumer correctly uses user-supplied specific date when explicitly configured to
+	 * start from specific date. For partitions which a specific date can not be found for, the starting position
+	 * for them should fallback to the latest offset.
+	 */
+	public void runStartFromSpecificDate() throws Exception {
+		final Date specificStartDate = new Date(System.currentTimeMillis() - 1000);
+		// 3 partitions with 50 records each (0-49, so the expected commit offset of each partition should be 50)
+		final int parallelism = 3;
+		final int recordsInEachPartition = 50;
+
+		final String topicName = writeSequence("testStartFromEarliestOffsetsTopic", recordsInEachPartition, parallelism, 1);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env.getConfig().disableSysoutLogging();
+		env.setParallelism(parallelism);
+
+		Properties readProps = new Properties();
+		readProps.putAll(standardProps);
+		readProps.setProperty("auto.offset.reset", "latest"); // this should be ignored
+
+		// the committed offsets should be ignored
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
+		kafkaOffsetHandler.setCommittedOffset(topicName, 0, 23);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 1, 31);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
+
+		readSequence(env, StartupMode.SPECIFIC_TIMESTAMP, null, specificStartDate, readProps, parallelism, topicName, recordsInEachPartition, 0);
 
 		kafkaOffsetHandler.close();
 		deleteTestTopic(topicName);
@@ -1847,6 +1880,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	protected void readSequence(final StreamExecutionEnvironment env,
 								final StartupMode startupMode,
 								final Map<KafkaTopicPartition, Long> specificStartupOffsets,
+								final Date specificStartupDate,
 								final Properties cc,
 								final String topicName,
 								final Map<Integer, Tuple2<Integer, Integer>> partitionsToValuesCountAndStartOffset) throws Exception {
@@ -1872,6 +1906,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				break;
 			case LATEST:
 				consumer.setStartFromLatest();
+				break;
+			case SPECIFIC_TIMESTAMP:
+				consumer.setStartFromSpecificDate(specificStartupDate);
 				break;
 			case SPECIFIC_OFFSETS:
 				consumer.setStartFromSpecificOffsets(specificStartupOffsets);
@@ -1943,12 +1980,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * Variant of {@link KafkaConsumerTestBase#readSequence(StreamExecutionEnvironment, StartupMode, Map, Properties, String, Map)} to
+	 * Variant of {@link KafkaConsumerTestBase#readSequence(StreamExecutionEnvironment, StartupMode, Map, Date, Properties, String, Map)} to
 	 * expect reading from the same start offset and the same value count for all partitions of a single Kafka topic.
 	 */
 	protected void readSequence(final StreamExecutionEnvironment env,
 								final StartupMode startupMode,
 								final Map<KafkaTopicPartition, Long> specificStartupOffsets,
+								final Date specificStartupDate,
 								final Properties cc,
 								final int sourceParallelism,
 								final String topicName,
@@ -1958,7 +1996,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		for (int i = 0; i < sourceParallelism; i++) {
 			partitionsToValuesCountAndStartOffset.put(i, new Tuple2<>(valuesCount, startFrom));
 		}
-		readSequence(env, startupMode, specificStartupOffsets, cc, topicName, partitionsToValuesCountAndStartOffset);
+		readSequence(env, startupMode, specificStartupOffsets, specificStartupDate, cc, topicName, partitionsToValuesCountAndStartOffset);
 	}
 
 	protected String writeSequence(

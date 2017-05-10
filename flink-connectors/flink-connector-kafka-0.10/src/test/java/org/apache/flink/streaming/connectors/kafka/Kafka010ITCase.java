@@ -17,6 +17,10 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import javax.annotation.Nullable;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -39,10 +43,6 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.junit.Test;
-
-import javax.annotation.Nullable;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 
 
 public class Kafka010ITCase extends KafkaConsumerTestBase {
@@ -145,6 +145,11 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 	@Test(timeout = 60000)
 	public void testStartFromGroupOffsets() throws Exception {
 		runStartFromGroupOffsets();
+	}
+
+	@Test(timeout = 60000)
+	public void testStartFromSpecificDate() throws Exception {
+		runStartFromSpecificDate();
 	}
 
 	@Test(timeout = 60000)

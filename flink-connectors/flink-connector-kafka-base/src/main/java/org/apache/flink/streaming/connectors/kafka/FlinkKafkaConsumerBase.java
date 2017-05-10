@@ -17,6 +17,12 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.commons.collections.map.LinkedMap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
@@ -48,11 +54,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -120,7 +121,10 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	private OffsetCommitMode offsetCommitMode;
 
 	/** The startup mode for the consumer (default is {@link StartupMode#GROUP_OFFSETS}) */
-	private StartupMode startupMode = StartupMode.GROUP_OFFSETS;
+	protected StartupMode startupMode = StartupMode.GROUP_OFFSETS;
+
+	/** Specific startup offsets; only relevant when startup mode is {@link StartupMode#SPECIFIC_TIMESTAMP} */
+	protected Date specificStartupDate;
 
 	/** Specific startup offsets; only relevant when startup mode is {@link StartupMode#SPECIFIC_OFFSETS} */
 	protected Map<KafkaTopicPartition, Long> specificStartupOffsets;
@@ -256,6 +260,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	public FlinkKafkaConsumerBase<T> setStartFromEarliest() {
 		this.startupMode = StartupMode.EARLIEST;
 		this.specificStartupOffsets = null;
+		this.specificStartupDate = null;
 		return this;
 	}
 
@@ -272,6 +277,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	public FlinkKafkaConsumerBase<T> setStartFromLatest() {
 		this.startupMode = StartupMode.LATEST;
 		this.specificStartupOffsets = null;
+		this.specificStartupDate = null;
 		return this;
 	}
 
@@ -290,7 +296,27 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	public FlinkKafkaConsumerBase<T> setStartFromGroupOffsets() {
 		this.startupMode = StartupMode.GROUP_OFFSETS;
 		this.specificStartupOffsets = null;
+		this.specificStartupDate = null;
 		return this;
+	}
+
+	/**
+	 * Specifies the consumer to start reading partitions from specific date. The specified date must before curr timestamp.
+	 * This lets the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
+	 *
+	 * The consumer will look up the earliest offset whose timestamp is greater than or equal to the specific date from the kafka.
+	 * If there's no such message, the consumer will use the latest offset to read data from kafka.
+	 *
+	 * This method does not effect where partitions are read from when the consumer is restored
+	 * from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
+	 * savepoint, only the offsets in the restored state will be used.
+	 *
+	 * Note: The api is supported by kafka version >= 0.10 only.
+	 *
+	 * @return The consumer object, to allow function chaining.
+	 */
+	public FlinkKafkaConsumerBase<T> setStartFromSpecificDate(Date date) {
+		throw new RuntimeException("This method supports kafka version >= 0.10 only.");
 	}
 
 	/**
@@ -316,6 +342,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	public FlinkKafkaConsumerBase<T> setStartFromSpecificOffsets(Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 		this.startupMode = StartupMode.SPECIFIC_OFFSETS;
 		this.specificStartupOffsets = checkNotNull(specificStartupOffsets);
+		this.specificStartupDate = null;
 		return this;
 	}
 
@@ -369,6 +396,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				getRuntimeContext().getIndexOfThisSubtask(),
 				getRuntimeContext().getNumberOfParallelSubtasks(),
 				startupMode,
+				specificStartupDate,
 				specificStartupOffsets);
 
 			if (subscribedPartitionsToStartOffsets.size() != 0) {
@@ -383,6 +411,13 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 						LOG.info("Consumer subtask {} will start reading the following {} partitions from the latest offsets: {}",
 							getRuntimeContext().getIndexOfThisSubtask(),
 							subscribedPartitionsToStartOffsets.size(),
+							subscribedPartitionsToStartOffsets.keySet());
+						break;
+					case SPECIFIC_TIMESTAMP:
+						LOG.info("Consumer subtask {} will start reading the following {} partitions from the specified startup timestamp {}: {}",
+							getRuntimeContext().getIndexOfThisSubtask(),
+							subscribedPartitionsToStartOffsets.size(),
+							specificStartupDate,
 							subscribedPartitionsToStartOffsets.keySet());
 						break;
 					case SPECIFIC_OFFSETS:
@@ -685,6 +720,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * @param indexOfThisSubtask the index of this consumer instance
 	 * @param numParallelSubtasks total number of parallel consumer instances
 	 * @param startupMode the configured startup mode for the consumer
+	 * @param specificStartupDate specific timestamp to start from
+	 *                               (only relevant if startupMode is {@link StartupMode#SPECIFIC_TIMESTAMP})
 	 * @param specificStartupOffsets specific partition offsets to start from
 	 *                               (only relevant if startupMode is {@link StartupMode#SPECIFIC_OFFSETS})
 	 *
@@ -696,13 +733,19 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			int indexOfThisSubtask,
 			int numParallelSubtasks,
 			StartupMode startupMode,
+			Date specificStartupDate,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 
 		for (int i = 0; i < kafkaTopicPartitions.size(); i++) {
 			if (i % numParallelSubtasks == indexOfThisSubtask) {
-				if (startupMode != StartupMode.SPECIFIC_OFFSETS) {
-					subscribedPartitionsToStartOffsets.put(kafkaTopicPartitions.get(i), startupMode.getStateSentinel());
-				} else {
+				if (startupMode == StartupMode.SPECIFIC_TIMESTAMP) {
+					if (specificStartupDate == null) {
+						throw new IllegalArgumentException(
+							"Startup mode for the consumer set to " + StartupMode.SPECIFIC_TIMESTAMP +
+								", but no specific timestamp were specified");
+					}
+					subscribedPartitionsToStartOffsets.put(kafkaTopicPartitions.get(i), specificStartupDate.getTime());
+				} else if (startupMode == StartupMode.SPECIFIC_OFFSETS) {
 					if (specificStartupOffsets == null) {
 						throw new IllegalArgumentException(
 							"Startup mode for the consumer set to " + StartupMode.SPECIFIC_OFFSETS +
@@ -719,6 +762,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					} else {
 						subscribedPartitionsToStartOffsets.put(partition, KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
 					}
+
+				} else {
+					subscribedPartitionsToStartOffsets.put(kafkaTopicPartitions.get(i), startupMode.getStateSentinel());
 				}
 			}
 		}
