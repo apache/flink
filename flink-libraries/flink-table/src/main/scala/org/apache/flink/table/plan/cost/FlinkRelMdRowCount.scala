@@ -23,7 +23,9 @@ import java.lang.Double
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.metadata.{ReflectiveRelMetadataProvider, RelMdRowCount, RelMetadataProvider, RelMetadataQuery}
 import org.apache.calcite.util.BuiltInMethod
+import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.nodes.dataset.DataSetSort
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableSourceScan
 
 object FlinkRelMdRowCount extends RelMdRowCount {
 
@@ -34,4 +36,12 @@ object FlinkRelMdRowCount extends RelMdRowCount {
   override def getRowCount(rel: Calc, mq: RelMetadataQuery): Double = rel.estimateRowCount(mq)
 
   def getRowCount(rel: DataSetSort, mq: RelMetadataQuery): Double = rel.estimateRowCount(mq)
+
+  def getRowCount(rel: FlinkLogicalTableSourceScan, mq: RelMetadataQuery): Double = {
+    rel.estimateRowCount(mq)
+  }
+
+  def getRowCount(rel: PhysicalTableSourceScan, mq: RelMetadataQuery): Double = {
+    rel.estimateRowCount(mq)
+  }
 }

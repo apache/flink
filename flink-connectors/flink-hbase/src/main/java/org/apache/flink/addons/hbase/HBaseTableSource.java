@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.types.Row;
@@ -126,5 +127,10 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	@Override
 	public String explainSource() {
 		return "";
+	}
+
+	@Override
+	public TableStats getTableStats() {
+		return null;
 	}
 }

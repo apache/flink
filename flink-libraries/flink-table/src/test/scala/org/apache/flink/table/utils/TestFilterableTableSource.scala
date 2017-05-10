@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.Types._
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.sources.{BatchTableSource, FilterableTableSource, StreamTableSource, TableSource}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
@@ -96,6 +97,15 @@ class TestFilterableTableSource(
   }
 
   override def isFilterPushedDown: Boolean = filterPushedDown
+
+  override def getTableStats: TableStats = {
+    val rowCount = if (filterPushedDown) {
+      recordNum * math.pow(0.9, filterPredicates.size)
+    } else {
+      recordNum
+    }
+    TableStats(rowCount.toLong)
+  }
 
   private def generateDynamicCollection(): Seq[Row] = {
     Preconditions.checkArgument(filterPredicates.length == filterValues.length)

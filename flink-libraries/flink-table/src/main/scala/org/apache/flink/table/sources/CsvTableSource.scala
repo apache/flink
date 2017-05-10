@@ -19,15 +19,15 @@
 package org.apache.flink.table.sources
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.io.CsvInputFormat
-import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.types.Row
-import org.apache.flink.api.java.io.RowCsvInputFormat
+import org.apache.flink.api.java.io.{CsvInputFormat, RowCsvInputFormat}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.plan.stats.TableStats
+import org.apache.flink.types.Row
 
 import scala.collection.mutable
 
@@ -78,6 +78,8 @@ class CsvTableSource(
   private val returnType = new RowTypeInfo(fieldTypes, fieldNames)
 
   private var selectedFields: Array[Int] = fieldTypes.indices.toArray
+
+  private var cachedStats: Option[TableStats] = None
 
   /**
     * Returns the data of the table as a [[DataSet]] of [[Row]].
@@ -155,6 +157,15 @@ class CsvTableSource(
 
   override def hashCode(): Int = {
     returnType.hashCode()
+  }
+
+  override def getTableStats: TableStats = {
+    if (cachedStats.isEmpty) {
+      val inputFormat = new RowCsvInputFormat(new Path(path), fieldTypes)
+      val statistics = inputFormat.getStatistics(null)
+      cachedStats = Some(TableStats(statistics.getNumberOfRecords))
+    }
+    cachedStats.get
   }
 }
 

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
@@ -108,5 +109,10 @@ public abstract class KafkaTableSource implements StreamTableSource<Row> {
 	@Override
 	public String explainSource() {
 		return "";
+	}
+
+	@Override
+	public TableStats getTableStats() {
+		return null;
 	}
 }

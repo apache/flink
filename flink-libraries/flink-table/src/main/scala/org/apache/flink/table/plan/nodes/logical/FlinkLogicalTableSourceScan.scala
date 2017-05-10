@@ -29,6 +29,7 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.{DefinedProcTimeAttribute, DefinedRowTimeAttribute, TableSource}
 
 import scala.collection.JavaConverters._
@@ -102,6 +103,21 @@ class FlinkLogicalTableSourceScan(
       s"Scan($s, source:$sourceDesc)"
     } else {
       s"Scan($s)"
+    }
+  }
+
+  override def estimateRowCount(mq: RelMetadataQuery): Double = {
+    val tableSourceTable = getTable.unwrap(classOf[TableSourceTable[_]])
+
+    if (tableSourceTable.getStatistic != FlinkStatistic.UNKNOWN) {
+      return tableSourceTable.getStatistic.getRowCount
+    }
+
+    val tableStats = tableSource.getTableStats
+    if (tableStats != null) {
+      tableStats.rowCount.toDouble
+    } else {
+      getTable.getRowCount
     }
   }
 }

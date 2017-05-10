@@ -22,8 +22,11 @@ import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.TableSource
 
 import scala.collection.JavaConverters._
@@ -70,4 +73,18 @@ abstract class PhysicalTableSourceScan(
 
   def copy(traitSet: RelTraitSet, tableSource: TableSource[_]): PhysicalTableSourceScan
 
+  override def estimateRowCount(mq: RelMetadataQuery): Double = {
+    val tableSourceTable = getTable.unwrap(classOf[TableSourceTable[_]])
+
+    if (tableSourceTable.getStatistic != FlinkStatistic.UNKNOWN) {
+      return tableSourceTable.getStatistic.getRowCount
+    }
+
+    val tableStats = tableSource.getTableStats
+    if (tableStats != null) {
+      tableStats.rowCount.toDouble
+    } else {
+      getTable.getRowCount
+    }
+  }
 }
