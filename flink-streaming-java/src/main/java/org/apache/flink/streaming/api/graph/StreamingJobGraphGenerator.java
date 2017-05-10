@@ -66,6 +66,8 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -642,6 +644,22 @@ public class StreamingJobGraphGenerator {
 			}
 		}
 
+		// because the hooks can have user-defined code, they need to be stored as
+		// eagerly serialized values
+		final SerializedValue<MasterTriggerRestoreHook.Factory[]> serializedHooks;
+		if (hooks.isEmpty()) {
+			serializedHooks = null;
+		} else {
+			try {
+				MasterTriggerRestoreHook.Factory[] asArray =
+						hooks.toArray(new MasterTriggerRestoreHook.Factory[hooks.size()]);
+				serializedHooks = new SerializedValue<>(asArray);
+			}
+			catch (IOException e) {
+				throw new FlinkRuntimeException("Trigger/restore hook is not serializable", e);
+			}
+		}
+
 		//  --- done, put it all together ---
 
 		JobCheckpointingSettings settings = new JobCheckpointingSettings(
@@ -650,7 +668,7 @@ public class StreamingJobGraphGenerator {
 				cfg.getMaxConcurrentCheckpoints(),
 				externalizedCheckpointSettings,
 				streamGraph.getStateBackend(),
-				hooks.toArray(new MasterTriggerRestoreHook.Factory[hooks.size()]),
+				serializedHooks,
 				isExactlyOnce);
 
 		jobGraph.setSnapshotSettings(settings);
