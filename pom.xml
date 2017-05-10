@@ -912,6 +912,9 @@ under the License.
 						<exclude>**/resources/**/bootstrap*</exclude>
 						<exclude>flink-clients/src/main/resources/web-docs/js/*d3.js</exclude>
 
+						<!-- the licenses that are re-bundled -->
+						<exclude>**/packaged_licenses/LICENSE.*.txt</exclude>
+
 						<!-- web dashboard config JSON files -->
 						<exclude>flink-runtime-web/web-dashboard/package.json</exclude>
 						<exclude>flink-runtime-web/web-dashboard/bower.json</exclude>
@@ -1115,6 +1118,34 @@ under the License.
 				</executions>
 			</plugin>
 
+			<!-- make sure all licenses that need to be repackaged are in the target folder -->
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<configuration>
+					<encoding>UTF-8</encoding>
+				</configuration>
+				<executions>
+					<execution>
+						<id>copy-packaged-licenses</id>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${basedir}/target/classes/META-INF/license/</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${basedir}/packaged_licenses</directory>
+									<includes>
+										<include>LICENSE.*.txt</include>
+									</includes>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 			<!-- We use shading in all packages for relocating some classes, such as
 				Guava and ASM.
 				By doing so, users adding Flink as a dependency won't run into conflicts.
@@ -1185,7 +1216,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-
 		</plugins>
 
 		<!-- Plugin configurations for plugins activated in sub-projects --> 
