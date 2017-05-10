@@ -136,7 +136,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 
 	@Override
 	public FlinkKafkaConsumerBase<T> setStartFromSpecificDate(Date date) {
-		Preconditions.checkArgument(null != date && date.getTime() >= System.currentTimeMillis(), "Startup time must before curr time.");
+		Preconditions.checkArgument(null != date && date.getTime() <= System.currentTimeMillis(), "Startup time must before curr time.");
 		this.startupMode = StartupMode.SPECIFIC_TIMESTAMP;
 		this.specificStartupDate = date;
 		this.specificStartupOffsets = null;
