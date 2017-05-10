@@ -537,7 +537,7 @@ public final class BlobClient implements Closeable {
 			throw new IOException("Server side error: " + cause.getMessage(), cause);
 		}
 		else {
-			throw new IOException("Unrecognized response");
+			throw new IOException("Unrecognized response: " + response + '.');
 		}
 	}
 
