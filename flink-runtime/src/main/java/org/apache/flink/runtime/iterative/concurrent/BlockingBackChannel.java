@@ -51,7 +51,7 @@ public class BlockingBackChannel {
 	public DataInputView getReadEndAfterSuperstepEnded() {
 		try {
 			return queue.take().switchBuffers();
-		} catch(InterruptedException | IOException e) {
+		} catch (InterruptedException | IOException e) {
 			throw new RuntimeException(e);
 		}
 	}

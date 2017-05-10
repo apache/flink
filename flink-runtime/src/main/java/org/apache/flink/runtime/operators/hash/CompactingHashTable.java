@@ -452,7 +452,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 					}
 					return newPointer;
 				} 
-				catch(EOFException | IndexOutOfBoundsException ex) {
+				catch (EOFException | IndexOutOfBoundsException ex) {
 					throw new RuntimeException("Memory ran out. Compaction failed. " +
 							getMemoryConsumptionString() + " Message: " + ex.getMessage());
 				}
