@@ -30,12 +30,10 @@ This page contains a collection of best practices for Flink programmers on how t
 
 ## Parsing command line arguments and passing them around in your Flink application
 
-
 Almost all Flink applications, both batch and streaming, rely on external configuration parameters.
-For example, they are used to specify input and output sources (like paths or addresses), system parameters (parallelism, runtime configuration), and application specific parameters (typically used within user functions).
+They are used to specify input and output sources (like paths or addresses), system parameters (parallelism, runtime configuration), and application specific parameters (typically used within user functions).
 
-Since version 0.9 we are providing a simple utility called `ParameterTool` to provide at least some basic tooling for solving these problems.
-
+Flink provides a simple utility called `ParameterTool` to provide some basic tooling for solving these problems.
 Please note that you don't have to use the `ParameterTool` described here. Other frameworks such as [Commons CLI](https://commons.apache.org/proper/commons-cli/) and
 [argparse4j](http://argparse4j.sourceforge.net/) also work well with Flink.
 
@@ -287,7 +285,7 @@ The following changes were done in the `<dependencies>` section:
  * Exclude all `log4j` dependencies from all Flink dependencies: this causes Maven to ignore Flink's transitive dependencies to log4j.
  * Exclude the `slf4j-log4j12` artifact from Flink's dependencies: since we are going to use the slf4j to logback binding, we have to remove the slf4j to log4j binding.
  * Add the Logback dependencies: `logback-core` and `logback-classic`
- * Add dependencies for `log4j-over-slf4j`. `log4j-over-slf4j` is a tool which allows legacy applications which are directly using the Log4j APIs to use the Slf4j interface. Flink depends on Hadoop which is directly using Log4j for logging. Therefore we need to redirect all logger calls from Log4j to Slf4j which is in turn logging to Logback.
+ * Add dependencies for `log4j-over-slf4j`. `log4j-over-slf4j` is a tool which allows legacy applications which are directly using the Log4j APIs to use the Slf4j interface. Flink depends on Hadoop which is directly using Log4j for logging. Therefore, we need to redirect all logger calls from Log4j to Slf4j which is in turn logging to Logback.
 
 Please note that you need to manually add the exclusions to all new Flink dependencies you are adding to the pom file.
 

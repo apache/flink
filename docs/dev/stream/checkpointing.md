@@ -124,12 +124,13 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
 ## Selecting a State Backend
 
-The checkpointing mechanism stores consistent snapshots of the progress in the data sources and data sinks, the state of windows and timers, as well as any [user-defined state](state.html), thereby
-providing *exactly once* processing semantics. Where the checkpoints are stored (e.g., JobManager memory, file system, database) depends on the configured
+Flink's [checkpointing mechanism]({{ site.baseurl }}/internals/stream_checkpointing.html) stores consistent snapshots
+of all the state in timers and stateful operators, including connectors, windows, and any [user-defined state](state.html).
+Where the checkpoints are stored (e.g., JobManager memory, file system, database) depends on the configured
 **State Backend**. 
 
-By default state will be kept in memory, and checkpoints will be stored in-memory at the master node (the JobManager). For proper persistence of large state,
-Flink supports various forms of storing and checkpointing state in so called **State Backends**, which can be set via `StreamExecutionEnvironment.setStateBackend(…)`.
+By default, state is kept in memory in the TaskManagers, and checkpoints are stored in memory in the JobManager. For proper persistence of large state,
+Flink supports various approaches for storing and checkpointing state in other state backends. The choice of state backend can be configured via `StreamExecutionEnvironment.setStateBackend(…)`.
 
 See [state backends](../../ops/state_backends.html) for more details on the available state backends and options for job-wide and cluster-wide configuration.
 
