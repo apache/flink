@@ -77,3 +77,6 @@
 .highlight .vg { color: #008080 } /* Name.Variable.Global */
 .highlight .vi { color: #008080 } /* Name.Variable.Instance */
 .highlight .il { color: #009999 } /* Literal.Number.Integer.Long */
+
+/* Missing YAML styles */
+.highlight .l-Scalar-Plain { color: #008080 }
