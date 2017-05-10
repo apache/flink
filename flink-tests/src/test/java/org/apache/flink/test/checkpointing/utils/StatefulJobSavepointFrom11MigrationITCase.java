@@ -129,7 +129,7 @@ public class StatefulJobSavepointFrom11MigrationITCase extends SavepointMigratio
 
 		executeAndSavepoint(
 				env,
-				"src/test/resources/stateful-udf-migration-itcase-flink1.1-savepoint-rocksdb",
+				"src/test/resources/stateful-udf-migration-itcase-flink1.1-rocksdb-savepoint",
 				new Tuple2<>(EXPECTED_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS));
 	}
 
@@ -198,7 +198,7 @@ public class StatefulJobSavepointFrom11MigrationITCase extends SavepointMigratio
 
 		restoreAndExecute(
 				env,
-				getResourceFilename("stateful-udf-migration-itcase-flink1.1-savepoint-rocksdb"),
+				getResourceFilename("stateful-udf-migration-itcase-flink1.1-rocksdb-savepoint"),
 				new Tuple2<>(SUCCESSFUL_CHECK_ACCUMULATOR, EXPECTED_SUCCESSFUL_CHECKS));
 	}
 
