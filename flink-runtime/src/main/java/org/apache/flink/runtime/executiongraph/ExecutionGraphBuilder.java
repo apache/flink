@@ -51,6 +51,7 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.DynamicCodeLoadingException;
+import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -240,13 +241,21 @@ public class ExecutionGraphBuilder {
 
 			// instantiate the user-defined checkpoint hooks
 
-			final MasterTriggerRestoreHook.Factory[] hookFactories = snapshotSettings.getMasterHooks();
+			final SerializedValue<MasterTriggerRestoreHook.Factory[]> serializedHooks = snapshotSettings.getMasterHooks();
 			final List<MasterTriggerRestoreHook<?>> hooks;
 
-			if (hookFactories == null || hookFactories.length == 0) {
+			if (serializedHooks == null) {
 				hooks = Collections.emptyList();
 			}
 			else {
+				final MasterTriggerRestoreHook.Factory[] hookFactories;
+				try {
+					hookFactories = serializedHooks.deserializeValue(classLoader);
+				}
+				catch (IOException | ClassNotFoundException e) {
+					throw new JobExecutionException(jobId, "Could not instantiate user-defined checkpoint hooks", e);
+				}
+
 				hooks = new ArrayList<>(hookFactories.length);
 				for (MasterTriggerRestoreHook.Factory factory : hookFactories) {
 					hooks.add(factory.create());
