@@ -173,7 +173,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 				if(entry.getValue() == null) {
 					partitionOffsetMap.put(new KafkaTopicPartition(entry.getKey().topic(), entry.getKey().partition()), StartupMode.LATEST.getStateSentinel());
 				} else {
-					partitionOffsetMap.put(new KafkaTopicPartition(entry.getKey().topic(), entry.getKey().partition()), entry.getValue().offset());
+					partitionOffsetMap.put(new KafkaTopicPartition(entry.getKey().topic(), entry.getKey().partition()), entry.getValue().offset() - 1);
 				}
 			}
 		}
