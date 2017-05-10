@@ -97,8 +97,7 @@ public final class ClassLoaderUtil {
 				}
 				
 				return bld.toString();
-			}
-			catch (Throwable t) {
+			}catch (Throwable t) {
 				return "Cannot access classloader info due to an exception.\n"
 						+ ExceptionUtils.stringifyException(t);
 			}
@@ -121,11 +120,7 @@ public final class ClassLoaderUtil {
 			String className = cnfe.getMessage();
 			Class.forName(className, false, cl);
 			return true;
-		}
-		catch (ClassNotFoundException e) {
-			return false;
-		}
-		catch (Exception e) {
+		}catch(ClassNotFoundException | Exception  e) /*multi-catch refactor*/ {
 			return false;
 		}
 	}

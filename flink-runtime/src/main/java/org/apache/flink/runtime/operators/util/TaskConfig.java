@@ -277,7 +277,7 @@ public class TaskConfig implements Serializable {
 	public void setStubWrapper(UserCodeWrapper<?> wrapper) {
 		try {
 			InstantiationUtil.writeObjectToConfig(wrapper, this.config, STUB_OBJECT);
-		} catch (IOException e) {
+		}catch (IOException e) {
 			throw new CorruptConfigurationException("Could not write the user code wrapper " + wrapper.getClass() + " : " + e.toString(), e);
 		}
 	}
@@ -286,9 +286,7 @@ public class TaskConfig implements Serializable {
 	public <T> UserCodeWrapper<T> getStubWrapper(ClassLoader cl) {
 		try {
 			return (UserCodeWrapper<T>) InstantiationUtil.readObjectFromConfig(this.config, STUB_OBJECT, cl);
-		} catch (ClassNotFoundException e) {
-			throw new CorruptConfigurationException("Could not read the user code wrapper: " + e.getMessage(), e);
-		} catch (IOException e) {
+		}catch(ClassNotFoundException | IOException  e) /*multi-catch refactor*/ {
 			throw new CorruptConfigurationException("Could not read the user code wrapper: " + e.getMessage(), e);
 		}
 	}
@@ -327,7 +325,7 @@ public class TaskConfig implements Serializable {
 			@SuppressWarnings("unchecked")
 			final Class<Driver<S, OT>> pdClazz = (Class<Driver<S, OT>>) (Class<?>) Driver.class;
 			return Class.forName(className).asSubclass(pdClazz);
-		} catch (ClassNotFoundException cnfex) {
+		}catch (ClassNotFoundException cnfex) {
 			throw new CorruptConfigurationException("The given driver class cannot be found.");
 		} catch (ClassCastException ccex) {
 			throw new CorruptConfigurationException("The given driver class does not implement the pact driver interface.");
@@ -384,8 +382,7 @@ public class TaskConfig implements Serializable {
 		try {
 			final Class<? extends TypePairComparatorFactory<T1, T2>> clazz = Class.forName(className, true, cl).asSubclass(superClass);
 			return InstantiationUtil.instantiate(clazz, superClass);
-		}
-		catch (ClassNotFoundException cnfex) {
+		}catch (ClassNotFoundException cnfex) {
 			throw new RuntimeException("The class '" + className + "', noted in the configuration as " +
 				"pair comparator factory, could not be found. It is not part of the user code's class loader resources.");
 		}
@@ -585,7 +582,7 @@ public class TaskConfig implements Serializable {
 		final Class<? extends DataDistribution> clazz;
 		try {
 			clazz = Class.forName(className, true, cl).asSubclass(DataDistribution.class);
-		} catch (ClassCastException ccex) {
+		}catch (ClassCastException ccex) {
 			throw new CorruptConfigurationException("The class noted in the configuration as the data distribution " +
 					"is no subclass of DataDistribution.");
 		}
@@ -604,7 +601,7 @@ public class TaskConfig implements Serializable {
 		try {
 			distribution.read(in);
 			return distribution;
-		} catch (Exception ex) {
+		}catch (Exception ex) {
 			throw new RuntimeException("The deserialization of the encoded data distribution state caused an error"
 				+ (ex.getMessage() == null ? "." : ": " + ex.getMessage()), ex);
 		}
@@ -613,8 +610,7 @@ public class TaskConfig implements Serializable {
 	public void setOutputPartitioner(Partitioner<?> partitioner, int outputNum) {
 		try {
 			InstantiationUtil.writeObjectToConfig(partitioner, config, OUTPUT_PARTITIONER + outputNum);
-		}
-		catch (Throwable t) {
+		}catch (Throwable t) {
 			throw new RuntimeException("Could not serialize custom partitioner.", t);
 		}
 	}
@@ -622,8 +618,7 @@ public class TaskConfig implements Serializable {
 	public Partitioner<?> getOutputPartitioner(int outputNum, final ClassLoader cl) throws ClassNotFoundException {
 		try {
 			return (Partitioner<?>) InstantiationUtil.readObjectFromConfig(config, OUTPUT_PARTITIONER + outputNum, cl);
-		}
-		catch (ClassNotFoundException e) {
+		}catch (ClassNotFoundException e) {
 			throw e;
 		}
 		catch (Throwable t) {
@@ -740,7 +735,7 @@ public class TaskConfig implements Serializable {
 		final Class<ChainedDriver<?, ?>> clazz = (Class<ChainedDriver<?, ?>>) (Class<?>) ChainedDriver.class;
 		try {
 			return Class.forName(className).asSubclass(clazz);
-		} catch (ClassNotFoundException e) {
+		}catch (ClassNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -937,7 +932,7 @@ public class TaskConfig implements Serializable {
 		this.config.setString(ITERATION_AGGREGATOR_NAME_PREFIX + num, name);
 		try {
 				InstantiationUtil.writeObjectToConfig(aggregator, this.config, ITERATION_AGGREGATOR_PREFIX + num);
-		} catch (IOException e) {
+		}catch (IOException e) {
 				throw new RuntimeException("Error while writing the aggregator object to the task configuration.");
 		}
 		this.config.setInteger(ITERATION_NUM_AGGREGATORS, num + 1);
@@ -949,7 +944,7 @@ public class TaskConfig implements Serializable {
 			this.config.setString(ITERATION_AGGREGATOR_NAME_PREFIX + num, awn.getName());
 			try {
 				InstantiationUtil.writeObjectToConfig(awn.getAggregator(), this.config, ITERATION_AGGREGATOR_PREFIX + num);
-			} catch (IOException e) {
+			}catch (IOException e) {
 				throw new RuntimeException("Error while writing the aggregator object to the task configuration.");
 			}
 			num++;
@@ -970,7 +965,7 @@ public class TaskConfig implements Serializable {
 			try {
 				aggObj = (Aggregator<Value>) InstantiationUtil.readObjectFromConfig(
 						this.config, ITERATION_AGGREGATOR_PREFIX + i, cl);
-			} catch (IOException e) {
+			}catch (IOException e) {
 					throw new RuntimeException("Error while reading the aggregator object from the task configuration.");
 			} catch (ClassNotFoundException e) {
 					throw new RuntimeException("Error while reading the aggregator object from the task configuration. " +
@@ -991,7 +986,7 @@ public class TaskConfig implements Serializable {
 	public void setConvergenceCriterion(String aggregatorName, ConvergenceCriterion<?> convCriterion) {
 		try {
 			InstantiationUtil.writeObjectToConfig(convCriterion, this.config, ITERATION_CONVERGENCE_CRITERION);
-		} catch (IOException e) {
+		}catch (IOException e) {
 			throw new RuntimeException("Error while writing the convergence criterion object to the task configuration.");
 		}
 		this.config.setString(ITERATION_CONVERGENCE_CRITERION_AGG_NAME, aggregatorName);
@@ -1006,7 +1001,7 @@ public class TaskConfig implements Serializable {
 	public void setImplicitConvergenceCriterion(String aggregatorName, ConvergenceCriterion<?> convCriterion) {
 		try {
 			InstantiationUtil.writeObjectToConfig(convCriterion, this.config, ITERATION_IMPLICIT_CONVERGENCE_CRITERION);
-		} catch (IOException e) {
+		}catch (IOException e) {
 			throw new RuntimeException("Error while writing the implicit convergence criterion object to the task configuration.");
 		}
 		this.config.setString(ITERATION_IMPLICIT_CONVERGENCE_CRITERION_AGG_NAME, aggregatorName);
@@ -1018,7 +1013,7 @@ public class TaskConfig implements Serializable {
 		try {
 			convCriterionObj = InstantiationUtil.readObjectFromConfig(
 			this.config, ITERATION_CONVERGENCE_CRITERION, cl);
-		} catch (IOException e) {
+		}catch (IOException e) {
 			throw new RuntimeException("Error while reading the convergence criterion object from the task configuration.");
 		} catch (ClassNotFoundException e) {
 			throw new RuntimeException("Error while reading the convergence criterion object from the task configuration. " +
@@ -1044,7 +1039,7 @@ public class TaskConfig implements Serializable {
 		try {
 			convCriterionObj = InstantiationUtil.readObjectFromConfig(
 					this.config, ITERATION_IMPLICIT_CONVERGENCE_CRITERION, cl);
-		} catch (IOException e) {
+		}catch (IOException e) {
 			throw new RuntimeException("Error while reading the default convergence criterion object from the task configuration.");
 		} catch (ClassNotFoundException e) {
 			throw new RuntimeException("Error while reading the default convergence criterion object from the task configuration. " +
@@ -1127,8 +1122,7 @@ public class TaskConfig implements Serializable {
 		try {
 			Class<? extends TypeSerializerFactory<T>> clazz = Class.forName(className, true, cl).asSubclass(superClass);
 			factory = InstantiationUtil.instantiate(clazz, superClass);
-		}
-		catch (ClassNotFoundException cnfex) {
+		}catch (ClassNotFoundException cnfex) {
 			throw new RuntimeException("The class '" + className + "', noted in the configuration as " +
 					"serializer factory, could not be found. It is not part of the user code's class loader resources.");
 		}
@@ -1141,7 +1135,7 @@ public class TaskConfig implements Serializable {
 		final Configuration parameters = new DelegatingConfiguration(this.config, parametersPrefix);
 		try {
 			factory.readParametersFromConfig(parameters, cl);
-		} catch (ClassNotFoundException cnfex) {
+		}catch (ClassNotFoundException cnfex) {
 			throw new RuntimeException("The type serializer factory could not load its parameters from the " +
 					"configuration due to missing classes.", cnfex);
 		}
@@ -1176,8 +1170,7 @@ public class TaskConfig implements Serializable {
 		try {
 			Class<? extends TypeComparatorFactory<T>> clazz = Class.forName(className, true, cl).asSubclass(superClass);
 			factory = InstantiationUtil.instantiate(clazz, superClass);
-		}
-		catch (ClassNotFoundException cnfex) {
+		}catch (ClassNotFoundException cnfex) {
 			throw new RuntimeException("The class '" + className + "', noted in the configuration as " +
 					"comparator factory, could not be found. It is not part of the user code's class loader resources.");
 		}
@@ -1190,7 +1183,7 @@ public class TaskConfig implements Serializable {
 		final Configuration parameters = new DelegatingConfiguration(this.config, parametersPrefix);
 		try {
 			factory.readParametersFromConfig(parameters, cl);
-		} catch (ClassNotFoundException cnfex) {
+		}catch (ClassNotFoundException cnfex) {
 			throw new RuntimeException("The type serializer factory could not load its parameters from the " +
 					"configuration due to missing classes.", cnfex);
 		}
