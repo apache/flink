@@ -117,15 +117,14 @@ public class BlobServer extends Thread implements BlobService {
 		LOG.info("Created BLOB server storage directory {}", storageDir);
 
 		// configure the maximum number of concurrent connections
-		final int maxConnections = config.getInteger(
-				ConfigConstants.BLOB_FETCH_CONCURRENT_KEY, ConfigConstants.DEFAULT_BLOB_FETCH_CONCURRENT);
+		final int maxConnections = config.getInteger(BlobServerOptions.FETCH_CONCURRENT);
 		if (maxConnections >= 1) {
 			this.maxConnections = maxConnections;
 		}
 		else {
 			LOG.warn("Invalid value for maximum connections in BLOB server: {}. Using default value of {}",
-					maxConnections, ConfigConstants.DEFAULT_BLOB_FETCH_CONCURRENT);
-			this.maxConnections = ConfigConstants.DEFAULT_BLOB_FETCH_CONCURRENT;
+					maxConnections, BlobServerOptions.FETCH_CONCURRENT.defaultValue());
+			this.maxConnections = BlobServerOptions.FETCH_CONCURRENT.defaultValue();
 		}
 
 		// configure the backlog of connections

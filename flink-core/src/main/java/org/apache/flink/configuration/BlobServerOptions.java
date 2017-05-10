@@ -40,4 +40,11 @@ public class BlobServerOptions {
 	public static final ConfigOption<Integer> FETCH_RETRIES =
 		key("blob.fetch.retries")
 			.defaultValue(5);
+
+	/**
+	 * The config parameter defining the maximum number of concurrent BLOB fetches that the JobManager serves.
+	 */
+	public static final ConfigOption<Integer> FETCH_CONCURRENT =
+		key("blob.fetch.num-concurrent")
+			.defaultValue(50);
 }
