@@ -482,6 +482,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@SuppressWarnings("unchecked")
 	public void testKryoRegisteringRestoreResilienceWithDefaultSerializer() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		Environment env = new DummyEnvironment("test", 1, 0);
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
 
@@ -509,6 +510,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				streamFactory,
 				CheckpointOptions.forFullCheckpoint()));
 
+		snapshot.registerSharedStates(sharedStateRegistry);
 		backend.dispose();
 
 		// ========== restore snapshot - should use default serializer (ONLY SERIALIZATION) ==========
@@ -517,8 +519,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		env.getExecutionConfig().addDefaultKryoSerializer(TestPojo.class, (Class) CustomKryoTestSerializer.class);
 
 		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
-
-		snapshot.discardState();
 
 		// re-initialize to ensure that we create the KryoSerializer from scratch, otherwise
 		// initializeSerializerUnlessSet would not pick up our new config
@@ -535,6 +535,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				2,
 				streamFactory,
 				CheckpointOptions.forFullCheckpoint()));
+
+		snapshot2.registerSharedStates(sharedStateRegistry);
+
+		snapshot.unregisterSharedStates(sharedStateRegistry);
+		snapshot.discardState();
 
 		backend.dispose();
 
@@ -570,6 +575,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@Test
 	public void testKryoRegisteringRestoreResilienceWithRegisteredSerializer() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		Environment env = new DummyEnvironment("test", 1, 0);
 
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
@@ -597,6 +603,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				streamFactory,
 				CheckpointOptions.forFullCheckpoint()));
 
+		snapshot.registerSharedStates(sharedStateRegistry);
 		backend.dispose();
 
 		// ========== restore snapshot - should use specific serializer (ONLY SERIALIZATION) ==========
@@ -604,8 +611,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		env.getExecutionConfig().registerTypeWithKryoSerializer(TestPojo.class, CustomKryoTestSerializer.class);
 
 		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
-
-		snapshot.discardState();
 
 		// re-initialize to ensure that we create the KryoSerializer from scratch, otherwise
 		// initializeSerializerUnlessSet would not pick up our new config
@@ -622,6 +627,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				2,
 				streamFactory,
 				CheckpointOptions.forFullCheckpoint()));
+
+		snapshot2.registerSharedStates(sharedStateRegistry);
+
+		snapshot.unregisterSharedStates(sharedStateRegistry);
+		snapshot.discardState();
 
 		backend.dispose();
 
