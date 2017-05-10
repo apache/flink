@@ -66,4 +66,11 @@ public class BlobServerOptions {
 	public static final ConfigOption<String> PORT =
 		key("blob.server.port")
 			.defaultValue("0");
+
+	/**
+	 * Flag to override ssl support for the blob service transport.
+	 */
+	public static final ConfigOption<Boolean> SSL_ENABLED =
+		key("blob.service.ssl.enabled")
+			.defaultValue(true);
 }

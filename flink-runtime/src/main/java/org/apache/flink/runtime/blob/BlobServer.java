@@ -20,7 +20,6 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -137,8 +136,7 @@ public class BlobServer extends Thread implements BlobService {
 
 		this.shutdownHook = BlobUtils.addShutdownHook(this, LOG);
 
-		if (config.getBoolean(ConfigConstants.BLOB_SERVICE_SSL_ENABLED,
-				ConfigConstants.DEFAULT_BLOB_SERVICE_SSL_ENABLED)) {
+		if (config.getBoolean(BlobServerOptions.SSL_ENABLED)) {
 			try {
 				serverSSLContext = SSLUtils.createSSLServerContext(config);
 			} catch (Exception e) {
