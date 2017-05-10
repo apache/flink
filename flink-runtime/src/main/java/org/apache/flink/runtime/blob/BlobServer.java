@@ -128,11 +128,11 @@ public class BlobServer extends Thread implements BlobService {
 		}
 
 		// configure the backlog of connections
-		int backlog = config.getInteger(ConfigConstants.BLOB_FETCH_BACKLOG_KEY, ConfigConstants.DEFAULT_BLOB_FETCH_BACKLOG);
+		int backlog = config.getInteger(BlobServerOptions.FETCH_BACKLOG);
 		if (backlog < 1) {
 			LOG.warn("Invalid value for BLOB connection backlog: {}. Using default value of {}",
-					backlog, ConfigConstants.DEFAULT_BLOB_FETCH_BACKLOG);
-			backlog = ConfigConstants.DEFAULT_BLOB_FETCH_BACKLOG;
+					backlog, BlobServerOptions.FETCH_BACKLOG.defaultValue());
+			backlog = BlobServerOptions.FETCH_BACKLOG.defaultValue();
 		}
 
 		this.shutdownHook = BlobUtils.addShutdownHook(this, LOG);

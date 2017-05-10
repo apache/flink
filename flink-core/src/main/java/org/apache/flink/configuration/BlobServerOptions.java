@@ -47,4 +47,11 @@ public class BlobServerOptions {
 	public static final ConfigOption<Integer> FETCH_CONCURRENT =
 		key("blob.fetch.num-concurrent")
 			.defaultValue(50);
+
+	/**
+	 * The config parameter defining the backlog of BLOB fetches on the JobManager.
+	 */
+	public static final ConfigOption<Integer> FETCH_BACKLOG =
+		key("blob.fetch.backlog")
+			.defaultValue(1000);
 }
