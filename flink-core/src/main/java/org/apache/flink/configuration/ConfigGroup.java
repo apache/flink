@@ -17,9 +17,6 @@
  */
 package org.apache.flink.configuration;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import org.apache.flink.annotation.Internal;
 
@@ -28,8 +25,7 @@ import org.apache.flink.annotation.Internal;
  * filename by changing camel case into underscore notation and suffix _configuration.html. {@link ConfigOption}.
  * See also {@link ConfigGroups}
  */
-@Target(ElementType.METHOD)
-@Retention(RetentionPolicy.RUNTIME)
+@Target({})
 @Internal
 public @interface ConfigGroup {
 	String name();

@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -46,14 +47,14 @@ public class ConfigOptionsDocGenerator {
 	 * @param options list of options to include in this group
 	 * @return string containing HTML formatted table
 	 */
-	private static String toHTMLTable(final List<ConfigOption> options) {
+	private static String toHtmlTable(final List<ConfigOption> options) {
 		final StringBuilder htmlTable = new StringBuilder(
 			"<table class=\"table table-bordered\"><thead><tr><th class=\"text-left\" style=\"width: 20%\">Key</th>" +
 			"<th class=\"text-left\" style=\"width: 15%\">Default Value</th><th class=\"text-left\" " +
 			"style=\"width: 65%\">Description</th></tr></thead><tbody>");
 
 		for (ConfigOption option : options) {
-			htmlTable.append(toHTMLString(option));
+			htmlTable.append(toHtmlString(option));
 		}
 
 		htmlTable.append("</tbody></table>");
@@ -71,7 +72,7 @@ public class ConfigOptionsDocGenerator {
 	static String create(Class<?> clazzz) {
 		final List<ConfigOption> configOptions = extractConfigOptions(clazzz);
 
-		return toHTMLTable(configOptions);
+		return toHtmlTable(configOptions);
 	}
 
 	private static List<ConfigOption> extractConfigOptions(Class<?> clazzz) {
@@ -96,7 +97,7 @@ public class ConfigOptionsDocGenerator {
 	 * @param option option to transform
 	 * @return row with the option description
 	 */
-	private static String toHTMLString(final ConfigOption<?> option) {
+	private static String toHtmlString(final ConfigOption<?> option) {
 		return "<tr>" +
 				"<td>" + option.key() + "</td>" +
 				"<td>" + defaultValueToHtml(option.defaultValue()) + "</td>" +
@@ -127,35 +128,29 @@ public class ConfigOptionsDocGenerator {
 		final List<ConfigOption> allOptions = extractConfigOptions(optionsClass);
 
 		if (configGroups != null) {
-			final Tree tree = new Tree();
+			final Tree tree = new Tree(configGroups.groups());
 
-			for (ConfigGroup group : configGroups.groups()) {
-				tree.set(group);
-			}
-
-			for (ConfigOption configOption : allOptions) {
-				tree.add(configOption);
-			}
+			tree.addAll(allOptions);
 
 			for (ConfigGroup group : configGroups.groups()) {
 				List<ConfigOption> configOptions = tree.findConfigOptions(group);
 				sortOptions(configOptions);
-				tables.add(Tuple2.of(group, toHTMLTable(configOptions)));
+				tables.add(Tuple2.of(group, toHtmlTable(configOptions)));
 			}
 			List<ConfigOption> configOptions = tree.getDefaultOptions();
 			sortOptions(configOptions);
-			tables.add(Tuple2.<ConfigGroup, String>of(null, toHTMLTable(configOptions)));
+			tables.add(Tuple2.<ConfigGroup, String>of(null, toHtmlTable(configOptions)));
 		} else {
 			sortOptions(allOptions);
-			tables.add(Tuple2.<ConfigGroup, String>of(null, toHTMLTable(allOptions)));
+			tables.add(Tuple2.<ConfigGroup, String>of(null, toHtmlTable(allOptions)));
 		}
 		return tables;
 	}
 
 	/**
 	 * Method used to generated documentation entries containing tables of configuration options with default value and
-	 * description. Each found class matching a pattern *Options.java will results in a separate file with a configuration
-	 * table.
+	 * description. Each found class matching a pattern *Options.java will results in a set of files corresponding to
+	 * applied {@link ConfigGroups} annotations.
 	 *
 	 * @param args first argument is output path for the generated files, second argument is full package name containing
 	 *             classes with {@link ConfigOption}
@@ -191,9 +186,10 @@ public class ConfigOptionsDocGenerator {
 	private static class Tree {
 		private final Node root = new Node();
 
-		private final Node defaultGroup = new Node();
-
-		public Tree() {
+		public Tree(ConfigGroup[] groups) {
+			for (ConfigGroup group : groups) {
+				addNode(group.keyPrefix());
+			}
 		}
 
 		private static class Node {
@@ -201,7 +197,7 @@ public class ConfigOptionsDocGenerator {
 			private final Map<String, Node> children = new HashMap<>();
 			private boolean terminal = false;
 
-			Node addChild(String keyComponent) {
+			private Node addChild(String keyComponent) {
 				Node child = children.get(keyComponent);
 				if (child == null) {
 					child = new Node();
@@ -210,42 +206,39 @@ public class ConfigOptionsDocGenerator {
 				return child;
 			}
 
-			Node findChild(String keyComponent) {
-				Node child = children.get(keyComponent);
+			private Node findChild(String keyComponent) {
+				final Node child = children.get(keyComponent);
 				if (child == null) {
 					return this;
 				}
 				return child;
 			}
 
-			void addOption(ConfigOption option) {
+			private void addOption(ConfigOption option) {
 				configOptions.add(option);
 			}
 
-			public boolean isTerminal() {
+			private boolean isTerminal() {
 				return terminal;
 			}
 
-			public void setTerminal() {
+			private void setTerminal() {
 				this.terminal = true;
 			}
 
-			public List<ConfigOption> getConfigOptions() {
+			private List<ConfigOption> getConfigOptions() {
 				return configOptions;
 			}
 		}
 
-		public void add(ConfigOption<?> option) {
-			findNode(option.key())
-				.addOption(option);
-		}
-
-		public void set(ConfigGroup group) {
-			addNode(group.keyPrefix());
+		public void addAll(Collection<ConfigOption> options) {
+			for (ConfigOption<?> option : options) {
+				findNode(option.key()).addOption(option);
+			}
 		}
 
 		private Node addNode(String key) {
-			String[] keyComponents = key.split("\\.");
+			final String[] keyComponents = key.split("\\.");
 			Node currentNode = root;
 			for (String keyComponent : keyComponents) {
 				currentNode = currentNode.addChild(keyComponent);
@@ -256,21 +249,21 @@ public class ConfigOptionsDocGenerator {
 		}
 
 		private Node findNode(String key) {
-			String[] keyComponents = key.split("\\.");
+			final String[] keyComponents = key.split("\\.");
 			Node currentNode = root;
 			for (String keyComponent : keyComponents) {
 				currentNode = currentNode.findChild(keyComponent);
 			}
-			return currentNode.isTerminal() ? currentNode : defaultGroup;
+			return currentNode.isTerminal() ? currentNode : root;
 		}
 
 		public List<ConfigOption> findConfigOptions(ConfigGroup configGroup) {
-			Node subtreeRoot = findNode(configGroup.keyPrefix());
+			final Node subtreeRoot = findNode(configGroup.keyPrefix());
 			return subtreeRoot.getConfigOptions();
 		}
 
 		public List<ConfigOption> getDefaultOptions() {
-			return defaultGroup.getConfigOptions();
+			return root.getConfigOptions();
 		}
 	}
 
