@@ -226,7 +226,6 @@ public class CEPOperatorTest extends TestLogger {
 				keySelector,
 				IntSerializer.INSTANCE,
 				new NFAFactory(true),
-				null,
 				true),
 			keySelector,
 			BasicTypeInfo.INT_TYPE_INFO);
@@ -484,7 +483,6 @@ public class CEPOperatorTest extends TestLogger {
 			keySelector,
 			IntSerializer.INSTANCE,
 			new NFAFactory(),
-			null,
 			true);
 	}
 

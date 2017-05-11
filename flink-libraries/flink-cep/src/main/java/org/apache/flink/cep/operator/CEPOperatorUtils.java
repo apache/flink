@@ -35,7 +35,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.types.Either;
-import org.apache.flink.util.OutputTag;
 
 import java.util.Map;
 
@@ -48,7 +47,7 @@ public class CEPOperatorUtils {
 	 * @return Data stream containing fully matched event sequences stored in a {@link Map}. The
 	 * events are indexed by their associated names of the pattern.
 	 */
-	public static <K, T> SingleOutputStreamOperator<Map<String, T>> createPatternStream(DataStream<T> inputStream, Pattern<T, ?> pattern, OutputTag<T> lateDataOutputTag) {
+	public static <K, T> SingleOutputStreamOperator<Map<String, T>> createPatternStream(DataStream<T> inputStream, Pattern<T, ?> pattern) {
 		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 
 		// check whether we use processing time
@@ -75,7 +74,6 @@ public class CEPOperatorUtils {
 					keySelector,
 					keySerializer,
 					nfaFactory,
-					lateDataOutputTag,
 					true));
 		} else {
 
@@ -91,7 +89,6 @@ public class CEPOperatorUtils {
 					keySelector,
 					keySerializer,
 					nfaFactory,
-					lateDataOutputTag,
 					false
 				)).forceNonParallel();
 		}
@@ -109,7 +106,7 @@ public class CEPOperatorUtils {
 	 * a {@link Either} instance.
 	 */
 	public static <K, T> SingleOutputStreamOperator<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> createTimeoutPatternStream(
-			DataStream<T> inputStream, Pattern<T, ?> pattern, OutputTag<T> lateDataOutputTag) {
+			DataStream<T> inputStream, Pattern<T, ?> pattern) {
 
 		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 
@@ -141,7 +138,6 @@ public class CEPOperatorUtils {
 					keySelector,
 					keySerializer,
 					nfaFactory,
-					lateDataOutputTag,
 					true));
 		} else {
 
@@ -157,7 +153,6 @@ public class CEPOperatorUtils {
 					keySelector,
 					keySerializer,
 					nfaFactory,
-					lateDataOutputTag,
 					false
 				)).forceNonParallel();
 		}

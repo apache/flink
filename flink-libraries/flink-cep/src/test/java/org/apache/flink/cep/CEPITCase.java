@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 
 import org.apache.flink.types.Either;
-import org.apache.flink.util.OutputTag;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -523,41 +522,41 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Event> input = env.fromElements(
-			new Event(1, "start", 1.0),
-			new Event(2, "middle", 2.0),
-			new Event(3, "end", 3.0),
-			new Event(4, "start", 4.0),
-			new Event(5, "middle", 5.0),
-			new Event(6, "end", 6.0)
+				new Event(1, "start", 1.0),
+				new Event(2, "middle", 2.0),
+				new Event(3, "end", 3.0),
+				new Event(4, "start", 4.0),
+				new Event(5, "middle", 5.0),
+				new Event(6, "end", 6.0)
 		);
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
-			.where(new SimpleCondition<Event>() {
-				@Override
-				public boolean filter(Event value) throws Exception {
-					return value.getName().equals("start");
-				}
-			})
-			.followedByAny("middle")
-			.where(new SimpleCondition<Event>() {
-				@Override
-				public boolean filter(Event value) throws Exception {
-					return value.getPrice() == 2.0;
-				}
-			})
-			.or(new SimpleCondition<Event>() {
-				@Override
-				public boolean filter(Event value) throws Exception {
-					return value.getPrice() == 5.0;
-				}
-			})
-			.followedByAny("end").where(new SimpleCondition<Event>() {
+				.where(new SimpleCondition<Event>() {
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getName().equals("start");
+					}
+				})
+				.followedByAny("middle")
+				.where(new SimpleCondition<Event>() {
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getPrice() == 2.0;
+					}
+				})
+				.or(new SimpleCondition<Event>() {
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getPrice() == 5.0;
+					}
+				})
+				.followedByAny("end").where(new SimpleCondition<Event>() {
 
-				@Override
-				public boolean filter(Event value) throws Exception {
-					return value.getName().equals("end");
-				}
-			});
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getName().equals("end");
+					}
+				});
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
@@ -566,8 +565,8 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 				StringBuilder builder = new StringBuilder();
 
 				builder.append(pattern.get("start").getId()).append(",")
-					.append(pattern.get("middle").getId()).append(",")
-					.append(pattern.get("end").getId());
+						.append(pattern.get("middle").getId()).append(",")
+						.append(pattern.get("end").getId());
 
 				return builder.toString();
 			}
@@ -578,101 +577,6 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		// expected sequence of matching event ids
 		expected = "1,5,6\n1,2,3\n4,5,6\n1,2,6";
 
-		env.execute();
-	}
-
-	@Test
-	public void testLateEventSideOutput() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.setParallelism(1);
-
-		// (Event, timestamp)
-		DataStream<Event> input = env.fromElements(
-				Tuple2.of(new Event(1, "start", 1.0), 1L),
-				Tuple2.of(new Event(2, "middle", 2.0), 2L),
-				Tuple2.of(new Event(3, "end", 3.0), 15L),
-				Tuple2.of(new Event(4, "middle", 5.0), 7L),
-				Tuple2.of(new Event(6, "start", 1.0), 21L),
-				Tuple2.of(new Event(5, "middle", 5.0), 10L),
-				Tuple2.of(new Event(7, "middle", 2.0), 22L),
-				Tuple2.of(new Event(8, "end", 3.0), 23L)
-		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event,Long>>() {
-
-			@Override
-			public long extractTimestamp(Tuple2<Event, Long> element, long previousTimestamp) {
-				return element.f1;
-			}
-
-			@Override
-			public Watermark checkAndGetNextWatermark(Tuple2<Event, Long> lastElement, long extractedTimestamp) {
-				return lastElement.f0.getName().equals("end") ? new Watermark(extractedTimestamp) : null;
-			}
-
-		}).map(new MapFunction<Tuple2<Event, Long>, Event>() {
-
-			@Override
-			public Event map(Tuple2<Event, Long> value) throws Exception {
-				return value.f0;
-			}
-		});
-
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("start");
-			}
-		}).followedByAny("middle").where(new SimpleCondition<Event>() {
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("middle");
-			}
-		}).followedByAny("end").where(new SimpleCondition<Event>() {
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("end");
-			}
-		});
-
-		final OutputTag<Event> lateOutputTag = new OutputTag<Event>("late-data"){};
-
-		PatternStream<Event> patternStream = CEP.pattern(input, pattern).sideOutputLateData(lateOutputTag);
-		DataStream<String> result = patternStream.select(
-				new PatternSelectFunction<Event, String>() {
-
-					@Override
-					public String select(Map<String, Event> pattern) {
-						StringBuilder builder = new StringBuilder();
-
-						builder.append(pattern.get("start").getId()).append(",")
-								.append(pattern.get("middle").getId()).append(",")
-								.append(pattern.get("end").getId());
-						return builder.toString();
-					}
-				}
-		);
-
-		DataStream<Event> lateEvents = patternStream.getSideOutput(lateOutputTag);
-
-		// we just care for the late events in this test.
-		lateEvents.map(
-				new MapFunction<Event, Integer>() {
-
-					@Override
-					public Integer map(Event value) throws Exception {
-						return value.getId();
-					}
-				}
-		).writeAsText(lateEventPath, FileSystem.WriteMode.OVERWRITE);
-
-		// the expected sequence of late event ids
-		expectedLateEvents = "4\n5";
-
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-		expected = "1,2,3\n1,2,8\n1,7,8\n6,7,8";
 		env.execute();
 	}
 }

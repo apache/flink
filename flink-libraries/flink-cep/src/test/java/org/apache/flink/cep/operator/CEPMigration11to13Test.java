@@ -103,7 +103,6 @@ public class CEPMigration11to13Test {
 								keySelector,
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
-								null,
 								true),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
@@ -178,7 +177,6 @@ public class CEPMigration11to13Test {
 								keySelector,
 								ByteSerializer.INSTANCE,
 								new NFAFactory(),
-								null,
 								false),
 						keySelector,
 						BasicTypeInfo.BYTE_TYPE_INFO);
