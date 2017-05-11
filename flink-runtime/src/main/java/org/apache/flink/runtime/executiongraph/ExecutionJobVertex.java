@@ -509,7 +509,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 */
 	public Future<Void> cancelWithFuture() {
 		// we collect all futures from the task cancellations
-		ArrayList<Future<?>> futures = new ArrayList<>(parallelism);
+		ArrayList<Future<ExecutionState>> futures = new ArrayList<>(parallelism);
 
 		// cancel each vertex
 		for (ExecutionVertex ev : getTaskVertices()) {
@@ -517,7 +517,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		}
 
 		// return a conjunct future, which is complete once all individual tasks are canceled
-		return FutureUtils.combineAll(futures);
+		return FutureUtils.waitForAll(futures);
 	}
 
 	public void fail(Throwable t) {
