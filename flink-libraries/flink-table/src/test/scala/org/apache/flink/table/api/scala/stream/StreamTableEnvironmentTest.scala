@@ -23,6 +23,7 @@ import java.lang.{Integer => JInt, Long => JLong}
 import org.apache.flink.api.java.tuple.{Tuple5 => JTuple5}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecEnv}
 import org.apache.flink.table.api.java.{StreamTableEnvironment => JStreamTableEnv}
@@ -148,7 +149,9 @@ class StreamTableEnvironmentTest extends TableTestBase {
   private def prepareSchemaExpressionParser:
     (JStreamTableEnv, DataStream[JTuple5[JLong, JInt, String, JInt, JLong]]) = {
 
-    val jTEnv = TableEnvironment.getTableEnvironment(mock(classOf[JStreamExecEnv]))
+    val jStreamExecEnv = mock(classOf[JStreamExecEnv])
+    when(jStreamExecEnv.getStreamTimeCharacteristic).thenReturn(TimeCharacteristic.EventTime)
+    val jTEnv = TableEnvironment.getTableEnvironment(jStreamExecEnv)
 
     val sType = new TupleTypeInfo(Types.LONG, Types.INT, Types.STRING, Types.INT, Types.LONG)
       .asInstanceOf[TupleTypeInfo[JTuple5[JLong, JInt, String, JInt, JLong]]]

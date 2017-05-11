@@ -19,7 +19,7 @@
 package org.apache.flink.table.calcite
 
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{Aggregate, TableFunctionScan, TableScan, Uncollect}
+import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.{RelNode, RelShuttle}
 import org.apache.calcite.rex._
@@ -32,6 +32,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory.isTimeIndicatorType
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 /**
   * Traverses a [[RelNode]] tree and converts fields with [[TimeIndicatorRelDataType]] type. If a
@@ -39,6 +40,11 @@ import scala.collection.JavaConversions._
   * some cases, but not all.
   */
 class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
+
+  private val timestamp = rexBuilder
+      .getTypeFactory
+      .asInstanceOf[FlinkTypeFactory]
+      .createTypeFromTypeInfo(SqlTimeTypeInfo.TIMESTAMP)
 
   override def visit(intersect: LogicalIntersect): RelNode =
     throw new TableException("Logical intersect in a stream environment is not supported yet.")
@@ -199,40 +205,102 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
   private def convertAggregate(aggregate: Aggregate): LogicalAggregate = {
     // visit children and update inputs
     val input = aggregate.getInput.accept(this)
-    val inputTypes = input.getRowType.getFieldList.map(_.getType)
+
+    // add a project to materialize aggregation arguments/grouping keys
+
+    val refIndices = mutable.Set[Int]()
 
     // check arguments of agg calls
-    if (aggregate.getAggCallList.exists(call =>
+    aggregate.getAggCallList.foreach(call => if (call.getArgList.size() == 0) {
         // count(*) has an empty argument list
-        (call.getArgList.size() == 0 && inputTypes.exists(isTimeIndicatorType)) ||
+        (0 until input.getRowType.getFieldCount).foreach(refIndices.add)
+      } else {
         // for other aggregations
-        call.getArgList.exists(arg => isTimeIndicatorType(inputTypes.get(arg))))) {
-      throw new ValidationException("Aggregation on a time attribute is not allowed.")
-    }
+        call.getArgList.map(_.asInstanceOf[Int]).foreach(refIndices.add)
+      })
 
     // check grouping sets
-    if (aggregate.getGroupSets.exists(set =>
-        set.asList().exists(field => isTimeIndicatorType(inputTypes.get(field))))) {
-      throw new ValidationException("Grouping on a time attribute is not allowed.")
+    aggregate.getGroupSets.foreach(set =>
+      set.asList().map(_.asInstanceOf[Int]).foreach(refIndices.add)
+    )
+
+    val needsMaterialization = refIndices.exists(idx =>
+      isTimeIndicatorType(input.getRowType.getFieldList.get(idx).getType))
+
+    // create project if necessary
+    val projectedInput = if (needsMaterialization) {
+
+      // insert or merge with input project if
+      // a time attribute is accessed and needs to be materialized
+      input match {
+
+        // merge
+        case lp: LogicalProject =>
+          val projects = lp.getProjects.zipWithIndex.map { case (expr, idx) =>
+            if (isTimeIndicatorType(expr.getType) && refIndices.contains(idx)) {
+              rexBuilder.makeCall(
+                TimeMaterializationSqlFunction,
+                expr)
+            } else {
+              expr
+            }
+          }
+
+          LogicalProject.create(
+            lp.getInput,
+            projects,
+            input.getRowType.getFieldNames)
+
+        // new project
+        case _ =>
+          val projects = input.getRowType.getFieldList.map { field =>
+            if (isTimeIndicatorType(field.getType) && refIndices.contains(field.getIndex)) {
+              rexBuilder.makeCall(
+                TimeMaterializationSqlFunction,
+                new RexInputRef(field.getIndex, field.getType))
+            } else {
+              new RexInputRef(field.getIndex, field.getType)
+            }
+          }
+
+          LogicalProject.create(
+            input,
+            projects,
+            input.getRowType.getFieldNames)
+      }
+    } else {
+      // no project necessary
+      input
+    }
+
+    // remove time indicator type as agg call return type
+    val updatedAggCalls = aggregate.getAggCallList.map { call =>
+      val callType = if (isTimeIndicatorType(call.getType)) {
+        timestamp
+      } else {
+        call.getType
+      }
+      AggregateCall.create(
+        call.getAggregation,
+        call.isDistinct,
+        call.getArgList,
+        call.filterArg,
+        callType,
+        call.name)
     }
 
     LogicalAggregate.create(
-      input,
+      projectedInput,
       aggregate.indicator,
       aggregate.getGroupSet,
       aggregate.getGroupSets,
-      aggregate.getAggCallList)
+      updatedAggCalls)
   }
 
   class RexTimeIndicatorMaterializer(
       private val rexBuilder: RexBuilder,
       private val input: Seq[RelDataType])
     extends RexShuttle {
-
-    val timestamp = rexBuilder
-      .getTypeFactory
-      .asInstanceOf[FlinkTypeFactory]
-      .createTypeFromTypeInfo(SqlTimeTypeInfo.TIMESTAMP)
 
     override def visitInputRef(inputRef: RexInputRef): RexNode = {
       // reference is interesting
@@ -293,7 +361,7 @@ object RelTimeIndicatorConverter {
 
     // materialize all remaining time indicators
     val projects = convertedRoot.getRowType.getFieldList.map(field =>
-      if (FlinkTypeFactory.isTimeIndicatorType(field.getType)) {
+      if (isTimeIndicatorType(field.getType)) {
         needsConversion = true
         rexBuilder.makeCall(
           TimeMaterializationSqlFunction,

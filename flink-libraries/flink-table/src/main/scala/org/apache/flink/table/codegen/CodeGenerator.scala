@@ -1861,31 +1861,26 @@ class CodeGenerator(
 
   private[flink] def generateRecordTimestamp(isEventTime: Boolean): GeneratedExpression = {
     val resultTerm = newName("result")
-    val nullTerm = newName("isNull")
     val resultTypeTerm = primitiveTypeTermForTypeInfo(SqlTimeTypeInfo.TIMESTAMP)
-    val defaultValue = primitiveDefaultValue(SqlTimeTypeInfo.TIMESTAMP)
 
-    if (isEventTime) {
-      val resultCode =
-        s"""
-          |boolean $nullTerm = $contextTerm.timestamp() == null;
-          |$resultTypeTerm $resultTerm;
-          |if ($nullTerm) {
-          |  $resultTerm = $defaultValue;
-          |}
-          |else {
-          |  $resultTerm = $contextTerm.timestamp();
-          |}
-          |""".stripMargin
-
-      GeneratedExpression(resultTerm, nullTerm, resultCode, SqlTimeTypeInfo.TIMESTAMP)
+    val resultCode = if (isEventTime) {
+      s"""
+        |$resultTypeTerm $resultTerm;
+        |if ($contextTerm.timestamp() == null) {
+        |  throw new RuntimeException("Rowtime timestamp is null. Please make sure that a proper " +
+        |    "TimestampAssigner is defined and the stream environment uses the EventTime time " +
+        |    "characteristic.");
+        |}
+        |else {
+        |  $resultTerm = $contextTerm.timestamp();
+        |}
+        |""".stripMargin
     } else {
-      val resultCode =
-        s"""
-          |$resultTypeTerm $resultTerm = $contextTerm.timerService().currentProcessingTime();
-          |""".stripMargin
-      GeneratedExpression(resultTerm, NEVER_NULL, resultCode, SqlTimeTypeInfo.TIMESTAMP)
+      s"""
+        |$resultTypeTerm $resultTerm = $contextTerm.timerService().currentProcessingTime();
+        |""".stripMargin
     }
+    GeneratedExpression(resultTerm, NEVER_NULL, resultCode, SqlTimeTypeInfo.TIMESTAMP)
   }
 
   // ----------------------------------------------------------------------------------------------

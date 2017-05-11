@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.datastream
 
 import java.math.BigDecimal
-import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
@@ -27,17 +26,12 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
-import org.apache.flink.table.api.{TableEnvironment, Types, ValidationException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.table.api.scala.stream.utils.StreamITCase
+import org.apache.flink.table.api.{TableEnvironment, TableException, Types}
 import org.apache.flink.table.calcite.RelTimeIndicatorConverterTest.TableFunc
-import org.apache.flink.table.expressions.{TimeIntervalUnit, WindowReference}
-import org.apache.flink.table.functions.TableFunction
-import org.apache.flink.table.plan.logical.TumblingGroupWindow
+import org.apache.flink.table.expressions.TimeIntervalUnit
 import org.apache.flink.table.runtime.datastream.TimeAttributesITCase.TimestampWithEqualWatermark
-import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
@@ -57,6 +51,16 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     (7L, 3, 3d, 3f, new BigDecimal("3"), "Hello"),
     (8L, 3, 3d, 3f, new BigDecimal("3"), "Hello world"),
     (16L, 4, 4d, 4f, new BigDecimal("4"), "Hello world"))
+
+  @Test(expected = classOf[TableException])
+  def testInvalidTimeCharacteristic(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+    stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+  }
 
   @Test
   def testCalcMaterialization(): Unit = {
@@ -182,6 +186,35 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
+  @Test
+  def testWindowWithAggregationOnRowtimeSql(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    tEnv.registerTable("MyTable", table)
+
+    val t = tEnv.sql("SELECT COUNT(`rowtime`) FROM MyTable " +
+      "GROUP BY TUMBLE(rowtime, INTERVAL '0.003' SECOND)")
+
+    val results = t.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = Seq(
+      "1",
+      "2",
+      "2",
+      "2"
+    )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
 }
 
 object TimeAttributesITCase {
@@ -199,12 +232,6 @@ object TimeAttributesITCase {
         element: (Long, Int, Double, Float, BigDecimal, String),
         previousElementTimestamp: Long): Long = {
       element._1
-    }
-  }
-
-  class TableFunc extends TableFunction[String] {
-    def eval(time1: Long, time2: Timestamp): Unit = {
-      time1.toString + time2.toString
     }
   }
 }

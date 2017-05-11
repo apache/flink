@@ -35,6 +35,7 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.calcite.RelTimeIndicatorConverter
@@ -47,7 +48,7 @@ import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema, StreamTab
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{CRowInputJavaTupleOutputMapRunner, CRowInputMapRunner, CRowInputScalaTupleOutputMapRunner}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, TableSink, UpsertStreamTableSink}
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.sources.{DefinedRowtimeAttribute, StreamTableSource, TableSource}
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.types.Row
 
@@ -106,6 +107,16 @@ abstract class StreamTableEnvironment(
     */
   override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
     checkValidTableName(name)
+
+    // check if event-time is enabled
+    tableSource match {
+      case dra: DefinedRowtimeAttribute if dra.getRowtimeAttribute != null &&
+          execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime =>
+        throw TableException(
+          s"A rowtime attribute requires an EventTime time characteristic in stream environment. " +
+            s"But is: ${execEnv.getStreamTimeCharacteristic}")
+      case _ => // ok
+    }
 
     tableSource match {
       case streamTableSource: StreamTableSource[_] =>
@@ -362,6 +373,13 @@ abstract class StreamTableEnvironment(
 
     // validate and extract time attributes
     val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, fields)
+
+    // check if event-time is enabled
+    if (rowtime.isDefined && execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
+      throw TableException(
+        s"A rowtime attribute requires an EventTime time characteristic in stream environment. " +
+          s"But is: ${execEnv.getStreamTimeCharacteristic}")
+    }
 
     val dataStreamTable = new DataStreamTable[T](
       dataStream,

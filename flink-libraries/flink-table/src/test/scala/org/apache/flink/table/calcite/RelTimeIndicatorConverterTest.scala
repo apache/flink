@@ -21,7 +21,6 @@ package org.apache.flink.table.calcite
 import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.calcite.RelTimeIndicatorConverterTest.TableFunc
 import org.apache.flink.table.expressions.{TimeIntervalUnit, WindowReference}
@@ -92,7 +91,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
     util.verifyTable(result, expected)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingOnRowtime(): Unit = {
     val util = streamTestUtil()
     val t = util.addTable[(Long, Long, Int)]('rowtime.rowtime, 'long, 'int, 'proctime.proctime)
@@ -101,39 +100,99 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
       .groupBy('rowtime)
       .select('long.count)
 
-    util.verifyTable(result, "FAIL")
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamGroupAggregate",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "long", "TIME_MATERIALIZATION(rowtime) AS rowtime")
+        ),
+        term("groupBy", "rowtime"),
+        term("select", "rowtime", "COUNT(long) AS TMP_0")
+      ),
+      term("select", "TMP_0")
+    )
+
+    util.verifyTable(result, expected)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingOnProctimeSql(): Unit = {
     val util = streamTestUtil()
     util.addTable[(Long, Int)]("MyTable" , 'long, 'int, 'proctime.proctime)
 
     val result = util.tEnv.sql("SELECT COUNT(long) FROM MyTable GROUP BY proctime")
 
-    util.verifyTable(result, "FAIL")
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamGroupAggregate",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "TIME_MATERIALIZATION(proctime) AS proctime", "long")
+        ),
+        term("groupBy", "proctime"),
+        term("select", "proctime", "COUNT(long) AS EXPR$0")
+      ),
+      term("select", "EXPR$0")
+    )
+
+    util.verifyTable(result, expected)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testAggregationOnRowtime(): Unit = {
     val util = streamTestUtil()
     val t = util.addTable[(Long, Long, Int)]('rowtime.rowtime, 'long, 'int)
 
     val result = t
       .groupBy('long)
-      .select('rowtime.count)
+      .select('rowtime.min)
 
-    util.verifyTable(result, "FAIL")
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamGroupAggregate",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "TIME_MATERIALIZATION(rowtime) AS rowtime", "long")
+        ),
+        term("groupBy", "long"),
+        term("select", "long", "MIN(rowtime) AS TMP_0")
+      ),
+      term("select", "TMP_0")
+    )
+
+    util.verifyTable(result, expected)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testAggregationOnProctimeSql(): Unit = {
     val util = streamTestUtil()
     util.addTable[(Long, Int)]("MyTable" , 'long, 'int, 'proctime.proctime)
 
-    val result = util.tEnv.sql("SELECT COUNT(proctime) FROM MyTable GROUP BY long")
+    val result = util.tEnv.sql("SELECT MIN(proctime) FROM MyTable GROUP BY long")
 
-    util.verifyTable(result, "FAIL")
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamGroupAggregate",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "long", "TIME_MATERIALIZATION(proctime) AS proctime")
+        ),
+        term("groupBy", "long"),
+        term("select", "long", "MIN(proctime) AS EXPR$0")
+      ),
+      term("select", "EXPR$0")
+    )
+
+    util.verifyTable(result, expected)
   }
 
   @Test
@@ -165,34 +224,8 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
     util.verifyTable(result, expected)
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testWindowGroupOnRowtime(): Unit = {
-    val util = streamTestUtil()
-    val t = util.addTable[(Long, Long, Int)]('rowtime.rowtime, 'long, 'int)
-
-    val result = t
-      .window(Tumble over 100.millis on 'rowtime as 'w)
-      .groupBy('w, 'rowtime)
-      .select('w.start, 'rowtime, 'int.sum)
-
-    util.verifyTable(result, "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testWindowAggregationOnRowtime(): Unit = {
-    val util = streamTestUtil()
-    val t = util.addTable[(Long, Long, Int)]('rowtime.rowtime, 'long, 'int)
-
-    val result = t
-      .window(Tumble over 100.millis on 'rowtime as 'w)
-      .groupBy('w, 'long)
-      .select('w.start, 'long, 'rowtime.count)
-
-    util.verifyTable(result, "FAIL")
-  }
-
   @Test
-  def testWindowStartEnd(): Unit = {
+  def testWindow(): Unit = {
     val util = streamTestUtil()
     val t = util.addTable[(Long, Long, Int)]('rowtime.rowtime, 'long, 'int)
 
@@ -222,7 +255,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
   }
 
   @Test
-  def testWindowStartEndSql(): Unit = {
+  def testWindowSql(): Unit = {
     val util = streamTestUtil()
     util.addTable[(Long, Long, Int)]("MyTable", 'rowtime.rowtime, 'long, 'int)
 
@@ -246,6 +279,39 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
         term("select", "long", "SUM(int) AS EXPR$2", "start('w$) AS w$start", "end('w$) AS w$end")
       ),
       term("select", "w$end", "long", "EXPR$2")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testWindowWithAggregationOnRowtimeSql(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Long, Long, Int)]("MyTable", 'rowtime.rowtime, 'long, 'int)
+
+    val result = util.tEnv.sql("SELECT MIN(rowtime), long FROM MyTable " +
+      "GROUP BY long, TUMBLE(rowtime, INTERVAL '0.1' SECOND)")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamGroupWindowAggregate",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "long", "1970-01-01 00:00:00 AS $f1",
+            "TIME_MATERIALIZATION(rowtime) AS $f2")
+        ),
+        term("groupBy", "long"),
+        term(
+          "window",
+          TumblingGroupWindow(
+            'w$,
+            'rowtime,
+            100.millis)),
+        term("select", "long", "MIN($f2) AS EXPR$0")
+      ),
+      term("select", "EXPR$0", "long")
     )
 
     util.verifyTable(result, expected)
