@@ -274,7 +274,7 @@ check_shaded_artifacts() {
 		echo "=============================================================================="
 		return 1
 	fi
-	 
+
 	GUAVA=`cat allClasses | grep '^com/google/common' | wc -l`
 	if [ $GUAVA != "0" ]; then
 		echo "=============================================================================="
@@ -398,6 +398,18 @@ upload_artifacts_s3
 # since we are in flink/tools/artifacts
 # we are going back to
 cd ../../
+
+# only run end-to-end tests in misc because we only have flink-dist here
+case $TEST in
+	(misc)
+        echo "Running automated end-to-end tests"
+
+        test-infra/end-to-end-test/test_batch_wordcount.sh build-target cluster
+        EXIT_CODE=$(($EXIT_CODE+$?))
+        test-infra/end-to-end-test/test_streaming_kafka010.sh build-target cluster
+        EXIT_CODE=$(($EXIT_CODE+$?))
+	;;
+esac
 
 # Exit code for Travis build success/failure
 exit $EXIT_CODE
