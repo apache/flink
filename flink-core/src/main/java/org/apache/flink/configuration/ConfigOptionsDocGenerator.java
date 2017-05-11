@@ -129,7 +129,7 @@ public class ConfigOptionsDocGenerator {
 		if (configGroups != null) {
 			final Tree tree = new Tree();
 
-			for (ConfigGroup group : configGroups.additionalGroups()) {
+			for (ConfigGroup group : configGroups.groups()) {
 				tree.set(group);
 			}
 
@@ -137,18 +137,17 @@ public class ConfigOptionsDocGenerator {
 				tree.add(configOption);
 			}
 
-
-			for (ConfigGroup group : configGroups.additionalGroups()) {
+			for (ConfigGroup group : configGroups.groups()) {
 				List<ConfigOption> configOptions = tree.findConfigOptions(group);
 				sortOptions(configOptions);
 				tables.add(Tuple2.of(group, toHTMLTable(configOptions)));
 			}
 			List<ConfigOption> configOptions = tree.getDefaultOptions();
 			sortOptions(configOptions);
-			tables.add(Tuple2.of(configGroups.defaultGroup(), toHTMLTable(configOptions)));
+			tables.add(Tuple2.<ConfigGroup, String>of(null, toHTMLTable(configOptions)));
 		} else {
 			sortOptions(allOptions);
-			tables.add(new Tuple2<ConfigGroup, String>(null, toHTMLTable(allOptions)));
+			tables.add(Tuple2.<ConfigGroup, String>of(null, toHTMLTable(allOptions)));
 		}
 		return tables;
 	}
@@ -173,20 +172,15 @@ public class ConfigOptionsDocGenerator {
 				final String fileName = entry.getFileName().toString();
 				final Matcher matcher = p.matcher(fileName);
 				if (!fileName.equals("ConfigOptions.java") && matcher.matches()) {
-
 					final Class<?> optionsClass = Class.forName(packageName + "." + matcher.group(1));
-
 					List<Tuple2<ConfigGroup, String>> tables = generateTablesForClass(optionsClass);
-
 					for (Tuple2<ConfigGroup, String> group : tables) {
 
 						String name = group.f0 == null
 							? matcher.group(2).replaceAll("(.)(\\p{Upper})", "$1_$2").toLowerCase()
 							: group.f0.name().replaceAll("(.)(\\p{Upper})", "$1_$2").toLowerCase();
 
-
 						final String outputFile = name + "_configuration.html";
-
 						Files.write(Paths.get(outputPath, outputFile), group.f1.getBytes(StandardCharsets.UTF_8));
 					}
 				}

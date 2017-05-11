@@ -33,6 +33,5 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public @interface ConfigGroup {
 	String name();
-
-	String keyPrefix() default "";
+	String keyPrefix();
 }

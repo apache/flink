@@ -17,7 +17,6 @@
  */
 package org.apache.flink.configuration;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -72,11 +71,10 @@ public class ConfigOptionsDocGeneratorTest {
 
 
 	@ConfigGroups(
-		additionalGroups = {
+		groups = {
 			@ConfigGroup(name = "firstGroup", keyPrefix = "first"),
 			@ConfigGroup(name = "secondGroup", keyPrefix = "second")
-		},
-		defaultGroup = @ConfigGroup(name = "default")
+		}
 	)
 	public static class TestConfigMultipleSubGroup {
 		public static ConfigOption<Integer> firstOption = ConfigOptions
@@ -112,7 +110,7 @@ public class ConfigOptionsDocGeneratorTest {
 		assertEquals(tables.size(), 3);
 		final HashMap<String, String> tablesConverted = new HashMap<>();
 		for (Tuple2<ConfigGroup, String> table : tables) {
-			tablesConverted.put(table.f0.name(), table.f1);
+			tablesConverted.put(table.f0 != null ? table.f0.name() : "default", table.f1);
 		}
 
 		assertEquals("<table class=\"table table-bordered\">" +

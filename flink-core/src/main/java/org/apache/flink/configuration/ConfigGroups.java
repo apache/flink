@@ -25,14 +25,12 @@ import org.apache.flink.annotation.Internal;
 
 /**
  * Annotation used on classes containing {@link ConfigOption}s that enables to separate options into different tables
- * based on key prefixes. If a key of an option is prefixed by one of the additionalGroups it is assigned there,
+ * based on key prefixes. If a key of an option is prefixed by one of the groups it is assigned there,
  * otherwise it is assigned to the default group. {@link ConfigOption} is assigned to the longest matching keyPrefix.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Internal
 public @interface ConfigGroups {
-	ConfigGroup defaultGroup();
-
-	ConfigGroup[] additionalGroups() default {};
+	ConfigGroup[] groups() default {};
 }
