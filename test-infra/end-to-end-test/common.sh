@@ -65,12 +65,14 @@ function stop_cluster {
     $FLINK_DIR/bin/stop-cluster.sh
   fi
 
-  if grep -riq "error" $FLINK_DIR/log; then
-    echo "Found error in log files."
+  if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log | grep -v "RetriableCommitFailedException" | grep -iq "error"; then
+    echo "Found error in log files:"
+    cat $FLINK_DIR/log/*
     PASS=""
   fi
-  if grep -riq "exception" $FLINK_DIR/log; then
-    echo "Found exception in log files."
+  if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log | grep -v "RetriableCommitFailedException" | grep -iq "exception"; then
+    echo "Found exception in log files:"
+    cat $FLINK_DIR/log/*
     PASS=""
   fi
 
@@ -78,6 +80,7 @@ function stop_cluster {
   do
     if [[ -s $f ]]; then
       echo "Found non-empty file $f"
+      cat $f
       PASS=""
     fi
   done
