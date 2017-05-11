@@ -49,7 +49,7 @@ class StreamTableSourceScan(
     val fieldCnt = fieldNames.length
 
     val rowtime = tableSource match {
-      case timeSource: DefinedRowTimeAttribute if timeSource.getRowtimeAttribute != null =>
+      case timeSource: DefinedRowtimeAttribute if timeSource.getRowtimeAttribute != null =>
         val rowtimeAttribute = timeSource.getRowtimeAttribute
         Some((fieldCnt, rowtimeAttribute))
       case _ =>
@@ -57,7 +57,7 @@ class StreamTableSourceScan(
     }
 
     val proctime = tableSource match {
-      case timeSource: DefinedProcTimeAttribute if timeSource.getProctimeAttribute != null =>
+      case timeSource: DefinedProctimeAttribute if timeSource.getProctimeAttribute != null =>
         val proctimeAttribute = timeSource.getProctimeAttribute
         Some((fieldCnt + (if (rowtime.isDefined) 1 else 0), proctimeAttribute))
       case _ =>

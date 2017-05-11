@@ -34,6 +34,7 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
@@ -236,6 +237,11 @@ class CodeGenerator(
     * @return term of the output record (possibly defined in the member area e.g. Row, Tuple)
     */
   var outRecordTerm = "out"
+
+  /**
+    * @return term of the [[ProcessFunction]]'s context
+    */
+  var contextTerm = "ctx"
 
   /**
     * @return returns if null checking is enabled
@@ -698,6 +704,17 @@ class CodeGenerator(
           s"void join(Object _in1, Object _in2, org.apache.flink.util.Collector $collectorTerm)",
           List(s"$inputTypeTerm1 $input1Term = ($inputTypeTerm1) _in1;",
                s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
+      }
+
+      // ProcessFunction
+      else if (clazz == classOf[ProcessFunction[_, _]]) {
+        val baseClass = classOf[ProcessFunction[_, _]]
+        val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
+        (baseClass,
+          s"void processElement(Object _in1, " +
+            s"org.apache.flink.streaming.api.functions.ProcessFunction.Context $contextTerm," +
+            s"org.apache.flink.util.Collector $collectorTerm)",
+          List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
       }
       else {
         // TODO more functions
@@ -1312,9 +1329,11 @@ class CodeGenerator(
     throw new CodeGenException("Dynamic parameter references are not supported yet.")
 
   override def visitCall(call: RexCall): GeneratedExpression = {
-    // time materialization is not implemented yet
+    // special case: time materialization
     if (call.getOperator == TimeMaterializationSqlFunction) {
-      throw new CodeGenException("Access to time attributes is not possible yet.")
+      return generateRecordTimestamp(
+        FlinkTypeFactory.isRowtimeIndicatorType(call.getOperands.get(0).getType)
+      )
     }
 
     val operands = call.getOperands.map(_.accept(this))
@@ -1838,6 +1857,30 @@ class CodeGenerator(
       // other types are autoboxed or need no boxing
       case _ => expr
     }
+  }
+
+  private[flink] def generateRecordTimestamp(isEventTime: Boolean): GeneratedExpression = {
+    val resultTerm = newName("result")
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(SqlTimeTypeInfo.TIMESTAMP)
+
+    val resultCode = if (isEventTime) {
+      s"""
+        |$resultTypeTerm $resultTerm;
+        |if ($contextTerm.timestamp() == null) {
+        |  throw new RuntimeException("Rowtime timestamp is null. Please make sure that a proper " +
+        |    "TimestampAssigner is defined and the stream environment uses the EventTime time " +
+        |    "characteristic.");
+        |}
+        |else {
+        |  $resultTerm = $contextTerm.timestamp();
+        |}
+        |""".stripMargin
+    } else {
+      s"""
+        |$resultTypeTerm $resultTerm = $contextTerm.timerService().currentProcessingTime();
+        |""".stripMargin
+    }
+    GeneratedExpression(resultTerm, NEVER_NULL, resultCode, SqlTimeTypeInfo.TIMESTAMP)
   }
 
   // ----------------------------------------------------------------------------------------------
