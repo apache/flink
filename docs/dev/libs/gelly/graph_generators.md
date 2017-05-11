@@ -652,3 +652,133 @@ val graph = new StarGraph(env.getJavaEnv, vertexCount).generate()
 </svg>
 
 {% top %}
+
+## Echo Graph
+
+An undirected graph that every vertex has the same degree,
+and vertices as far as possible are chose to be linked.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+long vertexCount = 5;
+long vertexDegree = 2;
+
+Graph<LongValue,NullValue,NullValue> graph = new EchoGraph(env, vertexCount, vertexDegree)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.EchoGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+val vertexCount = 5
+val vertexDegree = 2
+
+val graph = new EchoGraph(env.getJavaEnv, vertexCount, vertexDegree).generate()
+{% endhighlight %}
+</div>
+</div>
+
+<svg class="graph" width="540" height="540"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+
+    <line x1="270" y1="40" x2="405" y2="456" />
+    <line x1="270" y1="40" x2="135" y2="456" />
+
+    <line x1="489" y1="199" x2="135" y2="456" />
+    <line x1="489" y1="199" x2="51" y2="199" />
+
+    <line x1="405" y1="456" x2="51" y2="199" />
+
+    <circle cx="270" cy="40" r="20" />
+    <text x="270" y="40">0</text>
+
+    <circle cx="489" cy="199" r="20" />
+    <text x="489" y="199">1</text>
+
+    <circle cx="405" cy="456" r="20" />
+    <text x="405" y="456">2</text>
+
+    <circle cx="135" cy="456" r="20" />
+    <text x="135" y="456">3</text>
+
+    <circle cx="51" cy="199" r="20" />
+    <text x="51" y="199">4</text>
+</svg>
+
+## Circulant Graph
+
+A circulant graph is an undirected graph of n graph vertices
+in which the ith graph vertex is adjacent to the (i+j)th and (i-j)th
+graph vertices for each j in a list l. The offset j is at least 1 and
+at most n/2, offset range is used to add continuous offsets, For example:
+`addOffsetRange(2, 3)` would add offset `2`, `3` and `4`.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+long vertexCount = 5;
+
+Graph<LongValue,NullValue,NullValue> graph = new CirculantGraph(env, vertexCount)
+    .addOffsetRange(1, 2)
+    .generate();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.generator.CirculantGraph
+
+val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+val vertexCount = 5
+
+val graph = new CirculantGraph(env.getJavaEnv, vertexCount).addOffsetRange(1, 2).generate()
+{% endhighlight %}
+</div>
+</div>
+
+<svg class="graph" width="540" height="200"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+
+    <line x1="270" y1="40" x2="489" y2="199" />
+    <line x1="270" y1="40" x2="405" y2="456" />
+    <line x1="270" y1="40" x2="135" y2="456" />
+    <line x1="270" y1="40" x2="51" y2="199" />
+
+    <line x1="489" y1="199" x2="405" y2="456" />
+    <line x1="489" y1="199" x2="135" y2="456" />
+    <line x1="489" y1="199" x2="51" y2="199" />
+
+    <line x1="405" y1="456" x2="135" y2="456" />
+    <line x1="405" y1="456" x2="51" y2="199" />
+
+    <line x1="135" y1="456" x2="51" y2="199" />
+
+    <circle cx="270" cy="40" r="20" />
+    <text x="270" y="40">0</text>
+
+    <circle cx="489" cy="199" r="20" />
+    <text x="489" y="199">1</text>
+
+    <circle cx="405" cy="456" r="20" />
+    <text x="405" y="456">2</text>
+
+    <circle cx="135" cy="456" r="20" />
+    <text x="135" y="456">3</text>
+
+    <circle cx="51" cy="199" r="20" />
+    <text x="51" y="199">4</text>
+</svg>
