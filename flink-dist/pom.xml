@@ -403,15 +403,6 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- binary compatibility checks -->
-			<plugin>
-				<groupId>com.github.siom79.japicmp</groupId>
-				<artifactId>japicmp-maven-plugin</artifactId>
-				<configuration>
-					<skip>true</skip>
-				</configuration>
-			</plugin>
-
 			<!--Build uber jar-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -497,20 +488,6 @@ under the License.
 						<configuration>
 							<descriptors>
 								<descriptor>src/main/assemblies/opt.xml</descriptor>
-							</descriptors>
-							<finalName>flink-${project.version}-bin</finalName>
-							<appendAssemblyId>false</appendAssemblyId>
-						</configuration>
-					</execution>
-					<execution>
-						<id>lib</id>
-						<phase>package</phase>
-						<goals>
-							<goal>single</goal>
-						</goals>
-						<configuration>
-							<descriptors>
-								<descriptor>src/main/assemblies/lib.xml</descriptor>
 							</descriptors>
 							<finalName>flink-${project.version}-bin</finalName>
 							<appendAssemblyId>false</appendAssemblyId>
