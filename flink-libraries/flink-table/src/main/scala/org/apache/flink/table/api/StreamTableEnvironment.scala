@@ -81,6 +81,8 @@ abstract class StreamTableEnvironment(
   // the naming pattern for internally registered tables.
   private val internalNamePattern = "^_DataStreamTable_[0-9]+$".r
 
+  def queryConfig: StreamQueryConfig = new StreamQueryConfig
+
   /**
     * Checks if the chosen table name is valid.
     *
@@ -126,9 +128,20 @@ abstract class StreamTableEnvironment(
     *
     * @param table The [[Table]] to write.
     * @param sink The [[TableSink]] to write the [[Table]] to.
+    * @param queryConfig The configuration for the query to generate.
     * @tparam T The expected type of the [[DataStream]] which represents the [[Table]].
     */
-  override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = {
+  override private[flink] def writeToSink[T](
+      table: Table,
+      sink: TableSink[T],
+      queryConfig: QueryConfig): Unit = {
+
+    // Check query configuration
+    val streamQueryConfig = queryConfig match {
+      case streamConfig: StreamQueryConfig => streamConfig
+      case _ =>
+        throw new TableException("StreamQueryConfig required to configure stream query.")
+    }
 
     sink match {
 
@@ -137,7 +150,11 @@ abstract class StreamTableEnvironment(
         val outputType = sink.getOutputType
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =
-          translate(table, updatesAsRetraction = true, withChangeFlag = true)(outputType)
+          translate(
+            table,
+            streamQueryConfig,
+            updatesAsRetraction = true,
+            withChangeFlag = true)(outputType)
         // Give the DataStream to the TableSink to emit it.
         retractSink.asInstanceOf[RetractStreamTableSink[Any]]
           .emitDataStream(result.asInstanceOf[DataStream[JTuple2[JBool, Any]]])
@@ -160,7 +177,11 @@ abstract class StreamTableEnvironment(
         val outputType = sink.getOutputType
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =
-          translate(optimizedPlan, table.getRelNode.getRowType, withChangeFlag = true)(outputType)
+          translate(
+            optimizedPlan,
+            table.getRelNode.getRowType,
+            streamQueryConfig,
+            withChangeFlag = true)(outputType)
         // Give the DataStream to the TableSink to emit it.
         upsertSink.asInstanceOf[UpsertStreamTableSink[Any]]
           .emitDataStream(result.asInstanceOf[DataStream[JTuple2[JBool, Any]]])
@@ -176,7 +197,11 @@ abstract class StreamTableEnvironment(
         val outputType = sink.getOutputType
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =
-          translate(optimizedPlan, table.getRelNode.getRowType, withChangeFlag = false)(outputType)
+          translate(
+            optimizedPlan,
+            table.getRelNode.getRowType,
+            streamQueryConfig,
+            withChangeFlag = false)(outputType)
         // Give the DataStream to the TableSink to emit it.
         appendSink.asInstanceOf[AppendStreamTableSink[T]].emitDataStream(result)
 
@@ -545,17 +570,21 @@ abstract class StreamTableEnvironment(
     * Table API calls and / or SQL queries and generating corresponding [[DataStream]] operators.
     *
     * @param table The root node of the relational expression tree.
+    * @param queryConfig The configuration for the query to generate.
     * @param updatesAsRetraction Set to true to encode updates as retraction messages.
     * @param withChangeFlag Set to true to emit records with change flags.
     * @param tpe The [[TypeInformation]] of the resulting [[DataStream]].
     * @tparam A The type of the resulting [[DataStream]].
     * @return The [[DataStream]] that corresponds to the translated [[Table]].
     */
-  protected def translate[A](table: Table, updatesAsRetraction: Boolean, withChangeFlag: Boolean)
-      (implicit tpe: TypeInformation[A]): DataStream[A] = {
+  protected def translate[A](
+      table: Table,
+      queryConfig: StreamQueryConfig,
+      updatesAsRetraction: Boolean,
+      withChangeFlag: Boolean)(implicit tpe: TypeInformation[A]): DataStream[A] = {
     val relNode = table.getRelNode
     val dataStreamPlan = optimize(relNode, updatesAsRetraction)
-    translate(dataStreamPlan, relNode.getRowType, withChangeFlag)
+    translate(dataStreamPlan, relNode.getRowType, queryConfig, withChangeFlag)
   }
 
   /**
@@ -564,6 +593,7 @@ abstract class StreamTableEnvironment(
     * @param logicalPlan The root node of the relational expression tree.
     * @param logicalType The row type of the result. Since the logicalPlan can lose the
     *                    field naming during optimization we pass the row type separately.
+    * @param queryConfig     The configuration for the query to generate.
     * @param withChangeFlag Set to true to emit records with change flags.
     * @param tpe         The [[TypeInformation]] of the resulting [[DataStream]].
     * @tparam A The type of the resulting [[DataStream]].
@@ -572,6 +602,7 @@ abstract class StreamTableEnvironment(
   protected def translate[A](
       logicalPlan: RelNode,
       logicalType: RelDataType,
+      queryConfig: StreamQueryConfig,
       withChangeFlag: Boolean)
       (implicit tpe: TypeInformation[A]): DataStream[A] = {
 
@@ -583,7 +614,7 @@ abstract class StreamTableEnvironment(
     }
 
     // get CRow plan
-    val plan: DataStream[CRow] = translateToCRow(logicalPlan)
+    val plan: DataStream[CRow] = translateToCRow(logicalPlan, queryConfig)
 
     // convert CRow to output type
     val conversion = if (withChangeFlag) {
@@ -615,14 +646,16 @@ abstract class StreamTableEnvironment(
     * Translates a logical [[RelNode]] plan into a [[DataStream]] of type [[CRow]].
     *
     * @param logicalPlan The logical plan to translate.
+    * @param queryConfig  The configuration for the query to generate.
     * @return The [[DataStream]] of type [[CRow]].
     */
   protected def translateToCRow(
-    logicalPlan: RelNode): DataStream[CRow] = {
+    logicalPlan: RelNode,
+    queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     logicalPlan match {
       case node: DataStreamRel =>
-        node.translateToPlan(this)
+        node.translateToPlan(this, queryConfig)
       case _ =>
         throw TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
@@ -638,7 +671,7 @@ abstract class StreamTableEnvironment(
   def explain(table: Table): String = {
     val ast = table.getRelNode
     val optimizedPlan = optimize(ast, updatesAsRetraction = false)
-    val dataStream = translateToCRow(optimizedPlan)
+    val dataStream = translateToCRow(optimizedPlan, queryConfig)
 
     val env = dataStream.getExecutionEnvironment
     val jsonSqlPlan = env.getExecutionPlan
