@@ -31,7 +31,7 @@ class BatchQueryConfig private[table] extends QueryConfig
 /**
   * The [[StreamQueryConfig]] holds parameters to configure the behavior of streaming queries.
   *
-  * An empty [[StreamQueryConfig]] can be generated using the [[StreamTableEnvironment.qConf]]
+  * An empty [[StreamQueryConfig]] can be generated using the [[StreamTableEnvironment.queryConfig]]
   * method.
   */
 class StreamQueryConfig private[table] extends QueryConfig {

@@ -51,8 +51,8 @@ class ProcTimeBoundedRowsOver(
     precedingOffset: Long,
     aggregatesTypeInfo: RowTypeInfo,
     inputType: TypeInformation[CRow],
-    qConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[CRow, CRow](qConfig)
+    queryConfig: StreamQueryConfig)
+  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
 
   Preconditions.checkArgument(precedingOffset > 0)
@@ -191,6 +191,11 @@ class ProcTimeBoundedRowsOver(
     timestamp: Long,
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
-    cleanupStateOnTimer(timestamp, rowMapState, accumulatorState, counterState, smallestTsState)
+    cleanupStateOnTimer(
+      timestamp,
+      rowMapState,
+      accumulatorState,
+      counterState,
+      smallestTsState)
   }
 }

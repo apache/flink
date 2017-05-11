@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
@@ -43,9 +42,8 @@ class RowTimeBoundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
     aggregationStateType: RowTypeInfo,
     inputRowType: CRowTypeInfo,
-    precedingOffset: Long,
-    qConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[CRow, CRow](qConfig)
+    precedingOffset: Long)
+  extends ProcessFunction[CRow, CRow]
     with Compiler[GeneratedAggregations] {
   Preconditions.checkNotNull(aggregationStateType)
   Preconditions.checkNotNull(precedingOffset)
@@ -99,8 +97,6 @@ class RowTimeBoundedRangeOver(
         valueTypeInformation)
 
     dataState = getRuntimeContext.getMapState(mapStateDescriptor)
-
-    initCleanupTimeState("RowTimeBoundedRangeOverCleanupTime")
   }
 
   override def processElement(
@@ -112,9 +108,6 @@ class RowTimeBoundedRangeOver(
 
     // triggering timestamp for trigger calculation
     val triggeringTs = ctx.timestamp
-
-    // register state-cleanup timer
-    registerEventCleanupTimer(ctx, triggeringTs)
 
     val lastTriggeringTs = lastTriggeringTsState.value
 
@@ -140,15 +133,6 @@ class RowTimeBoundedRangeOver(
     out: Collector[CRow]): Unit = {
     // gets all window data from state for the calculation
     val inputs: JList[Row] = dataState.get(timestamp)
-    val isCleanup = cleanupStateOnTimer(
-      timestamp,
-      lastTriggeringTsState,
-      accumulatorState,
-      dataState)
-
-    if (isCleanup) {
-      return
-    }
 
     if (null != inputs) {
 

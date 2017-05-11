@@ -50,8 +50,8 @@ class ProcTimeBoundedRangeOver(
     precedingTimeBoundary: Long,
     aggregatesTypeInfo: RowTypeInfo,
     inputType: TypeInformation[CRow],
-    qConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[CRow, CRow](qConfig)
+    queryConfig: StreamQueryConfig)
+  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
 
   private var output: CRow = _

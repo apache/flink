@@ -41,8 +41,8 @@ class GroupAggProcessFunction(
     private val genAggregations: GeneratedAggregationsFunction,
     private val aggregationStateType: RowTypeInfo,
     private val generateRetraction: Boolean,
-    private val qConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[CRow, CRow](qConfig)
+    private val queryConfig: StreamQueryConfig)
+  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
 
   val LOG: Logger = LoggerFactory.getLogger(this.getClass)
@@ -55,7 +55,6 @@ class GroupAggProcessFunction(
   private var state: ValueState[Row] = _
   // counts the number of added and retracted input records
   private var cntState: ValueState[JLong] = _
-  // holds the latest registered cleanup timer
 
   override def open(config: Configuration) {
     LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +

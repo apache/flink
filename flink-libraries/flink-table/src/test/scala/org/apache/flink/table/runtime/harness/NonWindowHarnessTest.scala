@@ -20,9 +20,11 @@ package org.apache.flink.table.runtime.harness
 import java.lang.{Integer => JInt, Long => JLong}
 import java.util.concurrent.ConcurrentLinkedQueue
 
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.harness.HarnessTestBase._
 import org.apache.flink.table.runtime.types.CRow
@@ -30,6 +32,9 @@ import org.apache.flink.types.Row
 import org.junit.Test
 
 class NonWindowHarnessTest extends HarnessTestBase {
+
+  protected var queryConfig =
+    new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
 
   @Test
   def testProcTimeNonWindow(): Unit = {
@@ -39,7 +44,7 @@ class NonWindowHarnessTest extends HarnessTestBase {
         genSumAggFunction,
         sumAggregationStateType,
         false,
-        qConfig))
+        queryConfig))
 
     val testHarness =
       createHarnessTester(
@@ -54,13 +59,18 @@ class NonWindowHarnessTest extends HarnessTestBase {
 
     testHarness.processElement(new StreamRecord(CRow(Row.of(1L: JLong, 1: JInt, "aaa"), true), 1))
     testHarness.processElement(new StreamRecord(CRow(Row.of(2L: JLong, 1: JInt, "bbb"), true), 1))
+    // reuse timer 3001
+    testHarness.setProcessingTime(1000)
     testHarness.processElement(new StreamRecord(CRow(Row.of(3L: JLong, 2: JInt, "aaa"), true), 1))
     testHarness.processElement(new StreamRecord(CRow(Row.of(4L: JLong, 3: JInt, "aaa"), true), 1))
 
-    // trigger cleanup timer and register cleanup timer with 6002
-    testHarness.setProcessingTime(3002)
+    // register cleanup timer with 4002
+    testHarness.setProcessingTime(1002)
     testHarness.processElement(new StreamRecord(CRow(Row.of(5L: JLong, 4: JInt, "aaa"), true), 1))
     testHarness.processElement(new StreamRecord(CRow(Row.of(6L: JLong, 2: JInt, "bbb"), true), 1))
+
+    // trigger cleanup timer and register cleanup timer with 7003
+    testHarness.setProcessingTime(4003)
     testHarness.processElement(new StreamRecord(CRow(Row.of(7L: JLong, 5: JInt, "aaa"), true), 1))
     testHarness.processElement(new StreamRecord(CRow(Row.of(8L: JLong, 6: JInt, "aaa"), true), 1))
     testHarness.processElement(new StreamRecord(CRow(Row.of(9L: JLong, 7: JInt, "aaa"), true), 1))
@@ -74,12 +84,12 @@ class NonWindowHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(CRow(Row.of(2L: JLong, 1: JInt), true), 1))
     expectedOutput.add(new StreamRecord(CRow(Row.of(3L: JLong, 3: JInt), true), 1))
     expectedOutput.add(new StreamRecord(CRow(Row.of(4L: JLong, 6: JInt), true), 1))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(5L: JLong, 4: JInt), true), 1))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(6L: JLong, 2: JInt), true), 1))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(7L: JLong, 9: JInt), true), 1))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(8L: JLong, 15: JInt), true), 1))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(9L: JLong, 22: JInt), true), 1))
-    expectedOutput.add(new StreamRecord(CRow(Row.of(10L: JLong, 5: JInt), true), 1))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(5L: JLong, 10: JInt), true), 1))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(6L: JLong, 3: JInt), true), 1))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(7L: JLong, 5: JInt), true), 1))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(8L: JLong, 11: JInt), true), 1))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(9L: JLong, 18: JInt), true), 1))
+    expectedOutput.add(new StreamRecord(CRow(Row.of(10L: JLong, 3: JInt), true), 1))
 
     verify(expectedOutput, result, new RowResultSortComparator(6))
 
@@ -94,7 +104,7 @@ class NonWindowHarnessTest extends HarnessTestBase {
         genSumAggFunction,
         sumAggregationStateType,
         true,
-        qConfig))
+        queryConfig))
 
     val testHarness =
       createHarnessTester(

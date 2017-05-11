@@ -24,14 +24,12 @@ import org.apache.flink.api.common.state.State
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 
-abstract class ProcessFunctionWithCleanupState[IN,OUT](qConfig: StreamQueryConfig)
+abstract class ProcessFunctionWithCleanupState[IN,OUT](queryConfig: StreamQueryConfig)
   extends ProcessFunction[IN, OUT]{
 
-  protected val minRetentionTime = qConfig.getMinIdleStateRetentionTime
-  protected val maxRetentionTime = qConfig.getMaxIdleStateRetentionTime
+  protected val minRetentionTime = queryConfig.getMinIdleStateRetentionTime
+  protected val maxRetentionTime = queryConfig.getMaxIdleStateRetentionTime
   protected val stateCleaningEnabled = minRetentionTime > 1 && maxRetentionTime > 1
-  // interval in which clean-up timers are registered
-  protected val cleanupTimerInterval = maxRetentionTime - minRetentionTime
 
   // holds the latest registered cleanup timer
   private var cleanupTimeState: ValueState[JLong] = _
@@ -54,36 +52,19 @@ abstract class ProcessFunctionWithCleanupState[IN,OUT](qConfig: StreamQueryConfi
       // last registered timer
       val lastCleanupTime = cleanupTimeState.value()
 
-      if (lastCleanupTime == null || earliestCleanup >= lastCleanupTime + cleanupTimerInterval) {
+      if (lastCleanupTime == null || earliestCleanup > lastCleanupTime) {
         // we need to register a new timer
-        val cleanupTime = earliestCleanup + cleanupTimerInterval
+        val cleanupTime = currentTime + maxRetentionTime
         // register timer and remember clean-up time
         ctx.timerService().registerProcessingTimeTimer(cleanupTime)
         cleanupTimeState.update(cleanupTime)
       }
     }
   }
-  protected def registerEventCleanupTimer(
-    ctx: ProcessFunction[IN, OUT]#Context,
-    currentTime: Long): Unit = {
-    if (stateCleaningEnabled) {
 
-      val earliestCleanup = currentTime + minRetentionTime
-
-      // last registered timer
-      val lastCleanupTime = cleanupTimeState.value()
-
-      if (lastCleanupTime == null || earliestCleanup >= lastCleanupTime + cleanupTimerInterval) {
-        // we need to register a new timer
-        val cleanupTime = earliestCleanup + cleanupTimerInterval
-        // register timer and remember clean-up time
-        ctx.timerService().registerEventTimeTimer(cleanupTime)
-        cleanupTimeState.update(cleanupTime)
-      }
-    }
-  }
-
-  protected def cleanupStateOnTimer(timestamp: Long, states: State*): Boolean = {
+  protected def cleanupStateOnTimer(
+      timestamp: Long,
+      states: State*): Boolean = {
     var result: Boolean = false
     if (stateCleaningEnabled) {
       val cleanupTime = cleanupTimeState.value()

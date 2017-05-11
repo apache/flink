@@ -33,6 +33,9 @@ import org.junit.Test
 
 class OverWindowHarnessTest extends HarnessTestBase{
 
+  protected var queryConfig =
+    new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
+
   @Test
   def testProcTimeBoundedRowsOver(): Unit = {
 
@@ -42,7 +45,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
         2,
         minMaxAggregationStateType,
         minMaxCRowType,
-        qConfig))
+        queryConfig))
 
     val testHarness =
       createHarnessTester(processFunction,new TupleRowKeySelector[Integer](0),BasicTypeInfo
@@ -62,6 +65,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 3L: JLong), true), 1))
 
+    // register cleanup timer with 4100
     testHarness.setProcessingTime(1100)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 20L: JLong), true), 1))
@@ -74,7 +78,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 30L: JLong), true), 1))
 
-    // trigger cleanup timer and register cleanup timer with 6001
+    // register cleanup timer with 6001
     testHarness.setProcessingTime(3001)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong), true), 2))
@@ -83,8 +87,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong), true), 2))
 
-    // using historical data and register cleanup timer with 9000
-    testHarness.setProcessingTime(6000)
+    // trigger cleanup timer and register cleanup timer with 9002
+    testHarness.setProcessingTime(6002)
     testHarness.processElement(new StreamRecord(
         CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong), true), 2))
     testHarness.processElement(new StreamRecord(
@@ -123,7 +127,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
         Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 30L: JLong, 20L: JLong, 30L: JLong), true), 1))
     expectedOutput.add(new StreamRecord(
       CRow(
-        Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong, 7L: JLong, 7L: JLong), true), 2))
+        Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong, 6L: JLong, 7L: JLong), true), 2))
     expectedOutput.add(new StreamRecord(
       CRow(
         Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 8L: JLong, 7L: JLong, 8L: JLong), true), 2))
@@ -132,7 +136,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
         Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong, 8L: JLong, 9L: JLong), true), 2))
     expectedOutput.add(new StreamRecord(
       CRow(
-        Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong, 9L: JLong, 10L: JLong), true), 2))
+        Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong, 10L: JLong, 10L: JLong), true), 2))
     expectedOutput.add(new StreamRecord(
       CRow(
         Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), true), 2))
@@ -154,7 +158,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
         4000,
         minMaxAggregationStateType,
         minMaxCRowType,
-        qConfig))
+        queryConfig))
 
     val testHarness =
       createHarnessTester(
@@ -186,7 +190,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 4L: JLong), true), 0))
 
-    // using historical data and register cleanup timer with 9002
+    // register cleanup timer with 9002
     testHarness.setProcessingTime(6002)
 
     testHarness.setProcessingTime(7002)
@@ -197,7 +201,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 30L: JLong), true), 0))
 
-    // using historical data and register cleanup timer with 14002
+    // register cleanup timer with 14002
     testHarness.setProcessingTime(11002)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong), true), 0))
@@ -275,7 +279,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
       new ProcTimeUnboundedPartitionedOver(
         genMinMaxAggFunction,
         minMaxAggregationStateType,
-        qConfig))
+        queryConfig))
 
     val testHarness =
       createHarnessTester(
@@ -376,16 +380,13 @@ class OverWindowHarnessTest extends HarnessTestBase{
     */
   @Test
   def testRowTimeBoundedRangeOver(): Unit = {
-    qConfig = new StreamQueryConfig()
-      .withIdleStateRetentionTime(Time.seconds(3), Time.seconds(5))
 
     val processFunction = new KeyedProcessOperator[String, CRow, CRow](
       new RowTimeBoundedRangeOver(
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         minMaxCRowType,
-        4000,
-        qConfig))
+        4000))
 
     val testHarness =
       createHarnessTester(
@@ -395,7 +396,6 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     testHarness.open()
 
-    // register cleanup timer with 4003
     testHarness.processWatermark(1)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 1L: JLong), true), 2))
@@ -420,36 +420,31 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(2: JInt, 11L: JLong, 1: JInt, "bbb", 25L: JLong), true), 4801))
 
-    testHarness.processWatermark(9802)
+    testHarness.processWatermark(6500)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 5L: JLong), true), 9803))
+      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 5L: JLong), true), 6501))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 6L: JLong), true), 9804))
+      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 6L: JLong), true), 6501))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 30L: JLong), true), 9805))
+      CRow(Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 30L: JLong), true), 6501))
 
-    // using historical data and register cleanup timer with 19802
-    testHarness.processWatermark(14801)
+    testHarness.processWatermark(7000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong), true), 14802))
+      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong), true), 7001))
 
-    testHarness.processWatermark(14802)
+    testHarness.processWatermark(8000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 8L: JLong), true), 14803))
+      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 8L: JLong), true), 8001))
 
-    testHarness.processWatermark(15000)
+    testHarness.processWatermark(12000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong), true), 15001))
-
-    testHarness.processWatermark(19900)
+      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong), true), 12001))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong), true), 19901))
-
-    testHarness.processWatermark(22000)
+      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong), true), 12001))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong), true), 22001))
+      CRow(Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong), true), 12001))
 
-    testHarness.processWatermark(23000)
+    testHarness.processWatermark(19000)
 
     val result = testHarness.getOutput
 
@@ -476,28 +471,28 @@ class OverWindowHarnessTest extends HarnessTestBase{
       Row.of(2: JInt, 11L: JLong, 1: JInt, "bbb", 25L: JLong, 25L: JLong, 25L: JLong), true), 4801))
     expectedOutput.add(new StreamRecord(
       CRow(
-        Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 5L: JLong, 5L: JLong, 5L: JLong), true), 9803))
+        Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 5L: JLong, 2L: JLong, 6L: JLong), true), 6501))
     expectedOutput.add(new StreamRecord(
       CRow(
-        Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 6L: JLong, 5L: JLong, 6L: JLong), true), 9804))
+        Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 6L: JLong, 2L: JLong, 6L: JLong), true), 6501))
     expectedOutput.add(new StreamRecord(
       CRow(
-        Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong, 7L: JLong, 7L: JLong), true), 14802))
+        Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong, 2L: JLong, 7L: JLong), true), 7001))
     expectedOutput.add(new StreamRecord(
       CRow(
-        Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 8L: JLong, 7L: JLong, 8L: JLong), true), 14803))
+        Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 8L: JLong, 2L: JLong, 8L: JLong), true), 8001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 30L: JLong, 30L: JLong, 30L: JLong), true), 9805))
+      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 30L: JLong, 25L: JLong, 30L: JLong), true), 6501))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong, 7L: JLong, 9L: JLong), true), 15001))
-    expectedOutput.add(new StreamRecord(
-      CRow(Row.of(
-        1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong, 10L: JLong, 10L: JLong), true), 19901))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong, 8L: JLong, 10L: JLong), true), 12001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), true), 22001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong, 8L: JLong, 10L: JLong), true), 12001))
+    expectedOutput.add(new StreamRecord(
+      CRow(
+      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), true), 12001))
 
     verify(expectedOutput, result, new RowResultSortComparator(6))
     testHarness.close()
@@ -511,8 +506,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         minMaxCRowType,
-        3,
-        qConfig))
+        3))
 
     val testHarness =
       createHarnessTester(
@@ -522,7 +516,6 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     testHarness.open()
 
-    // register cleanup timer with 3801
     testHarness.processWatermark(800)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 1L: JLong), true), 801))
@@ -531,7 +524,6 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 10L: JLong), true), 2501))
 
-    // trigger cleanup timer and register cleanup timer with 7001
     testHarness.processWatermark(4000)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 2L: JLong), true), 4001))
@@ -563,13 +555,10 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processWatermark(12000)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong), true), 12001))
-
-    // trigger cleanup timer and register cleanup timer with 18002
-    testHarness.processWatermark(15001)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong), true), 15002))
+      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong), true), 12001))
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong), true), 15002))
+      CRow(Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong), true), 12001))
 
     testHarness.processWatermark(19000)
 
@@ -585,10 +574,10 @@ class OverWindowHarnessTest extends HarnessTestBase{
       Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 10L: JLong, 10L: JLong, 10L: JLong), true), 2501))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 2L: JLong, 2L: JLong, 2L: JLong), true), 4001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 2L: JLong, 1L: JLong, 2L: JLong), true), 4001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 3L: JLong, 2L: JLong, 3L: JLong), true), 4001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 3L: JLong, 1L: JLong, 3L: JLong), true), 4001))
     expectedOutput.add(new StreamRecord(
       CRow(
       Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 20L: JLong, 10L: JLong, 20L: JLong), true), 4001))
@@ -603,7 +592,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
       Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 6L: JLong, 4L: JLong, 6L: JLong), true), 6501))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 30L: JLong, 30L: JLong, 30L: JLong), true), 6501))
+      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 30L: JLong, 10L: JLong, 30L: JLong), true), 6501))
     expectedOutput.add(new StreamRecord(
       CRow(
       Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong, 5L: JLong, 7L: JLong), true), 7001))
@@ -612,13 +601,13 @@ class OverWindowHarnessTest extends HarnessTestBase{
       Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 8L: JLong, 6L: JLong, 8L: JLong), true), 8001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong, 9L: JLong, 9L: JLong), true), 12001))
-    expectedOutput.add(new StreamRecord(
-      CRow(Row.of(
-        1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong, 10L: JLong, 10L: JLong), true), 15002))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong, 7L: JLong, 9L: JLong), true), 12001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), true), 15002))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong, 8L: JLong, 10L: JLong), true), 12001))
+    expectedOutput.add(new StreamRecord(
+      CRow(
+      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong, 20L: JLong, 40L: JLong), true), 12001))
 
     verify(expectedOutput, result, new RowResultSortComparator(6))
     testHarness.close()
@@ -634,8 +623,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
       new RowTimeUnboundedRangeOver(
         genMinMaxAggFunction,
         minMaxAggregationStateType,
-        minMaxCRowType,
-        qConfig))
+        minMaxCRowType))
 
     val testHarness =
       createHarnessTester(
@@ -645,7 +633,6 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     testHarness.open()
 
-    // register cleanup timer with 3801
     testHarness.processWatermark(800)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 1L: JLong), true), 801))
@@ -654,7 +641,6 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 10L: JLong), true), 2501))
 
-    // trigger cleanup timer and register cleanup timer with 7001
     testHarness.processWatermark(4000)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 2L: JLong), true), 4001))
@@ -667,7 +653,6 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 4L: JLong), true), 4801))
 
-    // using historical data and register cleanup timer with 9501
     testHarness.processWatermark(6500)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 5L: JLong), true), 6501))
@@ -680,12 +665,10 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong), true), 7001))
 
-    // trigger cleanup timer and register cleanup timer with 13001
-    testHarness.processWatermark(10000)
+    testHarness.processWatermark(8000)
     testHarness.processElement(new StreamRecord(
-      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 8L: JLong), true), 10001))
+      CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 8L: JLong), true), 8001))
 
-    // using historical data and register cleanup timer with 15001
     testHarness.processWatermark(12000)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong), true), 12001))
@@ -709,40 +692,40 @@ class OverWindowHarnessTest extends HarnessTestBase{
       Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 10L: JLong, 10L: JLong, 10L: JLong), true), 2501))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 2L: JLong, 2L: JLong, 3L: JLong), true), 4001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 2L: JLong, 1L: JLong, 3L: JLong), true), 4001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 3L: JLong, 2L: JLong, 3L: JLong), true), 4001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 3L: JLong, 1L: JLong, 3L: JLong), true), 4001))
     expectedOutput.add(new StreamRecord(
       CRow(
       Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 20L: JLong, 10L: JLong, 20L: JLong), true), 4001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 4L: JLong, 2L: JLong, 4L: JLong), true), 4801))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 4L: JLong, 1L: JLong, 4L: JLong), true), 4801))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 5L: JLong, 2L: JLong, 6L: JLong), true), 6501))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 5L: JLong, 1L: JLong, 6L: JLong), true), 6501))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 6L: JLong, 2L: JLong, 6L: JLong), true), 6501))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 6L: JLong, 1L: JLong, 6L: JLong), true), 6501))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 30L: JLong, 30L: JLong, 30L: JLong), true), 6501))
+      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 30L: JLong, 10L: JLong, 30L: JLong), true), 6501))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong, 2L: JLong, 7L: JLong), true), 7001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong, 1L: JLong, 7L: JLong), true), 7001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 8L: JLong, 8L: JLong, 8L: JLong), true), 10001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 8L: JLong, 1L: JLong, 8L: JLong), true), 8001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong, 8L: JLong, 10L: JLong), true), 12001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong, 1L: JLong, 10L: JLong), true), 12001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong, 8L: JLong, 10L: JLong), true), 12001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong, 1L: JLong, 10L: JLong), true), 12001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), true), 12001))
+      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong, 10L: JLong, 40L: JLong), true), 12001))
 
     verify(expectedOutput, result, new RowResultSortComparator(6))
     testHarness.close()
@@ -755,8 +738,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
       new RowTimeUnboundedRowsOver(
         genMinMaxAggFunction,
         minMaxAggregationStateType,
-        minMaxCRowType,
-        qConfig))
+        minMaxCRowType))
 
     val testHarness =
       createHarnessTester(
@@ -766,7 +748,6 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     testHarness.open()
 
-    // register cleanup timer with 3801
     testHarness.processWatermark(800)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 1L: JLong), true), 801))
@@ -775,7 +756,6 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 10L: JLong), true), 2501))
 
-    // trigger cleanup timer and register cleanup timer with 7001
     testHarness.processWatermark(4000)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 2L: JLong), true), 4001))
@@ -788,7 +768,6 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 4L: JLong), true), 4801))
 
-    // using historical data and register cleanup timer with 9501
     testHarness.processWatermark(6500)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 5L: JLong), true), 6501))
@@ -805,7 +784,6 @@ class OverWindowHarnessTest extends HarnessTestBase{
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 8L: JLong), true), 8001))
 
-    // trigger cleanup timer and register cleanup timer with 15001
     testHarness.processWatermark(12000)
     testHarness.processElement(new StreamRecord(
       CRow(Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong), true), 12001))
@@ -828,40 +806,40 @@ class OverWindowHarnessTest extends HarnessTestBase{
       Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 10L: JLong, 10L: JLong, 10L: JLong), true), 2501))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 2L: JLong, 2L: JLong, 2L: JLong), true), 4001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 2L: JLong, 1L: JLong, 2L: JLong), true), 4001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 3L: JLong, 2L: JLong, 3L: JLong), true), 4001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 3L: JLong, 1L: JLong, 3L: JLong), true), 4001))
     expectedOutput.add(new StreamRecord(
       CRow(
       Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 20L: JLong, 10L: JLong, 20L: JLong), true), 4001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 4L: JLong, 2L: JLong, 4L: JLong), true), 4801))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 4L: JLong, 1L: JLong, 4L: JLong), true), 4801))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 5L: JLong, 2L: JLong, 5L: JLong), true), 6501))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 5L: JLong, 1L: JLong, 5L: JLong), true), 6501))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 6L: JLong, 2L: JLong, 6L: JLong), true), 6501))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 6L: JLong, 1L: JLong, 6L: JLong), true), 6501))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 30L: JLong, 30L: JLong, 30L: JLong), true), 6501))
+      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 30L: JLong, 10L: JLong, 30L: JLong), true), 6501))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong, 2L: JLong, 7L: JLong), true), 7001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 7L: JLong, 1L: JLong, 7L: JLong), true), 7001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 8L: JLong, 2L: JLong, 8L: JLong), true), 8001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 8L: JLong, 1L: JLong, 8L: JLong), true), 8001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong, 9L: JLong, 9L: JLong), true), 12001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 9L: JLong, 1L: JLong, 9L: JLong), true), 12001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong, 9L: JLong, 10L: JLong), true), 12001))
+      Row.of(1: JInt, 11L: JLong, 1: JInt, "aaa", 10L: JLong, 1L: JLong, 10L: JLong), true), 12001))
     expectedOutput.add(new StreamRecord(
       CRow(
-      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), true), 12001))
+      Row.of(2: JInt, 0L: JLong, 0: JInt, "bbb", 40L: JLong, 10L: JLong, 40L: JLong), true), 12001))
 
     verify(expectedOutput, result, new RowResultSortComparator(6))
     testHarness.close()
