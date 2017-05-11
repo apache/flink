@@ -26,6 +26,8 @@ import org.apache.flink.annotation.PublicEvolving;
  * Configuration options for the JobManager.
  */
 @PublicEvolving
+@ConfigGroups(groups = {
+	@ConfigGroup(name = "WebMonitor", keyPrefix = "jobmanager.web")})
 public class JobManagerOptions {
 
 	/**
