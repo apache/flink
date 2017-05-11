@@ -17,6 +17,10 @@
  */
 package org.apache.flink.configuration;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -43,7 +47,7 @@ public class ConfigOptionsDocGeneratorTest {
 		final String expectedTable = "<table class=\"table table-bordered\">" +
 			"<thead>" +
 			"<tr>" +
-			"<th class=\"text-left\" style=\"width: 20%\">Name</th>" +
+			"<th class=\"text-left\" style=\"width: 20%\">Key</th>" +
 			"<th class=\"text-left\" style=\"width: 15%\">Default Value</th>" +
 			"<th class=\"text-left\" style=\"width: 65%\">Description</th>" +
 			"</tr>" +
@@ -64,6 +68,106 @@ public class ConfigOptionsDocGeneratorTest {
 		final String htmlTable = ConfigOptionsDocGenerator.create(TestConfigGroup.class);
 
 		assertEquals(expectedTable, htmlTable);
+	}
+
+
+	@ConfigGroups(
+		additionalGroups = {
+			@ConfigGroup(name = "firstGroup", keyPrefix = "first"),
+			@ConfigGroup(name = "secondGroup", keyPrefix = "second")
+		},
+		defaultGroup = @ConfigGroup(name = "default")
+	)
+	public static class TestConfigMultipleSubGroup {
+		public static ConfigOption<Integer> firstOption = ConfigOptions
+			.key("first.option.a")
+			.defaultValue(2)
+			.withDescription("This is example description for the first option.");
+
+		public static ConfigOption<String> secondOption = ConfigOptions
+			.key("second.option.a")
+			.noDefaultValue()
+			.withDescription("This is long example description for the second option.");
+
+		public static ConfigOption<Integer> thirdOption = ConfigOptions
+			.key("third.option.a")
+			.defaultValue(2)
+			.withDescription("This is example description for the third option.");
+
+		public static ConfigOption<String> fourthOption = ConfigOptions
+			.key("fourth.option.a")
+			.noDefaultValue()
+			.withDescription("This is long example description for the fourth option.");
+
+		private TestConfigMultipleSubGroup() {
+		}
+	}
+
+	@Test
+	public void testCreatingMultipleGroups() throws Exception {
+
+		final List<Tuple2<ConfigGroup, String>> tables = ConfigOptionsDocGenerator.generateTablesForClass(
+			TestConfigMultipleSubGroup.class);
+
+		assertEquals(tables.size(), 3);
+		final HashMap<String, String> tablesConverted = new HashMap<>();
+		for (Tuple2<ConfigGroup, String> table : tables) {
+			tablesConverted.put(table.f0.name(), table.f1);
+		}
+
+		assertEquals("<table class=\"table table-bordered\">" +
+		             "<thead>" +
+		             "<tr>" +
+		             "<th class=\"text-left\" style=\"width: 20%\">Key</th>" +
+		             "<th class=\"text-left\" style=\"width: 15%\">Default Value</th>" +
+		             "<th class=\"text-left\" style=\"width: 65%\">Description</th>" +
+		             "</tr>" +
+		             "</thead>" +
+		             "<tbody>" +
+		             "<tr>" +
+		             "<td>first.option.a</td>" +
+		             "<td>2</td>" +
+		             "<td>This is example description for the first option.</td>" +
+		             "</tr>" +
+		             "</tbody>" +
+		             "</table>", tablesConverted.get("firstGroup"));
+		assertEquals("<table class=\"table table-bordered\">" +
+		             "<thead>" +
+		             "<tr>" +
+		             "<th class=\"text-left\" style=\"width: 20%\">Key</th>" +
+		             "<th class=\"text-left\" style=\"width: 15%\">Default Value</th>" +
+		             "<th class=\"text-left\" style=\"width: 65%\">Description</th>" +
+		             "</tr>" +
+		             "</thead>" +
+		             "<tbody>" +
+		             "<tr>" +
+		             "<td>second.option.a</td>" +
+		             "<td>(none)</td>" +
+		             "<td>This is long example description for the second option.</td>" +
+		             "</tr>" +
+		             "</tbody>" +
+		             "</table>", tablesConverted.get("secondGroup"));
+		assertEquals("<table class=\"table table-bordered\">" +
+		             "<thead>" +
+		             "<tr>" +
+		             "<th class=\"text-left\" style=\"width: 20%\">Key</th>" +
+		             "<th class=\"text-left\" style=\"width: 15%\">Default Value</th>" +
+		             "<th class=\"text-left\" style=\"width: 65%\">Description</th>" +
+		             "</tr>" +
+		             "</thead>" +
+		             "<tbody>" +
+		             "<tr>" +
+		             "<td>fourth.option.a</td>" +
+		             "<td>(none)</td>" +
+		             "<td>This is long example description for the fourth option.</td>" +
+		             "</tr>" +
+		             "<tr>" +
+		             "<td>third.option.a</td>" +
+		             "<td>2</td>" +
+		             "<td>This is example description for the third option.</td>" +
+		             "</tr>" +
+		             "</tbody>" +
+		             "</table>", tablesConverted.get("default"));
 	}
 
 }
