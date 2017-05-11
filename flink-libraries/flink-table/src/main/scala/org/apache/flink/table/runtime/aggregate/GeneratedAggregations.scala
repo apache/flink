@@ -20,16 +20,22 @@ package org.apache.flink.table.runtime.aggregate
 
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.types.Row
+import org.apache.flink.api.common.functions.RuntimeContext
 
 /**
   * Base class for code-generated aggregations.
   */
 abstract class GeneratedAggregations extends Function {
+  
+  /**
+    * Initialize the state for the distinct aggregation check
+    *
+    * @param ctx the runtime context to retrieve and initialize the distinct states
+    */
+  def initialize(ctx: RuntimeContext)
 
   /**
-    * Sets the results of the aggregations (partial or final) to the output row.
-    * Final results are computed with the aggregation function.
-    * Partial results are the accumulators themselves.
+    * Calculate the results from accumulators, and set the results to the output
     *
     * @param accumulators the accumulators (saved in a row) which contains the current
     *                     aggregated results
