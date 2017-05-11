@@ -97,10 +97,11 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 		// sanity check whether we've found the previous element
 		if (previousSharedBufferEntry == null && previousValue != null) {
-			throw new IllegalStateException("Could not find previous shared buffer entry with " +
+			throw new IllegalStateException("Could not find previous entry with " +
 				"key: " + previousKey + ", value: " + previousValue + " and timestamp: " +
-				previousTimestamp + ". This can indicate that the element belonging to the previous " +
-				"relation has been already pruned, even though you expect it to be still there.");
+				previousTimestamp + ". This can indicate that either you did not implement " +
+				"the equals() and hashCode() methods of your input elements properly or that " +
+				"the element belonging to that entry has been already pruned.");
 		}
 
 		put(key, value, timestamp, previousSharedBufferEntry, version);
