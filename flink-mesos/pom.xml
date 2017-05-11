@@ -30,46 +30,49 @@ under the License.
 	<artifactId>flink-mesos_2.10</artifactId>
 	<name>flink-mesos</name>
 	<packaging>jar</packaging>
-
-    <properties>
-        <mesos.version>1.0.1</mesos.version>
-    </properties>
 	
-    <dependencies>
+	<properties>
+		<mesos.version>1.0.1</mesos.version>
+	</properties>
+
+	<dependencies>
+
+		<!--  set all Flink dependencies to provided, so they and their transitive  -->
+		<!-- dependencies do not get promoted to direct dependencies during shading -->
+		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime_2.10</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients_2.10</artifactId>
 			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-curator-recipes</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.data-artisans</groupId>
 			<artifactId>flakka-actor_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.data-artisans</groupId>
 			<artifactId>flakka-remote_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
 			<exclusions>
-				<!-- exclude protobuf here to allow the mesos library to provide it -->
+				<!-- exclude the lower/wrong version of Protobuf here -->
 				<exclusion>
 					<groupId>com.google.protobuf</groupId>
 					<artifactId>protobuf-java</artifactId>
@@ -80,7 +83,10 @@ under the License.
 		<dependency>
 			<groupId>com.data-artisans</groupId>
 			<artifactId>flakka-slf4j_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
 		</dependency>
+
+		<!-- Mesos and Mesos Resource Manager dependencies -->
 
 		<dependency>
 			<groupId>org.apache.mesos</groupId>
@@ -104,7 +110,16 @@ under the License.
 		<dependency>
 			<groupId>tv.cntt</groupId>
 			<artifactId>netty-router</artifactId>
-			<version>1.10</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
 		</dependency>
 
 		<!-- test dependencies -->
