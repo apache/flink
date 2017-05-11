@@ -35,19 +35,8 @@ class MapJoinLeftRunner[IN1, IN2, OUT](
       case Some(singleInput) => function.join(multiInput, singleInput, out)
       case None if outerJoin => function.
                                 join(multiInput, null.asInstanceOf[IN2], out)
-      case None => {
-        if (outerJoin && isRowClass(multiInput) && returnType.getTypeClass.equals(classOf[Row])) {
-          val inputRow = multiInput.asInstanceOf[Row]
-          val countNullRecords = returnType.getTotalFields - inputRow.getArity
-          val nullRecords = new Row(countNullRecords)
-          function.join(multiInput, nullRecords.asInstanceOf[IN2], out)
-        }
-      }
+      case None =>
     }
   }
 
-  private def isRowClass(obj: Any) = obj match {
-    case r: Row => true
-    case _ => false
-  }
 }

@@ -194,7 +194,7 @@ class DataSetSingleRowJoinTest extends TableTestBase {
   }
 
   @Test
-  def testSingleRowJoinLeftOuterJoin(): Unit = {
+  def testRightSingleLeftJoinEqualPredicate(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Long, Int)]("A", 'a1, 'a2)
     util.addTable[(Int, Int)]("B", 'b1, 'b2)
@@ -236,6 +236,139 @@ class DataSetSingleRowJoinTest extends TableTestBase {
         )
 
     util.verifySql(queryLeftJoin, expected)
+  }
+
+  @Test
+  def testRightSingleLeftJoinNotEqualPredicate(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Long, Int)]("A", 'a1, 'a2)
+    util.addTable[(Int, Int)]("B", 'b1, 'b2)
+
+    val queryLeftJoin =
+      "SELECT a2 FROM A " +
+        "LEFT JOIN " +
+        "(SELECT COUNT(*) AS cnt FROM B) " +
+        "AS x " +
+        "ON a1 > cnt"
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetSingleRowJoin",
+          batchTableNode(0),
+          term("where", ">(a1, cnt)"),
+          term("join", "a1", "a2", "cnt"),
+          term("joinType", "NestedLoopLeftJoin")
+        ),
+        term("select", "a2")
+      ) + "\n" +
+        unaryNode(
+          "DataSetAggregate",
+          unaryNode(
+            "DataSetUnion",
+            unaryNode(
+              "DataSetValues",
+              unaryNode(
+                "DataSetCalc",
+                batchTableNode(1),
+                term("select", "0 AS $f0")),
+              tuples(List(null)), term("values", "$f0")
+            ),
+            term("union", "$f0")
+          ),
+          term("select", "COUNT(*) AS cnt")
+        )
+
+    util.verifySql(queryLeftJoin, expected)
+  }
+
+  @Test
+  def testLeftSingleRightJoinNotEqualPredicate(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Long, Long)]("A", 'a1, 'a2)
+    util.addTable[(Long, Long)]("B", 'b1, 'b2)
+
+    val queryRightJoin =
+      "SELECT a1 FROM (SELECT COUNT(*) AS cnt FROM B) " +
+        "RIGHT JOIN A " +
+        "ON cnt < a2"
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetSingleRowJoin",
+          "",
+          term("where", "<(cnt, a2)"),
+          term("join", "cnt", "a1", "a2"),
+          term("joinType", "NestedLoopRightJoin")
+        ),
+        term("select", "a1")
+      ) +
+        unaryNode(
+          "DataSetAggregate",
+          unaryNode(
+            "DataSetUnion",
+            unaryNode(
+              "DataSetValues",
+              unaryNode(
+                "DataSetCalc",
+                batchTableNode(1),
+                term("select", "0 AS $f0")),
+              tuples(List(null)), term("values", "$f0")
+            ),
+            term("union", "$f0")
+          ),
+          term("select", "COUNT(*) AS cnt")
+        )+ "\n" +
+        batchTableNode(0)
+
+    util.verifySql(queryRightJoin, expected)
+  }
+
+  @Test
+  def testLeftSingleRightJoinEqualPredicate(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Long, Long)]("A", 'a1, 'a2)
+    util.addTable[(Long, Long)]("B", 'b1, 'b2)
+
+    val queryRightJoin =
+      "SELECT a1 FROM (SELECT COUNT(*) AS cnt FROM B) " +
+        "RIGHT JOIN A " +
+        "ON cnt = a2"
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetSingleRowJoin",
+          "",
+          term("where", "=(cnt, a2)"),
+          term("join", "cnt", "a1", "a2"),
+          term("joinType", "NestedLoopRightJoin")
+        ),
+        term("select", "a1")
+      ) +
+        unaryNode(
+          "DataSetAggregate",
+          unaryNode(
+            "DataSetUnion",
+            unaryNode(
+              "DataSetValues",
+              unaryNode(
+                "DataSetCalc",
+                batchTableNode(1),
+                term("select", "0 AS $f0")),
+              tuples(List(null)), term("values", "$f0")
+            ),
+            term("union", "$f0")
+          ),
+          term("select", "COUNT(*) AS cnt")
+        )+ "\n" +
+        batchTableNode(0)
+
+    util.verifySql(queryRightJoin, expected)
   }
 
   @Test
