@@ -1,10 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *    http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -14,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.elasticsearch2;
 
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
+package org.apache.flink.batch.connectors.elasticsearch;
+
+import org.apache.flink.batch.commectors.elasticsearch.ElasticsearchSinkBase;
+import org.apache.flink.batch.connectors.elasticsearch5.ElasticsearchSink;
 import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTestBase;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -45,14 +47,14 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 	}
 
 	@Test
-	public void testTransportClientFails() throws Exception{
+	public void testTransportClientFails() throws Exception {
 		runTransportClientFailsTest();
 	}
 
 	@Override
 	protected <T> ElasticsearchSinkBase<T> createElasticsearchSink(Map<String, String> userConfig,
-																List<InetSocketAddress> transportAddresses,
-																ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
+																   List<InetSocketAddress> transportAddresses,
+																   ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
 		return new ElasticsearchSink<>(userConfig, transportAddresses, elasticsearchSinkFunction);
 	}
 
@@ -65,4 +67,5 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 
 		return new ElasticsearchSink<>(userConfig, transports, elasticsearchSinkFunction);
 	}
+
 }

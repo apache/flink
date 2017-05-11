@@ -18,6 +18,8 @@ package org.apache.flink.streaming.connectors.elasticsearch2.examples;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction;
+import org.apache.flink.connectors.elasticsearch.commons.RequestIndexer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch2.ElasticsearchSink;
@@ -56,9 +58,9 @@ public class ElasticsearchSinkExample {
 		List<InetSocketAddress> transports = new ArrayList<>();
 		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
 
-		source.addSink(new ElasticsearchSink<>(userConfig, transports, new org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction<String>(){
+		source.addSink(new ElasticsearchSink<>(userConfig, transports, new ElasticsearchSinkFunction<String>(){
 			@Override
-			public void process(String element, RuntimeContext ctx, org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer indexer) {
+			public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
 				indexer.add(createIndexRequest(element));
 			}
 		}));

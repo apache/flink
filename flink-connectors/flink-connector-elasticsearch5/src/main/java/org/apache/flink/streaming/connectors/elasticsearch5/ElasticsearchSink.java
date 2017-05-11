@@ -16,10 +16,11 @@
  */
 package org.apache.flink.streaming.connectors.elasticsearch5;
 
-import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
+import org.apache.flink.connectors.elasticsearch.commons.ActionRequestFailureHandler;
+import org.apache.flink.connectors.elasticsearch.commons.Elasticsearch5ApiCallBridge;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
-import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
+import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction;
+import org.apache.flink.connectors.elasticsearch.commons.util.NoOpFailureHandler;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.client.transport.TransportClient;

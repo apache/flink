@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.elasticsearch2;
+package org.apache.flink.batch.connectors.elasticsearch2;
 
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
+import org.apache.flink.batch.commectors.elasticsearch.ElasticsearchSinkBase;
+import org.apache.flink.batch.connectors.elasticsearch.ElasticsearchSinkTestBase;
 import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTestBase;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 
 public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
-
 	@Test
 	public void testTransportClient() throws Exception {
 		runTransportClientTest();
@@ -51,8 +50,8 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 
 	@Override
 	protected <T> ElasticsearchSinkBase<T> createElasticsearchSink(Map<String, String> userConfig,
-																List<InetSocketAddress> transportAddresses,
-																ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
+																   List<InetSocketAddress> transportAddresses,
+																   ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
 		return new ElasticsearchSink<>(userConfig, transportAddresses, elasticsearchSinkFunction);
 	}
 

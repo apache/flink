@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch;
+package org.apache.flink.connectors.elasticsearch.commons;
 
 import org.elasticsearch.action.ActionRequest;
 

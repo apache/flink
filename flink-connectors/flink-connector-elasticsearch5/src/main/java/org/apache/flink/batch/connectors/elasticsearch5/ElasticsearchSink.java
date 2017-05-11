@@ -14,11 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.elasticsearch2;
 
+package org.apache.flink.batch.connectors.elasticsearch5;
+
+import org.apache.flink.batch.commectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.connectors.elasticsearch.commons.ActionRequestFailureHandler;
-import org.apache.flink.connectors.elasticsearch.commons.Elasticsearch2ApiCallBridge;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
+import org.apache.flink.connectors.elasticsearch.commons.Elasticsearch5ApiCallBridge;
+import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction;
 import org.apache.flink.connectors.elasticsearch.commons.util.NoOpFailureHandler;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
@@ -29,7 +31,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Elasticsearch 2.x sink that requests multiple {@link ActionRequest ActionRequests}
+ * Elasticsearch 5.x sink that requests multiple {@link ActionRequest ActionRequests}
  * against a cluster for each incoming element.
  *
  * <p>
@@ -53,9 +55,9 @@ import java.util.Map;
  * </ul>
  *
  * <p>
- * You also have to provide an {@link org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction}.
- * This is used to create multiple {@link ActionRequest ActionRequests} for each incoming element. See the class level
- * documentation of {@link org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction} for an example.
+ * You also have to provide an {@link ElasticsearchSinkFunction}. This is used to create multiple
+ * {@link ActionRequest ActionRequests} for each incoming element. See the class level documentation of
+ * {@link ElasticsearchSinkFunction} for an example.
  *
  * @param <T> Type of the elements handled by this sink
  */
@@ -69,26 +71,11 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 	 * @param userConfig The map of user settings that are used when constructing the {@link TransportClient} and {@link BulkProcessor}
 	 * @param transportAddresses The addresses of Elasticsearch nodes to which to connect using a {@link TransportClient}
 	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
-	 *
-	 * @deprecated Deprecated since 1.2, to be removed at 2.0.
-	 *             Please use {@link ElasticsearchSink#ElasticsearchSink(Map, List, org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction)} instead.
-	 */
-	@Deprecated
-	public ElasticsearchSink(Map<String, String> userConfig, List<InetSocketAddress> transportAddresses, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
-		this(userConfig, transportAddresses, new OldNewElasticsearchSinkFunctionBridge<>(elasticsearchSinkFunction));
-	}
-
-	/**
-	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link TransportClient}.
-	 *
-	 * @param userConfig The map of user settings that are passed when constructing the {@link TransportClient} and {@link BulkProcessor}
-	 * @param transportAddresses The addresses of Elasticsearch nodes to which to connect using a {@link TransportClient}
-	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 */
 	public ElasticsearchSink(
 		Map<String, String> userConfig,
 		List<InetSocketAddress> transportAddresses,
-		org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
+		ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
 
 		this(userConfig, transportAddresses, elasticsearchSinkFunction, new NoOpFailureHandler());
 	}
@@ -104,9 +91,9 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 	public ElasticsearchSink(
 		Map<String, String> userConfig,
 		List<InetSocketAddress> transportAddresses,
-		org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
+		ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
 		ActionRequestFailureHandler failureHandler) {
 
-		super(new Elasticsearch2ApiCallBridge(transportAddresses), userConfig, elasticsearchSinkFunction, failureHandler);
+		super(new Elasticsearch5ApiCallBridge(transportAddresses), userConfig, elasticsearchSinkFunction, failureHandler);
 	}
 }

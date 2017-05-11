@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch.testutils;
+package org.apache.flink.batch.connectors.elasticsearch.testutils;
 
+import com.google.common.collect.Lists;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction;
 import org.apache.flink.connectors.elasticsearch.commons.RequestIndexer;
 import org.elasticsearch.action.get.GetRequest;
@@ -29,6 +29,7 @@ import org.elasticsearch.client.Client;
 import org.junit.Assert;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -45,24 +46,14 @@ public class SourceSinkDataTestKit {
 	private static final String TYPE_NAME = "flink-es-test-type";
 
 	/**
-	 * A {@link SourceFunction} that generates the elements (id, "message #" + id) with id being 0 - 20.
+	 * Generates the elements (id, "message #" + id) with id being 0 - 20.
 	 */
-	public static class TestDataSourceFunction implements SourceFunction<Tuple2<Integer, String>> {
-		private static final long serialVersionUID = 1L;
-
-		private volatile boolean running = true;
-
-		@Override
-		public void run(SourceFunction.SourceContext<Tuple2<Integer, String>> ctx) throws Exception {
-			for (int i = 0; i < NUM_ELEMENTS && running; i++) {
-				ctx.collect(Tuple2.of(i, DATA_PREFIX + i));
-			}
+	public static List<Tuple2<Integer, String>> generateDatas() {
+		List<Tuple2<Integer, String>> dataList = Lists.newArrayList();
+		for (int i = 0; i < NUM_ELEMENTS; i++) {
+			dataList.add(Tuple2.of(i, DATA_PREFIX + i));
 		}
-
-		@Override
-		public void cancel() {
-			running = false;
-		}
+		return dataList;
 	}
 
 	/**
@@ -100,7 +91,7 @@ public class SourceSinkDataTestKit {
 	 * using a {@link TestElasticsearchSinkFunction};
 	 *
 	 * @param client The client to use to connect to Elasticsearch
-	 * @param index The index to check
+	 * @param index  The index to check
 	 */
 	public static void verifyProducedSinkData(Client client, String index) {
 		for (int i = 0; i < NUM_ELEMENTS; i++) {

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch;
+package org.apache.flink.connectors.elasticsearch.commons;
 
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
@@ -62,7 +62,7 @@ public interface ElasticsearchApiCallBridge extends Serializable {
 	 */
 	void configureBulkProcessorBackoff(
 		BulkProcessor.Builder builder,
-		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy);
+		@Nullable BulkFlushBackoffPolicy flushBackoffPolicy);
 
 	/**
 	 * Perform any necessary state cleanup.

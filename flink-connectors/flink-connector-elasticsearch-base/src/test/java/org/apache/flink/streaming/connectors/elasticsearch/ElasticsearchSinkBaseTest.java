@@ -18,10 +18,15 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.connectors.elasticsearch.commons.ActionRequestFailureHandler;
+import org.apache.flink.connectors.elasticsearch.commons.BulkFlushBackoffPolicy;
+import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchApiCallBridge;
+import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction;
+import org.apache.flink.connectors.elasticsearch.commons.RequestIndexer;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
+import org.apache.flink.connectors.elasticsearch.commons.util.NoOpFailureHandler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.elasticsearch.action.ActionRequest;
@@ -529,7 +534,7 @@ public class ElasticsearchSinkBaseTest {
 		}
 
 		@Override
-		public void configureBulkProcessorBackoff(BulkProcessor.Builder builder, @Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
+		public void configureBulkProcessorBackoff(BulkProcessor.Builder builder, @Nullable BulkFlushBackoffPolicy flushBackoffPolicy) {
 			// no need for this in the test cases here
 		}
 

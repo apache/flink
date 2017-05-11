@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch.util;
+package org.apache.flink.connectors.elasticsearch.commons.util;
 
-import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
-import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
+import org.apache.flink.connectors.elasticsearch.commons.ActionRequestFailureHandler;
+import org.apache.flink.connectors.elasticsearch.commons.RequestIndexer;
 import org.apache.flink.util.ExceptionUtils;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;

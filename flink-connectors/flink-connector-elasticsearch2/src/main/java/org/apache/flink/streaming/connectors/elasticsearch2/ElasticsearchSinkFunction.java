@@ -56,7 +56,7 @@ import java.io.Serializable;
  *
  * @deprecated Deprecated since 1.2, to be removed at 2.0.
  *             This class has been deprecated due to package relocation.
- *             Please use {@link org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction} instead.
+ *             Please use {@link org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction} instead.
  */
 @Deprecated
 public interface ElasticsearchSinkFunction<T> extends Serializable, Function {

@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction;
+import org.apache.flink.connectors.elasticsearch.commons.RequestIndexer;
 
 /**
  * A dummy {@link ElasticsearchSinkFunction} that wraps a {@link IndexRequestBuilder}.

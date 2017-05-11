@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction;
 import org.elasticsearch.action.index.IndexRequest;
 
 import java.io.Serializable;

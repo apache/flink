@@ -1,10 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *    http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -15,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch;
+package org.apache.flink.batch.commectors.elasticsearch;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connectors.elasticsearch.commons.ActionRequestFailureHandler;
@@ -27,10 +29,6 @@ import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchApiCallBri
 import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction;
 import org.apache.flink.connectors.elasticsearch.commons.FlushBackoffType;
 import org.apache.flink.connectors.elasticsearch.commons.RequestIndexer;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.util.InstantiationUtil;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -45,6 +43,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -68,9 +67,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> Type of the elements handled by this sink
  */
-public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> implements CheckpointedFunction {
+public abstract class ElasticsearchSinkBase<T> extends RichOutputFormat<T> {
 
-	private static final long serialVersionUID = -1007596293618451942L;
+	private static final long serialVersionUID = -1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSinkBase.class);
 
@@ -221,51 +220,30 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 		this.userConfig = userConfig;
 	}
 
-	/**
-	 * Disable flushing on checkpoint. When disabled, the sink will not wait for all
-	 * pending action requests to be acknowledged by Elasticsearch on checkpoints.
-	 *
-	 * NOTE: If flushing on checkpoint is disabled, the Flink Elasticsearch Sink does NOT
-	 * provide any strong guarantees for at-least-once delivery of action requests.
-	 */
-	public void disableFlushOnCheckpoint() {
-		this.flushOnCheckpoint = false;
-	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
+	public void configure(Configuration parameters) {
 		client = callBridge.createClient(userConfig);
 		bulkProcessor = buildBulkProcessor(new BulkProcessorListener());
 		requestIndexer = new BulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
 	}
 
 	@Override
-	public void invoke(T value) throws Exception {
+	public void open(int taskNumber, int numTasks) throws IOException {
+
+	}
+
+	@Override
+	public void writeRecord(T value) throws IOException {
 		// if bulk processor callbacks have previously reported an error, we rethrow the error and fail the sink
 		checkErrorAndRethrow();
 
 		elasticsearchSinkFunction.process(value, getRuntimeContext(), requestIndexer);
 	}
 
-	@Override
-	public void initializeState(FunctionInitializationContext context) throws Exception {
-		// no initialization needed
-	}
 
 	@Override
-	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		checkErrorAndRethrow();
-
-		if (flushOnCheckpoint) {
-			do {
-				bulkProcessor.flush();
-				checkErrorAndRethrow();
-			} while (numPendingRequests.get() != 0);
-		}
-	}
-
-	@Override
-	public void close() throws Exception {
+	public void close() throws IOException {
 		if (bulkProcessor != null) {
 			bulkProcessor.close();
 			bulkProcessor = null;

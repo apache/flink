@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch;
+package org.apache.flink.connectors.elasticsearch.commons;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -25,7 +25,7 @@ import org.elasticsearch.action.ActionRequest;
 import java.io.Serializable;
 
 /**
- * Creates multiple {@link ActionRequest ActionRequests} from an element in a stream.
+ * Creates multiple {@link ActionRequest ActionRequests} from an element in a stream or a dataSet.
  *
  * <p>
  * This is used by sinks to prepare elements for sending them to Elasticsearch.

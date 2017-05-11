@@ -15,20 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch2;
+package org.apache.flink.connectors.elasticsearch.commons;
 
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallBridge;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
-import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUtils;
+import org.apache.flink.connectors.elasticsearch.commons.util.ElasticsearchUtils;
 import org.apache.flink.util.Preconditions;
 import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.transport.Netty3Plugin;
+import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,33 +39,36 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 2.x.
+ * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 5.x.
  */
-public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge {
+public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge {
 
-	private static final long serialVersionUID = 2638252694744361079L;
+	private static final long serialVersionUID = -5222683870097809633L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch2ApiCallBridge.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch5ApiCallBridge.class);
 
 	/**
 	 * User-provided transport addresses.
 	 *
-	 * We are using {@link InetSocketAddress} because {@link TransportAddress} is not serializable in Elasticsearch 2.x.
+	 * We are using {@link InetSocketAddress} because {@link TransportAddress} is not serializable in Elasticsearch 5.x.
 	 */
 	private final List<InetSocketAddress> transportAddresses;
 
-	Elasticsearch2ApiCallBridge(List<InetSocketAddress> transportAddresses) {
+	public Elasticsearch5ApiCallBridge(List<InetSocketAddress> transportAddresses) {
 		Preconditions.checkArgument(transportAddresses != null && !transportAddresses.isEmpty());
 		this.transportAddresses = transportAddresses;
 	}
 
 	@Override
 	public Client createClient(Map<String, String> clientConfig) {
-		Settings settings = Settings.settingsBuilder().put(clientConfig).build();
+		Settings settings = Settings.builder().put(clientConfig)
+			.put(NetworkModule.HTTP_TYPE_KEY, Netty3Plugin.NETTY_HTTP_TRANSPORT_NAME)
+			.put(NetworkModule.TRANSPORT_TYPE_KEY, Netty3Plugin.NETTY_TRANSPORT_NAME)
+			.build();
 
-		TransportClient transportClient = TransportClient.builder().settings(settings).build();
-		for (TransportAddress address : ElasticsearchUtils.convertInetSocketAddresses(transportAddresses)) {
-			transportClient.addTransportAddress(address);
+		TransportClient transportClient = new PreBuiltTransportClient(settings);
+		for (TransportAddress transport : ElasticsearchUtils.convertInetSocketAddresses(transportAddresses)) {
+			transportClient.addTransportAddress(transport);
 		}
 
 		// verify that we actually are connected to a cluster
@@ -91,7 +95,7 @@ public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge {
 	@Override
 	public void configureBulkProcessorBackoff(
 		BulkProcessor.Builder builder,
-		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
+		@Nullable BulkFlushBackoffPolicy flushBackoffPolicy) {
 
 		BackoffPolicy backoffPolicy;
 		if (flushBackoffPolicy != null) {

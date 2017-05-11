@@ -15,19 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.elasticsearch;
+package org.apache.flink.batch.connectors.elasticsearch;
 
 import com.google.common.collect.Lists;
-import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.batch.commectors.elasticsearch.ElasticsearchSinkBase;
+import org.apache.flink.batch.connectors.elasticsearch.testutils.SourceSinkDataTestKit;
 import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.elasticsearch.testutils.SourceSinkDataTestKit;
 import org.apache.flink.connectors.elasticsearch.commons.util.ElasticsearchUtils;
-import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.client.Requests;
 import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.junit.Test;
@@ -68,9 +66,8 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 	public void testEmbeddedNode() throws Exception {
 		final String index = "embedded-node-test-index";
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSource<Tuple2<Integer, String>> source = env.fromCollection(SourceSinkDataTestKit.generateDatas());
 
 		Map<String, String> userConfig = new HashMap<>();
 		// This instructs the sink to emit after every element, otherwise they would be buffered
@@ -78,7 +75,7 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 		userConfig.put("cluster.name", CLUSTER_NAME);
 		userConfig.put("node.local", "true");
 
-		source.addSink(new ElasticsearchSink<>(
+		source.output(new ElasticsearchSink<>(
 			userConfig,
 			new SourceSinkDataTestKit.TestElasticsearchSinkFunction(index))
 		);
@@ -92,40 +89,6 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 		client.close();
 	}
 
-	/**
-	 * Tests that behaviour of the deprecated {@link IndexRequestBuilder} constructor works properly.
-	 */
-	@Test
-	public void testDeprecatedIndexRequestBuilderVariant() throws Exception {
-		final String index = "index-req-builder-test-index";
-
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
-
-		Map<String, String> userConfig = new HashMap<>();
-		// This instructs the sink to emit after every element, otherwise they would be buffered
-		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		userConfig.put("cluster.name", CLUSTER_NAME);
-		userConfig.put("node.local", "true");
-
-		List<TransportAddress> transports = Lists.newArrayList();
-		transports.add(new LocalTransportAddress("1"));
-
-		source.addSink(new ElasticsearchSink<>(
-			userConfig,
-			transports,
-			new TestIndexRequestBuilder(index))
-		);
-
-		env.execute("Elasticsearch Deprecated IndexRequestBuilder Bridge Test");
-
-		// verify the results
-		Client client = embeddedNodeEnv.getClient();
-		SourceSinkDataTestKit.verifyProducedSinkData(client, index);
-
-		client.close();
-	}
 
 	@Override
 	protected <T> ElasticsearchSinkBase<T> createElasticsearchSink(Map<String, String> userConfig,
@@ -149,30 +112,5 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 			userConfig,
 			transports,
 			elasticsearchSinkFunction);
-	}
-
-	/**
-	 * A {@link IndexRequestBuilder} with equivalent functionality to {@link SourceSinkDataTestKit.TestElasticsearchSinkFunction}.
-	 */
-	private static class TestIndexRequestBuilder implements IndexRequestBuilder<Tuple2<Integer, String>> {
-		private static final long serialVersionUID = 1L;
-
-		private final String index;
-
-		public TestIndexRequestBuilder(String index) {
-			this.index = index;
-		}
-
-		@Override
-		public IndexRequest createIndexRequest(Tuple2<Integer, String> element, RuntimeContext ctx) {
-			Map<String, Object> json = new HashMap<>();
-			json.put("data", element.f1);
-
-			return Requests.indexRequest()
-				.index(index)
-				.type("flink-es-test-type")
-				.id(element.f0.toString())
-				.source(json);
-		}
 	}
 }

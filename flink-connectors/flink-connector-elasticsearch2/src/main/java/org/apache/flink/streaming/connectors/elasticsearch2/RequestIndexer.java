@@ -23,7 +23,7 @@ import java.io.Serializable;
 /**
  * @deprecated Deprecated since 1.2, to be removed at 2.0.
  *             This class has been deprecated due to package relocation.
- *             Please use {@link org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer} instead.
+ *             Please use {@link org.apache.flink.connectors.elasticsearch.commons.RequestIndexer} instead.
  */
 @Deprecated
 public interface RequestIndexer extends Serializable {

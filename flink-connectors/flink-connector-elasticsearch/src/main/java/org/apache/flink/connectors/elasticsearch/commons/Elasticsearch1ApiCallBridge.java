@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch;
+package org.apache.flink.connectors.elasticsearch.commons;
 
 import org.apache.flink.util.Preconditions;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -53,14 +53,14 @@ public class Elasticsearch1ApiCallBridge implements ElasticsearchApiCallBridge {
 	/**
 	 * Constructor for use of an embedded {@link Node} for communication with the Elasticsearch cluster.
 	 */
-	Elasticsearch1ApiCallBridge() {
+	public Elasticsearch1ApiCallBridge() {
 		this.transportAddresses = null;
 	}
 
 	/**
 	 * Constructor for use of a {@link TransportClient} for communication with the Elasticsearch cluster.
 	 */
-	Elasticsearch1ApiCallBridge(List<TransportAddress> transportAddresses) {
+	public Elasticsearch1ApiCallBridge(List<TransportAddress> transportAddresses) {
 		Preconditions.checkArgument(transportAddresses != null && !transportAddresses.isEmpty());
 		this.transportAddresses = transportAddresses;
 	}
@@ -123,7 +123,7 @@ public class Elasticsearch1ApiCallBridge implements ElasticsearchApiCallBridge {
 	@Override
 	public void configureBulkProcessorBackoff(
 		BulkProcessor.Builder builder,
-		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
+		@Nullable BulkFlushBackoffPolicy flushBackoffPolicy) {
 		// Elasticsearch 1.x does not support backoff retries for failed bulk requests
 		LOG.warn("Elasticsearch 1.x does not support backoff retries.");
 	}

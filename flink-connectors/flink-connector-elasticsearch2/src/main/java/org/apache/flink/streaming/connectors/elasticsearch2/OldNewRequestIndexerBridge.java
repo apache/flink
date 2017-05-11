@@ -20,16 +20,16 @@ package org.apache.flink.streaming.connectors.elasticsearch2;
 import org.elasticsearch.action.ActionRequest;
 
 /**
- * A dummy {@link org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer} to bridge
+ * A dummy {@link org.apache.flink.connectors.elasticsearch.commons.RequestIndexer} to bridge
  * the migration from the deprecated {@link RequestIndexer}.
  */
 class OldNewRequestIndexerBridge implements RequestIndexer {
 
 	private static final long serialVersionUID = 4213982619497149416L;
 
-	private final org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer requestIndexer;
+	private final org.apache.flink.connectors.elasticsearch.commons.RequestIndexer requestIndexer;
 
-	OldNewRequestIndexerBridge(org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer requestIndexer) {
+	OldNewRequestIndexerBridge(org.apache.flink.connectors.elasticsearch.commons.RequestIndexer requestIndexer) {
 		this.requestIndexer = requestIndexer;
 	}
 

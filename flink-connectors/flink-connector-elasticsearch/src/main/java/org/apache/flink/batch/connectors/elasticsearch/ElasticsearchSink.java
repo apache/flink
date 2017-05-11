@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch;
+package org.apache.flink.batch.connectors.elasticsearch;
 
+import org.apache.flink.batch.commectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.connectors.elasticsearch.commons.ActionRequestFailureHandler;
 import org.apache.flink.connectors.elasticsearch.commons.Elasticsearch1ApiCallBridge;
 import org.apache.flink.connectors.elasticsearch.commons.ElasticsearchSinkFunction;
 import org.apache.flink.connectors.elasticsearch.commons.util.NoOpFailureHandler;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
-import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.node.Node;
@@ -36,9 +36,9 @@ import java.util.Map;
  * against a cluster for each incoming element.
  *
  * <p>
- * When using the first constructor {@link #ElasticsearchSink(java.util.Map, ElasticsearchSinkFunction)}
+ * When using the first constructor {@link #ElasticsearchSink(Map, ElasticsearchSinkFunction)}
  * the sink will create a local {@link Node} for communicating with the Elasticsearch cluster. When using the second
- * constructor {@link #ElasticsearchSink(java.util.Map, java.util.List, ElasticsearchSinkFunction)} a
+ * constructor {@link #ElasticsearchSink(Map, List, ElasticsearchSinkFunction)} a
  * {@link TransportClient} will be used instead.
  *
  * <p>
@@ -76,35 +76,6 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 	/**
 	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using an embedded {@link Node}.
 	 *
-	 * @param userConfig The map of user settings that are used when constructing the {@link Node} and {@link BulkProcessor}
-	 * @param indexRequestBuilder This is used to generate the IndexRequest from the incoming element
-	 *
-	 * @deprecated Deprecated since version 1.2, to be removed at version 2.0.
-	 *             Please use {@link ElasticsearchSink#ElasticsearchSink(Map, ElasticsearchSinkFunction)} instead.
-	 */
-	@Deprecated
-	public ElasticsearchSink(Map<String, String> userConfig, IndexRequestBuilder<T> indexRequestBuilder) {
-		this(userConfig, new IndexRequestBuilderWrapperFunction<>(indexRequestBuilder));
-	}
-
-	/**
-	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link TransportClient}.
-	 *
-	 * @param userConfig The map of user settings that are used when constructing the {@link TransportClient} and {@link BulkProcessor}
-	 * @param transportAddresses The addresses of Elasticsearch nodes to which to connect using a {@link TransportClient}
-	 * @param indexRequestBuilder This is used to generate a {@link IndexRequest} from the incoming element
-	 *
-	 * @deprecated Deprecated since 1.2, to be removed at 2.0.
-	 *             Please use {@link ElasticsearchSink#ElasticsearchSink(Map, List, ElasticsearchSinkFunction)} instead.
-	 */
-	@Deprecated
-	public ElasticsearchSink(Map<String, String> userConfig, List<TransportAddress> transportAddresses, IndexRequestBuilder<T> indexRequestBuilder) {
-		this(userConfig, transportAddresses, new IndexRequestBuilderWrapperFunction<>(indexRequestBuilder));
-	}
-
-	/**
-	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using an embedded {@link Node}.
-	 *
 	 * @param userConfig The map of user settings that are used when constructing the embedded {@link Node} and {@link BulkProcessor}
 	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 */
@@ -119,7 +90,11 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 	 * @param transportAddresses The addresses of Elasticsearch nodes to which to connect using a {@link TransportClient}
 	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 */
-	public ElasticsearchSink(Map<String, String> userConfig, List<TransportAddress> transportAddresses, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
+	public ElasticsearchSink(
+		Map<String, String> userConfig,
+		List<TransportAddress> transportAddresses,
+		ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
+
 		this(userConfig, transportAddresses, elasticsearchSinkFunction, new NoOpFailureHandler());
 	}
 

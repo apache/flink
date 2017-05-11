@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch;
+package org.apache.flink.connectors.elasticsearch.commons;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
@@ -29,7 +29,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Implementation of a {@link RequestIndexer}, using a {@link BulkProcessor}.
  * {@link ActionRequest ActionRequests} will be buffered before sending a bulk request to the Elasticsearch cluster.
  */
-class BulkProcessorIndexer implements RequestIndexer {
+public class BulkProcessorIndexer implements RequestIndexer {
 
 	private static final long serialVersionUID = 6841162943062034253L;
 
@@ -37,7 +37,7 @@ class BulkProcessorIndexer implements RequestIndexer {
 	private final boolean flushOnCheckpoint;
 	private final AtomicLong numPendingRequestsRef;
 
-	BulkProcessorIndexer(BulkProcessor bulkProcessor, boolean flushOnCheckpoint, AtomicLong numPendingRequestsRef) {
+	public BulkProcessorIndexer(BulkProcessor bulkProcessor, boolean flushOnCheckpoint, AtomicLong numPendingRequestsRef) {
 		this.bulkProcessor = checkNotNull(bulkProcessor);
 		this.flushOnCheckpoint = flushOnCheckpoint;
 		this.numPendingRequestsRef = checkNotNull(numPendingRequestsRef);
