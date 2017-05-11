@@ -441,6 +441,12 @@ under the License.
 			</dependency>
 
 			<dependency>
+				<groupId>tv.cntt</groupId>
+				<artifactId>netty-router</artifactId>
+				<version>1.10</version>
+			</dependency>
+
+			<dependency>
 				<groupId>com.fasterxml.jackson.core</groupId>
 				<artifactId>jackson-core</artifactId>
 				<version>${jackson.version}</version>
