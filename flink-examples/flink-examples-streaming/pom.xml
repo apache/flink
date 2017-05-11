@@ -64,7 +64,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka-0.8_2.10</artifactId>
+			<artifactId>flink-connector-kafka-0.9_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -360,6 +360,26 @@ under the License.
 						</configuration>
 					</execution>
 
+					<!--Kafka09-->
+					<execution>
+						<id>Kafka09</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>Kafka09</classifier>
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.streaming.examples.kafka.ReadFromKafka09</program-class>
+								</manifestEntries>
+							</archive>
+							<includes>
+								<include>org/apache/flink/streaming/examples/kafka/ReadFromKafka09.class</include>
+								<include>org/apache/flink/streaming/examples/kafka/WriteToKafka09.class</include>
+							</includes>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 
@@ -482,53 +502,18 @@ under the License.
 								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-WindowJoin.jar" tofile="${project.basedir}/target/WindowJoin.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-SocketWindowWordCount.jar" tofile="${project.basedir}/target/SocketWindowWordCount.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-Kafka09.jar" tofile="${project.basedir}/target/Kafka09.jar" />
 							</target>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
 
-			<!-- Use the shade plugin to build a fat jar for the kafka example -->
+			<!-- Use the shade plugin to build a fat jar for the twitter example -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
-					<execution>
-						<id>fat-jar-kafka-example</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
-							<createDependencyReducedPom>false</createDependencyReducedPom>
-							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>org.apache.flink.streaming.examples.kafka.ReadFromKafka</mainClass>
-								</transformer>
-							</transformers>
-							<finalName>Kafka</finalName>
-							<!-- <outputFile>Kafka.jar</outputFile> -->
-							<filters>
-								<filter>
-									<artifact>*</artifact>
-									<includes>
-										<include>org/apache/flink/streaming/examples/kafka/**</include>
-										<include>org/apache/flink/streaming/**</include>
-										<include>org/apache/kafka/**</include>
-										<include>org/apache/curator/**</include>
-										<include>org/apache/zookeeper/**</include>
-										<include>org/apache/jute/**</include>
-										<include>org/I0Itec/**</include>
-										<include>jline/**</include>
-										<include>com/yammer/**</include>
-										<include>kafka/**</include>
-									</includes>
-								</filter>
-							</filters>
-						</configuration>
-					</execution>
 					<execution>
 						<id>fat-jar-twitter-example</id>
 						<phase>package</phase>

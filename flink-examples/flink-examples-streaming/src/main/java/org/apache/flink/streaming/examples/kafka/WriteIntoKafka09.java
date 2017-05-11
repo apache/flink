@@ -22,18 +22,18 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer08;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer09;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 
 
 /**
- * Generate a String every 500 ms and write it into a Kafka topic
+ * Generate a String every 500 ms and write it into a Kafka v0.9 topic
  *
  * Please pass the following arguments to run the example:
  * 	--topic test --bootstrap.servers localhost:9092
  *
  */
-public class WriteIntoKafka {
+public class WriteIntoKafka09 {
 
 	public static void main(String[] args) throws Exception {
 		ParameterTool parameterTool = ParameterTool.fromArgs(args);
@@ -68,8 +68,11 @@ public class WriteIntoKafka {
 		});
 
 		// write data into Kafka
-		messageStream.addSink(new FlinkKafkaProducer08<>(parameterTool.getRequired("topic"), new SimpleStringSchema(), parameterTool.getProperties()));
+		messageStream.addSink(new FlinkKafkaProducer09<>(
+			parameterTool.getRequired("topic"),
+			new SimpleStringSchema(),
+			parameterTool.getProperties()));
 
-		env.execute("Write into Kafka example");
+		env.execute("Write into Kafka v0.9 example");
 	}
 }
