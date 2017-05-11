@@ -47,36 +47,72 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-shaded-hadoop2</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-scala_2.10</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-shaded-hadoop2</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime_2.10</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-shaded-hadoop2</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime-web_2.10</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-shaded-hadoop2</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-optimizer_2.10</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-shaded-hadoop2</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients_2.10</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-shaded-hadoop2</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -89,24 +125,48 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-shaded-hadoop2</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-scala_2.10</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-shaded-hadoop2</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-python_2.10</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-shaded-hadoop2</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-scala-shell_2.10</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-shaded-hadoop2</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -137,6 +197,12 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-yarn_2.10</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-shaded-hadoop2</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Concrete logging framework - we add this only here (and not in the 
@@ -246,13 +312,7 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
+		
 		<!-- end optional Flink libraries -->
 
 		<!-- test dependencies -->
