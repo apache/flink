@@ -828,8 +828,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		void takeSnapshot() throws Exception {
+			assert (Thread.holdsLock(stateBackend.asyncSnapshotLock));
+
 			// use the last completed checkpoint as the comparison base.
 			baseSstFiles = stateBackend.materializedSstFiles.get(stateBackend.lastCompletedCheckpointId);
+
 
 			// save meta data
 			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>> stateMetaInfoEntry
@@ -888,7 +891,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			sstFiles.putAll(newSstFiles);
 			sstFiles.putAll(oldSstFiles);
 
-			stateBackend.materializedSstFiles.put(checkpointId, sstFiles);
+			synchronized (stateBackend.asyncSnapshotLock) {
+				stateBackend.materializedSstFiles.put(checkpointId, sstFiles);
+			}
 
 			return new RocksDBIncrementalKeyedStateHandle(
 				stateBackend.operatorIdentifier,
