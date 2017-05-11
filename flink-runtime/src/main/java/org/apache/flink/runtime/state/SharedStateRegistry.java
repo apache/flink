@@ -31,7 +31,7 @@ import java.util.concurrent.Executor;
 /**
  * A {@code SharedStateRegistry} will be deployed in the 
  * {@link org.apache.flink.runtime.checkpoint.CompletedCheckpointStore} to
- * maintain the reference count of {@link SharedStateHandle}s which are shared
+ * maintain the reference count of {@link StreamStateHandle}s which are shared
  * among different incremental checkpoints.
  */
 public class SharedStateRegistry {

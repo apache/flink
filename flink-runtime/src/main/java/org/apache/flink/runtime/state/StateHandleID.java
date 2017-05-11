@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,20 +18,20 @@
 
 package org.apache.flink.runtime.state;
 
-/**
- * StateHandle is a general handle interface meant to abstract operator state fetching. 
- * A StateHandle implementation can for example include the state itself in cases where the state 
- * is lightweight or fetching it lazily from some external storage when the state is too large.
- */
-public interface StateHandle<T> extends StateObject {
+import org.apache.flink.util.StringBasedID;
 
-	/**
-	 * This retrieves and return the state represented by the handle.
-	 *
-	 * @param userCodeClassLoader Class loader for deserializing user code specific classes
-	 *
-	 * @return The state represented by the handle.
-	 * @throws java.lang.Exception Thrown, if the state cannot be fetched.
-	 */
-	T getState(ClassLoader userCodeClassLoader) throws Exception;
+/**
+ * Unique ID that allows for logical comparison between state handles.
+ * <p>
+ * Two state handles that are considered as logically equal should always return the same ID
+ * (whatever logically equal means is up to the implementation). For example, this could be based
+ * on the string representation of the full filepath for a state that is based on a file.
+ */
+public class StateHandleID extends StringBasedID {
+
+	private static final long serialVersionUID = 1L;
+
+	public StateHandleID(String keyString) {
+		super(keyString);
+	}
 }
