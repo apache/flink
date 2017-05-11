@@ -105,7 +105,10 @@ private class FlinkLogicalJoinConverter
 
 
 
-  private def isOuterJoinWithSingleRowAtOuterSide (join: LogicalJoin, joinInfo: JoinInfo): Boolean = {
+  private def isOuterJoinWithSingleRowAtOuterSide(
+    join: LogicalJoin,
+    joinInfo: JoinInfo): Boolean = {
+
     val isLeflSingleOrEmpty = joinInfo.leftKeys.size() < 2
     val isRightSingleOrEmpty = joinInfo.rightKeys.size() < 2
     ((join.getJoinType == JoinRelType.RIGHT && isLeflSingleOrEmpty)

@@ -306,7 +306,7 @@ class DataSetSingleRowJoinTest extends TableTestBase {
         ),
         term("select", "a1")
       ) +
-        unaryNode(
+      unaryNode(
           "DataSetAggregate",
           unaryNode(
             "DataSetUnion",
@@ -321,8 +321,8 @@ class DataSetSingleRowJoinTest extends TableTestBase {
             term("union", "$f0")
           ),
           term("select", "COUNT(*) AS cnt")
-        )+ "\n" +
-        batchTableNode(0)
+      ) + "\n" +
+      batchTableNode(0)
 
     util.verifySql(queryRightJoin, expected)
   }
@@ -349,8 +349,7 @@ class DataSetSingleRowJoinTest extends TableTestBase {
           term("joinType", "NestedLoopRightJoin")
         ),
         term("select", "a1")
-      ) +
-        unaryNode(
+      ) + unaryNode(
           "DataSetAggregate",
           unaryNode(
             "DataSetUnion",
@@ -365,7 +364,7 @@ class DataSetSingleRowJoinTest extends TableTestBase {
             term("union", "$f0")
           ),
           term("select", "COUNT(*) AS cnt")
-        )+ "\n" +
+        ) + "\n" +
         batchTableNode(0)
 
     util.verifySql(queryRightJoin, expected)
