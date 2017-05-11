@@ -150,7 +150,7 @@ public class FailoverRegion {
 						futures.add(vertex.cancel());
 					}
 
-					final FutureUtils.ConjunctFuture allTerminal = FutureUtils.combineAll(futures);
+					final FutureUtils.ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
 					allTerminal.thenAcceptAsync(new AcceptFunction<Void>() {
 						@Override
 						public void accept(Void value) {

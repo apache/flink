@@ -871,7 +871,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 			// this future is complete once all slot futures are complete.
 			// the future fails once one slot future fails.
-			final ConjunctFuture allAllocationsComplete = FutureUtils.combineAll(slotFutures);
+			final ConjunctFuture<Void> allAllocationsComplete = FutureUtils.waitForAll(slotFutures);
 
 			// make sure that we fail if the allocation timeout was exceeded
 			final ScheduledFuture<?> timeoutCancelHandle = futureExecutor.schedule(new Runnable() {
@@ -892,7 +892,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			allAllocationsComplete.handleAsync(new BiFunction<Void, Throwable, Void>() {
 
 				@Override
-				public Void apply(Void ignored, Throwable throwable) {
+				public Void apply(Void slots, Throwable throwable) {
 					try {
 						// we do not need the cancellation timeout any more
 						timeoutCancelHandle.cancel(false);
@@ -973,7 +973,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 					}
 
 					// we build a future that is complete once all vertices have reached a terminal state
-					final ConjunctFuture allTerminal = FutureUtils.combineAll(futures);
+					final ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
 					allTerminal.thenAccept(new AcceptFunction<Void>() {
 						@Override
 						public void accept(Void value) {
@@ -1102,7 +1102,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 					futures.add(ejv.cancelWithFuture());
 				}
 
-				final ConjunctFuture allTerminal = FutureUtils.combineAll(futures);
+				final ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
 				allTerminal.thenAccept(new AcceptFunction<Void>() {
 					@Override
 					public void accept(Void value) {
