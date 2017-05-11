@@ -20,7 +20,9 @@ package org.apache.flink.runtime.concurrent;
 
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -115,13 +117,13 @@ public class FutureUtils {
 	 * @param futures The futures that make up the conjunction. No null entries are allowed.
 	 * @return The ConjunctFuture that completes once all given futures are complete (or one fails).
 	 */
-	public static ConjunctFuture combineAll(Collection<? extends Future<?>> futures) {
+	public static <T> ConjunctFuture<T> combineAll(Collection<? extends Future<? extends T>> futures) {
 		checkNotNull(futures, "futures");
 
 		final ConjunctFutureImpl conjunct = new ConjunctFutureImpl(futures.size());
 
 		if (futures.isEmpty()) {
-			conjunct.complete(null);
+			conjunct.complete(Collections.emptyList());
 		}
 		else {
 			for (Future<?> future : futures) {
@@ -142,7 +144,7 @@ public class FutureUtils {
 	 * {@link Future#thenCombine(Future, BiFunction)}) is that ConjunctFuture also tracks how
 	 * many of the Futures are already complete.
 	 */
-	public interface ConjunctFuture extends CompletableFuture<Void> {
+	public interface ConjunctFuture<T> extends CompletableFuture<Collection<T>> {
 
 		/**
 		 * Gets the total number of Futures in the conjunction.
@@ -163,7 +165,7 @@ public class FutureUtils {
 	 * <p>Implementation notice: The member fields all have package-private access, because they are
 	 * either accessed by an inner subclass or by the enclosing class.
 	 */
-	private static class ConjunctFutureImpl extends FlinkCompletableFuture<Void> implements ConjunctFuture {
+	private static class ConjunctFutureImpl<T> extends FlinkCompletableFuture<Collection<T>> implements ConjunctFuture<T> {
 
 		/** The total number of futures in the conjunction */
 		final int numTotal;
@@ -171,18 +173,23 @@ public class FutureUtils {
 		/** The number of futures in the conjunction that are already complete */
 		final AtomicInteger numCompleted = new AtomicInteger();
 
+		final ArrayList<T> results;
+
 		/** The function that is attached to all futures in the conjunction. Once a future
 		 * is complete, this function tracks the completion or fails the conjunct.  
 		 */
-		final BiFunction<Object, Throwable, Void> completionHandler = new BiFunction<Object, Throwable, Void>() {
+		final BiFunction<T, Throwable, Void> completionHandler = new BiFunction<T, Throwable, Void>() {
 
 			@Override
-			public Void apply(Object o, Throwable throwable) {
+			public Void apply(T o, Throwable throwable) {
 				if (throwable != null) {
 					completeExceptionally(throwable);
-				}
-				else if (numTotal == numCompleted.incrementAndGet()) {
-					complete(null);
+				} else {
+					results.add(o);
+
+					if (numTotal == numCompleted.incrementAndGet()) {
+						complete(results);
+					}
 				}
 
 				return null;
@@ -191,6 +198,7 @@ public class FutureUtils {
 
 		ConjunctFutureImpl(int numTotal) {
 			this.numTotal = numTotal;
+			results = new ArrayList<>(numTotal);
 		}
 
 		@Override

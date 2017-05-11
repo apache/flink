@@ -507,9 +507,9 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * 
 	 * @return A future that is complete once all tasks have canceled.
 	 */
-	public Future<Void> cancelWithFuture() {
+	public Future<?> cancelWithFuture() {
 		// we collect all futures from the task cancellations
-		ArrayList<Future<?>> futures = new ArrayList<>(parallelism);
+		ArrayList<Future<ExecutionState>> futures = new ArrayList<>(parallelism);
 
 		// cancel each vertex
 		for (ExecutionVertex ev : getTaskVertices()) {

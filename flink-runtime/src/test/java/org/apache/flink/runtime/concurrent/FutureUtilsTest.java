@@ -21,10 +21,12 @@ package org.apache.flink.runtime.concurrent;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 
+import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 
@@ -63,11 +65,11 @@ public class FutureUtilsTest {
 		future2.complete(new Object());
 
 		// build the conjunct future
-		ConjunctFuture result = FutureUtils.combineAll(Arrays.asList(future1, future2, future3, future4));
+		ConjunctFuture<?> result = FutureUtils.combineAll(Arrays.asList(future1, future2, future3, future4));
 
-		Future<Void> resultMapped = result.thenAccept(new AcceptFunction<Void>() {
+		Future<?> resultMapped = result.thenAccept(new AcceptFunction<Collection<?>>() {
 			@Override
-			public void accept(Void value) {}
+			public void accept(Collection<?> value) {}
 		});
 
 		assertEquals(4, result.getNumFuturesTotal());
@@ -108,11 +110,11 @@ public class FutureUtilsTest {
 		CompletableFuture<Object> future4 = new FlinkCompletableFuture<>();
 
 		// build the conjunct future
-		ConjunctFuture result = FutureUtils.combineAll(Arrays.asList(future1, future2, future3, future4));
+		ConjunctFuture<?> result = FutureUtils.combineAll(Arrays.asList(future1, future2, future3, future4));
 
-		Future<Void> resultMapped = result.thenAccept(new AcceptFunction<Void>() {
+		Future<?> resultMapped = result.thenAccept(new AcceptFunction<Collection<?>>() {
 			@Override
-			public void accept(Void value) {}
+			public void accept(Collection<?> value) {}
 		});
 
 		assertEquals(4, result.getNumFuturesTotal());
@@ -150,12 +152,12 @@ public class FutureUtilsTest {
 		CompletableFuture<Object> future4 = new FlinkCompletableFuture<>();
 
 		// build the conjunct future
-		ConjunctFuture result = FutureUtils.combineAll(Arrays.asList(future1, future2, future3, future4));
+		ConjunctFuture<Object> result = FutureUtils.combineAll(Arrays.asList(future1, future2, future3, future4));
 		assertEquals(4, result.getNumFuturesTotal());
 
-		Future<Void> resultMapped = result.thenAccept(new AcceptFunction<Void>() {
+		Future<?> resultMapped = result.thenAccept(new AcceptFunction<Collection<Object>>() {
 			@Override
-			public void accept(Void value) {}
+			public void accept(Collection<Object> value) {}
 		});
 
 		future1.complete(new Object());
@@ -183,9 +185,29 @@ public class FutureUtilsTest {
 		}
 	}
 
+	/**
+	 * Tests that the conjunct future returns upon completion the collection of all future values
+	 */
+	@Test
+	public void testConjunctFutureValue() throws ExecutionException, InterruptedException {
+		CompletableFuture<Integer> future1 = FlinkCompletableFuture.completed(1);
+		CompletableFuture<Long> future2 = FlinkCompletableFuture.completed(2L);
+		CompletableFuture<Double> future3 = new FlinkCompletableFuture<>();
+
+		ConjunctFuture<Number> result = FutureUtils.<Number>combineAll(Arrays.asList(future1, future2, future3));
+
+		assertFalse(result.isDone());
+
+		future3.complete(.1);
+
+		assertTrue(result.isDone());
+
+		assertThat(result.get(), IsIterableContainingInAnyOrder.<Number>containsInAnyOrder(1, 2L, .1));
+	}
+
 	@Test
 	public void testConjunctOfNone() throws Exception {
-		final ConjunctFuture result = FutureUtils.combineAll(Collections.<Future<Object>>emptyList());
+		final ConjunctFuture<Object> result = FutureUtils.combineAll(Collections.<Future<Object>>emptyList());
 
 		assertEquals(0, result.getNumFuturesTotal());
 		assertEquals(0, result.getNumFuturesCompleted());
