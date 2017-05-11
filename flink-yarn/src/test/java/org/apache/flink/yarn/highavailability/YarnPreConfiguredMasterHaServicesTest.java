@@ -24,12 +24,14 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -59,6 +61,8 @@ public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 
 	@BeforeClass
 	public static void createHDFS() throws Exception {
+		Assume.assumeTrue(!OperatingSystem.isWindows());
+
 		final File tempDir = TEMP_DIR.newFolder();
 
 		org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
