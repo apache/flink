@@ -33,9 +33,9 @@ under the License.
 		<dependencySet>
 			<outputDirectory>lib</outputDirectory>
 			<unpack>false</unpack>
-			<useTransitiveDependencies>true</useTransitiveDependencies>
 			<useProjectArtifact>false</useProjectArtifact>
 			<useProjectAttachments>false</useProjectAttachments>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 
 			<includes>
@@ -54,11 +54,11 @@ under the License.
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- copy the Hadoop fat jar -->
+		<!-- copy the Hadoop uber jar -->
 		<file>
-			<source>../flink-shaded-hadoop/flink-shaded-hadoop2/target/flink-shaded-hadoop2-${project.version}.jar</source>
+			<source>../flink-shaded-hadoop/flink-shaded-hadoop2-uber/target/flink-shaded-hadoop2-uber-${project.version}.jar</source>
 			<outputDirectory>lib/</outputDirectory>
-			<destName>flink-shaded-hadoop2-${project.version}.jar</destName>
+			<destName>flink-shaded-hadoop2-uber-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
