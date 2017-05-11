@@ -315,5 +315,77 @@ class SqlITCase extends StreamingWithStateTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
+  
+  
+  
+   @Test
+  def testEventTimeOrderBy(): Unit = {
+    val data = Seq(
+      Left((1500L, (1L, 15, "Hello"))),
+      Left((1600L, (1L, 16, "Hello"))),
+      Left((1000L, (1L, 1, "Hello"))),
+      Left((2000L, (2L, 2, "Hello"))),
+      Right(1000L),
+      Left((2000L, (2L, 2, "Hello"))),
+      Left((2000L, (2L, 3, "Hello"))),
+      Left((3000L, (3L, 3, "Hello"))),
+      Right(2000L),
+      Left((4000L, (4L, 4, "Hello"))),
+      Right(3000L),
+      Left((5000L, (5L, 5, "Hello"))),
+      Right(5000L),
+      Left((6000L, (6L, 65, "Hello"))),
+      Left((6000L, (6L, 6, "Hello"))),
+      Right(7000L),
+      Left((9000L, (6L, 9, "Hello"))),
+      Left((8500L, (6L, 18, "Hello"))),
+      Left((9000L, (6L, 7, "Hello"))),
+      Right(10000L),
+      Left((10000L, (7L, 7, "Hello World"))),
+      Left((11000L, (7L, 77, "Hello World"))),
+      Left((11000L, (7L, 17, "Hello World"))),
+      Right(12000L),
+      Left((14000L, (7L, 18, "Hello World"))),
+      Right(14000L),
+      Left((15000L, (8L, 8, "Hello World"))),
+      Right(17000L),
+      Left((20000L, (20L, 20, "Hello World"))), 
+      Right(19000L))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    //env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t1 = env
+      .addSource[(Long, Int, String)](new EventTimeSourceFunction[(Long, Int, String)](data))
+      .toTable(tEnv).as('a, 'b, 'c)
+
+    tEnv.registerTable("T1", t1)
+
+    val  sqlQuery = "SELECT b FROM T1 " +
+      "ORDER BY RowTime(), b ASC ";
+      
+      
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,1970-01-01 00:00:00.0", "15,1970-01-01 00:00:00.0", "16,1970-01-01 00:00:00.0",
+      "2,1970-01-01 00:00:00.0", "2,1970-01-01 00:00:00.0", "3,1970-01-01 00:00:00.0",
+      "3,1970-01-01 00:00:00.0",
+      "4,1970-01-01 00:00:00.0",
+      "5,1970-01-01 00:00:00.0",
+      "6,1970-01-01 00:00:00.0", "65,1970-01-01 00:00:00.0",
+      "18,1970-01-01 00:00:00.0", "7,1970-01-01 00:00:00.0", "9,1970-01-01 00:00:00.0",
+      "7,1970-01-01 00:00:00.0", "17,1970-01-01 00:00:00.0", "77,1970-01-01 00:00:00.0", 
+      "18,1970-01-01 00:00:00.0",
+      "8,1970-01-01 00:00:00.0",
+      "20,1970-01-01 00:00:00.0")
+    assertEquals(expected, StreamITCase.testResults)
+  }
+  
 }
 

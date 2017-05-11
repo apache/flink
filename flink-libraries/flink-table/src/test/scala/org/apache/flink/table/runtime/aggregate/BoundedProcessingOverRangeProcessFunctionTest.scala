@@ -300,6 +300,7 @@ class BoundedProcessingOverRangeProcessFunctionTest {
     testHarness.close()
 
   }
+  
 }
 
 object BoundedProcessingOverRangeProcessFunctionTest {
