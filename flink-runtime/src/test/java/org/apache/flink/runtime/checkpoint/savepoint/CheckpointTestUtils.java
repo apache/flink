@@ -27,10 +27,15 @@ import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle.StateMetaInfo;
+import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
+import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.util.TestByteStreamStateHandleDeepCompare;
 import org.apache.flink.util.StringUtils;
@@ -41,6 +46,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -78,6 +84,7 @@ public class CheckpointTestUtils {
 
 			boolean hasKeyedBackend = random.nextInt(4) != 0;
 			boolean hasKeyedStream = random.nextInt(4) != 0;
+			boolean isIncremental = random.nextInt(3) == 0;
 
 			for (int subtaskIdx = 0; subtaskIdx < numSubtasksPerTask; subtaskIdx++) {
 
@@ -108,21 +115,19 @@ public class CheckpointTestUtils {
 					operatorStateHandleStream = new OperatorStateHandle(offsetsMap, operatorStateStream);
 				}
 
-				KeyGroupsStateHandle keyedStateBackend = null;
-				KeyGroupsStateHandle keyedStateStream = null;
+				KeyedStateHandle keyedStateBackend = null;
+				KeyedStateHandle keyedStateStream = null;
 
 				if (hasKeyedBackend) {
-					keyedStateBackend = new KeyGroupsStateHandle(
-							new KeyGroupRangeOffsets(1, 1, new long[]{42}),
-							new TestByteStreamStateHandleDeepCompare("c", "Hello"
-									.getBytes(ConfigConstants.DEFAULT_CHARSET)));
+					if (isIncremental) {
+						keyedStateBackend = createDummyIncrementalKeyedStateHandle(random);
+					} else {
+						keyedStateBackend = createDummyKeyGroupStateHandle(random);
+					}
 				}
 
 				if (hasKeyedStream) {
-					keyedStateStream = new KeyGroupsStateHandle(
-							new KeyGroupRangeOffsets(1, 1, new long[]{23}),
-							new TestByteStreamStateHandleDeepCompare("d", "World"
-									.getBytes(ConfigConstants.DEFAULT_CHARSET)));
+					keyedStateStream = createDummyKeyGroupStateHandle(random);
 				}
 
 				taskState.putState(subtaskIdx, new OperatorSubtaskState(
@@ -210,17 +215,11 @@ public class CheckpointTestUtils {
 				KeyGroupsStateHandle keyedStateStream = null;
 
 				if (hasKeyedBackend) {
-					keyedStateBackend = new KeyGroupsStateHandle(
-							new KeyGroupRangeOffsets(1, 1, new long[]{42}),
-							new TestByteStreamStateHandleDeepCompare("c", "Hello"
-								.getBytes(ConfigConstants.DEFAULT_CHARSET)));
+					keyedStateBackend = createDummyKeyGroupStateHandle(random);
 				}
 
 				if (hasKeyedStream) {
-					keyedStateStream = new KeyGroupsStateHandle(
-							new KeyGroupRangeOffsets(1, 1, new long[]{23}),
-							new TestByteStreamStateHandleDeepCompare("d", "World"
-								.getBytes(ConfigConstants.DEFAULT_CHARSET)));
+					keyedStateStream = createDummyKeyGroupStateHandle(random);
 				}
 
 				taskState.putState(subtaskIdx, new SubtaskState(
@@ -272,4 +271,56 @@ public class CheckpointTestUtils {
 
 	/** utility class, not meant to be instantiated */
 	private CheckpointTestUtils() {}
+
+
+	private static IncrementalKeyedStateHandle createDummyIncrementalKeyedStateHandle(Random rnd) {
+		return new IncrementalKeyedStateHandle(
+			createRandomUUID(rnd).toString(),
+			new KeyGroupRange(1, 1),
+			42L,
+			createRandomOwnedHandleMap(rnd),
+			createRandomReferencedHandleMap(rnd),
+			createRandomOwnedHandleMap(rnd),
+			createDummyStreamStateHandle(rnd));
+	}
+
+	private static Map<StateHandleID, StreamStateHandle> createRandomOwnedHandleMap(Random rnd) {
+		final int size = rnd.nextInt(4);
+		Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
+		for (int i = 0; i < size; ++i) {
+			StateHandleID randomId = new StateHandleID(createRandomUUID(rnd).toString());
+			StreamStateHandle stateHandle = createDummyStreamStateHandle(rnd);
+			result.put(randomId, stateHandle);
+		}
+
+		return result;
+	}
+
+	private static Map<StateHandleID, StreamStateHandle> createRandomReferencedHandleMap(Random rnd) {
+		final int size = rnd.nextInt(4);
+		Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
+		for (int i = 0; i < size; ++i) {
+			StateHandleID randomId = new StateHandleID(createRandomUUID(rnd).toString());
+			result.put(randomId, new PlaceholderStreamStateHandle(rnd.nextInt(1024)));
+		}
+
+		return result;
+	}
+
+	private static KeyGroupsStateHandle createDummyKeyGroupStateHandle(Random rnd) {
+		return new KeyGroupsStateHandle(
+			new KeyGroupRangeOffsets(1, 1, new long[]{rnd.nextInt(1024)}),
+			createDummyStreamStateHandle(rnd));
+	}
+
+	private static StreamStateHandle createDummyStreamStateHandle(Random rnd) {
+		return new TestByteStreamStateHandleDeepCompare(
+			String.valueOf(createRandomUUID(rnd)),
+			String.valueOf(createRandomUUID(rnd)).getBytes(ConfigConstants.DEFAULT_CHARSET));
+	}
+
+	private static UUID createRandomUUID(Random rnd) {
+		return new UUID(rnd.nextLong(), rnd.nextLong());
+	}
+
 }

@@ -18,9 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.util.Preconditions;
-
-import java.io.Serializable;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.StringBasedID;
 
 /**
  * This class represents a key that uniquely identifies (on a logical level) state handles for
@@ -28,41 +27,16 @@ import java.io.Serializable;
  * be the same should have the same {@link SharedStateRegistryKey}. The meaning of logical
  * equivalence is up to the application.
  */
-public class SharedStateRegistryKey implements Serializable {
+public class SharedStateRegistryKey extends StringBasedID {
 
 	private static final long serialVersionUID = 1L;
 
-	/** Uses a String as internal representation */
-	private final String keyString;
+	public SharedStateRegistryKey(String prefix, StateHandleID stateHandleID) {
+		super(prefix + '-' + stateHandleID);
+	}
 
+	@VisibleForTesting
 	public SharedStateRegistryKey(String keyString) {
-		this.keyString = Preconditions.checkNotNull(keyString);
-	}
-
-	public String getKeyString() {
-		return keyString;
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-
-		SharedStateRegistryKey that = (SharedStateRegistryKey) o;
-		return keyString.equals(that.keyString);
-	}
-
-	@Override
-	public int hashCode() {
-		return keyString.hashCode();
-	}
-
-	@Override
-	public String toString() {
-		return keyString;
+		super(keyString);
 	}
 }
