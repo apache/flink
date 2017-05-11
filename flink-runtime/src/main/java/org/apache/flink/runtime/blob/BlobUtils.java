@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.blob;
 
 import com.google.common.io.BaseEncoding;
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 
