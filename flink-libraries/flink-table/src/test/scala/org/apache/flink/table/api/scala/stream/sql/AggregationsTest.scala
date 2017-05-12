@@ -28,6 +28,9 @@ class AggregationsTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
   streamUtil.addTable[(Int, String, Long)]("MyTable", 'a, 'b, 'c)
 
+  /**
+    * OVER clause is necessary for [[OverAgg0]] window function.
+    */
   @Test(expected = classOf[ValidationException])
   def testOverAggregation(): Unit = {
     streamUtil.addFunction("overAgg", new OverAgg0)

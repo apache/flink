@@ -30,6 +30,9 @@ import org.apache.flink.table.utils.TableTestUtil._
 
 class GroupAggregationsTest extends TableTestBase {
 
+  /**
+    * OVER clause is necessary for [[OverAgg0]] window function.
+    */
   @Test(expected = classOf[TableException])
   def testOverAggregation(): Unit = {
     val util = streamTestUtil()

@@ -31,6 +31,9 @@ import org.junit.Test
 
 class WindowAggregateTest extends TableTestBase {
 
+  /**
+    * OVER clause is necessary for [[OverAgg0]] window function.
+    */
   @Test(expected = classOf[ValidationException])
   def testOverAggregation(): Unit = {
     val util = batchTestUtil()

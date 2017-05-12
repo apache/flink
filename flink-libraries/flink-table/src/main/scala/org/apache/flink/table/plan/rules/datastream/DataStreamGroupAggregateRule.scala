@@ -50,9 +50,11 @@ class DataStreamGroupAggregateRule
     }
 
     // check if we have over aggregates
-    val overAggs = agg.getAggCallList.exists(_.getAggregation.requiresOver())
-    if (overAggs) {
-      throw TableException("OVER clause is necessary for requires over window functions")
+    val overAggNames =
+      agg.getAggCallList.filter(_.getAggregation.requiresOver()).map(_.getAggregation.getName)
+    if (overAggNames.size > 0) {
+      val msgs = overAggNames.foldLeft("")((msg, name) => msg.concat("[").concat(name).concat("]"))
+      throw TableException(s"OVER clause is necessary for window functions: [${msgs}].")
     }
 
     // check if we have grouping sets
@@ -61,7 +63,7 @@ class DataStreamGroupAggregateRule
       throw TableException("GROUPING SETS are currently not supported.")
     }
 
-    true
+    !distinctAggs && !groupSets && !agg.indicator
   }
 
   override def convert(rel: RelNode): RelNode = {

@@ -26,12 +26,6 @@ public class UserDefinedAggFunctions {
     // Accumulator for test requiresOver
     public static class Accumulator0 extends Tuple2<Long, Integer>{}
 
-    // Accumulator for WeightedAvg
-    public static class WeightedAvgAccum extends Tuple2<Long, Integer> {
-        public long sum = 0;
-        public int count = 0;
-    }
-
     // Test for requiresOver
     public static class OverAgg0 extends AggregateFunction<Long, Accumulator0> {
         @Override
@@ -52,6 +46,12 @@ public class UserDefinedAggFunctions {
         public boolean requiresOver() {
             return true;
         }
+    }
+
+    // Accumulator for WeightedAvg
+    public static class WeightedAvgAccum extends Tuple2<Long, Integer> {
+        public long sum = 0;
+        public int count = 0;
     }
 
     // Base class for WeightedAvg

@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.scala.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{OverAgg0, WeightedAvg}
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{OverAgg0, WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.WindowReference
@@ -30,6 +30,9 @@ import org.junit.{Ignore, Test}
 
 class GroupWindowTest extends TableTestBase {
 
+  /**
+    * OVER clause is necessary for [[OverAgg0]] window function.
+    */
   @Test(expected = classOf[TableException])
   def testOverAggregation(): Unit = {
     val util = streamTestUtil()

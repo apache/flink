@@ -31,6 +31,9 @@ class WindowAggregateTest extends TableTestBase {
   streamUtil.addTable[(Int, String, Long)](
     "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
+  /**
+    * OVER clause is necessary for [[OverAgg0]] window function.
+    */
   @Test(expected = classOf[ValidationException])
   def testOverAggregation() = {
     streamUtil.addFunction("overAgg", new OverAgg0)

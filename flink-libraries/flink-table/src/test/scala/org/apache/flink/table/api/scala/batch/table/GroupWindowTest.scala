@@ -33,6 +33,9 @@ class GroupWindowTest extends TableTestBase {
   // Common test
   //===============================================================================================
 
+  /**
+    * OVER clause is necessary for [[OverAgg0]] window function.
+    */
   @Test(expected = classOf[TableException])
   def testOverAggregation(): Unit = {
     val util = batchTestUtil()
