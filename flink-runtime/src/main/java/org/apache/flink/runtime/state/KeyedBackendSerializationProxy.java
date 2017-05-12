@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
-import org.apache.flink.core.io.VersionMismatchException;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -41,7 +40,6 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 	private TypeSerializer<?> keySerializer;
 	private List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots;
 
-	private int restoredVersion;
 	private ClassLoader userCodeClassLoader;
 
 	public KeyedBackendSerializationProxy(ClassLoader userCodeClassLoader) {
@@ -57,8 +55,6 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		Preconditions.checkNotNull(stateMetaInfoSnapshots);
 		Preconditions.checkArgument(stateMetaInfoSnapshots.size() <= Short.MAX_VALUE);
 		this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
-
-		this.restoredVersion = VERSION;
 	}
 
 	public List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> getStateMetaInfoSnapshots() {
@@ -74,20 +70,10 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		return VERSION;
 	}
 
-	public int getRestoredVersion() {
-		return restoredVersion;
-	}
-
 	@Override
-	protected void resolveVersionRead(int foundVersion) throws VersionMismatchException {
-		super.resolveVersionRead(foundVersion);
-		this.restoredVersion = foundVersion;
-	}
-
-	@Override
-	public boolean isCompatibleVersion(int version) {
+	public int[] getCompatibleVersions() {
 		// we are compatible with version 3 (Flink 1.3.x) and version 1 & 2 (Flink 1.2.x)
-		return super.isCompatibleVersion(version) || version == 2 || version == 1;
+		return new int[] {VERSION, 2, 1};
 	}
 
 	@Override
@@ -119,7 +105,7 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		for (int i = 0; i < numKvStates; i++) {
 			stateMetaInfoSnapshots.add(
 				KeyedBackendStateMetaInfoSnapshotReaderWriters
-					.getReaderForVersion(restoredVersion, userCodeClassLoader)
+					.getReaderForVersion(getReadVersion(), userCodeClassLoader)
 					.readStateMetaInfo(in));
 		}
 	}

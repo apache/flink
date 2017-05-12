@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.core.io.VersionMismatchException;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -39,8 +38,6 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 	private List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> stateMetaInfoSnapshots;
 	private ClassLoader userCodeClassLoader;
 
-	private int restoredVersion;
-
 	public OperatorBackendSerializationProxy(ClassLoader userCodeClassLoader) {
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 	}
@@ -50,8 +47,6 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 
 		this.stateMetaInfoSnapshots = Preconditions.checkNotNull(stateMetaInfoSnapshots);
 		Preconditions.checkArgument(stateMetaInfoSnapshots.size() <= Short.MAX_VALUE);
-
-		this.restoredVersion = VERSION;
 	}
 
 	@Override
@@ -60,15 +55,9 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 	}
 
 	@Override
-	protected void resolveVersionRead(int foundVersion) throws VersionMismatchException {
-		super.resolveVersionRead(foundVersion);
-		this.restoredVersion = foundVersion;
-	}
-
-	@Override
-	public boolean isCompatibleVersion(int version) {
+	public int[] getCompatibleVersions() {
 		// we are compatible with version 2 (Flink 1.3.x) and version 1 (Flink 1.2.x)
-		return super.isCompatibleVersion(version) || version == 1;
+		return new int[] {VERSION, 1};
 	}
 
 	@Override
@@ -92,7 +81,7 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 		for (int i = 0; i < numKvStates; i++) {
 			stateMetaInfoSnapshots.add(
 				OperatorBackendStateMetaInfoSnapshotReaderWriters
-					.getReaderForVersion(restoredVersion, userCodeClassLoader)
+					.getReaderForVersion(getReadVersion(), userCodeClassLoader)
 					.readStateMetaInfo(in));
 		}
 	}
