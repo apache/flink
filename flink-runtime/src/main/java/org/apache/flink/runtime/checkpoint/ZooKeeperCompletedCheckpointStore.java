@@ -426,7 +426,7 @@ public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpoi
 	 * @return Path created from the given checkpoint id
 	 */
 	protected static String checkpointIdToPath(long checkpointId) {
-		return String.format("/%s", checkpointId);
+		return String.format("/%019d", checkpointId);
 	}
 
 	/**
