@@ -30,6 +30,8 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -38,6 +40,8 @@ import java.io.IOException;
  * Outdated formats are also kept here for documentation of history backlog.
  */
 public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
+
+	private static final Logger LOG = LoggerFactory.getLogger(OperatorBackendStateMetaInfoSnapshotReaderWriters.class);
 
 	// -------------------------------------------------------------------------------
 	//  Writers
@@ -219,6 +223,8 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 				partitionStateSerializerProxy.read(inViewWrapper);
 				stateMetaInfo.setPartitionStateSerializer(partitionStateSerializerProxy.getTypeSerializer());
 			} catch (IOException e) {
+				LOG.warn("Deserialization of previous serializer errored; setting serializer to null. ", e);
+
 				stateMetaInfo.setPartitionStateSerializer(null);
 			}
 
