@@ -45,8 +45,12 @@ public class SharedStateRegistry {
 	private final Executor asyncDisposalExecutor;
 
 	public SharedStateRegistry() {
+		this(Executors.directExecutor());
+	}
+
+	public SharedStateRegistry(Executor asyncDisposalExecutor) {
 		this.registeredStates = new HashMap<>();
-		this.asyncDisposalExecutor = Executors.directExecutor(); //TODO: FLINK-6534
+		this.asyncDisposalExecutor = Preconditions.checkNotNull(asyncDisposalExecutor);
 	}
 
 	/**
