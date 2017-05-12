@@ -164,8 +164,8 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 			CompatibilityResult<T> compatResult = typeSerializer.ensureCompatibility(
 				((StreamRecordSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
-			if (!compatResult.requiresMigration()) {
-				return CompatibilityResult.requiresMigration(null);
+			if (!compatResult.isRequiresMigration()) {
+				return CompatibilityResult.compatible();
 			} else if (compatResult.getConvertDeserializer() != null) {
 				return CompatibilityResult.requiresMigration(
 					new StreamRecordSerializer<>(
@@ -173,7 +173,7 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 
 	/**

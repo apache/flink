@@ -270,12 +270,12 @@ public final class RowSerializer extends TypeSerializer<Row> {
 				CompatibilityResult<?> compatResult;
 				for (int i = 0; i < fieldSerializers.length; i++) {
 					compatResult = fieldSerializers[i].ensureCompatibility(fieldSerializerConfigSnapshots[i]);
-					if (compatResult.requiresMigration()) {
+					if (compatResult.isRequiresMigration()) {
 						requireMigration = true;
 
 						if (compatResult.getConvertDeserializer() == null) {
 							// one of the field serializers cannot provide a fallback deserializer
-							return CompatibilityResult.requiresMigration(null);
+							return CompatibilityResult.requiresMigration();
 						} else {
 							convertDeserializers[i] =
 								new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer());
@@ -291,7 +291,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 
 	public static final class RowSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {

@@ -580,13 +580,13 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 							reorderedFields[i] = fieldToConfigSnapshotEntry.getKey();
 
 							compatResult = fieldSerializers[fieldIndex].ensureCompatibility(fieldToConfigSnapshotEntry.getValue());
-							if (compatResult.requiresMigration()) {
-								return CompatibilityResult.requiresMigration(null);
+							if (compatResult.isRequiresMigration()) {
+								return CompatibilityResult.requiresMigration();
 							} else {
 								reorderedFieldSerializers[i] = fieldSerializers[fieldIndex];
 							}
 						} else {
-							return CompatibilityResult.requiresMigration(null);
+							return CompatibilityResult.requiresMigration();
 						}
 
 						i++;
@@ -618,8 +618,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					for (TypeSerializerConfigSnapshot previousRegisteredSerializerConfig : previousRegistrations.values()) {
 						// check compatibility of subclass serializer
 						compatResult = reorderedRegisteredSubclassSerializers[i].ensureCompatibility(previousRegisteredSerializerConfig);
-						if (compatResult.requiresMigration()) {
-							return CompatibilityResult.requiresMigration(null);
+						if (compatResult.isRequiresMigration()) {
+							return CompatibilityResult.requiresMigration();
 						}
 
 						i++;
@@ -638,8 +638,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 						// check compatibility of cached subclass serializer
 						compatResult = cachedSerializer.ensureCompatibility(previousCachedEntry.getValue());
-						if (compatResult.requiresMigration()) {
-							return CompatibilityResult.requiresMigration(null);
+						if (compatResult.isRequiresMigration()) {
+							return CompatibilityResult.requiresMigration();
 						} else {
 							rebuiltCache.put(previousCachedEntry.getKey(), cachedSerializer);
 						}
@@ -661,7 +661,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 
 	public static final class PojoSerializerConfigSnapshot<T> extends GenericTypeSerializerConfigSnapshot<T> {

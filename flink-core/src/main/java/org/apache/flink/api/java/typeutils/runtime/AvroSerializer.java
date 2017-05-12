@@ -238,7 +238,7 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 
 				for (Map.Entry<String, KryoRegistration> reconfiguredRegistrationEntry : kryoRegistrations.entrySet()) {
 					if (reconfiguredRegistrationEntry.getValue().isDummy()) {
-						return CompatibilityResult.requiresMigration(null);
+						return CompatibilityResult.requiresMigration();
 					}
 				}
 
@@ -249,7 +249,7 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 
 		// ends up here if the preceding serializer is not
 		// the ValueSerializer, or serialized data type has changed
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 
 	public static class AvroSerializerConfigSnapshot<T> extends KryoRegistrationSerializerConfigSnapshot<T> {

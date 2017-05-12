@@ -286,7 +286,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 			CompatibilityResult<T> compatResult = typeSerializer.ensureCompatibility(
 				((StreamElementSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
-			if (!compatResult.requiresMigration()) {
+			if (!compatResult.isRequiresMigration()) {
 				return CompatibilityResult.compatible();
 			} else if (compatResult.getConvertDeserializer() != null) {
 				return CompatibilityResult.requiresMigration(
@@ -295,7 +295,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 
 	/**

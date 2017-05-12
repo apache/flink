@@ -185,7 +185,7 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 			CompatibilityResult<T> compatResult = elementSerializer.ensureCompatibility(
 				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
-			if (!compatResult.requiresMigration()) {
+			if (!compatResult.isRequiresMigration()) {
 				return CompatibilityResult.compatible();
 			} else if (compatResult.getConvertDeserializer() != null) {
 				return CompatibilityResult.requiresMigration(
@@ -193,6 +193,6 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 }

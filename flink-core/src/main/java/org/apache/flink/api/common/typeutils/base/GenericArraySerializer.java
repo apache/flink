@@ -208,8 +208,8 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 				CompatibilityResult<C> compatResult = componentSerializer.ensureCompatibility(
 					config.getSingleNestedSerializerConfigSnapshot());
 
-				if (!compatResult.requiresMigration()) {
-					return CompatibilityResult.requiresMigration(null);
+				if (!compatResult.isRequiresMigration()) {
+					return CompatibilityResult.compatible();
 				} else if (compatResult.getConvertDeserializer() != null) {
 					return CompatibilityResult.requiresMigration(
 						new GenericArraySerializer<>(
@@ -219,6 +219,6 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 }

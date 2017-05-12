@@ -152,7 +152,7 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 			CompatibilityResult<T> compatResult = elementSerializer.ensureCompatibility(
 				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
-			if (!compatResult.requiresMigration()) {
+			if (!compatResult.isRequiresMigration()) {
 				return CompatibilityResult.compatible();
 			} else if (compatResult.getConvertDeserializer() != null) {
 				return CompatibilityResult.requiresMigration(
@@ -160,6 +160,6 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 }

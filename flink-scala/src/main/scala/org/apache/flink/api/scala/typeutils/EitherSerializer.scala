@@ -127,7 +127,9 @@ class EitherSerializer[A, B, T <: Either[A, B]](
         val leftCompatResult = leftSerializer.ensureCompatibility(leftRightConfigs(0))
         val rightCompatResult = rightSerializer.ensureCompatibility(leftRightConfigs(1))
 
-        if (leftCompatResult.requiresMigration || rightCompatResult.requiresMigration) {
+        if (leftCompatResult.isRequiresMigration
+            || rightCompatResult.isRequiresMigration) {
+
           if (leftCompatResult.getConvertDeserializer != null
               && rightCompatResult.getConvertDeserializer != null) {
 
@@ -139,13 +141,13 @@ class EitherSerializer[A, B, T <: Either[A, B]](
             )
 
           } else {
-            CompatibilityResult.requiresMigration(null)
+            CompatibilityResult.requiresMigration()
           }
         } else {
           CompatibilityResult.compatible()
         }
 
-      case _ => CompatibilityResult.requiresMigration(null)
+      case _ => CompatibilityResult.requiresMigration()
     }
   }
 }

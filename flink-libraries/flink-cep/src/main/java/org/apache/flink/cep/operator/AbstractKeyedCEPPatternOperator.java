@@ -513,7 +513,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 				CompatibilityResult<T> compatResult = elementSerializer.ensureCompatibility(
 						((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
-				if (!compatResult.requiresMigration()) {
+				if (!compatResult.isRequiresMigration()) {
 					return CompatibilityResult.compatible();
 				} else if (compatResult.getConvertDeserializer() != null) {
 					return CompatibilityResult.requiresMigration(
@@ -522,7 +522,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 				}
 			}
 
-			return CompatibilityResult.requiresMigration(null);
+			return CompatibilityResult.requiresMigration();
 		}
 	}
 
