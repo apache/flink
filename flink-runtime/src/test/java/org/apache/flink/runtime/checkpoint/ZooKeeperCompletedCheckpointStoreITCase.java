@@ -137,11 +137,11 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
-		assertNotNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
+		assertNotNull(client.checkExists().forPath(CheckpointsPath + ZooKeeperCompletedCheckpointStore.checkpointIdToPath(checkpoint.getCheckpointID())));
 
 		store.shutdown(JobStatus.FINISHED);
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
-		assertNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
+		assertNull(client.checkExists().forPath(CheckpointsPath + ZooKeeperCompletedCheckpointStore.checkpointIdToPath(checkpoint.getCheckpointID())));
 
 		store.recover();
 
@@ -161,18 +161,44 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 		store.addCheckpoint(checkpoint);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
-		assertNotNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
+		assertNotNull(client.checkExists().forPath(CheckpointsPath + ZooKeeperCompletedCheckpointStore.checkpointIdToPath(checkpoint.getCheckpointID())));
 
 		store.shutdown(JobStatus.SUSPENDED);
 
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
-		assertNotNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
+		assertNotNull(client.checkExists().forPath(CheckpointsPath + ZooKeeperCompletedCheckpointStore.checkpointIdToPath(checkpoint.getCheckpointID())));
 
 		// Recover again
 		store.recover();
 
 		CompletedCheckpoint recovered = store.getLatestCheckpoint();
 		assertEquals(checkpoint, recovered);
+	}
+
+	/**
+	 * FLINK-6284
+	 *
+	 * Tests that the latest recovered checkpoint is the one with the highest checkpoint id
+	 */
+	@Test
+	public void testLatestCheckpointRecovery() throws Exception {
+		final int numCheckpoints = 3;
+		AbstractCompletedCheckpointStore checkpointStore = createCompletedCheckpoints(numCheckpoints);
+		List<CompletedCheckpoint> checkpoints = new ArrayList<>(numCheckpoints);
+
+		checkpoints.add(createCheckpoint(9));
+		checkpoints.add(createCheckpoint(10));
+		checkpoints.add(createCheckpoint(11));
+
+		for (CompletedCheckpoint checkpoint : checkpoints) {
+			checkpointStore.addCheckpoint(checkpoint);
+		}
+
+		checkpointStore.recover();
+
+		CompletedCheckpoint latestCheckpoint = checkpointStore.getLatestCheckpoint();
+
+		assertEquals(checkpoints.get(checkpoints.size() -1), latestCheckpoint);
 	}
 
 	static class HeapRetrievableStateHandle<T extends Serializable> implements RetrievableStateHandle<T> {
