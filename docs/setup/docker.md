@@ -65,8 +65,8 @@ For example:
 [Docker Compose](https://docs.docker.com/compose/) is a convenient way to run a
 group of Docker containers locally.
 
-An [example config file](https://github.com/docker-flink/examples) is available
-on GitHub.
+An [example config file](https://github.com/docker-flink/examples/blob/master/docker-compose.yml)
+is available on GitHub.
 
 ### Usage
 
