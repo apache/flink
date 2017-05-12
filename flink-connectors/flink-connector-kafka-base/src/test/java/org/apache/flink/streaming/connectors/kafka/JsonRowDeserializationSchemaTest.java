@@ -20,10 +20,10 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.Types;
-import org.apache.flink.types.Row;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
+import org.apache.flink.types.Row;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -58,10 +58,9 @@ public class JsonRowDeserializationSchemaTest {
 		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
 
 		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(
-			Types.ROW(
+			Types.ROW_NAMED(
 				new String[] { "id", "name", "bytes" },
-				new TypeInformation<?>[] { Types.LONG(), Types.STRING(), Types.PRIMITIVE_ARRAY(Types.BYTE()) }
-			)
+				Types.LONG, Types.STRING, ObjectArrayTypeInfo.getInfoFor(Types.BYTE))
 		);
 
 		Row deserialized = deserializationSchema.deserialize(serializedJson);
@@ -85,9 +84,9 @@ public class JsonRowDeserializationSchemaTest {
 		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
 
 		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(
-			Types.ROW(
+			Types.ROW_NAMED(
 				new String[] { "name" },
-				new TypeInformation<?>[] { Types.STRING() }
+				Types.STRING
 			)
 		);
 
@@ -113,9 +112,9 @@ public class JsonRowDeserializationSchemaTest {
 	public void testNumberOfFieldNamesAndTypesMismatch() throws Exception {
 		try {
 			new JsonRowDeserializationSchema(
-				Types.ROW(
+				Types.ROW_NAMED(
 					new String[] { "one", "two", "three" },
-					new TypeInformation<?>[] { Types.LONG() }
+					Types.LONG
 				)
 			);
 			fail("Did not throw expected Exception");
