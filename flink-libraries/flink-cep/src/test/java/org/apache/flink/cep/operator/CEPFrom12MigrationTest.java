@@ -81,7 +81,6 @@ public class CEPFrom12MigrationTest {
 								keySelector,
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
-								null,
 								true),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
@@ -129,7 +128,6 @@ public class CEPFrom12MigrationTest {
 								keySelector,
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
-								null,
 								true),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
@@ -204,7 +202,6 @@ public class CEPFrom12MigrationTest {
 								keySelector,
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
-								null,
 								true),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
@@ -250,7 +247,6 @@ public class CEPFrom12MigrationTest {
 								keySelector,
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
-								null,
 								true),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
@@ -337,7 +333,6 @@ public class CEPFrom12MigrationTest {
 								keySelector,
 								IntSerializer.INSTANCE,
 								new SinglePatternNFAFactory(),
-								null,
 								true),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
@@ -376,7 +371,6 @@ public class CEPFrom12MigrationTest {
 								keySelector,
 								IntSerializer.INSTANCE,
 								new SinglePatternNFAFactory(),
-								null,
 								true),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
