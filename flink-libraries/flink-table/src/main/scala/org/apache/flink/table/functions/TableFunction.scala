@@ -34,7 +34,9 @@ import org.apache.flink.util.Collector
   * By default the result type of an evaluation method is determined by Flink's type extraction
   * facilities. This is sufficient for basic types or simple POJOs but might be wrong for more
   * complex, custom, or composite types. In these cases [[TypeInformation]] of the result type
-  * can be manually defined by overriding [[getResultType()]].
+  * can be manually defined by implementing a function as
+  *
+  * def getResultType(): TypeInformation[_]
   *
   * Internally, the Table/SQL API code generation works with primitive values as much as possible.
   * If a user-defined table function should not introduce much overhead during runtime, it is
@@ -77,11 +79,6 @@ import org.apache.flink.util.Collector
   * @tparam T The type of the output row
   */
 abstract class TableFunction[T] extends UserDefinedFunction {
-
-  override def toString: String = getClass.getCanonicalName
-
-  // ----------------------------------------------------------------------------------------------
-
   /**
     * Emit an output row.
     *
@@ -90,8 +87,6 @@ abstract class TableFunction[T] extends UserDefinedFunction {
   protected def collect(row: T): Unit = {
     collector.collect(row)
   }
-
-  // ----------------------------------------------------------------------------------------------
 
   /**
     * The code generated collector used to emit row.
@@ -104,19 +99,4 @@ abstract class TableFunction[T] extends UserDefinedFunction {
   private[flink] final def setCollector(collector: Collector[T]): Unit = {
     this.collector = collector
   }
-
-  // ----------------------------------------------------------------------------------------------
-
-  /**
-    * Returns the result type of the evaluation method with a given signature.
-    *
-    * This method needs to be overriden in case Flink's type extraction facilities are not
-    * sufficient to extract the [[TypeInformation]] based on the return type of the evaluation
-    * method. Flink's type extraction facilities can handle basic types or
-    * simple POJOs but might be wrong for more complex, custom, or composite types.
-    *
-    * @return [[TypeInformation]] of result type or null if Flink should determine the type
-    */
-  def getResultType: TypeInformation[T] = null
-
 }

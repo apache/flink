@@ -24,7 +24,7 @@ import org.apache.flink.api.scala.DataSet
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
-import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 
 import _root_.scala.language.implicitConversions
 
@@ -92,5 +92,9 @@ package object scala extends ImplicitExpressionConversions {
 
   implicit def tableFunctionCall2Table[T](tf: TableFunction[T]): TableFunctionConversions[T] = {
     new TableFunctionConversions[T](tf)
+  }
+
+  implicit def scalarFunction2Call(sf: ScalarFunction): ScalarFunctionConversions = {
+    new ScalarFunctionConversions(sf)
   }
 }

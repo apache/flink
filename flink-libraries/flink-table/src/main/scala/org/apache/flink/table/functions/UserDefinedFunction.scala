@@ -24,6 +24,9 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.serialize
   * or aggregation functions.
   */
 abstract class UserDefinedFunction extends Serializable {
+
+  override def toString: String = getClass.getCanonicalName
+
   /**
     * Setup method for user-defined function. It can be used for initialization work.
     *

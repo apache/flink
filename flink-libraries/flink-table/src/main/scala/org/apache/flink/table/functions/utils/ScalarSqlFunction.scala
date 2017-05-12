@@ -108,7 +108,7 @@ object ScalarSqlFunction {
         val foundSignature = getEvalMethodSignature(scalarFunction, operandTypeInfo)
           .getOrElse(throw new ValidationException(s"Operand types of could not be inferred."))
 
-        val inferredTypes = scalarFunction
+        val inferredTypes = UserDefinedFunctionUtils
           .getParameterTypes(foundSignature)
           .map(typeFactory.createTypeFromTypeInfo)
 

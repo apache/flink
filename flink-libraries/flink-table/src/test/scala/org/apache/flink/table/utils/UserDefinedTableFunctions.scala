@@ -68,7 +68,7 @@ class TableFunc2 extends TableFunction[Row] {
     }
   }
 
-  override def getResultType: TypeInformation[Row] = {
+  def getResultType: TypeInformation[Row] = {
     new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
                     BasicTypeInfo.INT_TYPE_INFO)
   }

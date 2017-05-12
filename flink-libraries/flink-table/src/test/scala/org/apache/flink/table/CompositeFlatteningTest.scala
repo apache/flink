@@ -140,7 +140,7 @@ object CompositeFlatteningTest {
       TestCaseClass("hello", 42)
     }
 
-    override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
+    def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
       createTypeInformation[TestCaseClass]
     }
   }

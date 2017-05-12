@@ -38,6 +38,8 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
 
+import scala.util.{Failure, Success, Try}
+
 object UserDefinedFunctionUtils {
 
   /**
@@ -337,9 +339,15 @@ object UserDefinedFunctionUtils {
       signature: Array[Class[_]])
     : TypeInformation[_] = {
 
-    val userDefinedTypeInfo = function.getResultType(signature)
-    if (userDefinedTypeInfo != null) {
-      userDefinedTypeInfo
+    val userDefinedTypeInfo: Option[TypeInformation[_]] = Try {
+      function.getClass.getDeclaredMethod("getResultType", classOf[Array[Class[_]]])
+    } match {
+      case Success(m) => Some(m.invoke(function, signature).asInstanceOf[TypeInformation[_]])
+      case Failure(_) => None
+    }
+
+    if (userDefinedTypeInfo.isDefined) {
+      userDefinedTypeInfo.get
     } else {
       try {
         TypeExtractor.getForClass(getResultTypeClassOfScalarFunction(function, signature))
@@ -496,6 +504,31 @@ object UserDefinedFunctionUtils {
         null
       } else {
         FlinkTypeFactory.toTypeInfo(operandType)
+      }
+    }
+  }
+
+  /**
+    * Returns [[TypeInformation]] about the operands of the evaluation method with a given
+    * signature.
+    *
+    * In order to perform operand type inference in SQL (especially when NULL is used) it might be
+    * necessary to determine the parameter [[TypeInformation]] of an evaluation method.
+    * By default Flink's type extraction facilities are used for this but might be wrong for
+    * more complex, custom, or composite types.
+    *
+    * @param signature signature of the method the operand types need to be determined
+    * @return [[TypeInformation]] of  operand types
+    */
+  def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] = {
+    signature.map { c =>
+      try {
+        TypeExtractor.getForClass(c)
+      } catch {
+        case ite: InvalidTypesException =>
+          throw new ValidationException(
+            s"Parameter types of scalar function '${this.getClass.getCanonicalName}' cannot be " +
+              s"automatically determined. Please provide type information manually.")
       }
     }
   }

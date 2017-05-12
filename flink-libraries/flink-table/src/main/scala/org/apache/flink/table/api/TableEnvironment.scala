@@ -68,6 +68,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable.HashMap
 import _root_.scala.annotation.varargs
+import _root_.scala.util.{Try, Success, Failure}
 
 /**
   * The abstract base class for batch and stream TableEnvironments.
@@ -340,10 +341,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     // check if class could be instantiated
     checkForInstantiation(function.getClass)
 
-    val typeInfo: TypeInformation[_] = if (function.getResultType != null) {
-      function.getResultType
-    } else {
-      implicitly[TypeInformation[T]]
+    val typeInfo: TypeInformation[_] = Try {
+      function.getClass.getDeclaredMethod("getResultType")
+    } match {
+      case Success(m) => m.invoke(function).asInstanceOf[TypeInformation[_]]
+      case Failure(_) => implicitly[TypeInformation[T]]
     }
 
     // register in Table API

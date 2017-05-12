@@ -24,6 +24,8 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.plan.logical.LogicalTableFunctionCall
 
+import scala.util.{Failure, Success, Try}
+
 /**
   * Holds methods to convert a [[TableFunction]] call in the Scala Table API into a [[Table]].
   *
@@ -39,7 +41,12 @@ class TableFunctionConversions[T](tf: TableFunction[T]) {
     */
   final def apply(args: Expression*)(implicit typeInfo: TypeInformation[T]): Table = {
 
-    val resultType = if (tf.getResultType == null) typeInfo else tf.getResultType
+    val resultType: TypeInformation[_] = Try {
+      tf.getClass.getDeclaredMethod("getResultType")
+    } match {
+      case Success(m) => m.invoke(tf).asInstanceOf[TypeInformation[_]]
+      case Failure(_) => typeInfo
+    }
 
     new Table(
       tableEnv = null, // Table environment will be set later.
