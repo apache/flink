@@ -19,8 +19,10 @@ package org.apache.flink.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{UnresolvedException, ValidationException}
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkTypeFactory.{isRowtimeIndicatorType, isTimeIndicatorType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
@@ -117,13 +119,13 @@ case class UnresolvedAlias(child: Expression) extends UnaryExpression with Named
   override private[flink] lazy val valid = false
 }
 
-case class WindowReference(name: String) extends Attribute {
+case class WindowReference(name: String, tpe: Option[TypeInformation[_]] = None) extends Attribute {
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
     throw new UnsupportedOperationException("A window reference can not be used solely.")
 
   override private[flink] def resultType: TypeInformation[_] =
-    throw new UnsupportedOperationException("A window reference has no result type.")
+    tpe.getOrElse(throw UnresolvedException("Could not resolve type of referenced window."))
 
   override private[flink] def withName(newName: String): Attribute = {
     if (newName == name) {
@@ -132,31 +134,61 @@ case class WindowReference(name: String) extends Attribute {
       throw new ValidationException("Cannot rename window reference.")
     }
   }
+
+  override def toString: String = s"'$name"
 }
 
 abstract class TimeAttribute(val expression: Expression)
   extends UnaryExpression
-  with NamedExpression {
+  with WindowProperty {
 
   override private[flink] def child: Expression = expression
-
-  override private[flink] def name: String = expression match {
-    case UnresolvedFieldReference(name) => name
-    case _ => throw new ValidationException("Unresolved field reference expected.")
-  }
-
-  override private[flink] def toAttribute: Attribute =
-    throw new UnsupportedOperationException("Time attribute can not be used solely.")
 }
 
 case class RowtimeAttribute(expr: Expression) extends TimeAttribute(expr) {
 
-  override private[flink] def resultType: TypeInformation[_] =
+  override private[flink] def validateInput(): ValidationResult = {
+    child match {
+      case WindowReference(_, Some(tpe)) if !isRowtimeIndicatorType(tpe) =>
+        ValidationFailure("A proctime window cannot provide a rowtime attribute.")
+      case WindowReference(_, Some(tpe)) if isRowtimeIndicatorType(tpe) =>
+        ValidationSuccess
+      case WindowReference(_, _) =>
+        ValidationFailure("Reference to a rowtime or proctime window required.")
+      case _ =>
+        ValidationFailure(
+          "The '.rowtime' expression can only be used for table definitions and windows.")
+    }
+  }
+
+  override def resultType: TypeInformation[_] =
     TimeIndicatorTypeInfo.ROWTIME_INDICATOR
+
+  override def toNamedWindowProperty(name: String): NamedWindowProperty =
+    NamedWindowProperty(name, this)
+
+  override def toString: String = s"rowtime($child)"
 }
 
 case class ProctimeAttribute(expr: Expression) extends TimeAttribute(expr) {
 
-  override private[flink] def resultType: TypeInformation[_] =
+  override private[flink] def validateInput(): ValidationResult = {
+    child match {
+      case WindowReference(_, Some(tpe)) if isTimeIndicatorType(tpe) =>
+        ValidationSuccess
+      case WindowReference(_, _) =>
+        ValidationFailure("Reference to a rowtime or proctime window required.")
+      case _ =>
+        ValidationFailure(
+          "The '.proctime' expression can only be used for table definitions and windows.")
+    }
+  }
+
+  override def resultType: TypeInformation[_] =
     TimeIndicatorTypeInfo.PROCTIME_INDICATOR
+
+  override def toNamedWindowProperty(name: String): NamedWindowProperty =
+    NamedWindowProperty(name, this)
+
+  override def toString: String = s"proctime($child)"
 }

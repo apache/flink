@@ -170,7 +170,6 @@ class GroupWindowTest extends TableTestBase {
       .select('string, weightedAvg('string, 'int)) // invalid UDAGG args
   }
 
-  @Ignore // TODO
   @Test
   def testMultiWindow(): Unit = {
     val util = streamTestUtil()
@@ -179,7 +178,7 @@ class GroupWindowTest extends TableTestBase {
     val windowedTable = table
       .window(Tumble over 50.milli on 'proctime as 'w1)
       .groupBy('w1, 'string)
-      .select('w.end as 'proctime, 'string, 'int.count)
+      .select('w1.proctime as 'proctime, 'string, 'int.count)
       .window(Slide over 20.milli every 10.milli on 'proctime as 'w2)
       .groupBy('w2)
       .select('string.count)
@@ -193,7 +192,7 @@ class GroupWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "string", "int")
+            term("select", "string", "int", "proctime")
           ),
           term("groupBy", "string"),
           term(
@@ -202,9 +201,9 @@ class GroupWindowTest extends TableTestBase {
               WindowReference("w1"),
               'proctime,
               50.milli)),
-          term("select", "string", "COUNT(int) AS TMP_0")
+          term("select", "string", "COUNT(int) AS TMP_1", "proctime('w1) AS TMP_0")
         ),
-        term("select", "string")
+        term("select", "string", "TMP_0 AS proctime")
       ),
       term(
         "window",
@@ -213,7 +212,7 @@ class GroupWindowTest extends TableTestBase {
           'proctime,
           20.milli,
           10.milli)),
-      term("select", "COUNT(string) AS TMP_1")
+      term("select", "COUNT(string) AS TMP_2")
     )
     util.verifyTable(windowedTable, expected)
   }
@@ -784,8 +783,8 @@ class GroupWindowTest extends TableTestBase {
       term("select",
         "string",
         "COUNT(int) AS TMP_0",
-        "start(WindowReference(w)) AS TMP_1",
-        "end(WindowReference(w)) AS TMP_2")
+        "start('w) AS TMP_1",
+        "end('w) AS TMP_2")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -852,8 +851,8 @@ class GroupWindowTest extends TableTestBase {
       term("select",
         "string",
         "COUNT(int) AS TMP_0",
-        "start(WindowReference(w)) AS TMP_1",
-        "end(WindowReference(w)) AS TMP_2")
+        "start('w) AS TMP_1",
+        "end('w) AS TMP_2")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -879,8 +878,8 @@ class GroupWindowTest extends TableTestBase {
         term("select",
           "string",
           "COUNT(int) AS TMP_1",
-          "end(WindowReference(w)) AS TMP_0",
-          "start(WindowReference(w)) AS TMP_2")
+          "end('w) AS TMP_0",
+          "start('w) AS TMP_2")
       ),
       term("select", "TMP_0 AS we1", "string", "TMP_1 AS cnt", "TMP_2 AS ws", "TMP_0 AS we2")
     )
@@ -909,8 +908,8 @@ class GroupWindowTest extends TableTestBase {
         term("select",
           "string",
           "SUM(int) AS TMP_0",
-          "start(WindowReference(w)) AS TMP_1",
-          "end(WindowReference(w)) AS TMP_2")
+          "start('w) AS TMP_1",
+          "end('w) AS TMP_2")
       ),
       term("select",
         "string",

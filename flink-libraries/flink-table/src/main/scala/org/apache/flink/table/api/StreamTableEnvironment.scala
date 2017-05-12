@@ -467,6 +467,9 @@ abstract class StreamTableEnvironment(
           proctime = Some(idx, name)
         }
       case (u: UnresolvedFieldReference, _) => fieldNames = u.name :: fieldNames
+
+      case _ =>
+        throw new TableException("Time attributes can only be defined on field references.")
     }
 
     if (rowtime.isDefined && fieldNames.contains(rowtime.get._2)) {

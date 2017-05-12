@@ -243,10 +243,10 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
         term(
           "window",
           TumblingGroupWindow(
-            WindowReference("w"),
+            'w,
             'rowtime,
             100.millis)),
-        term("select", "long", "SUM(int) AS TMP_1", "end(WindowReference(w)) AS TMP_0")
+        term("select", "long", "SUM(int) AS TMP_1", "end('w) AS TMP_0")
       ),
       term("select", "TMP_0 AS rowtime", "long", "TMP_1")
     )
@@ -273,7 +273,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
         term(
           "window",
           TumblingGroupWindow(
-            'w$,
+            WindowReference("w$"),
             'rowtime,
             100.millis)),
         term("select", "long", "SUM(int) AS EXPR$2", "start('w$) AS w$start", "end('w$) AS w$end")
@@ -333,6 +333,54 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
         term("union all", "rowtime", "long", "int")
       ),
       term("select", "TIME_MATERIALIZATION(rowtime) AS rowtime")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testMultiWindow(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Long, Long, Int)]('rowtime.rowtime, 'long, 'int)
+
+    val result = t
+      .window(Tumble over 100.millis on 'rowtime as 'w)
+      .groupBy('w, 'long)
+      .select('w.rowtime as 'newrowtime, 'long, 'int.sum as 'int)
+      .window(Tumble over 1.second on 'newrowtime as 'w2)
+      .groupBy('w2, 'long)
+      .select('w2.end, 'long, 'int.sum)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamGroupWindowAggregate",
+        unaryNode(
+          "DataStreamCalc",
+          unaryNode(
+            "DataStreamGroupWindowAggregate",
+            streamTableNode(0),
+            term("groupBy", "long"),
+            term(
+              "window",
+              TumblingGroupWindow(
+                'w,
+                'rowtime,
+                100.millis)),
+            term("select", "long", "SUM(int) AS TMP_1", "rowtime('w) AS TMP_0")
+          ),
+          term("select", "TMP_0 AS newrowtime", "long", "TMP_1 AS int")
+        ),
+        term("groupBy", "long"),
+        term(
+          "window",
+          TumblingGroupWindow(
+            'w2,
+            'newrowtime,
+            1000.millis)),
+        term("select", "long", "SUM(int) AS TMP_3", "end('w2) AS TMP_2")
+      ),
+      term("select", "TMP_2", "long", "TMP_3")
     )
 
     util.verifyTable(result, expected)
