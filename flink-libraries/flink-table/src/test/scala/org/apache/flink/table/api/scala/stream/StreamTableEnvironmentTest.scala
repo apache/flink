@@ -36,6 +36,13 @@ import org.mockito.Mockito.{mock, when}
 class StreamTableEnvironmentTest extends TableTestBase {
 
   @Test(expected = classOf[TableException])
+  def testInvalidTimeAttributes(): Unit = {
+    val util = streamTestUtil()
+    // table definition makes no sense
+    util.addTable[(Long, Int, String, Int, Long)]('a.rowtime.rowtime, 'b, 'c, 'd, 'e)
+  }
+
+  @Test(expected = classOf[TableException])
   def testInvalidProctimeAttribute(): Unit = {
     val util = streamTestUtil()
     // cannot replace an attribute with proctime

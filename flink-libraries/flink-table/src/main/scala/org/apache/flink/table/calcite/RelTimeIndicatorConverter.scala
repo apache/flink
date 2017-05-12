@@ -342,10 +342,20 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       }
 
       // remove time indicator return type
-      if (isTimeIndicatorType(updatedCall.getType)) {
-        updatedCall.clone(timestamp, materializedOperands)
-      } else {
-        updatedCall.clone(updatedCall.getType, materializedOperands)
+      updatedCall.getOperator match {
+
+        // we do not modify AS if operand has not been materialized
+        case SqlStdOperatorTable.AS if
+            isTimeIndicatorType(updatedCall.getOperands.get(0).getType) =>
+          updatedCall
+
+        // materialize function's result and operands
+        case _ if isTimeIndicatorType(updatedCall.getType) =>
+          updatedCall.clone(timestamp, materializedOperands)
+
+        // materialize function's operands only
+        case _ =>
+          updatedCall.clone(updatedCall.getType, materializedOperands)
       }
     }
   }
