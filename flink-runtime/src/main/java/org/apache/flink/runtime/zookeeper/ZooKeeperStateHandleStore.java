@@ -352,7 +352,9 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 				for(String child : children) {
 					String childPath = "/" + child;
 					Stat childStat = client.checkExists().forPath(childPath);
-					czxIds.put(childStat.getCzxid(), childPath);
+					if(childStat != null) {
+						czxIds.put(childStat.getCzxid(), childPath);
+					}
 				}
 				for(Map.Entry<Long, String> entry : czxIds.entrySet()) {
 					String pathStr = entry.getValue();
