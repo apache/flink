@@ -47,7 +47,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Migration;
-import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -99,13 +98,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	private transient InternalTimerService<VoidNamespace> timerService;
 
 	/**
-	 * {@link OutputTag} to use for late arriving events. Elements for which
-	 * {@code window.maxTimestamp + allowedLateness} is smaller than the current watermark will
-	 * be emitted to this.
-	 */
-	private final OutputTag<IN> lateDataOutputTag;
-
-	/**
 	 * The last seen watermark. This will be used to
 	 * decide if an incoming element is late or not.
 	 */
@@ -123,7 +115,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 			final KeySelector<IN, KEY> keySelector,
 			final TypeSerializer<KEY> keySerializer,
 			final NFACompiler.NFAFactory<IN> nfaFactory,
-			final OutputTag<IN> lateDataOutputTag,
 			final boolean migratingFromOldKeyedOperator) {
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
@@ -132,7 +123,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
 
-		this.lateDataOutputTag = lateDataOutputTag;
 		this.migratingFromOldKeyedOperator = migratingFromOldKeyedOperator;
 	}
 
@@ -203,8 +193,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 					priorityQueue.offer(element);
 				}
 				updatePriorityQueue(priorityQueue);
-			} else {
-				sideOutputLateElement(element);
 			}
 		}
 	}
@@ -264,18 +252,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 	private void updateLastSeenWatermark(long timestamp) {
 		this.lastWatermark = timestamp;
-	}
-
-	/**
-	 * Puts the provided late element in the dedicated side output,
-	 * if the user has specified one.
-	 *
-	 * @param element The late element.
-	 */
-	private void sideOutputLateElement(StreamRecord<IN> element) {
-		if (lateDataOutputTag != null) {
-			output.collect(lateDataOutputTag, element);
-		}
 	}
 
 	private NFA<IN> getNFA() throws IOException {

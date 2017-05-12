@@ -347,7 +347,6 @@ public class CEPRescalingTest {
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				new NFAFactory(),
-				null,
 				true),
 			keySelector,
 			BasicTypeInfo.INT_TYPE_INFO,
