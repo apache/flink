@@ -32,10 +32,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.Collection;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -333,31 +335,27 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 	@SuppressWarnings("unchecked")
 	public List<Tuple2<RetrievableStateHandle<T>, String>> getAllSortedByName() throws Exception {
 		final List<Tuple2<RetrievableStateHandle<T>, String>> stateHandles = new ArrayList<>();
-
+		final Map<Long, String> czxIds = new TreeMap();
 		boolean success = false;
 
 		retry:
 		while (!success) {
 			stateHandles.clear();
-
+			czxIds.clear();
 			Stat stat = client.checkExists().forPath("/");
 			if (stat == null) {
 				break; // Node does not exist, done.
 			} else {
 				// Initial cVersion (number of changes to the children of this node)
 				int initialCVersion = stat.getCversion();
-				List<String> childrenInStr =
-					client.getZookeeperClient().getZooKeeper().
-						getChildren(ZKPaths.fixForNamespace(client.getNamespace(), "/"), false);
-				List<Long> children = new ArrayList<Long>(childrenInStr.size());
-				for(String childNode : childrenInStr) {
-					children.add(new Long(childNode));
+				List<String> children = client.getChildren().forPath("/");
+				for(String child : children) {
+					String childPath = "/" + child;
+					Stat childStat = client.checkExists().forPath(childPath);
+					czxIds.put(childStat.getCzxid(), childPath);
 				}
-				Collections.sort(children);
-				for (Long path : children) {
-					String pathStr = path.toString();
-					pathStr = "/" + pathStr;
-
+				for(Map.Entry<Long, String> entry : czxIds.entrySet()) {
+					String pathStr = entry.getValue();
 					try {
 						final RetrievableStateHandle<T> stateHandle = get(pathStr);
 						stateHandles.add(new Tuple2<>(stateHandle, pathStr));
@@ -366,7 +364,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 						continue retry;
 					} catch (IOException ioException) {
 						LOG.warn("Could not get all ZooKeeper children. Node {} contained " +
-							"corrupted data. Ignoring this node.", path, ioException);
+							"corrupted data. Ignoring this node.", pathStr, ioException);
 					}
 				}
 
