@@ -1132,7 +1132,7 @@ under the License.
 							<goal>copy-resources</goal>
 						</goals>
 						<configuration>
-							<outputDirectory>${basedir}/target/classes/META-INF/license/</outputDirectory>
+							<outputDirectory>${basedir}/target/classes/META-INF/licenses/</outputDirectory>
 							<resources>
 								<resource>
 									<directory>${basedir}/packaged_licenses</directory>
