@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.concurrent;
 
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Callable;
@@ -108,8 +109,9 @@ public class FutureUtils {
 
 	/**
 	 * Creates a future that is complete once multiple other futures completed. 
-	 * The ConjunctFuture fails (completes exceptionally) once one of the Futures in the
-	 * conjunction fails.
+	 * The future fails (completes exceptionally) once one of the futures in the
+	 * conjunction fails. Upon successful completion, the future returns the
+	 * collection of the futures' results.
 	 *
 	 * <p>The ConjunctFuture gives access to how many Futures in the conjunction have already
 	 * completed successfully, via {@link ConjunctFuture#getNumFuturesCompleted()}. 
@@ -117,16 +119,16 @@ public class FutureUtils {
 	 * @param futures The futures that make up the conjunction. No null entries are allowed.
 	 * @return The ConjunctFuture that completes once all given futures are complete (or one fails).
 	 */
-	public static <T> ConjunctFuture<T> combineAll(Collection<? extends Future<? extends T>> futures) {
+	public static <T> ConjunctFuture<Collection<T>> combineAll(Collection<? extends Future<? extends T>> futures) {
 		checkNotNull(futures, "futures");
 
-		final ConjunctFutureImpl conjunct = new ConjunctFutureImpl(futures.size());
+		final ResultConjunctFuture<T> conjunct = new ResultConjunctFuture<>(futures.size());
 
 		if (futures.isEmpty()) {
-			conjunct.complete(Collections.emptyList());
+			conjunct.complete(Collections.<T>emptyList());
 		}
 		else {
-			for (Future<?> future : futures) {
+			for (Future<? extends T> future : futures) {
 				future.handle(conjunct.completionHandler);
 			}
 		}
@@ -135,16 +137,32 @@ public class FutureUtils {
 	}
 
 	/**
+	 * Creates a future that is complete once all of the given futures have completed.
+	 * The future fails (completes exceptionally) once one of the given futures
+	 * fails.
+	 *
+	 * <p>The ConjunctFuture gives access to how many Futures have already
+	 * completed successfully, via {@link ConjunctFuture#getNumFuturesCompleted()}.
+	 *
+	 * @param futures The futures to wait on. No null entries are allowed.
+	 * @return The WaitingFuture that completes once all given futures are complete (or one fails).
+	 */
+	public static ConjunctFuture<Void> waitForAll(Collection<? extends Future<?>> futures) {
+		checkNotNull(futures, "futures");
+
+		return new WaitingConjunctFuture(futures);
+	}
+
+	/**
 	 * A future that is complete once multiple other futures completed. The futures are not
-	 * necessarily of the same type, which is why the type of this Future is {@code Void}.
-	 * The ConjunctFuture fails (completes exceptionally) once one of the Futures in the
-	 * conjunction fails.
+	 * necessarily of the same type. The ConjunctFuture fails (completes exceptionally) once
+	 * one of the Futures in the conjunction fails.
 	 * 
 	 * <p>The advantage of using the ConjunctFuture over chaining all the futures (such as via
 	 * {@link Future#thenCombine(Future, BiFunction)}) is that ConjunctFuture also tracks how
 	 * many of the Futures are already complete.
 	 */
-	public interface ConjunctFuture<T> extends CompletableFuture<Collection<T>> {
+	public interface ConjunctFuture<T> extends CompletableFuture<T> {
 
 		/**
 		 * Gets the total number of Futures in the conjunction.
@@ -160,23 +178,24 @@ public class FutureUtils {
 	}
 
 	/**
-	 * The implementation of the {@link ConjunctFuture}.
-	 * 
-	 * <p>Implementation notice: The member fields all have package-private access, because they are
-	 * either accessed by an inner subclass or by the enclosing class.
+	 * The implementation of the {@link ConjunctFuture} which returns its Futures' result as a collection.
 	 */
-	private static class ConjunctFutureImpl<T> extends FlinkCompletableFuture<Collection<T>> implements ConjunctFuture<T> {
+	private static class ResultConjunctFuture<T> extends FlinkCompletableFuture<Collection<T>> implements ConjunctFuture<Collection<T>> {
 
 		/** The total number of futures in the conjunction */
-		final int numTotal;
+		private final int numTotal;
+
+		/** The next free index in the results arrays */
+		private final AtomicInteger nextIndex = new AtomicInteger(0);
 
 		/** The number of futures in the conjunction that are already complete */
-		final AtomicInteger numCompleted = new AtomicInteger();
+		private final AtomicInteger numCompleted = new AtomicInteger(0);
 
-		final ArrayList<T> results;
+		/** The set of collected results so far */
+		private volatile T[] results;
 
 		/** The function that is attached to all futures in the conjunction. Once a future
-		 * is complete, this function tracks the completion or fails the conjunct.  
+		 * is complete, this function tracks the completion or fails the conjunct.
 		 */
 		final BiFunction<T, Throwable, Void> completionHandler = new BiFunction<T, Throwable, Void>() {
 
@@ -185,10 +204,12 @@ public class FutureUtils {
 				if (throwable != null) {
 					completeExceptionally(throwable);
 				} else {
-					results.add(o);
+					int index = nextIndex.getAndIncrement();
 
-					if (numTotal == numCompleted.incrementAndGet()) {
-						complete(results);
+					results[index] = o;
+
+					if (numCompleted.incrementAndGet() == numTotal) {
+						complete(Arrays.asList(results));
 					}
 				}
 
@@ -196,9 +217,63 @@ public class FutureUtils {
 			}
 		};
 
-		ConjunctFutureImpl(int numTotal) {
+		@SuppressWarnings("unchecked")
+		ResultConjunctFuture(int numTotal) {
 			this.numTotal = numTotal;
-			results = new ArrayList<>(numTotal);
+			results = (T[])new Object[numTotal];
+		}
+
+		@Override
+		public int getNumFuturesTotal() {
+			return numTotal;
+		}
+
+		@Override
+		public int getNumFuturesCompleted() {
+			return numCompleted.get();
+		}
+	}
+
+	/**
+	 * Implementation of the {@link ConjunctFuture} interface which waits only for the completion
+	 * of its futures and does not return their values.
+	 */
+	private static final class WaitingConjunctFuture extends FlinkCompletableFuture<Void> implements ConjunctFuture<Void> {
+
+		/** Number of completed futures */
+		private final AtomicInteger numCompleted = new AtomicInteger(0);
+
+		/** Total number of futures to wait on */
+		private final int numTotal;
+
+		/** Handler which increments the atomic completion counter and completes or fails the WaitingFutureImpl */
+		private final BiFunction<Object, Throwable, Void> completionHandler = new BiFunction<Object, Throwable, Void>() {
+			@Override
+			public Void apply(Object o, Throwable throwable) {
+				if (throwable == null) {
+					if (numTotal == numCompleted.incrementAndGet()) {
+						complete(null);
+					}
+				} else {
+					completeExceptionally(throwable);
+				}
+
+				return null;
+			}
+		};
+
+		private WaitingConjunctFuture(Collection<? extends Future<?>> futures) {
+			Preconditions.checkNotNull(futures, "Futures must not be null.");
+
+			this.numTotal = futures.size();
+
+			if (futures.isEmpty()) {
+				complete(null);
+			} else {
+				for (Future<?> future : futures) {
+					future.handle(completionHandler);
+				}
+			}
 		}
 
 		@Override

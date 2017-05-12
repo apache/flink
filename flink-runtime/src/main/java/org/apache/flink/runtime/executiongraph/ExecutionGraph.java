@@ -871,7 +871,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 			// this future is complete once all slot futures are complete.
 			// the future fails once one slot future fails.
-			final ConjunctFuture<SimpleSlot> allAllocationsComplete = FutureUtils.combineAll(slotFutures);
+			final ConjunctFuture<Void> allAllocationsComplete = FutureUtils.waitForAll(slotFutures);
 
 			// make sure that we fail if the allocation timeout was exceeded
 			final ScheduledFuture<?> timeoutCancelHandle = futureExecutor.schedule(new Runnable() {
@@ -889,10 +889,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			}, timeout.getSize(), timeout.getUnit());
 
 
-			allAllocationsComplete.handleAsync(new BiFunction<Collection<SimpleSlot>, Throwable, Void>() {
+			allAllocationsComplete.handleAsync(new BiFunction<Void, Throwable, Void>() {
 
 				@Override
-				public Void apply(Collection<SimpleSlot> slots, Throwable throwable) {
+				public Void apply(Void slots, Throwable throwable) {
 					try {
 						// we do not need the cancellation timeout any more
 						timeoutCancelHandle.cancel(false);
@@ -973,10 +973,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 					}
 
 					// we build a future that is complete once all vertices have reached a terminal state
-					final ConjunctFuture<?> allTerminal = FutureUtils.combineAll(futures);
-					allTerminal.thenAccept(new AcceptFunction<Collection<?>>() {
+					final ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
+					allTerminal.thenAccept(new AcceptFunction<Void>() {
 						@Override
-						public void accept(Collection<?> value) {
+						public void accept(Void value) {
 							allVerticesInTerminalState();
 						}
 					});
@@ -1102,10 +1102,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 					futures.add(ejv.cancelWithFuture());
 				}
 
-				final ConjunctFuture<?> allTerminal = FutureUtils.combineAll(futures);
-				allTerminal.thenAccept(new AcceptFunction<Collection<?>>() {
+				final ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
+				allTerminal.thenAccept(new AcceptFunction<Void>() {
 					@Override
-					public void accept(Collection<?> value) {
+					public void accept(Void value) {
 						allVerticesInTerminalState();
 					}
 				});

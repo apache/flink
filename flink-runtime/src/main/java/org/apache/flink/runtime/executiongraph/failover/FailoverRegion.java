@@ -150,10 +150,10 @@ public class FailoverRegion {
 						futures.add(vertex.cancel());
 					}
 
-					final FutureUtils.ConjunctFuture<?> allTerminal = FutureUtils.combineAll(futures);
-					allTerminal.thenAcceptAsync(new AcceptFunction<Collection<?>>() {
+					final FutureUtils.ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
+					allTerminal.thenAcceptAsync(new AcceptFunction<Void>() {
 						@Override
-						public void accept(Collection<?> value) {
+						public void accept(Void value) {
 							allVerticesInTerminalState(globalModVersionOfFailover);
 						}
 					}, executor);
