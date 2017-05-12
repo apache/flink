@@ -207,7 +207,7 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 			CompatibilityResult<L> leftCompatResult = leftSerializer.ensureCompatibility(leftRightSerializerConfigSnapshots[0]);
 			CompatibilityResult<R> rightCompatResult = rightSerializer.ensureCompatibility(leftRightSerializerConfigSnapshots[1]);
 
-			if (!leftCompatResult.requiresMigration() && !rightCompatResult.requiresMigration()) {
+			if (!leftCompatResult.isRequiresMigration() && !rightCompatResult.isRequiresMigration()) {
 				return CompatibilityResult.compatible();
 			} else {
 				if (leftCompatResult.getConvertDeserializer() != null && rightCompatResult.getConvertDeserializer() != null) {
@@ -219,6 +219,6 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 }

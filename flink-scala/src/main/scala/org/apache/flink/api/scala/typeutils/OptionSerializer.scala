@@ -111,19 +111,19 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
         val compatResult = elemSerializer.ensureCompatibility(
           optionSerializerConfigSnapshot.getSingleNestedSerializerConfigSnapshot)
 
-        if (compatResult.requiresMigration()) {
+        if (compatResult.isRequiresMigration) {
           if (compatResult.getConvertDeserializer != null) {
             CompatibilityResult.requiresMigration(
               new OptionSerializer[A](
                 new TypeDeserializerAdapter(compatResult.getConvertDeserializer)))
           } else {
-            CompatibilityResult.requiresMigration(null)
+            CompatibilityResult.requiresMigration()
           }
         } else {
           CompatibilityResult.compatible()
         }
 
-      case _ => CompatibilityResult.requiresMigration(null)
+      case _ => CompatibilityResult.requiresMigration()
     }
   }
 }

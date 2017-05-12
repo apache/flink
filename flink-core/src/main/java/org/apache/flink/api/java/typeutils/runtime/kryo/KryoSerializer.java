@@ -399,7 +399,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 							"proper serializer, because its previous serializer cannot be loaded or is no " +
 							"longer valid but a new serializer is not available", reconfiguredRegistrationEntry.getKey());
 
-						return CompatibilityResult.requiresMigration(null);
+						return CompatibilityResult.requiresMigration();
 					}
 				}
 
@@ -410,7 +410,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 
 	public static final class KryoSerializerConfigSnapshot<T> extends KryoRegistrationSerializerConfigSnapshot<T> {

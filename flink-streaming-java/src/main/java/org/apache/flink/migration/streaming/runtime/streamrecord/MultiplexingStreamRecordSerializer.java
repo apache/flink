@@ -225,7 +225,7 @@ public class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<Stream
 			CompatibilityResult<T> compatResult = typeSerializer.ensureCompatibility(
 				((MultiplexingStreamRecordSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
 
-			if (!compatResult.requiresMigration()) {
+			if (!compatResult.isRequiresMigration()) {
 				return CompatibilityResult.compatible();
 			} else if (compatResult.getConvertDeserializer() != null) {
 				return CompatibilityResult.requiresMigration(
@@ -234,7 +234,7 @@ public class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<Stream
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 
 	/**

@@ -95,16 +95,16 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
             // and original constants must be in the exact same order
 
             if (currentEnumConstants(i) != enumSerializerConfigSnapshot.getEnumConstants(i)) {
-              CompatibilityResult.requiresMigration(null)
+              return CompatibilityResult.requiresMigration()
             }
           }
 
           CompatibilityResult.compatible()
         } else {
-          CompatibilityResult.requiresMigration(null)
+          CompatibilityResult.requiresMigration()
         }
 
-      case _ => CompatibilityResult.requiresMigration(null)
+      case _ => CompatibilityResult.requiresMigration()
     }
   }
 }
