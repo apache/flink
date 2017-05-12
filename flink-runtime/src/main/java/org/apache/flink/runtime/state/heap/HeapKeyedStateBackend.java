@@ -448,7 +448,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						StateTableByKeyGroupReader keyGroupReader =
 								StateTableByKeyGroupReaders.readerForVersion(
 										stateTable,
-										serializationProxy.getRestoredVersion());
+										serializationProxy.getReadVersion());
 
 						keyGroupReader.readMappingsInKeyGroup(inView, keyGroupIndex);
 					}
