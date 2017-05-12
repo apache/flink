@@ -739,9 +739,8 @@ public class BucketingSink<T>
 		restoredState.currentFile = null;
 		restoredState.currentFileValidLength = -1;
 
-		handlePendingFilesForPreviousCheckpoints(restoredState.pendingFilesPerCheckpoint);
-
 		synchronized (restoredState.pendingFilesPerCheckpoint) {
+			handlePendingFilesForPreviousCheckpoints(restoredState.pendingFilesPerCheckpoint);
 			restoredState.pendingFilesPerCheckpoint.clear();
 		}
 	}
