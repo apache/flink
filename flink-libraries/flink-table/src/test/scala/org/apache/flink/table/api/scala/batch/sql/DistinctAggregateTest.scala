@@ -211,7 +211,7 @@ class DistinctAggregateTest extends TableTestBase {
       ),
       term("where", "true"),
       term("join", "EXPR$0", "EXPR$1"),
-      term("joinType", "NestedLoopJoin")
+      term("joinType", "NestedLoopInnerJoin")
     )
 
     util.verifySql(sqlQuery, expected)
@@ -268,7 +268,7 @@ class DistinctAggregateTest extends TableTestBase {
           ),
           term("where", "true"),
           term("join", "EXPR$2, EXPR$0"),
-          term("joinType", "NestedLoopJoin")
+          term("joinType", "NestedLoopInnerJoin")
         ),
         unaryNode(
           "DataSetAggregate",
@@ -294,7 +294,7 @@ class DistinctAggregateTest extends TableTestBase {
         ),
         term("where", "true"),
         term("join", "EXPR$2", "EXPR$0, EXPR$1"),
-        term("joinType", "NestedLoopJoin")
+        term("joinType", "NestedLoopInnerJoin")
       ),
       term("select", "EXPR$0, EXPR$1, EXPR$2")
     )
