@@ -486,13 +486,15 @@ FROM (
   	<tr>
       <td>
         <strong>Order By</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
+<b>Note:</b> The result of streaming queries must be primarily sorted on an ascending <a href="streaming.html#time-attributes">time attribute</a>. Additional sorting attributes are supported. 
+
 {% highlight sql %}
 SELECT * 
 FROM Orders 
-ORDER BY users
+ORDER BY orderTime
 {% endhighlight %}
       </td>
     </tr>

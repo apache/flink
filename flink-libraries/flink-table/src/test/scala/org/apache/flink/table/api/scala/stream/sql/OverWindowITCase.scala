@@ -20,7 +20,7 @@ package org.apache.flink.table.api.scala.stream.sql
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala.stream.sql.OverWindowITCase.EventTimeSourceFunction
+import org.apache.flink.table.api.scala.stream.sql.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
@@ -859,22 +859,6 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "3,5,Hello world,8,3,2,5,1"
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
-  }
-
-}
-
-object OverWindowITCase {
-
-  class EventTimeSourceFunction[T](
-      dataWithTimestampList: Seq[Either[(Long, T), Long]]) extends SourceFunction[T] {
-    override def run(ctx: SourceContext[T]): Unit = {
-      dataWithTimestampList.foreach {
-        case Left(t) => ctx.collectWithTimestamp(t._2, t._1)
-        case Right(w) => ctx.emitWatermark(new Watermark(w))
-      }
-    }
-
-    override def cancel(): Unit = ???
   }
 
 }
