@@ -22,7 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -32,6 +34,10 @@ import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.util.FutureUtil;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.File;
 import java.io.IOException;
@@ -52,9 +58,13 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(OperatorBackendStateMetaInfoSnapshotReaderWriters.class)
 public class OperatorStateBackendTest {
 
 	private final ClassLoader classLoader = getClass().getClassLoader();
@@ -290,7 +300,7 @@ public class OperatorStateBackendTest {
 
 	@Test
 	public void testSnapshotRestoreAsync() throws Exception {
-		DefaultOperatorStateBackend operatorStateBackend =
+		OperatorStateBackend operatorStateBackend =
 				new DefaultOperatorStateBackend(OperatorStateBackendTest.class.getClassLoader(), new ExecutionConfig(), true);
 
 		ListStateDescriptor<MutableType> stateDescriptor1 =
@@ -362,8 +372,7 @@ public class OperatorStateBackendTest {
 
 			AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
 
-			//TODO this is temporarily casted to test already functionality that we do not yet expose through public API
-			operatorStateBackend = (DefaultOperatorStateBackend) abstractStateBackend.createOperatorStateBackend(
+			operatorStateBackend = abstractStateBackend.createOperatorStateBackend(
 					createMockEnvironment(),
 					"testOperator");
 
@@ -491,6 +500,61 @@ public class OperatorStateBackendTest {
 			runnableFuture.get(60, TimeUnit.SECONDS);
 			Assert.fail();
 		} catch (CancellationException ignore) {
+		}
+	}
+
+	@Test
+	public void testRestoreFailsIfSerializerDeserializationFails() throws Exception {
+		AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
+
+		OperatorStateBackend operatorStateBackend = abstractStateBackend.createOperatorStateBackend(createMockEnvironment(), "test-op-name");
+
+		// write some state
+		ListStateDescriptor<Serializable> stateDescriptor1 = new ListStateDescriptor<>("test1", new JavaSerializer<>());
+		ListStateDescriptor<Serializable> stateDescriptor2 = new ListStateDescriptor<>("test2", new JavaSerializer<>());
+		ListStateDescriptor<Serializable> stateDescriptor3 = new ListStateDescriptor<>("test3", new JavaSerializer<>());
+		ListState<Serializable> listState1 = operatorStateBackend.getListState(stateDescriptor1);
+		ListState<Serializable> listState2 = operatorStateBackend.getListState(stateDescriptor2);
+		ListState<Serializable> listState3 = operatorStateBackend.getUnionListState(stateDescriptor3);
+
+		listState1.add(42);
+		listState1.add(4711);
+
+		listState2.add(7);
+		listState2.add(13);
+		listState2.add(23);
+
+		listState3.add(17);
+		listState3.add(18);
+		listState3.add(19);
+		listState3.add(20);
+
+		CheckpointStreamFactory streamFactory = abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
+		RunnableFuture<OperatorStateHandle> runnableFuture =
+			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forFullCheckpoint());
+		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(runnableFuture);
+
+		try {
+
+			operatorStateBackend.close();
+			operatorStateBackend.dispose();
+
+			operatorStateBackend = abstractStateBackend.createOperatorStateBackend(
+				createMockEnvironment(),
+				"testOperator");
+
+			// mock failure when deserializing serializer
+			TypeSerializerSerializationProxy<?> mockProxy = mock(TypeSerializerSerializationProxy.class);
+			doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
+			PowerMockito.whenNew(TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
+
+			operatorStateBackend.restore(Collections.singletonList(stateHandle));
+
+			fail("The operator state restore should have failed if the previous state serializer could not be loaded.");
+		} catch (IOException expected) {
+			Assert.assertTrue(expected.getMessage().contains("Unable to restore operator state"));
+		} finally {
+			stateHandle.discardState();
 		}
 	}
 
