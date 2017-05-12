@@ -106,6 +106,8 @@ public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpoi
 			RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage,
 			Executor executor) throws Exception {
 
+		super(executor);
+
 		checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
 		checkNotNull(stateStorage, "State storage");
 
