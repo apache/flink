@@ -71,8 +71,8 @@ class TableSourceTest extends TableTestBase {
             term("where", ">(val, 100)")
           ),
           term("groupBy", "name"),
-          term("window", "TumblingGroupWindow(WindowReference(w), 'addTime, 600000.millis)"),
-          term("select", "name", "AVG(val) AS TMP_1", "end(WindowReference(w)) AS TMP_0")
+          term("window", "TumblingGroupWindow('w, 'addTime, 600000.millis)"),
+          term("select", "name", "AVG(val) AS TMP_1", "end('w) AS TMP_0")
         ),
         term("select", "name", "TMP_0", "TMP_1")
       )
