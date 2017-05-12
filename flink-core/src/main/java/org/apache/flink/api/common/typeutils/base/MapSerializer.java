@@ -216,7 +216,7 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 			CompatibilityResult<K> keyCompatResult = keySerializer.ensureCompatibility(keyValueSerializerConfigSnapshots[0]);
 			CompatibilityResult<V> valueCompatResult = valueSerializer.ensureCompatibility(keyValueSerializerConfigSnapshots[1]);
 
-			if (!keyCompatResult.requiresMigration() && !valueCompatResult.requiresMigration()) {
+			if (!keyCompatResult.isRequiresMigration() && !valueCompatResult.isRequiresMigration()) {
 				return CompatibilityResult.compatible();
 			} else if (keyCompatResult.getConvertDeserializer() != null && valueCompatResult.getConvertDeserializer() != null) {
 				return CompatibilityResult.requiresMigration(
@@ -226,6 +226,6 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 }
