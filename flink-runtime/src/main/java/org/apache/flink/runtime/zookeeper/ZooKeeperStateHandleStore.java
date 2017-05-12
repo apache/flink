@@ -346,11 +346,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 			} else {
 				// Initial cVersion (number of changes to the children of this node)
 				int initialCVersion = stat.getCversion();
-
-				List<String> children = ZKPaths.getSortedChildren(
-						client.getZookeeperClient().getZooKeeper(),
-						ZKPaths.fixForNamespace(client.getNamespace(), "/"));
-
+				List<String> children = client.getZookeeperClient().getZooKeeper().getChildren(ZKPaths.fixForNamespace(client.getNamespace(), "/"), false);
 				for (String path : children) {
 					path = "/" + path;
 
