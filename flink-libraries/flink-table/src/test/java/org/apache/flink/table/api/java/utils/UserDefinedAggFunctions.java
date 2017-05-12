@@ -97,6 +97,14 @@ public class UserDefinedAggFunctions {
         }
     }
 
+	// A WeightedAvg class with retract and reset method
+    public static class WeightedAvgWithRetractAndReset extends WeightedAvgWithRetract {
+		public void resetAccumulator(WeightedAvgAccum acc) {
+			acc.count = 0;
+			acc.sum = 0L;
+		}
+	}
+
 	// Accumulator for WeightedAvg with state
 	public static class WeightedStateAvgAccum {
 		final String valueName = "valuestate";
@@ -142,6 +150,37 @@ public class UserDefinedAggFunctions {
 				getValueByStateName(accumulator.valueName).update(avgPair);
 			} catch (IOException e) {
 				throw new RuntimeException("accumulate failed!", e);
+			}
+		}
+	}
+
+	// A WeightedStateAvg class with retract method
+	public static class WeightedStateAvgWithRetract extends WeightedStateAvg {
+		//Overloaded retract method
+		public void retract(WeightedStateAvgAccum accumulator, long iValue, int iWeight) {
+			try {
+				Tuple2<Long, Integer> avgPair =
+					(Tuple2<Long, Integer>) getValueByStateName(accumulator.valueName).value();
+				avgPair.f0 -= iValue * iWeight;
+				avgPair.f1 -= iWeight;
+				getValueByStateName(accumulator.valueName).update(avgPair);
+			} catch (IOException e) {
+				throw new RuntimeException("retract failed!", e);
+			}
+		}
+	}
+
+	// A WeightedStateAvg class with retract and reset method
+	public static class WeightedStateAvgWithRetractAndReset extends WeightedStateAvgWithRetract {
+		public void resetAccumulator(WeightedStateAvgAccum acc) {
+			try {
+				Tuple2<Long, Integer> avgPair =
+					(Tuple2<Long, Integer>) getValueByStateName(acc.valueName).value();
+				avgPair.f0 = 0L;
+				avgPair.f1 = 0;
+				getValueByStateName(acc.valueName).update(avgPair);
+			} catch (IOException e) {
+				throw new RuntimeException("retract failed!", e);
 			}
 		}
 	}
