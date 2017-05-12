@@ -353,6 +353,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 				for(String childNode : childrenInStr) {
 					children.add(new Long(childNode));
 				}
+				Collections.sort(children);
 				for (Long path : children) {
 					String pathStr = path.toString();
 					pathStr = "/" + pathStr;
