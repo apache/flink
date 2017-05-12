@@ -205,7 +205,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 
 	/**

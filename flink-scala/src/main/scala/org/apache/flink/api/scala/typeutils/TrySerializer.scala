@@ -123,13 +123,13 @@ class TrySerializer[A](
         val throwableCompatRes =
           throwableSerializer.ensureCompatibility(serializerConfigSnapshots(1))
 
-        if (elemCompatRes.requiresMigration() || throwableCompatRes.requiresMigration()) {
-          CompatibilityResult.requiresMigration(null)
+        if (elemCompatRes.isRequiresMigration || throwableCompatRes.isRequiresMigration) {
+          CompatibilityResult.requiresMigration()
         } else {
           CompatibilityResult.compatible()
         }
 
-      case _ => CompatibilityResult.requiresMigration(null)
+      case _ => CompatibilityResult.requiresMigration()
     }
   }
 }

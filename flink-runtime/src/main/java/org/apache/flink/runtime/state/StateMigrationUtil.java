@@ -48,7 +48,7 @@ public class StateMigrationUtil {
 	 *
 	 * @param <T> Type of the data handled by the serializers
 	 *
-	 * @return the final resolved compatiblity result
+	 * @return the final resolved compatibility result
 	 */
 	public static <T> CompatibilityResult<T> resolveCompatibilityResult(
 			TypeSerializer<T> precedingSerializer,
@@ -59,7 +59,7 @@ public class StateMigrationUtil {
 		if (precedingSerializerConfigSnapshot != null) {
 			CompatibilityResult<T> initialResult = newSerializer.ensureCompatibility(precedingSerializerConfigSnapshot);
 
-			if (!initialResult.requiresMigration()) {
+			if (!initialResult.isRequiresMigration()) {
 				return initialResult;
 			} else {
 				if (precedingSerializer != null && !(precedingSerializer.getClass().equals(dummySerializerClassTag))) {

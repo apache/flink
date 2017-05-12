@@ -74,7 +74,7 @@ public class EnumSerializerTest extends TestLogger {
 		// reconfigure and verify compatibility
 		CompatibilityResult<PublicEnum> compatResult = serializer.ensureCompatibility(
 			new EnumSerializer.EnumSerializerConfigSnapshot<>(PublicEnum.class, mockPreviousOrder));
-		assertFalse(compatResult.requiresMigration());
+		assertFalse(compatResult.isRequiresMigration());
 
 		// after reconfiguration, the order should be first the original BAR, PAULA, NATHANIEL,
 		// followed by the "new enum constants" FOO, PETER, EMMA
@@ -107,7 +107,7 @@ public class EnumSerializerTest extends TestLogger {
 		}
 
 		CompatibilityResult<PublicEnum> compatResult = serializer.ensureCompatibility(restoredConfig);
-		assertFalse(compatResult.requiresMigration());
+		assertFalse(compatResult.isRequiresMigration());
 
 		assertEquals(PublicEnum.FOO.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.FOO).intValue());
 		assertEquals(PublicEnum.BAR.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.BAR).intValue());
@@ -163,7 +163,7 @@ public class EnumSerializerTest extends TestLogger {
 		// reconfigure and verify compatibility
 		CompatibilityResult<PublicEnum> compatResult = serializer.ensureCompatibility(
 			new EnumSerializer.EnumSerializerConfigSnapshot<>(PublicEnum.class, mockPreviousOrder));
-		assertFalse(compatResult.requiresMigration());
+		assertFalse(compatResult.isRequiresMigration());
 
 		// serialize and deserialize again the serializer
 		byte[] serializedSerializer = InstantiationUtil.serializeObject(serializer);

@@ -1520,7 +1520,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					restoredMetaInfo.getStateSerializerConfigSnapshot(),
 					newMetaInfo.getStateSerializer());
 
-			if (!namespaceCompatibility.requiresMigration() && !stateCompatibility.requiresMigration()) {
+			if (!namespaceCompatibility.isRequiresMigration() && !stateCompatibility.isRequiresMigration()) {
 				stateInfo.f1 = newMetaInfo;
 				return stateInfo.f0;
 			} else {

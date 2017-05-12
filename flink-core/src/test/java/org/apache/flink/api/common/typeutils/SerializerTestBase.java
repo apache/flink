@@ -121,11 +121,11 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 
 		CompatibilityResult strategy = getSerializer().ensureCompatibility(restoredConfig);
-		assertFalse(strategy.requiresMigration());
+		assertFalse(strategy.isRequiresMigration());
 
 		// also verify that the serializer's reconfigure implementation detects incompatibility
 		strategy = getSerializer().ensureCompatibility(new TestIncompatibleSerializerConfigSnapshot());
-		assertTrue(strategy.requiresMigration());
+		assertTrue(strategy.isRequiresMigration());
 	}
 	
 	@Test

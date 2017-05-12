@@ -66,7 +66,7 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 
 			return CompatibilityResult.compatible();
 		} else {
-			return CompatibilityResult.requiresMigration(null);
+			return CompatibilityResult.requiresMigration();
 		}
 	}
 

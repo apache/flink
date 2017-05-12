@@ -145,8 +145,8 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 					CompatibilityResult compatResult;
 					for (int i = 0; i < fieldSerializers.length; i++) {
 						compatResult = fieldSerializers[i].ensureCompatibility(fieldSerializerConfigSnapshots[i]);
-						if (compatResult.requiresMigration()) {
-							return CompatibilityResult.requiresMigration(null);
+						if (compatResult.isRequiresMigration()) {
+							return CompatibilityResult.requiresMigration();
 						}
 					}
 
@@ -155,6 +155,6 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 }
