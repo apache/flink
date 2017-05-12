@@ -346,13 +346,20 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 			} else {
 				// Initial cVersion (number of changes to the children of this node)
 				int initialCVersion = stat.getCversion();
-				List<String> children = client.getZookeeperClient().getZooKeeper().getChildren(ZKPaths.fixForNamespace(client.getNamespace(), "/"), false);
-				for (String path : children) {
-					path = "/" + path;
+				List<String> childrenInStr =
+					client.getZookeeperClient().getZooKeeper().
+						getChildren(ZKPaths.fixForNamespace(client.getNamespace(), "/"), false);
+				List<Long> children = new ArrayList<Long>(childrenInStr.size());
+				for(String childNode : childrenInStr) {
+					children.add(new Long(childNode));
+				}
+				for (Long path : children) {
+					String pathStr = path.toString();
+					pathStr = "/" + pathStr;
 
 					try {
-						final RetrievableStateHandle<T> stateHandle = get(path);
-						stateHandles.add(new Tuple2<>(stateHandle, path));
+						final RetrievableStateHandle<T> stateHandle = get(pathStr);
+						stateHandles.add(new Tuple2<>(stateHandle, pathStr));
 					} catch (KeeperException.NoNodeException ignored) {
 						// Concurrent deletion, retry
 						continue retry;
