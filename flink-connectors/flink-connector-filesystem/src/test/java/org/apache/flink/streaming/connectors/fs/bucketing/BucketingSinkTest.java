@@ -33,6 +33,7 @@ import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.OperatingSystem;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileConstants;
@@ -53,6 +54,7 @@ import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -135,6 +137,8 @@ public class BucketingSinkTest {
 
 	@BeforeClass
 	public static void createHDFS() throws IOException {
+		Assume.assumeTrue("HDFS cluster cannot be started on Windows without extensions.", !OperatingSystem.isWindows());
+
 		Configuration conf = new Configuration();
 
 		File dataDir = tempFolder.newFolder();
@@ -152,7 +156,9 @@ public class BucketingSinkTest {
 
 	@AfterClass
 	public static void destroyHDFS() {
-		hdfsCluster.shutdown();
+		if (hdfsCluster != null) {
+			hdfsCluster.shutdown();
+		}
 	}
 
 	@Test
