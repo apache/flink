@@ -36,6 +36,8 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +66,8 @@ public class PrometheusReporter implements MetricReporter {
 			return replaceInvalidChars(input);
 		}
 	};
+
+	private static final char SCOPE_SEPARATOR = '_';
 
 	private PrometheusEndpoint prometheusEndpoint;
 	private Map<String, Collector> collectorsByMetricName = new HashMap<>();
@@ -95,6 +99,7 @@ public class PrometheusReporter implements MetricReporter {
 
 	@Override
 	public void notifyOfAddedMetric(final Metric metric, final String metricName, final MetricGroup group) {
+		final String scope = ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(CHARACTER_FILTER, SCOPE_SEPARATOR);
 		List<String> dimensionKeys = new LinkedList<>();
 		List<String> dimensionValues = new LinkedList<>();
 		for (final Map.Entry<String, String> dimension : group.getAllVariables().entrySet()) {
@@ -102,7 +107,7 @@ public class PrometheusReporter implements MetricReporter {
 			dimensionValues.add(CHARACTER_FILTER.filterCharacters(dimension.getValue()));
 		}
 
-		final String validMetricName = CHARACTER_FILTER.filterCharacters(metricName);
+		final String validMetricName = scope + SCOPE_SEPARATOR + CHARACTER_FILTER.filterCharacters(metricName);
 		final String metricIdentifier = group.getMetricIdentifier(metricName);
 		final Collector collector;
 		if (metric instanceof Gauge) {

@@ -62,6 +62,7 @@ public class PrometheusReporterTest extends TestLogger {
 	private static final String TYPE_PREFIX    = "# TYPE ";
 	private static final String DIMENSIONS     = "host=\"" + HOST_NAME + "\",tm_id=\"" + TASK_MANAGER + "\"";
 	private static final String DEFAULT_LABELS = "{" + DIMENSIONS + ",}";
+	private static final String SCOPE_PREFIX   = "taskmanager_";
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
@@ -76,12 +77,13 @@ public class PrometheusReporterTest extends TestLogger {
 		Counter testCounter = new SimpleCounter();
 		testCounter.inc(7);
 
-		final String metricName = "testCounter";
+		String counterName = "testCounter";
+		String gaugeName = SCOPE_PREFIX + counterName;
 
-		assertThat(addMetricAndPollResponse(testCounter, metricName),
-			containsString(HELP_PREFIX + metricName + " " + getFullMetricName(metricName) + "\n" +
-						   TYPE_PREFIX + metricName + " gauge" + "\n" +
-						   metricName + DEFAULT_LABELS + " 7.0"));
+		assertThat(addMetricAndPollResponse(testCounter, counterName),
+			containsString(HELP_PREFIX + gaugeName + " " + getFullMetricName(counterName) + "\n" +
+						   TYPE_PREFIX + gaugeName + " gauge" + "\n" +
+						   gaugeName + DEFAULT_LABELS + " 7.0"));
 	}
 
 	@Test
@@ -93,27 +95,29 @@ public class PrometheusReporterTest extends TestLogger {
 			}
 		};
 
-		String metricName = "testGauge";
+		String gaugeName = "testGauge";
+		String prometheusGaugeName = SCOPE_PREFIX + gaugeName;
 
-		assertThat(addMetricAndPollResponse(testGauge, metricName),
-			containsString(HELP_PREFIX + metricName + " " + getFullMetricName(metricName) + "\n" +
-						   TYPE_PREFIX + metricName + " gauge" + "\n" +
-						   metricName + DEFAULT_LABELS + " 1.0"));
+		assertThat(addMetricAndPollResponse(testGauge, gaugeName),
+			containsString(HELP_PREFIX + prometheusGaugeName + " " + getFullMetricName(gaugeName) + "\n" +
+						   TYPE_PREFIX + prometheusGaugeName + " gauge" + "\n" +
+						   prometheusGaugeName + DEFAULT_LABELS + " 1.0"));
 	}
 
 	@Test
 	public void histogramIsReportedAsPrometheusSummary() throws UnirestException {
 		Histogram testHistogram = new TestingHistogram();
 
-		String metricName = "testHistogram";
+		String histogramName = "testHistogram";
+		String summaryName = SCOPE_PREFIX + histogramName;
 
-		String response = addMetricAndPollResponse(testHistogram, metricName);
-		assertThat(response, both(containsString(HELP_PREFIX + metricName + " " + getFullMetricName(metricName) + "\n" +
-												 TYPE_PREFIX + metricName + " summary" + "\n"))
-			.and(containsString(metricName + "_count" + DEFAULT_LABELS + " 1.0")));
+		String response = addMetricAndPollResponse(testHistogram, histogramName);
+		assertThat(response, both(containsString(HELP_PREFIX + summaryName + " " + getFullMetricName(histogramName) + "\n" +
+												 TYPE_PREFIX + summaryName + " summary" + "\n"))
+			.and(containsString(summaryName + "_count" + DEFAULT_LABELS + " 1.0")));
 		for (String quantile : Arrays.asList("0.5", "0.75", "0.95", "0.98", "0.99", "0.999")) {
 			assertThat(response, containsString(
-				metricName + "{" + DIMENSIONS + ",quantile=\"" + quantile + "\",} " + quantile));
+				summaryName + "{" + DIMENSIONS + ",quantile=\"" + quantile + "\",} " + quantile));
 		}
 	}
 
@@ -121,11 +125,11 @@ public class PrometheusReporterTest extends TestLogger {
 	public void meterTotalIsReportedAsPrometheusCounter() throws UnirestException {
 		Meter testMeter = new TestMeter();
 
-		String metricName = "testMeter";
-		String counterName = metricName + "_total";
+		String meterName = "testMeter";
+		String counterName = SCOPE_PREFIX + meterName + "_total";
 
-		assertThat(addMetricAndPollResponse(testMeter, metricName),
-			containsString(HELP_PREFIX + counterName + " " + getFullMetricName(metricName) + "\n" +
+		assertThat(addMetricAndPollResponse(testMeter, meterName),
+			containsString(HELP_PREFIX + counterName + " " + getFullMetricName(meterName) + "\n" +
 						   TYPE_PREFIX + counterName + " counter" + "\n" +
 						   counterName + DEFAULT_LABELS + " 100.0"));
 	}
