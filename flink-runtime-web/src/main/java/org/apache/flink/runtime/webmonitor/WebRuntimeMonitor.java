@@ -175,7 +175,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			// create storage for uploads
 			this.uploadDir = getUploadDir(config);
 			// the upload directory should either 1. exist and writable or 2. can be created and writable
-			if (!(uploadDir.exists() && uploadDir.canWrite()) && !(uploadDir.mkdir() && uploadDir.canWrite())) {
+			if (!(uploadDir.exists() && uploadDir.canWrite()) && !(uploadDir.mkdirs() && uploadDir.canWrite())) {
 				throw new IOException(
 					String.format("Jar upload directory %s cannot be created or is not writable.",
 						uploadDir.getAbsolutePath()));
