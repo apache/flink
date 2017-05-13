@@ -462,7 +462,7 @@ private class TestUpsertSink(
       assertNull("Provided key fields should not be null.", expectedKeys)
     }
 
-  override def setIsAppendOnly(isAppendOnly: Boolean): Unit =
+  override def setIsAppendOnly(isAppendOnly: JBool): Unit =
     assertEquals(
       "Provided isAppendOnly does not match expected isAppendOnly",
       expectedIsAppendOnly,
