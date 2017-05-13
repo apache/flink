@@ -64,8 +64,7 @@ public class DatadogHttpClient{
 	private void validateApiKey() {
 		Request r = new Request.Builder().url(validateUrl).get().build();
 
-		try {
-			Response response = client.newCall(r).execute();
+		try (Response response = client.newCall(r).execute()) {
 			if (!response.isSuccessful()) {
 				throw new IllegalArgumentException(
 					String.format("API key: %s is invalid", apiKey));
