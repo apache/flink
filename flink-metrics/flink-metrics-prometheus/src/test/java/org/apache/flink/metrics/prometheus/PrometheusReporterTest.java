@@ -24,7 +24,12 @@ import com.mashape.unirest.http.exceptions.UnirestException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.metrics.*;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -40,21 +45,23 @@ import org.junit.rules.ExpectedException;
 
 import java.util.Arrays;
 
-import static org.apache.flink.dropwizard.ScheduledDropwizardReporter.ARG_PORT;
-import static org.hamcrest.Matchers.allOf;
+import static org.apache.flink.metrics.prometheus.PrometheusReporter.ARG_PORT;
+import static org.apache.flink.runtime.metrics.scope.ScopeFormat.SCOPE_SEPARATOR;
+import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 public class PrometheusReporterTest extends TestLogger {
 	private static final int NON_DEFAULT_PORT = 9429;
 
-	private static final String HOST_NAME = "host";
+	private static final String HOST_NAME    = "hostname";
 	private static final String TASK_MANAGER = "tm";
 
-	private static final String HELP_PREFIX = "# HELP ";
-	private static final String TYPE_PREFIX = "# TYPE ";
-
-	private static final String SEPARATOR = "_";
+	private static final String HELP_PREFIX    = "# HELP ";
+	private static final String TYPE_PREFIX    = "# TYPE ";
+	private static final String DIMENSIONS     = "host=\"" + HOST_NAME + "\",tm_id=\"" + TASK_MANAGER + "\"";
+	private static final String DEFAULT_LABELS = "{" + DIMENSIONS + ",}";
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
@@ -69,13 +76,12 @@ public class PrometheusReporterTest extends TestLogger {
 		Counter testCounter = new SimpleCounter();
 		testCounter.inc(7);
 
-		final String metricName = "counter";
+		final String metricName = "testCounter";
 
-		String classifier = getMetricClassifier(metricName);
-		assertThat(addMetricAndPollResponse(testCounter, metricName), allOf(
-			containsString(HELP_PREFIX + classifier),
-			containsString(TYPE_PREFIX + classifier + " gauge"),
-			containsString(classifier + " 7.0")));
+		assertThat(addMetricAndPollResponse(testCounter, metricName),
+			containsString(HELP_PREFIX + metricName + " " + getFullMetricName(metricName) + "\n" +
+						   TYPE_PREFIX + metricName + " gauge" + "\n" +
+						   metricName + DEFAULT_LABELS + " 7.0"));
 	}
 
 	@Test
@@ -87,29 +93,27 @@ public class PrometheusReporterTest extends TestLogger {
 			}
 		};
 
-		String metricName = "gauge";
+		String metricName = "testGauge";
 
-		String classifier = getMetricClassifier(metricName);
-		assertThat(addMetricAndPollResponse(testGauge, metricName), allOf(
-			containsString(HELP_PREFIX + classifier),
-			containsString(TYPE_PREFIX + classifier + " gauge"),
-			containsString(classifier + " 1.0")));
+		assertThat(addMetricAndPollResponse(testGauge, metricName),
+			containsString(HELP_PREFIX + metricName + " " + getFullMetricName(metricName) + "\n" +
+						   TYPE_PREFIX + metricName + " gauge" + "\n" +
+						   metricName + DEFAULT_LABELS + " 1.0"));
 	}
 
 	@Test
 	public void histogramIsReportedAsPrometheusSummary() throws UnirestException {
 		Histogram testHistogram = new TestingHistogram();
 
-		String metricName = "histogram";
+		String metricName = "testHistogram";
 
-		String classifier = getMetricClassifier(metricName);
 		String response = addMetricAndPollResponse(testHistogram, metricName);
-		assertThat(response, allOf(
-			containsString(HELP_PREFIX + classifier),
-			containsString(TYPE_PREFIX + classifier + " summary"),
-			containsString(classifier + "_count 1.0")));
+		assertThat(response, both(containsString(HELP_PREFIX + metricName + " " + getFullMetricName(metricName) + "\n" +
+												 TYPE_PREFIX + metricName + " summary" + "\n"))
+			.and(containsString(metricName + "_count" + DEFAULT_LABELS + " 1.0")));
 		for (String quantile : Arrays.asList("0.5", "0.75", "0.95", "0.98", "0.99", "0.999")) {
-			assertThat(response, containsString(classifier + "{quantile=\"" + quantile + "\",} " + quantile));
+			assertThat(response, containsString(
+				metricName + "{" + DIMENSIONS + ",quantile=\"" + quantile + "\",} " + quantile));
 		}
 	}
 
@@ -117,13 +121,13 @@ public class PrometheusReporterTest extends TestLogger {
 	public void meterTotalIsReportedAsPrometheusCounter() throws UnirestException {
 		Meter testMeter = new TestMeter();
 
-		String metricName = "meter";
+		String metricName = "testMeter";
+		String counterName = metricName + "_total";
 
-		String classifier = getMetricClassifier(metricName);
-		assertThat(addMetricAndPollResponse(testMeter, metricName), allOf(
-			containsString(HELP_PREFIX + classifier + "_total"),
-			containsString(TYPE_PREFIX + classifier + "_total counter"),
-			containsString(classifier + "_total 100.0")));
+		assertThat(addMetricAndPollResponse(testMeter, metricName),
+			containsString(HELP_PREFIX + counterName + " " + getFullMetricName(metricName) + "\n" +
+						   TYPE_PREFIX + counterName + " counter" + "\n" +
+						   counterName + DEFAULT_LABELS + " 100.0"));
 	}
 
 	@Test
@@ -131,6 +135,23 @@ public class PrometheusReporterTest extends TestLogger {
 		reporter.close();
 		thrown.expect(UnirestException.class);
 		pollMetrics();
+	}
+
+	@Test
+	public void invalidCharactersAreReplacedWithUnderscore() {
+		assertThat(PrometheusReporter.replaceInvalidChars(""), equalTo(""));
+		assertThat(PrometheusReporter.replaceInvalidChars("abc"), equalTo("abc"));
+		assertThat(PrometheusReporter.replaceInvalidChars("abc\""), equalTo("abc_"));
+		assertThat(PrometheusReporter.replaceInvalidChars("\"abc"), equalTo("_abc"));
+		assertThat(PrometheusReporter.replaceInvalidChars("\"abc\""), equalTo("_abc_"));
+		assertThat(PrometheusReporter.replaceInvalidChars("\"a\"b\"c\""), equalTo("_a_b_c_"));
+		assertThat(PrometheusReporter.replaceInvalidChars("\"\"\"\""), equalTo("____"));
+		assertThat(PrometheusReporter.replaceInvalidChars("    "), equalTo("____"));
+		assertThat(PrometheusReporter.replaceInvalidChars("\"ab ;(c)'"), equalTo("_ab___c__"));
+		assertThat(PrometheusReporter.replaceInvalidChars("a b c"), equalTo("a_b_c"));
+		assertThat(PrometheusReporter.replaceInvalidChars("a b c "), equalTo("a_b_c_"));
+		assertThat(PrometheusReporter.replaceInvalidChars("a;b'c*"), equalTo("a_b_c_"));
+		assertThat(PrometheusReporter.replaceInvalidChars("a,=;:?'b,=;:?'c"), equalTo("a___:__b___:__c"));
 	}
 
 	private String addMetricAndPollResponse(Metric metric, String metricName) throws UnirestException {
@@ -142,8 +163,8 @@ public class PrometheusReporterTest extends TestLogger {
 		return Unirest.get("http://localhost:" + NON_DEFAULT_PORT + "/metrics").asString();
 	}
 
-	private static String getMetricClassifier(String metricName) {
-		return HOST_NAME + SEPARATOR + "taskmanager" + SEPARATOR + TASK_MANAGER + SEPARATOR + metricName;
+	private static String getFullMetricName(String metricName) {
+		return HOST_NAME + SCOPE_SEPARATOR + "taskmanager" + SCOPE_SEPARATOR + TASK_MANAGER + SCOPE_SEPARATOR + metricName;
 	}
 
 	private static MetricRegistry prepareMetricRegistry() {
@@ -153,7 +174,8 @@ public class PrometheusReporterTest extends TestLogger {
 	private static Configuration createConfigWithOneReporter() {
 		Configuration cfg = new Configuration();
 		cfg.setString(MetricOptions.REPORTERS_LIST, "test1");
-		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, PrometheusReporter.class.getName());
+		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." +
+					  ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, PrometheusReporter.class.getName());
 		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ARG_PORT, "" + NON_DEFAULT_PORT);
 		return cfg;
 	}
