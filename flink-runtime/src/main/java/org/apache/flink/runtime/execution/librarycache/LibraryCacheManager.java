@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.api.common.JobID;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,9 +41,22 @@ public interface LibraryCacheManager {
 	 *
 	 * @param blobKey identifying the requested file
 	 * @return File handle
-	 * @throws IOException
+	 * @throws IOException if any error occurs when retrieving the file
 	 */
 	File getFile(BlobKey blobKey) throws IOException;
+
+	/**
+	 * Returns a file handle to the file identified by a job id.
+	 * <p>
+	 * <strong>Note:</strong> these files will be cleaned up when the last job (task execution)
+	 * with the given jobId is removed from this cache manager.
+	 *
+	 * @param jobId   JobID of the requested file
+	 * @param key     String key of the requested file
+	 * @return File handle
+	 * @throws IOException if any error occurs when retrieving the file
+	 */
+	File getFile(JobID jobId, String key) throws IOException;
 
 	/**
 	 * Registers a job with its required jar files and classpaths. The jar files are identified by their blob keys.
@@ -51,7 +64,9 @@ public interface LibraryCacheManager {
 	 * @param id job ID
 	 * @param requiredJarFiles collection of blob keys identifying the required jar files
 	 * @param requiredClasspaths collection of classpaths that are added to the user code class loader
-	 * @throws IOException
+	 * @throws IOException if any error occurs when retrieving the required jar files
+	 *
+	 * @see #unregisterJob(JobID) counterpart of this method
 	 */
 	void registerJob(JobID id, Collection<BlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
 			throws IOException;
@@ -63,21 +78,36 @@ public interface LibraryCacheManager {
 	 * @param requiredJarFiles collection of blob keys identifying the required jar files
 	 * @param requiredClasspaths collection of classpaths that are added to the user code class loader
 	 * @throws IOException
+	 *
+	 * @see #unregisterTask(JobID, ExecutionAttemptID) counterpart of this method
 	 */
 	void registerTask(JobID id, ExecutionAttemptID execution, Collection<BlobKey> requiredJarFiles,
 			Collection<URL> requiredClasspaths) throws IOException;
 
 	/**
-	 * Unregisters a job from the library cache manager.
+	 * Unregisters a job task execution from the library cache manager.
+	 * <p>
+	 * <strong>Note:</strong> this is the counterpart of {@link #registerTask(JobID,
+	 * ExecutionAttemptID, Collection, Collection)} and it will not remove any job added via
+	 * {@link #registerJob(JobID, Collection, Collection)}!
 	 *
 	 * @param id job ID
+	 *
+	 * @see #registerTask(JobID, ExecutionAttemptID, Collection, Collection) counterpart of this method
 	 */
 	void unregisterTask(JobID id, ExecutionAttemptID execution);
-	
+
 	/**
-	 * Unregisters a job from the library cache manager.
+	 * Unregisters a job from the library cache manager and initiates the cleanup of stored
+	 * resources.
+	 * <p>
+	 * <strong>Note:</strong> this is the counterpart of {@link #registerJob(JobID, Collection,
+	 * Collection)} and it will not remove any job task execution added via {@link
+	 * #registerTask(JobID, ExecutionAttemptID, Collection, Collection)}!
 	 *
 	 * @param id job ID
+	 *
+	 * @see #registerJob(JobID, Collection, Collection) counterpart of this method
 	 */
 	void unregisterJob(JobID id);
 

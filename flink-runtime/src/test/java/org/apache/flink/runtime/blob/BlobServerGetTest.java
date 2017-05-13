@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.junit.Test;
 
@@ -40,7 +41,7 @@ public class BlobServerGetTest {
 	private final Random rnd = new Random();
 
 	@Test
-	public void testGetFailsDuringLookup() {
+	public void testGetFailsDuringLookupByBlobKey() {
 		BlobServer server = null;
 		BlobClient client = null;
 
@@ -70,6 +71,15 @@ public class BlobServerGetTest {
 			catch (IOException e) {
 				// expected
 			}
+
+			// try to access the file at the server
+			try {
+				server.getURL(key);
+				fail("This should not succeed.");
+			}
+			catch (IOException e) {
+				// expected
+			}
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -90,7 +100,66 @@ public class BlobServerGetTest {
 	}
 
 	@Test
-	public void testGetFailsDuringStreaming() {
+	public void testGetFailsDuringLookupByName() {
+		BlobServer server = null;
+		BlobClient client = null;
+
+		try {
+			Configuration config = new Configuration();
+			server = new BlobServer(config);
+
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+			client = new BlobClient(serverAddress, config);
+
+			byte[] data = new byte[2000000];
+			rnd.nextBytes(data);
+
+			JobID jobId = new JobID();
+			String name = "random name";
+			client.put(jobId, name, data);
+
+			// delete all files to make sure that GET requests fail
+			File blobFile = server.getStorageLocation(jobId, name);
+			assertTrue(blobFile.delete());
+
+			// issue a GET request that fails
+			try {
+				client.get(jobId, name);
+				fail("This should not succeed.");
+			}
+			catch (IOException e) {
+				// expected
+			}
+
+			// try to access the file at the server
+			try {
+				server.getURL(jobId, name);
+				fail("This should not succeed.");
+			}
+			catch (IOException e) {
+				// expected
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			if (client != null) {
+				try {
+					client.close();
+				} catch (Throwable t) {
+					t.printStackTrace();
+				}
+			}
+			if (server != null) {
+				server.shutdown();
+			}
+		}
+	}
+
+	@Test
+	public void testGetFailsDuringStreamingByBlobKey() {
 		BlobServer server = null;
 		BlobClient client = null;
 
@@ -110,6 +179,65 @@ public class BlobServerGetTest {
 
 			// issue a GET request that succeeds
 			InputStream is = client.get(key);
+
+			byte[] receiveBuffer = new byte[50000];
+			BlobUtils.readFully(is, receiveBuffer, 0, receiveBuffer.length, null);
+			BlobUtils.readFully(is, receiveBuffer, 0, receiveBuffer.length, null);
+
+			// shut down the server
+			for (BlobServerConnection conn : server.getCurrentActiveConnections()) {
+				conn.close();
+			}
+
+			try {
+				byte[] remainder = new byte[data.length - 2*receiveBuffer.length];
+				BlobUtils.readFully(is, remainder, 0, remainder.length, null);
+				// we tolerate that this succeeds, as the receiver socket may have buffered
+				// everything already
+			}
+			catch (IOException e) {
+				// expected
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			if (client != null) {
+				try {
+					client.close();
+				} catch (Throwable t) {
+					t.printStackTrace();
+				}
+			}
+			if (server != null) {
+				server.shutdown();
+			}
+		}
+	}
+
+	@Test
+	public void testGetFailsDuringStreamingByName() {
+		BlobServer server = null;
+		BlobClient client = null;
+
+		try {
+			Configuration config = new Configuration();
+			server = new BlobServer(config);
+
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+			client = new BlobClient(serverAddress, config);
+
+			byte[] data = new byte[5000000];
+			rnd.nextBytes(data);
+
+			JobID jobId = new JobID();
+			String name = "random name";
+			client.put(jobId, name, data);
+
+			// issue a GET request that succeeds
+			InputStream is = client.get(jobId, name);
 
 			byte[] receiveBuffer = new byte[50000];
 			BlobUtils.readFully(is, receiveBuffer, 0, receiveBuffer.length, null);
