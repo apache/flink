@@ -62,7 +62,8 @@ abstract class RichAggregateFunction[T, ACC] extends AggregateFunction[T, ACC] {
 
   def registerMap[UK, UV](name: String, keySerializer: TypeSerializer[UK],
   valueSerializer: TypeSerializer[UV]): Unit = {
-    descriptorMapping.put(name, new MapStateDescriptor[UK, UV](name, keySerializer, valueSerializer))
+    descriptorMapping.put(name, new MapStateDescriptor[UK, UV](name, keySerializer,
+      valueSerializer))
   }
 
   def registerMap[UK, UV](name: String, keyTypeInfo: TypeInformation[UK],

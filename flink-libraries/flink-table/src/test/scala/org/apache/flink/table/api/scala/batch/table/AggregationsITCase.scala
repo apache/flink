@@ -22,11 +22,11 @@ import java.math.BigDecimal
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.{TableEnvironment, TableException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMergeAndReset
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{WeightedAvgWithMergeAndReset, WeightedStateAvg}
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
@@ -373,6 +373,35 @@ class AggregationsITCase(
         "1,0.5,0.5,0.5"
     val results = res.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testRichAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val weightStateAvg = new WeightedStateAvg
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+      .select('_1.sum, '_1.sum0, '_1.min, '_1.max, '_1.count, '_1.avg, weightStateAvg('_2, '_1))
+
+    t.toDataSet[Row].collect()
+  }
+
+  @Test(expected = classOf[TableException])
+  def testGroupedRichAggregate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val countFun = new CountAggFunction
+    val weightStateAvg = new WeightedStateAvg
+
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('b)
+      .select('b, 'a.sum, countFun('c), weightStateAvg('b, 'a))
+
+    t.toDataSet[Row].collect()
   }
 }
 
