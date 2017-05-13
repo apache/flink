@@ -44,8 +44,11 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.migration.MigrationTestUtil;
 import org.apache.flink.streaming.util.migration.MigrationVersion;
+import org.apache.flink.util.OperatingSystem;
 
 import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -94,6 +97,11 @@ public class ContinuousFileProcessingMigrationTest {
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@BeforeClass
+	public static void verifyOS() {
+		Assume.assumeTrue("HDFS cluster cannot be start on Windows without extensions.", !OperatingSystem.isWindows());
+	}
 
 	/**
 	 * Manually run this to write binary snapshot data. Remove @Ignore to run.

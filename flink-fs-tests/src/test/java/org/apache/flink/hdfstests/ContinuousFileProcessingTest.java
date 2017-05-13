@@ -42,12 +42,14 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -84,6 +86,8 @@ public class ContinuousFileProcessingTest {
 
 	@BeforeClass
 	public static void createHDFS() {
+		Assume.assumeTrue("HDFS cluster cannot be start on Windows without extensions.", !OperatingSystem.isWindows());
+
 		try {
 			File hdfsDir = tempFolder.newFolder();
 
@@ -105,10 +109,8 @@ public class ContinuousFileProcessingTest {
 
 	@AfterClass
 	public static void destroyHDFS() {
-		try {
+		if (hdfsCluster != null) {
 			hdfsCluster.shutdown();
-		} catch (Throwable t) {
-			throw new RuntimeException(t);
 		}
 	}
 

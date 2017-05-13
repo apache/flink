@@ -21,12 +21,14 @@ package org.apache.flink.hdfstests;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.highavailability.FsNegativeRunningJobsRegistry;
-
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
+import org.apache.flink.util.OperatingSystem;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -54,6 +56,8 @@ public class FsNegativeRunningJobsRegistryTest {
 
 	@BeforeClass
 	public static void createHDFS() throws Exception {
+		Assume.assumeTrue("HDFS cluster cannot be start on Windows without extensions.", !OperatingSystem.isWindows());
+
 		final File tempDir = TEMP_DIR.newFolder();
 
 		Configuration hdConf = new Configuration();

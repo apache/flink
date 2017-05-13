@@ -30,9 +30,12 @@ import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.OperatingSystem;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -67,6 +70,8 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
 	@BeforeClass
 	public static void createHDFS() {
+		Assume.assumeTrue("HDFS cluster cannot be started on Windows without extensions.", !OperatingSystem.isWindows());
+
 		try {
 			TEMP_DIR = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 
@@ -89,10 +94,14 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	@AfterClass
 	public static void destroyHDFS() {
 		try {
-			HDFS_CLUSTER.shutdown();
-			FileUtils.deleteDirectory(TEMP_DIR);
+			if (HDFS_CLUSTER != null) {
+				HDFS_CLUSTER.shutdown();
+			}
+			if (TEMP_DIR != null) {
+				FileUtils.deleteDirectory(TEMP_DIR);
+			}
+		} catch (IOException ignored) {
 		}
-		catch (Exception ignored) {}
 	}
 
 	@Override

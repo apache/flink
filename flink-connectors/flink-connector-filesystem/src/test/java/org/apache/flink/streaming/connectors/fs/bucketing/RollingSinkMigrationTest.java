@@ -23,7 +23,11 @@ import org.apache.flink.streaming.connectors.fs.RollingSink;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.util.OperatingSystem;
+
 import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -44,6 +48,11 @@ public class RollingSinkMigrationTest {
 	private static final String PENDING_SUFFIX = ".pending";
 	private static final String IN_PROGRESS_SUFFIX = ".in-progress";
 	private static final String VALID_LENGTH_SUFFIX = ".valid";
+
+	@BeforeClass
+	public static void verifyOS() {
+		Assume.assumeTrue("HDFS cluster cannot be started on Windows without extensions.", !OperatingSystem.isWindows());
+	}
 
 	@Test
 	public void testMigration() throws Exception {
