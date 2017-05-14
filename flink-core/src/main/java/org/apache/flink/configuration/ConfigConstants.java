@@ -1328,12 +1328,7 @@ public final class ConfigConstants {
 	
 	// ------------------------- JobManager Web Frontend ----------------------
 
-	/**
-	 * The config key for the address of the JobManager web frontend.
-	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_FRONTEND_ADDRESS} instead
-	 */
-	@Deprecated
+	/** The config key for the address of the JobManager web frontend. */
 	public static final ConfigOption<String> DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS =
 		key("jobmanager.web.address")
 			.noDefaultValue();

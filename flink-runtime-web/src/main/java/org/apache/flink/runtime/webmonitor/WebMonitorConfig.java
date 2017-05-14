@@ -63,7 +63,7 @@ public class WebMonitorConfig {
 	}
 
 	public String getWebFrontendAddress() {
-		return config.getValue(JobManagerOptions.WEB_FRONTEND_ADDRESS);
+		return config.getValue(ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS);
 	}
 
 	public int getWebFrontendPort() {
