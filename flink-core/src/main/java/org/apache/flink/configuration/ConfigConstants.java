@@ -139,39 +139,36 @@ public final class ConfigConstants {
 	public static final String RESOURCE_MANAGER_IPC_PORT_KEY = "resourcemanager.rpc.port";
 
 	/**
-	 * @deprecated use {@link BlobServerOptions#STORAGE_DIRECTORY} instead
+	 * The config parameter defining the storage directory to be used by the blob server.
 	 */
-	@Deprecated
 	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
 
 	/**
-	 * @deprecated use {@link BlobServerOptions#FETCH_RETRIES} instead
+	 * The config parameter defining number of retires for failed BLOB fetches.
 	 */
-	@Deprecated
 	public static final String BLOB_FETCH_RETRIES_KEY = "blob.fetch.retries";
 
 	/**
-	 * @deprecated use {@link BlobServerOptions#FETCH_CONCURRENT} instead
+	 * The config parameter defining the maximum number of concurrent BLOB fetches that the JobManager serves.
 	 */
-	@Deprecated
 	public static final String BLOB_FETCH_CONCURRENT_KEY = "blob.fetch.num-concurrent";
 
 	/**
-	 * @deprecated use {@link BlobServerOptions#FETCH_BACKLOG} instead
+	 * The config parameter defining the backlog of BLOB fetches on the JobManager
 	 */
-	@Deprecated
 	public static final String BLOB_FETCH_BACKLOG_KEY = "blob.fetch.backlog";
 
 	/**
-	 * @deprecated use {@link BlobServerOptions#PORT} instead
+	 * The config parameter defining the server port of the blob service.
+	 * The port can either be a port, such as "9123",
+	 * a range of ports: "50100-50200"
+	 * or a list of ranges and or points: "50100-50200,50300-50400,51234"
+	 *
+	 * Setting the port to 0 will let the OS choose an available port.
 	 */
-	@Deprecated
 	public static final String BLOB_SERVER_PORT = "blob.server.port";
 
-	/**
-	 * @deprecated use {@link BlobServerOptions#SSL_ENABLED} instead
-	 */
-	@Deprecated
+	/** Flag to override ssl support for the blob service transport */
 	public static final String BLOB_SERVICE_SSL_ENABLED = "blob.service.ssl.enabled";
 
 	/**
@@ -1097,33 +1094,28 @@ public final class ConfigConstants {
 	public static final int DEFAULT_RESOURCE_MANAGER_IPC_PORT = 0;
 
 	/**
-	 * @deprecated use {@link BlobServerOptions#SSL_ENABLED} instead
+	 * The default value to override ssl support for blob service transport
 	 */
-	@Deprecated
 	public static final boolean DEFAULT_BLOB_SERVICE_SSL_ENABLED = true;
 
 	/**
-	 * @deprecated use {@link BlobServerOptions#FETCH_RETRIES} instead
+	 * Default number of retries for failed BLOB fetches.
 	 */
-	@Deprecated
 	public static final int DEFAULT_BLOB_FETCH_RETRIES = 5;
 
 	/**
-	 * @deprecated use {@link BlobServerOptions#FETCH_CONCURRENT} instead
+	 * Default number of concurrent BLOB fetch operations.
 	 */
-	@Deprecated
 	public static final int DEFAULT_BLOB_FETCH_CONCURRENT = 50;
 
 	/**
-	 * @deprecated use {@link BlobServerOptions#FETCH_BACKLOG} instead
+	 * Default BLOB fetch connection backlog.
 	 */
-	@Deprecated
 	public static final int DEFAULT_BLOB_FETCH_BACKLOG = 1000;
 
 	/**
-	 * @deprecated use {@link BlobServerOptions#PORT} instead
+	 * Default BLOB server port. 0 means ephemeral port.
 	 */
-	@Deprecated
 	public static final String DEFAULT_BLOB_SERVER_PORT = "0";
 
 	/**
