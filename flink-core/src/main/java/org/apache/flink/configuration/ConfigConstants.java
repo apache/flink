@@ -1338,81 +1338,36 @@ public final class ConfigConstants {
 		key("jobmanager.web.address")
 			.noDefaultValue();
 
-	/**
-	 * The config key for the port of the JobManager web frontend.
-	 * Setting this value to {@code -1} disables the web frontend.
-	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_PORT} instead
-	 */
-	@Deprecated
+	/** The config key for the port of the JobManager web frontend.
+	 * Setting this value to {@code -1} disables the web frontend. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
 
-	/**
-	 * Default value to override SSL support for the JobManager web UI
-	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_SSL_ENABLED} instead
-	 */
-	@Deprecated
+	/** Default value to override SSL support for the JobManager web UI */
 	public static final boolean DEFAULT_JOB_MANAGER_WEB_SSL_ENABLED = true;
 
-	/**
-	 * The default number of archived jobs for the jobmanager
-	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_ARCHIVE_COUNT} instead
-	 */
-	@Deprecated
+	/** The default number of archived jobs for the jobmanager */
 	public static final int DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT = 5;
 
-	/**
-	 * By default, submitting jobs from the web-frontend is allowed.
-	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_SUBMIT_ENABLE} instead
-	 */
-	@Deprecated
+	/** By default, submitting jobs from the web-frontend is allowed. */
 	public static final boolean DEFAULT_JOB_MANAGER_WEB_SUBMIT_ENABLED = true;
 
 	/** @deprecated Config key has been deprecated. Therefore, no default value required. */
 	@Deprecated
 	public static final boolean DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_DISABLE = false;
 
-	/**
-	 * Default number of checkpoints to remember for recent history.
-	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_CHECKPOINTS_HISTORY_SIZE} instead
-	 */
-	@Deprecated
+	/** Default number of checkpoints to remember for recent history. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = 10;
 
-	/**
-	 * Time after which cached stats are cleaned up.
-	 *
-	 * @@deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_CLEANUP_INTERVAL} instead
-	 */
-	@Deprecated
+	/** Time after which cached stats are cleaned up. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL = 10 * 60 * 1000;
 
-	/**
-	 * Time after which available stats are deprecated and need to be refreshed (by resampling).
-	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_REFRESH_INTERVAL} instead
-	 */
-	@Deprecated
+	/** Time after which available stats are deprecated and need to be refreshed (by resampling). */
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL = 60 * 1000;
 
-	/**
-	 * Number of samples to take to determine back pressure.
-	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_NUM_SAMPLES} instead
-	 */
-	@Deprecated
+	/** Number of samples to take to determine back pressure. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES = 100;
 
-	/**
-	 * Delay between samples to determine back pressure.
-	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_DELAY} instead
-	 */
-	@Deprecated
+	/** Delay between samples to determine back pressure. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_DELAY = 50;
 
 	// ------------------------------ Akka Values ------------------------------
