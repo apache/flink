@@ -852,26 +852,28 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// write state data
 			Preconditions.checkState(backupFileSystem.exists(backupPath));
 
-			FileStatus[] fileStatuses = backupFileSystem.listStatus(backupPath);
-			if (fileStatuses != null) {
-				for (FileStatus fileStatus : fileStatuses) {
-					Path filePath = fileStatus.getPath();
-					String fileName = filePath.getName();
+			synchronized (this) {
+				FileStatus[] fileStatuses = backupFileSystem.listStatus(backupPath);
+				if (fileStatuses != null) {
+					for (FileStatus fileStatus : fileStatuses) {
+						Path filePath = fileStatus.getPath();
+						String fileName = filePath.getName();
 
-					if (fileName.endsWith(SST_FILE_SUFFIX)) {
-						StreamStateHandle fileHandle =
-							baseSstFiles == null ? null : baseSstFiles.get(fileName);
+						if (fileName.endsWith(SST_FILE_SUFFIX)) {
+							StreamStateHandle fileHandle =
+								baseSstFiles == null ? null : baseSstFiles.get(fileName);
 
-						if (fileHandle == null) {
-							fileHandle = materializeStateData(filePath);
+							if (fileHandle == null) {
+								fileHandle = materializeStateData(filePath);
 
-							newSstFiles.put(fileName, fileHandle);
+								newSstFiles.put(fileName, fileHandle);
+							} else {
+								oldSstFiles.put(fileName, fileHandle);
+							}
 						} else {
-							oldSstFiles.put(fileName, fileHandle);
+							StreamStateHandle fileHandle = materializeStateData(filePath);
+							miscFiles.put(fileName, fileHandle);
 						}
-					} else {
-						StreamStateHandle fileHandle = materializeStateData(filePath);
-						miscFiles.put(fileName, fileHandle);
 					}
 				}
 			}
@@ -880,7 +882,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			sstFiles.putAll(newSstFiles);
 			sstFiles.putAll(oldSstFiles);
 
-			stateBackend.materializedSstFiles.put(checkpointId, sstFiles);
+			synchronized (stateBackend.asyncSnapshotLock) {
+				stateBackend.materializedSstFiles.put(checkpointId, sstFiles);
+			}
 
 			return new RocksDBIncrementalKeyedStateHandle(stateBackend.jobId,
 				stateBackend.operatorIdentifier, stateBackend.keyGroupRange,
@@ -911,9 +915,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			if (canceled) {
 				List<StateObject> statesToDiscard = new ArrayList<>();
 
-				statesToDiscard.add(metaStateHandle);
-				statesToDiscard.addAll(miscFiles.values());
-				statesToDiscard.addAll(newSstFiles.values());
+				synchronized (this) {
+					statesToDiscard.add(metaStateHandle);
+					statesToDiscard.addAll(miscFiles.values());
+					statesToDiscard.addAll(newSstFiles.values());
+				}
 
 				try {
 					StateUtil.bestEffortDiscardAllStateObjects(statesToDiscard);
