@@ -51,11 +51,11 @@ public class TestingListener implements LeaderRetrievalListener {
 		long start = System.currentTimeMillis();
 		long curTimeout;
 
-		synchronized (lock) {
-			while (
+		while (
 				exception == null &&
-					(address == null || address.equals(oldAddress)) &&
-					(curTimeout = timeout - System.currentTimeMillis() + start) > 0) {
+				(address == null || address.equals(oldAddress)) &&
+				(curTimeout = timeout - System.currentTimeMillis() + start) > 0) {
+			synchronized (lock) {
 				try {
 					lock.wait(curTimeout);
 				} catch (InterruptedException e) {
