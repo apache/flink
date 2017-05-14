@@ -48,7 +48,7 @@ public class SerializedThrowable extends Exception implements Serializable {
 	private final String originalErrorClassName;
 	
 	/** The original stack trace, to be printed */
-	private final String fullStringifiedStackTrace;
+	private final String fullStingifiedStackTrace;
 
 	/** The original exception, not transported via serialization, 
 	 * because the class may not be part of the system class loader.
@@ -83,7 +83,7 @@ public class SerializedThrowable extends Exception implements Serializable {
 
 			// record the original exception's properties (name, stack prints)
 			this.originalErrorClassName = exception.getClass().getName();
-			this.fullStringifiedStackTrace = ExceptionUtils.stringifyException(exception);
+			this.fullStingifiedStackTrace = ExceptionUtils.stringifyException(exception);
 
 			// mimic the original exception's stack trace
 			setStackTrace(exception.getStackTrace());
@@ -106,7 +106,7 @@ public class SerializedThrowable extends Exception implements Serializable {
 			SerializedThrowable other = (SerializedThrowable) exception;
 			this.serializedException = other.serializedException;
 			this.originalErrorClassName = other.originalErrorClassName;
-			this.fullStringifiedStackTrace = other.fullStringifiedStackTrace;
+			this.fullStingifiedStackTrace = other.fullStingifiedStackTrace;
 			this.cachedException = other.cachedException;
 			this.setStackTrace(other.getStackTrace());
 			this.initCause(other.getCause());
@@ -145,13 +145,13 @@ public class SerializedThrowable extends Exception implements Serializable {
 
 	@Override
 	public void printStackTrace(PrintStream s) {
-		s.print(fullStringifiedStackTrace);
+		s.print(fullStingifiedStackTrace);
 		s.flush();
 	}
 	
 	@Override
 	public void printStackTrace(PrintWriter s) {
-		s.print(fullStringifiedStackTrace);
+		s.print(fullStingifiedStackTrace);
 		s.flush();
 	}
 	
