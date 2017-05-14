@@ -124,7 +124,7 @@ public class PrometheusReporterTest extends TestLogger {
 		Meter testMeter = new TestMeter();
 
 		String meterName = "testMeter";
-		String counterName = SCOPE_PREFIX + meterName + "_rate";
+		String counterName = SCOPE_PREFIX + meterName;
 
 		assertThat(addMetricAndPollResponse(testMeter, meterName),
 			equalTo(HELP_PREFIX + counterName + " " + getFullMetricName(meterName) + "\n" +

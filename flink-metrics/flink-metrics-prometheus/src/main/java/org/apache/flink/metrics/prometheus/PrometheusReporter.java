@@ -172,7 +172,7 @@ public class PrometheusReporter implements MetricReporter {
 	}
 
 	private Collector createGauge(final Meter meter, final String name, final String identifier, final List<String> labelNames, final List<String> labelValues) {
-		return newGauge(name + "_rate", identifier, labelNames, labelValues, new io.prometheus.client.Gauge.Child() {
+		return newGauge(name, identifier, labelNames, labelValues, new io.prometheus.client.Gauge.Child() {
 			@Override
 			public double get() {
 				return meter.getRate();

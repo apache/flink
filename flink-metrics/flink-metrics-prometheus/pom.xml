@@ -67,7 +67,7 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.nanohttpd</groupId>
+			<groupId>org.nanohttpd</groupId>
 			<artifactId>nanohttpd</artifactId>
 			<version>2.2.0</version>
 		</dependency>
@@ -100,20 +100,27 @@ under the License.
 	<build>
 		<plugins>
 			<plugin>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.4</version>
-				<configuration>
-					<descriptorRefs>
-						<descriptorRef>jar-with-dependencies</descriptorRef>
-					</descriptorRefs>
-				</configuration>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>make-assembly</id>
 						<phase>package</phase>
 						<goals>
-							<goal>single</goal>
+							<goal>shade</goal>
 						</goals>
+						<configuration>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<relocations combine.children="append">
+								<relocation>
+									<pattern>io.prometheus.client</pattern>
+									<shadedPattern>org.apache.flink.shaded.io.prometheus.client</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>fi.iki.elonen</pattern>
+									<shadedPattern>org.apache.flink.shaded.fi.iki.elonen</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>
