@@ -435,12 +435,12 @@ metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusRepor
 
 Flink metric types are mapped to Prometheus metric types as follows: 
 
-| Flink     | Prometheus | Note                                                      |
-| --------- |------------|-----------------------------------------------------------|
-| Counter   | Gauge      |Prometheus counters cannot be decremented.                 |
-| Gauge     | Gauge      |                                                           |
-| Histogram | Summary    |                                                           |
-| Meter     | Counter    |The counter only keeps track of the total number of events.|
+| Flink     | Prometheus | Note                                     |
+| --------- |------------|------------------------------------------|
+| Counter   | Gauge      |Prometheus counters cannot be decremented.|
+| Gauge     | Gauge      |                                          |
+| Histogram | Summary    |Quantiles .5, .75, .95, .98, .99 and .999 |
+| Meter     | Gauge      |The gauge exports the meter's rate.       |
 
 
 ### StatsD (org.apache.flink.metrics.statsd.StatsDReporter)

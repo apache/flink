@@ -18,8 +18,6 @@
 
 package org.apache.flink.metrics.prometheus;
 
-import com.google.common.base.CharMatcher;
-import com.google.common.collect.ImmutableList;
 import fi.iki.elonen.NanoHTTPD;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
@@ -43,6 +41,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -50,17 +50,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import static com.google.common.collect.Iterables.toArray;
-
 @PublicEvolving
 public class PrometheusReporter implements MetricReporter {
-	private static final Logger log = LoggerFactory.getLogger(PrometheusReporter.class);
+	private static final Logger LOG = LoggerFactory.getLogger(PrometheusReporter.class);
 
-	static final         String ARG_PORT     = "port";
-	private static final int    DEFAULT_PORT = 9249;
+	static final String ARG_PORT = "port";
+	private static final int DEFAULT_PORT = 9249;
 
-	private static final Pattern         UNALLOWED_CHAR_PATTERN = Pattern.compile("[^a-zA-Z0-9:_]");
-	private static final CharacterFilter CHARACTER_FILTER       = new CharacterFilter() {
+	private static final Pattern UNALLOWED_CHAR_PATTERN = Pattern.compile("[^a-zA-Z0-9:_]");
+	private static final CharacterFilter CHARACTER_FILTER = new CharacterFilter() {
 		@Override
 		public String filterCharacters(String input) {
 			return replaceInvalidChars(input);
@@ -68,9 +66,10 @@ public class PrometheusReporter implements MetricReporter {
 	};
 
 	private static final char SCOPE_SEPARATOR = '_';
+	private static final String SCOPE_PREFIX = "flink" + SCOPE_SEPARATOR;
 
 	private PrometheusEndpoint prometheusEndpoint;
-	private Map<String, Collector> collectorsByMetricName = new HashMap<>();
+	private final Map<String, Collector> collectorsByMetricName = new HashMap<>();
 
 	@VisibleForTesting
 	static String replaceInvalidChars(final String input) {
@@ -82,12 +81,14 @@ public class PrometheusReporter implements MetricReporter {
 	@Override
 	public void open(MetricConfig config) {
 		int port = config.getInteger(ARG_PORT, DEFAULT_PORT);
-		log.info("Using port {}.", port);
+		LOG.info("Using port {}.", port);
 		prometheusEndpoint = new PrometheusEndpoint(port);
 		try {
 			prometheusEndpoint.start(NanoHTTPD.SOCKET_READ_TIMEOUT, true);
 		} catch (IOException e) {
-			log.error("Could not start PrometheusEndpoint on port " + port, e);
+			final String msg = "Could not start PrometheusEndpoint on port " + port;
+			LOG.warn(msg, e);
+			throw new RuntimeException(msg, e);
 		}
 	}
 
@@ -99,11 +100,13 @@ public class PrometheusReporter implements MetricReporter {
 
 	@Override
 	public void notifyOfAddedMetric(final Metric metric, final String metricName, final MetricGroup group) {
-		final String scope = ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(CHARACTER_FILTER, SCOPE_SEPARATOR);
+		final String scope = SCOPE_PREFIX + getLogicalScope(group);
+
 		List<String> dimensionKeys = new LinkedList<>();
 		List<String> dimensionValues = new LinkedList<>();
 		for (final Map.Entry<String, String> dimension : group.getAllVariables().entrySet()) {
-			dimensionKeys.add(CHARACTER_FILTER.filterCharacters(CharMatcher.anyOf("<>").trimFrom(dimension.getKey())));
+			final String key = dimension.getKey();
+			dimensionKeys.add(CHARACTER_FILTER.filterCharacters(key.substring(1, key.length() - 1)));
 			dimensionValues.add(CHARACTER_FILTER.filterCharacters(dimension.getValue()));
 		}
 
@@ -114,12 +117,12 @@ public class PrometheusReporter implements MetricReporter {
 			collector = createGauge((Gauge) metric, validMetricName, metricIdentifier, dimensionKeys, dimensionValues);
 		} else if (metric instanceof Counter) {
 			collector = createGauge((Counter) metric, validMetricName, metricIdentifier, dimensionKeys, dimensionValues);
+		} else if (metric instanceof Meter) {
+			collector = createGauge((Meter) metric, validMetricName, metricIdentifier, dimensionKeys, dimensionValues);
 		} else if (metric instanceof Histogram) {
 			collector = createSummary((Histogram) metric, validMetricName, metricIdentifier, dimensionKeys, dimensionValues);
-		} else if (metric instanceof Meter) {
-			collector = createCounter((Meter) metric, validMetricName, metricIdentifier, dimensionKeys, dimensionValues);
 		} else {
-			log.error("Cannot add unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
+			LOG.warn("Cannot add unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
 				metric.getClass().getName());
 			return;
 		}
@@ -133,61 +136,58 @@ public class PrometheusReporter implements MetricReporter {
 		collectorsByMetricName.remove(metricName);
 	}
 
+	@SuppressWarnings("unchecked")
+	private static String getLogicalScope(MetricGroup group) {
+		return ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(CHARACTER_FILTER, SCOPE_SEPARATOR);
+	}
+
 	private Collector createGauge(final Gauge gauge, final String name, final String identifier, final List<String> labelNames, final List<String> labelValues) {
-		return io.prometheus.client.Gauge
-			.build()
-			.name(name)
-			.help(identifier)
-			.labelNames(toArray(labelNames, String.class))
-			.create()
-			.setChild(new io.prometheus.client.Gauge.Child() {
-				@Override
-				public double get() {
-					final Object value = gauge.getValue();
-					if (value instanceof Double) {
-						return (double) value;
-					}
-					if (value instanceof Number) {
-						return ((Number) value).doubleValue();
-					} else if (value instanceof Boolean) {
-						return ((Boolean) value) ? 1 : 0;
-					} else {
-						log.debug("Invalid type for Gauge {}: {}, only number types and booleans are supported by this reporter.",
-							gauge, value.getClass().getName());
-						return 0;
-					}
+		return newGauge(name, identifier, labelNames, labelValues, new io.prometheus.client.Gauge.Child() {
+			@Override
+			public double get() {
+				final Object value = gauge.getValue();
+				if (value instanceof Double) {
+					return (double) value;
 				}
-			}, toArray(labelValues, String.class));
+				if (value instanceof Number) {
+					return ((Number) value).doubleValue();
+				} else if (value instanceof Boolean) {
+					return ((Boolean) value) ? 1 : 0;
+				} else {
+					LOG.debug("Invalid type for Gauge {}: {}, only number types and booleans are supported by this reporter.",
+						gauge, value.getClass().getName());
+					return 0;
+				}
+			}
+		});
 	}
 
 	private static Collector createGauge(final Counter counter, final String name, final String identifier, final List<String> labelNames, final List<String> labelValues) {
+		return newGauge(name, identifier, labelNames, labelValues, new io.prometheus.client.Gauge.Child() {
+			@Override
+			public double get() {
+				return (double) counter.getCount();
+			}
+		});
+	}
+
+	private Collector createGauge(final Meter meter, final String name, final String identifier, final List<String> labelNames, final List<String> labelValues) {
+		return newGauge(name + "_rate", identifier, labelNames, labelValues, new io.prometheus.client.Gauge.Child() {
+			@Override
+			public double get() {
+				return meter.getRate();
+			}
+		});
+	}
+
+	private static Collector newGauge(String name, String identifier, List<String> labelNames, List<String> labelValues, io.prometheus.client.Gauge.Child child) {
 		return io.prometheus.client.Gauge
 			.build()
 			.name(name)
 			.help(identifier)
-			.labelNames(toArray(labelNames, String.class))
+			.labelNames(toArray(labelNames))
 			.create()
-			.setChild(new io.prometheus.client.Gauge.Child() {
-				@Override
-				public double get() {
-					return (double) counter.getCount();
-				}
-			}, toArray(labelValues, String.class));
-	}
-
-	private Collector createCounter(final Meter meter, final String name, final String identifier, final List<String> labelNames, final List<String> labelValues) {
-		return io.prometheus.client.Counter
-			.build()
-			.name(name + "_total")
-			.help(identifier)
-			.labelNames(toArray(labelNames, String.class))
-			.create()
-			.setChild(new io.prometheus.client.Counter.Child() {
-				@Override
-				public double get() {
-					return (double) meter.getCount();
-				}
-			}, toArray(labelValues, String.class));
+			.setChild(child, toArray(labelValues));
 	}
 
 	private static HistogramSummaryProxy createSummary(final Histogram histogram, final String name, final String identifier, final List<String> dimensionKeys, final List<String> dimensionValues) {
@@ -218,11 +218,11 @@ public class PrometheusReporter implements MetricReporter {
 	}
 
 	private static class HistogramSummaryProxy extends Collector {
-		private static final ImmutableList<Double> QUANTILES = ImmutableList.of(.5, .75, .95, .98, .99, .999);
+		private static final List<Double> QUANTILES = Arrays.asList(.5, .75, .95, .98, .99, .999);
 
-		private final Histogram    histogram;
-		private final String       metricName;
-		private final String       metricIdentifier;
+		private final Histogram histogram;
+		private final String metricName;
+		private final String metricIdentifier;
 		private final List<String> labelNamesWithQuantile;
 		private final List<String> labelValues;
 
@@ -230,7 +230,7 @@ public class PrometheusReporter implements MetricReporter {
 			this.histogram = histogram;
 			this.metricName = metricName;
 			this.metricIdentifier = metricIdentifier;
-			labelNamesWithQuantile = ImmutableList.<String>builder().addAll(labelNames).add("quantile").build();
+			this.labelNamesWithQuantile = addToList(labelNames, "quantile");
 			this.labelValues = labelValues;
 		}
 
@@ -246,11 +246,20 @@ public class PrometheusReporter implements MetricReporter {
 				labelNamesWithQuantile.subList(0, labelNamesWithQuantile.size() - 1), labelValues, histogram.getCount()));
 			for (final Double quantile : QUANTILES) {
 				samples.add(new MetricFamilySamples.Sample(metricName, labelNamesWithQuantile,
-					ImmutableList.<String>builder().addAll(labelValues).add(quantile.toString()).build(),
+					addToList(labelValues, quantile.toString()),
 					statistics.getQuantile(quantile)));
 			}
 			return Collections.singletonList(new MetricFamilySamples(metricName, Type.SUMMARY, metricIdentifier, samples));
 		}
+	}
 
+	private static List<String> addToList(List<String> list, String element) {
+		final List<String> result = new ArrayList<>(list);
+		result.add(element);
+		return result;
+	}
+
+	private static String[] toArray(List<String> labelNames) {
+		return labelNames.toArray(new String[labelNames.size()]);
 	}
 }

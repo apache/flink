@@ -47,7 +47,6 @@ import java.util.Arrays;
 
 import static org.apache.flink.metrics.prometheus.PrometheusReporter.ARG_PORT;
 import static org.apache.flink.runtime.metrics.scope.ScopeFormat.SCOPE_SEPARATOR;
-import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -55,20 +54,19 @@ import static org.junit.Assert.assertThat;
 public class PrometheusReporterTest extends TestLogger {
 	private static final int NON_DEFAULT_PORT = 9429;
 
-	private static final String HOST_NAME    = "hostname";
+	private static final String HOST_NAME = "hostname";
 	private static final String TASK_MANAGER = "tm";
 
-	private static final String HELP_PREFIX    = "# HELP ";
-	private static final String TYPE_PREFIX    = "# TYPE ";
-	private static final String DIMENSIONS     = "host=\"" + HOST_NAME + "\",tm_id=\"" + TASK_MANAGER + "\"";
+	private static final String HELP_PREFIX = "# HELP ";
+	private static final String TYPE_PREFIX = "# TYPE ";
+	private static final String DIMENSIONS = "host=\"" + HOST_NAME + "\",tm_id=\"" + TASK_MANAGER + "\"";
 	private static final String DEFAULT_LABELS = "{" + DIMENSIONS + ",}";
-	private static final String SCOPE_PREFIX   = "taskmanager_";
+	private static final String SCOPE_PREFIX = "flink_taskmanager_";
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
-	private MetricRegistry registry = prepareMetricRegistry();
-
+	private final MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter()));
 	private final MetricReporter reporter = registry.getReporters().get(0);
 
 	@Test
@@ -81,9 +79,9 @@ public class PrometheusReporterTest extends TestLogger {
 		String gaugeName = SCOPE_PREFIX + counterName;
 
 		assertThat(addMetricAndPollResponse(testCounter, counterName),
-			containsString(HELP_PREFIX + gaugeName + " " + getFullMetricName(counterName) + "\n" +
-						   TYPE_PREFIX + gaugeName + " gauge" + "\n" +
-						   gaugeName + DEFAULT_LABELS + " 7.0"));
+			equalTo(HELP_PREFIX + gaugeName + " " + getFullMetricName(counterName) + "\n" +
+				TYPE_PREFIX + gaugeName + " gauge" + "\n" +
+				gaugeName + DEFAULT_LABELS + " 7.0" + "\n"));
 	}
 
 	@Test
@@ -99,9 +97,9 @@ public class PrometheusReporterTest extends TestLogger {
 		String prometheusGaugeName = SCOPE_PREFIX + gaugeName;
 
 		assertThat(addMetricAndPollResponse(testGauge, gaugeName),
-			containsString(HELP_PREFIX + prometheusGaugeName + " " + getFullMetricName(gaugeName) + "\n" +
-						   TYPE_PREFIX + prometheusGaugeName + " gauge" + "\n" +
-						   prometheusGaugeName + DEFAULT_LABELS + " 1.0"));
+			equalTo(HELP_PREFIX + prometheusGaugeName + " " + getFullMetricName(gaugeName) + "\n" +
+				TYPE_PREFIX + prometheusGaugeName + " gauge" + "\n" +
+				prometheusGaugeName + DEFAULT_LABELS + " 1.0" + "\n"));
 	}
 
 	@Test
@@ -112,26 +110,26 @@ public class PrometheusReporterTest extends TestLogger {
 		String summaryName = SCOPE_PREFIX + histogramName;
 
 		String response = addMetricAndPollResponse(testHistogram, histogramName);
-		assertThat(response, both(containsString(HELP_PREFIX + summaryName + " " + getFullMetricName(histogramName) + "\n" +
-												 TYPE_PREFIX + summaryName + " summary" + "\n"))
-			.and(containsString(summaryName + "_count" + DEFAULT_LABELS + " 1.0")));
+		assertThat(response, containsString(HELP_PREFIX + summaryName + " " + getFullMetricName(histogramName) + "\n" +
+			TYPE_PREFIX + summaryName + " summary" + "\n" +
+			summaryName + "_count" + DEFAULT_LABELS + " 1.0" + "\n"));
 		for (String quantile : Arrays.asList("0.5", "0.75", "0.95", "0.98", "0.99", "0.999")) {
 			assertThat(response, containsString(
-				summaryName + "{" + DIMENSIONS + ",quantile=\"" + quantile + "\",} " + quantile));
+				summaryName + "{" + DIMENSIONS + ",quantile=\"" + quantile + "\",} " + quantile + "\n"));
 		}
 	}
 
 	@Test
-	public void meterTotalIsReportedAsPrometheusCounter() throws UnirestException {
+	public void meterRateIsReportedAsPrometheusGauge() throws UnirestException {
 		Meter testMeter = new TestMeter();
 
 		String meterName = "testMeter";
-		String counterName = SCOPE_PREFIX + meterName + "_total";
+		String counterName = SCOPE_PREFIX + meterName + "_rate";
 
 		assertThat(addMetricAndPollResponse(testMeter, meterName),
-			containsString(HELP_PREFIX + counterName + " " + getFullMetricName(meterName) + "\n" +
-						   TYPE_PREFIX + counterName + " counter" + "\n" +
-						   counterName + DEFAULT_LABELS + " 100.0"));
+			equalTo(HELP_PREFIX + counterName + " " + getFullMetricName(meterName) + "\n" +
+				TYPE_PREFIX + counterName + " gauge" + "\n" +
+				counterName + DEFAULT_LABELS + " 5.0" + "\n"));
 	}
 
 	@Test
@@ -171,15 +169,11 @@ public class PrometheusReporterTest extends TestLogger {
 		return HOST_NAME + SCOPE_SEPARATOR + "taskmanager" + SCOPE_SEPARATOR + TASK_MANAGER + SCOPE_SEPARATOR + metricName;
 	}
 
-	private static MetricRegistry prepareMetricRegistry() {
-		return new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter()));
-	}
-
 	private static Configuration createConfigWithOneReporter() {
 		Configuration cfg = new Configuration();
 		cfg.setString(MetricOptions.REPORTERS_LIST, "test1");
 		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." +
-					  ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, PrometheusReporter.class.getName());
+			ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, PrometheusReporter.class.getName());
 		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ARG_PORT, "" + NON_DEFAULT_PORT);
 		return cfg;
 	}
