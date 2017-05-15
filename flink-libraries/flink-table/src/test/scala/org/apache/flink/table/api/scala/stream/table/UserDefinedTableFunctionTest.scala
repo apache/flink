@@ -57,24 +57,24 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     val func1 = new TableFunc1
     javaTableEnv.registerFunction("func1", func1)
     var scalaTable = in1.join(func1('c) as 's).select('c, 's)
-    var javaTable = in2.join("func1(c).as(s)").select("c, s")
+    var javaTable = in2.join(new Table(javaTableEnv, "func1(c).as(s)")).select("c, s")
     verifyTableEquals(scalaTable, javaTable)
 
     // test left outer join
     scalaTable = in1.leftOuterJoin(func1('c) as 's).select('c, 's)
-    javaTable = in2.leftOuterJoin("as(func1(c), s)").select("c, s")
+    javaTable = in2.leftOuterJoin(new Table(javaTableEnv, "func1(c)").as("s")).select("c, s")
     verifyTableEquals(scalaTable, javaTable)
 
     // test overloading
     scalaTable = in1.join(func1('c, "$") as 's).select('c, 's)
-    javaTable = in2.join("func1(c, '$') as (s)").select("c, s")
+    javaTable = in2.join(new Table(javaTableEnv, "func1(c, '$') as (s)")).select("c, s")
     verifyTableEquals(scalaTable, javaTable)
 
     // test custom result type
     val func2 = new TableFunc2
     javaTableEnv.registerFunction("func2", func2)
     scalaTable = in1.join(func2('c) as ('name, 'len)).select('c, 'name, 'len)
-    javaTable = in2.join("func2(c).as(name, len)").select("c, name, len")
+    javaTable = in2.join(new Table(javaTableEnv, "func2(c).as(name, len)")).select("c, name, len")
     verifyTableEquals(scalaTable, javaTable)
 
     // test hierarchy generic type
@@ -82,7 +82,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     javaTableEnv.registerFunction("hierarchy", hierarchy)
     scalaTable = in1.join(hierarchy('c) as ('name, 'adult, 'len))
       .select('c, 'name, 'len, 'adult)
-    javaTable = in2.join("AS(hierarchy(c), name, adult, len)")
+    javaTable = in2.join(new Table(javaTableEnv, "AS(hierarchy(c), name, adult, len)"))
       .select("c, name, len, adult")
     verifyTableEquals(scalaTable, javaTable)
 
@@ -91,21 +91,21 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     javaTableEnv.registerFunction("pojo", pojo)
     scalaTable = in1.join(pojo('c))
       .select('c, 'name, 'age)
-    javaTable = in2.join("pojo(c)")
+    javaTable = in2.join(new Table(javaTableEnv, "pojo(c)"))
       .select("c, name, age")
     verifyTableEquals(scalaTable, javaTable)
 
     // test with filter
     scalaTable = in1.join(func2('c) as ('name, 'len))
       .select('c, 'name, 'len).filter('len > 2)
-    javaTable = in2.join("func2(c) as (name, len)")
+    javaTable = in2.join(new Table(javaTableEnv, "func2(c) as (name, len)"))
       .select("c, name, len").filter("len > 2")
     verifyTableEquals(scalaTable, javaTable)
 
     // test with scalar function
     scalaTable = in1.join(func1('c.substring(2)) as 's)
       .select('a, 'c, 's)
-    javaTable = in2.join("func1(substring(c, 2)) as (s)")
+    javaTable = in2.join(new Table(javaTableEnv, "func1(substring(c, 2)) as (s)"))
       .select("a, c, s")
     verifyTableEquals(scalaTable, javaTable)
 
@@ -114,8 +114,103 @@ class UserDefinedTableFunctionTest extends TableTestBase {
       tableEnv.registerFunction("func3", ObjectTableFunction), "Scala object")
     expectExceptionThrown(
       javaTableEnv.registerFunction("func3", ObjectTableFunction), "Scala object")
+    expectExceptionThrown(in1.join(ObjectTableFunction('a, 1)), "Scala object")
+
+  }
+
+  @Test
+  def testInvalidTableFunctions(): Unit = {
+    // mock
+    val ds = mock(classOf[DataStream[Row]])
+    val jDs = mock(classOf[JDataStream[Row]])
+    val typeInfo = new RowTypeInfo(Seq(Types.INT, Types.LONG, Types.STRING): _*)
+    when(ds.javaStream).thenReturn(jDs)
+    when(jDs.getType).thenReturn(typeInfo)
+
+    // Scala environment
+    val env = mock(classOf[ScalaExecutionEnv])
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
+    val in1 = ds.toTable(tableEnv).as('a, 'b, 'c)
+
+    // Java environment
+    val javaEnv = mock(classOf[JavaExecutionEnv])
+    val javaTableEnv = TableEnvironment.getTableEnvironment(javaEnv)
+    val in2 = javaTableEnv.fromDataStream(jDs).as("a, b, c")
+
+    val func1 = new TableFunc1
+    javaTableEnv.registerFunction("func1", func1)
+
+    // table function call select
     expectExceptionThrown(
-      in1.join(ObjectTableFunction('a, 1)), "Scala object")
+      func1('c).select("f0"),
+      "TableFunction can only be used in join and leftOuterJoin."
+    )
+
+    // table function call select
+    expectExceptionThrown(
+      func1('c).select('f0),
+      "TableFunction can only be used in join and leftOuterJoin."
+    )
+
+    // table function call writeToSink
+    expectExceptionThrown(
+      func1('c).writeToSink(null),
+      "Cannot translate a query with an unbounded table function call."
+    )
+
+    // table function call distinct
+    expectExceptionThrown(
+      func1('c).distinct(),
+      "TableFunction can only be used in join and leftOuterJoin."
+    )
+
+    // table function call filter
+    expectExceptionThrown(
+      func1('c).filter('f0 === "?"),
+      "TableFunction can only be used in join and leftOuterJoin."
+    )
+
+    // table function call filter
+    expectExceptionThrown(
+      func1('c).filter("f0 = '?'"),
+      "TableFunction can only be used in join and leftOuterJoin."
+    )
+
+    // table function call limit
+    expectExceptionThrown(
+      func1('c).orderBy('f0).limit(3),
+      "TableFunction can only be used in join and leftOuterJoin."
+    )
+
+    // table function call limit
+    expectExceptionThrown(
+      func1('c).orderBy('f0).limit(0, 3),
+      "TableFunction can only be used in join and leftOuterJoin."
+    )
+
+    // table function call orderBy
+    expectExceptionThrown(
+      func1('c).orderBy("f0"),
+      "TableFunction can only be used in join and leftOuterJoin."
+    )
+
+    // table function call orderBy
+    expectExceptionThrown(
+      func1('c).orderBy('f0),
+      "TableFunction can only be used in join and leftOuterJoin."
+    )
+
+    // table function call where
+    expectExceptionThrown(
+      func1('c).where("f0 = '?'"),
+      "TableFunction can only be used in join and leftOuterJoin."
+    )
+
+    // table function call where
+    expectExceptionThrown(
+      func1('c).where('f0 === "?"),
+      "TableFunction can only be used in join and leftOuterJoin."
+    )
 
   }
 
@@ -137,7 +232,9 @@ class UserDefinedTableFunctionTest extends TableTestBase {
 
     //============ throw exception when table function is not registered =========
     // Java Table API call
-    expectExceptionThrown(t.join("nonexist(a)"), "Undefined function: NONEXIST")
+    expectExceptionThrown(
+      t.join(new Table(util.tEnv, "nonexist(a)")
+      ), "Undefined function: NONEXIST")
     // SQL API call
     expectExceptionThrown(
       util.tEnv.sql("SELECT * FROM MyTable, LATERAL TABLE(nonexist(a))"),
@@ -145,11 +242,12 @@ class UserDefinedTableFunctionTest extends TableTestBase {
 
 
     //========= throw exception when the called function is a scalar function ====
-    util.addFunction("func0", Func0)
+    util.tEnv.registerFunction("func0", Func0)
+
     // Java Table API call
     expectExceptionThrown(
-      t.join("func0(a)"),
-      "only accept expressions that define table functions",
+      t.join(new Table(util.tEnv, "func0(a)")),
+      "only accept String that define table function",
       classOf[TableException])
     // SQL API call
     // NOTE: it doesn't throw an exception but an AssertionError, maybe a Calcite bug
@@ -162,7 +260,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     // Java Table API call
     util.addFunction("func2", new TableFunc2)
     expectExceptionThrown(
-      t.join("func2(c, c)"),
+      t.join(new Table(util.tEnv, "func2(c, c)")),
       "Given parameters of function 'FUNC2' do not match any signature")
     // SQL API call
     expectExceptionThrown(

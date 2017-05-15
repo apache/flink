@@ -43,7 +43,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.NetUtils;
@@ -56,7 +56,6 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.UUID;
@@ -66,7 +65,6 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 
 /**
  * Simple and maybe stupid test to check the {@link ClusterClient} class.
@@ -129,7 +127,9 @@ public class ClientTest extends TestLogger {
 	 */
 	@Test
 	public void testDetachedMode() throws Exception{
-		jobManagerSystem.actorOf(Props.create(SuccessReturningActor.class), JobManager.JOB_MANAGER_NAME());
+		jobManagerSystem.actorOf(
+			Props.create(SuccessReturningActor.class),
+			JobMaster.JOB_MANAGER_NAME);
 		ClusterClient out = new StandaloneClusterClient(config);
 		out.setDetached(true);
 
@@ -198,30 +198,28 @@ public class ClientTest extends TestLogger {
 	 * This test verifies correct job submission messaging logic and plan translation calls.
 	 */
 	@Test
-	public void shouldSubmitToJobClient() {
-		try {
-			jobManagerSystem.actorOf(Props.create(SuccessReturningActor.class), JobManager.JOB_MANAGER_NAME());
+	public void shouldSubmitToJobClient() throws Exception {
+		jobManagerSystem.actorOf(
+			Props.create(SuccessReturningActor.class),
+			JobMaster.JOB_MANAGER_NAME);
 
-			ClusterClient out = new StandaloneClusterClient(config);
-			out.setDetached(true);
-			JobSubmissionResult result = out.run(program.getPlanWithJars(), 1);
+		ClusterClient out = new StandaloneClusterClient(config);
+		out.setDetached(true);
+		JobSubmissionResult result = out.run(program.getPlanWithJars(), 1);
 
-			assertNotNull(result);
+		assertNotNull(result);
 
-			program.deleteExtractedLibraries();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		program.deleteExtractedLibraries();
 	}
 
 	/**
 	 * This test verifies correct that the correct exception is thrown when the job submission fails.
 	 */
 	@Test
-	public void shouldSubmitToJobClientFails() throws IOException {
-		jobManagerSystem.actorOf(Props.create(FailureReturningActor.class), JobManager.JOB_MANAGER_NAME());
+	public void shouldSubmitToJobClientFails() throws Exception {
+			jobManagerSystem.actorOf(
+				Props.create(FailureReturningActor.class),
+				JobMaster.JOB_MANAGER_NAME);
 
 		ClusterClient out = new StandaloneClusterClient(config);
 		out.setDetached(true);
@@ -245,7 +243,9 @@ public class ClientTest extends TestLogger {
 	@Test
 	public void tryLocalExecution() {
 		try {
-			jobManagerSystem.actorOf(Props.create(SuccessReturningActor.class), JobManager.JOB_MANAGER_NAME());
+			jobManagerSystem.actorOf(
+				Props.create(SuccessReturningActor.class),
+				JobMaster.JOB_MANAGER_NAME);
 			
 			PackagedProgram packagedProgramMock = mock(PackagedProgram.class);
 			when(packagedProgramMock.isUsingInteractiveMode()).thenReturn(true);
@@ -276,7 +276,9 @@ public class ClientTest extends TestLogger {
 	@Test
 	public void testGetExecutionPlan() {
 		try {
-			jobManagerSystem.actorOf(Props.create(FailureReturningActor.class), JobManager.JOB_MANAGER_NAME());
+			jobManagerSystem.actorOf(
+				Props.create(FailureReturningActor.class),
+				JobMaster.JOB_MANAGER_NAME);
 			
 			PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
 			assertNotNull(prg.getPreviewPlan());

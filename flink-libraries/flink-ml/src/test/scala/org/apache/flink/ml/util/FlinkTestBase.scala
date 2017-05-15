@@ -62,7 +62,7 @@ trait FlinkTestBase extends BeforeAndAfter {
       false,
       true)
 
-    val clusterEnvironment = new TestEnvironment(cl, parallelism)
+    val clusterEnvironment = new TestEnvironment(cl, parallelism, false)
     clusterEnvironment.setAsContext()
 
     cluster = Some(cl)
@@ -70,6 +70,8 @@ trait FlinkTestBase extends BeforeAndAfter {
 
   after {
     cluster.foreach(c => TestBaseUtils.stopCluster(c, TestBaseUtils.DEFAULT_TIMEOUT))
+
+    TestEnvironment.unsetAsContext()
   }
 
 }

@@ -83,9 +83,10 @@ public class Quantifier {
 	}
 
 	public void optional() {
-		if (hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
-			throw new MalformedPatternException("Optional already applied!");
-		}
+		checkPattern(!hasProperty(QuantifierProperty.OPTIONAL), "Optional already applied!");
+		checkPattern(!(consumingStrategy == ConsumingStrategy.NOT_NEXT ||
+					consumingStrategy == ConsumingStrategy.NOT_FOLLOW), "NOT pattern cannot be optional");
+
 		properties.add(Quantifier.QuantifierProperty.OPTIONAL);
 	}
 
@@ -120,7 +121,10 @@ public class Quantifier {
 	public enum ConsumingStrategy {
 		STRICT,
 		SKIP_TILL_NEXT,
-		SKIP_TILL_ANY
+		SKIP_TILL_ANY,
+
+		NOT_FOLLOW,
+		NOT_NEXT
 	}
 
 }

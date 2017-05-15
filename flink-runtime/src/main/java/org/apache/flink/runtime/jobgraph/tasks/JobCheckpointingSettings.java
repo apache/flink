@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobgraph.tasks;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -58,7 +59,8 @@ public class JobCheckpointingSettings implements java.io.Serializable {
 	private final StateBackend defaultStateBackend;
 
 	/** (Factories for) hooks that are executed on the checkpoint coordinator */
-	private final MasterTriggerRestoreHook.Factory[] masterHooks;
+	@Nullable
+	private final SerializedValue<MasterTriggerRestoreHook.Factory[]> masterHooks;
 
 	/**
 	 * Flag indicating whether exactly once checkpoint mode has been configured.
@@ -96,7 +98,7 @@ public class JobCheckpointingSettings implements java.io.Serializable {
 			int maxConcurrentCheckpoints,
 			ExternalizedCheckpointSettings externalizedCheckpointSettings,
 			@Nullable StateBackend defaultStateBackend,
-			@Nullable MasterTriggerRestoreHook.Factory[] masterHooks,
+			@Nullable SerializedValue<MasterTriggerRestoreHook.Factory[]> masterHooks,
 			boolean isExactlyOnce) {
 
 		// sanity checks
@@ -115,8 +117,7 @@ public class JobCheckpointingSettings implements java.io.Serializable {
 		this.externalizedCheckpointSettings = requireNonNull(externalizedCheckpointSettings);
 		this.defaultStateBackend = defaultStateBackend;
 		this.isExactlyOnce = isExactlyOnce;
-
-		this.masterHooks = masterHooks != null ? masterHooks : new MasterTriggerRestoreHook.Factory[0];
+		this.masterHooks = masterHooks;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -158,7 +159,8 @@ public class JobCheckpointingSettings implements java.io.Serializable {
 		return defaultStateBackend;
 	}
 
-	public MasterTriggerRestoreHook.Factory[] getMasterHooks() {
+	@Nullable
+	public SerializedValue<MasterTriggerRestoreHook.Factory[]> getMasterHooks() {
 		return masterHooks;
 	}
 

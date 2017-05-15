@@ -23,12 +23,11 @@ import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.functions.utils.ScalarSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getResultType, getSignature, getSignatures, signatureToString, signaturesToString}
+import org.apache.flink.table.functions.utils.ScalarSqlFunction._
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 
 import scala.collection.JavaConverters._
 
@@ -77,14 +76,14 @@ object ScalarSqlFunction {
               FlinkTypeFactory.toTypeInfo(operandType)
             }
           }
-        val foundSignature = getSignature(scalarFunction, parameters)
+        val foundSignature = getEvalMethodSignature(scalarFunction, parameters)
         if (foundSignature.isEmpty) {
           throw new ValidationException(
             s"Given parameters of function '$name' do not match any signature. \n" +
               s"Actual: ${signatureToString(parameters)} \n" +
-              s"Expected: ${signaturesToString(scalarFunction)}")
+              s"Expected: ${signaturesToString(scalarFunction, "eval")}")
         }
-        val resultType = getResultType(scalarFunction, foundSignature.get)
+        val resultType = getResultTypeOfScalarFunction(scalarFunction, foundSignature.get)
         val t = typeFactory.createTypeFromTypeInfo(resultType)
         typeFactory.createTypeWithNullability(t, nullable = true)
       }
@@ -106,7 +105,7 @@ object ScalarSqlFunction {
 
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
-        val foundSignature = getSignature(scalarFunction, operandTypeInfo)
+        val foundSignature = getEvalMethodSignature(scalarFunction, operandTypeInfo)
           .getOrElse(throw new ValidationException(s"Operand types of could not be inferred."))
 
         val inferredTypes = scalarFunction
@@ -132,14 +131,14 @@ object ScalarSqlFunction {
       scalarFunction: ScalarFunction)
     : SqlOperandTypeChecker = {
 
-    val signatures = getSignatures(scalarFunction)
+    val signatures = getMethodSignatures(scalarFunction, "eval")
 
     /**
       * Operand type checker based on [[ScalarFunction]] given information.
       */
     new SqlOperandTypeChecker {
       override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
-        s"$opName[${signaturesToString(scalarFunction)}]"
+        s"$opName[${signaturesToString(scalarFunction, "eval")}]"
       }
 
       override def getOperandCountRange: SqlOperandCountRange = {
@@ -163,14 +162,14 @@ object ScalarSqlFunction {
         : Boolean = {
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
-        val foundSignature = getSignature(scalarFunction, operandTypeInfo)
+        val foundSignature = getEvalMethodSignature(scalarFunction, operandTypeInfo)
 
         if (foundSignature.isEmpty) {
           if (throwOnFailure) {
             throw new ValidationException(
               s"Given parameters of function '$name' do not match any signature. \n" +
                 s"Actual: ${signatureToString(operandTypeInfo)} \n" +
-                s"Expected: ${signaturesToString(scalarFunction)}")
+                s"Expected: ${signaturesToString(scalarFunction, "eval")}")
           } else {
             false
           }
@@ -183,18 +182,6 @@ object ScalarSqlFunction {
 
       override def getConsistency: Consistency = Consistency.NONE
 
-    }
-  }
-
-  private[flink] def getOperandTypeInfo(callBinding: SqlCallBinding): Seq[TypeInformation[_]] = {
-    val operandTypes = for (i <- 0 until callBinding.getOperandCount)
-      yield callBinding.getOperandType(i)
-    operandTypes.map { operandType =>
-      if (operandType.getSqlTypeName == SqlTypeName.NULL) {
-        null
-      } else {
-        FlinkTypeFactory.toTypeInfo(operandType)
-      }
     }
   }
 }

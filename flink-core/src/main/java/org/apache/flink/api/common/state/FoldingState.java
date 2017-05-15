@@ -35,6 +35,9 @@ import org.apache.flink.annotation.PublicEvolving;
  * 
  * @param <T> Type of the values folded into the state
  * @param <ACC> Type of the value in the state
+ *
+ * @deprecated will be removed in a future version
  */
 @PublicEvolving
+@Deprecated
 public interface FoldingState<T, ACC> extends AppendingState<T, ACC> {}

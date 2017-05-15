@@ -25,11 +25,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-contrib</artifactId>
-		<version>1.3-SNAPSHOT</version>
+		<version>1.4-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-storm-examples_2.10</artifactId>
+	<artifactId>flink-storm-examples_${scala.binary.version}</artifactId>
 	<name>flink-storm-examples</name>
 
 	<packaging>jar</packaging>
@@ -56,19 +56,19 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-storm_2.10</artifactId>
+			<artifactId>flink-storm_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_2.10</artifactId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-batch_2.10</artifactId>
+			<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -84,6 +84,10 @@ under the License.
 					<groupId>org.apache.storm</groupId>
 					<artifactId>storm-core</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.apache.curator</groupId>
+					<artifactId>curator-framework</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -91,14 +95,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_2.10</artifactId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_2.10</artifactId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -124,7 +128,7 @@ under the License.
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-examples-batch_2.10</artifactId>
+									<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>
@@ -134,7 +138,7 @@ under the License.
 								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-storm_2.10</artifactId>
+									<artifactId>flink-storm_${scala.binary.version}</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>
@@ -322,8 +326,8 @@ under the License.
 									<!-- Storm's recursive dependencies -->
 									<include>org.yaml:snakeyaml</include>
 									<include>com.googlecode.json-simple:json-simple</include>
-									<include>org.apache.flink:flink-storm_2.10</include>
-									<include>org.apache.flink:flink-storm-examples_2.10</include>
+									<include>org.apache.flink:flink-storm_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-storm-examples_${scala.binary.version}</include>
 								</includes>
 							</artifactSet>
 							<filters>
@@ -350,7 +354,7 @@ under the License.
 									</includes>
 								</filter>
 								<filter>
-									<artifact>org.apache.flink:flink-storm-examples_2.10</artifact>
+									<artifact>org.apache.flink:flink-storm-examples_${scala.binary.version}</artifact>
 									<includes>
 										<include>org/apache/flink/storm/wordcount/WordCountRemoteBySubmitter.class
 										</include>
@@ -362,7 +366,7 @@ under the License.
 									</includes>
 								</filter>
 								<filter>
-									<artifact>org.apache.flink:flink-storm_2.10</artifact>
+									<artifact>org.apache.flink:flink-storm_${scala.binary.version}</artifact>
 									<includes>
 										<include>org/apache/flink/storm/api/*.class</include>
 										<include>org/apache/flink/storm/util/*.class</include>

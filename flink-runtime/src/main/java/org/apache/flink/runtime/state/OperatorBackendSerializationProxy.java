@@ -18,15 +18,9 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
-import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
-import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -34,23 +28,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Serialization proxy for all meta data in operator state backends. In the future we might also migrate the actual state
+ * Serialization proxy for all meta data in operator state backends. In the future we might also requiresMigration the actual state
  * serialization logic here.
  */
 public class OperatorBackendSerializationProxy extends VersionedIOReadableWritable {
 
-	private static final int VERSION = 1;
+	public static final int VERSION = 2;
 
-	private List<StateMetaInfo<?>> namedStateSerializationProxies;
+	private List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> stateMetaInfoSnapshots;
 	private ClassLoader userCodeClassLoader;
 
 	public OperatorBackendSerializationProxy(ClassLoader userCodeClassLoader) {
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 	}
 
-	public OperatorBackendSerializationProxy(List<StateMetaInfo<?>> namedStateSerializationProxies) {
-		this.namedStateSerializationProxies = Preconditions.checkNotNull(namedStateSerializationProxies);
-		Preconditions.checkArgument(namedStateSerializationProxies.size() <= Short.MAX_VALUE);
+	public OperatorBackendSerializationProxy(
+			List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> stateMetaInfoSnapshots) {
+
+		this.stateMetaInfoSnapshots = Preconditions.checkNotNull(stateMetaInfoSnapshots);
+		Preconditions.checkArgument(stateMetaInfoSnapshots.size() <= Short.MAX_VALUE);
 	}
 
 	@Override
@@ -59,129 +55,38 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 	}
 
 	@Override
+	public int[] getCompatibleVersions() {
+		// we are compatible with version 2 (Flink 1.3.x) and version 1 (Flink 1.2.x)
+		return new int[] {VERSION, 1};
+	}
+
+	@Override
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
 
-		out.writeShort(namedStateSerializationProxies.size());
-
-		for (StateMetaInfo<?> kvState : namedStateSerializationProxies) {
-			kvState.write(out);
+		out.writeShort(stateMetaInfoSnapshots.size());
+		for (RegisteredOperatorBackendStateMetaInfo.Snapshot<?> kvState : stateMetaInfoSnapshots) {
+			OperatorBackendStateMetaInfoSnapshotReaderWriters
+				.getWriterForVersion(VERSION, kvState)
+				.writeStateMetaInfo(out);
 		}
 	}
 
 	@Override
-	public void read(DataInputView out) throws IOException {
-		super.read(out);
+	public void read(DataInputView in) throws IOException {
+		super.read(in);
 
-		int numKvStates = out.readShort();
-		namedStateSerializationProxies = new ArrayList<>(numKvStates);
-		for (int i = 0; i < numKvStates; ++i) {
-			StateMetaInfo<?> stateSerializationProxy = new StateMetaInfo<>(userCodeClassLoader);
-			stateSerializationProxy.read(out);
-			namedStateSerializationProxies.add(stateSerializationProxy);
+		int numKvStates = in.readShort();
+		stateMetaInfoSnapshots = new ArrayList<>(numKvStates);
+		for (int i = 0; i < numKvStates; i++) {
+			stateMetaInfoSnapshots.add(
+				OperatorBackendStateMetaInfoSnapshotReaderWriters
+					.getReaderForVersion(getReadVersion(), userCodeClassLoader)
+					.readStateMetaInfo(in));
 		}
 	}
 
-	public List<StateMetaInfo<?>> getNamedStateSerializationProxies() {
-		return namedStateSerializationProxies;
-	}
-
-	//----------------------------------------------------------------------------------------------------------------------
-
-	public static class StateMetaInfo<S> implements IOReadableWritable {
-
-		private String name;
-		private TypeSerializer<S> stateSerializer;
-		private OperatorStateHandle.Mode mode;
-
-		private ClassLoader userClassLoader;
-
-		@VisibleForTesting
-		public StateMetaInfo(ClassLoader userClassLoader) {
-			this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
-		}
-
-		public StateMetaInfo(String name, TypeSerializer<S> stateSerializer, OperatorStateHandle.Mode mode) {
-			this.name = Preconditions.checkNotNull(name);
-			this.stateSerializer = Preconditions.checkNotNull(stateSerializer);
-			this.mode = Preconditions.checkNotNull(mode);
-		}
-
-		public String getName() {
-			return name;
-		}
-
-		public void setName(String name) {
-			this.name = name;
-		}
-
-		public TypeSerializer<S> getStateSerializer() {
-			return stateSerializer;
-		}
-
-		public void setStateSerializer(TypeSerializer<S> stateSerializer) {
-			this.stateSerializer = stateSerializer;
-		}
-
-		public OperatorStateHandle.Mode getMode() {
-			return mode;
-		}
-
-		public void setMode(OperatorStateHandle.Mode mode) {
-			this.mode = mode;
-		}
-
-		@Override
-		public void write(DataOutputView out) throws IOException {
-			out.writeUTF(getName());
-			out.writeByte(getMode().ordinal());
-			DataOutputViewStream dos = new DataOutputViewStream(out);
-			InstantiationUtil.serializeObject(dos, getStateSerializer());
-		}
-
-		@Override
-		public void read(DataInputView in) throws IOException {
-			setName(in.readUTF());
-			setMode(OperatorStateHandle.Mode.values()[in.readByte()]);
-			DataInputViewStream dis = new DataInputViewStream(in);
-			try {
-				TypeSerializer<S> stateSerializer = InstantiationUtil.deserializeObject(dis, userClassLoader);
-				setStateSerializer(stateSerializer);
-			} catch (ClassNotFoundException exception) {
-				throw new IOException(exception);
-			}
-		}
-
-		@Override
-		public boolean equals(Object o) {
-
-			if (this == o) {
-				return true;
-			}
-
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-
-			StateMetaInfo<?> metaInfo = (StateMetaInfo<?>) o;
-
-			if (!getName().equals(metaInfo.getName())) {
-				return false;
-			}
-
-			if (!getStateSerializer().equals(metaInfo.getStateSerializer())) {
-				return false;
-			}
-
-			return getMode() == metaInfo.getMode();
-		}
-
-		@Override
-		public int hashCode() {
-			int result = getName().hashCode();
-			result = 31 * result + getStateSerializer().hashCode();
-			result = 31 * result + getMode().hashCode();
-			return result;
-		}
+	public List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> getStateMetaInfoSnapshots() {
+		return stateMetaInfoSnapshots;
 	}
 }

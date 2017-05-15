@@ -25,6 +25,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamOverAggregate
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalOverWindow
+import org.apache.flink.table.plan.schema.RowSchema
 
 class DataStreamOverAggregateRule
   extends ConverterRule(
@@ -46,8 +47,8 @@ class DataStreamOverAggregateRule
       rel.getCluster,
       traitSet,
       convertInput,
-      rel.getRowType,
-      inputRowType)
+      new RowSchema(rel.getRowType),
+      new RowSchema(inputRowType))
   }
 }
 

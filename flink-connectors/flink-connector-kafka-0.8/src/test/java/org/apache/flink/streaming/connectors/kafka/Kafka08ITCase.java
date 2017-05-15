@@ -87,7 +87,7 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		final int valuesCount = 20;
 		final int startFrom = 0;
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 
 		readSequence(env, StartupMode.GROUP_OFFSETS, null, standardProps, parallelism, topic, valuesCount, startFrom);
@@ -190,7 +190,7 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		// write a sequence from 0 to 99 to each of the 3 partitions.
 		final String topicName = writeSequence("testOffsetAutocommit", 100, parallelism, 1);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		// NOTE: We are not enabling the checkpointing!
 		env.getConfig().disableSysoutLogging();
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());

@@ -509,9 +509,21 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		OperatorStateHandle opManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateManagedFuture());
 		OperatorStateHandle opRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateRawFuture());
 
+		// also snapshot legacy state, if any
+		StreamStateHandle legacyStateHandle = null;
+
+		if (operator instanceof StreamCheckpointedOperator) {
+
+			final CheckpointStreamFactory.CheckpointStateOutputStream outStream =
+					streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
+
+				((StreamCheckpointedOperator) operator).snapshotState(outStream, checkpointId, timestamp);
+				legacyStateHandle = outStream.closeAndGetHandle();
+		}
+
 		return new OperatorStateHandles(
 			0,
-			null,
+			legacyStateHandle,
 			keyedManaged != null ? Collections.singletonList(keyedManaged) : null,
 			keyedRaw != null ? Collections.singletonList(keyedRaw) : null,
 			opManaged != null ? Collections.singletonList(opManaged) : null,
@@ -523,7 +535,6 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	 * the operator implements this interface.
 	 */
 	@Deprecated
-	@SuppressWarnings("deprecation")
 	public StreamStateHandle snapshotLegacy(long checkpointId, long timestamp) throws Exception {
 
 		CheckpointStreamFactory.CheckpointStateOutputStream outStream = stateBackend.createStreamFactory(
@@ -605,15 +616,6 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	public int numEventTimeTimers() {
 		if (operator instanceof AbstractStreamOperator) {
 			return ((AbstractStreamOperator) operator).numEventTimeTimers();
-		} else {
-			throw new UnsupportedOperationException();
-		}
-	}
-
-	@VisibleForTesting
-	public int numKeysForWatermarkCallback() {
-		if (operator instanceof AbstractStreamOperator) {
-			return ((AbstractStreamOperator) operator).numKeysForWatermarkCallback();
 		} else {
 			throw new UnsupportedOperationException();
 		}

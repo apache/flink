@@ -219,7 +219,11 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			throw new ProgramInvocationException("The program execution failed" + term, e);
 		}
 		finally {
-			client.shutdown();
+			try {
+				client.shutdown();
+			} catch (Exception e) {
+				LOG.warn("Could not properly shut down the cluster client.", e);
+			}
 		}
 	}
 

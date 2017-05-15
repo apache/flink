@@ -97,8 +97,9 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	@Test
 	public void testJobWithObjectReuse() throws Exception {
 		isCollectionExecution = false;
-		
+
 		startCluster();
+
 		try {
 			// pre-submit
 			try {
@@ -109,9 +110,9 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 				e.printStackTrace();
 				Assert.fail("Pre-submit work caused an error: " + e.getMessage());
 			}
-			
+
 			// prepare the test environment
-			TestEnvironment env = new TestEnvironment(this.executor, this.parallelism);
+			TestEnvironment env = new TestEnvironment(this.executor, this.parallelism, false);
 			env.getConfig().enableObjectReuse();
 			env.setAsContext();
 
@@ -143,6 +144,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			}
 		} finally {
 			stopCluster();
+			TestEnvironment.unsetAsContext();
 		}
 	}
 
@@ -163,7 +165,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			}
 
 			// prepare the test environment
-			TestEnvironment env = new TestEnvironment(this.executor, this.parallelism);
+			TestEnvironment env = new TestEnvironment(this.executor, this.parallelism, false);
 			env.getConfig().disableObjectReuse();
 			env.setAsContext();
 
@@ -195,6 +197,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			}
 		} finally {
 			stopCluster();
+			TestEnvironment.unsetAsContext();
 		}
 	}
 	
@@ -231,6 +234,8 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			System.err.println(e.getMessage());
 			e.printStackTrace();
 			Assert.fail("Error while calling the test program: " + e.getMessage());
+		} finally {
+			CollectionTestEnvironment.unsetAsContext();
 		}
 		
 		Assert.assertNotNull("The test program never triggered an execution.", this.latestExecutionResult);

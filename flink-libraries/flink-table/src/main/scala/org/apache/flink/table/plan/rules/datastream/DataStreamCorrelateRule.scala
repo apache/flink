@@ -25,6 +25,7 @@ import org.apache.calcite.rex.RexNode
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamCorrelate
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
+import org.apache.flink.table.plan.schema.RowSchema
 
 class DataStreamCorrelateRule
   extends ConverterRule(
@@ -68,11 +69,12 @@ class DataStreamCorrelateRule
           new DataStreamCorrelate(
             rel.getCluster,
             traitSet,
+            new RowSchema(convInput.getRowType),
             convInput,
             scan,
             condition,
-            rel.getRowType,
-            join.getRowType,
+            new RowSchema(rel.getRowType),
+            new RowSchema(join.getRowType),
             join.getJoinType,
             description)
       }

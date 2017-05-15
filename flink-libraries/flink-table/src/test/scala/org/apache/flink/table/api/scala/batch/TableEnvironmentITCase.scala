@@ -28,6 +28,7 @@ import org.apache.flink.table.api.scala.batch.utils.{TableProgramsCollectionTest
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.types.Row
 import org.apache.flink.table.api.{TableEnvironment, TableException}
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
 import org.junit.runner.RunWith
@@ -205,16 +206,6 @@ class TableEnvironmentITCase(
       "SomeCaseClass(Lucy,42,6000.0,HR)\n"
     val results = t.toDataSet[SomeCaseClass].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test(expected = classOf[TableException])
-  def testToTableWithToFewFields(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    CollectionDataSets.get3TupleDataSet(env)
-      // Must fail. Number of fields does not match.
-      .toTable(tEnv, 'a, 'b)
   }
 
   @Test(expected = classOf[TableException])

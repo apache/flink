@@ -19,36 +19,16 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.util.TestLogger
-import org.junit.Test
-import org.scalatest.junit.{JUnitSuiteLike, JUnitSuite}
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase
 
-class OptionTypeInfoTest extends TestLogger with JUnitSuiteLike {
+/**
+  * Test for [[OptionTypeInfo]].
+  */
+class OptionTypeInfoTest extends TypeInformationTestBase[OptionTypeInfo[_, _]] {
 
-  @Test
-  def testOptionTypeEquality: Unit = {
-    val optionTypeInfo1 = new OptionTypeInfo[Integer, Option[Integer]](BasicTypeInfo.INT_TYPE_INFO)
-    val optionTypeInfo2 = new OptionTypeInfo[Integer, Option[Integer]](BasicTypeInfo.INT_TYPE_INFO)
-
-    assert(optionTypeInfo1.equals(optionTypeInfo2))
-    assert(optionTypeInfo1.hashCode == optionTypeInfo2.hashCode)
-  }
-
-  @Test
-  def testOptionTypeInequality: Unit = {
-    val optionTypeInfo1 = new OptionTypeInfo[Integer, Option[Integer]](BasicTypeInfo.INT_TYPE_INFO)
-    val optionTypeInfo2 = new OptionTypeInfo[String, Option[String]](BasicTypeInfo.STRING_TYPE_INFO)
-
-    assert(!optionTypeInfo1.equals(optionTypeInfo2))
-  }
-
-  @Test
-  def testOptionTypeInequalityWithDifferentType: Unit = {
-    val optionTypeInfo = new OptionTypeInfo[Integer, Option[Integer]](BasicTypeInfo.INT_TYPE_INFO)
-    val genericTypeInfo = new GenericTypeInfo[Double](Double.getClass.asInstanceOf[Class[Double]])
-
-    assert(!optionTypeInfo.equals(genericTypeInfo))
-  }
+  override protected def getTestData: Array[OptionTypeInfo[_, _]] = Array(
+    new OptionTypeInfo[Integer, Option[Integer]](BasicTypeInfo.INT_TYPE_INFO),
+    new OptionTypeInfo[String, Option[String]](BasicTypeInfo.STRING_TYPE_INFO)
+  )
 }
 

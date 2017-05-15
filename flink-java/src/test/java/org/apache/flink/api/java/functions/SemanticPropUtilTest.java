@@ -324,7 +324,7 @@ public class SemanticPropUtilTest {
 	// --------------------------------------------------------------------------------------------
 
 	@Test
-	public void testForwardedNoArrrowIndividualStrings() {
+	public void testForwardedNoArrowIndividualStrings() {
 		String[] forwardedFields = {"f2","f3","f0"};
 		SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsSingleFromString(sp, forwardedFields, null, null, fiveIntTupleType, fiveIntTupleType);
@@ -335,7 +335,7 @@ public class SemanticPropUtilTest {
 	}
 
 	@Test
-	public void testForwardedNoArrrowOneString() {
+	public void testForwardedNoArrowOneString() {
 		String[] forwardedFields = {"f2;f3;f0"};
 		SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsSingleFromString(sp, forwardedFields, null, null, fiveIntTupleType, fiveIntTupleType);
@@ -360,7 +360,7 @@ public class SemanticPropUtilTest {
 	}
 
 	@Test
-	public void testForwardedNoArrrowSpaces() {
+	public void testForwardedNoArrowSpaces() {
 		String[] forwardedFields = {"  f2  ;   f3  ;  f0   "};
 		SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsSingleFromString(sp, forwardedFields, null, null, fiveIntTupleType, fiveIntTupleType);
@@ -1219,11 +1219,11 @@ public class SemanticPropUtilTest {
 
 	@Test
 	public void testNonForwardedDual() {
-		String[] nonNorwardedFieldsFirst = { "f1;f2" };
-		String[] nonNorwardedFieldsSecond = { "f0" };
+		String[] nonForwardedFieldsFirst = { "f1;f2" };
+		String[] nonForwardedFieldsSecond = { "f0" };
 		DualInputSemanticProperties dsp = new DualInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsDualFromString(dsp, null, null,
-				nonNorwardedFieldsFirst, nonNorwardedFieldsSecond, null, null, threeIntTupleType, threeIntTupleType, threeIntTupleType);
+				nonForwardedFieldsFirst, nonForwardedFieldsSecond, null, null, threeIntTupleType, threeIntTupleType, threeIntTupleType);
 
 		assertTrue(dsp.getForwardingTargetFields(0, 0).contains(0));
 		assertTrue(dsp.getForwardingTargetFields(0, 1).size() == 0);
@@ -1232,11 +1232,11 @@ public class SemanticPropUtilTest {
 		assertTrue(dsp.getForwardingTargetFields(1, 1).contains(1));
 		assertTrue(dsp.getForwardingTargetFields(1, 2).contains(2));
 
-		nonNorwardedFieldsFirst[0] = "f1";
-		nonNorwardedFieldsSecond[0] = "";
+		nonForwardedFieldsFirst[0] = "f1";
+		nonForwardedFieldsSecond[0] = "";
 		dsp = new DualInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsDualFromString(dsp, null, null,
-				nonNorwardedFieldsFirst, null, null, null, threeIntTupleType, fiveIntTupleType, threeIntTupleType);
+				nonForwardedFieldsFirst, null, null, null, threeIntTupleType, fiveIntTupleType, threeIntTupleType);
 
 		assertTrue(dsp.getForwardingTargetFields(0, 0).contains(0));
 		assertTrue(dsp.getForwardingTargetFields(0, 1).size() == 0);
@@ -1245,11 +1245,11 @@ public class SemanticPropUtilTest {
 		assertTrue(dsp.getForwardingTargetFields(1, 1).size() == 0);
 		assertTrue(dsp.getForwardingTargetFields(1, 2).size() == 0);
 
-		nonNorwardedFieldsFirst[0] = "";
-		nonNorwardedFieldsSecond[0] = "f2;f0";
+		nonForwardedFieldsFirst[0] = "";
+		nonForwardedFieldsSecond[0] = "f2;f0";
 		dsp = new DualInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsDualFromString(dsp, null, null,
-				null, nonNorwardedFieldsSecond, null, null, fiveIntTupleType, threeIntTupleType, threeIntTupleType);
+				null, nonForwardedFieldsSecond, null, null, fiveIntTupleType, threeIntTupleType, threeIntTupleType);
 
 		assertTrue(dsp.getForwardingTargetFields(0, 0).size() == 0);
 		assertTrue(dsp.getForwardingTargetFields(0, 1).size() == 0);
@@ -1283,19 +1283,19 @@ public class SemanticPropUtilTest {
 	@Test(expected = InvalidSemanticAnnotationException.class)
 	public void testNonForwardedDualInvalidTypes1() {
 
-		String[] nonNorwardedFieldsFirst = { "f1" };
+		String[] nonForwardedFieldsFirst = { "f1" };
 		DualInputSemanticProperties dsp = new DualInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsDualFromString(dsp, null, null,
-				nonNorwardedFieldsFirst, null, null, null, fiveIntTupleType, threeIntTupleType, threeIntTupleType);
+				nonForwardedFieldsFirst, null, null, null, fiveIntTupleType, threeIntTupleType, threeIntTupleType);
 	}
 
 	@Test(expected = InvalidSemanticAnnotationException.class)
 	public void testNonForwardedDualInvalidTypes2() {
 
-		String[] nonNorwardedFieldsSecond = { "f1" };
+		String[] nonForwardedFieldsSecond = { "f1" };
 		DualInputSemanticProperties dsp = new DualInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsDualFromString(dsp, null, null,
-				null, nonNorwardedFieldsSecond, null, null, threeIntTupleType, pojoInTupleType, threeIntTupleType);
+				null, nonForwardedFieldsSecond, null, null, threeIntTupleType, pojoInTupleType, threeIntTupleType);
 	}
 
 	@Test

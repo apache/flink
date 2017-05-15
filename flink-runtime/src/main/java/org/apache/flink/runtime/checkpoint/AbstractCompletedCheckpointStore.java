@@ -20,6 +20,8 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.state.SharedStateRegistry;
 
+import java.util.concurrent.Executor;
+
 /**
  * This is the base class that provides implementation of some aspects common for all
  * {@link CompletedCheckpointStore}s.
@@ -33,5 +35,9 @@ public abstract class AbstractCompletedCheckpointStore implements CompletedCheck
 
 	public AbstractCompletedCheckpointStore() {
 		this.sharedStateRegistry = new SharedStateRegistry();
+	}
+
+	public AbstractCompletedCheckpointStore(Executor asyncIOExecutor) {
+		this.sharedStateRegistry = new SharedStateRegistry(asyncIOExecutor);
 	}
 }

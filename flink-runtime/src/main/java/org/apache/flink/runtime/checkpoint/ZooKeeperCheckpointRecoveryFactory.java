@@ -55,7 +55,7 @@ public class ZooKeeperCheckpointRecoveryFactory implements CheckpointRecoveryFac
 
 	@Override
 	public void stop() {
-		client.close();
+		// Nothing to do
 	}
 
 	@Override
