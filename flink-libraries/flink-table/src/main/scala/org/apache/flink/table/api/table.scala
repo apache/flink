@@ -906,14 +906,15 @@ class GroupedTable(
     * }}}
     */
   def select(fields: Expression*): Table = {
-    val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
+    val expandedFields = expandProjectList(fields, table.logicalPlan, table.tableEnv)
+    val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, table.tableEnv)
     if (propNames.nonEmpty) {
       throw ValidationException("Window properties can only be used on windowed tables.")
     }
 
     val projectsOnAgg = replaceAggregationsAndProperties(
-      fields, table.tableEnv, aggNames, propNames)
-    val projectFields = extractFieldReferences(fields ++ groupKey)
+      expandedFields, table.tableEnv, aggNames, propNames)
+    val projectFields = extractFieldReferences(expandedFields ++ groupKey)
 
     new Table(table.tableEnv,
       Project(projectsOnAgg,
@@ -1034,14 +1035,13 @@ class WindowGroupedTable(
     * }}}
     */
   def select(fields: Expression*): Table = {
-    // get group keys by removing window alias
-
-    val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
+    val expandedFields = expandProjectList(fields, table.logicalPlan, table.tableEnv)
+    val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, table.tableEnv)
 
     val projectsOnAgg = replaceAggregationsAndProperties(
-      fields, table.tableEnv, aggNames, propNames)
+      expandedFields, table.tableEnv, aggNames, propNames)
 
-    val projectFields = extractFieldReferences(fields ++ groupKeys :+ window.timeField)
+    val projectFields = extractFieldReferences(expandedFields ++ groupKeys :+ window.timeField)
 
     new Table(table.tableEnv,
       Project(

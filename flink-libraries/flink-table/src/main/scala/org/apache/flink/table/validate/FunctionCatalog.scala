@@ -21,14 +21,14 @@ package org.apache.flink.table.validate
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 
-import scala.collection.JavaConversions._
-import scala.collection.mutable
-import scala.util.{Failure, Success, Try}
+import _root_.scala.collection.JavaConversions._
+import _root_.scala.collection.mutable
+import _root_.scala.util.{Failure, Success, Try}
 
 /**
   * A catalog for looking up (user-defined) functions, used during validation phases
@@ -150,10 +150,6 @@ object FunctionCatalog {
 
   val builtInFunctions: Map[String, Class[_]] = Map(
 
-//    SqlStdOperatorTable.AS,
-//    SqlStdOperatorTable.DIVIDE_INTEGER,
-//    SqlStdOperatorTable.DOT,
-
     // logic
     "and" -> classOf[And],
     "or" -> classOf[Or],
@@ -194,7 +190,6 @@ object FunctionCatalog {
     "similar" -> classOf[Similar],
     "substring" -> classOf[Substring],
     "trim" -> classOf[Trim],
-    // duplicate functions for calcite
     "upper" -> classOf[Upper],
     "upperCase" -> classOf[Upper],
     "position" -> classOf[Position],
@@ -240,13 +235,18 @@ object FunctionCatalog {
     "dateTimePlus" -> classOf[Plus],
 
     // array
+    "array" -> classOf[ArrayConstructor],
     "cardinality" -> classOf[ArrayCardinality],
     "at" -> classOf[ArrayElementAt],
-    "element" -> classOf[ArrayElement]
+    "element" -> classOf[ArrayElement],
 
-    // TODO implement function overloading here
-    // "floor" -> classOf[TemporalFloor]
-    // "ceil" -> classOf[TemporalCeil]
+    // window properties
+    "start" -> classOf[WindowStart],
+    "end" -> classOf[WindowEnd],
+
+    // ordering
+    "asc" -> classOf[Asc],
+    "desc" -> classOf[Desc]
   )
 
   /**
