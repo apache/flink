@@ -35,12 +35,11 @@ class WindowAggregateTest extends TableTestBase {
     * OVER clause is necessary for [[OverAgg0]] window function.
     */
   @Test(expected = classOf[ValidationException])
-  def testOverAggregation() = {
+  def testOverAggregation(): Unit = {
     streamUtil.addFunction("overAgg", new OverAgg0)
 
     val sqlQuery = "SELECT overAgg(c, a) FROM MyTable"
-
-    streamUtil.verifySql(sqlQuery, "n/a")
+    streamUtil.tEnv.sql(sqlQuery)
   }
 
   @Test

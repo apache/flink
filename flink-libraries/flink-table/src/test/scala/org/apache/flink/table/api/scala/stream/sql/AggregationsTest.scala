@@ -37,6 +37,6 @@ class AggregationsTest extends TableTestBase {
 
     val sqlQuery = "SELECT overAgg(c, a) FROM MyTable"
 
-    streamUtil.verifySql(sqlQuery, "n/a")
+    streamUtil.tEnv.sql(sqlQuery)
   }
 }

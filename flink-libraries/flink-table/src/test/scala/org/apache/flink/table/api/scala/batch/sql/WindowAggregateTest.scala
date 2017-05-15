@@ -42,7 +42,7 @@ class WindowAggregateTest extends TableTestBase {
 
     val sqlQuery = "SELECT overAgg(b, a) FROM T GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)"
 
-    util.verifySql(sqlQuery, "n/a")
+    util.tEnv.sql(sqlQuery)
   }
 
   @Test

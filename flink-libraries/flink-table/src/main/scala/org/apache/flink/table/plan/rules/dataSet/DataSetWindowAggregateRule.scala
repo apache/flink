@@ -49,14 +49,6 @@ class DataSetWindowAggregateRule
       throw TableException("GROUPING SETS are currently not supported.")
     }
 
-    // check if we have over aggregates
-    val overAggNames =
-      agg.getAggCallList.filter(_.getAggregation.requiresOver()).map(_.getAggregation.getName)
-    if (overAggNames.size > 0) {
-      val msgs = overAggNames.foldLeft("")((msg, name) => msg.concat("[").concat(name).concat("]"))
-      throw TableException(s"OVER clause is necessary for window functions: [${msgs}].")
-    }
-
     !distinctAggs && !groupSets && !agg.indicator
   }
 

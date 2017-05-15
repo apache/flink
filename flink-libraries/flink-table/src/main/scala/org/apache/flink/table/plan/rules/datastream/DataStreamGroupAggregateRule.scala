@@ -49,14 +49,6 @@ class DataStreamGroupAggregateRule
       throw TableException("DISTINCT aggregates are currently not supported.")
     }
 
-    // check if we have over aggregates
-    val overAggNames =
-      agg.getAggCallList.filter(_.getAggregation.requiresOver()).map(_.getAggregation.getName)
-    if (overAggNames.size > 0) {
-      val msgs = overAggNames.foldLeft("")((msg, name) => msg.concat("[").concat(name).concat("]"))
-      throw TableException(s"OVER clause is necessary for window functions: [${msgs}].")
-    }
-
     // check if we have grouping sets
     val groupSets = agg.getGroupSets.size() != 1 || agg.getGroupSets.get(0) != agg.getGroupSet
     if (groupSets || agg.indicator) {

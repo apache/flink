@@ -215,7 +215,7 @@ case class Aggregate(
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
-
+    implicit val relBuilder: RelBuilder = tableEnv.getRelBuilder
     val resolvedAggregate = super.validate(tableEnv).asInstanceOf[Aggregate]
     val groupingExprs = resolvedAggregate.groupingExpressions
     val aggregateExprs = resolvedAggregate.aggregateExpressions
@@ -223,6 +223,10 @@ case class Aggregate(
     groupingExprs.foreach(validateGroupingExpression)
 
     def validateAggregateExpression(expr: Expression): Unit = expr match {
+       // check aggregate function
+      case aggExpr: Aggregation
+        if aggExpr.getSqlAggFunction.requiresOver =>
+        failValidation(s"OVER clause is necessary for window functions: [${aggExpr.getClass}].")
       // check no nested aggregation exists.
       case aggExpr: Aggregation =>
         aggExpr.children.foreach { child =>
@@ -584,6 +588,7 @@ case class WindowAggregate(
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    implicit val relBuilder: RelBuilder = tableEnv.getRelBuilder
     val resolvedWindowAggregate = super.validate(tableEnv).asInstanceOf[WindowAggregate]
     val groupingExprs = resolvedWindowAggregate.groupingExpressions
     val aggregateExprs = resolvedWindowAggregate.aggregateExpressions
@@ -591,6 +596,10 @@ case class WindowAggregate(
     groupingExprs.foreach(validateGroupingExpression)
 
     def validateAggregateExpression(expr: Expression): Unit = expr match {
+      // check aggregate function
+      case aggExpr: Aggregation
+        if aggExpr.getSqlAggFunction.requiresOver =>
+        failValidation(s"OVER clause is necessary for window functions: [${aggExpr.getClass}].")
       // check no nested aggregation exists.
       case aggExpr: Aggregation =>
         aggExpr.children.foreach { child =>

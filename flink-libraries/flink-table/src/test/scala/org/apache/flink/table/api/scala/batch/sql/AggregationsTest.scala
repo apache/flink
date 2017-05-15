@@ -38,7 +38,6 @@ class AggregationsTest extends TableTestBase {
     util.addFunction("overAgg", new OverAgg0)
 
     val sqlQuery = "SELECT overAgg(b, a) FROM T"
-
-    util.verifySql(sqlQuery, "n/a")
+    util.tEnv.sql(sqlQuery)
   }
 }

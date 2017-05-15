@@ -21,7 +21,6 @@ package org.apache.flink.table.plan.rules.dataSet
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.{DataSetAggregate, DataSetUnion}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalAggregate
@@ -50,13 +49,6 @@ class DataSetAggregateRule
       agg.getRowType.equals(agg.getInput.getRowType) &&
       agg.getGroupSets.size() == 1) {
       return false
-    }
-    // check if we have over aggregates
-    val overAggNames =
-      agg.getAggCallList.filter(_.getAggregation.requiresOver()).map(_.getAggregation.getName)
-    if (overAggNames.size > 0) {
-      val msgs = overAggNames.foldLeft("")((msg, name) => msg.concat("[").concat(name).concat("]"))
-      throw TableException(s"OVER clause is necessary for window functions: [${msgs}].")
     }
 
     // check if we have distinct aggregates
