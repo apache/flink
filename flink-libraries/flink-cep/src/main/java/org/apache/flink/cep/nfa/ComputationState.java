@@ -40,6 +40,8 @@ public class ComputationState<T> {
 	// the last taken event
 	private final T event;
 
+	private final int counter;
+
 	// timestamp of the last taken event
 	private final long timestamp;
 
@@ -58,16 +60,22 @@ public class ComputationState<T> {
 			final State<T> currentState,
 			final State<T> previousState,
 			final T event,
+			final int counter,
 			final long timestamp,
 			final DeweyNumber version,
 			final long startTimestamp) {
 		this.state = currentState;
 		this.event = event;
+		this.counter = counter;
 		this.timestamp = timestamp;
 		this.version = version;
 		this.startTimestamp = startTimestamp;
 		this.previousState = previousState;
 		this.conditionContext = new ConditionContext(nfa, this);
+	}
+
+	public int getCounter() {
+		return counter;
 	}
 
 	public ConditionContext getConditionContext() {
@@ -108,12 +116,12 @@ public class ComputationState<T> {
 
 	public static <T> ComputationState<T> createStartState(final NFA<T> nfa, final State<T> state) {
 		Preconditions.checkArgument(state.isStart());
-		return new ComputationState<>(nfa, state, null, null, -1L, new DeweyNumber(1), -1L);
+		return new ComputationState<>(nfa, state, null, null, 0, -1L, new DeweyNumber(1), -1L);
 	}
 
 	public static <T> ComputationState<T> createStartState(final NFA<T> nfa, final State<T> state, final DeweyNumber version) {
 		Preconditions.checkArgument(state.isStart());
-		return new ComputationState<>(nfa, state, null, null, -1L, version, -1L);
+		return new ComputationState<>(nfa, state, null, null, 0, -1L, version, -1L);
 	}
 
 	public static <T> ComputationState<T> createState(
@@ -121,10 +129,11 @@ public class ComputationState<T> {
 			final State<T> currentState,
 			final State<T> previousState,
 			final T event,
+			final int counter,
 			final long timestamp,
 			final DeweyNumber version,
 			final long startTimestamp) {
-		return new ComputationState<>(nfa, currentState, previousState, event, timestamp, version, startTimestamp);
+		return new ComputationState<>(nfa, currentState, previousState, event, counter, timestamp, version, startTimestamp);
 	}
 
 	public boolean isStopState() {

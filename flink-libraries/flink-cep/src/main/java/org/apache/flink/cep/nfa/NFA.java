@@ -210,7 +210,8 @@ public class NFA<T> implements Serializable {
 				stringSharedBuffer.release(
 						computationState.getPreviousState().getName(),
 						computationState.getEvent(),
-						computationState.getTimestamp());
+						computationState.getTimestamp(),
+						computationState.getCounter());
 
 				newComputationStates = Collections.emptyList();
 			} else if (event != null) {
@@ -218,7 +219,6 @@ public class NFA<T> implements Serializable {
 			} else {
 				newComputationStates = Collections.singleton(computationState);
 			}
-
 
 			//delay adding new computation states in case a stop state is reached and we discard the path.
 			final Collection<ComputationState<T>> statesToRetain = new ArrayList<>();
@@ -234,14 +234,16 @@ public class NFA<T> implements Serializable {
 					stringSharedBuffer.release(
 							newComputationState.getPreviousState().getName(),
 							newComputationState.getEvent(),
-							newComputationState.getTimestamp());
+							newComputationState.getTimestamp(),
+							computationState.getCounter());
 				} else if (newComputationState.isStopState()) {
 					//reached stop state. release entry for the stop state
 					shouldDiscardPath = true;
 					stringSharedBuffer.release(
 						newComputationState.getPreviousState().getName(),
 						newComputationState.getEvent(),
-						newComputationState.getTimestamp());
+						newComputationState.getTimestamp(),
+						computationState.getCounter());
 				} else {
 					// add new computation state; it will be processed once the next event arrives
 					statesToRetain.add(newComputationState);
@@ -255,7 +257,8 @@ public class NFA<T> implements Serializable {
 					stringSharedBuffer.release(
 						state.getPreviousState().getName(),
 						state.getEvent(),
-						state.getTimestamp());
+						state.getTimestamp(),
+						state.getCounter());
 				}
 			} else {
 				computationStates.addAll(statesToRetain);
@@ -419,6 +422,7 @@ public class NFA<T> implements Serializable {
 								edge.getTargetState(),
 								computationState.getPreviousState(),
 								computationState.getEvent(),
+								computationState.getCounter(),
 								computationState.getTimestamp(),
 								version,
 								computationState.getStartTimestamp()
@@ -437,23 +441,25 @@ public class NFA<T> implements Serializable {
 					final DeweyNumber nextVersion = new DeweyNumber(currentVersion).addStage().increase(takeBranchesToVisit);
 					takeBranchesToVisit--;
 
+					final int counter;
 					final long startTimestamp;
 					if (computationState.isStartState()) {
 						startTimestamp = timestamp;
-						stringSharedBuffer.put(
+						counter = stringSharedBuffer.put(
 							currentState.getName(),
 							event,
 							timestamp,
 							currentVersion);
 					} else {
 						startTimestamp = computationState.getStartTimestamp();
-						stringSharedBuffer.put(
+						counter = stringSharedBuffer.put(
 							currentState.getName(),
 							event,
 							timestamp,
 							previousState.getName(),
 							previousEvent,
 							computationState.getTimestamp(),
+							computationState.getCounter(),
 							currentVersion);
 					}
 
@@ -462,6 +468,7 @@ public class NFA<T> implements Serializable {
 							nextState,
 							currentState,
 							event,
+							counter,
 							timestamp,
 							nextVersion,
 							startTimestamp);
@@ -474,6 +481,7 @@ public class NFA<T> implements Serializable {
 								finalState,
 								currentState,
 								event,
+								counter,
 								timestamp,
 								nextVersion,
 								startTimestamp);
@@ -497,7 +505,8 @@ public class NFA<T> implements Serializable {
 			stringSharedBuffer.release(
 				computationState.getPreviousState().getName(),
 				computationState.getEvent(),
-				computationState.getTimestamp());
+				computationState.getTimestamp(),
+				computationState.getCounter());
 		}
 
 		return resultingComputationStates;
@@ -508,13 +517,14 @@ public class NFA<T> implements Serializable {
 			State<T> currentState,
 			State<T> previousState,
 			T event,
+			int counter,
 			long timestamp,
 			DeweyNumber version,
 			long startTimestamp) {
 		ComputationState<T> computationState = ComputationState.createState(
-				this, currentState, previousState, event, timestamp, version, startTimestamp);
+				this, currentState, previousState, event, counter, timestamp, version, startTimestamp);
 		computationStates.add(computationState);
-		stringSharedBuffer.lock(previousState.getName(), event, timestamp);
+		stringSharedBuffer.lock(previousState.getName(), event, timestamp, counter);
 	}
 
 	private State<T> findFinalStateAfterProceed(State<T> state, T event, ComputationState<T> computationState) {
@@ -603,6 +613,7 @@ public class NFA<T> implements Serializable {
 				computationState.getPreviousState().getName(),
 				computationState.getEvent(),
 				computationState.getTimestamp(),
+				computationState.getCounter(),
 				computationState.getVersion());
 
 		// for a given computation state, we cannot have more than one matching patterns.
@@ -723,6 +734,7 @@ public class NFA<T> implements Serializable {
 					convertedStates.get(currentName),
 					previousState,
 					readState.getEvent(),
+					0,
 					readState.getTimestamp(),
 					readState.getVersion(),
 					readState.getStartTimestamp()
@@ -790,7 +802,7 @@ public class NFA<T> implements Serializable {
 			event = null;
 		}
 
-		return ComputationState.createState(this, state, previousState, event, timestamp, version, startTimestamp);
+		return ComputationState.createState(this, state, previousState, event, 0, timestamp, version, startTimestamp);
 	}
 
 	//////////////////////			Serialization			//////////////////////

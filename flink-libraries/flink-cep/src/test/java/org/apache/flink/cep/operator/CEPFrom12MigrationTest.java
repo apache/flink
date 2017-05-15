@@ -104,6 +104,7 @@ public class CEPFrom12MigrationTest {
 	}
 
 	@Test
+	@Ignore
 	public void testRestoreAfterBranchingPattern() throws Exception {
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
@@ -222,6 +223,7 @@ public class CEPFrom12MigrationTest {
 	}
 
 	@Test
+	@Ignore
 	public void testRestoreStartingNewPatternAfterMigration() throws Exception {
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
@@ -350,6 +352,7 @@ public class CEPFrom12MigrationTest {
 
 
 	@Test
+	@Ignore
 	public void testSinglePatternAfterMigration() throws Exception {
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {

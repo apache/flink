@@ -72,25 +72,27 @@ public class SharedBufferTest extends TestLogger {
 		expectedPattern3.put("a[]", events[6]);
 		expectedPattern3.put("b", events[7]);
 
-		sharedBuffer.put("a1", events[0], timestamp, null, null, 0, DeweyNumber.fromString("1"));
-		sharedBuffer.put("a[]", events[1], timestamp, "a1", events[0], timestamp, DeweyNumber.fromString("1.0"));
-		sharedBuffer.put("a1", events[2], timestamp, null, null, 0, DeweyNumber.fromString("2"));
-		sharedBuffer.put("a[]", events[2], timestamp, "a[]", events[1], timestamp, DeweyNumber.fromString("1.0"));
-		sharedBuffer.put("a[]", events[3], timestamp, "a[]", events[2], timestamp, DeweyNumber.fromString("1.0"));
-		sharedBuffer.put("a[]", events[3], timestamp, "a1", events[2], timestamp, DeweyNumber.fromString("2.0"));
-		sharedBuffer.put("a[]", events[4], timestamp, "a[]", events[3], timestamp, DeweyNumber.fromString("1.0"));
-		sharedBuffer.put("a[]", events[5], timestamp, "a[]", events[4], timestamp, DeweyNumber.fromString("1.1"));
-		sharedBuffer.put("b", events[5], timestamp, "a[]", events[3], timestamp, DeweyNumber.fromString("2.0.0"));
-		sharedBuffer.put("b", events[5], timestamp, "a[]", events[4], timestamp, DeweyNumber.fromString("1.0.0"));
-		sharedBuffer.put("a[]", events[6], timestamp, "a[]", events[5], timestamp, DeweyNumber.fromString("1.1"));
-		sharedBuffer.put("b", events[7], timestamp, "a[]", events[6], timestamp, DeweyNumber.fromString("1.1.0"));
+		sharedBuffer.put("a1", events[0], timestamp, null, null, 0, 0, DeweyNumber.fromString("1"));
+		sharedBuffer.put("a[]", events[1], timestamp, "a1", events[0], timestamp, 0, DeweyNumber.fromString("1.0"));
+		sharedBuffer.put("a1", events[2], timestamp, null, null, 0, 0, DeweyNumber.fromString("2"));
+		sharedBuffer.put("a[]", events[2], timestamp, "a[]", events[1], timestamp, 1, DeweyNumber.fromString("1.0"));
+		sharedBuffer.put("a[]", events[3], timestamp, "a[]", events[2], timestamp, 2, DeweyNumber.fromString("1.0"));
+		sharedBuffer.put("a[]", events[3], timestamp, "a1", events[2], timestamp, 0, DeweyNumber.fromString("2.0"));
+		sharedBuffer.put("a[]", events[4], timestamp, "a[]", events[3], timestamp, 3, DeweyNumber.fromString("1.0"));
+		sharedBuffer.put("b", events[5], timestamp, "a[]", events[4], timestamp, 4, DeweyNumber.fromString("1.0.0"));
+		sharedBuffer.put("a[]", events[5], timestamp, "a[]", events[4], timestamp, 4, DeweyNumber.fromString("1.1"));
+		sharedBuffer.put("b", events[5], timestamp, "a[]", events[3], timestamp, 1, DeweyNumber.fromString("2.0.0"));
+		sharedBuffer.put("a[]", events[6], timestamp, "a[]", events[5], timestamp, 5, DeweyNumber.fromString("1.1"));
+		sharedBuffer.put("b", events[7], timestamp, "a[]", events[6], timestamp, 6, DeweyNumber.fromString("1.1.0"));
 
-		Collection<ListMultimap<String, Event>> patterns3 = sharedBuffer.extractPatterns("b", events[7], timestamp, DeweyNumber.fromString("1.1.0"));
-		sharedBuffer.release("b", events[7], timestamp);
-		Collection<ListMultimap<String, Event>> patterns4 = sharedBuffer.extractPatterns("b", events[7], timestamp, DeweyNumber.fromString("1.1.0"));
-		Collection<ListMultimap<String, Event>> patterns1 = sharedBuffer.extractPatterns("b", events[5], timestamp, DeweyNumber.fromString("2.0.0"));
-		Collection<ListMultimap<String, Event>> patterns2 = sharedBuffer.extractPatterns("b", events[5], timestamp, DeweyNumber.fromString("1.0.0"));
-		sharedBuffer.release("b", events[5], timestamp);
+		Collection<ListMultimap<String, Event>> patterns3 = sharedBuffer.extractPatterns("b", events[7], timestamp, 7, DeweyNumber.fromString("1.1.0"));
+		sharedBuffer.release("b", events[7], timestamp, 7);
+		Collection<ListMultimap<String, Event>> patterns4 = sharedBuffer.extractPatterns("b", events[7], timestamp, 7, DeweyNumber.fromString("1.1.0"));
+
+		Collection<ListMultimap<String, Event>> patterns1 = sharedBuffer.extractPatterns("b", events[5], timestamp, 2, DeweyNumber.fromString("2.0.0"));
+		Collection<ListMultimap<String, Event>> patterns2 = sharedBuffer.extractPatterns("b", events[5], timestamp, 5, DeweyNumber.fromString("1.0.0"));
+		sharedBuffer.release("b", events[5], timestamp, 2);
+		sharedBuffer.release("b", events[5], timestamp, 5);
 
 		assertEquals(1L, patterns3.size());
 		assertEquals(0L, patterns4.size());
@@ -115,18 +117,18 @@ public class SharedBufferTest extends TestLogger {
 			events[i] = new Event(i + 1, "e" + (i + 1), i);
 		}
 
-		sharedBuffer.put("a1", events[0], timestamp, null, null, 0, DeweyNumber.fromString("1"));
-		sharedBuffer.put("a[]", events[1], timestamp, "a1", events[0], timestamp, DeweyNumber.fromString("1.0"));
-		sharedBuffer.put("a1", events[2], timestamp, null, null, 0, DeweyNumber.fromString("2"));
-		sharedBuffer.put("a[]", events[2], timestamp, "a[]", events[1], timestamp, DeweyNumber.fromString("1.0"));
-		sharedBuffer.put("a[]", events[3], timestamp, "a[]", events[2], timestamp, DeweyNumber.fromString("1.0"));
-		sharedBuffer.put("a[]", events[3], timestamp, "a1", events[2], timestamp, DeweyNumber.fromString("2.0"));
-		sharedBuffer.put("a[]", events[4], timestamp, "a[]", events[3], timestamp, DeweyNumber.fromString("1.0"));
-		sharedBuffer.put("a[]", events[5], timestamp, "a[]", events[4], timestamp, DeweyNumber.fromString("1.1"));
-		sharedBuffer.put("b", events[5], timestamp, "a[]", events[3], timestamp, DeweyNumber.fromString("2.0.0"));
-		sharedBuffer.put("b", events[5], timestamp, "a[]", events[4], timestamp, DeweyNumber.fromString("1.0.0"));
-		sharedBuffer.put("a[]", events[6], timestamp, "a[]", events[5], timestamp, DeweyNumber.fromString("1.1"));
-		sharedBuffer.put("b", events[7], timestamp, "a[]", events[6], timestamp, DeweyNumber.fromString("1.1.0"));
+		sharedBuffer.put("a1", events[0], timestamp, null, null, 0, 0, DeweyNumber.fromString("1"));
+		sharedBuffer.put("a[]", events[1], timestamp, "a1", events[0], timestamp, 0, DeweyNumber.fromString("1.0"));
+		sharedBuffer.put("a1", events[2], timestamp, null, null, 0, 0, DeweyNumber.fromString("2"));
+		sharedBuffer.put("a[]", events[2], timestamp, "a[]", events[1], timestamp, 1, DeweyNumber.fromString("1.0"));
+		sharedBuffer.put("a[]", events[3], timestamp, "a[]", events[2], timestamp, 2, DeweyNumber.fromString("1.0"));
+		sharedBuffer.put("a[]", events[3], timestamp, "a1", events[2], timestamp, 0, DeweyNumber.fromString("2.0"));
+		sharedBuffer.put("a[]", events[4], timestamp, "a[]", events[3], timestamp, 3, DeweyNumber.fromString("1.0"));
+		sharedBuffer.put("b", events[5], timestamp, "a[]", events[4], timestamp, 4, DeweyNumber.fromString("1.0.0"));
+		sharedBuffer.put("a[]", events[5], timestamp, "a[]", events[4], timestamp, 4, DeweyNumber.fromString("1.1"));
+		sharedBuffer.put("b", events[5], timestamp, "a[]", events[3], timestamp, 1, DeweyNumber.fromString("2.0.0"));
+		sharedBuffer.put("a[]", events[6], timestamp, "a[]", events[5], timestamp, 5, DeweyNumber.fromString("1.1"));
+		sharedBuffer.put("b", events[7], timestamp, "a[]", events[6], timestamp, 6, DeweyNumber.fromString("1.1.0"));
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		ObjectOutputStream oos = new ObjectOutputStream(baos);
@@ -153,16 +155,16 @@ public class SharedBufferTest extends TestLogger {
 		}
 
 		sharedBuffer.put("start", events[1], timestamp, DeweyNumber.fromString("1"));
-		sharedBuffer.put("branching", events[2], timestamp, "start", events[1], timestamp, DeweyNumber.fromString("1.0"));
-		sharedBuffer.put("branching", events[3], timestamp, "start", events[1], timestamp, DeweyNumber.fromString("1.1"));
-		sharedBuffer.put("branching", events[3], timestamp, "branching", events[2], timestamp, DeweyNumber.fromString("1.0.0"));
-		sharedBuffer.put("branching", events[4], timestamp, "branching", events[3], timestamp, DeweyNumber.fromString("1.0.0.0"));
-		sharedBuffer.put("branching", events[4], timestamp, "branching", events[3], timestamp, DeweyNumber.fromString("1.1.0"));
+		sharedBuffer.put("branching", events[2], timestamp, "start", events[1], timestamp, 0, DeweyNumber.fromString("1.0"));
+		sharedBuffer.put("branching", events[3], timestamp, "start", events[1], timestamp, 0, DeweyNumber.fromString("1.1"));
+		sharedBuffer.put("branching", events[3], timestamp, "branching", events[2], timestamp, 1, DeweyNumber.fromString("1.0.0"));
+		sharedBuffer.put("branching", events[4], timestamp, "branching", events[3], timestamp, 2, DeweyNumber.fromString("1.0.0.0"));
+		sharedBuffer.put("branching", events[4], timestamp, "branching", events[3], timestamp, 2, DeweyNumber.fromString("1.1.0"));
 
 		//simulate IGNORE (next event can point to events[2])
-		sharedBuffer.lock("branching", events[2], timestamp);
+		sharedBuffer.lock("branching", events[2], timestamp, 1);
 
-		sharedBuffer.release("branching", events[4], timestamp);
+		sharedBuffer.release("branching", events[4], timestamp, 3);
 
 		//There should be still events[1] and events[2] in the buffer
 		assertFalse(sharedBuffer.isEmpty());

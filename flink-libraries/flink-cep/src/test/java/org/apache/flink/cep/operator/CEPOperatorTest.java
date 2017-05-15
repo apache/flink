@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.operator;
 
+import com.google.common.collect.Lists;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -40,13 +41,16 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.TestLogger;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import static org.junit.Assert.*;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -368,6 +372,96 @@ public class CEPOperatorTest extends TestLogger {
 	}
 
 	@Test
+	public void testCEPOperatorCleanupEventTimeWithSameElements() throws Exception {
+
+		Event startEvent = new Event(41, "c", 1.0);
+		Event middle1Event1 = new Event(41, "a", 2.0);
+		Event middle1Event2 = new Event(41, "a", 3.0);
+		Event middle1Event3 = new Event(41, "a", 4.0);
+		Event middle2Event1 = new Event(41, "b", 5.0);
+
+		TestKeySelector keySelector = new TestKeySelector();
+		KeyedCEPPatternOperator<Event, Integer> operator = new KeyedCEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				false,
+				keySelector,
+				IntSerializer.INSTANCE,
+				new ComplexNFAFactory(),
+				true);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
+
+		harness.open();
+
+		harness.processWatermark(new Watermark(Long.MIN_VALUE));
+
+		harness.processElement(new StreamRecord<>(startEvent, 1));
+		harness.processElement(new StreamRecord<>(middle1Event1, 3));
+		harness.processElement(new StreamRecord<>(middle1Event1, 3)); // this and the following get reordered
+		harness.processElement(new StreamRecord<>(middle1Event2, 3));
+		harness.processElement(new StreamRecord<>(new Event(41, "d", 6.0), 5));
+		harness.processElement(new StreamRecord<>(middle2Event1, 6));
+		harness.processElement(new StreamRecord<>(middle1Event3, 7));
+
+		assertEquals(1L, harness.numEventTimeTimers());
+		assertEquals(7L, operator.getPQSize(41));
+		assertTrue(!operator.hasNonEmptyNFA(41));
+
+		harness.processWatermark(new Watermark(2L));
+
+		verifyWatermark(harness.getOutput().poll(), Long.MIN_VALUE);
+		verifyWatermark(harness.getOutput().poll(), 2L);
+
+		assertEquals(1L, harness.numEventTimeTimers());
+		assertEquals(6L, operator.getPQSize(41));
+		assertTrue(operator.hasNonEmptyNFA(41)); // processed the first element
+
+		harness.processWatermark(new Watermark(8L));
+
+		List<List<Event>> resultingPatterns = new ArrayList<>();
+		while (!harness.getOutput().isEmpty()) {
+			Object o = harness.getOutput().poll();
+			if (!(o instanceof Watermark)) {
+				StreamRecord<Map<String, List<Event>>> el = (StreamRecord<Map<String, List<Event>>>) o;
+				List<Event> res = new ArrayList<>();
+				for (List<Event> le: el.getValue().values()) {
+					res.addAll(le);
+				}
+				resultingPatterns.add(res);
+			} else {
+				verifyWatermark(o, 8L);
+			}
+		}
+
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middle1Event1),
+
+				Lists.newArrayList(startEvent, middle1Event1, middle1Event2),
+				Lists.newArrayList(startEvent, middle2Event1, middle1Event3),
+
+				Lists.newArrayList(startEvent, middle1Event1, middle1Event2, middle1Event1),
+				Lists.newArrayList(startEvent, middle1Event1, middle2Event1, middle1Event3),
+
+				Lists.newArrayList(startEvent, middle1Event1, middle1Event1, middle1Event2, middle1Event3),
+				Lists.newArrayList(startEvent, middle1Event1, middle1Event2, middle2Event1, middle1Event3),
+
+				Lists.newArrayList(startEvent, middle1Event1, middle1Event1, middle1Event2, middle2Event1, middle1Event3)
+		));
+
+		assertEquals(1L, harness.numEventTimeTimers());
+		assertEquals(0L, operator.getPQSize(41));
+		assertTrue(operator.hasNonEmptyNFA(41));
+
+		harness.processWatermark(new Watermark(17L));
+		verifyWatermark(harness.getOutput().poll(), 17L);
+
+		assertTrue(!operator.hasNonEmptyNFA(41));
+		assertTrue(!operator.hasNonEmptyPQ(41));
+		assertEquals(0L, harness.numEventTimeTimers());
+
+		harness.close();
+	}
+
+	@Test
 	public void testCEPOperatorCleanupProcessingTime() throws Exception {
 
 		Event startEvent1 = new Event(42, "start", 1.0);
@@ -489,6 +583,62 @@ public class CEPOperatorTest extends TestLogger {
 			true);
 	}
 
+	private void compareMaps(List<List<Event>> actual, List<List<Event>> expected) {
+		Assert.assertEquals(expected.size(), actual.size());
+
+		for (List<Event> p: actual) {
+			Collections.sort(p, new EventComparator());
+		}
+
+		for (List<Event> p: expected) {
+			Collections.sort(p, new EventComparator());
+		}
+
+		Collections.sort(actual, new ListEventComparator());
+		Collections.sort(expected, new ListEventComparator());
+		Assert.assertArrayEquals(expected.toArray(), actual.toArray());
+	}
+
+
+	private class ListEventComparator implements Comparator<List<Event>> {
+
+		@Override
+		public int compare(List<Event> o1, List<Event> o2) {
+			int sizeComp = Integer.compare(o1.size(), o2.size());
+			if (sizeComp == 0) {
+				EventComparator comp = new EventComparator();
+				for (int i = 0; i < o1.size(); i++) {
+					int eventComp = comp.compare(o1.get(i), o2.get(i));
+					if (eventComp != 0) {
+						return eventComp;
+					}
+				}
+				return 0;
+			} else {
+				return sizeComp;
+			}
+		}
+	}
+
+	private class EventComparator implements Comparator<Event> {
+
+		@Override
+		public int compare(Event o1, Event o2) {
+			int nameComp = o1.getName().compareTo(o2.getName());
+			int priceComp = Double.compare(o1.getPrice(), o2.getPrice());
+			int idComp = Integer.compare(o1.getId(), o2.getId());
+			if (nameComp == 0) {
+				if (priceComp == 0) {
+					return idComp;
+				} else {
+					return priceComp;
+				}
+			} else {
+				return nameComp;
+			}
+		}
+	}
+
 	private static class TestKeySelector implements KeySelector<Event, Integer> {
 
 		private static final long serialVersionUID = -4873366487571254798L;
@@ -543,6 +693,57 @@ public class CEPOperatorTest extends TestLogger {
 					// add a window timeout to test whether timestamps of elements in the
 					// priority queue in CEP operator are correctly checkpointed/restored
 					.within(Time.milliseconds(10L));
+
+			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
+		}
+	}
+
+	private static class ComplexNFAFactory implements NFACompiler.NFAFactory<Event> {
+
+		private static final long serialVersionUID = 1173020762472766713L;
+
+		private final boolean handleTimeout;
+
+		private ComplexNFAFactory() {
+			this(false);
+		}
+
+		private ComplexNFAFactory(boolean handleTimeout) {
+			this.handleTimeout = handleTimeout;
+		}
+
+		@Override
+		public NFA<Event> createNFA() {
+
+			Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+				private static final long serialVersionUID = 5726188262756267490L;
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("c");
+				}
+			}).followedBy("middle1").where(new SimpleCondition<Event>() {
+				private static final long serialVersionUID = 5726188262756267490L;
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("a");
+				}
+			}).oneOrMore().optional().followedBy("middle2").where(new SimpleCondition<Event>() {
+				private static final long serialVersionUID = 5726188262756267490L;
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("b");
+				}
+			}).optional().followedBy("end").where(new SimpleCondition<Event>() {
+				private static final long serialVersionUID = 5726188262756267490L;
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("a");
+				}
+			}).within(Time.milliseconds(10L));
 
 			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
 		}
