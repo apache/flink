@@ -82,7 +82,7 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 	@Override
 	public TypeSerializer<List<T>> duplicate() {
 		TypeSerializer<T> duplicateElement = elementSerializer.duplicate();
-		return duplicateElement == elementSerializer ? this : new ListSerializer<T>(duplicateElement);
+		return duplicateElement == elementSerializer ? this : new ListSerializer<>(duplicateElement);
 	}
 
 	@Override
@@ -129,7 +129,8 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 	@Override
 	public List<T> deserialize(DataInputView source) throws IOException {
 		final int size = source.readInt();
-		final List<T> list = new ArrayList<>(size);
+		// create new list with (size + 1) capacity to prevent expensive growth when a single element is added
+		final List<T> list = new ArrayList<>(size + 1);
 		for (int i = 0; i < size; i++) {
 			list.add(elementSerializer.deserialize(source));
 		}
