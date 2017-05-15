@@ -18,7 +18,7 @@
 package org.apache.flink.table.api.scala.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{WeightedAvgWithRetract}
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithRetract
 import org.apache.flink.table.api.{Table, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.TableTestUtil._
@@ -27,14 +27,15 @@ import org.junit.Test
 
 class OverWindowTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
-  val table: Table = streamUtil.addTable[(Int, String, Long)]("MyTable", 'a, 'b, 'c)
+  val table: Table = streamUtil.addTable[(Int, String, Long)]("MyTable",
+    'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
   @Test(expected = classOf[ValidationException])
   def testInvalidWindowAlias(): Unit = {
     val result = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows as 'w)
       .select('c, 'b.count over 'x)
-    streamUtil.tEnv.optimize(result.getRelNode)
+    streamUtil.tEnv.optimize(result.getRelNode, updatesAsRetraction = true)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -42,7 +43,7 @@ class OverWindowTest extends TableTestBase {
     val result = table
       .window(Over partitionBy 'c orderBy 'abc preceding 2.rows as 'w)
       .select('c, 'b.count over 'w)
-    streamUtil.tEnv.optimize(result.getRelNode)
+    streamUtil.tEnv.optimize(result.getRelNode, updatesAsRetraction = true)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -50,7 +51,7 @@ class OverWindowTest extends TableTestBase {
     val result = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2 following "xx" as 'w)
       .select('c, 'b.count over 'w)
-    streamUtil.tEnv.optimize(result.getRelNode)
+    streamUtil.tEnv.optimize(result.getRelNode, updatesAsRetraction = true)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -58,7 +59,7 @@ class OverWindowTest extends TableTestBase {
     val result = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_RANGE as 'w)
       .select('c, 'b.count over 'w)
-    streamUtil.tEnv.optimize(result.getRelNode)
+    streamUtil.tEnv.optimize(result.getRelNode, updatesAsRetraction = true)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -66,7 +67,7 @@ class OverWindowTest extends TableTestBase {
     val result = table
       .window(Over partitionBy 'a + 'b orderBy 'rowtime preceding 2.rows as 'w)
       .select('c, 'b.count over 'w)
-    streamUtil.tEnv.optimize(result.getRelNode)
+    streamUtil.tEnv.optimize(result.getRelNode, updatesAsRetraction = true)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -76,7 +77,7 @@ class OverWindowTest extends TableTestBase {
     val result = table2
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows as 'w)
       .select('c, 'b.count over 'w)
-    streamUtil.tEnv.optimize(result.getRelNode)
+    streamUtil.tEnv.optimize(result.getRelNode, updatesAsRetraction = true)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -84,7 +85,7 @@ class OverWindowTest extends TableTestBase {
     val result = table
       .window(Over orderBy 'rowtime preceding -1.rows as 'w)
       .select('c, 'b.count over 'w)
-    streamUtil.tEnv.optimize(result.getRelNode)
+    streamUtil.tEnv.optimize(result.getRelNode, updatesAsRetraction = true)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -92,7 +93,7 @@ class OverWindowTest extends TableTestBase {
     val result = table
       .window(Over orderBy 'rowtime preceding 1.rows following -2.rows as 'w)
       .select('c, 'b.count over 'w)
-    streamUtil.tEnv.optimize(result.getRelNode)
+    streamUtil.tEnv.optimize(result.getRelNode, updatesAsRetraction = true)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -102,7 +103,7 @@ class OverWindowTest extends TableTestBase {
     val result = table
       .window(Over orderBy 'rowtime preceding 1.minutes as 'w)
       .select('c, weightedAvg('b, 'a) over 'w)
-    streamUtil.tEnv.optimize(result.getRelNode)
+    streamUtil.tEnv.optimize(result.getRelNode, updatesAsRetraction = true)
   }
 
   @Test
@@ -121,12 +122,12 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "b", "c", "PROCTIME() AS $3")
+            term("select", "a", "b", "c", "proctime")
           ),
           term("partitionBy", "b"),
-          term("orderBy", "PROCTIME"),
+          term("orderBy", "proctime"),
           term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "b", "c", "PROCTIME", "WeightedAvgWithRetract(c, a) AS w0$o0")
+          term("select", "a", "b", "c", "proctime", "WeightedAvgWithRetract(c, a) AS w0$o0")
         ),
         term("select", "c", "w0$o0 AS _c1")
       )
@@ -150,16 +151,16 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "PROCTIME() AS $2")
+            term("select", "a", "c", "proctime")
           ),
           term("partitionBy", "a"),
-          term("orderBy", "PROCTIME"),
+          term("orderBy", "proctime"),
           term("range", "BETWEEN 7200000 PRECEDING AND CURRENT ROW"),
           term(
             "select",
             "a",
             "c",
-            "PROCTIME",
+            "proctime",
             "WeightedAvgWithRetract(c, a) AS w0$o0"
           )
         ),
@@ -183,11 +184,11 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "PROCTIME() AS $2")
+            term("select", "a", "c", "proctime")
           ),
-          term("orderBy", "PROCTIME"),
+          term("orderBy", "proctime"),
           term("range", "BETWEEN 10000 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "PROCTIME", "COUNT(c) AS w0$o0")
+          term("select", "a", "c", "proctime", "COUNT(c) AS w0$o0")
         ),
         term("select", "a", "w0$o0 AS _c1")
       )
@@ -209,11 +210,11 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "PROCTIME() AS $2")
+            term("select", "a", "c", "proctime")
           ),
-          term("orderBy", "PROCTIME"),
+          term("orderBy", "proctime"),
           term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "PROCTIME", "COUNT(a) AS w0$o0")
+          term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0")
         ),
         term("select", "c", "w0$o0 AS _c1")
       )
@@ -238,16 +239,16 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "PROCTIME() AS $2")
+            term("select", "a", "c", "proctime")
           ),
           term("partitionBy", "c"),
-          term("orderBy", "PROCTIME"),
+          term("orderBy", "proctime"),
           term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
           term(
             "select",
             "a",
             "c",
-            "PROCTIME",
+            "proctime",
             "COUNT(a) AS w0$o0",
             "WeightedAvgWithRetract(c, a) AS w0$o1"
           )
@@ -280,12 +281,12 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "PROCTIME() AS $2")
+            term("select", "a", "c", "proctime")
           ),
           term("partitionBy", "c"),
-          term("orderBy", "PROCTIME"),
+          term("orderBy", "proctime"),
           term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "PROCTIME",
+          term("select", "a", "c", "proctime",
                "COUNT(a) AS w0$o0",
                "WeightedAvgWithRetract(c, a) AS w0$o1")
         ),
@@ -310,15 +311,15 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "PROCTIME() AS $2")
+            term("select", "a", "c", "proctime")
           ),
-          term("orderBy", "PROCTIME"),
+          term("orderBy", "proctime"),
           term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
           term(
             "select",
             "a",
             "c",
-            "PROCTIME",
+            "proctime",
             "COUNT(a) AS w0$o0",
             "SUM(a) AS w0$o1"
           )
@@ -349,11 +350,11 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "PROCTIME() AS $2")
+            term("select", "a", "c", "proctime")
           ),
-          term("orderBy", "PROCTIME"),
+          term("orderBy", "proctime"),
           term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "PROCTIME", "COUNT(a) AS w0$o0")
+          term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0")
         ),
         term("select", "c", "w0$o0 AS _c1")
       )
@@ -378,12 +379,12 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "b", "c", "ROWTIME() AS $3")
+            term("select", "a", "b", "c", "rowtime")
           ),
           term("partitionBy", "b"),
-          term("orderBy", "ROWTIME"),
+          term("orderBy", "rowtime"),
           term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "b", "c", "ROWTIME",
+          term("select", "a", "b", "c", "rowtime",
                "COUNT(b) AS w0$o0",
                "WeightedAvgWithRetract(c, a) AS w0$o1")
         ),
@@ -410,16 +411,16 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "ROWTIME() AS $2")
+            term("select", "a", "c", "rowtime")
           ),
           term("partitionBy", "a"),
-          term("orderBy", "ROWTIME"),
+          term("orderBy", "rowtime"),
           term("range", "BETWEEN 7200000 PRECEDING AND CURRENT ROW"),
           term(
             "select",
             "a",
             "c",
-            "ROWTIME",
+            "rowtime",
             "AVG(c) AS w0$o0",
             "WeightedAvgWithRetract(c, a) AS w0$o1"
           )
@@ -444,11 +445,11 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "ROWTIME() AS $2")
+            term("select", "a", "c", "rowtime")
           ),
-          term("orderBy", "ROWTIME"),
+          term("orderBy", "rowtime"),
           term("range", "BETWEEN 10000 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "ROWTIME", "COUNT(c) AS w0$o0")
+          term("select", "a", "c", "rowtime", "COUNT(c) AS w0$o0")
         ),
         term("select", "a", "w0$o0 AS _c1")
       )
@@ -470,11 +471,11 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "ROWTIME() AS $2")
+            term("select", "a", "c", "rowtime")
           ),
-          term("orderBy", "ROWTIME"),
+          term("orderBy", "rowtime"),
           term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "ROWTIME", "COUNT(a) AS w0$o0")
+          term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0")
         ),
         term("select", "c", "w0$o0 AS _c1")
       )
@@ -499,16 +500,16 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "ROWTIME() AS $2")
+            term("select", "a", "c", "rowtime")
           ),
           term("partitionBy", "c"),
-          term("orderBy", "ROWTIME"),
+          term("orderBy", "rowtime"),
           term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
           term(
             "select",
             "a",
             "c",
-            "ROWTIME",
+            "rowtime",
             "COUNT(a) AS w0$o0",
             "WeightedAvgWithRetract(c, a) AS w0$o1"
           )
@@ -542,12 +543,12 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "ROWTIME() AS $2")
+            term("select", "a", "c", "rowtime")
           ),
           term("partitionBy", "c"),
-          term("orderBy", "ROWTIME"),
+          term("orderBy", "rowtime"),
           term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "ROWTIME",
+          term("select", "a", "c", "rowtime",
                "COUNT(a) AS w0$o0",
                "WeightedAvgWithRetract(c, a) AS w0$o1")
         ),
@@ -572,15 +573,15 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "ROWTIME() AS $2")
+            term("select", "a", "c", "rowtime")
           ),
-          term("orderBy", "ROWTIME"),
+          term("orderBy", "rowtime"),
           term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
           term(
             "select",
             "a",
             "c",
-            "ROWTIME",
+            "rowtime",
             "COUNT(a) AS w0$o0",
             "SUM(a) AS w0$o1"
           )
@@ -611,11 +612,11 @@ class OverWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "c", "ROWTIME() AS $2")
+            term("select", "a", "c", "rowtime")
           ),
-          term("orderBy", "ROWTIME"),
+          term("orderBy", "rowtime"),
           term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "ROWTIME", "COUNT(a) AS w0$o0")
+          term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0")
         ),
         term("select", "c", "w0$o0 AS _c1")
       )

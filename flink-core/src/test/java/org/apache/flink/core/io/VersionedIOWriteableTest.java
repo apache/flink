@@ -65,8 +65,8 @@ public class VersionedIOWriteableTest {
 
 		testWriteable = new TestWriteable(2) {
 			@Override
-			public boolean isCompatibleVersion(int version) {
-				return getVersion() >= version;
+			public int[] getCompatibleVersions() {
+				return new int[] {1, 2};
 			}
 		};
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
@@ -128,16 +128,6 @@ public class VersionedIOWriteableTest {
 		public void read(DataInputView in) throws IOException {
 			super.read(in);
 			this.data = in.readUTF();
-		}
-
-		@Override
-		protected void resolveVersionRead(int foundVersion) throws VersionMismatchException {
-			super.resolveVersionRead(foundVersion);
-		}
-
-		@Override
-		public boolean isCompatibleVersion(int version) {
-			return super.isCompatibleVersion(version);
 		}
 
 		public String getData() {

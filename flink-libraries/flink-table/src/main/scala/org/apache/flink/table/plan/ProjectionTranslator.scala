@@ -19,9 +19,8 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{OverWindow, StreamTableEnvironment, TableEnvironment}
+import org.apache.flink.table.api.{OverWindow, TableEnvironment}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{ProcTime, RowTime}
 import org.apache.flink.table.plan.logical.{LogicalNode, Project}
 
 import scala.collection.mutable
@@ -231,28 +230,12 @@ object ProjectionTranslator {
 
       val overWindow = overWindows.find(_.alias.equals(unresolvedCall.alias))
       if (overWindow.isDefined) {
-        if (tEnv.isInstanceOf[StreamTableEnvironment]) {
-          val timeIndicator = overWindow.get.orderBy match {
-            case u: UnresolvedFieldReference if u.name.toLowerCase == "rowtime" =>
-              RowTime()
-            case u: UnresolvedFieldReference if u.name.toLowerCase == "proctime" =>
-              ProcTime()
-            case e: Expression => e
-          }
-          OverCall(
-            unresolvedCall.agg,
-            overWindow.get.partitionBy,
-            timeIndicator,
-            overWindow.get.preceding,
-            overWindow.get.following)
-        } else {
-          OverCall(
-            unresolvedCall.agg,
-            overWindow.get.partitionBy,
-            overWindow.get.orderBy,
-            overWindow.get.preceding,
-            overWindow.get.following)
-        }
+        OverCall(
+          unresolvedCall.agg,
+          overWindow.get.partitionBy,
+          overWindow.get.orderBy,
+          overWindow.get.preceding,
+          overWindow.get.following)
       } else {
         unresolvedCall
       }

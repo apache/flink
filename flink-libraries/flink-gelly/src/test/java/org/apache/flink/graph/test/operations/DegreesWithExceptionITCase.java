@@ -28,6 +28,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
+import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
@@ -45,27 +46,19 @@ public class DegreesWithExceptionITCase extends TestLogger {
 
 	@BeforeClass
 	public static void setupCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
-			cluster = new LocalFlinkMiniCluster(config, false);
-			cluster.start();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Error starting test cluster: " + e.getMessage());
-		}
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
+		cluster = new LocalFlinkMiniCluster(config, false);
+		cluster.start();
+
+		TestEnvironment.setAsContext(cluster, PARALLELISM);
 	}
 
 	@AfterClass
 	public static void tearDownCluster() {
-		try {
-			cluster.stop();
-		}
-		catch (Throwable t) {
-			t.printStackTrace();
-			fail("ClusterClient shutdown caused an exception: " + t.getMessage());
-		}
+		cluster.stop();
+
+		TestEnvironment.unsetAsContext();
 	}
 
 	/**
@@ -74,8 +67,7 @@ public class DegreesWithExceptionITCase extends TestLogger {
 	@Test
 	public void testOutDegreesInvalidEdgeSrcId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 		
@@ -98,8 +90,7 @@ public class DegreesWithExceptionITCase extends TestLogger {
 	@Test
 	public void testInDegreesInvalidEdgeTrgId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
@@ -122,8 +113,7 @@ public class DegreesWithExceptionITCase extends TestLogger {
 	@Test
 	public void testGetDegreesInvalidEdgeTrgId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
@@ -146,8 +136,7 @@ public class DegreesWithExceptionITCase extends TestLogger {
 	@Test
 	public void testGetDegreesInvalidEdgeSrcId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
@@ -170,8 +159,7 @@ public class DegreesWithExceptionITCase extends TestLogger {
 	@Test
 	public void testGetDegreesInvalidEdgeSrcTrgId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 

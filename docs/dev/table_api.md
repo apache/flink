@@ -1482,6 +1482,7 @@ val result2 = tableEnv.sql(
 #### Limitations
 
 Joins, set operations, and non-windowed aggregations are not supported yet.
+`UNNEST` supports only arrays and does not support `WITH ORDINALITY` yet.
 
 {% top %}
 
@@ -1690,6 +1691,7 @@ tableReference:
 tablePrimary:
   [ TABLE ] [ [ catalogName . ] schemaName . ] tableName
   | LATERAL TABLE '(' functionName '(' expression [, expression ]* ')' ')'
+  | UNNEST '(' expression ')'
 
 values:
   VALUES expression [, expression ]*

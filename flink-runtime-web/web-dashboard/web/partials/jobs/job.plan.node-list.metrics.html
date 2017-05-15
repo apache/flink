@@ -27,7 +27,11 @@ limitations under the License.
       &nbsp;<span class="caret"></span>
     </button>
     <ul class="dropdown-menu dropdown-menu-right metric-menu">
-      <li ng-repeat="metric in availableMetrics track by $index"><a ng-click="addMetric(metric)">{{ metric.id | limit }}</a></li>
+      <section class="search">
+        <label for="search-input"><i aria-hidden="true" class="fa fa-search"><span class="sr-only">Search icons</span></i></label>
+        <input type="text" ng-model="metricsFilterQuery" placeholder="Search available metrics..." class="metrics-filter"/>
+      </section>
+      <li ng-repeat="metric in availableMetrics | searchMetrics:metricsFilterQuery track by $index"><a ng-click="addMetric(metric)">{{ metric.id | limit }}</a></li>
     </ul>
   </div>
   <div ng-if="!availableMetrics.length" class="dropdown add-metrics">
@@ -39,7 +43,7 @@ limitations under the License.
 </div>
 <ul ng-if="nodeid &amp;&amp; metrics.length &gt; 0" dnd-list="metrics" dnd-drop="dropped(event, index, item, external, type, external)" class="metric-row">
   <li ng-repeat="metric in metrics track by metric.id" dnd-draggable="metric" dnd-dragstart="dragStart()" dnd-dragend="dragEnd()" dnd-canceled="dragEnd()" ng-class="{big: metric.size != 'small'}" class="metric-col">
-    <metrics-graph metric="metric" window="window" get-values="getValues(metric.id)" remove-metric="removeMetric(metric)" set-metric-size="setMetricSize"></metrics-graph>
+    <metrics-graph metric="metric" window="window" get-values="getValues(metric.id)" remove-metric="removeMetric(metric)" set-metric-size="setMetricSize" set-metric-view="setMetricView"></metrics-graph>
   </li>
 </ul>
 <div class="clearfix"></div>

@@ -24,11 +24,10 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.util.functions.StreamingFunctionUtils;
 import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.RichProcessAllWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.RichProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -612,7 +611,7 @@ public class InternalWindowFunctionTest {
 	}
 
 	public static class ProcessWindowFunctionMock
-		extends RichProcessWindowFunction<Long, String, Long, TimeWindow>
+		extends ProcessWindowFunction<Long, String, Long, TimeWindow>
 		implements OutputTypeConfigurable<String> {
 
 		private static final long serialVersionUID = 1L;
@@ -626,7 +625,7 @@ public class InternalWindowFunctionTest {
 	}
 
 	public static class AggregateProcessWindowFunctionMock
-			extends RichProcessWindowFunction<Map<Long, Long>, String, Long, TimeWindow>
+			extends ProcessWindowFunction<Map<Long, Long>, String, Long, TimeWindow>
 			implements OutputTypeConfigurable<String> {
 
 		private static final long serialVersionUID = 1L;
@@ -640,7 +639,7 @@ public class InternalWindowFunctionTest {
 	}
 
 	public static class AggregateProcessAllWindowFunctionMock
-			extends RichProcessAllWindowFunction<Map<Long, Long>, String, TimeWindow>
+			extends ProcessAllWindowFunction<Map<Long, Long>, String, TimeWindow>
 			implements OutputTypeConfigurable<String> {
 
 		private static final long serialVersionUID = 1L;
@@ -679,7 +678,7 @@ public class InternalWindowFunctionTest {
 	}
 
 	public static class ProcessAllWindowFunctionMock
-		extends RichProcessAllWindowFunction<Long, String, TimeWindow>
+		extends ProcessAllWindowFunction<Long, String, TimeWindow>
 		implements OutputTypeConfigurable<String> {
 
 		private static final long serialVersionUID = 1L;

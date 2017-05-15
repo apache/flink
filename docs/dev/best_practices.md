@@ -30,14 +30,12 @@ This page contains a collection of best practices for Flink programmers on how t
 
 ## Parsing command line arguments and passing them around in your Flink application
 
+Almost all Flink applications, both batch and streaming, rely on external configuration parameters.
+They are used to specify input and output sources (like paths or addresses), system parameters (parallelism, runtime configuration), and application specific parameters (typically used within user functions).
 
-Almost all Flink applications, both batch and streaming rely on external configuration parameters.
-For example for specifying input and output sources (like paths or addresses), also system parameters (parallelism, runtime configuration) and application specific parameters (often used within the user functions).
-
-Since version 0.9 we are providing a simple utility called `ParameterTool` to provide at least some basic tooling for solving these problems.
-
-Please note that you don't have to use the `ParameterTool` explained here. Other frameworks such as [Commons CLI](https://commons.apache.org/proper/commons-cli/),
-[argparse4j](http://argparse4j.sourceforge.net/) and others work well with Flink as well.
+Flink provides a simple utility called `ParameterTool` to provide some basic tooling for solving these problems.
+Please note that you don't have to use the `ParameterTool` described here. Other frameworks such as [Commons CLI](https://commons.apache.org/proper/commons-cli/) and
+[argparse4j](http://argparse4j.sourceforge.net/) also work well with Flink.
 
 
 ### Getting your configuration values into the `ParameterTool`
@@ -59,8 +57,8 @@ ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFile);
 This allows getting arguments like `--input hdfs:///mydata --elements 42` from the command line.
 {% highlight java %}
 public static void main(String[] args) {
-	ParameterTool parameter = ParameterTool.fromArgs(args);
-	// .. regular code ..
+    ParameterTool parameter = ParameterTool.fromArgs(args);
+    // .. regular code ..
 {% endhighlight %}
 
 
@@ -89,8 +87,8 @@ parameter.getNumberOfParameters()
 // .. there are more methods available.
 {% endhighlight %}
 
-You can use the return values of these methods directly in the main() method (=the client submitting the application).
-For example you could set the parallelism of a operator like this:
+You can use the return values of these methods directly in the `main()` method of the client submitting the application.
+For example, you could set the parallelism of a operator like this:
 
 {% highlight java %}
 ParameterTool parameters = ParameterTool.fromArgs(args);
@@ -105,34 +103,35 @@ ParameterTool parameters = ParameterTool.fromArgs(args);
 DataSet<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer(parameters));
 {% endhighlight %}
 
-and then use them inside the function for getting values from the command line.
+and then use it inside the function for getting values from the command line.
 
 
-#### Passing it as a `Configuration` object to single functions
+#### Passing parameters as a `Configuration` object to single functions
 
 The example below shows how to pass the parameters as a `Configuration` object to a user defined function.
 
 {% highlight java %}
 ParameterTool parameters = ParameterTool.fromArgs(args);
-DataSet<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).withParameters(parameters.getConfiguration())
+DataSet<Tuple2<String, Integer>> counts = text
+        .flatMap(new Tokenizer()).withParameters(parameters.getConfiguration())
 {% endhighlight %}
 
 In the `Tokenizer`, the object is now accessible in the `open(Configuration conf)` method:
 
 {% highlight java %}
 public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		parameters.getInteger("myInt", -1);
-		// .. do
+    @Override
+    public void open(Configuration parameters) throws Exception {
+	parameters.getInteger("myInt", -1);
+	// .. do
 {% endhighlight %}
 
 
 #### Register the parameters globally
 
-Parameters registered as a global job parameter at the `ExecutionConfig` allow you to access the configuration values from the JobManager web interface and all functions defined by the user.
+Parameters registered as global job parameters in the `ExecutionConfig` can be accessed as configuration values from the JobManager web interface and in all functions defined by the user.
 
-**Register the parameters globally**
+Register the parameters globally:
 
 {% highlight java %}
 ParameterTool parameters = ParameterTool.fromArgs(args);
@@ -147,11 +146,12 @@ Access them in any rich user function:
 {% highlight java %}
 public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
 
-	@Override
-	public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
-		ParameterTool parameters = (ParameterTool) getRuntimeContext().getExecutionConfig().getGlobalJobParameters();
-		parameters.getRequired("input");
-		// .. do more ..
+    @Override
+    public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
+	ParameterTool parameters = (ParameterTool)
+	    getRuntimeContext().getExecutionConfig().getGlobalJobParameters();
+	parameters.getRequired("input");
+	// .. do more ..
 {% endhighlight %}
 
 
@@ -198,8 +198,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MyClass implements MapFunction {
-	private static final Logger LOG = LoggerFactory.getLogger(MyClass.class);
-	// ...
+    private static final Logger LOG = LoggerFactory.getLogger(MyClass.class);
+    // ...
 {% endhighlight %}
 
 
@@ -284,14 +284,14 @@ Change your projects `pom.xml` file like this:
 
 The following changes were done in the `<dependencies>` section:
 
- * Exclude all `log4j` dependencies from all Flink dependencies: This causes Maven to ignore Flink's transitive dependencies to log4j.
- * Exclude the `slf4j-log4j12` artifact from Flink's dependencies: Since we are going to use the slf4j to logback binding, we have to remove the slf4j to log4j binding.
+ * Exclude all `log4j` dependencies from all Flink dependencies: this causes Maven to ignore Flink's transitive dependencies to log4j.
+ * Exclude the `slf4j-log4j12` artifact from Flink's dependencies: since we are going to use the slf4j to logback binding, we have to remove the slf4j to log4j binding.
  * Add the Logback dependencies: `logback-core` and `logback-classic`
  * Add dependencies for `log4j-over-slf4j`. `log4j-over-slf4j` is a tool which allows legacy applications which are directly using the Log4j APIs to use the Slf4j interface. Flink depends on Hadoop which is directly using Log4j for logging. Therefore, we need to redirect all logger calls from Log4j to Slf4j which is in turn logging to Logback.
 
 Please note that you need to manually add the exclusions to all new Flink dependencies you are adding to the pom file.
 
-You may also need to check if other dependencies (non Flink) are pulling in log4j bindings. You can analyze the dependencies of your project with `mvn dependency:tree`.
+You may also need to check if other (non-Flink) dependencies are pulling in log4j bindings. You can analyze the dependencies of your project with `mvn dependency:tree`.
 
 
 
@@ -299,7 +299,7 @@ You may also need to check if other dependencies (non Flink) are pulling in log4
 
 This tutorial is applicable when running Flink on YARN or as a standalone cluster.
 
-In order to use Logback instead of Log4j with Flink, you need to remove the `log4j-1.2.xx.jar` and `sfl4j-log4j12-xxx.jar` from the `lib/` directory.
+In order to use Logback instead of Log4j with Flink, you need to remove `log4j-1.2.xx.jar` and `sfl4j-log4j12-xxx.jar` from the `lib/` directory.
 
 Next, you need to put the following jar files into the `lib/` folder:
 
@@ -307,7 +307,7 @@ Next, you need to put the following jar files into the `lib/` folder:
  * `logback-core.jar`
  * `log4j-over-slf4j.jar`: This bridge needs to be present in the classpath for redirecting logging calls from Hadoop (which is using Log4j) to Slf4j.
 
-Note that you need to explicitly set the `lib/` directory when using a per job YARN cluster.
+Note that you need to explicitly set the `lib/` directory when using a per-job YARN cluster.
 
 The command to submit Flink on YARN with a custom logger is: `./bin/flink run -yt $FLINK_HOME/lib <... remaining arguments ...>`
 

@@ -154,7 +154,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		try {
 			Properties properties = new Properties();
 
-			StreamExecutionEnvironment see = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+			StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 			see.getConfig().disableSysoutLogging();
 			see.setRestartStrategy(RestartStrategies.noRestart());
 			see.setParallelism(1);
@@ -173,22 +173,14 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			DataStream<String> stream = see.addSource(source);
 			stream.print();
 			see.execute("No broker test");
-		} catch(ProgramInvocationException pie) {
+		} catch(JobExecutionException jee) {
 			if(kafkaServer.getVersion().equals("0.9") || kafkaServer.getVersion().equals("0.10")) {
-				assertTrue(pie.getCause() instanceof JobExecutionException);
-
-				JobExecutionException jee = (JobExecutionException) pie.getCause();
-
 				assertTrue(jee.getCause() instanceof TimeoutException);
 
 				TimeoutException te = (TimeoutException) jee.getCause();
 
 				assertEquals("Timeout expired while fetching topic metadata", te.getMessage());
 			} else {
-				assertTrue(pie.getCause() instanceof JobExecutionException);
-
-				JobExecutionException jee = (JobExecutionException) pie.getCause();
-
 				assertTrue(jee.getCause() instanceof RuntimeException);
 
 				RuntimeException re = (RuntimeException) jee.getCause();
@@ -208,7 +200,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final String topicName = writeSequence("testCommitOffsetsToKafkaTopic", recordsInEachPartition, parallelism, 1);
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env.setParallelism(parallelism);
@@ -280,6 +272,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	public void runStartFromKafkaCommitOffsets() throws Exception {
 		final int parallelism = 3;
 		final int recordsInEachPartition = 300;
+		final int recordsToConsume = 150;
+		final int consumePause = 50;
 
 		final String topicName = writeSequence("testStartFromKafkaCommitOffsetsTopic", recordsInEachPartition, parallelism, 1);
 
@@ -294,7 +288,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			attempt++;
 			LOG.info("Attempt " + attempt + " to read records and commit some offsets to Kafka");
 
-			final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+			final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.getConfig().disableSysoutLogging();
 			env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 			env.setParallelism(parallelism);
@@ -302,13 +296,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			env
 				.addSource(kafkaServer.getConsumer(topicName, new SimpleStringSchema(), standardProps))
-				.map(new ThrottledMapper<String>(50))
+				.map(new ThrottledMapper<String>(consumePause))
 				.map(new MapFunction<String, Object>() {
 					int count = 0;
 					@Override
 					public Object map(String value) throws Exception {
 						count++;
-						if (count == 150) {
+						if (count == recordsToConsume) {
 							throw new SuccessException();
 						}
 						return null;
@@ -329,7 +323,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		LOG.info("Got final committed offsets from Kafka o1={}, o2={}, o3={}", o1, o2, o3);
 
-		final StreamExecutionEnvironment env2 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env2 = StreamExecutionEnvironment.getExecutionEnvironment();
 		env2.getConfig().disableSysoutLogging();
 		env2.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env2.setParallelism(parallelism);
@@ -375,7 +369,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final String topicName = writeSequence("testAutoOffsetRetrievalAndCommitToKafkaTopic", recordsInEachPartition, parallelism, 1);
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env.setParallelism(parallelism);
@@ -452,7 +446,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final String topicName = writeSequence("testStartFromEarliestOffsetsTopic", recordsInEachPartition, parallelism, 1);
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 		env.setParallelism(parallelism);
 
@@ -510,7 +504,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
 		// setup and run the latest-consuming job
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 		env.setParallelism(parallelism);
 
@@ -541,7 +535,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				try {
 					env.execute(consumeExtraRecordsJobName);
 				} catch (Throwable t) {
-					if (!(t.getCause() instanceof JobCancellationException)) {
+					if (!(t instanceof JobCancellationException)) {
 						error.set(t);
 					}
 				}
@@ -555,7 +549,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			consumeExtraRecordsJobName);
 
 		// setup the extra records writing job
-		final StreamExecutionEnvironment env2 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env2 = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		env2.setParallelism(parallelism);
 
 		DataStream<Tuple2<Integer, Integer>> extraRecordsStream = env2
 			.addSource(new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
@@ -577,7 +573,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				public void cancel() {
 					running = false;
 				}
-			}).setParallelism(parallelism);
+			});
 
 		kafkaServer.produceIntoKafka(extraRecordsStream, topicName, serSchema, readProps, null);
 
@@ -626,7 +622,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final String topicName = writeSequence("testStartFromGroupOffsetsTopic", recordsInEachPartition, parallelism, 1);
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 		env.setParallelism(parallelism);
 
@@ -685,7 +681,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final String topicName = writeSequence("testStartFromSpecificOffsetsTopic", recordsInEachPartition, parallelism, 1);
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 		env.setParallelism(parallelism);
 
@@ -784,7 +780,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		createTestTopic(additionalEmptyTopic, parallelism, 1); // create an empty topic which will remain empty all the time
 
 		final StreamExecutionEnvironment env =
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+				StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.enableCheckpointing(500);
 		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
@@ -911,7 +907,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		createTestTopic(topic, parallelism, 1);
 
 		DataGenerators.generateRandomizedIntegerSequence(
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort),
+				StreamExecutionEnvironment.getExecutionEnvironment(),
 				kafkaServer,
 				topic, parallelism, numElementsPerPartition, true);
 
@@ -920,7 +916,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		DeserializationSchema<Integer> schema =
 				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(500);
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
@@ -960,7 +956,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		createTestTopic(topic, numPartitions, 1);
 
 		DataGenerators.generateRandomizedIntegerSequence(
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort),
+				StreamExecutionEnvironment.getExecutionEnvironment(),
 				kafkaServer,
 				topic, numPartitions, numElementsPerPartition, false);
 
@@ -969,7 +965,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		DeserializationSchema<Integer> schema =
 				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(500);
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
@@ -1008,7 +1004,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		createTestTopic(topic, numPartitions, 1);
 
 		DataGenerators.generateRandomizedIntegerSequence(
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort),
+				StreamExecutionEnvironment.getExecutionEnvironment(),
 				kafkaServer,
 				topic, numPartitions, numElementsPerPartition, true);
 
@@ -1017,7 +1013,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		DeserializationSchema<Integer> schema =
 				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(500);
 		env.setParallelism(parallelism);
 		// set the number of restarts to one. The failing mapper will fail once, then it's only success exceptions.
@@ -1066,7 +1062,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			@Override
 			public void run() {
 				try {
-					final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+					final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 					env.setParallelism(parallelism);
 					env.enableCheckpointing(100);
 					env.getConfig().disableSysoutLogging();
@@ -1140,7 +1136,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			@Override
 			public void run() {
 				try {
-					final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+					final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 					env.setParallelism(parallelism);
 					env.enableCheckpointing(100);
 					env.getConfig().disableSysoutLogging();
@@ -1196,7 +1192,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		DeserializationSchema<Integer> schema =
 				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(12); // needs to be more that the mini cluster has slots
 		env.getConfig().disableSysoutLogging();
 
@@ -1213,7 +1209,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			env.execute("test fail on deploy");
 			fail("this test should fail with an exception");
 		}
-		catch (ProgramInvocationException e) {
+		catch (JobExecutionException e) {
 
 			// validate that we failed due to a NoResourceAvailableException
 			Throwable cause = e.getCause();
@@ -1242,7 +1238,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final int NUM_TOPICS = 5;
 		final int NUM_ELEMENTS = 20;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 		
 		// create topics with content
@@ -1253,6 +1249,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			// create topic
 			createTestTopic(topic, i + 1 /*partitions*/, 1);
 		}
+
+		// before FLINK-6078 the RemoteExecutionEnvironment set the parallelism to 1 as well
+		env.setParallelism(1);
+
 		// run first job, producing into all topics
 		DataStream<Tuple3<Integer, Integer, String>> stream = env.addSource(new RichParallelSourceFunction<Tuple3<Integer, Integer, String>>() {
 
@@ -1282,7 +1282,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env.execute("Write to topics");
 
 		// run second job consuming from multiple topics
-		env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 
 		stream = env.addSource(kafkaServer.getConsumer(topics, schema, props));
@@ -1390,7 +1390,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final TypeInformationSerializationSchema<Tuple2<Long, byte[]>> serSchema =
 				new TypeInformationSerializationSchema<>(longBytesInfo, new ExecutionConfig());
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
 		env.enableCheckpointing(100);
@@ -1490,7 +1490,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		createTestTopic(topic, parallelism, 2);
 
 		DataGenerators.generateRandomizedIntegerSequence(
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort),
+				StreamExecutionEnvironment.getExecutionEnvironment(),
 				kafkaServer,
 				topic, parallelism, numElementsPerPartition, true);
 
@@ -1505,7 +1505,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		DeserializationSchema<Integer> schema =
 				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.enableCheckpointing(500);
 		env.setRestartStrategy(RestartStrategies.noRestart());
@@ -1536,7 +1536,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// ----------- Write some data into Kafka -------------------
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
@@ -1568,7 +1568,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// ----------- Read the data again -------------------
 
-		env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
@@ -1623,7 +1623,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// ----------- Write some data into Kafka -------------------
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
@@ -1654,7 +1654,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// ----------- Read the data again -------------------
 
-		env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
@@ -1694,7 +1694,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final String topic = writeSequence("testEndOfStream", ELEMENT_COUNT, 1, 1);
 
 		// read using custom schema
-		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.getExecutionEnvironment();
 		env1.setParallelism(1);
 		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env1.getConfig().disableSysoutLogging();
@@ -1733,7 +1733,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			public void run() {
 				try {
 					// start job writing & reading data.
-					final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+					final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.getExecutionEnvironment();
 					env1.setParallelism(1);
 					env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 					env1.getConfig().disableSysoutLogging();
@@ -1774,7 +1774,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					env1.execute("Metrics test job");
 				} catch(Throwable t) {
 					LOG.warn("Got exception during execution", t);
-					if(!(t.getCause() instanceof JobCancellationException)) { // we'll cancel the job
+					if(!(t instanceof JobCancellationException)) { // we'll cancel the job
 						error.f0 = t;
 					}
 				}
@@ -2032,7 +2032,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			createTestTopic(topicName, parallelism, replicationFactor);
 
-			StreamExecutionEnvironment writeEnv = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+			StreamExecutionEnvironment writeEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 			writeEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 			writeEnv.getConfig().disableSysoutLogging();
 			
@@ -2084,7 +2084,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
 			
-			final StreamExecutionEnvironment readEnv = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+			final StreamExecutionEnvironment readEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 			readEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 			readEnv.getConfig().disableSysoutLogging();
 			readEnv.setParallelism(parallelism);

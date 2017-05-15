@@ -26,7 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -130,17 +130,12 @@ public class TimeWindow extends Window {
 	/**
 	 * The serializer used to write the TimeWindow type.
 	 */
-	public static class Serializer extends TypeSerializer<TimeWindow> {
+	public static class Serializer extends TypeSerializerSingleton<TimeWindow> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public boolean isImmutableType() {
 			return true;
-		}
-
-		@Override
-		public TypeSerializer<TimeWindow> duplicate() {
-			return this;
 		}
 
 		@Override
@@ -188,18 +183,8 @@ public class TimeWindow extends Window {
 		}
 
 		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof Serializer;
-		}
-
-		@Override
 		public boolean canEqual(Object obj) {
 			return obj instanceof Serializer;
-		}
-
-		@Override
-		public int hashCode() {
-			return 0;
 		}
 	}
 

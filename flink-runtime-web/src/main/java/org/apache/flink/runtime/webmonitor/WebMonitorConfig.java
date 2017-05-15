@@ -18,37 +18,10 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 
 public class WebMonitorConfig {
-
-	// ------------------------------------------------------------------------
-	//  Config Keys
-	// ------------------------------------------------------------------------
-
-	/** The port for the runtime monitor web-frontend server. */
-	public static final String JOB_MANAGER_WEB_PORT_KEY = ConfigConstants.JOB_MANAGER_WEB_PORT_KEY;
-
-	/** The initial refresh interval for the web dashboard */
-	public static final String JOB_MANAGER_WEB_REFRESH_INTERVAL_KEY = "jobmanager.web.refresh-interval";
-
-
-	// ------------------------------------------------------------------------
-	//  Default values
-	// ------------------------------------------------------------------------
-
-	/** Default port for the web dashboard (= 8081) */
-	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT;
-
-	/** Default refresh interval for the web dashboard (= 3000 msecs) */
-	public static final long DEFAULT_JOB_MANAGER_WEB_REFRESH_INTERVAL = 3000;
-
-
-	// ------------------------------------------------------------------------
-	//  Config
-	// ------------------------------------------------------------------------
 
 	/** The configuration queried by this config object */
 	private final Configuration config;
@@ -62,24 +35,22 @@ public class WebMonitorConfig {
 	}
 
 	public String getWebFrontendAddress() {
-		return config.getValue(ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS);
+		return config.getValue(JobManagerOptions.WEB_FRONTEND_ADDRESS);
 	}
 
 	public int getWebFrontendPort() {
-		return config.getInteger(JOB_MANAGER_WEB_PORT_KEY, DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+		return config.getInteger(JobManagerOptions.WEB_PORT);
 	}
 
 	public long getRefreshInterval() {
-		return config.getLong(JOB_MANAGER_WEB_REFRESH_INTERVAL_KEY, DEFAULT_JOB_MANAGER_WEB_REFRESH_INTERVAL);
+		return config.getLong(JobManagerOptions.WEB_REFRESH_INTERVAL);
 	}
 	
 	public boolean isProgramSubmitEnabled() {
-		return config.getBoolean(
-			ConfigConstants.JOB_MANAGER_WEB_SUBMIT_ENABLED_KEY,
-			ConfigConstants.DEFAULT_JOB_MANAGER_WEB_SUBMIT_ENABLED);
+		return config.getBoolean(JobManagerOptions.WEB_SUBMIT_ENABLE);
 	}
 
 	public String getAllowOrigin() {
-		return config.getString(ConfigConstants.JOB_MANAGER_WEB_ACCESS_CONTROL_ALLOW_ORIGIN);
+		return config.getString(JobManagerOptions.WEB_ACCESS_CONTROL_ALLOW_ORIGIN);
 	}
 }

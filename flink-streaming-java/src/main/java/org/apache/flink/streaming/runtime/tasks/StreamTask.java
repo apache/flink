@@ -765,9 +765,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		cancelables.registerClosable(keyedStateBackend);
 
 		// restore if we have some old state
-		if (null != restoreStateHandles && null != restoreStateHandles.getManagedKeyedState()) {
-			keyedStateBackend.restore(restoreStateHandles.getManagedKeyedState());
-		}
+		Collection<KeyedStateHandle> restoreKeyedStateHandles =
+			restoreStateHandles == null ? null : restoreStateHandles.getManagedKeyedState();
+
+		keyedStateBackend.restore(restoreKeyedStateHandles);
 
 		@SuppressWarnings("unchecked")
 		AbstractKeyedStateBackend<K> typedBackend = (AbstractKeyedStateBackend<K>) keyedStateBackend;

@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory
 class FlatJoinRunner[IN1, IN2, OUT](
     name: String,
     code: String,
-    @transient returnType: TypeInformation[OUT])
+    @transient var returnType: TypeInformation[OUT])
   extends RichFlatJoinFunction[IN1, IN2, OUT]
   with ResultTypeQueryable[OUT]
   with Compiler[FlatJoinFunction[IN1, IN2, OUT]] {

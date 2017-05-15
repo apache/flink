@@ -71,7 +71,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 
 			TypeInformation<Tuple2<Long, String>> longStringInfo = TypeInfoParser.parse("Tuple2<Long, String>");
 
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setRestartStrategy(RestartStrategies.noRestart());
 			env.getConfig().disableSysoutLogging();
 

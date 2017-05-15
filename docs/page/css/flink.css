@@ -30,6 +30,11 @@ body {
 	background: #f8f8f8;
 }
 
+@media (min-width: 992px) and (max-width: 1200px) {
+    #contentcol { float: left; width: 70%; }
+    #sidenavcol { float: left; width: 30%; }
+}
+
 /*=============================================================================
  Per page TOC
 =============================================================================*/

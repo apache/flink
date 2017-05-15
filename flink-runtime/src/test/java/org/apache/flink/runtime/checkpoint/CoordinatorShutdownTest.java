@@ -33,6 +33,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import scala.concurrent.Await;
@@ -47,7 +48,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class CoordinatorShutdownTest {
+public class CoordinatorShutdownTest extends TestLogger {
 	
 	@Test
 	public void testCoordinatorShutsDownOnFailure() {

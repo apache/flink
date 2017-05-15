@@ -625,7 +625,7 @@ trait ImplicitExpressionOperations {
     */
   def millis = milli
 
-  // row interval type
+  // Row interval type
 
   /**
     * Creates an interval of rows.
@@ -633,6 +633,8 @@ trait ImplicitExpressionOperations {
     * @return interval of rows
     */
   def rows = toRowInterval(expr)
+
+  // Advanced type helper functions
 
   /**
     * Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by name and
@@ -680,6 +682,20 @@ trait ImplicitExpressionOperations {
     * @return the first and only element of an array with a single element
     */
   def element() = ArrayElement(expr)
+
+  // Schema definition
+
+  /**
+    * Declares a field as the rowtime attribute for indicating, accessing, and working in
+    * Flink's event time.
+    */
+  def rowtime = RowtimeAttribute(expr)
+
+  /**
+    * Declares a field as the proctime attribute for indicating, accessing, and working in
+    * Flink's processing time.
+    */
+  def proctime = ProctimeAttribute(expr)
 }
 
 /**

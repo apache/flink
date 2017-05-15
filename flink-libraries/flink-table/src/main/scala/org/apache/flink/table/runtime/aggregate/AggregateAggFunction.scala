@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.aggregate
 
 import org.apache.flink.api.common.functions.AggregateFunction
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.slf4j.LoggerFactory
 
@@ -30,28 +31,28 @@ import org.slf4j.LoggerFactory
   * @param genAggregations Generated aggregate helper function
   */
 class AggregateAggFunction(genAggregations: GeneratedAggregationsFunction)
-  extends AggregateFunction[Row, Row, Row] with Compiler[GeneratedAggregations] {
+  extends AggregateFunction[CRow, Row, Row] with Compiler[GeneratedAggregations] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   override def createAccumulator(): Row = {
     if (function == null) {
-      initFunction
+      initFunction()
     }
     function.createAccumulators()
   }
 
-  override def add(value: Row, accumulatorRow: Row): Unit = {
+  override def add(value: CRow, accumulatorRow: Row): Unit = {
     if (function == null) {
-      initFunction
+      initFunction()
     }
-    function.accumulate(accumulatorRow, value)
+    function.accumulate(accumulatorRow, value.row)
   }
 
   override def getResult(accumulatorRow: Row): Row = {
     if (function == null) {
-      initFunction
+      initFunction()
     }
     val output = function.createOutputRow()
     function.setAggregationResults(accumulatorRow, output)
@@ -60,7 +61,7 @@ class AggregateAggFunction(genAggregations: GeneratedAggregationsFunction)
 
   override def merge(aAccumulatorRow: Row, bAccumulatorRow: Row): Row = {
     if (function == null) {
-      initFunction
+      initFunction()
     }
     function.mergeAccumulatorsPair(aAccumulatorRow, bAccumulatorRow)
   }

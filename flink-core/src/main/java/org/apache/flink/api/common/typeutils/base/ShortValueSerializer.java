@@ -31,8 +31,7 @@ public final class ShortValueSerializer extends TypeSerializerSingleton<ShortVal
 	private static final long serialVersionUID = 1L;
 	
 	public static final ShortValueSerializer INSTANCE = new ShortValueSerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -83,5 +82,11 @@ public final class ShortValueSerializer extends TypeSerializerSingleton<ShortVal
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof ShortValueSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(ShortSerializer.class.getCanonicalName());
 	}
 }

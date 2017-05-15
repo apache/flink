@@ -20,7 +20,7 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -141,25 +141,10 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 
 		final long javaMemorySizeMB = containerMemoryMB - cutoff;
 
-		// (2) split the Java memory between heap and off-heap
+		// (2) split the remaining Java memory between heap and off-heap
+		final long heapSizeMB = TaskManagerServices.calculateHeapSizeMB(javaMemorySizeMB, config);
+		final long offHeapSize = javaMemorySizeMB == heapSizeMB ? -1L : javaMemorySizeMB - heapSizeMB; 
 
-		final boolean useOffHeap = config.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP);
-
-		final long heapSizeMB;
-		if (useOffHeap) {
-			long offHeapSize = config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE);
-
-			if (offHeapSize <= 0) {
-				double fraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
-
-				offHeapSize = (long) (fraction * javaMemorySizeMB);
-			}
-
-			heapSizeMB = javaMemorySizeMB - offHeapSize;
-		} else {
-			heapSizeMB = javaMemorySizeMB;
-		}
-		
 		// (3) obtain the additional environment variables from the configuration
 		final HashMap<String, String> envVars = new HashMap<>();
 		final String prefix = ConfigConstants.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX;
@@ -171,9 +156,9 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 				envVars.put(envVarKey, config.getString(key, null));
 			}
 		}
-		
+
 		// done
 		return new ContaineredTaskManagerParameters(
-			containerMemoryMB, heapSizeMB, javaMemorySizeMB, numSlots, envVars);
+			containerMemoryMB, heapSizeMB, offHeapSize, numSlots, envVars);
 	}
 }

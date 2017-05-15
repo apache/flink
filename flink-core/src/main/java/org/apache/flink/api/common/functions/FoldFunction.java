@@ -38,8 +38,11 @@ import java.io.Serializable;
  *
  * @param <T> Type of the initial input and the returned element
  * @param <O> Type of the elements that the group/list/stream contains
+ *
+ * @deprecated use {@link AggregateFunction} instead
  */
 @Public
+@Deprecated
 public interface FoldFunction<O, T> extends Function, Serializable {
 	/**
 	 * The core method of FoldFunction, combining two values into one value of the same type.

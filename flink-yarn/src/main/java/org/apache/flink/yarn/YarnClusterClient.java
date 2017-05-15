@@ -32,9 +32,8 @@ import org.apache.flink.runtime.clusterframework.messages.GetClusterStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.clusterframework.messages.ShutdownClusterAfterJob;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.hadoop.conf.Configuration;
@@ -109,7 +108,7 @@ public class YarnClusterClient extends ClusterClient {
 		final ApplicationReport appReport,
 		org.apache.flink.configuration.Configuration flinkConfig,
 		Path sessionFilesDir,
-		boolean newlyCreatedCluster) throws IOException, YarnException {
+		boolean newlyCreatedCluster) throws Exception {
 
 		super(flinkConfig);
 
@@ -123,7 +122,10 @@ public class YarnClusterClient extends ClusterClient {
 		this.trackingURL = appReport.getTrackingUrl();
 		this.newlyCreatedCluster = newlyCreatedCluster;
 
-		this.applicationClient = new LazApplicationClientLoader(flinkConfig, actorSystemLoader);
+		this.applicationClient = new LazApplicationClientLoader(
+			flinkConfig,
+			actorSystemLoader,
+			highAvailabilityServices);
 
 		this.pollingRunner = new PollingThread(yarnClient, appId);
 		this.pollingRunner.setDaemon(true);
@@ -443,7 +445,12 @@ public class YarnClusterClient extends ClusterClient {
 		@Override
 		public void run() {
 			LOG.info("Shutting down YarnClusterClient from the client shutdown hook");
-			shutdown();
+
+			try {
+				shutdown();
+			} catch (Throwable t) {
+				LOG.warn("Could not properly shut down the yarn cluster client.", t);
+			}
 		}
 	}
 
@@ -545,14 +552,17 @@ public class YarnClusterClient extends ClusterClient {
 
 		private final org.apache.flink.configuration.Configuration flinkConfig;
 		private final LazyActorSystemLoader actorSystemLoader;
+		private final HighAvailabilityServices highAvailabilityServices;
 
 		private ActorRef applicationClient;
 
 		private LazApplicationClientLoader(
 				org.apache.flink.configuration.Configuration flinkConfig,
-				LazyActorSystemLoader actorSystemLoader) {
-			this.flinkConfig = flinkConfig;
-			this.actorSystemLoader = actorSystemLoader;
+				LazyActorSystemLoader actorSystemLoader,
+				HighAvailabilityServices highAvailabilityServices) {
+			this.flinkConfig = Preconditions.checkNotNull(flinkConfig, "flinkConfig");
+			this.actorSystemLoader = Preconditions.checkNotNull(actorSystemLoader, "actorSystemLoader");
+			this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices, "highAvailabilityServices");
 		}
 
 		/**
@@ -561,14 +571,6 @@ public class YarnClusterClient extends ClusterClient {
 		 */
 		public ActorRef get() {
 			if (applicationClient == null) {
-				/* The leader retrieval service for connecting to the cluster and finding the active leader. */
-				LeaderRetrievalService leaderRetrievalService;
-				try {
-					leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
-				} catch (Exception e) {
-					throw new RuntimeException("Could not create the leader retrieval service.", e);
-				}
-
 				// start application client
 				LOG.info("Start application client.");
 
@@ -576,7 +578,7 @@ public class YarnClusterClient extends ClusterClient {
 					Props.create(
 						ApplicationClient.class,
 						flinkConfig,
-						leaderRetrievalService),
+						highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID)),
 					"applicationClient");
 			}
 

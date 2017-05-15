@@ -43,15 +43,12 @@ import java.util.concurrent.ThreadLocalRandom;
 public class CustomKvStateProgram {
 
 	public static void main(String[] args) throws Exception {
-		final String jarFile = args[0];
-		final String host = args[1];
-		final int port = Integer.parseInt(args[2]);
-		final int parallelism = Integer.parseInt(args[3]);
-		final String checkpointPath = args[4];
-		final int checkpointingInterval = Integer.parseInt(args[5]);
-		final String outputPath = args[6];
+		final int parallelism = Integer.parseInt(args[0]);
+		final String checkpointPath = args[1];
+		final int checkpointingInterval = Integer.parseInt(args[2]);
+		final String outputPath = args[3];
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.getConfig().disableSysoutLogging();
 		env.enableCheckpointing(checkpointingInterval);

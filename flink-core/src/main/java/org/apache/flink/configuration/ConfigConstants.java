@@ -139,36 +139,39 @@ public final class ConfigConstants {
 	public static final String RESOURCE_MANAGER_IPC_PORT_KEY = "resourcemanager.rpc.port";
 
 	/**
-	 * The config parameter defining the storage directory to be used by the blob server.
+	 * @deprecated use {@link BlobServerOptions#STORAGE_DIRECTORY} instead
 	 */
+	@Deprecated
 	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
 
 	/**
-	 * The config parameter defining number of retires for failed BLOB fetches.
+	 * @deprecated use {@link BlobServerOptions#FETCH_RETRIES} instead
 	 */
+	@Deprecated
 	public static final String BLOB_FETCH_RETRIES_KEY = "blob.fetch.retries";
 
 	/**
-	 * The config parameter defining the maximum number of concurrent BLOB fetches that the JobManager serves.
+	 * @deprecated use {@link BlobServerOptions#FETCH_CONCURRENT} instead
 	 */
+	@Deprecated
 	public static final String BLOB_FETCH_CONCURRENT_KEY = "blob.fetch.num-concurrent";
 
 	/**
-	 * The config parameter defining the backlog of BLOB fetches on the JobManager
+	 * @deprecated use {@link BlobServerOptions#FETCH_BACKLOG} instead
 	 */
+	@Deprecated
 	public static final String BLOB_FETCH_BACKLOG_KEY = "blob.fetch.backlog";
 
 	/**
-	 * The config parameter defining the server port of the blob service.
-	 * The port can either be a port, such as "9123",
-	 * a range of ports: "50100-50200"
-	 * or a list of ranges and or points: "50100-50200,50300-50400,51234"
-	 *
-	 * Setting the port to 0 will let the OS choose an available port.
+	 * @deprecated use {@link BlobServerOptions#PORT} instead
 	 */
+	@Deprecated
 	public static final String BLOB_SERVER_PORT = "blob.server.port";
 
-	/** Flag to override ssl support for the blob service transport */
+	/**
+	 * @deprecated use {@link BlobServerOptions#SSL_ENABLED} instead
+	 */
+	@Deprecated
 	public static final String BLOB_SERVICE_SSL_ENABLED = "blob.service.ssl.enabled";
 
 	/**
@@ -1094,28 +1097,33 @@ public final class ConfigConstants {
 	public static final int DEFAULT_RESOURCE_MANAGER_IPC_PORT = 0;
 
 	/**
-	 * The default value to override ssl support for blob service transport
+	 * @deprecated use {@link BlobServerOptions#SSL_ENABLED} instead
 	 */
+	@Deprecated
 	public static final boolean DEFAULT_BLOB_SERVICE_SSL_ENABLED = true;
 
 	/**
-	 * Default number of retries for failed BLOB fetches.
+	 * @deprecated use {@link BlobServerOptions#FETCH_RETRIES} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_BLOB_FETCH_RETRIES = 5;
 
 	/**
-	 * Default number of concurrent BLOB fetch operations.
+	 * @deprecated use {@link BlobServerOptions#FETCH_CONCURRENT} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_BLOB_FETCH_CONCURRENT = 50;
 
 	/**
-	 * Default BLOB fetch connection backlog.
+	 * @deprecated use {@link BlobServerOptions#FETCH_BACKLOG} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_BLOB_FETCH_BACKLOG = 1000;
 
 	/**
-	 * Default BLOB server port. 0 means ephemeral port.
+	 * @deprecated use {@link BlobServerOptions#PORT} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_BLOB_SERVER_PORT = "0";
 
 	/**
@@ -1328,47 +1336,91 @@ public final class ConfigConstants {
 	
 	// ------------------------- JobManager Web Frontend ----------------------
 
-	/** The config key for the address of the JobManager web frontend. */
+	/**
+	 * The config key for the address of the JobManager web frontend.
+	 *
+	 * @deprecated use {@link JobManagerOptions#WEB_FRONTEND_ADDRESS} instead
+	 */
+	@Deprecated
 	public static final ConfigOption<String> DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS =
 		key("jobmanager.web.address")
 			.noDefaultValue();
 
-	/** The config parameter defining the Access-Control-Allow-Origin header for all
-	 * responses from the web-frontend. */
-	public static final ConfigOption<String> JOB_MANAGER_WEB_ACCESS_CONTROL_ALLOW_ORIGIN =
-		key("jobmanager.web.access-control-allow-origin")
-			.defaultValue("*");
-
-	/** The config key for the port of the JobManager web frontend.
-	 * Setting this value to {@code -1} disables the web frontend. */
+	/**
+	 * The config key for the port of the JobManager web frontend.
+	 * Setting this value to {@code -1} disables the web frontend.
+	 *
+	 * @deprecated use {@link JobManagerOptions#WEB_PORT} instead
+	 */
+	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
 
-	/** Default value to override SSL support for the JobManager web UI */
+	/**
+	 * Default value to override SSL support for the JobManager web UI
+	 *
+	 * @deprecated use {@link JobManagerOptions#WEB_SSL_ENABLED} instead
+	 */
+	@Deprecated
 	public static final boolean DEFAULT_JOB_MANAGER_WEB_SSL_ENABLED = true;
 
-	/** The default number of archived jobs for the jobmanager */
+	/**
+	 * The default number of archived jobs for the jobmanager
+	 *
+	 * @deprecated use {@link JobManagerOptions#WEB_ARCHIVE_COUNT} instead
+	 */
+	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT = 5;
 
-	/** By default, submitting jobs from the web-frontend is allowed. */
+	/**
+	 * By default, submitting jobs from the web-frontend is allowed.
+	 *
+	 * @deprecated use {@link JobManagerOptions#WEB_SUBMIT_ENABLE} instead
+	 */
+	@Deprecated
 	public static final boolean DEFAULT_JOB_MANAGER_WEB_SUBMIT_ENABLED = true;
 
 	/** @deprecated Config key has been deprecated. Therefore, no default value required. */
 	@Deprecated
 	public static final boolean DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_DISABLE = false;
 
-	/** Default number of checkpoints to remember for recent history. */
+	/**
+	 * Default number of checkpoints to remember for recent history.
+	 *
+	 * @deprecated use {@link JobManagerOptions#WEB_CHECKPOINTS_HISTORY_SIZE} instead
+	 */
+	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = 10;
 
-	/** Time after which cached stats are cleaned up. */
+	/**
+	 * Time after which cached stats are cleaned up.
+	 *
+	 * @@deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_CLEANUP_INTERVAL} instead
+	 */
+	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL = 10 * 60 * 1000;
 
-	/** Time after which available stats are deprecated and need to be refreshed (by resampling). */
+	/**
+	 * Time after which available stats are deprecated and need to be refreshed (by resampling).
+	 *
+	 * @deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_REFRESH_INTERVAL} instead
+	 */
+	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL = 60 * 1000;
 
-	/** Number of samples to take to determine back pressure. */
+	/**
+	 * Number of samples to take to determine back pressure.
+	 *
+	 * @deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_NUM_SAMPLES} instead
+	 */
+	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES = 100;
 
-	/** Delay between samples to determine back pressure. */
+	/**
+	 * Delay between samples to determine back pressure.
+	 *
+	 * @deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_DELAY} instead
+	 */
+	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_DELAY = 50;
 
 	// ------------------------------ Akka Values ------------------------------

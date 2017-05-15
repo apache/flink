@@ -25,7 +25,6 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -34,14 +33,17 @@ import org.apache.flink.examples.java.clustering.util.KMeansData;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
 public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
-	
+
+	private static final int PARALLELISM = 16;
 	@Test
 	public void testSuccessfulProgramAfterFailure() {
 		LocalFlinkMiniCluster cluster = null;
@@ -56,9 +58,11 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 			cluster = new LocalFlinkMiniCluster(config, false);
 
 			cluster.start();
+
+			TestEnvironment env = new TestEnvironment(cluster, PARALLELISM, false);
 			
 			try {
-				runConnectedComponents(cluster.getLeaderRPCPort());
+				runConnectedComponents(env);
 			}
 			catch (Exception e) {
 				e.printStackTrace();
@@ -66,15 +70,15 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 			}
 	
 			try {
-				runKMeans(cluster.getLeaderRPCPort());
+				runKMeans(env);
 				fail("This program execution should have failed.");
 			}
-			catch (ProgramInvocationException e) {
-				assertTrue(e.getCause().getCause().getMessage().contains("Insufficient number of network buffers"));
+			catch (JobExecutionException e) {
+				assertTrue(e.getCause().getMessage().contains("Insufficient number of network buffers"));
 			}
 	
 			try {
-				runConnectedComponents(cluster.getLeaderRPCPort());
+				runConnectedComponents(env);
 			}
 			catch (Exception e) {
 				e.printStackTrace();
@@ -92,10 +96,9 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 		}
 	}
 	
-	private static void runConnectedComponents(int jmPort) throws Exception {
+	private static void runConnectedComponents(ExecutionEnvironment env) throws Exception {
 		
-		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", jmPort);
-		env.setParallelism(16);
+		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
 		// read vertex and edge data
@@ -134,10 +137,9 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 		env.execute();
 	}
 
-	private static void runKMeans(int jmPort) throws Exception {
+	private static void runKMeans(ExecutionEnvironment env) throws Exception {
 
-		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", jmPort);
-		env.setParallelism(16);
+		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
 		// get input data

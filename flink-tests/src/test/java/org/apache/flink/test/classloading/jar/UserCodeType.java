@@ -43,11 +43,7 @@ public class UserCodeType {
 	}
 
 	public static void main(String[] args) throws Exception {
-		String jarFile = args[0];
-		String host = args[1];
-		int port = Integer.parseInt(args[2]);
-
-		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> input = env.fromElements(1,2,3,4,5);

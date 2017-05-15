@@ -54,7 +54,8 @@ extends GeneratedGraph<LongValue> {
 
 	@Override
 	public String getUsage() {
-		return "--dim0 size:wrap_endpoints [--dim1 size:wrap_endpoints [--dim2 ...]]" + super.getUsage();
+		return "--" + PREFIX + "0 size:wrap_endpoints [--" + PREFIX + " size:wrap_endpoints [--" + PREFIX + " ...]]"
+			+ super.getUsage();
 	}
 
 	@Override

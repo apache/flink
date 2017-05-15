@@ -36,8 +36,7 @@ public final class CharPrimitiveArraySerializer extends TypeSerializerSingleton<
 	private static final char[] EMPTY = new char[0];
 
 	public static final CharPrimitiveArraySerializer INSTANCE = new CharPrimitiveArraySerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
