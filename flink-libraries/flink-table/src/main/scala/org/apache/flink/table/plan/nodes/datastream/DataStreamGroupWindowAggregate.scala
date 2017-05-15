@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.expressions.ExpressionUtils._
 import org.apache.flink.table.plan.logical._
@@ -118,6 +119,9 @@ class DataStreamGroupWindowAggregate(
         inputSchema.mapAggregateCall(namedAggregate.left),
         namedAggregate.right)
     }
+    val physicalNamedProperties = namedProperties
+      .filter(np => !FlinkTypeFactory.isTimeIndicatorType(np.property.resultType))
+
     val consumeRetraction = DataStreamRetractionRules.isAccRetract(input)
 
     if (consumeRetraction) {
@@ -159,7 +163,7 @@ class DataStreamGroupWindowAggregate(
         physicalGrouping.length,
         physicalNamedAggregates.size,
         schema.physicalArity,
-        namedProperties)
+        physicalNamedProperties)
 
       val keyedStream = inputDS.keyBy(physicalGrouping: _*)
       val windowedStream =
@@ -185,7 +189,7 @@ class DataStreamGroupWindowAggregate(
       val windowFunction = AggregateUtil.createAggregationAllWindowFunction(
         window,
         schema.physicalArity,
-        namedProperties)
+        physicalNamedProperties)
 
       val windowedStream =
         createNonKeyedWindowedStream(window, inputDS)

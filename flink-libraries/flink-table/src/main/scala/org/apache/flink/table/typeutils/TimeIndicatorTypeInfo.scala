@@ -34,7 +34,8 @@ class TimeIndicatorTypeInfo(val isEventTime: Boolean)
     SqlTimestampSerializer.INSTANCE,
     classOf[SqlTimestampComparator].asInstanceOf[Class[TypeComparator[Timestamp]]]) {
 
-  override def toString: String = s"TimeIndicatorTypeInfo"
+  override def toString: String =
+    s"TimeIndicatorTypeInfo(${if (isEventTime) "rowtime" else "proctime" })"
 }
 
 object TimeIndicatorTypeInfo {
