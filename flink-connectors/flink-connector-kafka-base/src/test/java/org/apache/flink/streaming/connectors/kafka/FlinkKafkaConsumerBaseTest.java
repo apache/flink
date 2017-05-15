@@ -215,6 +215,72 @@ public class FlinkKafkaConsumerBaseTest {
 	}
 
 	@Test
+	public void testConfigureOnCheckpointsCommitMode() {
+
+		DummyFlinkKafkaConsumer consumer = new DummyFlinkKafkaConsumer();
+		consumer.setIsAutoCommitEnabled(true); // this should be ignored
+
+		StreamingRuntimeContext context = mock(StreamingRuntimeContext.class);
+		when(context.getIndexOfThisSubtask()).thenReturn(0);
+		when(context.getNumberOfParallelSubtasks()).thenReturn(1);
+		when(context.isCheckpointingEnabled()).thenReturn(true); // enable checkpointing, auto commit should be ignored
+		consumer.setRuntimeContext(context);
+
+		consumer.open(new Configuration());
+		assertEquals(OffsetCommitMode.ON_CHECKPOINTS, consumer.getOffsetCommitMode());
+	}
+
+	@Test
+	public void testConfigureAutoCommitMode() {
+
+		DummyFlinkKafkaConsumer consumer = new DummyFlinkKafkaConsumer();
+		consumer.setIsAutoCommitEnabled(true);
+
+		StreamingRuntimeContext context = mock(StreamingRuntimeContext.class);
+		when(context.getIndexOfThisSubtask()).thenReturn(0);
+		when(context.getNumberOfParallelSubtasks()).thenReturn(1);
+		when(context.isCheckpointingEnabled()).thenReturn(false); // disable checkpointing, auto commit should be respected
+		consumer.setRuntimeContext(context);
+
+		consumer.open(new Configuration());
+		assertEquals(OffsetCommitMode.KAFKA_PERIODIC, consumer.getOffsetCommitMode());
+	}
+
+	@Test
+	public void testConfigureDisableOffsetCommitWithCheckpointing() {
+
+		DummyFlinkKafkaConsumer consumer = new DummyFlinkKafkaConsumer();
+		consumer.setIsAutoCommitEnabled(true); // this should be ignored
+
+		StreamingRuntimeContext context = mock(StreamingRuntimeContext.class);
+		when(context.getIndexOfThisSubtask()).thenReturn(0);
+		when(context.getNumberOfParallelSubtasks()).thenReturn(1);
+		when(context.isCheckpointingEnabled()).thenReturn(true); // enable checkpointing, auto commit should be ignored
+		consumer.setRuntimeContext(context);
+
+		consumer.setCommitOffsetsOnCheckpoints(false); // disabling offset committing should override everything
+
+		consumer.open(new Configuration());
+		assertEquals(OffsetCommitMode.DISABLED, consumer.getOffsetCommitMode());
+	}
+
+	@Test
+	public void testConfigureDisableOffsetCommitWithoutCheckpointing() {
+
+		DummyFlinkKafkaConsumer consumer = new DummyFlinkKafkaConsumer();
+		consumer.setIsAutoCommitEnabled(false);
+
+		StreamingRuntimeContext context = mock(StreamingRuntimeContext.class);
+		when(context.getIndexOfThisSubtask()).thenReturn(0);
+		when(context.getNumberOfParallelSubtasks()).thenReturn(1);
+		when(context.isCheckpointingEnabled()).thenReturn(false); // disable checkpointing, auto commit should be respected
+		consumer.setRuntimeContext(context);
+
+		consumer.open(new Configuration());
+		assertEquals(OffsetCommitMode.DISABLED, consumer.getOffsetCommitMode());
+	}
+
+	@Test
 	@SuppressWarnings("unchecked")
 	public void testSnapshotStateWithCommitOnCheckpointsEnabled() throws Exception {
 
@@ -496,6 +562,8 @@ public class FlinkKafkaConsumerBaseTest {
 	private static class DummyFlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 		private static final long serialVersionUID = 1L;
 
+		boolean isAutoCommitEnabled = false;
+
 		@SuppressWarnings("unchecked")
 		public DummyFlinkKafkaConsumer() {
 			super(Arrays.asList("dummy-topic"), (KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class));
@@ -520,7 +588,11 @@ public class FlinkKafkaConsumerBaseTest {
 
 		@Override
 		protected boolean getIsAutoCommitEnabled() {
-			return false;
+			return isAutoCommitEnabled;
+		}
+
+		public void setIsAutoCommitEnabled(boolean isAutoCommitEnabled) {
+			this.isAutoCommitEnabled = isAutoCommitEnabled;
 		}
 	}
 

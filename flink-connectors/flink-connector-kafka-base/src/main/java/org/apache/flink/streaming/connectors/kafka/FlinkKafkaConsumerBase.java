@@ -769,4 +769,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	HashMap<KafkaTopicPartition, Long> getRestoredState() {
 		return restoredState;
 	}
+
+	@VisibleForTesting
+	OffsetCommitMode getOffsetCommitMode() {
+		return offsetCommitMode;
+	}
 }
