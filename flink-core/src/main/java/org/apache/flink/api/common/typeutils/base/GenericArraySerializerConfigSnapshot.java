@@ -58,15 +58,17 @@ public final class GenericArraySerializerConfigSnapshot<C> extends CompositeType
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
 
-		InstantiationUtil.serializeObject(new DataOutputViewStream(out), componentClass);
+		try (final DataOutputViewStream outViewWrapper = new DataOutputViewStream(out)) {
+			InstantiationUtil.serializeObject(outViewWrapper, componentClass);
+		}
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
-		try {
-			componentClass = InstantiationUtil.deserializeObject(new DataInputViewStream(in), getUserCodeClassLoader());
+		try (final DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
+			componentClass = InstantiationUtil.deserializeObject(inViewWrapper, getUserCodeClassLoader());
 		} catch (ClassNotFoundException e) {
 			throw new IOException("Could not find requested element class in classpath.", e);
 		}
