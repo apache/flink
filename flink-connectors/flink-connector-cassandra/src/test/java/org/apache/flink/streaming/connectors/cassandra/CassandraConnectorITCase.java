@@ -397,15 +397,15 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 	@Test
 	public void testCassandraRowAtLeastOnceSink() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+		CassandraRowSink<Row> sink = new CassandraRowSink<>(injectTableName(INSERT_DATA_QUERY), builder);
 
-		DataStreamSource<Row> source = env.fromCollection(rowCollection);
+		sink.open(new Configuration());
 
-		new CassandraSink.CassandraRowSinkBuilder(source, source.getType(),
-			source.getType().createSerializer(source.getExecutionEnvironment().getConfig())).setQuery(injectTableName(INSERT_DATA_QUERY)).setClusterBuilder(builder).build();
+		for (Row value : rowCollection) {
+			sink.send(value);
+		}
 
-		env.execute();
+		sink.close();
 
 		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
 		Assert.assertEquals(20, rs.all().size());
