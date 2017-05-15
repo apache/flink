@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.types.Row;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
@@ -39,7 +41,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	protected final String topic;
 	protected final Properties properties;
 	protected SerializationSchema<Row> serializationSchema;
-	protected final KafkaPartitioner<Row> partitioner;
+	protected final FlinkKafkaPartitioner<Row> partitioner;
 	protected String[] fieldNames;
 	protected TypeInformation[] fieldTypes;
 
@@ -49,12 +51,27 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	 * @param topic                 Kafka topic to write to.
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param partitioner           Partitioner to select Kafka partition for each item
+	 * @deprecated Use {@link KafkaTableSink#KafkaTableSink(String, Properties, FlinkKafkaPartitioner)} instead
 	 */
+	@Deprecated
 	public KafkaTableSink(
 			String topic,
 			Properties properties,
 			KafkaPartitioner<Row> partitioner) {
+		this(topic, properties, new FlinkKafkaDelegatePartitioner<Row>(partitioner));
+	}
 
+	/**
+	 * Creates KafkaTableSink
+	 * 
+	 * @param topic                 Kafka topic to write to.
+	 * @param properties            Properties for the Kafka consumer.
+	 * @param partitioner           Partitioner to select Kafka partition for each item
+	 */
+	public KafkaTableSink(
+			String topic,
+			Properties properties,
+			FlinkKafkaPartitioner<Row> partitioner) {
 		this.topic = Preconditions.checkNotNull(topic, "topic");
 		this.properties = Preconditions.checkNotNull(properties, "properties");
 		this.partitioner = Preconditions.checkNotNull(partitioner, "partitioner");
@@ -68,11 +85,27 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	 * @param serializationSchema Serialization schema to use to create Kafka records.
 	 * @param partitioner         Partitioner to select Kafka partition.
 	 * @return The version-specific Kafka producer
+	 * @deprecated Use {@link KafkaTableSink#createKafkaProducer(String, Properties, SerializationSchema, FlinkKafkaPartitioner)} instead
 	 */
+	@Deprecated
 	protected abstract FlinkKafkaProducerBase<Row> createKafkaProducer(
 		String topic, Properties properties,
 		SerializationSchema<Row> serializationSchema,
 		KafkaPartitioner<Row> partitioner);
+
+	/**
+	 * Returns the version-specifid Kafka producer.
+	 *
+	 * @param topic               Kafka topic to produce to.
+	 * @param properties          Properties for the Kafka producer.
+	 * @param serializationSchema Serialization schema to use to create Kafka records.
+	 * @param partitioner         Partitioner to select Kafka partition.
+	 * @return The version-specific Kafka producer
+	 */
+	protected abstract FlinkKafkaProducerBase<Row> createKafkaProducer(
+		String topic, Properties properties,
+		SerializationSchema<Row> serializationSchema,
+		FlinkKafkaPartitioner<Row> partitioner);
 
 	/**
 	 * Create serialization schema for converting table rows into bytes.
