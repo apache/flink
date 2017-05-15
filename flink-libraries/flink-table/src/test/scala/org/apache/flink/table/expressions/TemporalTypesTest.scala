@@ -45,7 +45,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testAllApis(
       "1500-04-30".cast(Types.SQL_DATE),
-      "'1500-04-30'.cast(DATE)",
+      "'1500-04-30'.cast(SQL_DATE)",
       "CAST('1500-04-30' AS DATE)",
       "1500-04-30")
 
@@ -62,7 +62,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testAllApis(
       "1:30:00".cast(Types.SQL_TIME),
-      "'1:30:00'.cast(TIME)",
+      "'1:30:00'.cast(SQL_TIME)",
       "CAST('1:30:00' AS TIME)",
       "01:30:00")
 
@@ -79,7 +79,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testAllApis(
       "1500-04-30 12:00:00".cast(Types.SQL_TIMESTAMP),
-      "'1500-04-30 12:00:00'.cast(TIMESTAMP)",
+      "'1500-04-30 12:00:00'.cast(SQL_TIMESTAMP)",
       "CAST('1500-04-30 12:00:00' AS TIMESTAMP)",
       "1500-04-30 12:00:00.0")
   }
@@ -169,62 +169,62 @@ class TemporalTypesTest extends ExpressionTestBase {
   def testTimePointCasting(): Unit = {
     testAllApis(
       'f0.cast(Types.SQL_TIMESTAMP),
-      "f0.cast(TIMESTAMP)",
+      "f0.cast(SQL_TIMESTAMP)",
       "CAST(f0 AS TIMESTAMP)",
       "1990-10-14 00:00:00.0")
 
     testAllApis(
       'f1.cast(Types.SQL_TIMESTAMP),
-      "f1.cast(TIMESTAMP)",
+      "f1.cast(SQL_TIMESTAMP)",
       "CAST(f1 AS TIMESTAMP)",
       "1970-01-01 10:20:45.0")
 
     testAllApis(
       'f2.cast(Types.SQL_DATE),
-      "f2.cast(DATE)",
+      "f2.cast(SQL_DATE)",
       "CAST(f2 AS DATE)",
       "1990-10-14")
 
     testAllApis(
       'f2.cast(Types.SQL_TIME),
-      "f2.cast(TIME)",
+      "f2.cast(SQL_TIME)",
       "CAST(f2 AS TIME)",
       "10:20:45")
 
     testAllApis(
       'f2.cast(Types.SQL_TIME),
-      "f2.cast(TIME)",
+      "f2.cast(SQL_TIME)",
       "CAST(f2 AS TIME)",
       "10:20:45")
 
     testTableApi(
       'f7.cast(Types.SQL_DATE),
-      "f7.cast(DATE)",
+      "f7.cast(SQL_DATE)",
       "2002-11-09")
 
     testTableApi(
       'f7.cast(Types.SQL_DATE).cast(Types.INT),
-      "f7.cast(DATE).cast(INT)",
+      "f7.cast(SQL_DATE).cast(INT)",
       "12000")
 
     testTableApi(
       'f7.cast(Types.SQL_TIME),
-      "f7.cast(TIME)",
+      "f7.cast(SQL_TIME)",
       "00:00:12")
 
     testTableApi(
       'f7.cast(Types.SQL_TIME).cast(Types.INT),
-      "f7.cast(TIME).cast(INT)",
+      "f7.cast(SQL_TIME).cast(INT)",
       "12000")
 
     testTableApi(
       'f8.cast(Types.SQL_TIMESTAMP),
-      "f8.cast(TIMESTAMP)",
+      "f8.cast(SQL_TIMESTAMP)",
       "2016-06-27 07:23:33.0")
 
     testTableApi(
       'f8.cast(Types.SQL_TIMESTAMP).cast(Types.LONG),
-      "f8.cast(TIMESTAMP).cast(LONG)",
+      "f8.cast(SQL_TIMESTAMP).cast(LONG)",
       "1467012213000")
   }
 
@@ -263,13 +263,13 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testAllApis(
       'f0.cast(Types.SQL_TIMESTAMP) !== 'f2,
-      "f0.cast(TIMESTAMP) !== f2",
+      "f0.cast(SQL_TIMESTAMP) !== f2",
       "CAST(f0 AS TIMESTAMP) <> f2",
       "true")
 
     testAllApis(
       'f0.cast(Types.SQL_TIMESTAMP) === 'f6,
-      "f0.cast(TIMESTAMP) === f6",
+      "f0.cast(SQL_TIMESTAMP) === f6",
       "CAST(f0 AS TIMESTAMP) = f6",
       "true")
   }

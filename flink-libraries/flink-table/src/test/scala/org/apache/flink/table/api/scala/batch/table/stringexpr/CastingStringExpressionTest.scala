@@ -86,13 +86,13 @@ class CastingStringExpressionTest {
       // * -> String
       "_1.cast(STRING), _2.cast(STRING), _3.cast(STRING), _4.cast(STRING)," +
         // NUMERIC TYPE -> Boolean
-        "_1.cast(BOOL), _2.cast(BOOL), _3.cast(BOOL)," +
+        "_1.cast(BOOLEAN), _2.cast(BOOLEAN), _3.cast(BOOLEAN)," +
         // NUMERIC TYPE -> NUMERIC TYPE
         "_1.cast(DOUBLE), _2.cast(INT), _3.cast(SHORT)," +
         // Boolean -> NUMERIC TYPE
         "_4.cast(DOUBLE)," +
         // identity casting
-        "_1.cast(INT), _2.cast(DOUBLE), _3.cast(LONG), _4.cast(BOOL)")
+        "_1.cast(INT), _2.cast(DOUBLE), _3.cast(LONG), _4.cast(BOOLEAN)")
 
     val lPlan1 = t1.logicalPlan
     val lPlan2 = t2.logicalPlan
@@ -110,7 +110,7 @@ class CastingStringExpressionTest {
         '_3.cast(DOUBLE), '_3.cast(FLOAT), '_2.cast(BOOLEAN))
     val t2 = table.select(
       "_1.cast(BYTE), _1.cast(SHORT), _1.cast(INT), _1.cast(LONG), " +
-        "_3.cast(DOUBLE), _3.cast(FLOAT), _2.cast(BOOL)")
+        "_3.cast(DOUBLE), _3.cast(FLOAT), _2.cast(BOOLEAN)")
 
     val lPlan1 = t1.logicalPlan
     val lPlan2 = t2.logicalPlan

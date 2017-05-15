@@ -64,6 +64,31 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func6(f4, f5, f6)",
       "Func6(f4, f5, f6)",
       "(1990-10-14,12:10:10,1990-10-14 12:10:10.0)")
+
+    // function names containing keywords
+    testAllApis(
+      Func0('f0),
+      "getFunc0(f0)",
+      "getFunc0(f0)",
+      "42")
+
+    testAllApis(
+      Func0('f0),
+      "asAlways(f0)",
+      "asAlways(f0)",
+      "42")
+
+    testAllApis(
+      Func0('f0),
+      "toWhatever(f0)",
+      "toWhatever(f0)",
+      "42")
+
+    testAllApis(
+      Func0('f0),
+      "Nullable(f0)",
+      "Nullable(f0)",
+      "42")
   }
 
   @Test
@@ -286,7 +311,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
 
     testAllApis(
       JavaFunc1(Null(Types.SQL_TIME), 15, Null(Types.SQL_TIMESTAMP)),
-      "JavaFunc1(Null(TIME), 15, Null(TIMESTAMP))",
+      "JavaFunc1(Null(SQL_TIME), 15, Null(SQL_TIMESTAMP))",
       "JavaFunc1(NULL, 15, NULL)",
       "null and 15 and null")
 
@@ -358,6 +383,10 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
 
   override def functions: Map[String, ScalarFunction] = Map(
     "Func0" -> Func0,
+    "getFunc0" -> Func0,
+    "asAlways" -> Func0,
+    "toWhatever" -> Func0,
+    "Nullable" -> Func0,
     "Func1" -> Func1,
     "Func2" -> Func2,
     "Func3" -> Func3,
