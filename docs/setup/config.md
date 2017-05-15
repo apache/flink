@@ -526,13 +526,11 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 ### Kerberos-based Security
 
-- `security.kerberos.login.use-ticket-cache`: Indicates whether to read from your Kerberos ticket cache (default: `true`).
+{% include generated/kerberos_configuration.html %}
 
-- `security.kerberos.login.keytab`: Absolute path to a Kerberos keytab file that contains the user credentials.
+### Zookeper
 
-- `security.kerberos.login.principal`: Kerberos principal name associated with the keytab.
-
-- `security.kerberos.login.contexts`: A comma-separated list of login contexts to provide the Kerberos credentials to (for example, `Client,KafkaClient` to use the credentials for ZooKeeper authentication and for Kafka authentication).
+{% include generated/zoo_keeper_configuration.html %}
 
 ### Environment
 
