@@ -83,6 +83,8 @@ public class InputGateMetrics {
 
 				int size = rc.unsynchronizedGetNumberOfQueuedBuffers();
 				min = Math.min(min, size);
+			} else {
+				min = 0;
 			}
 		}
 
