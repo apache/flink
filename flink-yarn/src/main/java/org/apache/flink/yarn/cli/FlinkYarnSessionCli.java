@@ -708,7 +708,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 					String key = propLine.substring(0, firstEquals).trim();
 					String value = propLine.substring(firstEquals + 1, propLine.length()).trim();
 
-					if (!key.isEmpty() && !value.isEmpty()) {
+					if (!key.isEmpty()) {
 						properties.put(key, value);
 					}
 				}
