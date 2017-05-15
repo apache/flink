@@ -130,7 +130,7 @@ public class InputGateMetrics {
 			}
 		}
 
-		return total / (float) count;
+		return count == 0 ? 0 : total / (float) count;
 	}
 
 	// ------------------------------------------------------------------------
