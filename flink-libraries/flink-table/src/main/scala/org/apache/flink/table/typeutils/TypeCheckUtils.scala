@@ -69,8 +69,8 @@ object TypeCheckUtils {
 
   def isArray(dataType: TypeInformation[_]): Boolean = dataType match {
     case _: ObjectArrayTypeInfo[_, _] |
-         _: PrimitiveArrayTypeInfo[_] |
-         _: BasicArrayTypeInfo[_, _] => true
+         _: BasicArrayTypeInfo[_, _] |
+         _: PrimitiveArrayTypeInfo[_]  => true
     case _ => false
   }
 
