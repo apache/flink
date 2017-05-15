@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.net.URL;
@@ -56,6 +57,7 @@ public class CEPMigration11to13Test {
 	}
 
 	@Test
+	@Ignore
 	public void testKeyedCEPOperatorMigratation() throws Exception {
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
@@ -139,6 +141,7 @@ public class CEPMigration11to13Test {
 	}
 
 	@Test
+	@Ignore
 	public void testNonKeyedCEPFunctionMigration() throws Exception {
 
 		final Event startEvent = new Event(42, "start", 1.0);
