@@ -18,7 +18,10 @@
 
 package org.apache.flink.cep;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -39,7 +42,8 @@ import java.util.IdentityHashMap;
  *
  * @param <T> Type of the element to be serialized
  */
-public class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
+@Internal
+public final class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
 	private static final long serialVersionUID = -7633631762221447524L;
 
 	// underlying type serializer
@@ -191,5 +195,15 @@ public class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
 
 		this.identityMap = new IdentityHashMap<>();
 		this.elementList = new ArrayList<>();
+	}
+
+	@Override
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		throw new UnsupportedOperationException("This serializer is not registered for managed state.");
+	}
+
+	@Override
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 	}
 }

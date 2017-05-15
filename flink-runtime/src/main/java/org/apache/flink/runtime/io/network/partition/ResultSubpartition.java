@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 
 import java.io.IOException;
 
@@ -77,7 +76,7 @@ public abstract class ResultSubpartition {
 
 	abstract public void release() throws IOException;
 
-	abstract public ResultSubpartitionView createReadView(BufferProvider bufferProvider, BufferAvailabilityListener availabilityListener) throws IOException;
+	abstract public ResultSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException;
 
 	abstract int releaseMemory() throws IOException;
 

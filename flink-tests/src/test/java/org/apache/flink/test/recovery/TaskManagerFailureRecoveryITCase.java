@@ -32,6 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import scala.concurrent.Await;
@@ -87,8 +88,7 @@ public class TaskManagerFailureRecoveryITCase extends TestLogger {
 			// for the result
 			List<Long> resultCollection = new ArrayList<Long>();
 
-			final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
+			final ExecutionEnvironment env = new TestEnvironment(cluster, PARALLELISM, false);
 
 			env.setParallelism(PARALLELISM);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));

@@ -23,7 +23,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamScan
-import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalNativeTableScan
 
 class DataStreamScanRule
@@ -53,7 +53,7 @@ class DataStreamScanRule
       rel.getCluster,
       traitSet,
       scan.getTable,
-      rel.getRowType
+      new RowSchema(rel.getRowType)
     )
   }
 }

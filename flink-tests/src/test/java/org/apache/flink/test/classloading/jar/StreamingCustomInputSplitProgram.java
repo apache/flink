@@ -42,18 +42,13 @@ import java.util.List;
 public class StreamingCustomInputSplitProgram {
 	
 	public static void main(String[] args) throws Exception {
-		final String jarFile = args[0];
-		final String host = args[1];
-		final int port = Integer.parseInt(args[2]);
-		final int parallelism = Integer.parseInt(args[3]);
-
-		Configuration config = new Configuration();
+				Configuration config = new Configuration();
 
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "5 s");
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, config, jarFile);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
 		env.getConfig().disableSysoutLogging();
-		env.setParallelism(parallelism);
 
 		DataStream<Integer> data = env.createInput(new CustomInputFormat());
 

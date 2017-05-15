@@ -50,6 +50,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def getConfig = javaEnv.getConfig
 
   /**
+    * Gets cache files.
+    */
+  def getCachedFiles = javaEnv.getCachedFiles
+
+  /**
    * Sets the parallelism for operations executed through this environment.
    * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
    * with x parallel instances. This value can be overridden by specific operations using
@@ -667,6 +672,49 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
       ClosureCleaner.ensureSerializable(f)
     }
     f
+  }
+
+
+  /**
+    * Registers a file at the distributed cache under the given name. The file will be accessible
+    * from any user-defined function in the (distributed) runtime under a local path. Files
+    * may be local files (as long as all relevant workers have access to it), or files in a
+    * distributed file system. The runtime will copy the files temporarily to a local cache,
+    * if needed.
+    * <p>
+    * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs
+    * via {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and
+    * provides access {@link org.apache.flink.api.common.cache.DistributedCache} via
+    * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
+    *
+    * @param filePath The path of the file, as a URI (e.g. "file:///some/path" or
+    *                 "hdfs://host:port/and/path")
+    * @param name     The name under which the file is registered.
+    */
+  def registerCachedFile(filePath: String, name: String): Unit = {
+    javaEnv.registerCachedFile(filePath, name)
+  }
+
+
+  /**
+    * Registers a file at the distributed cache under the given name. The file will be accessible
+    * from any user-defined function in the (distributed) runtime under a local path. Files
+    * may be local files (as long as all relevant workers have access to it), or files in a
+    * distributed file system. The runtime will copy the files temporarily to a local cache,
+    * if needed.
+    * <p>
+    * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs
+    * via {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and
+    * provides access {@link org.apache.flink.api.common.cache.DistributedCache} via
+    * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
+    *
+    * @param filePath   The path of the file, as a URI (e.g. "file:///some/path" or
+    *                   "hdfs://host:port/and/path")
+    * @param name       The name under which the file is registered.
+    * @param executable flag indicating whether the file should be executable
+    */
+  def registerCachedFile(filePath: String, name: String, executable: Boolean): Unit = {
+    javaEnv.registerCachedFile(filePath, name, executable)
   }
 }
 

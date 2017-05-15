@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.TerminalJobStatusListener;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.TestingManualHighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -29,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.util.TestLogger;
 
@@ -53,15 +57,18 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 	private int numSlotsPerTM = 1;
 	private int parallelism = numTMs * numSlotsPerTM;
 
-	private Configuration configuration;
-	private LeaderElectionRetrievalTestingCluster cluster = null;
+	private JobID jobId;
+	private TestingCluster cluster = null;
 	private JobGraph job = createBlockingJob(parallelism);
+	private TestingManualHighAvailabilityServices highAvailabilityServices;
 
 	@Before
 	public void before() throws TimeoutException, InterruptedException {
+		jobId = HighAvailabilityServices.DEFAULT_JOB_ID;
+
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(true);
 
-		configuration = new Configuration();
+		Configuration configuration = new Configuration();
 
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 1);
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
@@ -71,7 +78,13 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 		configuration.setInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 9999);
 		configuration.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "100 milli");
 
-		cluster = new LeaderElectionRetrievalTestingCluster(configuration, true, false);
+		highAvailabilityServices = new TestingManualHighAvailabilityServices();
+
+		cluster = new TestingCluster(
+			configuration,
+			highAvailabilityServices,
+			true,
+			false);
 		cluster.start(false);
 
 		// wait for actors to be alive so that they have started their leader retrieval service
@@ -88,8 +101,15 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 	public void testNotRestartedWhenLosingLeadership() throws Exception {
 		UUID leaderSessionID = UUID.randomUUID();
 
-		cluster.grantLeadership(0, leaderSessionID);
-		cluster.notifyRetrievalListeners(0, leaderSessionID);
+		highAvailabilityServices.grantLeadership(
+			jobId,
+			0,
+			leaderSessionID);
+
+		highAvailabilityServices.notifyRetrievers(
+			jobId,
+			0,
+			leaderSessionID);
 
 		cluster.waitForTaskManagersToBeRegistered(timeout);
 
@@ -110,12 +130,9 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 
 		ExecutionGraph executionGraph = (ExecutionGraph) ((TestingJobManagerMessages.ExecutionGraphFound) responseExecutionGraph).executionGraph();
 
-		TerminalJobStatusListener testListener = new TerminalJobStatusListener();
-		executionGraph.registerJobStatusListener(testListener);
+		highAvailabilityServices.revokeLeadership(jobId);
 
-		cluster.revokeLeadership();
-
-		testListener.waitForTerminalState(30000);
+		executionGraph.getTerminationFuture().get(30, TimeUnit.SECONDS);
 	}
 
 	public JobGraph createBlockingJob(int parallelism) {

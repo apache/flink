@@ -646,7 +646,8 @@ public class CheckpointCoordinator {
 				}
 
 				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.incrementAndGet();
-				LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
+				LOG.warn("Failed to trigger checkpoint {}. ({} consecutive failed attempts so far)",
+						checkpointID, numUnsuccessful, t);
 
 				if (!checkpoint.isDiscarded()) {
 					checkpoint.abortError(new Exception("Failed to trigger checkpoint", t));

@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InvalidClassException;
 import java.util.Arrays;
 
 @Internal
@@ -97,7 +98,7 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 		in.readFully(buffer);
 		try {
 			typeSerializer = InstantiationUtil.deserializeObject(buffer, userClassLoader);
-		} catch (ClassNotFoundException e) {
+		} catch (ClassNotFoundException | InvalidClassException e) {
 			if (ignoreClassNotFound) {
 				// we create a dummy so that all the information is not lost when we get a new checkpoint before receiving
 				// a proper typeserializer from the user
@@ -142,7 +143,7 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 	 * Dummy TypeSerializer to avoid that data is lost when checkpointing again a serializer for which we encountered
 	 * a {@link ClassNotFoundException}.
 	 */
-	static final class ClassNotFoundDummyTypeSerializer<T> extends TypeSerializer<T> {
+	public static final class ClassNotFoundDummyTypeSerializer<T> extends TypeSerializer<T> {
 
 		private static final long serialVersionUID = 2526330533671642711L;
 		private final byte[] actualBytes;
@@ -202,6 +203,16 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 
 		@Override
 		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			throw new UnsupportedOperationException("This object is a dummy TypeSerializer.");
+		}
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			throw new UnsupportedOperationException("This object is a dummy TypeSerializer.");
+		}
+
+		@Override
+		public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException("This object is a dummy TypeSerializer.");
 		}
 

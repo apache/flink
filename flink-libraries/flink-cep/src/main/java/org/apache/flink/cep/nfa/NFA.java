@@ -22,6 +22,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.LinkedHashMultimap;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
@@ -180,6 +181,9 @@ public class NFA<T> implements Serializable {
 	 * resulting event sequences are returned. If computations time out and timeout handling is
 	 * activated, then the timed out event patterns are returned.
 	 *
+	 * <p>If computations reach a stop state, the path forward is discarded and currently constructed path is returned
+	 * with the element that resulted in the stop state.
+	 *
 	 * @param event The current event to be processed or null if only pruning shall be done
 	 * @param timestamp The timestamp of the current event
 	 * @return Tuple of the collection of matched patterns (e.g. the result of computations which have
@@ -222,7 +226,12 @@ public class NFA<T> implements Serializable {
 				newComputationStates = Collections.singleton(computationState);
 			}
 
-			for (ComputationState<T> newComputationState: newComputationStates) {
+
+			//delay adding new computation states in case a stop state is reached and we discard the path.
+			final Collection<ComputationState<T>> statesToRetain = new ArrayList<>();
+			//if stop state reached in this path
+			boolean shouldDiscardPath = false;
+			for (final ComputationState<T> newComputationState: newComputationStates) {
 				if (newComputationState.isFinalState()) {
 					// we've reached a final state and can thus retrieve the matching event sequence
 					Collection<Map<String, T>> matches = extractPatternMatches(newComputationState);
@@ -233,11 +242,32 @@ public class NFA<T> implements Serializable {
 							newComputationState.getPreviousState().getName(),
 							newComputationState.getEvent(),
 							newComputationState.getTimestamp());
+				} else if (newComputationState.isStopState()) {
+					//reached stop state. release entry for the stop state
+					shouldDiscardPath = true;
+					stringSharedBuffer.release(
+						newComputationState.getPreviousState().getName(),
+						newComputationState.getEvent(),
+						newComputationState.getTimestamp());
 				} else {
 					// add new computation state; it will be processed once the next event arrives
-					computationStates.add(newComputationState);
+					statesToRetain.add(newComputationState);
 				}
 			}
+
+			if (shouldDiscardPath) {
+				// a stop state was reached in this branch. release branch which results in removing previous event from
+				// the buffer
+				for (final ComputationState<T> state : statesToRetain) {
+					stringSharedBuffer.release(
+						state.getPreviousState().getName(),
+						state.getEvent(),
+						state.getTimestamp());
+				}
+			} else {
+				computationStates.addAll(statesToRetain);
+			}
+
 		}
 
 		// prune shared buffer based on window length
@@ -831,18 +861,13 @@ public class NFA<T> implements Serializable {
 	/**
 	 * A {@link TypeSerializer} for {@link NFA} that uses Java Serialization.
 	 */
-	public static class Serializer<T> extends TypeSerializer<NFA<T>> {
+	public static class Serializer<T> extends TypeSerializerSingleton<NFA<T>> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public boolean isImmutableType() {
 			return false;
-		}
-
-		@Override
-		public TypeSerializer<NFA<T>> duplicate() {
-			return this;
 		}
 
 		@Override
@@ -916,18 +941,8 @@ public class NFA<T> implements Serializable {
 		}
 
 		@Override
-		public boolean equals(Object obj) {
-			return obj instanceof Serializer && ((Serializer) obj).canEqual(this);
-		}
-
-		@Override
 		public boolean canEqual(Object obj) {
 			return obj instanceof Serializer;
-		}
-
-		@Override
-		public int hashCode() {
-			return getClass().hashCode();
 		}
 	}
 }

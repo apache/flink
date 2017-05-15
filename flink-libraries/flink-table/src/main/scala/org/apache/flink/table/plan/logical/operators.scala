@@ -70,8 +70,6 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
     def checkName(name: String): Unit = {
       if (names.contains(name)) {
         failValidation(s"Duplicate field name $name.")
-      } else if (tableEnv.isInstanceOf[StreamTableEnvironment] && name == "rowtime") {
-        failValidation("'rowtime' cannot be used as field name in a streaming environment.")
       } else {
         names.add(name)
       }
@@ -112,10 +110,6 @@ case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends Una
       failValidation("Alias only accept name expressions as arguments")
     } else if (!aliasList.forall(_.asInstanceOf[UnresolvedFieldReference].name != "*")) {
       failValidation("Alias can not accept '*' as name")
-    } else if (tableEnv.isInstanceOf[StreamTableEnvironment] && !aliasList.forall {
-          case UnresolvedFieldReference(name) => name != "rowtime"
-        }) {
-      failValidation("'rowtime' cannot be used as field name in a streaming environment.")
     } else {
       val names = aliasList.map(_.asInstanceOf[UnresolvedFieldReference].name)
       val input = child.output
@@ -170,7 +164,7 @@ case class Limit(offset: Int, fetch: Int = -1, child: LogicalNode) extends Unary
     if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
       failValidation(s"Limit on stream tables is currently not supported.")
     }
-    if (!child.validate(tableEnv).isInstanceOf[Sort]) {
+    if (!child.isInstanceOf[Sort]) {
       failValidation(s"Limit operator must be preceded by an OrderBy operator.")
     }
     if (offset < 0) {
@@ -221,9 +215,6 @@ case class Aggregate(
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      failValidation(s"Aggregate on stream tables is currently not supported.")
-    }
 
     val resolvedAggregate = super.validate(tableEnv).asInstanceOf[Aggregate]
     val groupingExprs = resolvedAggregate.groupingExpressions
@@ -511,7 +502,7 @@ case class Join(
 }
 
 case class CatalogNode(
-    tablePath: Array[String],
+    tablePath: Seq[String],
     rowType: RelDataType) extends LeafNode {
 
   val output: Seq[Attribute] = rowType.getFieldList.asScala.map { field =>
@@ -519,7 +510,7 @@ case class CatalogNode(
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    relBuilder.scan(tablePath.toIterable.asJava)
+    relBuilder.scan(tablePath.asJava)
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = this
@@ -561,26 +552,20 @@ case class WindowAggregate(
   override def resolveReference(
       tableEnv: TableEnvironment,
       name: String)
-    : Option[NamedExpression] = tableEnv match {
-    // resolve reference to rowtime attribute in a streaming environment
-    case _: StreamTableEnvironment if name == "rowtime" =>
-      Some(RowtimeAttribute())
-    case _ =>
-      window.alias match {
-        // resolve reference to this window's alias
-        case UnresolvedFieldReference(alias) if name == alias =>
-          // check if reference can already be resolved by input fields
-          val found = super.resolveReference(tableEnv, name)
-          if (found.isDefined) {
-            failValidation(s"Reference $name is ambiguous.")
-          } else {
-            Some(WindowReference(name))
-          }
-        case _ =>
-          // resolve references as usual
-          super.resolveReference(tableEnv, name)
-      }
-  }
+    : Option[NamedExpression] = window.aliasAttribute match {
+      // resolve reference to this window's name
+      case UnresolvedFieldReference(alias) if name == alias =>
+        // check if reference can already be resolved by input fields
+        val found = super.resolveReference(tableEnv, name)
+        if (found.isDefined) {
+          failValidation(s"Reference $name is ambiguous.")
+        } else {
+          Some(WindowReference(name))
+        }
+      case _ =>
+        // resolve references as usual
+        super.resolveReference(tableEnv, name)
+    }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     val flinkRelBuilder = relBuilder.asInstanceOf[FlinkRelBuilder]
@@ -662,11 +647,19 @@ case class LogicalTableFunctionCall(
     child: LogicalNode)
   extends UnaryNode {
 
-  private val (_, fieldIndexes, fieldTypes) = getFieldInfo(resultType)
+  private val (generatedNames, fieldIndexes, fieldTypes) = getFieldInfo(resultType)
   private var evalMethod: Method = _
 
-  override def output: Seq[Attribute] = fieldNames.zip(fieldTypes).map {
-    case (n, t) => ResolvedFieldReference(n, t)
+  override def output: Seq[Attribute] = {
+    if (fieldNames.isEmpty) {
+      generatedNames.zip(fieldTypes).map {
+        case (n, t) => ResolvedFieldReference(n, t)
+      }
+    } else {
+      fieldNames.zip(fieldTypes).map {
+        case (n, t) => ResolvedFieldReference(n, t)
+      }
+    }
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
@@ -677,12 +670,12 @@ case class LogicalTableFunctionCall(
     checkForInstantiation(tableFunction.getClass)
     // look for a signature that matches the input types
     val signature = node.parameters.map(_.resultType)
-    val foundMethod = getEvalMethod(tableFunction, signature)
+    val foundMethod = getUserDefinedMethod(tableFunction, "eval", typeInfoToClass(signature))
     if (foundMethod.isEmpty) {
       failValidation(
         s"Given parameters of function '$functionName' do not match any signature. \n" +
           s"Actual: ${signatureToString(signature)} \n" +
-          s"Expected: ${signaturesToString(tableFunction)}")
+          s"Expected: ${signaturesToString(tableFunction, "eval")}")
     } else {
       node.evalMethod = foundMethod.get
     }
@@ -691,7 +684,11 @@ case class LogicalTableFunctionCall(
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     val fieldIndexes = getFieldInfo(resultType)._2
-    val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames, evalMethod)
+    val function = new FlinkTableFunctionImpl(
+      resultType,
+      fieldIndexes,
+      if (fieldNames.isEmpty) generatedNames else fieldNames, evalMethod
+    )
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val sqlFunction = TableSqlFunction(
       tableFunction.functionIdentifier,

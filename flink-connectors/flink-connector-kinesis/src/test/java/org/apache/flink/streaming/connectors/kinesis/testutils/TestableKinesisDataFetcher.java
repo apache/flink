@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
@@ -42,6 +43,8 @@ public class TestableKinesisDataFetcher extends KinesisDataFetcher<String> {
 
 	private long numElementsCollected;
 
+	private OneShotLatch runWaiter;
+
 	public TestableKinesisDataFetcher(List<String> fakeStreams,
 									  Properties fakeConfiguration,
 									  int fakeTotalCountOfSubtasks,
@@ -62,6 +65,7 @@ public class TestableKinesisDataFetcher extends KinesisDataFetcher<String> {
 			fakeKinesis);
 
 		this.numElementsCollected = 0;
+		this.runWaiter = new OneShotLatch();
 	}
 
 	public long getNumOfElementsCollected() {
@@ -79,6 +83,16 @@ public class TestableKinesisDataFetcher extends KinesisDataFetcher<String> {
 			this.numElementsCollected++;
 			updateState(shardStateIndex, lastSequenceNumber);
 		}
+	}
+
+	@Override
+	public void runFetcher() throws Exception {
+		runWaiter.trigger();
+		super.runFetcher();
+	}
+
+	public void waitUntilRun() throws Exception {
+		runWaiter.await();
 	}
 
 	@SuppressWarnings("unchecked")

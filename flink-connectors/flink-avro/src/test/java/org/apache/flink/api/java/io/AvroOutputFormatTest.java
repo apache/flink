@@ -28,8 +28,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 import org.apache.avro.Schema;
 import org.apache.flink.api.io.avro.example.User;
@@ -135,12 +133,13 @@ public class AvroOutputFormatTest {
 		assertTrue(fileSize(outputPath) > fileSize(compressedOutputPath));
 
 		// cleanup
-		Files.delete(Paths.get(outputPath.getPath()));
-		Files.delete(Paths.get(compressedOutputPath.getPath()));
+		FileSystem fs = FileSystem.getLocalFileSystem();
+		fs.delete(outputPath, false);
+		fs.delete(compressedOutputPath, false);
 	}
 
 	private long fileSize(Path path) throws IOException {
-		return Files.size(Paths.get(path.getPath()));
+		return path.getFileSystem().getFileStatus(path).getLen();
 	}
 
 	private void output(final AvroOutputFormat<User> outputFormat) throws IOException {

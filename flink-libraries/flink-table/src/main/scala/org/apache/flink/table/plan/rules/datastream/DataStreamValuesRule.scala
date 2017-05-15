@@ -24,6 +24,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamValues
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalValues
+import org.apache.flink.table.plan.schema.RowSchema
 
 class DataStreamValuesRule
   extends ConverterRule(
@@ -40,7 +41,7 @@ class DataStreamValuesRule
     new DataStreamValues(
       rel.getCluster,
       traitSet,
-      rel.getRowType,
+      new RowSchema(rel.getRowType),
       values.getTuples,
       description)
   }

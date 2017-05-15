@@ -34,7 +34,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
@@ -42,7 +41,6 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunningOrFinished;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -80,6 +78,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 	public static void tearDown() throws Exception {
 		if (zkServer != null) {
 			zkServer.close();
+			zkServer = null;
 		}
 	}
 
@@ -112,8 +111,8 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 				cluster.waitForTaskManagersToBeRegisteredAtJobManager(leadingJM.actor());
 
 				Future<Object> registeredTMs = leadingJM.ask(
-						JobManagerMessages.getRequestNumberRegisteredTaskManager(),
-						timeout);
+					JobManagerMessages.getRequestNumberRegisteredTaskManager(),
+					timeout);
 
 				int numRegisteredTMs = (Integer) Await.result(registeredTMs, timeout);
 
@@ -122,8 +121,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 				cluster.clearLeader();
 				leadingJM.tell(PoisonPill.getInstance());
 			}
-		}
-		finally {
+		} finally {
 			cluster.stop();
 		}
 	}
@@ -273,14 +271,10 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		@Override
 		public void run() {
 			try {
-				LeaderRetrievalService lrService =
-						LeaderRetrievalUtils.createLeaderRetrievalService(
-								cluster.configuration());
-
 				JobExecutionResult result = JobClient.submitJobAndWait(
 						clientActorSystem,
 						cluster.configuration(),
-						lrService,
+						cluster.highAvailabilityServices(),
 						graph,
 						timeout,
 						false,

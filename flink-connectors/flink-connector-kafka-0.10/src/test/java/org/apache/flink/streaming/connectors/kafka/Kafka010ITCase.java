@@ -208,6 +208,8 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 		final TypeInformationSerializationSchema<Long> longSer = new TypeInformationSerializationSchema<>(TypeInfoParser.<Long>parse("Long"), env.getConfig());
 		FlinkKafkaProducer010.FlinkKafkaProducer010Configuration prod = FlinkKafkaProducer010.writeToKafkaWithTimestamps(streamWithTimestamps, topic, new KeyedSerializationSchemaWrapper<>(longSer), standardProps, new FlinkKafkaPartitioner<Long>() {
+			private static final long serialVersionUID = -6730989584364230617L;
+
 			@Override
 			public int partition(Long next, byte[] key, byte[] value, String targetTopic, int[] partitions) {
 				return (int)(next % 3);
@@ -219,7 +221,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 		// ---------- Consume stream from Kafka -------------------
 
-		env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env.getConfig().disableSysoutLogging();
@@ -227,6 +229,8 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 		FlinkKafkaConsumer010<Long> kafkaSource = new FlinkKafkaConsumer010<>(topic, new LimitedLongDeserializer(), standardProps);
 		kafkaSource.assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Long>() {
+			private static final long serialVersionUID = -4834111073247835189L;
+
 			@Nullable
 			@Override
 			public Watermark checkAndGetNextWatermark(Long lastElement, long extractedTimestamp) {
@@ -253,8 +257,12 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 	private static class TimestampValidatingOperator extends StreamSink<Long> {
 
+		private static final long serialVersionUID = 1353168781235526806L;
+
 		public TimestampValidatingOperator() {
 			super(new SinkFunction<Long>() {
+				private static final long serialVersionUID = -6676565693361786524L;
+
 				@Override
 				public void invoke(Long value) throws Exception {
 					throw new RuntimeException("Unexpected");
@@ -304,6 +312,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 	private static class LimitedLongDeserializer implements KeyedDeserializationSchema<Long> {
 
+		private static final long serialVersionUID = 6966177118923713521L;
 		private final TypeInformation<Long> ti;
 		private final TypeSerializer<Long> ser;
 		long cnt = 0;

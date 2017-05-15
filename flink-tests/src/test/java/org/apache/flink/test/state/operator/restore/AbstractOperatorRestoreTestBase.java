@@ -27,14 +27,13 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -44,9 +43,11 @@ import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
 import org.apache.flink.runtime.testingUtils.TestingTaskManager;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -71,36 +72,48 @@ import java.util.concurrent.TimeUnit;
  * Step 1: Migrate the job to 1.3 by submitting the same job used for the 1.2 savepoint, and create a new savepoint.
  * Step 2: Modify the job topology, and restore from the savepoint created in step 1.
  */
-public abstract class AbstractOperatorRestoreTestBase {
+public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 
 	@Rule
 	public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	private static ActorSystem actorSystem = null;
+	private static HighAvailabilityServices highAvailabilityServices = null;
 	private static ActorGateway jobManager = null;
 	private static ActorGateway archiver = null;
 	private static ActorGateway taskManager = null;
 
-	private static final FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
+	private static final FiniteDuration timeout = new FiniteDuration(30L, TimeUnit.SECONDS);
 
 	@BeforeClass
 	public static void setupCluster() throws Exception {
-		FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
+		final Configuration configuration = new Configuration();
+
+		FiniteDuration timeout = new FiniteDuration(30L, TimeUnit.SECONDS);
 
 		actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
 
+		highAvailabilityServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+			configuration,
+			TestingUtils.defaultExecutor());
+
 		Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
-			new Configuration(),
+			configuration,
 			actorSystem,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
+			highAvailabilityServices,
 			Option.apply("jm"),
 			Option.apply("arch"),
 			TestingJobManager.class,
 			TestingMemoryArchivist.class);
 
-		jobManager = new AkkaActorGateway(master._1(), HighAvailabilityServices.DEFAULT_LEADER_ID);
-		archiver = new AkkaActorGateway(master._2(), HighAvailabilityServices.DEFAULT_LEADER_ID);
+		jobManager = LeaderRetrievalUtils.retrieveLeaderGateway(
+			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+			actorSystem,
+			timeout);
+
+		archiver = new AkkaActorGateway(master._2(), jobManager.leaderSessionID());
 
 		Configuration tmConfig = new Configuration();
 		tmConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
@@ -109,13 +122,13 @@ public abstract class AbstractOperatorRestoreTestBase {
 			tmConfig,
 			ResourceID.generate(),
 			actorSystem,
+			highAvailabilityServices,
 			"localhost",
 			Option.apply("tm"),
-			Option.<LeaderRetrievalService>apply(new StandaloneLeaderRetrievalService(jobManager.path(), HighAvailabilityServices.DEFAULT_LEADER_ID)),
 			true,
 			TestingTaskManager.class);
 
-		taskManager = new AkkaActorGateway(taskManagerRef, HighAvailabilityServices.DEFAULT_LEADER_ID);
+		taskManager = new AkkaActorGateway(taskManagerRef, jobManager.leaderSessionID());
 
 		// Wait until connected
 		Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
@@ -123,7 +136,11 @@ public abstract class AbstractOperatorRestoreTestBase {
 	}
 
 	@AfterClass
-	public static void tearDownCluster() {
+	public static void tearDownCluster() throws Exception {
+		if (highAvailabilityServices != null) {
+			highAvailabilityServices.closeAndCleanupAllData();
+		}
+
 		if (actorSystem != null) {
 			actorSystem.shutdown();
 		}

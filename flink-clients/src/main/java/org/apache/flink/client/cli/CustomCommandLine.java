@@ -75,11 +75,11 @@ public interface CustomCommandLine<ClusterType extends ClusterClient> {
 	 * @param config The Flink config to use
 	 * @param userJarFiles User jar files to include in the classpath of the cluster.
 	 * @return The client to communicate with the cluster which the CustomCommandLine brought up.
-	 * @throws UnsupportedOperationException if the operation is not supported
+	 * @throws Exception if the cluster could not be created
 	 */
 	ClusterType createCluster(
 			String applicationName,
 			CommandLine commandLine,
 			Configuration config,
-			List<URL> userJarFiles) throws UnsupportedOperationException;
+			List<URL> userJarFiles) throws Exception;
 }

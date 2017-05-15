@@ -21,8 +21,8 @@ package org.apache.flink.table.calcite
 import org.apache.calcite.adapter.java.JavaTypeFactory
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.sql.validate.{SqlConformance, SqlValidatorImpl}
-import org.apache.calcite.sql.{SqlInsert, SqlOperatorTable}
+import org.apache.calcite.sql._
+import org.apache.calcite.sql.validate.{SqlConformanceEnum, SqlValidatorImpl}
 
 /**
  * This is a copy of Calcite's CalciteSqlValidator to use with [[FlinkPlannerImpl]].
@@ -30,8 +30,12 @@ import org.apache.calcite.sql.{SqlInsert, SqlOperatorTable}
 class FlinkCalciteSqlValidator(
     opTab: SqlOperatorTable,
     catalogReader: CalciteCatalogReader,
-    typeFactory: JavaTypeFactory) extends SqlValidatorImpl(
-        opTab, catalogReader, typeFactory, SqlConformance.DEFAULT) {
+    factory: JavaTypeFactory)
+  extends SqlValidatorImpl(
+    opTab,
+    catalogReader,
+    factory,
+    SqlConformanceEnum.DEFAULT) {
 
   override def getLogicalSourceRowType(
       sourceRowType: RelDataType,

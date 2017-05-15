@@ -34,6 +34,7 @@ import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
+import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.instance.{ActorGateway, InstanceManager}
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist, SubmittedJobGraphStore}
@@ -48,7 +49,7 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWh
 import org.apache.flink.runtime.testutils.TestingResourceManager
 
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 /**
  * Testing cluster which starts the [[JobManager]] and [[TaskManager]] actors with testing support
@@ -60,16 +61,35 @@ import scala.concurrent.{Await, Future}
  */
 class TestingCluster(
     userConfiguration: Configuration,
+    highAvailabilityServices: HighAvailabilityServices,
     singleActorSystem: Boolean,
     synchronousDispatcher: Boolean)
   extends LocalFlinkMiniCluster(
     userConfiguration,
+    highAvailabilityServices,
     singleActorSystem) {
 
-  def this(userConfiguration: Configuration, singleActorSystem: Boolean) =
-    this(userConfiguration, singleActorSystem, false)
+  def this(
+      userConfiguration: Configuration,
+      singleActorSystem: Boolean,
+      synchronousDispatcher: Boolean) = {
+    this(
+      userConfiguration,
+      HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+        userConfiguration,
+        ExecutionContext.global),
+      singleActorSystem,
+      synchronousDispatcher)
+  }
 
-  def this(userConfiguration: Configuration) = this(userConfiguration, true, false)
+  def this(userConfiguration: Configuration, singleActorSystem: Boolean) = {
+    this(
+      userConfiguration,
+      singleActorSystem,
+      false)
+  }
+
+  def this(userConfiguration: Configuration) = this(userConfiguration, true)
 
   // --------------------------------------------------------------------------
 
@@ -224,10 +244,13 @@ class TestingCluster(
             Seq(newJobManagerActorSystem),
             1))
 
-          val lrs = createLeaderRetrievalService()
+          jobManagerLeaderRetrievalService.foreach(_.stop())
 
-          jobManagerLeaderRetrievalService = Some(lrs)
-          lrs.start(this)
+          jobManagerLeaderRetrievalService = Option(
+            highAvailabilityServices.getJobManagerLeaderRetriever(
+              HighAvailabilityServices.DEFAULT_JOB_ID))
+
+          jobManagerLeaderRetrievalService.foreach(_.start(this))
 
         case _ => throw new Exception("The JobManager of the TestingCluster have not " +
                                         "been started properly.")

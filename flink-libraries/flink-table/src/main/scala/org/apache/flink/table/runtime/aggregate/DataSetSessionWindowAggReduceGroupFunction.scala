@@ -56,7 +56,7 @@ class DataSetSessionWindowAggReduceGroupFunction(
   extends RichGroupReduceFunction[Row, Row]
     with Compiler[GeneratedAggregations] {
 
-  private var collector: TimeWindowPropertyCollector = _
+  private var collector: RowTimeWindowPropertyCollector = _
   private val intermediateRowWindowStartPos = keysAndAggregatesArity
   private val intermediateRowWindowEndPos = keysAndAggregatesArity + 1
 
@@ -78,7 +78,7 @@ class DataSetSessionWindowAggReduceGroupFunction(
 
     output = function.createOutputRow()
     accumulators = function.createAccumulators()
-    collector = new TimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
+    collector = new RowTimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
   }
 
   /**

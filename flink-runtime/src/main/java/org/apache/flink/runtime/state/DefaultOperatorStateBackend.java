@@ -24,6 +24,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -120,6 +121,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 	@Override
 	public void dispose() {
+		IOUtils.closeQuietly(this);
 		registeredStates.clear();
 	}
 
@@ -207,26 +209,18 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 					final Map<String, OperatorStateHandle.StateMetaInfo> writtenStatesMetaData =
 						new HashMap<>(registeredStatesDeepCopies.size());
 
-					List<OperatorBackendSerializationProxy.StateMetaInfo<?>> metaInfoList =
+					List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> metaInfoSnapshots =
 						new ArrayList<>(registeredStatesDeepCopies.size());
 
-					for (Map.Entry<String, PartitionableListState<?>> entry :
-						registeredStatesDeepCopies.entrySet()) {
-
-						PartitionableListState<?> state = entry.getValue();
-						OperatorBackendSerializationProxy.StateMetaInfo<?> metaInfo =
-							new OperatorBackendSerializationProxy.StateMetaInfo<>(
-								state.getName(),
-								state.getPartitionStateSerializer(),
-								state.getAssignmentMode());
-						metaInfoList.add(metaInfo);
+					for (Map.Entry<String, PartitionableListState<?>> entry : registeredStatesDeepCopies.entrySet()) {
+						metaInfoSnapshots.add(entry.getValue().getStateMetaInfo().snapshot());
 					}
 
 					CheckpointStreamFactory.CheckpointStateOutputStream out = getIoHandle();
 					DataOutputView dov = new DataOutputViewStreamWrapper(out);
 
 					OperatorBackendSerializationProxy backendSerializationProxy =
-						new OperatorBackendSerializationProxy(metaInfoList);
+						new OperatorBackendSerializationProxy(metaInfoSnapshots);
 
 					backendSerializationProxy.write(dov);
 
@@ -237,7 +231,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 						PartitionableListState<?> value = entry.getValue();
 						long[] partitionOffsets = value.write(out);
-						OperatorStateHandle.Mode mode = value.getAssignmentMode();
+						OperatorStateHandle.Mode mode = value.getStateMetaInfo().getAssignmentMode();
 						writtenStatesMetaData.put(
 							entry.getKey(),
 							new OperatorStateHandle.StateMetaInfo(partitionOffsets, mode));
@@ -254,10 +248,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 						return null;
 					}
 
-					OperatorStateHandle operatorStateHandle =
-						new OperatorStateHandle(writtenStatesMetaData, stateHandle);
-
-					return operatorStateHandle;
+					return new OperatorStateHandle(writtenStatesMetaData, stateHandle);
 				}
 			};
 
@@ -298,25 +289,39 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 				backendSerializationProxy.read(new DataInputViewStreamWrapper(in));
 
-				List<OperatorBackendSerializationProxy.StateMetaInfo<?>> metaInfoList =
-						backendSerializationProxy.getNamedStateSerializationProxies();
+				List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> restoredMetaInfoSnapshots =
+						backendSerializationProxy.getStateMetaInfoSnapshots();
 
 				// Recreate all PartitionableListStates from the meta info
-				for (OperatorBackendSerializationProxy.StateMetaInfo<?> stateMetaInfo : metaInfoList) {
-					PartitionableListState<?> listState = registeredStates.get(stateMetaInfo.getName());
+				for (RegisteredOperatorBackendStateMetaInfo.Snapshot<?> restoredMetaInfo : restoredMetaInfoSnapshots) {
+
+					if (restoredMetaInfo.getPartitionStateSerializer() == null ||
+							restoredMetaInfo.getPartitionStateSerializer()
+								instanceof TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer) {
+
+						// must fail now if the previous serializer cannot be restored because there is no serializer
+						// capable of reading previous state
+						// TODO when eager state registration is in place, we can try to get a convert deserializer
+						// TODO from the newly registered serializer instead of simply failing here
+
+						throw new IOException("Unable to restore operator state [" + restoredMetaInfo.getName() + "]." +
+							" The previous serializer of the operator state must be present; the serializer could" +
+							" have been removed from the classpath, or its implementation have changed and could" +
+							" not be loaded. This is a temporary restriction that will be fixed in future versions.");
+					}
+
+					PartitionableListState<?> listState = registeredStates.get(restoredMetaInfo.getName());
 
 					if (null == listState) {
 						listState = new PartitionableListState<>(
-								stateMetaInfo.getName(),
-								stateMetaInfo.getStateSerializer(),
-								stateMetaInfo.getMode());
+								new RegisteredOperatorBackendStateMetaInfo<>(
+										restoredMetaInfo.getName(),
+										restoredMetaInfo.getPartitionStateSerializer(),
+										restoredMetaInfo.getAssignmentMode()));
 
-						registeredStates.put(listState.getName(), listState);
+						registeredStates.put(listState.getStateMetaInfo().getName(), listState);
 					} else {
-						Preconditions.checkState(listState.getPartitionStateSerializer().canRestoreFrom(
-								stateMetaInfo.getStateSerializer()), "Incompatible state serializers found: " +
-								listState.getPartitionStateSerializer() + " is not compatible with " +
-								stateMetaInfo.getStateSerializer());
+						// TODO with eager state registration in place, check here for serializer migration strategies
 					}
 				}
 
@@ -341,7 +346,6 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	}
 
 	/**
-	 *
 	 * Implementation of operator list state.
 	 *
 	 * @param <S> the type of an operator state partition.
@@ -349,19 +353,9 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	static final class PartitionableListState<S> implements ListState<S> {
 
 		/**
-		 * The name of the state, as registered by the user
+		 * Meta information of the state, including state name, assignment mode, and serializer
 		 */
-		private final String name;
-
-		/**
-		 * The type serializer for the elements in the state list
-		 */
-		private final TypeSerializer<S> partitionStateSerializer;
-
-		/**
-		 * The mode how elements in this state are assigned to tasks during restore
-		 */
-		private final OperatorStateHandle.Mode assignmentMode;
+		private final RegisteredOperatorBackendStateMetaInfo<S> stateMetaInfo;
 
 		/**
 		 * The internal list the holds the elements of the state
@@ -373,46 +367,26 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		 */
 		private final ArrayListSerializer<S> internalListCopySerializer;
 
-		public PartitionableListState(
-				String name,
-				TypeSerializer<S> partitionStateSerializer,
-				OperatorStateHandle.Mode assignmentMode) {
-
-			this(name, partitionStateSerializer, assignmentMode, new ArrayList<S>());
+		public PartitionableListState(RegisteredOperatorBackendStateMetaInfo<S> stateMetaInfo) {
+			this(stateMetaInfo, new ArrayList<S>());
 		}
 
 		private PartitionableListState(
-				String name,
-				TypeSerializer<S> partitionStateSerializer,
-				OperatorStateHandle.Mode assignmentMode,
+				RegisteredOperatorBackendStateMetaInfo<S> stateMetaInfo,
 				ArrayList<S> internalList) {
 
-			this.name = Preconditions.checkNotNull(name);
-			this.partitionStateSerializer = Preconditions.checkNotNull(partitionStateSerializer);
-			this.assignmentMode = Preconditions.checkNotNull(assignmentMode);
+			this.stateMetaInfo = Preconditions.checkNotNull(stateMetaInfo);
 			this.internalList = Preconditions.checkNotNull(internalList);
-			this.internalListCopySerializer = new ArrayListSerializer<>(partitionStateSerializer);
+			this.internalListCopySerializer = new ArrayListSerializer<>(stateMetaInfo.getPartitionStateSerializer());
 		}
 
 		private PartitionableListState(PartitionableListState<S> toCopy) {
 
-			this(
-					toCopy.name,
-					toCopy.partitionStateSerializer.duplicate(),
-					toCopy.assignmentMode,
-					toCopy.internalListCopySerializer.copy(toCopy.internalList));
+			this(toCopy.stateMetaInfo, toCopy.internalListCopySerializer.copy(toCopy.internalList));
 		}
 
-		public String getName() {
-			return name;
-		}
-
-		public OperatorStateHandle.Mode getAssignmentMode() {
-			return assignmentMode;
-		}
-
-		public TypeSerializer<S> getPartitionStateSerializer() {
-			return partitionStateSerializer;
+		public RegisteredOperatorBackendStateMetaInfo<S> getStateMetaInfo() {
+			return stateMetaInfo;
 		}
 
 		public List<S> getInternalList() {
@@ -441,8 +415,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		@Override
 		public String toString() {
 			return "PartitionableListState{" +
-					"name='" + name + '\'' +
-					", assignmentMode=" + assignmentMode +
+					"stateMetaInfo=" + stateMetaInfo +
 					", internalList=" + internalList +
 					'}';
 		}
@@ -456,7 +429,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			for (int i = 0; i < internalList.size(); ++i) {
 				S element = internalList.get(i);
 				partitionOffsets[i] = out.getPos();
-				partitionStateSerializer.serialize(element, dov);
+				getStateMetaInfo().getPartitionStateSerializer().serialize(element, dov);
 			}
 
 			return partitionOffsets;
@@ -466,7 +439,6 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	private <S> ListState<S> getListState(
 		ListStateDescriptor<S> stateDescriptor,
 		OperatorStateHandle.Mode mode) throws IOException {
-
 		Preconditions.checkNotNull(stateDescriptor);
 
 		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
@@ -478,23 +450,27 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		PartitionableListState<S> partitionableListState = (PartitionableListState<S>) registeredStates.get(name);
 
 		if (null == partitionableListState) {
-
 			partitionableListState = new PartitionableListState<>(
-				name,
-				partitionStateSerializer,
-				mode);
+				new RegisteredOperatorBackendStateMetaInfo<>(
+					name,
+					partitionStateSerializer,
+					mode));
 
 			registeredStates.put(name, partitionableListState);
 		} else {
+			// TODO with eager registration in place, these checks should be moved to restore()
+
 			Preconditions.checkState(
-				partitionableListState.getAssignmentMode().equals(mode),
-				"Incompatible assignment mode. Provided: " + mode + ", expected: " +
-					partitionableListState.getAssignmentMode());
+				partitionableListState.getStateMetaInfo().getName().equals(name),
+				"Incompatible state names. " +
+					"Was [" + partitionableListState.getStateMetaInfo().getName() + "], " +
+					"registered with [" + name + "].");
+
 			Preconditions.checkState(
-				stateDescriptor.getElementSerializer().
-					canRestoreFrom(partitionableListState.getPartitionStateSerializer()),
-				"Incompatible type serializers. Provided: " + stateDescriptor.getElementSerializer() +
-					", found: " + partitionableListState.getPartitionStateSerializer());
+				partitionableListState.getStateMetaInfo().getAssignmentMode().equals(mode),
+				"Incompatible state assignment modes. " +
+					"Was [" + partitionableListState.getStateMetaInfo().getAssignmentMode() + "], " +
+					"registered with [" + mode + "].");
 		}
 
 		return partitionableListState;
@@ -509,7 +485,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			long[] offsets = metaInfo.getOffsets();
 			if (null != offsets) {
 				DataInputView div = new DataInputViewStreamWrapper(in);
-				TypeSerializer<S> serializer = stateListForName.getPartitionStateSerializer();
+				TypeSerializer<S> serializer = stateListForName.getStateMetaInfo().getPartitionStateSerializer();
 				for (long offset : offsets) {
 					in.seek(offset);
 					stateListForName.add(serializer.deserialize(div));

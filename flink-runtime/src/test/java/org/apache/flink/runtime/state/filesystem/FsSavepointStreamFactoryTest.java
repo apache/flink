@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNotNull;
 
 import java.io.File;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 import org.junit.Rule;
@@ -48,7 +49,8 @@ public class FsSavepointStreamFactoryTest {
 				jobId,
 				0);
 
-		File[] listed = testRoot.listFiles();
+		Path root = new Path(testRoot.getAbsolutePath());
+		FileStatus[] listed = root.getFileSystem().listStatus(root);
 		assertNotNull(listed);
 		assertEquals(0, listed.length);
 
@@ -59,9 +61,9 @@ public class FsSavepointStreamFactoryTest {
 
 		FileStateHandle handle = (FileStateHandle) stream.closeAndGetHandle();
 
-		listed = testRoot.listFiles();
+		listed = root.getFileSystem().listStatus(root);
 		assertNotNull(listed);
 		assertEquals(1, listed.length);
-		assertEquals(handle.getFilePath().getPath(), listed[0].getPath());
+		assertEquals(handle.getFilePath().getPath(), listed[0].getPath().getPath());
 	}
 }

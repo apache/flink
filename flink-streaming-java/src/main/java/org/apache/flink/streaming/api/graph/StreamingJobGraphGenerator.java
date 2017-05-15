@@ -29,6 +29,7 @@ import java.util.Map.Entry;
 import org.apache.commons.lang3.StringUtils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
@@ -65,6 +66,8 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -150,6 +153,11 @@ public class StreamingJobGraphGenerator {
 		setSlotSharing();
 
 		configureCheckpointing();
+
+		// add registered cache file into job configuration
+		for (Tuple2<String, DistributedCache.DistributedCacheEntry> e : streamGraph.getEnvironment().getCachedFiles()) {
+			DistributedCache.writeFileInfoToConfig(e.f0, e.f1, jobGraph.getJobConfiguration());
+		}
 
 		// set the ExecutionConfig last when it has been finalized
 		try {
@@ -636,6 +644,22 @@ public class StreamingJobGraphGenerator {
 			}
 		}
 
+		// because the hooks can have user-defined code, they need to be stored as
+		// eagerly serialized values
+		final SerializedValue<MasterTriggerRestoreHook.Factory[]> serializedHooks;
+		if (hooks.isEmpty()) {
+			serializedHooks = null;
+		} else {
+			try {
+				MasterTriggerRestoreHook.Factory[] asArray =
+						hooks.toArray(new MasterTriggerRestoreHook.Factory[hooks.size()]);
+				serializedHooks = new SerializedValue<>(asArray);
+			}
+			catch (IOException e) {
+				throw new FlinkRuntimeException("Trigger/restore hook is not serializable", e);
+			}
+		}
+
 		//  --- done, put it all together ---
 
 		JobCheckpointingSettings settings = new JobCheckpointingSettings(
@@ -644,7 +668,7 @@ public class StreamingJobGraphGenerator {
 				cfg.getMaxConcurrentCheckpoints(),
 				externalizedCheckpointSettings,
 				streamGraph.getStateBackend(),
-				hooks.toArray(new MasterTriggerRestoreHook.Factory[hooks.size()]),
+				serializedHooks,
 				isExactlyOnce);
 
 		jobGraph.setSnapshotSettings(settings);

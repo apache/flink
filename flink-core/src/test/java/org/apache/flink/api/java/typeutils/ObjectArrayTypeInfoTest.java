@@ -18,41 +18,21 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.flink.util.TestLogger;
-import org.junit.Test;
-
 import java.util.ArrayList;
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-import static org.junit.Assert.*;
+/**
+ * Test for {@link ObjectArrayTypeInfo}.
+ */
+public class ObjectArrayTypeInfoTest extends TypeInformationTestBase<ObjectArrayTypeInfo<?, ?>> {
 
-public class ObjectArrayTypeInfoTest extends TestLogger {
-
-	public static class TestClass{}
-
-	@Test
-	public void testObjectArrayTypeInfoEquality() {
-		ObjectArrayTypeInfo<TestClass[], TestClass> tpeInfo1 = ObjectArrayTypeInfo.getInfoFor(
-			TestClass[].class,
-			new GenericTypeInfo<TestClass>(TestClass.class));
-
-		ObjectArrayTypeInfo<TestClass[], TestClass> tpeInfo2 = ObjectArrayTypeInfo.getInfoFor(
-			TestClass[].class,
-			new GenericTypeInfo<TestClass>(TestClass.class));
-
-		assertEquals(tpeInfo1, tpeInfo2);
-		assertEquals(tpeInfo1.hashCode(), tpeInfo2.hashCode());
+	@Override
+	protected ObjectArrayTypeInfo<?, ?>[] getTestData() {
+		return new ObjectArrayTypeInfo<?, ?>[] {
+			ObjectArrayTypeInfo.getInfoFor(TestClass[].class, new GenericTypeInfo<>(TestClass.class)),
+			ObjectArrayTypeInfo.getInfoFor(TestClass[].class, new PojoTypeInfo<>(TestClass.class, new ArrayList<PojoField>()))
+		};
 	}
 
-	@Test
-	public void testObjectArrayTypeInfoInequality() {
-		ObjectArrayTypeInfo<TestClass[], TestClass> tpeInfo1 = ObjectArrayTypeInfo.getInfoFor(
-			TestClass[].class,
-			new GenericTypeInfo<TestClass>(TestClass.class));
-
-		ObjectArrayTypeInfo<TestClass[], TestClass> tpeInfo2 = ObjectArrayTypeInfo.getInfoFor(
-			TestClass[].class,
-			new PojoTypeInfo<TestClass>(TestClass.class, new ArrayList<PojoField>()));
-
-		assertNotEquals(tpeInfo1, tpeInfo2);
-	}
+	public static class TestClass {}
 }

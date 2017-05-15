@@ -20,7 +20,7 @@ import org.apache.flink.python.api.streaming.util.SerializationUtils.Serializer;
 Utility function to serialize values, usually directly from data sources.
 */
 public class SerializerMap<IN> implements MapFunction<IN, byte[]> {
-	private Serializer<IN> serializer = null;
+	private transient Serializer<IN> serializer;
 
 	@Override
 	@SuppressWarnings("unchecked")

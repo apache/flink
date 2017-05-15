@@ -36,7 +36,7 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 	private static final byte[] EMPTY = new byte[0];
 
 	public static final BytePrimitiveArraySerializer INSTANCE = new BytePrimitiveArraySerializer();
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;

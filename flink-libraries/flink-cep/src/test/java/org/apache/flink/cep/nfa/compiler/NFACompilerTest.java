@@ -87,6 +87,21 @@ public class NFACompilerTest extends TestLogger {
 		NFACompiler.compile(invalidPattern, Event.createTypeSerializer(), false);
 	}
 
+	@Test
+	public void testNFACompilerPatternEndsWithNotFollowedBy() {
+
+		// adjust the rule
+		expectedException.expect(MalformedPatternException.class);
+		expectedException.expectMessage("NotFollowedBy is not supported as a last part of a Pattern!");
+
+		Pattern<Event, ?> invalidPattern = Pattern.<Event>begin("start").where(new TestFilter())
+			.followedBy("middle").where(new TestFilter())
+			.notFollowedBy("end").where(new TestFilter());
+
+		// here we must have an exception because of the two "start" patterns with the same name.
+		NFACompiler.compile(invalidPattern, Event.createTypeSerializer(), false);
+	}
+
 	/**
 	 * A filter implementation to test invalid pattern specification with
 	 * duplicate pattern names. Check {@link #testNFACompilerUniquePatternName()}.
@@ -147,6 +162,26 @@ public class NFACompilerTest extends TestLogger {
 		State<Event> endingState = stateMap.get(NFACompiler.ENDING_STATE_NAME);
 		assertTrue(endingState.isFinal());
 		assertEquals(0, endingState.getStateTransitions().size());
+	}
+
+	@Test
+	public void testNoUnnecessaryStateCopiesCreated() {
+		final Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(startFilter)
+			.notFollowedBy("not").where(startFilter)
+			.followedBy("oneOrMore").where(startFilter).oneOrMore()
+			.followedBy("end").where(endFilter);
+
+		final NFACompiler.NFAFactoryCompiler<Event> nfaFactoryCompiler = new NFACompiler.NFAFactoryCompiler<>(pattern);
+		nfaFactoryCompiler.compileFactory();
+
+		int endStateCount = 0;
+		for (State<Event> state : nfaFactoryCompiler.getStates()) {
+			if (state.getName().equals("end")) {
+				endStateCount++;
+			}
+		}
+
+		assertEquals(1, endStateCount);
 	}
 
 	private <T> Set<Tuple2<String, StateTransitionAction>> unfoldTransitions(final State<T> state) {
