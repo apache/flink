@@ -344,7 +344,6 @@ public class CEPRescalingTest {
 			new KeyedCEPPatternOperator<>(
 				Event.createTypeSerializer(),
 				false,
-				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				new NFAFactory(),
 				true),
