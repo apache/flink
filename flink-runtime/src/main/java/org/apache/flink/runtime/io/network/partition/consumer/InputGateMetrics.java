@@ -72,10 +72,6 @@ public class InputGateMetrics {
 		int min = Integer.MAX_VALUE;
 
 		Collection<InputChannel> channels = inputGate.getInputChannels().values();
-		if (channels.isEmpty()) {
-			// meaningful value when no channels exist:
-			return 0;
-		}
 
 		for (InputChannel channel : channels) {
 			if (channel instanceof RemoteInputChannel) {
@@ -86,6 +82,9 @@ public class InputGateMetrics {
 			}
 		}
 
+		if (min == Integer.MAX_VALUE) { // in case all channels are local, or the channel collection was empty
+			return 0;
+		}
 		return min;
 	}
 
