@@ -30,6 +30,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
@@ -52,6 +53,8 @@ public class AutoParallelismITCase extends TestLogger {
 
 	private static LocalFlinkMiniCluster cluster;
 
+	private static TestEnvironment env;
+
 	@BeforeClass
 	public static void setupCluster() {
 		Configuration config = new Configuration();
@@ -60,6 +63,8 @@ public class AutoParallelismITCase extends TestLogger {
 		cluster = new LocalFlinkMiniCluster(config, false);
 
 		cluster.start();
+
+		env = new TestEnvironment(cluster, NUM_TM * SLOTS_PER_TM, false);
 	}
 
 	@AfterClass
@@ -78,9 +83,6 @@ public class AutoParallelismITCase extends TestLogger {
 	@Test
 	public void testProgramWithAutoParallelism() {
 		try {
-			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
-
 			env.setParallelism(ExecutionConfig.PARALLELISM_AUTO_MAX);
 			env.getConfig().disableSysoutLogging();
 

@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.fs.bucketing;
 
 import org.apache.commons.lang3.time.StopWatch;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -1031,6 +1032,11 @@ public class BucketingSink<T>
 	public BucketingSink<T> setAsyncTimeout(long timeout) {
 		this.asyncTimeout = timeout;
 		return this;
+	}
+
+	@VisibleForTesting
+	public State<T> getState() {
+		return state;
 	}
 
 	// --------------------------------------------------------------------------------------------

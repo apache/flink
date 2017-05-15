@@ -36,8 +36,7 @@ public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<
 	private static final long[] EMPTY = new long[0];
 
 	public static final LongPrimitiveArraySerializer INSTANCE = new LongPrimitiveArraySerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;

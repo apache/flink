@@ -21,8 +21,11 @@ package org.apache.flink.yarn;
 import com.google.common.collect.ImmutableMap;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -48,6 +51,11 @@ public class YarnApplicationMasterRunnerTest {
 
 	@Rule
 	public TemporaryFolder folder = new TemporaryFolder();
+
+	@BeforeClass
+	public static void checkOS() {
+		Assume.assumeTrue(!OperatingSystem.isWindows());
+	}
 
 	@Test
 	public void testCreateTaskExecutorContext() throws Exception {

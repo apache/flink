@@ -18,7 +18,10 @@
 
 package org.apache.flink.migration;
 
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -51,8 +54,7 @@ public class MigrationNamespaceSerializerProxy extends TypeSerializer<Serializab
 
 	@Override
 	public TypeSerializer<Serializable> duplicate() {
-		throw new UnsupportedOperationException(
-				"This is just a proxy used during migration until the real type serializer is provided by the user.");
+		return this;
 	}
 
 	@Override
@@ -100,6 +102,17 @@ public class MigrationNamespaceSerializerProxy extends TypeSerializer<Serializab
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		throw new UnsupportedOperationException(
 				"This is just a proxy used during migration until the real type serializer is provided by the user.");
+	}
+
+	@Override
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		return new ParameterlessTypeSerializerConfig(getClass().getCanonicalName());
+	}
+
+	@Override
+	public CompatibilityResult<Serializable> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		// always assume compatibility since we're just a proxy for migration
+		return CompatibilityResult.compatible();
 	}
 
 	@Override

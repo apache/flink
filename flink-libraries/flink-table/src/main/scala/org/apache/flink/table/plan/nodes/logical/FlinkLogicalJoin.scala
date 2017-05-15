@@ -77,7 +77,7 @@ private class FlinkLogicalJoinConverter
     val join: LogicalJoin = call.rel(0).asInstanceOf[LogicalJoin]
     val joinInfo = join.analyzeCondition
 
-    hasEqualityPredicates(join, joinInfo) || isSingleRowInnerJoin(join)
+    hasEqualityPredicates(join, joinInfo) || isSingleRowJoin(join)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -101,11 +101,12 @@ private class FlinkLogicalJoinConverter
     !joinInfo.pairs().isEmpty && (joinInfo.isEqui || join.getJoinType == JoinRelType.INNER)
   }
 
-  private def isSingleRowInnerJoin(join: LogicalJoin): Boolean = {
-    if (join.getJoinType == JoinRelType.INNER) {
-      isSingleRow(join.getRight) || isSingleRow(join.getLeft)
-    } else {
-      false
+  private def isSingleRowJoin(join: LogicalJoin): Boolean = {
+    join.getJoinType match {
+      case JoinRelType.INNER if isSingleRow(join.getRight) || isSingleRow(join.getLeft) => true
+      case JoinRelType.LEFT if isSingleRow(join.getRight) => true
+      case JoinRelType.RIGHT if isSingleRow(join.getLeft) => true
+      case _ => false
     }
   }
 

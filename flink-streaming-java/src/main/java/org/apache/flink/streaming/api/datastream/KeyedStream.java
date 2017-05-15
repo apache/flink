@@ -416,7 +416,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param initialValue
 	 *            The initialValue passed to the folders for each key.
 	 * @return The transformed DataStream.
+	 *
+	 * @deprecated will be removed in a future version
 	 */
+	@Deprecated
 	public <R> SingleOutputStreamOperator<R> fold(R initialValue, FoldFunction<T, R> folder) {
 
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(
@@ -748,8 +751,11 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param queryableStateName Name under which to the publish the queryable state instance
 	 * @param stateDescriptor State descriptor to create state instance from
 	 * @return Queryable state instance
+	 *
+	 * @deprecated will be removed in a future version
 	 */
 	@PublicEvolving
+	@Deprecated
 	public <ACC> QueryableStateStream<KEY, ACC> asQueryableState(
 			String queryableStateName,
 			FoldingStateDescriptor<T, ACC> stateDescriptor) {

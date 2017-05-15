@@ -19,39 +19,17 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.util.TestLogger
-import org.junit.Test
-import org.scalatest.junit.JUnitSuiteLike
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase
 
 import scala.util.Try
 
-class TryTypeInfoTest extends TestLogger with JUnitSuiteLike {
+/**
+  * Test for [[TryTypeInfo]].
+  */
+class TryTypeInfoTest extends TypeInformationTestBase[TryTypeInfo[_, _]] {
 
-  @Test
-  def testTryTypeEquality(): Unit = {
-    val TryTypeInfo1 = new TryTypeInfo[Integer, Try[Integer]](BasicTypeInfo.INT_TYPE_INFO)
-    val TryTypeInfo2 = new TryTypeInfo[Integer, Try[Integer]](BasicTypeInfo.INT_TYPE_INFO)
-
-    assert(TryTypeInfo1.equals(TryTypeInfo2))
-    assert(TryTypeInfo1.hashCode == TryTypeInfo2.hashCode)
-  }
-
-  @Test
-  def testTryTypeInequality(): Unit = {
-    val TryTypeInfo1 = new TryTypeInfo[Integer, Try[Integer]](BasicTypeInfo.INT_TYPE_INFO)
-    val TryTypeInfo2 = new TryTypeInfo[String, Try[String]](BasicTypeInfo.STRING_TYPE_INFO)
-
-    //noinspection ComparingUnrelatedTypes
-    assert(!TryTypeInfo1.equals(TryTypeInfo2))
-  }
-
-  @Test
-  def testTryTypeInequalityWithDifferentType(): Unit = {
-    val TryTypeInfo = new TryTypeInfo[Integer, Try[Integer]](BasicTypeInfo.INT_TYPE_INFO)
-    val genericTypeInfo = new GenericTypeInfo[Double](Double.getClass.asInstanceOf[Class[Double]])
-
-    //noinspection ComparingUnrelatedTypes
-    assert(!TryTypeInfo.equals(genericTypeInfo))
-  }
+  override protected def getTestData: Array[TryTypeInfo[_, _]] = Array(
+    new TryTypeInfo[Integer, Try[Integer]](BasicTypeInfo.INT_TYPE_INFO),
+    new TryTypeInfo[String, Try[String]](BasicTypeInfo.STRING_TYPE_INFO)
+  )
 }

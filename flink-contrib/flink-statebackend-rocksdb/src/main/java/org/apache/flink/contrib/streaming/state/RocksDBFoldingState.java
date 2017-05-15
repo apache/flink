@@ -39,7 +39,10 @@ import java.io.IOException;
  * @param <N> The type of the namespace.
  * @param <T> The type of the values that can be folded into the state.
  * @param <ACC> The type of the value in the folding state.
+ *
+ * @deprecated will be removed in a future version
  */
+@Deprecated
 public class RocksDBFoldingState<K, N, T, ACC>
 	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, ACC>
 	implements InternalFoldingState<N, T, ACC> {

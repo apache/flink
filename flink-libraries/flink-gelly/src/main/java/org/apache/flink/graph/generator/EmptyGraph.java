@@ -33,7 +33,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 
-/*
+/**
  * @see <a href="http://mathworld.wolfram.com/EmptyGraph.html">Empty Graph at Wolfram MathWorld</a>
  */
 public class EmptyGraph

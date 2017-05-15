@@ -1235,10 +1235,6 @@ public abstract class ExecutionEnvironment {
 	public static ExecutionEnvironment createLocalEnvironmentWithWebUI(Configuration conf) {
 		checkNotNull(conf, "conf");
 
-		if (!conf.containsKey(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)) {
-			int port = ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT;
-			conf.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, port);
-		}
 		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
 
 		LocalEnvironment localEnv = new LocalEnvironment(conf);

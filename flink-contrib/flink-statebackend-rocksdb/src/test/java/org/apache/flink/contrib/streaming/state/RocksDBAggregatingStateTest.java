@@ -204,7 +204,7 @@ public class RocksDBAggregatingStateTest {
 	}
 
 	private static RocksDBKeyedStateBackend<String> createKeyedBackend(RocksDBStateBackend backend) throws Exception {
-		return (RocksDBKeyedStateBackend<String>) backend.createKeyedStateBackend(
+		RocksDBKeyedStateBackend<String> keyedBackend = (RocksDBKeyedStateBackend<String>) backend.createKeyedStateBackend(
 						new DummyEnvironment("TestTask", 1, 0),
 						new JobID(),
 						"test-op",
@@ -212,6 +212,10 @@ public class RocksDBAggregatingStateTest {
 						16,
 						new KeyGroupRange(2, 3),
 						mock(TaskKvStateRegistry.class));
+
+		keyedBackend.restore(null);
+
+		return keyedBackend;
 	}
 
 	//  test functions

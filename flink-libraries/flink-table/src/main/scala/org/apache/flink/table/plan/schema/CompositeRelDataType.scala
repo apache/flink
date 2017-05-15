@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.schema
 
 import java.util
 
-import org.apache.calcite.rel.`type`.{RelDataTypeField, RelDataTypeFieldImpl, RelRecordType}
+import org.apache.calcite.rel.`type`.{RelDataTypeField, RelDataTypeFieldImpl, RelRecordType, StructKind}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.schema.CompositeRelDataType.createFieldList
@@ -36,7 +36,7 @@ import scala.collection.JavaConverters._
 class CompositeRelDataType(
     val compositeType: CompositeType[_],
     typeFactory: FlinkTypeFactory)
-  extends RelRecordType(createFieldList(compositeType, typeFactory)) {
+  extends RelRecordType(StructKind.PEEK_FIELDS, createFieldList(compositeType, typeFactory)) {
 
   override def toString = s"COMPOSITE($compositeType)"
 

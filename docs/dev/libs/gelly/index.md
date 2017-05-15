@@ -86,7 +86,7 @@ After configuring and starting the cluster, list the available algorithm classes
 
 ~~~bash
 ./bin/start-cluster.sh
-./bin/flink run examples/flink-gelly-examples_*.jar
+./bin/flink run examples/gelly/flink-gelly-examples_*.jar
 ~~~
 
 The Gelly drivers can generate graph data or read the edge list from a CSV file (each node in a cluster must have access
@@ -94,13 +94,13 @@ to the input file). The algorithm description, available inputs and outputs, and
 algorithm is selected. Print usage for [JaccardIndex](./library_methods.html#jaccard-index):
 
 ~~~bash
-./bin/flink run examples/flink-gelly-examples_*.jar --algorithm JaccardIndex
+./bin/flink run examples/gelly/flink-gelly-examples_*.jar --algorithm JaccardIndex
 ~~~
 
 Display [graph metrics](./library_methods.html#metric) for a million vertex graph:
 
 ~~~bash
-./bin/flink run examples/flink-gelly-examples_*.jar \
+./bin/flink run examples/gelly/flink-gelly-examples_*.jar \
     --algorithm GraphMetrics --order directed \
     --input RMatGraph --type integer --scale 20 --simplify directed \
     --output print
@@ -117,17 +117,17 @@ Run a few algorithms and monitor the job progress in Flink's Web UI:
 ~~~bash
 wget -O - http://snap.stanford.edu/data/bigdata/communities/com-lj.ungraph.txt.gz | gunzip -c > com-lj.ungraph.txt
 
-./bin/flink run -q examples/flink-gelly-examples_*.jar \
+./bin/flink run -q examples/gelly/flink-gelly-examples_*.jar \
     --algorithm GraphMetrics --order undirected \
     --input CSV --type integer --simplify undirected --input_filename com-lj.ungraph.txt --input_field_delimiter $'\t' \
     --output print
 
-./bin/flink run -q examples/flink-gelly-examples_*.jar \
+./bin/flink run -q examples/gelly/flink-gelly-examples_*.jar \
     --algorithm ClusteringCoefficient --order undirected \
     --input CSV --type integer --simplify undirected --input_filename com-lj.ungraph.txt --input_field_delimiter $'\t' \
     --output hash
 
-./bin/flink run -q examples/flink-gelly-examples_*.jar \
+./bin/flink run -q examples/gelly/flink-gelly-examples_*.jar \
     --algorithm JaccardIndex \
     --input CSV --type integer --simplify undirected --input_filename com-lj.ungraph.txt --input_field_delimiter $'\t' \
     --output hash

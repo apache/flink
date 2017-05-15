@@ -24,9 +24,9 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.java.utils.UserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsClusterTestBase
-import org.apache.flink.table.expressions.utils.{Func13, RichFunc2}
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.expressions.utils.{Func1, Func13, Func18, RichFunc2}
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
@@ -143,7 +143,7 @@ class DataSetUserDefinedFunctionITCase(
     val pojo = new PojoTableFunc()
     val result = in
       .join(pojo('c))
-      .where(('age > 20))
+      .where('age > 20)
       .select('c, 'name, 'age)
       .toDataSet[Row]
 
@@ -167,6 +167,24 @@ class DataSetUserDefinedFunctionITCase(
     val results = result.collect()
     val expected = "Jack#22,ack\n" + "Jack#22,22\n" + "John#19,ohn\n" + "John#19,19\n" +
       "Anna#44,nna\n" + "Anna#44,44\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testUserDefinedTableFunctionWithScalarFunctionInCondition(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val func0 = new TableFunc0
+
+    val result = in
+      .join(func0('c))
+      .where(Func18('name, "J") && (Func1('a) < 3) && Func1('age) > 20)
+      .select('c, 'name, 'age)
+      .toDataSet[Row]
+
+    val results = result.collect()
+    val expected = "Jack#22,Jack,22"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

@@ -37,10 +37,11 @@ class DataSetSingleRowJoinRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val join = call.rel(0).asInstanceOf[FlinkLogicalJoin]
 
-    if (isInnerJoin(join)) {
-      isSingleRow(join.getRight) || isSingleRow(join.getLeft)
-    } else {
-      false
+    join.getJoinType match {
+      case JoinRelType.INNER if isSingleRow(join.getLeft) || isSingleRow(join.getRight) => true
+      case JoinRelType.LEFT if isSingleRow(join.getRight) => true
+      case JoinRelType.RIGHT if isSingleRow(join.getLeft) => true
+      case _ => false
     }
   }
 
@@ -79,6 +80,7 @@ class DataSetSingleRowJoinRule
       rel.getRowType,
       join.getCondition,
       join.getRowType,
+      join.getJoinType,
       description)
   }
 }

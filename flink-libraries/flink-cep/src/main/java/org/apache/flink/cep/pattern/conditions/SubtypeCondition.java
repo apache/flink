@@ -18,6 +18,8 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
+import org.apache.flink.util.Preconditions;
+
 /**
  * A {@link IterativeCondition condition} which filters elements of the given type.
  * An element is filtered out iff it is not assignable to the given subtype of {@code T}.
@@ -31,7 +33,7 @@ public class SubtypeCondition<T> extends SimpleCondition<T> {
 	private final Class<? extends T> subtype;
 
 	public SubtypeCondition(final Class<? extends T> subtype) {
-		this.subtype = subtype;
+		this.subtype = Preconditions.checkNotNull(subtype, "The subtype cannot be null.");
 	}
 
 	@Override
