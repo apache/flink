@@ -407,7 +407,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
         "DataSetCorrelate",
         batchTableNode(0),
         term("invocation", s"${funcDyn.functionIdentifier}($$2, 1, 2, 3, 4.0E0, 5.0E0, 6.0E0, " +
-          s"true, 1970-01-01 08:00:00.888)"),
+          s"true, " + new Timestamp(888).toString + ")"),
         term("function", funcDyn),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, " +
