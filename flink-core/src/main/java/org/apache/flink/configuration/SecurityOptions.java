@@ -26,6 +26,10 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  * The set of configuration options relating to security.
  */
 @PublicEvolving
+@ConfigGroups(groups = {
+	@ConfigGroup(name = "Kerberos", keyPrefix = "security.kerberos"),
+	@ConfigGroup(name = "ZooKeeper", keyPrefix = "zookeeper")
+})
 public class SecurityOptions {
 
 	// ------------------------------------------------------------------------
@@ -35,20 +39,26 @@ public class SecurityOptions {
 	public static final ConfigOption<String> KERBEROS_LOGIN_PRINCIPAL =
 		key("security.kerberos.login.principal")
 			.noDefaultValue()
-			.withDeprecatedKeys("security.principal");
+			.withDeprecatedKeys("security.principal")
+			.withDescription("Kerberos principal name associated with the keytab.");
 
 	public static final ConfigOption<String> KERBEROS_LOGIN_KEYTAB =
 		key("security.kerberos.login.keytab")
 			.noDefaultValue()
-			.withDeprecatedKeys("security.keytab");
+			.withDeprecatedKeys("security.keytab")
+			.withDescription("Absolute path to a Kerberos keytab file that contains the user credentials.");
 
 	public static final ConfigOption<Boolean> KERBEROS_LOGIN_USETICKETCACHE =
 		key("security.kerberos.login.use-ticket-cache")
-			.defaultValue(true);
+			.defaultValue(true)
+			.withDescription("Indicates whether to read from your Kerberos ticket cache.");
 
 	public static final ConfigOption<String> KERBEROS_LOGIN_CONTEXTS =
 		key("security.kerberos.login.contexts")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDescription("A comma-separated list of login contexts to provide the Kerberos credentials to" +
+				" (for example, `Client,KafkaClient` to use the credentials for ZooKeeper authentication and for" +
+				" Kafka authentication)");
 
 
 	// ------------------------------------------------------------------------

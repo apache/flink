@@ -105,7 +105,7 @@ under the License.
 						<configuration>
 							<target>
 								<mkdir dir="${rootDir}/${generated.docs.dir}"/>
-								<java classname="org.apache.flink.configuration.ConfigOptionsDocGenerator" fork="true">
+								<java classname="org.apache.flink.docs.configuration.ConfigOptionsDocGenerator" fork="true">
 									<classpath refid="maven.compile.classpath" />
 									<arg value="${rootDir}/${generated.docs.dir}/" />
 									<!--package with configuration classes-->

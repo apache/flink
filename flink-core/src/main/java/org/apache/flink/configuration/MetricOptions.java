@@ -47,6 +47,22 @@ public class MetricOptions {
 		key("metrics.reporters")
 			.noDefaultValue();
 
+	public static final ConfigOption<String> REPORTER_CLASS =
+		key("metrics.reporter.<name>.class")
+			.noDefaultValue()
+			.withDescription("The reporter class to use for the reporter named <name>.");
+
+	public static final ConfigOption<String> REPORTER_INTERVAL =
+		key("metrics.reporter.<name>.interval")
+			.noDefaultValue()
+			.withDescription("The reporter interval to use for the reporter named <name>.");
+
+	public static final ConfigOption<String> REPORTER_CONFIG_PARAMETER =
+		key("metrics.reporter.<name>.<parameter>")
+			.noDefaultValue()
+			.withDescription("Configures the parameter <parameter> for the reporter named <name>.");
+
+
 	/** The delimiter used to assemble the metric identifier. */
 	public static final ConfigOption<String> SCOPE_DELIMITER =
 		key("metrics.scope.delimiter")
@@ -55,37 +71,44 @@ public class MetricOptions {
 	/** The scope format string that is applied to all metrics scoped to a JobManager. */
 	public static final ConfigOption<String> SCOPE_NAMING_JM =
 		key("metrics.scope.jm")
-			.defaultValue("<host>.jobmanager");
+			.defaultValue("<host>.jobmanager")
+			.withDescription("Defines the scope format string that is applied to all metrics scoped to a JobManager.");
 
 	/** The scope format string that is applied to all metrics scoped to a TaskManager. */
 	public static final ConfigOption<String> SCOPE_NAMING_TM =
 		key("metrics.scope.tm")
-			.defaultValue("<host>.taskmanager.<tm_id>");
+			.defaultValue("<host>.taskmanager.<tm_id>")
+			.withDescription("Defines the scope format string that is applied to all metrics scoped to a TaskManager.");
 
 	/** The scope format string that is applied to all metrics scoped to a job on a JobManager. */
 	public static final ConfigOption<String> SCOPE_NAMING_JM_JOB =
 		key("metrics.scope.jm.job")
-			.defaultValue("<host>.jobmanager.<job_name>");
+			.defaultValue("<host>.jobmanager.<job_name>")
+			.withDescription("Defines the scope format string that is applied to all metrics scoped to a job on a JobManager.");
 
 	/** The scope format string that is applied to all metrics scoped to a job on a TaskManager. */
 	public static final ConfigOption<String> SCOPE_NAMING_TM_JOB =
 		key("metrics.scope.tm.job")
-			.defaultValue("<host>.taskmanager.<tm_id>.<job_name>");
+			.defaultValue("<host>.taskmanager.<tm_id>.<job_name>")
+			.withDescription("Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager.");
 
 	/** The scope format string that is applied to all metrics scoped to a task. */
 	public static final ConfigOption<String> SCOPE_NAMING_TASK =
 		key("metrics.scope.task")
-			.defaultValue("<host>.taskmanager.<tm_id>.<job_name>.<task_name>.<subtask_index>");
+			.defaultValue("<host>.taskmanager.<tm_id>.<job_name>.<task_name>.<subtask_index>")
+			.withDescription("Defines the scope format string that is applied to all metrics scoped to a task.");
 
 	/** The scope format string that is applied to all metrics scoped to an operator. */
 	public static final ConfigOption<String> SCOPE_NAMING_OPERATOR =
 		key("metrics.scope.operator")
-			.defaultValue("<host>.taskmanager.<tm_id>.<job_name>.<operator_name>.<subtask_index>");
+			.defaultValue("<host>.taskmanager.<tm_id>.<job_name>.<operator_name>.<subtask_index>")
+			.withDescription("Defines the scope format string that is applied to all metrics scoped to an operator.");
 
 	/** The number of measured latencies to maintain at each operator. */
 	public static final ConfigOption<Integer> LATENCY_HISTORY_SIZE =
 		key("metrics.latency.history-size")
-			.defaultValue(128);
+			.defaultValue(128)
+			.withDescription("Defines the number of measured latencies to maintain at each operator.");
 
 	private MetricOptions() {
 	}

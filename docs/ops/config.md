@@ -392,27 +392,7 @@ These parameters allow for advanced tuning. The default values are sufficient wh
 
 ### Web Frontend
 
-- `web.port`: Port of the web interface that displays status of running jobs and execution time breakdowns of finished jobs (DEFAULT: 8081). Setting this value to `-1` disables the web frontend.
-
-- `web.history`: The number of latest jobs that the web front-end in its history (DEFAULT: 5).
-
-- `web.checkpoints.disable`: Disables checkpoint statistics (DEFAULT: `false`).
-
-- `web.checkpoints.history`: Number of checkpoint statistics to remember (DEFAULT: `10`).
-
-- `web.backpressure.cleanup-interval`: Time after which cached stats are cleaned up if not accessed (DEFAULT: `600000`, 10 mins).
-
-- `web.backpressure.refresh-interval`: Time after which available stats are deprecated and need to be refreshed (DEFAULT: `60000`, 1 min).
-
-- `web.backpressure.num-samples`: Number of stack trace samples to take to determine back pressure (DEFAULT: `100`).
-
-- `web.backpressure.delay-between-samples`: Delay between stack trace samples to determine back pressure (DEFAULT: `50`, 50 ms).
-
-- `web.ssl.enabled`: Enable https access to the web frontend. This is applicable only when the global ssl flag security.ssl.enabled is set to true (DEFAULT: `true`).
-
-- `web.access-control-allow-origin`: Enable custom access control parameter for allow origin header, default is `*`.
-
-- `web.timeout`: Timeout for asynchronous operation executed by the web frontend in milliseconds (DEFAULT: `10000`, 10 s)
+{% include generated/web_configuration.html %}
 
 ### File Systems
 
@@ -564,21 +544,13 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 - `high-availability.zookeeper.client.acl`: (Default `open`) Defines the ACL (open\|creator) to be configured on ZK node. The configuration value can be set to "creator" if the ZooKeeper server configuration has the "authProvider" property mapped to use SASLAuthenticationProvider and the cluster is configured to run in secure mode (Kerberos). The ACL options are based on https://zookeeper.apache.org/doc/r3.1.2/zookeeperProgrammers.html#sc_BuiltinACLSchemes
 
-#### ZooKeeper Security
+### ZooKeeper Security
 
-- `zookeeper.sasl.disable`: (Default: `true`) Defines if SASL based authentication needs to be enabled or disabled. The configuration value can be set to "true" if ZooKeeper cluster is running in secure mode (Kerberos).
-
-- `zookeeper.sasl.service-name`: (Default: `zookeeper`) If the ZooKeeper server is configured with a different service name (default:"zookeeper") then it can be supplied using this configuration. A mismatch in service name between client and server configuration will cause the authentication to fail.
+{% include generated/zoo_keeper_configuration.html %}
 
 ### Kerberos-based Security
 
-- `security.kerberos.login.use-ticket-cache`: Indicates whether to read from your Kerberos ticket cache (default: `true`).
-
-- `security.kerberos.login.keytab`: Absolute path to a Kerberos keytab file that contains the user credentials.
-
-- `security.kerberos.login.principal`: Kerberos principal name associated with the keytab.
-
-- `security.kerberos.login.contexts`: A comma-separated list of login contexts to provide the Kerberos credentials to (for example, `Client,KafkaClient` to use the credentials for ZooKeeper authentication and for Kafka authentication).
+{% include generated/kerberos_configuration.html %}
 
 ### Environment
 
@@ -590,47 +562,11 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 ### Queryable State
 
-#### Server
-
-- `query.server.enable`: Enable queryable state (Default: `true`).
-
-- `query.server.port`: Port to bind queryable state server to (Default: `0`, binds to random port).
-
-- `query.server.network-threads`: Number of network (Netty's event loop) Threads for queryable state server (Default: `0`, picks number of slots).
-
-- `query.server.query-threads`: Number of query Threads for queryable state server (Default: `0`, picks number of slots).
-
-#### Client
-
-- `query.client.network-threads`: Number of network (Netty's event loop) Threads for queryable state client (Default: `0`, picks number of available cores as returned by `Runtime.getRuntime().availableProcessors()`).
-
-- `query.client.lookup.num-retries`: Number of retries on KvState lookup failure due to unavailable JobManager (Default: `3`).
-
-- `query.client.lookup.retry-delay`: Retry delay in milliseconds on KvState lookup failure due to unavailable JobManager (Default: `1000`).
+{% include generated/queryable_state_configuration.html %}
 
 ### Metrics
 
-- `metrics.reporters`: The list of named reporters, i.e. "foo,bar".
-
-- `metrics.reporter.<name>.<config>`: Generic setting `<config>` for the reporter named `<name>`.
-
-- `metrics.reporter.<name>.class`: The reporter class to use for the reporter named `<name>`.
-
-- `metrics.reporter.<name>.interval`: The reporter interval to use for the reporter named `<name>`.
-
-- `metrics.scope.jm`: (Default: &lt;host&gt;.jobmanager) Defines the scope format string that is applied to all metrics scoped to a JobManager.
-
-- `metrics.scope.jm.job`: (Default: &lt;host&gt;.jobmanager.&lt;job_name&gt;) Defines the scope format string that is applied to all metrics scoped to a job on a JobManager.
-
-- `metrics.scope.tm`: (Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;) Defines the scope format string that is applied to all metrics scoped to a TaskManager.
-
-- `metrics.scope.tm.job`: (Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;) Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager.
-
-- `metrics.scope.task`: (Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;task_name&gt;.&lt;subtask_index&gt;) Defines the scope format string that is applied to all metrics scoped to a task.
-
-- `metrics.scope.operator`: (Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;operator_name&gt;.&lt;subtask_index&gt;) Defines the scope format string that is applied to all metrics scoped to an operator.
-
-- `metrics.latency.history-size`: (Default: 128) Defines the number of measured latencies to maintain at each operator
+{% include generated/metric_configuration.html %}
 
 ### History Server
 
@@ -638,17 +574,7 @@ You have to configure `jobmanager.archive.fs.dir` in order to archive terminated
 
 - `jobmanager.archive.fs.dir`: Directory to upload information about terminated jobs to. You have to add this directory to the list of monitored directories of the history server via `historyserver.archive.fs.dir`.
 
-- `historyserver.archive.fs.dir`: Comma separated list of directories to fetch archived jobs from. The history server will monitor these directories for archived jobs. You can configure the JobManager to archive jobs to a directory via `jobmanager.archive.fs.dir`.
-
-- `historyserver.archive.fs.refresh-interval`: Interval in milliseconds for refreshing the archived job directories (DEFAULT: `10000`).
-
-- `historyserver.web.tmpdir`: This configuration parameter allows defining the Flink web directory to be used by the history server web interface. The web interface will copy its static files into the directory (DEFAULT: local system temporary directory).
-
-- `historyserver.web.address`: Address of the HistoryServer's web interface (DEFAULT: `anyLocalAddress()`).
-
-- `historyserver.web.port`: Port of the HistoryServers's web interface (DEFAULT: `8082`).
-
-- `historyserver.web.ssl.enabled`: Enable HTTPs access to the HistoryServer web frontend. This is applicable only when the global SSL flag security.ssl.enabled is set to true (DEFAULT: `false`).
+{% include generated/history_server_configuration.html %}
 
 ### Slot Manager (Flip-6)
 

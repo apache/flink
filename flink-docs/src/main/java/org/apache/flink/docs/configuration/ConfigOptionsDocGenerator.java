@@ -16,10 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.configuration;
+package org.apache.flink.docs.configuration;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigGroup;
+import org.apache.flink.configuration.ConfigGroups;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.WebOptions;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -30,7 +34,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -50,14 +53,22 @@ public class ConfigOptionsDocGenerator {
 	 * the class is annotated with {@link ConfigGroups}. The tables contain the key, default value and description for
 	 * every {@link ConfigOption}.
 	 *
-	 * @param args first argument is output path for the generated files, second argument is full package name containing
-	 *             classes with {@link ConfigOption}
+	 * @param args
+	 *  [0] output directory for the generated files
+	 *  [1] project root directory
+	 *  [x] module containing an *Options class
+	 *  [x+1] package to the * Options.classes
 	 */
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
-		String outputPath = args[0];
-		String packageName = args[1];
+		String outputDirectory = args[0];
+		String rootDir = args[1];
+		for (int x = 2; x + 1 < args.length; x += 2) {
+			createTable(rootDir, args[x], args[x + 1], outputDirectory);
+		}
+	}
 
-		Path configDir = Paths.get("../src/main/java", packageName.replaceAll("\\.", "/"));
+	private static void createTable(String rootDir, String module, String packageName, String outputDirectory) throws IOException, ClassNotFoundException {
+		Path configDir = Paths.get(rootDir, module, "src/main/java", packageName.replaceAll("\\.", "/"));
 
 		Pattern p = Pattern.compile("(([a-zA-Z]*)(Options))\\.java");
 		try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir, "*Options.java")) {
@@ -75,7 +86,7 @@ public class ConfigOptionsDocGenerator {
 								: group.f0.name().replaceAll("(.)(\\p{Upper})", "$1_$2").toLowerCase();
 
 							String outputFile = name + "_configuration.html";
-							Files.write(Paths.get(outputPath, outputFile), group.f1.getBytes(StandardCharsets.UTF_8));
+							Files.write(Paths.get(outputDirectory, outputFile), group.f1.getBytes(StandardCharsets.UTF_8));
 						}
 					}
 				}
@@ -99,10 +110,10 @@ public class ConfigOptionsDocGenerator {
 			}
 			List<ConfigOption> configOptions = tree.getDefaultOptions();
 			sortOptions(configOptions);
-			tables.add(Tuple2.<ConfigGroup, String>of(null, toHtmlTable(configOptions)));
+			tables.add(Tuple2.of(null, toHtmlTable(configOptions)));
 		} else {
 			sortOptions(allOptions);
-			tables.add(Tuple2.<ConfigGroup, String>of(null, toHtmlTable(allOptions)));
+			tables.add(Tuple2.of(null, toHtmlTable(allOptions)));
 		}
 		return tables;
 	}
@@ -123,7 +134,6 @@ public class ConfigOptionsDocGenerator {
 		}
 	}
 
-
 	/**
 	 * Transforms this configuration group into HTML formatted table.
 	 * Options are sorted alphabetically by key.
@@ -132,16 +142,23 @@ public class ConfigOptionsDocGenerator {
 	 * @return string containing HTML formatted table
 	 */
 	private static String toHtmlTable(final List<ConfigOption> options) {
-		StringBuilder htmlTable = new StringBuilder(
-			"<table class=\"table table-bordered\"><thead><tr><th class=\"text-left\" style=\"width: 20%\">Key</th>" +
-			"<th class=\"text-left\" style=\"width: 15%\">Default Value</th><th class=\"text-left\" " +
-			"style=\"width: 65%\">Description</th></tr></thead><tbody>");
+		StringBuilder htmlTable = new StringBuilder();
+		htmlTable.append("<table class=\"table table-bordered\">\n");
+		htmlTable.append("    <thead>\n");
+		htmlTable.append("        <tr>\n");
+		htmlTable.append("            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n");
+		htmlTable.append("            <th class=\"text-left\" style=\"width: 15%\">Default Value</th>\n");
+		htmlTable.append("            <th class=\"text-left\" style=\"width: 65%\">Description</th>\n");
+		htmlTable.append("        </tr>\n");
+		htmlTable.append("    </thead>\n");
+		htmlTable.append("    <tbody>\n");
 
 		for (ConfigOption option : options) {
 			htmlTable.append(toHtmlString(option));
 		}
 
-		htmlTable.append("</tbody></table>");
+		htmlTable.append("    </tbody>\n");
+		htmlTable.append("</table>\n");
 
 		return htmlTable.toString();
 	}
@@ -160,11 +177,12 @@ public class ConfigOptionsDocGenerator {
 		if (option == WebOptions.TMP_DIR || option.key().equals("python.dc.tmp.dir")) {
 			defaultValue = null;
 		}
-		return "<tr>" +
-			"<td><h5>" + escapeCharacters(option.key()) + "</h5></td>" +
-			"<td>" + escapeCharacters(defaultValueToHtml(defaultValue)) + "</td>" +
-			"<td>" + escapeCharacters(option.description()) + "</td>" +
-			"</tr>";
+		return "" +
+			"        <tr>\n" +
+			"            <td><h5>" + escapeCharacters(option.key()) + "</h5></td>\n" +
+			"            <td>" + escapeCharacters(defaultValueToHtml(defaultValue)) + "</td>\n" +
+			"            <td>" + escapeCharacters(option.description()) + "</td>\n" +
+			"        </tr>\n";
 	}
 
 	private static String defaultValueToHtml(Object value) {
@@ -185,12 +203,7 @@ public class ConfigOptionsDocGenerator {
 	}
 
 	private static void sortOptions(List<ConfigOption> configOptions) {
-		Collections.sort(configOptions, new Comparator<ConfigOption>() {
-			@Override
-			public int compare(ConfigOption o1, ConfigOption o2) {
-				return o1.key().compareTo(o2.key());
-			}
-		});
+		configOptions.sort(Comparator.comparing(ConfigOption::key));
 	}
 
 	/**

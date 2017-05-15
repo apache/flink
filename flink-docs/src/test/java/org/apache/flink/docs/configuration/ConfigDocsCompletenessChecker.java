@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.configuration;
+package org.apache.flink.docs.configuration;
+
+import org.apache.flink.configuration.ConfigConstants;
 
 import org.apache.commons.io.FileUtils;
 
@@ -36,9 +38,7 @@ public class ConfigDocsCompletenessChecker {
 		Field[] fields = ConfigConstants.class.getFields();
 
 		for (Field field : fields) {
-			if (Modifier.isStatic(field.getModifiers()) && field.getType().equals(String.class) &&
-					!field.getName().startsWith("DEFAULT")) {
-
+			if (Modifier.isStatic(field.getModifiers()) && field.getType().equals(String.class) && !field.getName().startsWith("DEFAULT")) {
 				Object val = field.get(null);
 				if (!configFileContents.contains((String) val)) {
 					System.out.println("++++ " + val + " is not mentioned in the configuration file!!!");

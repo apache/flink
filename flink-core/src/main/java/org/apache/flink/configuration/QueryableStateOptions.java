@@ -45,24 +45,29 @@ public class QueryableStateOptions {
 	 * <ol>
 	 *     <li>a port: "9123",
 	 *     <li>a range of ports: "50100-50200", or
-	 *     <li>a list of ranges and or points: "50100-50200,50300-50400,51234"
+	 *     <li>a list of ranges and ports: "50100-50200,50300-50400,51234"
 	 * </ol>
 	 *
 	 * <p><b>The default port is 9069.</b>
 	 */
 	public static final ConfigOption<String> PROXY_PORT_RANGE =
-			key("query.proxy.ports")
-			.defaultValue("9069");
+		key("query.proxy.ports")
+			.defaultValue("9069")
+			.withDescription("The port range of the queryable state proxy. The specified range can be a single " +
+				"port: \"9123\", a range of ports: \"50100-50200\", " +
+				"or a list of ranges and ports: \"50100-50200,50300-50400,51234\".");
 
 	/** Number of network (event loop) threads for the client proxy (0 => #slots). */
 	public static final ConfigOption<Integer> PROXY_NETWORK_THREADS =
-			key("query.proxy.network-threads")
-					.defaultValue(0);
+		key("query.proxy.network-threads")
+			.defaultValue(0)
+			.withDescription("Number of network (Netty's event loop) Threads for queryable state proxy.");
 
 	/** Number of async query threads for the client proxy (0 => #slots). */
 	public static final ConfigOption<Integer> PROXY_ASYNC_QUERY_THREADS =
-			key("query.proxy.query-threads")
-					.defaultValue(0);
+		key("query.proxy.query-threads")
+			.defaultValue(0)
+			.withDescription("Number of query Threads for queryable state proxy. Uses the number of slots if set to 0.");
 
 	/**
 	 * The config parameter defining the server port range of the queryable state server.
@@ -77,24 +82,29 @@ public class QueryableStateOptions {
 	 * <ol>
 	 *     <li>a port: "9123",
 	 *     <li>a range of ports: "50100-50200", or
-	 *     <li>a list of ranges and or points: "50100-50200,50300-50400,51234"
+	 *     <li>a list of ranges and ports: "50100-50200,50300-50400,51234"
 	 * </ol>
 	 *
 	 * <p><b>The default port is 9067.</b>
 	 */
 	public static final ConfigOption<String> SERVER_PORT_RANGE =
-			key("query.server.ports")
-			.defaultValue("9067");
+		key("query.server.ports")
+			.defaultValue("9067")
+			.withDescription("The port range of the queryable state server. The specified range can be a single " +
+				"port: \"9123\", a range of ports: \"50100-50200\", " +
+				"or a list of ranges and ports: \"50100-50200,50300-50400,51234\".");
 
 	/** Number of network (event loop) threads for the KvState server (0 => #slots). */
 	public static final ConfigOption<Integer> SERVER_NETWORK_THREADS =
-			key("query.server.network-threads")
-			.defaultValue(0);
+		key("query.server.network-threads")
+			.defaultValue(0)
+			.withDescription("Number of network (Netty's event loop) Threads for queryable state server.");
 
 	/** Number of async query threads for the KvStateServerHandler (0 => #slots). */
 	public static final ConfigOption<Integer> SERVER_ASYNC_QUERY_THREADS =
-			key("query.server.query-threads")
-			.defaultValue(0);
+		key("query.server.query-threads")
+			.defaultValue(0)
+			.withDescription("Number of query Threads for queryable state server. Uses the number of slots if set to 0.");
 
 	// ------------------------------------------------------------------------
 	// Client Options
@@ -102,8 +112,9 @@ public class QueryableStateOptions {
 
 	/** Number of network (event loop) threads for the KvState client (0 => Use number of available cores). */
 	public static final ConfigOption<Integer> CLIENT_NETWORK_THREADS =
-			key("query.client.network-threads")
-			.defaultValue(0);
+		key("query.client.network-threads")
+			.defaultValue(0)
+			.withDescription("Number of network (Netty's event loop) Threads for queryable state client.");
 
 	// ------------------------------------------------------------------------
 
