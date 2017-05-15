@@ -133,7 +133,9 @@ public abstract class KryoRegistrationSerializerConfigSnapshot<T> extends Generi
 					out.writeUTF(kryoRegistration.getSerializerClass().getName());
 					break;
 				case INSTANCE:
-					InstantiationUtil.serializeObject(new DataOutputViewStream(out), kryoRegistration.getSerializableSerializerInstance());
+					try (final DataOutputViewStream outViewWrapper = new DataOutputViewStream(out)) {
+						InstantiationUtil.serializeObject(outViewWrapper, kryoRegistration.getSerializableSerializerInstance());
+					}
 					break;
 				default:
 					// this should not happen; adding as a guard for the future
@@ -184,8 +186,9 @@ public abstract class KryoRegistrationSerializerConfigSnapshot<T> extends Generi
 
 				case INSTANCE:
 					ExecutionConfig.SerializableSerializer<? extends Serializer<RC>> serializerInstance;
-					try {
-						serializerInstance = InstantiationUtil.deserializeObject(new DataInputViewStream(in), userCodeClassLoader);
+
+					try (final DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
+						serializerInstance = InstantiationUtil.deserializeObject(inViewWrapper, userCodeClassLoader);
 					} catch (ClassNotFoundException e) {
 						LOG.warn("Cannot find registered Kryo serializer class for class " + registeredClassname +
 								" in classpath; using a dummy Kryo serializer that should be replaced as soon as" +
