@@ -26,6 +26,9 @@ import org.apache.flink.annotation.PublicEvolving;
  * Configuration options for the JobManager.
  */
 @PublicEvolving
+@ConfigGroups(groups = {
+	@ConfigGroup(name = "WebFrontend", keyPrefix = "jobmanager.web")
+})
 public class JobManagerOptions {
 
 	/**
@@ -105,7 +108,9 @@ public class JobManagerOptions {
 	 */
 	public static final ConfigOption<Integer> WEB_PORT =
 		key("jobmanager.web.port")
-		.defaultValue(8081);
+			.defaultValue(8081)
+			.withDescription("Port of the JobManager's web interface that displays status of running jobs and execution time" +
+				" breakdowns of finished jobs. Setting this value to `-1` disables the web frontend.");
 
 	/**
 	 * The config parameter defining the Access-Control-Allow-Origin header for all
@@ -113,7 +118,8 @@ public class JobManagerOptions {
 	 */
 	public static final ConfigOption<String> WEB_ACCESS_CONTROL_ALLOW_ORIGIN =
 		key("jobmanager.web.access-control-allow-origin")
-			.defaultValue("*");
+			.defaultValue("*")
+			.withDescription("Enable custom access control parameter for allow origin header.");
 
 	/**
 	 * The config parameter defining the refresh interval for the web-frontend.
@@ -149,7 +155,8 @@ public class JobManagerOptions {
 	 */
 	public static final ConfigOption<Integer> WEB_ARCHIVE_COUNT =
 		key("jobmanager.web.history")
-		.defaultValue(5);
+			.defaultValue(5)
+			.withDescription("The number of latest jobs that the JobManager's web front-end in its history.");
 
 	/**
 	 * The log file location (may be in /log for standalone but under log directory when using YARN).
@@ -163,42 +170,49 @@ public class JobManagerOptions {
 	 */
 	public static final ConfigOption<Boolean> WEB_SUBMIT_ENABLE =
 		key("jobmanager.web.submit.enable")
-		.defaultValue(true);
+			.defaultValue(true)
+			.withDescription("Enable https access to the web frontend. This is applicable only when the global ssl flag" +
+				" security.ssl.enabled is set to true.");
 
 	/**
 	 * Config parameter defining the number of checkpoints to remember for recent history.
 	 */
 	public static final ConfigOption<Integer> WEB_CHECKPOINTS_HISTORY_SIZE =
 		key("jobmanager.web.checkpoints.history")
-		.defaultValue(10);
+			.defaultValue(10)
+			.withDescription("Number of checkpoint statistics to remember.");
 
 	/**
 	 * Time after which cached stats are cleaned up if not accessed.
 	 */
 	public static final ConfigOption<Integer> WEB_BACKPRESSURE_CLEANUP_INTERVAL =
 		key("jobmanager.web.backpressure.cleanup-interval")
-		.defaultValue(10 * 60 * 1000);
+			.defaultValue(10 * 60 * 1000)
+			.withDescription("Time after which cached stats are cleaned up if not accessed.");
 
 	/**
 	 * Time after which available stats are deprecated and need to be refreshed (by resampling).
 	 */
 	public static final ConfigOption<Integer> WEB_BACKPRESSURE_REFRESH_INTERVAL =
 		key("jobmanager.web.backpressure.refresh-interval")
-		.defaultValue(60 * 1000);
+			.defaultValue(60 * 1000)
+			.withDescription("Time after which available stats are deprecated and need to be refreshed.");
 
 	/**
 	 * Number of stack trace samples to take to determine back pressure.
 	 */
 	public static final ConfigOption<Integer> WEB_BACKPRESSURE_NUM_SAMPLES =
 		key("jobmanager.web.backpressure.num-samples")
-		.defaultValue(100);
+			.defaultValue(100)
+			.withDescription("Number of stack trace samples to take to determine back pressure.");
 
 	/**
 	 * Delay between stack trace samples to determine back pressure.
 	 */
 	public static final ConfigOption<Integer> WEB_BACKPRESSURE_DELAY =
 		key("jobmanager.web.backpressure.delay-between-samples")
-		.defaultValue(50);
+			.defaultValue(50)
+			.withDescription("Delay between stack trace samples to determine back pressure.");
 
 	/**
 	 * The location where the JobManager stores the archives of completed jobs.
