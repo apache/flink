@@ -338,7 +338,7 @@ object ProjectionTranslator {
       // Functions calls
       case c @ Call(name, args) =>
         val function = tableEnv.getFunctionCatalog.lookupFunction(name, args)
-        if (function.isInstanceOf[AggFunctionCall]) {
+        if (function.isInstanceOf[AggFunctionCall] || function.isInstanceOf[Aggregation]) {
           function
         } else {
           val newArgs =

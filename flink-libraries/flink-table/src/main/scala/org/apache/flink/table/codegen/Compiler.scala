@@ -32,9 +32,9 @@ trait Compiler[T] {
     try {
       compiler.cook(code)
     } catch {
-      case e: CompileException =>
+      case t: Throwable =>
         throw new InvalidProgramException("Table program cannot be compiled. " +
-          "This is a bug. Please file an issue.", e)
+          "This is a bug. Please file an issue.", t)
     }
     compiler.getClassLoader.loadClass(name).asInstanceOf[Class[T]]
   }

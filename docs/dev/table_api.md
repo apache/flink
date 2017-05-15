@@ -1038,9 +1038,9 @@ This is the EBNF grammar for expressions:
 
 expressionList = expression , { "," , expression } ;
 
-expression = alias ;
+expression = timeIndicator | overConstant | alias ;
 
-alias = logic | ( logic , "AS" , fieldReference ) ;
+alias = logic | ( logic , "as" , fieldReference ) | ( logic , "as" , "(" , fieldReference , { "," , fieldReference } , ")" ) ;
 
 logic = comparison , [ ( "&&" | "||" ) , comparison ] ;
 
@@ -1052,9 +1052,11 @@ product = unary , [ ( "*" | "/" | "%") , unary ] ;
 
 unary = [ "!" | "-" ] , composite ;
 
-composite = suffixed | atom ;
+composite = over | nullLiteral | suffixed | atom ;
 
-suffixed = interval | cast | as | aggregation | if | functionCall ;
+suffixed = interval | cast | as | if | functionCall ;
+
+interval = timeInterval | rowInterval ;
 
 timeInterval = composite , "." , ("year" | "years" | "month" | "months" | "day" | "days" | "hour" | "hours" | "minute" | "minutes" | "second" | "seconds" | "milli" | "millis") ;
 
@@ -1062,17 +1064,15 @@ rowInterval = composite , "." , "rows" ;
 
 cast = composite , ".cast(" , dataType , ")" ;
 
-dataType = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOLEAN" | "STRING" | "DECIMAL" | "DATE" | "TIME" | "TIMESTAMP" | "INTERVAL_MONTHS" | "INTERVAL_MILLIS" ;
+dataType = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOLEAN" | "STRING" | "DECIMAL" | "SQL_DATE" | "SQL_TIME" | "SQL_TIMESTAMP" | "INTERVAL_MONTHS" | "INTERVAL_MILLIS" | ( "PRIMITIVE_ARRAY" , "(" , dataType , ")" ) | ( "OBJECT_ARRAY" , "(" , dataType , ")" ) ;
 
 as = composite , ".as(" , fieldReference , ")" ;
-
-aggregation = composite , ( ".sum" | ".sum0" | ".min" | ".max" | ".count" | ".avg" | ".start" | ".end" | ".stddev_pop" | ".stddev_samp" | ".var_pop" | ".var_samp" ) , [ "()" ] ;
 
 if = composite , ".?(" , expression , "," , expression , ")" ;
 
 functionCall = composite , "." , functionIdentifier , [ "(" , [ expression , { "," , expression } ] , ")" ] ;
 
-atom = ( "(" , expression , ")" ) | literal | nullLiteral | fieldReference ;
+atom = ( "(" , expression , ")" ) | literal | fieldReference ;
 
 fieldReference = "*" | identifier ;
 
@@ -1082,10 +1082,16 @@ timeIntervalUnit = "YEAR" | "YEAR_TO_MONTH" | "MONTH" | "DAY" | "DAY_TO_HOUR" | 
 
 timePointUnit = "YEAR" | "MONTH" | "DAY" | "HOUR" | "MINUTE" | "SECOND" | "QUARTER" | "WEEK" | "MILLISECOND" | "MICROSECOND" ;
 
+over = composite , "over" , fieldReference ;
+
+overConstant = "current_row" | "current_range" | "unbounded_row" | "unbounded_row" ;
+
+timeIndicator = fieldReference , "." , ( "proctime" | "rowtime" ) ;
+
 {% endhighlight %}
 
 Here, `literal` is a valid Java literal, `fieldReference` specifies a column in the data (or all columns if `*` is used), and `functionIdentifier` specifies a supported scalar function. The
-column names and function names follow Java identifier syntax. The column name `rowtime` is a reserved logical attribute in streaming environments. Expressions specified as Strings can also use prefix notation instead of suffix notation to call operators and functions.
+column names and function names follow Java identifier syntax. Expressions specified as Strings can also use prefix notation instead of suffix notation to call operators and functions.
 
 If working with exact numeric values or large decimals is required, the Table API also supports Java's BigDecimal type. In the Scala Table API decimals can be defined by `BigDecimal("123456")` and in Java by appending a "p" for precise e.g. `123456p`.
 
