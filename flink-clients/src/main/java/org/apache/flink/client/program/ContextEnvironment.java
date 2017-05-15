@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -44,6 +46,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	protected final ClassLoader userCodeClassLoader;
 
 	protected final SavepointRestoreSettings savepointSettings;
+
+	private final int defaultParallelism;
 	
 	public ContextEnvironment(ClusterClient remoteConnection, List<URL> jarFiles, List<URL> classpaths,
 				ClassLoader userCodeClassLoader, SavepointRestoreSettings savepointSettings) {
@@ -52,6 +56,9 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		this.classpathsToAttach = classpaths;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.savepointSettings = savepointSettings;
+		this.defaultParallelism = GlobalConfiguration.loadConfiguration().getInteger(
+							ConfigConstants.DEFAULT_PARALLELISM_KEY,
+							ConfigConstants.DEFAULT_PARALLELISM);
 	}
 
 	@Override
@@ -102,6 +109,10 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	public SavepointRestoreSettings getSavepointRestoreSettings() {
 		return savepointSettings;
+	}
+
+	public int getDefaultParallelism() {
+		return this.defaultParallelism;
 	}
 
 	// --------------------------------------------------------------------------------------------

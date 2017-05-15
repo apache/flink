@@ -21,12 +21,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.DetachedEnvironment;
-
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.Preconditions;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,9 +43,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 		if (ctx.getParallelism() > 0) {
 			setParallelism(ctx.getParallelism());
 		} else {
-			setParallelism(GlobalConfiguration.loadConfiguration().getInteger(
-					ConfigConstants.DEFAULT_PARALLELISM_KEY,
-					ConfigConstants.DEFAULT_PARALLELISM));
+			setParallelism(ctx.getDefaultParallelism());
 		}
 	}
 
