@@ -18,9 +18,8 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
-import org.apache.flink.annotation.Internal;
-
 import java.util.Collection;
+import org.apache.flink.annotation.Internal;
 
 /**
  * {@link AsyncResult} sub class for asynchronous result collections.

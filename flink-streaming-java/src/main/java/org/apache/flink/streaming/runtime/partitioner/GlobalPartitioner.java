@@ -22,7 +22,7 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * Partitioner that sends all elements to the downstream operator with subtask ID=0;
+ * Partitioner that sends all elements to the downstream operator with subtask ID=0.
  *
  * @param <T> Type of the elements in the Stream being partitioned
  */

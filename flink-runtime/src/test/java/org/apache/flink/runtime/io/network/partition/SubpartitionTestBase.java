@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
-import org.apache.flink.runtime.io.network.util.TestInfiniteBufferProvider;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -91,11 +90,9 @@ public abstract class SubpartitionTestBase extends TestLogger {
 		partition.add(buffer);
 		partition.finish();
 
-		TestInfiniteBufferProvider buffers = new TestInfiniteBufferProvider();
-
 		// Create the view
 		BufferAvailabilityListener listener = mock(BufferAvailabilityListener.class);
-		ResultSubpartitionView view = partition.createReadView(buffers, listener);
+		ResultSubpartitionView view = partition.createReadView(listener);
 
 		// The added buffer and end-of-partition event
 		assertNotNull(view.getNextBuffer());

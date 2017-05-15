@@ -151,6 +151,19 @@ public class BucketingSinkTest {
 	}
 
 	@Test
+	public void testClosingWithoutInput() throws Exception {
+		final File outDir = tempFolder.newFolder();
+
+		OneInputStreamOperatorTestHarness<String, Object> testHarness = createRescalingTestSink(outDir, 1, 0, 100);
+		testHarness.setup();
+		testHarness.open();
+
+		// verify that we can close without ever having an input. An earlier version of the code
+		// was throwing an NPE because we never initialized some internal state
+		testHarness.close();
+	}
+
+	@Test
 	public void testInactivityPeriodWithLateNotify() throws Exception {
 		final File outDir = tempFolder.newFolder();
 

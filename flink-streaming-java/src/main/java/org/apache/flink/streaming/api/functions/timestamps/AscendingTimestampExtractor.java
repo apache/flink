@@ -18,14 +18,13 @@
 
 package org.apache.flink.streaming.api.functions.timestamps;
 
-import org.apache.flink.annotation.PublicEvolving;
+import static java.util.Objects.requireNonNull;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * A timestamp assigner and watermark generator for streams where timestamps are monotonously
@@ -36,16 +35,16 @@ import static java.util.Objects.requireNonNull;
  */
 @PublicEvolving
 public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeriodicWatermarks<T> {
-	
+
 	private static final long serialVersionUID = 1L;
-	
+
 	/** The current timestamp. */
 	private long currentTimestamp = Long.MIN_VALUE;
 
-	/** Handler that is called when timestamp monotony is violated */
+	/** Handler that is called when timestamp monotony is violated. */
 	private MonotonyViolationHandler violationHandler = new LoggingHandler();
-	
-	
+
+
 	/**
 	 * Extracts the timestamp from the given element. The timestamp must be monotonically increasing.
 	 *
@@ -56,7 +55,7 @@ public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeri
 
 	/**
 	 * Sets the handler for violations to the ascending timestamp order.
-	 * 
+	 *
 	 * @param handler The violation handler to use.
 	 * @return This extractor.
 	 */
@@ -64,9 +63,9 @@ public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeri
 		this.violationHandler = requireNonNull(handler);
 		return this;
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public final long extractTimestamp(T element, long elementPrevTimestamp) {
 		final long newTimestamp = extractAscendingTimestamp(element);
@@ -97,7 +96,7 @@ public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeri
 		/**
 		 * Called when the property of monotonously ascending timestamps is violated, i.e.,
 		 * when {@code elementTimestamp < lastTimestamp}.
-		 * 
+		 *
 		 * @param elementTimestamp The timestamp of the current element.
 		 * @param lastTimestamp The last timestamp.
 		 */
@@ -119,7 +118,7 @@ public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeri
 	 */
 	public static final class FailingHandler implements MonotonyViolationHandler {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public void handleViolation(long elementTimestamp, long lastTimestamp) {
 			throw new RuntimeException("Ascending timestamps condition violated. Element timestamp "
@@ -134,7 +133,7 @@ public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeri
 		private static final long serialVersionUID = 1L;
 
 		private static final Logger LOG = LoggerFactory.getLogger(AscendingTimestampExtractor.class);
-		
+
 		@Override
 		public void handleViolation(long elementTimestamp, long lastTimestamp) {
 			LOG.warn("Timestamp monotony violated: {} < {}", elementTimestamp, lastTimestamp);

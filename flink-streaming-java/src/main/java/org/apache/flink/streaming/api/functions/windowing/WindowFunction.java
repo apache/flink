@@ -18,12 +18,11 @@
 
 package org.apache.flink.streaming.api.functions.windowing;
 
+import java.io.Serializable;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
-
-import java.io.Serializable;
 
 /**
  * Base interface for functions that are evaluated over keyed (grouped) windows.
@@ -43,8 +42,8 @@ public interface WindowFunction<IN, OUT, KEY, W extends Window> extends Function
 	 * @param window The window that is being evaluated.
 	 * @param input The elements in the window being evaluated.
 	 * @param out A collector for emitting elements.
-	 * 
-	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery. 
+	 *
+	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
 	 */
 	void apply(KEY key, W window, Iterable<IN> input, Collector<OUT> out) throws Exception;
 }

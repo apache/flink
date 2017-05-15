@@ -69,7 +69,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		DataSet<Edge<LongValue, Tuple2<NullValue, LongValue>>> targetDegreeOnTargetId = undirectedRMatGraph
+		DataSet<Edge<LongValue, Tuple2<NullValue, LongValue>>> targetDegreeOnTargetId = undirectedRMatGraph(10, 16)
 			.run(new EdgeSourceDegree<LongValue, NullValue, NullValue>());
 
 		Checksum checksumOnTargetId = new ChecksumHashCode<Edge<LongValue, Tuple2<NullValue, LongValue>>>()
@@ -79,7 +79,7 @@ extends AsmTestBase {
 		assertEquals(20884, checksumOnTargetId.getCount());
 		assertEquals(0x000000019d8f0070L, checksumOnTargetId.getChecksum());
 
-		DataSet<Edge<LongValue, Tuple2<NullValue, LongValue>>> targetDegreeOnSourceId = undirectedRMatGraph
+		DataSet<Edge<LongValue, Tuple2<NullValue, LongValue>>> targetDegreeOnSourceId = undirectedRMatGraph(10, 16)
 			.run(new EdgeTargetDegree<LongValue, NullValue, NullValue>()
 				.setReduceOnSourceId(true));
 

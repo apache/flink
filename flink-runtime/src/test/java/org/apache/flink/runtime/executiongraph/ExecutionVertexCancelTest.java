@@ -32,6 +32,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
@@ -403,41 +404,25 @@ public class ExecutionVertexCancelTest {
 	}
 
 	@Test
-	public void testSendCancelAndReceiveFail() {
-		try {
-			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid);
+	public void testSendCancelAndReceiveFail() throws Exception {
+		final ExecutionGraph graph = ExecutionGraphTestUtils.createSimpleTestGraph();
 
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+		graph.scheduleForExecution();
+		ExecutionGraphTestUtils.switchAllVerticesToRunning(graph);
+		assertEquals(JobStatus.RUNNING, graph.getState());
 
-			final ActorGateway gateway = new CancelSequenceActorGateway(
-					TestingUtils.defaultExecutionContext(),
-					1);
+		final ExecutionVertex[] vertices = graph.getVerticesTopologically().iterator().next().getTaskVertices();
+		assertEquals(vertices.length, graph.getRegisteredExecutions().size());
 
-			Instance instance = getInstance(new ActorTaskManagerGateway(gateway));
-			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
+		final Execution exec = vertices[3].getCurrentExecutionAttempt();
+		exec.cancel();
+		assertEquals(ExecutionState.CANCELING, exec.getState());
 
-			setVertexState(vertex, ExecutionState.RUNNING);
-			setVertexResource(vertex, slot);
+		exec.markFailed(new Exception("test"));
+		assertTrue(exec.getState() == ExecutionState.FAILED || exec.getState() == ExecutionState.CANCELED);
 
-			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
-
-			vertex.cancel();
-
-			assertTrue(vertex.getExecutionState() == ExecutionState.CANCELING || vertex.getExecutionState() == ExecutionState.FAILED);
-
-			vertex.getCurrentExecutionAttempt().markFailed(new Throwable("test"));
-
-			assertTrue(vertex.getExecutionState() == ExecutionState.CANCELED || vertex.getExecutionState() == ExecutionState.FAILED);
-
-			assertTrue(slot.isReleased());
-
-			assertEquals(0, vertex.getExecutionGraph().getRegisteredExecutions().size());
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		assertTrue(exec.getAssignedResource().isCanceled());
+		assertEquals(vertices.length - 1, exec.getVertex().getExecutionGraph().getRegisteredExecutions().size());
 	}
 
 	// --------------------------------------------------------------------------------------------

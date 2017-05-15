@@ -18,19 +18,18 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import java.io.IOException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-
-import java.io.IOException;
 
 /**
  * The deserialization schema describes how to turn the byte messages delivered by certain
  * data sources (for example Apache Kafka) into data types (Java/Scala objects) that are
  * processed by Flink.
- * 
+ *
  * <p>This base variant of the deserialization schema produces the type information
  * automatically by extracting it from the generic class arguments.
- * 
+ *
  * @param <T> The type created by the deserialization schema.
  */
 public abstract class AbstractDeserializationSchema<T> implements DeserializationSchema<T> {
@@ -49,7 +48,7 @@ public abstract class AbstractDeserializationSchema<T> implements Deserializatio
 	/**
 	 * Method to decide whether the element signals the end of the stream. If
 	 * true is returned the element won't be emitted.
-	 * 
+	 *
 	 * <p>This default implementation returns always false, meaning the stream is interpreted
 	 * to be unbounded.
 	 *
@@ -60,7 +59,7 @@ public abstract class AbstractDeserializationSchema<T> implements Deserializatio
 	public boolean isEndOfStream(T nextElement) {
 		return false;
 	}
-	
+
 	@Override
 	public TypeInformation<T> getProducedType() {
 		return TypeExtractor.createTypeInfo(AbstractDeserializationSchema.class, getClass(), 0, null, null);

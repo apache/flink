@@ -36,36 +36,16 @@ public class Kafka08TableSource extends KafkaTableSource {
 	 * @param topic                 Kafka topic to consume.
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param deserializationSchema Deserialization schema to use for Kafka records.
-	 * @param fieldNames            Row field names.
-	 * @param fieldTypes            Row field types.
+	 * @param typeInfo              Type information describing the result type. The field names are used
+	 *                              to parse the JSON file and so are the types.
 	 */
 	public Kafka08TableSource(
 			String topic,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,
-			String[] fieldNames,
-			TypeInformation<?>[] fieldTypes) {
+			TypeInformation<Row> typeInfo) {
 
-		super(topic, properties, deserializationSchema, fieldNames, fieldTypes);
-	}
-
-	/**
-	 * Creates a Kafka 0.8 {@link StreamTableSource}.
-	 *
-	 * @param topic                 Kafka topic to consume.
-	 * @param properties            Properties for the Kafka consumer.
-	 * @param deserializationSchema Deserialization schema to use for Kafka records.
-	 * @param fieldNames            Row field names.
-	 * @param fieldTypes            Row field types.
-	 */
-	public Kafka08TableSource(
-			String topic,
-			Properties properties,
-			DeserializationSchema<Row> deserializationSchema,
-			String[] fieldNames,
-			Class<?>[] fieldTypes) {
-
-		super(topic, properties, deserializationSchema, fieldNames, fieldTypes);
+		super(topic, properties, deserializationSchema, typeInfo);
 	}
 
 	@Override

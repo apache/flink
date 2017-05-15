@@ -45,7 +45,7 @@ class TableFunctionCallGen(
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
     // determine function method
-    val matchingMethod = getEvalMethod(tableFunction, signature)
+    val matchingMethod = getUserDefinedMethod(tableFunction, "eval", typeInfoToClass(signature))
       .getOrElse(throw new CodeGenException("No matching signature found."))
     val matchingSignature = matchingMethod.getParameterTypes
 

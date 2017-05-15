@@ -20,7 +20,11 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 
 import com.esotericsoftware.kryo.Kryo;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
@@ -30,7 +34,8 @@ import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import java.io.IOException;
 
-public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
+@Internal
+public final class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -148,5 +153,43 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof WritableSerializer;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & compatibility
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public WritableSerializerConfigSnapshot<T> snapshotConfiguration() {
+		return new WritableSerializerConfigSnapshot<>(typeClass);
+	}
+
+	@Override
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof WritableSerializerConfigSnapshot
+				&& typeClass.equals(((WritableSerializerConfigSnapshot) configSnapshot).getTypeClass())) {
+
+			return CompatibilityResult.compatible();
+		} else {
+			return CompatibilityResult.requiresMigration();
+		}
+	}
+
+	public static final class WritableSerializerConfigSnapshot<T extends Writable>
+			extends GenericTypeSerializerConfigSnapshot<T> {
+
+		private static final int VERSION = 1;
+
+		/** This empty nullary constructor is required for deserializing the configuration. */
+		public WritableSerializerConfigSnapshot() {}
+
+		public WritableSerializerConfigSnapshot(Class<T> writableTypeClass) {
+			super(writableTypeClass);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
 	}
 }

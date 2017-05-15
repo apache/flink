@@ -23,6 +23,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+* This will be replaced by the TOC
+{:toc}
+
 The Kinesis connector provides access to [Amazon AWS Kinesis Streams](http://aws.amazon.com/kinesis/streams/).
 
 To use the connector, add the following Maven dependency to your project:
@@ -53,14 +56,14 @@ mvn clean install -Pinclude-kinesis -DskipTests
 The streaming connectors are not part of the binary distribution. See how to link with them for cluster
 execution [here]({{site.baseurl}}/dev/linking.html).
 
-### Using the Amazon Kinesis Streams Service
+## Using the Amazon Kinesis Streams Service
 Follow the instructions from the [Amazon Kinesis Streams Developer Guide](https://docs.aws.amazon.com/streams/latest/dev/learning-kinesis-module-one-create-stream.html)
 to setup Kinesis streams. Make sure to create the appropriate IAM policy and user to read / write to the Kinesis streams.
 
-### Kinesis Consumer
+## Kinesis Consumer
 
 The `FlinkKinesisConsumer` is an exactly-once parallel streaming data source that subscribes to multiple AWS Kinesis
-streams within the same AWS service region, and can handle resharding of streams. Each subtask of the consumer is
+streams within the same AWS service region, and can transparently handle resharding of streams while the job is running. Each subtask of the consumer is
 responsible for fetching data records from multiple Kinesis shards. The number of shards fetched by each subtask will
 change as shards are closed and created by Kinesis.
 
@@ -107,13 +110,16 @@ to `TRIM_HORIZON`, which lets the consumer start reading the Kinesis stream from
 
 Other optional configuration keys for the consumer can be found in `ConsumerConfigConstants`.
 
-**NOTE:** Currently, resharding can not be handled transparently (i.e., without failing and restarting jobs) if there are idle consumer
-subtasks, which occur when the total number of shards is lower than the configured consumer parallelism. The job must be
-configured to enable checkpointing, so that the new shards due to resharding can be correctly picked up and consumed by the
-Kinesis consumer after the job is restored. This is a temporary limitation that will be resolved in future versions.
-Please see [FLINK-4341](https://issues.apache.org/jira/browse/FLINK-4341) for more detail.
+Note that the configured parallelism of the Flink Kinesis Consumer source
+can be completely independent of the total number of shards in the Kinesis streams.
+When the number of shards is larger than the parallelism of the consumer,
+then each consumer subtask can subscribe to multiple shards; otherwise
+if the number of shards is smaller than the parallelism of the consumer,
+then some consumer subtasks will simply be idle and wait until it gets assigned
+new shards (i.e., when the streams are resharded to increase the
+number of shards for higher provisioned Kinesis service throughput).
 
-#### Configuring Starting Position
+### Configuring Starting Position
 
 The Flink Kinesis Consumer currently provides the following options to configure where to start reading Kinesis streams, simply by setting `ConsumerConfigConstants.STREAM_INITIAL_POSITION` to
 one of the following values in the provided configuration properties (the naming of the options identically follows [the namings used by the AWS Kinesis Streams service](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html#API_GetShardIterator_RequestSyntax)):
@@ -121,11 +127,13 @@ one of the following values in the provided configuration properties (the naming
 - `LATEST`: read all shards of all streams starting from the latest record.
 - `TRIM_HORIZON`: read all shards of all streams starting from the earliest record possible (data may be trimmed by Kinesis depending on the retention settings).
 - `AT_TIMESTAMP`: read all shards of all streams starting from a specified timestamp. The timestamp must also be specified in the configuration
-properties by providing a value for `ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP`, either in the date pattern
-`yyyy-MM-dd'T'HH:mm:ss.SSSXXX` (for example, `2016-04-04T19:58:46.480-00:00`), or a non-negative double value representing the number of seconds
-that has elapsed since the Unix epoch (for example, `1459799926.480`).
+properties by providing a value for `ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP`, in one of the following date pattern :
+    - a non-negative double value representing the number of seconds that has elapsed since the Unix epoch (for example, `1459799926.480`).
+    - a user defined pattern, which is a valid pattern for `SimpleDateFormat` provided by `ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT`.
+    If `ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT` is not defined then the default pattern will be `yyyy-MM-dd'T'HH:mm:ss.SSSXXX`
+    (for example, timestamp value is `2016-04-04` and pattern is `yyyy-MM-dd` given by user or timestamp value is `2016-04-04T19:58:46.480-00:00` without given a pattern).
 
-#### Fault Tolerance for Exactly-Once User-Defined State Update Semantics
+### Fault Tolerance for Exactly-Once User-Defined State Update Semantics
 
 With Flink's checkpointing enabled, the Flink Kinesis Consumer will consume records from shards in Kinesis streams and
 periodically checkpoint each shard's progress. In case of a job failure, Flink will restore the streaming program to the
@@ -155,7 +163,7 @@ Also note that Flink can only restart the topology if enough processing slots ar
 Therefore, if the topology fails due to loss of a TaskManager, there must still be enough slots available afterwards.
 Flink on YARN supports automatic restart of lost YARN containers.
 
-#### Event Time for Consumed Records
+### Event Time for Consumed Records
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -199,7 +207,7 @@ kinesis = kinesis.assignTimestampsAndWatermarks(new CustomTimestampAssigner)
 </div>
 </div>
 
-#### Threading Model
+### Threading Model
 
 The Flink Kinesis Consumer uses multiple threads for shard discovery and data consumption.
 
@@ -212,7 +220,7 @@ For data consumption, a single thread will be created to consume each discovered
 shard it is responsible of consuming is closed as a result of stream resharding. In other words, there will always be
 one thread per open shard.
 
-#### Internally Used Kinesis APIs
+### Internally Used Kinesis APIs
 
 The Flink Kinesis Consumer uses the [AWS Java SDK](http://aws.amazon.com/sdk-for-java/) internally to call Kinesis APIs
 for shard discovery and data consumption. Due to Amazon's [service limits for Kinesis Streams](http://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html)
@@ -246,7 +254,7 @@ adjusts the maximum number of records each consuming thread tries to fetch from 
 the latter modifies the sleep interval between each fetch (there will be no sleep by default). The retry behaviour of the
 consumer when calling this API can also be modified by using the other keys prefixed by `ConsumerConfigConstants.SHARD_GETRECORDS_*`.
 
-### Kinesis Producer
+## Kinesis Producer
 
 The `FlinkKinesisProducer` is used for putting data from a Flink stream into a Kinesis stream. Note that the producer is not participating in
 Flink's checkpointing and doesn't provide exactly-once processing guarantees.
@@ -303,7 +311,7 @@ Otherwise, the returned stream name is used.
 Other optional configuration keys for the producer can be found in `ProducerConfigConstants`.
 
 
-### Using Non-AWS Kinesis Endpoints for Testing
+## Using Non-AWS Kinesis Endpoints for Testing
 
 It is sometimes desirable to have Flink operate as a consumer or producer against a non-AWS Kinesis endpoint such as
 [Kinesalite](https://github.com/mhart/kinesalite); this is especially useful when performing functional testing of a Flink

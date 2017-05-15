@@ -77,7 +77,7 @@ public class StreamExecutionEnvironmentTest {
 			}
 
 			dataStream1.addSink(new DiscardingSink<Integer>());
-	
+
 			DataStreamSource<Integer> dataStream2 = env.fromParallelCollection(new DummySplittableIterator<Integer>(),
 					typeInfo).setParallelism(4);
 
@@ -87,7 +87,7 @@ public class StreamExecutionEnvironmentTest {
 
 			assertEquals("Parallelism of collection source must be 1.", 1, env.getStreamGraph().getStreamNode(dataStream1.getId()).getParallelism());
 			assertEquals("Parallelism of parallel collection source must be 4.",
-					4, 
+					4,
 					env.getStreamGraph().getStreamNode(dataStream2.getId()).getParallelism());
 		}
 		catch (Exception e) {

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.ActorRef
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
 
 /** Mixing for testing utils
@@ -32,6 +33,6 @@ trait ScalaTestingUtils {
     * @return [[ActorGateway]] encapsulating the given [[ActorRef]]
     */
   implicit def actorRef2InstanceGateway(actor: ActorRef): ActorGateway = {
-    new AkkaActorGateway(actor, null)
+    new AkkaActorGateway(actor, HighAvailabilityServices.DEFAULT_LEADER_ID)
   }
 }

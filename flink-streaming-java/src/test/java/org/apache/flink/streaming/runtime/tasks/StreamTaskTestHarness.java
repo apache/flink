@@ -45,6 +45,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Test harness for testing a {@link StreamTask}.
@@ -83,7 +84,7 @@ public class StreamTaskTestHarness<OUT> {
 	private TypeSerializer<OUT> outputSerializer;
 	private TypeSerializer<StreamElement> outputStreamRecordSerializer;
 
-	private ConcurrentLinkedQueue<Object> outputList;
+	private LinkedBlockingQueue<Object> outputList;
 
 	protected TaskThread taskThread;
 
@@ -125,7 +126,7 @@ public class StreamTaskTestHarness<OUT> {
 
 	@SuppressWarnings("unchecked")
 	private void initializeOutput() {
-		outputList = new ConcurrentLinkedQueue<Object>();
+		outputList = new LinkedBlockingQueue<Object>();
 		mockEnv.addOutput(outputList, outputStreamRecordSerializer);
 	}
 
@@ -153,7 +154,8 @@ public class StreamTaskTestHarness<OUT> {
 		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
 		StreamNode sourceVertexDummy = new StreamNode(null, 0, "group", dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
 		StreamNode targetVertexDummy = new StreamNode(null, 1, "group", dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>()));
+
+		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>(), null /* output tag */));
 
 		streamConfig.setOutEdgesInOrder(outEdgesInOrder);
 		streamConfig.setNonChainedOutputs(outEdgesInOrder);
@@ -264,7 +266,7 @@ public class StreamTaskTestHarness<OUT> {
 	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getRawElementsFromOutput(java.util.Queue)}}
 	 * to extract only the StreamRecords.
 	 */
-	public ConcurrentLinkedQueue<Object> getOutput() {
+	public LinkedBlockingQueue<Object> getOutput() {
 		return outputList;
 	}
 

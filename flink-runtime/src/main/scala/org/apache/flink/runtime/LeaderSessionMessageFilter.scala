@@ -32,10 +32,15 @@ trait LeaderSessionMessageFilter extends FlinkActor {
 
   abstract override def receive: Receive = {
     case leaderMessage @ LeaderSessionMessage(msgID, msg) =>
-      if (leaderSessionID.equals(Option(msgID))) {
-        super.receive(msg)
-      } else {
-        handleDiscardedMessage(leaderSessionID, leaderMessage)
+      leaderSessionID match {
+        case Some(leaderId) =>
+          if (leaderId.equals(msgID)) {
+            super.receive(msg)
+          } else {
+            handleDiscardedMessage(leaderId, leaderMessage)
+          }
+        case None =>
+          handleNoLeaderId(leaderMessage)
       }
     case msg: RequiresLeaderSessionID =>
       throw new Exception(s"Received a message $msg without a leader session ID, even though" +
@@ -45,12 +50,16 @@ trait LeaderSessionMessageFilter extends FlinkActor {
   }
 
   private def handleDiscardedMessage(
-      expectedLeaderSessionID: Option[UUID],
+      expectedLeaderSessionID: UUID,
       msg: LeaderSessionMessage)
     : Unit = {
     log.warn(s"Discard message $msg because the expected leader session ID " +
       s"$expectedLeaderSessionID did not equal the received leader session ID " +
-      s"${Option(msg.leaderSessionID)}.")
+      s"${msg.leaderSessionID}.")
+  }
+
+  private def handleNoLeaderId(msg: LeaderSessionMessage): Unit = {
+    log.warn(s"Discard message $msg because there is currently no valid leader id known.")
   }
 
   /** Wrap [[RequiresLeaderSessionID]] messages in a [[LeaderSessionMessage]]

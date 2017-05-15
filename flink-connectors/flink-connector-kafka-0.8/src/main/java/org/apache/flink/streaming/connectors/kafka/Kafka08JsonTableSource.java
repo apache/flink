@@ -35,33 +35,15 @@ public class Kafka08JsonTableSource extends KafkaJsonTableSource {
 	 *
 	 * @param topic      Kafka topic to consume.
 	 * @param properties Properties for the Kafka consumer.
-	 * @param fieldNames Row field names.
-	 * @param fieldTypes Row field types.
+	 * @param typeInfo   Type information describing the result type. The field names are used
+	 *                   to parse the JSON file and so are the types.
 	 */
 	public Kafka08JsonTableSource(
 			String topic,
 			Properties properties,
-			String[] fieldNames,
-			TypeInformation<?>[] fieldTypes) {
+			TypeInformation<Row> typeInfo) {
 
-		super(topic, properties, fieldNames, fieldTypes);
-	}
-
-	/**
-	 * Creates a Kafka 0.8 JSON {@link StreamTableSource}.
-	 *
-	 * @param topic      Kafka topic to consume.
-	 * @param properties Properties for the Kafka consumer.
-	 * @param fieldNames Row field names.
-	 * @param fieldTypes Row field types.
-	 */
-	public Kafka08JsonTableSource(
-			String topic,
-			Properties properties,
-			String[] fieldNames,
-			Class<?>[] fieldTypes) {
-
-		super(topic, properties, fieldNames, fieldTypes);
+		super(topic, properties, typeInfo);
 	}
 
 	@Override

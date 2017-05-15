@@ -113,7 +113,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
 				try {
 					ResultSubpartitionView subpartitionView = partitionManager.createSubpartitionView(
-						partitionId, subpartitionIndex, inputGate.getBufferProvider(), this);
+						partitionId, subpartitionIndex, this);
 
 					if (subpartitionView == null) {
 						throw new IOException("Error requesting subpartition.");

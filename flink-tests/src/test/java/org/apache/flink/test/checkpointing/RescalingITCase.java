@@ -23,8 +23,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
@@ -143,7 +145,7 @@ public class RescalingITCase extends TestLogger {
 	}
 
 	/**
-	 * Tests that a a job with purely keyed state can be restarted from a savepoint
+	 * Tests that a job with purely keyed state can be restarted from a savepoint
 	 * with a different parallelism.
 	 */
 	public void testSavepointRescalingKeyedState(boolean scaleOut, boolean deriveMaxParallelism) throws Exception {
@@ -991,13 +993,13 @@ public class RescalingITCase extends TestLogger {
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 
 			if (broadcast) {
-				//TODO this is temporarily casted to test already functionality that we do not yet expose through public API
-				DefaultOperatorStateBackend operatorStateStore = (DefaultOperatorStateBackend) context.getOperatorStateStore();
-				this.counterPartitions =
-						operatorStateStore.getBroadcastSerializableListState("counter_partitions");
+				this.counterPartitions = context
+						.getOperatorStateStore()
+						.getUnionListState(new ListStateDescriptor<>("counter_partitions", IntSerializer.INSTANCE));
 			} else {
-				this.counterPartitions =
-						context.getOperatorStateStore().getSerializableListState("counter_partitions");
+				this.counterPartitions = context
+						.getOperatorStateStore()
+						.getListState(new ListStateDescriptor<>("counter_partitions", IntSerializer.INSTANCE));
 			}
 
 			if (context.isRestored()) {

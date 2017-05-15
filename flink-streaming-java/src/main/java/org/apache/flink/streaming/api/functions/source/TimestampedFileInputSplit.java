@@ -17,11 +17,10 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import java.io.Serializable;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
-
-import java.io.Serializable;
 
 /**
  * An extended {@link FileInputSplit} that also includes information about:
@@ -60,19 +59,18 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 		super(num, file, start, length, hosts);
 
 		Preconditions.checkArgument(modificationTime >= 0 || modificationTime == Long.MIN_VALUE,
-			"Invalid File Split Modification Time: "+ modificationTime +".");
+			"Invalid File Split Modification Time: " + modificationTime + ".");
 
 		this.modificationTime = modificationTime;
 	}
 
 	/**
-	 * Sets the state of the split. This information is used when
-	 * restoring from a checkpoint and allows to resume reading the
-	 * underlying file from the point we left off.
-	 * <p>
-	 * This is applicable to {@link org.apache.flink.api.common.io.FileInputFormat FileInputFormats}
-	 * that implement the {@link org.apache.flink.api.common.io.CheckpointableInputFormat
-	 * CheckpointableInputFormat} interface.
+	 * Sets the state of the split. This information is used when restoring from a checkpoint and
+	 * allows to resume reading the underlying file from the point we left off.
+	 *
+	 * <p>* This is applicable to
+	 * {@link org.apache.flink.api.common.io.FileInputFormat FileInputFormats} that implement the
+	 * {@link org.apache.flink.api.common.io.CheckpointableInputFormat} interface.
 	 * */
 	public void setSplitState(Serializable state) {
 		this.splitState = state;
@@ -129,13 +127,13 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 
 	@Override
 	public int hashCode() {
-		int res = 37 * (int)(this.modificationTime ^ (this.modificationTime >>> 32));
+		int res = 37 * (int) (this.modificationTime ^ (this.modificationTime >>> 32));
 		return 37 * res + super.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		return "[" + getSplitNumber() + "] " + getPath() +" mod@ "+
+		return "[" + getSplitNumber() + "] " + getPath() + " mod@ " +
 			modificationTime + " : " + getStart() + " + " + getLength();
 	}
 }

@@ -24,10 +24,15 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.StartupUtils;
 import org.apache.flink.util.NetUtils;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import scala.Option;
 
@@ -45,6 +50,21 @@ import java.util.UUID;
  * problems.
  */
 public class TaskManagerStartupTest {
+
+	private HighAvailabilityServices highAvailabilityServices;
+
+	@Before
+	public void setupTest() {
+		highAvailabilityServices = new EmbeddedHaServices(TestingUtils.defaultExecutor());
+	}
+
+	@After
+	public void tearDownTest() throws Exception {
+		if (highAvailabilityServices != null) {
+			highAvailabilityServices.closeAndCleanupAllData();
+			highAvailabilityServices = null;
+		}
+	}
 	
 
 	/**
@@ -54,8 +74,9 @@ public class TaskManagerStartupTest {
 	 * @throws Throwable
 	 */
 	@Test(expected = BindException.class)
-	public void testStartupWhenTaskmanagerActorPortIsUsed() throws BindException {
+	public void testStartupWhenTaskmanagerActorPortIsUsed() throws Exception {
 		ServerSocket blocker = null;
+
 		try {
 			final String localHostName = "localhost";
 			final InetAddress localBindAddress = InetAddress.getByName(NetUtils.getWildcardIPAddress());
@@ -64,8 +85,13 @@ public class TaskManagerStartupTest {
 			blocker = new ServerSocket(0, 50, localBindAddress);
 			final int port = blocker.getLocalPort();
 
-			TaskManager.runTaskManager(localHostName, ResourceID.generate(), port, new Configuration(),
-					TaskManager.class);
+			TaskManager.runTaskManager(
+				localHostName,
+				ResourceID.generate(),
+				port,
+				new Configuration(),
+				highAvailabilityServices,
+				TaskManager.class);
 			fail("This should fail with an IOException");
 
 		}
@@ -91,6 +117,8 @@ public class TaskManagerStartupTest {
 					// no need to log here
 				}
 			}
+
+			highAvailabilityServices.closeAndCleanupAllData();
 		}
 	}
 
@@ -101,7 +129,7 @@ public class TaskManagerStartupTest {
 	 * directories are not writable.
 	 */
 	@Test
-	public void testIODirectoryNotWritable() {
+	public void testIODirectoryNotWritable() throws Exception {
 		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
 		File nonWritable = new File(tempDir, UUID.randomUUID().toString());
 
@@ -113,12 +141,17 @@ public class TaskManagerStartupTest {
 		try {
 			Configuration cfg = new Configuration();
 			cfg.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, nonWritable.getAbsolutePath());
-			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
+			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 			cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 			cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 21656);
 
 			try {
-				TaskManager.runTaskManager("localhost", ResourceID.generate(), 0, cfg);
+				TaskManager.runTaskManager(
+					"localhost",
+					ResourceID.generate(),
+					0,
+					cfg,
+					highAvailabilityServices);
 				fail("Should fail synchronously with an exception");
 			}
 			catch (IOException e) {
@@ -138,6 +171,8 @@ public class TaskManagerStartupTest {
 			catch (IOException e) {
 				// best effort
 			}
+
+			highAvailabilityServices.closeAndCleanupAllData();
 		}
 	}
 
@@ -154,9 +189,14 @@ public class TaskManagerStartupTest {
 			cfg.setString(ConfigConstants.TASK_MANAGER_MEMORY_PRE_ALLOCATE_KEY, "true");
 
 			// something invalid
-			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -42);
+			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, -42L);
 			try {
-				TaskManager.runTaskManager("localhost", ResourceID.generate(), 0, cfg);
+				TaskManager.runTaskManager(
+					"localhost",
+					ResourceID.generate(),
+					0,
+					cfg,
+					highAvailabilityServices);
 				fail("Should fail synchronously with an exception");
 			}
 			catch (IllegalConfigurationException e) {
@@ -165,10 +205,15 @@ public class TaskManagerStartupTest {
 
 			// something ridiculously high
 			final long memSize = (((long) Integer.MAX_VALUE - 1) *
-					ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE) >> 20;
-			cfg.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memSize);
+					TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()) >> 20;
+			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, memSize);
 			try {
-				TaskManager.runTaskManager("localhost", ResourceID.generate(), 0, cfg);
+				TaskManager.runTaskManager(
+					"localhost",
+					ResourceID.generate(),
+					0,
+					cfg,
+					highAvailabilityServices);
 				fail("Should fail synchronously with an exception");
 			}
 			catch (Exception e) {
@@ -197,15 +242,15 @@ public class TaskManagerStartupTest {
 			final Configuration cfg = new Configuration();
 			cfg.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
 			cfg.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, blocker.getLocalPort());
-			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 1);
+			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 1L);
 
 			TaskManager.startTaskManagerComponentsAndActor(
 				cfg,
 				ResourceID.generate(),
 				null,
+				highAvailabilityServices,
 				"localhost",
 				Option.<String>empty(),
-				Option.<LeaderRetrievalService>empty(),
 				false,
 				TaskManager.class);
 		}

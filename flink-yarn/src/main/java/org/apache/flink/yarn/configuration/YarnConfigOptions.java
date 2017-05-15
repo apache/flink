@@ -39,7 +39,7 @@ public class YarnConfigOptions {
 	 * The port where the application master RPC system is listening.
 	 */
 	public static final ConfigOption<Integer> APP_MASTER_RPC_PORT =
-			key("yarn.appmaster.rpc.address")
+			key("yarn.appmaster.rpc.port")
 			.defaultValue(-1);
 
 	// ------------------------------------------------------------------------

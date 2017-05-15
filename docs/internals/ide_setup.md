@@ -81,6 +81,39 @@ to enable support for Scala projects and files:
    files for the IDE to work with but without installing libraries.
 8. Build the Project (Build -> Make Project)
 
+### Checkstyle
+IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
+
+1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository.
+1. Configure the plugin by going to Settings -> Other Settings -> Checkstyle.
+1. Set the "Scan Scope" to "Only Java sources (but not tests)".
+1. In the "Configuration File" pane, add a new configuration using the plus icon:
+    1. Set the "Description" to "Flink".
+    1. Select "Use a local Checkstyle file", and point it to
+      `"tools/maven/checkstyle.xml"` within
+      your repository.
+    1. Check the box for "Store relative to project location", and click
+      "Next".
+    1. Configure the "checkstyle.suppressions.file" property value to
+      `"suppressions.xml"`, and click "Next", then "Finish".
+1. Select "Flink" as the only active configuration file, and click "Apply" and
+   "OK".
+1. Checkstyle will now give warnings in the editor for any Checkstyle
+   violations.
+
+You can also scan an entire module by opening the Checkstyle tools window and
+clicking the "Check Module" button. The scan should report no errors.
+
+<span class="label label-info">Note</span> Selecting "Check Project" may report some errors from the archetype
+modules as they are not configured for Checkstyle validation.
+
+<span class="label label-info">Note</span> Some modules use a more strict `checkstyle.xml` file called
+`strict-checkstyle.xml`. You should setup an additional configuration by following the above
+steps for this file as well and activate it on a per-module basis. To set a per-module checkstyle
+configuration go to File -> Project Structure. Then select the module for which you want to change
+the checkstyle configuration in the modules list and change the checkstyle configuration in the
+Checkstyle tab.
+
 ## Eclipse
 
 **NOTE:** From our experience, this setup does not work with Flink

@@ -23,6 +23,8 @@ import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -32,11 +34,16 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import scala.Option;
+
+
+import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -53,6 +60,8 @@ public class ResourceManagerITCase extends TestLogger {
 
 	private static Configuration config = new Configuration();
 
+	private HighAvailabilityServices highAvailabilityServices;
+
 	@BeforeClass
 	public static void setup() {
 		system = AkkaUtils.createActorSystem(AkkaUtils.getDefaultAkkaConfig());
@@ -61,6 +70,17 @@ public class ResourceManagerITCase extends TestLogger {
 	@AfterClass
 	public static void teardown() {
 		JavaTestKit.shutdownActorSystem(system);
+	}
+
+	@Before
+	public void setupTest() {
+		highAvailabilityServices = new EmbeddedHaServices(TestingUtils.defaultExecutor());
+	}
+
+	@After
+	public void tearDownTest() throws Exception {
+		highAvailabilityServices.closeAndCleanupAllData();
+		highAvailabilityServices = null;
 	}
 
 	/**
@@ -74,49 +94,67 @@ public class ResourceManagerITCase extends TestLogger {
 		@Override
 		protected void run() {
 
-			ActorGateway jobManager =
-				TestingUtils.createJobManager(
-					system,
-					TestingUtils.defaultExecutor(),
-					TestingUtils.defaultExecutor(),
-					config,
-					"ReconciliationTest");
-			ActorGateway me =
-				TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
+			ActorGateway jobManager = null;
+			ActorGateway resourceManager = null;
+			ActorGateway forwardingActor = null;
 
-			// !! no resource manager started !!
+			try {
+				jobManager =
+					TestingUtils.createJobManager(
+						system,
+						TestingUtils.defaultExecutor(),
+						TestingUtils.defaultExecutor(),
+						config,
+						highAvailabilityServices,
+						"ReconciliationTest");
 
-			ResourceID resourceID = ResourceID.generate();
+				forwardingActor =
+					TestingUtils.createForwardingActor(
+						system,
+						getTestActor(),
+						jobManager.leaderSessionID(),
+						Option.<String>empty());
 
-			TaskManagerLocation location = mock(TaskManagerLocation.class);
-			when(location.getResourceID()).thenReturn(resourceID);
+				// !! no resource manager started !!
 
-			HardwareDescription resourceProfile = HardwareDescription.extractFromSystem(1_000_000);
+				ResourceID resourceID = ResourceID.generate();
 
-			jobManager.tell(
-				new RegistrationMessages.RegisterTaskManager(resourceID, location, resourceProfile, 1),
-				me);
+				TaskManagerLocation location = mock(TaskManagerLocation.class);
+				when(location.getResourceID()).thenReturn(resourceID);
 
-			expectMsgClass(RegistrationMessages.AcknowledgeRegistration.class);
+				HardwareDescription resourceProfile = HardwareDescription.extractFromSystem(1_000_000);
 
-			// now start the resource manager
-			ActorGateway resourceManager =
-				TestingUtils.createResourceManager(system, jobManager.actor(), config);
+				jobManager.tell(
+					new RegistrationMessages.RegisterTaskManager(resourceID, location, resourceProfile, 1),
+					forwardingActor);
 
-			// register at testing job manager to receive a message once a resource manager registers
-			resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), me);
+				expectMsgClass(RegistrationMessages.AcknowledgeRegistration.class);
 
-			// Wait for resource manager
-			expectMsgEquals(Acknowledge.get());
+				// now start the resource manager
+				resourceManager =
+					TestingUtils.createResourceManager(
+						system,
+						config,
+						highAvailabilityServices);
 
-			// check if we registered the task manager resource
-			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), me);
+				// register at testing job manager to receive a message once a resource manager registers
+				resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), forwardingActor);
 
-			TestingResourceManager.GetRegisteredResourcesReply reply =
-				expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
+				// Wait for resource manager
+				expectMsgEquals(Acknowledge.get());
 
-			assertEquals(1, reply.resources.size());
-			assertTrue(reply.resources.contains(resourceID));
+				// check if we registered the task manager resource
+				resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), forwardingActor);
+
+				TestingResourceManager.GetRegisteredResourcesReply reply =
+					expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
+
+				assertEquals(1, reply.resources.size());
+				assertTrue(reply.resources.contains(resourceID));
+			} finally {
+				TestingUtils.stopActorGatewaysGracefully(Arrays.asList(
+					jobManager, resourceManager, forwardingActor));
+			}
 
 		}};
 		}};
@@ -133,37 +171,53 @@ public class ResourceManagerITCase extends TestLogger {
 		@Override
 		protected void run() {
 
-			ActorGateway jobManager =
-				TestingUtils.createJobManager(
-					system,
-					TestingUtils.defaultExecutor(),
-					TestingUtils.defaultExecutor(),
-					config,
-					"RegTest");
-			ActorGateway me =
-				TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
+			ActorGateway jobManager = null;
+			ActorGateway taskManager = null;
+			ActorGateway resourceManager = null;
+			ActorGateway forwardingActor = null;
 
-			// start the resource manager
-			ActorGateway resourceManager =
-				TestingUtils.createResourceManager(system, jobManager.actor(), config);
+			try {
+				jobManager =
+					TestingUtils.createJobManager(
+						system,
+						TestingUtils.defaultExecutor(),
+						TestingUtils.defaultExecutor(),
+						config,
+						highAvailabilityServices,
+						"RegTest");
 
-			// notify about a resource manager registration at the job manager
-			resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), me);
+				forwardingActor =
+					TestingUtils.createForwardingActor(
+						system,
+						getTestActor(),
+						jobManager.leaderSessionID(),
+						Option.<String>empty());
 
-			// Wait for resource manager
-			expectMsgEquals(Acknowledge.get());
+				// start the resource manager
+				resourceManager =
+					TestingUtils.createResourceManager(system, config, highAvailabilityServices);
 
-			// start task manager and wait for registration
-			ActorGateway taskManager =
-				TestingUtils.createTaskManager(system, jobManager.actor(), config, true, true);
+				// notify about a resource manager registration at the job manager
+				resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), forwardingActor);
 
-			// check if we registered the task manager resource
-			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), me);
+				// Wait for resource manager
+				expectMsgEquals(Acknowledge.get());
 
-			TestingResourceManager.GetRegisteredResourcesReply reply =
-				expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
+				// start task manager and wait for registration
+				taskManager =
+					TestingUtils.createTaskManager(system, highAvailabilityServices, config, true, true);
 
-			assertEquals(1, reply.resources.size());
+				// check if we registered the task manager resource
+				resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), forwardingActor);
+
+				TestingResourceManager.GetRegisteredResourcesReply reply =
+					expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
+
+				assertEquals(1, reply.resources.size());
+			} finally {
+				TestingUtils.stopActorGatewaysGracefully(Arrays.asList(
+					jobManager, resourceManager, taskManager, forwardingActor));
+			}
 
 		}};
 		}};

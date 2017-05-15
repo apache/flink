@@ -30,16 +30,14 @@ abstract public class AbstractGenericTypeComparatorTest {
 
 	@Test
 	public void testString() {
-		runTests(new String[]{
-				"",
+		runTests("",
 				"Lorem Ipsum Dolor Omit Longer",
 				"aaaa",
 				"abcd",
 				"abce",
 				"abdd",
 				"accd",
-				"bbcd"
-		});
+				"bbcd");
 	}
 
 	@Test

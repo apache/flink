@@ -20,8 +20,8 @@ package org.apache.flink.api.scala.typeutils
 import java.io.ObjectInputStream
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.core.memory.{DataOutputView, DataInputView}
+import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 import scala.collection.generic.CanBuildFrom
 
@@ -149,5 +149,14 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
 
   override def canEqual(obj: Any): Boolean = {
     obj.isInstanceOf[TraversableSerializer[_, _]]
+  }
+
+  override def snapshotConfiguration(): TypeSerializerConfigSnapshot = {
+    throw new UnsupportedOperationException()
+  }
+
+  override def ensureCompatibility(
+      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[T] = {
+    throw new UnsupportedOperationException()
   }
 }

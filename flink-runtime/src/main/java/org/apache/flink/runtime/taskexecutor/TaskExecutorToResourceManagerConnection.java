@@ -22,7 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.registration.RegistrationConnectionListener;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
@@ -51,9 +51,11 @@ public class TaskExecutorToResourceManagerConnection
 
 	private final SlotReport slotReport;
 
-	private final FatalErrorHandler fatalErrorHandler;
+	private final RegistrationConnectionListener<TaskExecutorRegistrationSuccess> registrationListener;
 
 	private InstanceID registrationId;
+
+	private ResourceID resourceManagerResourceId;
 
 	public TaskExecutorToResourceManagerConnection(
 			Logger log,
@@ -64,7 +66,7 @@ public class TaskExecutorToResourceManagerConnection
 			String resourceManagerAddress,
 			UUID resourceManagerLeaderId,
 			Executor executor,
-			FatalErrorHandler fatalErrorHandler) {
+			RegistrationConnectionListener<TaskExecutorRegistrationSuccess> registrationListener) {
 
 		super(log, resourceManagerAddress, resourceManagerLeaderId, executor);
 
@@ -72,7 +74,7 @@ public class TaskExecutorToResourceManagerConnection
 		this.taskManagerAddress = Preconditions.checkNotNull(taskManagerAddress);
 		this.taskManagerResourceId = Preconditions.checkNotNull(taskManagerResourceId);
 		this.slotReport = Preconditions.checkNotNull(slotReport);
-		this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
+		this.registrationListener = Preconditions.checkNotNull(registrationListener);
 	}
 
 
@@ -94,13 +96,15 @@ public class TaskExecutorToResourceManagerConnection
 			getTargetAddress(), success.getRegistrationId());
 
 		registrationId = success.getRegistrationId();
+		resourceManagerResourceId = success.getResourceManagerId();
+		registrationListener.onRegistrationSuccess(success);
 	}
 
 	@Override
 	protected void onRegistrationFailure(Throwable failure) {
 		log.info("Failed to register at resource manager {}.", getTargetAddress(), failure);
 
-		fatalErrorHandler.onFatalError(failure);
+		registrationListener.onRegistrationFailure(failure);
 	}
 
 	/**
@@ -109,6 +113,13 @@ public class TaskExecutorToResourceManagerConnection
 	 */
 	public InstanceID getRegistrationId() {
 		return registrationId;
+	}
+
+	/**
+	 * Gets the unique id of ResourceManager, that is returned when registration success.
+	 */
+	public ResourceID getResourceManagerId() {
+		return resourceManagerResourceId;
 	}
 
 	// ------------------------------------------------------------------------

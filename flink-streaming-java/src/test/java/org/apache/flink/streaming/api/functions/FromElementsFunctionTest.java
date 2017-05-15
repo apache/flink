@@ -47,7 +47,7 @@ import static org.junit.Assert.*;
  * Tests for the {@link org.apache.flink.streaming.api.functions.source.FromElementsFunction}.
  */
 public class FromElementsFunctionTest {
-	
+
 	@Test
 	public void testStrings() {
 		try {
@@ -55,10 +55,10 @@ public class FromElementsFunctionTest {
 
 			FromElementsFunction<String> source = new FromElementsFunction<String>(
 					BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()), data);
-			
+
 			List<String> result = new ArrayList<String>();
 			source.run(new ListSourceContext<String>(result));
-			
+
 			assertEquals(Arrays.asList(data), result);
 		}
 		catch (Exception e) {
@@ -66,7 +66,7 @@ public class FromElementsFunctionTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testNonJavaSerializableType() {
 		try {
@@ -85,17 +85,17 @@ public class FromElementsFunctionTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testSerializationError() {
 		try {
-			TypeInformation<SerializationErrorType> info = 
+			TypeInformation<SerializationErrorType> info =
 					new ValueTypeInfo<SerializationErrorType>(SerializationErrorType.class);
-			
+
 			try {
 				new FromElementsFunction<SerializationErrorType>(
 					info.createSerializer(new ExecutionConfig()), new SerializationErrorType());
-				
+
 				fail("should fail with an exception");
 			}
 			catch (IOException e) {
@@ -116,7 +116,7 @@ public class FromElementsFunctionTest {
 
 			FromElementsFunction<DeserializeTooMuchType> source = new FromElementsFunction<DeserializeTooMuchType>(
 					info.createSerializer(new ExecutionConfig()), new DeserializeTooMuchType());
-			
+
 			try {
 				source.run(new ListSourceContext<DeserializeTooMuchType>(new ArrayList<DeserializeTooMuchType>()));
 				fail("should fail with an exception");
@@ -130,19 +130,19 @@ public class FromElementsFunctionTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testCheckpointAndRestore() {
 		try {
 			final int NUM_ELEMENTS = 10000;
-			
+
 			List<Integer> data = new ArrayList<Integer>(NUM_ELEMENTS);
 			List<Integer> result = new ArrayList<Integer>(NUM_ELEMENTS);
-			
+
 			for (int i = 0; i < NUM_ELEMENTS; i++) {
 				data.add(i);
 			}
-			
+
 			final FromElementsFunction<Integer> source = new FromElementsFunction<>(IntSerializer.INSTANCE, data);
 			StreamSource<Integer, FromElementsFunction<Integer>> src = new StreamSource<>(source);
 			AbstractStreamOperatorTestHarness<Integer> testHarness =
@@ -150,9 +150,9 @@ public class FromElementsFunctionTest {
 			testHarness.open();
 
 			final SourceFunction.SourceContext<Integer> ctx = new ListSourceContext<Integer>(result, 2L);
-			
+
 			final Throwable[] error = new Throwable[1];
-			
+
 			// run the source asynchronously
 			Thread runner = new Thread() {
 				@Override
@@ -166,10 +166,10 @@ public class FromElementsFunctionTest {
 				}
 			};
 			runner.start();
-			
-			// wait for a bit 
+
+			// wait for a bit
 			Thread.sleep(1000);
-			
+
 			// make a checkpoint
 			List<Integer> checkpointData = new ArrayList<>(NUM_ELEMENTS);
 			OperatorStateHandles handles = null;
@@ -177,11 +177,11 @@ public class FromElementsFunctionTest {
 				handles = testHarness.snapshot(566, System.currentTimeMillis());
 				checkpointData.addAll(result);
 			}
-			
+
 			// cancel the source
 			source.cancel();
 			runner.join();
-			
+
 			// check for errors
 			if (error[0] != null) {
 				System.err.println("Error in asynchronous source runner");
@@ -201,7 +201,7 @@ public class FromElementsFunctionTest {
 			SourceFunction.SourceContext<Integer> newCtx = new ListSourceContext<>(checkpointData);
 
 			sourceCopy.run(newCtx);
-			
+
 			assertEquals(data, checkpointData);
 		}
 		catch (Exception e) {
@@ -209,19 +209,19 @@ public class FromElementsFunctionTest {
 			fail(e.getMessage());
 		}
 	}
-	
-	
+
+
 	// ------------------------------------------------------------------------
 	//  Test Types
 	// ------------------------------------------------------------------------
-	
+
 	public static class MyPojo {
-		
+
 		public long val1;
 		public int val2;
 
 		public MyPojo() {}
-		
+
 		public MyPojo(long val1, int val2) {
 			this.val1 = val1;
 			this.val2 = val2;
@@ -236,14 +236,14 @@ public class FromElementsFunctionTest {
 		public boolean equals(Object obj) {
 			if (obj instanceof MyPojo) {
 				MyPojo that = (MyPojo) obj;
-				return this.val1 == that.val1 && this.val2 == that.val2; 
+				return this.val1 == that.val1 && this.val2 == that.val2;
 			}
 			else {
 				return false;
 			}
 		}
 	}
-	
+
 	public static class SerializationErrorType implements Value {
 
 		private static final long serialVersionUID = -6037206294939421807L;

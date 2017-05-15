@@ -31,7 +31,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.LongValueSequenceIterator;
 import org.apache.flink.util.Preconditions;
 
-/*
+/**
  * @see <a href="http://mathworld.wolfram.com/StarGraph.html">Star Graph at Wolfram MathWorld</a>
  */
 public class StarGraph
@@ -46,7 +46,9 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	private long vertexCount;
 
 	/**
-	 * An undirected {@link Graph} containing a single central {@link Vertex} connected to all other leaf vertices.
+	 * An undirected {@Graph} with {@code n} vertices where the single central
+	 * node has degree {@code n-1}, connecting to the other {@code n-1}
+	 * vertices which have degree {@code 1}.
 	 *
 	 * @param env the Flink execution environment
 	 * @param vertexCount number of vertices
@@ -80,7 +82,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@ForwardedFields("*->f0")
-	public class LinkVertexToCenter
+	private static class LinkVertexToCenter
 	implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
 
 		private LongValue center = new LongValue(0);

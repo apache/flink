@@ -23,11 +23,11 @@ import org.apache.flink.streaming.api.functions.windowing.delta.EuclideanDistanc
 import org.junit.Test;
 
 public class EuclideanDistanceTest {
-	
+
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testEuclideanDistance() {
-		
+
 		//Reference calculated using wolfram alpha
 		double[][][] testdata={
 				{{0,0,0},{0,0,0}},
@@ -51,15 +51,15 @@ public class EuclideanDistanceTest {
 				2.828427,
 				1
 		};
-		
+
 		for (int i = 0; i < testdata.length; i++) {
 			assertEquals("Wrong result for inputs " + arrayToString(testdata[i][0]) + " and "
 					+ arrayToString(testdata[i][0]), referenceSolutions[i],
 					new EuclideanDistance().getDelta(testdata[i][0], testdata[i][1]), 0.000001);
 		}
-		
+
 	}
-	
+
 	private String arrayToString(double[] in){
 		if (in.length==0) return "{}";
 		String result="{";

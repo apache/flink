@@ -24,6 +24,9 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.junit.Test;
 
 import scala.Tuple2;
@@ -44,16 +47,23 @@ import static org.junit.Assert.*;
 public class TaskManagerConfigurationTest {
 
 	@Test
-	public void testUsePreconfiguredNetworkInterface() {
+	public void testUsePreconfiguredNetworkInterface() throws Exception {
+		final String TEST_HOST_NAME = "testhostname";
+
+		Configuration config = new Configuration();
+		config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, TEST_HOST_NAME);
+		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
+		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 7891);
+
+		HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+			config,
+			Executors.directExecutor(),
+			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+
 		try {
-			final String TEST_HOST_NAME = "testhostname";
 
-			Configuration config = new Configuration();
-			config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, TEST_HOST_NAME);
-			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
-			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 7891);
 
-			Tuple2<String, Object> address = TaskManager.selectNetworkInterfaceAndPort(config);
+			Tuple2<String, Object> address = TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices);
 
 			// validate the configured test host name
 			assertEquals(TEST_HOST_NAME, address._1());
@@ -61,30 +71,37 @@ public class TaskManagerConfigurationTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			highAvailabilityServices.closeAndCleanupAllData();
 		}
 	}
 
 	@Test
-	public void testActorSystemPortConfig() {
-		try {
-			// config with pre-configured hostname to speed up tests (no interface selection)
-			Configuration config = new Configuration();
-			config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
-			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
-			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 7891);
+	public void testActorSystemPortConfig() throws Exception {
+		// config with pre-configured hostname to speed up tests (no interface selection)
+		Configuration config = new Configuration();
+		config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
+		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
+		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 7891);
 
+		HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+			config,
+			Executors.directExecutor(),
+			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+
+		try {
 			// auto port
-			assertEquals(0, TaskManager.selectNetworkInterfaceAndPort(config)._2());
+			assertEquals(0, TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices)._2());
 
 			// pre-defined port
 			final int testPort = 22551;
 			config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, testPort);
-			assertEquals(testPort, TaskManager.selectNetworkInterfaceAndPort(config)._2());
+			assertEquals(testPort, TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices)._2());
 
 			// invalid port
 			try {
 				config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, -1);
-				TaskManager.selectNetworkInterfaceAndPort(config);
+				TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices);
 				fail("should fail with an exception");
 			}
 			catch (IllegalConfigurationException e) {
@@ -94,7 +111,7 @@ public class TaskManagerConfigurationTest {
 			// invalid port
 			try {
 				config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 100000);
-				TaskManager.selectNetworkInterfaceAndPort(config);
+				TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices);
 				fail("should fail with an exception");
 			}
 			catch (IllegalConfigurationException e) {
@@ -104,6 +121,8 @@ public class TaskManagerConfigurationTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			highAvailabilityServices.closeAndCleanupAllData();
 		}
 	}
 
@@ -136,7 +155,7 @@ public class TaskManagerConfigurationTest {
 	}
 
 	@Test
-	public void testNetworkInterfaceSelection() {
+	public void testNetworkInterfaceSelection() throws Exception {
 		ServerSocket server;
 		String hostname = "localhost";
 
@@ -149,20 +168,27 @@ public class TaskManagerConfigurationTest {
 			return;
 		}
 
+		// open a server port to allow the system to connect
+		Configuration config = new Configuration();
+
+		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, hostname);
+		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, server.getLocalPort());
+
+		HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+			config,
+			Executors.directExecutor(),
+			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+
 		try {
-			// open a server port to allow the system to connect
-			Configuration config = new Configuration();
-
-			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, hostname);
-			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, server.getLocalPort());
-
-			assertNotNull(TaskManager.selectNetworkInterfaceAndPort(config)._1());
+			assertNotNull(TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices)._1());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
 		finally {
+			highAvailabilityServices.closeAndCleanupAllData();
+
 			try {
 				server.close();
 			} catch (IOException e) {

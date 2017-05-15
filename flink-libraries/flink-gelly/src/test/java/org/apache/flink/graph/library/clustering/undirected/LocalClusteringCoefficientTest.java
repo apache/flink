@@ -76,7 +76,7 @@ extends AsmTestBase {
 	@Test
 	public void testRMatGraph()
 			throws Exception {
-		DataSet<Result<LongValue>> cc = undirectedRMatGraph
+		DataSet<Result<LongValue>> cc = undirectedRMatGraph(10, 16)
 			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>());
 
 		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()

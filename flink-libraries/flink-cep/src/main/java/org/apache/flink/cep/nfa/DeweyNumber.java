@@ -44,6 +44,10 @@ public class DeweyNumber implements Serializable {
 		this.deweyNumber = deweyNumber;
 	}
 
+	public DeweyNumber(DeweyNumber number) {
+		this.deweyNumber = Arrays.copyOf(number.deweyNumber, number.deweyNumber.length);
+	}
+
 	/**
 	 * Checks whether this dewey number is compatible to the other dewey number.
 	 *
@@ -90,8 +94,19 @@ public class DeweyNumber implements Serializable {
 	 * @return A new dewey number derived from this whose last digit is increased by one
 	 */
 	public DeweyNumber increase() {
+		return increase(1);
+	}
+
+	/**
+	 * Creates a new dewey number from this such that its last digit is increased by the supplied
+	 * number
+	 *
+	 * @param times how many times to increase the Dewey number
+	 * @return A new dewey number derived from this whose last digit is increased by given number
+	 */
+	public DeweyNumber increase(int times) {
 		int[] newDeweyNumber = Arrays.copyOf(deweyNumber, deweyNumber.length);
-		newDeweyNumber[deweyNumber.length - 1]++;
+		newDeweyNumber[deweyNumber.length - 1] += times;
 
 		return new DeweyNumber(newDeweyNumber);
 	}

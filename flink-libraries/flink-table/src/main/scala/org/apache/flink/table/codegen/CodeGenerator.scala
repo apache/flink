@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.codegen
 
+import java.lang.reflect.ParameterizedType
+import java.lang.{Iterable => JIterable}
 import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.calcite.avatica.util.DateTimeUtils
@@ -27,11 +29,12 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.GenericInputFormat
-import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{AtomicType, PrimitiveArrayTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
@@ -39,11 +42,12 @@ import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
-import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, TimeMaterializationSqlFunction, UserDefinedFunction}
 import org.apache.flink.table.runtime.TableFunctionCollector
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -55,19 +59,18 @@ import scala.collection.mutable
   * @param nullableInput input(s) can be null.
   * @param input1 type information about the first input of the Function
   * @param input2 type information about the second input if the Function is binary
-  * @param input1PojoFieldMapping additional mapping information if input1 is a POJO (POJO types
-  *                              have no deterministic field order).
-  * @param input2PojoFieldMapping additional mapping information if input2 is a POJO (POJO types
-  *                              have no deterministic field order).
-  *
+  * @param input1FieldMapping additional mapping information for input1
+  *   (e.g. POJO types have no deterministic field order and some input fields might not be read)
+  * @param input2FieldMapping additional mapping information for input2
+  *   (e.g. POJO types have no deterministic field order and some input fields might not be read)
   */
 class CodeGenerator(
-   config: TableConfig,
-   nullableInput: Boolean,
-   input1: TypeInformation[_ <: Any],
-   input2: Option[TypeInformation[_ <: Any]] = None,
-   input1PojoFieldMapping: Option[Array[Int]] = None,
-   input2PojoFieldMapping: Option[Array[Int]] = None)
+    config: TableConfig,
+    nullableInput: Boolean,
+    input1: TypeInformation[_ <: Any],
+    input2: Option[TypeInformation[_ <: Any]] = None,
+    input1FieldMapping: Option[Array[Int]] = None,
+    input2FieldMapping: Option[Array[Int]] = None)
   extends RexVisitor[GeneratedExpression] {
 
   // check if nullCheck is enabled when inputs can be null
@@ -78,7 +81,7 @@ class CodeGenerator(
   // check for POJO input1 mapping
   input1 match {
     case pt: PojoTypeInfo[_] =>
-      input1PojoFieldMapping.getOrElse(
+      input1FieldMapping.getOrElse(
         throw new CodeGenException("No input mapping is specified for input1 of type POJO."))
     case _ => // ok
   }
@@ -86,9 +89,22 @@ class CodeGenerator(
   // check for POJO input2 mapping
   input2 match {
     case Some(pt: PojoTypeInfo[_]) =>
-      input2PojoFieldMapping.getOrElse(
+      input2FieldMapping.getOrElse(
         throw new CodeGenException("No input mapping is specified for input2 of type POJO."))
     case _ => // ok
+  }
+
+  private val input1Mapping = input1FieldMapping match {
+    case Some(mapping) => mapping
+    case _ => (0 until input1.getArity).toArray
+  }
+
+  private val input2Mapping = input2FieldMapping match {
+    case Some(mapping) => mapping
+    case _ => input2 match {
+      case Some(input) => (0 until input.getArity).toArray
+      case _ => Array[Int]()
+    }
   }
 
   /**
@@ -98,15 +114,15 @@ class CodeGenerator(
     * @param config configuration that determines runtime behavior
     * @param nullableInput input(s) can be null.
     * @param input type information about the input of the Function
-    * @param inputPojoFieldMapping additional mapping information necessary if input is a
-    *                              POJO (POJO types have no deterministic field order).
+    * @param inputFieldMapping additional mapping information necessary for input
+    *   (e.g. POJO types have no deterministic field order and some input fields might not be read)
     */
   def this(
       config: TableConfig,
       nullableInput: Boolean,
       input: TypeInformation[Any],
-      inputPojoFieldMapping: Array[Int]) =
-    this(config, nullableInput, input, None, Some(inputPojoFieldMapping))
+      inputFieldMapping: Array[Int]) =
+    this(config, nullableInput, input, None, Some(inputFieldMapping))
 
   /**
     * A code generator for generating Flink input formats.
@@ -223,6 +239,11 @@ class CodeGenerator(
   var outRecordTerm = "out"
 
   /**
+    * @return term of the [[ProcessFunction]]'s context
+    */
+  var contextTerm = "ctx"
+
+  /**
     * @return returns if null checking is enabled
     */
   def nullCheck: Boolean = config.getNullCheck
@@ -236,6 +257,398 @@ class CodeGenerator(
     */
   def generateExpression(rex: RexNode): GeneratedExpression = {
     rex.accept(this)
+  }
+
+  /**
+    * Generates a [[org.apache.flink.table.runtime.aggregate.GeneratedAggregations]] that can be
+    * passed to a Java compiler.
+    *
+    * @param name        Class name of the function.
+    *                    Does not need to be unique but has to be a valid Java class identifier.
+    * @param generator   The code generator instance
+    * @param physicalInputTypes Physical input row types
+    * @param aggregates  All aggregate functions
+    * @param aggFields   Indexes of the input fields for all aggregate functions
+    * @param aggMapping  The mapping of aggregates to output fields
+    * @param partialResults A flag defining whether final or partial results (accumulators) are set
+    *                       to the output row.
+    * @param fwdMapping  The mapping of input fields to output fields
+    * @param mergeMapping An optional mapping to specify the accumulators to merge. If not set, we
+    *                     assume that both rows have the accumulators at the same position.
+    * @param constantFlags An optional parameter to define where to set constant boolean flags in
+    *                      the output row.
+    * @param outputArity The number of fields in the output row.
+    * @param needRetract a flag to indicate if the aggregate needs the retract method
+    * @param needMerge a flag to indicate if the aggregate needs the merge method
+    * @param needReset a flag to indicate if the aggregate needs the resetAccumulator method
+    *
+    * @return A GeneratedAggregationsFunction
+    */
+  def generateAggregations(
+      name: String,
+      generator: CodeGenerator,
+      physicalInputTypes: Seq[TypeInformation[_]],
+      aggregates: Array[AggregateFunction[_ <: Any, _ <: Any]],
+      aggFields: Array[Array[Int]],
+      aggMapping: Array[Int],
+      partialResults: Boolean,
+      fwdMapping: Array[Int],
+      mergeMapping: Option[Array[Int]],
+      constantFlags: Option[Array[(Int, Boolean)]],
+      outputArity: Int,
+      needRetract: Boolean,
+      needMerge: Boolean,
+      needReset: Boolean)
+  : GeneratedAggregationsFunction = {
+
+    // get unique function name
+    val funcName = newName(name)
+    // register UDAGGs
+    val aggs = aggregates.map(a => generator.addReusableFunction(a))
+    // get java types of accumulators
+    val accTypeClasses = aggregates.map { a =>
+      a.getClass.getMethod("createAccumulator").getReturnType
+    }
+    val accTypes = accTypeClasses.map(_.getCanonicalName)
+
+    // get java classes of input fields
+    val javaClasses = physicalInputTypes.map(t => t.getTypeClass)
+    // get parameter lists for aggregation functions
+    val parameters = aggFields.map { inFields =>
+      val fields = for (f <- inFields) yield
+        s"(${javaClasses(f).getCanonicalName}) input.getField($f)"
+      fields.mkString(", ")
+    }
+    val methodSignaturesList = aggFields.map {
+      inFields => for (f <- inFields) yield javaClasses(f)
+    }
+
+    // check and validate the needed methods
+    aggregates.zipWithIndex.map {
+      case (a, i) => {
+        getUserDefinedMethod(a, "accumulate", Array(accTypeClasses(i)) ++ methodSignaturesList(i))
+          .getOrElse(
+            throw new CodeGenException(
+              s"No matching accumulate method found for AggregateFunction " +
+                s"'${a.getClass.getCanonicalName}'" +
+                s"with parameters '${signatureToString(methodSignaturesList(i))}'.")
+          )
+
+        if (needRetract) {
+          getUserDefinedMethod(a, "retract", Array(accTypeClasses(i)) ++ methodSignaturesList(i))
+            .getOrElse(
+              throw new CodeGenException(
+                s"No matching retract method found for AggregateFunction " +
+                  s"'${a.getClass.getCanonicalName}'" +
+                  s"with parameters '${signatureToString(methodSignaturesList(i))}'.")
+            )
+        }
+
+        if (needMerge) {
+          val methods =
+            getUserDefinedMethod(a, "merge", Array(accTypeClasses(i), classOf[JIterable[Any]]))
+              .getOrElse(
+                throw new CodeGenException(
+                  s"No matching merge method found for AggregateFunction " +
+                    s"${a.getClass.getCanonicalName}'.")
+              )
+
+          var iterableTypeClass = methods.getGenericParameterTypes.apply(1)
+            .asInstanceOf[ParameterizedType].getActualTypeArguments.apply(0)
+          // further extract iterableTypeClass if the accumulator has generic type
+          iterableTypeClass match {
+            case impl: ParameterizedType => iterableTypeClass = impl.getRawType
+            case _ =>
+          }
+
+          if (iterableTypeClass != accTypeClasses(i)) {
+            throw new CodeGenException(
+              s"merge method in AggregateFunction ${a.getClass.getCanonicalName} does not have " +
+                s"the correct Iterable type. Actually: ${iterableTypeClass.toString}. " +
+                s"Expected: ${accTypeClasses(i).toString}")
+          }
+        }
+
+        if (needReset) {
+          getUserDefinedMethod(a, "resetAccumulator", Array(accTypeClasses(i)))
+            .getOrElse(
+              throw new CodeGenException(
+                s"No matching resetAccumulator method found for " +
+                  s"aggregate ${a.getClass.getCanonicalName}'.")
+            )
+        }
+      }
+    }
+
+    def genSetAggregationResults: String = {
+
+      val sig: String =
+        j"""
+           |  public final void setAggregationResults(
+           |    org.apache.flink.types.Row accs,
+           |    org.apache.flink.types.Row output)""".stripMargin
+
+      val setAggs: String = {
+        for (i <- aggs.indices) yield
+
+          if (partialResults) {
+            j"""
+               |    output.setField(
+               |      ${aggMapping(i)},
+               |      (${accTypes(i)}) accs.getField($i));""".stripMargin
+          } else {
+            j"""
+               |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
+               |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
+               |
+               |    output.setField(
+               |      ${aggMapping(i)},
+               |      baseClass$i.getValue((${accTypes(i)}) accs.getField($i)));""".stripMargin
+          }
+      }.mkString("\n")
+
+      j"""
+         |$sig {
+         |$setAggs
+         |  }""".stripMargin
+    }
+
+    def genAccumulate: String = {
+
+      val sig: String =
+        j"""
+            |  public final void accumulate(
+            |    org.apache.flink.types.Row accs,
+            |    org.apache.flink.types.Row input)""".stripMargin
+
+      val accumulate: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    ${aggs(i)}.accumulate(
+             |      ((${accTypes(i)}) accs.getField($i)),
+             |      ${parameters(i)});""".stripMargin
+      }.mkString("\n")
+
+      j"""$sig {
+         |$accumulate
+         |  }""".stripMargin
+    }
+
+    def genRetract: String = {
+
+      val sig: String =
+        j"""
+            |  public final void retract(
+            |    org.apache.flink.types.Row accs,
+            |    org.apache.flink.types.Row input)""".stripMargin
+
+      val retract: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    ${aggs(i)}.retract(
+             |      ((${accTypes(i)}) accs.getField($i)),
+             |      ${parameters(i)});""".stripMargin
+      }.mkString("\n")
+
+      if (needRetract) {
+        j"""
+           |$sig {
+           |$retract
+           |  }""".stripMargin
+      } else {
+        j"""
+           |$sig {
+           |  }""".stripMargin
+      }
+    }
+
+    def genCreateAccumulators: String = {
+
+      val sig: String =
+        j"""
+           |  public final org.apache.flink.types.Row createAccumulators()
+           |    """.stripMargin
+      val init: String =
+        j"""
+           |      org.apache.flink.types.Row accs =
+           |          new org.apache.flink.types.Row(${aggs.length});"""
+          .stripMargin
+      val create: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    accs.setField(
+             |      $i,
+             |      ${aggs(i)}.createAccumulator());"""
+            .stripMargin
+      }.mkString("\n")
+      val ret: String =
+        j"""
+           |      return accs;"""
+          .stripMargin
+
+      j"""$sig {
+         |$init
+         |$create
+         |$ret
+         |  }""".stripMargin
+    }
+
+    def genSetForwardedFields: String = {
+
+      val sig: String =
+        j"""
+           |  public final void setForwardedFields(
+           |    org.apache.flink.types.Row input,
+           |    org.apache.flink.types.Row output)
+           |    """.stripMargin
+
+      val forward: String = {
+        for (i <- fwdMapping.indices if fwdMapping(i) >= 0) yield
+          {
+            j"""
+               |    output.setField(
+               |      $i,
+               |      input.getField(${fwdMapping(i)}));"""
+              .stripMargin
+          }
+      }.mkString("\n")
+
+      j"""$sig {
+         |$forward
+         |  }""".stripMargin
+    }
+
+    def genSetConstantFlags: String = {
+
+      val sig: String =
+        j"""
+           |  public final void setConstantFlags(org.apache.flink.types.Row output)
+           |    """.stripMargin
+
+      val setFlags: String = if (constantFlags.isDefined) {
+        {
+          for (cf <- constantFlags.get) yield {
+            j"""
+               |    output.setField(${cf._1}, ${if (cf._2) "true" else "false"});"""
+              .stripMargin
+          }
+        }.mkString("\n")
+      } else {
+        ""
+      }
+
+      j"""$sig {
+         |$setFlags
+         |  }""".stripMargin
+    }
+
+    def genCreateOutputRow: String = {
+      j"""
+         |  public final org.apache.flink.types.Row createOutputRow() {
+         |    return new org.apache.flink.types.Row($outputArity);
+         |  }""".stripMargin
+    }
+
+    def genMergeAccumulatorsPair: String = {
+
+      val mapping = mergeMapping.getOrElse(aggs.indices.toArray)
+
+      val sig: String =
+        j"""
+           |  public final org.apache.flink.types.Row mergeAccumulatorsPair(
+           |    org.apache.flink.types.Row a,
+           |    org.apache.flink.types.Row b)
+           """.stripMargin
+      val merge: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    ${accTypes(i)} aAcc$i = (${accTypes(i)}) a.getField($i);
+             |    ${accTypes(i)} bAcc$i = (${accTypes(i)}) b.getField(${mapping(i)});
+             |    accIt$i.setElement(bAcc$i);
+             |    ${aggs(i)}.merge(aAcc$i, accIt$i);
+             |    a.setField($i, aAcc$i);
+             """.stripMargin
+      }.mkString("\n")
+      val ret: String =
+        j"""
+           |      return a;
+           """.stripMargin
+
+      if (needMerge) {
+        j"""
+           |$sig {
+           |$merge
+           |$ret
+           |  }""".stripMargin
+      } else {
+        j"""
+           |$sig {
+           |$ret
+           |  }""".stripMargin
+      }
+    }
+
+    def genMergeList: String = {
+      {
+        val singleIterableClass = "org.apache.flink.table.runtime.aggregate.SingleElementIterable"
+        for (i <- accTypes.indices) yield
+          j"""
+             |    private final $singleIterableClass<${accTypes(i)}> accIt$i =
+             |      new $singleIterableClass<${accTypes(i)}>();
+             """.stripMargin
+      }.mkString("\n")
+    }
+
+    def genResetAccumulator: String = {
+
+      val sig: String =
+        j"""
+           |  public final void resetAccumulator(
+           |    org.apache.flink.types.Row accs)""".stripMargin
+
+      val reset: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    ${aggs(i)}.resetAccumulator(
+             |      ((${accTypes(i)}) accs.getField($i)));""".stripMargin
+      }.mkString("\n")
+
+      if (needReset) {
+        j"""$sig {
+           |$reset
+           |  }""".stripMargin
+      } else {
+        j"""$sig {
+           |  }""".stripMargin
+      }
+    }
+
+    var funcCode =
+      j"""
+         |public final class $funcName
+         |  extends org.apache.flink.table.runtime.aggregate.GeneratedAggregations {
+         |
+         |  ${reuseMemberCode()}
+         |  $genMergeList
+         |  public $funcName() throws Exception {
+         |    ${reuseInitCode()}
+         |  }
+         |  ${reuseConstructorCode(funcName)}
+         |
+         """.stripMargin
+
+    funcCode += genSetAggregationResults + "\n"
+    funcCode += genAccumulate + "\n"
+    funcCode += genRetract + "\n"
+    funcCode += genCreateAccumulators + "\n"
+    funcCode += genSetForwardedFields + "\n"
+    funcCode += genSetConstantFlags + "\n"
+    funcCode += genCreateOutputRow + "\n"
+    funcCode += genMergeAccumulatorsPair + "\n"
+    funcCode += genResetAccumulator + "\n"
+    funcCode += "}"
+
+    GeneratedAggregationsFunction(funcName, funcCode)
   }
 
   /**
@@ -291,6 +704,17 @@ class CodeGenerator(
           s"void join(Object _in1, Object _in2, org.apache.flink.util.Collector $collectorTerm)",
           List(s"$inputTypeTerm1 $input1Term = ($inputTypeTerm1) _in1;",
                s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
+      }
+
+      // ProcessFunction
+      else if (clazz == classOf[ProcessFunction[_, _]]) {
+        val baseClass = classOf[ProcessFunction[_, _]]
+        val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
+        (baseClass,
+          s"void processElement(Object _in1, " +
+            s"org.apache.flink.streaming.api.functions.ProcessFunction.Context $contextTerm," +
+            s"org.apache.flink.util.Collector $collectorTerm)",
+          List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
       }
       else {
         // TODO more functions
@@ -447,12 +871,12 @@ class CodeGenerator(
       returnType: TypeInformation[_ <: Any],
       resultFieldNames: Seq[String])
     : GeneratedExpression = {
-    val input1AccessExprs = for (i <- 0 until input1.getArity)
-      yield generateInputAccess(input1, input1Term, i, input1PojoFieldMapping)
+    val input1AccessExprs = for (i <- 0 until input1.getArity if input1Mapping.contains(i))
+      yield generateInputAccess(input1, input1Term, i, input1Mapping)
 
     val input2AccessExprs = input2 match {
-      case Some(ti) => for (i <- 0 until ti.getArity)
-        yield generateInputAccess(ti, input2Term, i, input2PojoFieldMapping)
+      case Some(ti) => for (i <- 0 until ti.getArity if input2Mapping.contains(i))
+        yield generateInputAccess(ti, input2Term, i, input2Mapping)
       case None => Seq() // add nothing
     }
 
@@ -464,14 +888,14 @@ class CodeGenerator(
     */
   def generateCorrelateAccessExprs: (Seq[GeneratedExpression], Seq[GeneratedExpression]) = {
     val input1AccessExprs = for (i <- 0 until input1.getArity)
-      yield generateInputAccess(input1, input1Term, i, input1PojoFieldMapping)
+      yield generateInputAccess(input1, input1Term, i, input1Mapping)
 
     val input2AccessExprs = input2 match {
-      case Some(ti) => for (i <- 0 until ti.getArity)
+      case Some(ti) => for (i <- 0 until ti.getArity if input2Mapping.contains(i))
         // use generateFieldAccess instead of generateInputAccess to avoid the generated table
         // function's field access code is put on the top of function body rather than
         // the while loop
-        yield generateFieldAccess(ti, input2Term, i, input2PojoFieldMapping)
+        yield generateFieldAccess(ti, input2Term, i, input2Mapping)
       case None => throw new CodeGenException("Type information of input2 must not be null.")
     }
     (input1AccessExprs, input2AccessExprs)
@@ -726,11 +1150,11 @@ class CodeGenerator(
   override def visitInputRef(inputRef: RexInputRef): GeneratedExpression = {
     // if inputRef index is within size of input1 we work with input1, input2 otherwise
     val input = if (inputRef.getIndex < input1.getArity) {
-      (input1, input1Term, input1PojoFieldMapping)
+      (input1, input1Term, input1Mapping)
     } else {
       (input2.getOrElse(throw new CodeGenException("Invalid input access.")),
         input2Term,
-        input2PojoFieldMapping)
+        input2Mapping)
     }
 
     val index = if (input._2 == input1Term) {
@@ -749,7 +1173,7 @@ class CodeGenerator(
       refExpr.resultType,
       refExpr.resultTerm,
       index,
-      input1PojoFieldMapping)
+      input1Mapping)
 
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
@@ -905,6 +1329,13 @@ class CodeGenerator(
     throw new CodeGenException("Dynamic parameter references are not supported yet.")
 
   override def visitCall(call: RexCall): GeneratedExpression = {
+    // special case: time materialization
+    if (call.getOperator == TimeMaterializationSqlFunction) {
+      return generateRecordTimestamp(
+        FlinkTypeFactory.isRowtimeIndicatorType(call.getOperands.get(0).getType)
+      )
+    }
+
     val operands = call.getOperands.map(_.accept(this))
     val resultType = FlinkTypeFactory.toTypeInfo(call.getType)
 
@@ -1090,11 +1521,19 @@ class CodeGenerator(
         generateArray(this, resultType, operands)
 
       case ITEM =>
-        val array = operands.head
-        val index = operands(1)
-        requireArray(array)
-        requireInteger(index)
-        generateArrayElementAt(this, array, index)
+        operands.head.resultType match {
+          case _: ObjectArrayTypeInfo[_, _] | _: PrimitiveArrayTypeInfo[_] =>
+            val array = operands.head
+            val index = operands(1)
+            requireInteger(index)
+            generateArrayElementAt(this, array, index)
+
+          case map: MapTypeInfo[_, _] =>
+            val key = operands(1)
+            generateMapGet(this, operands.head, key)
+
+          case _ => throw new CodeGenException("Expect an array or a map.")
+        }
 
       case CARDINALITY =>
         val array = operands.head
@@ -1130,6 +1569,9 @@ class CodeGenerator(
   override def visitSubQuery(subQuery: RexSubQuery): GeneratedExpression =
     throw new CodeGenException("Subqueries are not supported yet.")
 
+  override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression =
+    throw new CodeGenException("Pattern field references are not supported yet.")
+
   // ----------------------------------------------------------------------------------------------
   // generator helping methods
   // ----------------------------------------------------------------------------------------------
@@ -1138,7 +1580,7 @@ class CodeGenerator(
       inputType: TypeInformation[_ <: Any],
       inputTerm: String,
       index: Int,
-      pojoFieldMapping: Option[Array[Int]])
+      fieldMapping: Array[Int])
     : GeneratedExpression = {
     // if input has been used before, we can reuse the code that
     // has already been generated
@@ -1150,9 +1592,9 @@ class CodeGenerator(
       // generate input access and unboxing if necessary
       case None =>
         val expr = if (nullableInput) {
-          generateNullableInputFieldAccess(inputType, inputTerm, index, pojoFieldMapping)
+          generateNullableInputFieldAccess(inputType, inputTerm, index, fieldMapping)
         } else {
-          generateFieldAccess(inputType, inputTerm, index, pojoFieldMapping)
+          generateFieldAccess(inputType, inputTerm, index, fieldMapping)
         }
 
         reusableInputUnboxingExprs((inputTerm, index)) = expr
@@ -1166,7 +1608,7 @@ class CodeGenerator(
       inputType: TypeInformation[_ <: Any],
       inputTerm: String,
       index: Int,
-      pojoFieldMapping: Option[Array[Int]])
+      fieldMapping: Array[Int])
     : GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
@@ -1174,7 +1616,7 @@ class CodeGenerator(
     val fieldType = inputType match {
       case ct: CompositeType[_] =>
         val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
-          pojoFieldMapping.get(index)
+          fieldMapping(index)
         }
         else {
           index
@@ -1185,7 +1627,7 @@ class CodeGenerator(
     }
     val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
     val defaultValue = primitiveDefaultValue(fieldType)
-    val fieldAccessExpr = generateFieldAccess(inputType, inputTerm, index, pojoFieldMapping)
+    val fieldAccessExpr = generateFieldAccess(inputType, inputTerm, index, fieldMapping)
 
     val inputCheckCode =
       s"""
@@ -1209,12 +1651,12 @@ class CodeGenerator(
       inputType: TypeInformation[_],
       inputTerm: String,
       index: Int,
-      pojoFieldMapping: Option[Array[Int]])
+      fieldMapping: Array[Int])
     : GeneratedExpression = {
     inputType match {
       case ct: CompositeType[_] =>
-        val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]] && pojoFieldMapping.nonEmpty) {
-          pojoFieldMapping.get(index)
+        val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
+          fieldMapping(index)
         }
         else {
           index
@@ -1415,6 +1857,30 @@ class CodeGenerator(
       // other types are autoboxed or need no boxing
       case _ => expr
     }
+  }
+
+  private[flink] def generateRecordTimestamp(isEventTime: Boolean): GeneratedExpression = {
+    val resultTerm = newName("result")
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(SqlTimeTypeInfo.TIMESTAMP)
+
+    val resultCode = if (isEventTime) {
+      s"""
+        |$resultTypeTerm $resultTerm;
+        |if ($contextTerm.timestamp() == null) {
+        |  throw new RuntimeException("Rowtime timestamp is null. Please make sure that a proper " +
+        |    "TimestampAssigner is defined and the stream environment uses the EventTime time " +
+        |    "characteristic.");
+        |}
+        |else {
+        |  $resultTerm = $contextTerm.timestamp();
+        |}
+        |""".stripMargin
+    } else {
+      s"""
+        |$resultTypeTerm $resultTerm = $contextTerm.timerService().currentProcessingTime();
+        |""".stripMargin
+    }
+    GeneratedExpression(resultTerm, NEVER_NULL, resultCode, SqlTimeTypeInfo.TIMESTAMP)
   }
 
   // ----------------------------------------------------------------------------------------------

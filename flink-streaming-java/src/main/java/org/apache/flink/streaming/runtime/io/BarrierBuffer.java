@@ -17,13 +17,17 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
+import java.io.IOException;
+import java.util.ArrayDeque;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.decline.AlignmentLimitExceededException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.decline.InputEndOfStreamException;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -32,21 +36,15 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.ArrayDeque;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * The barrier buffer is {@link CheckpointBarrierHandler} that blocks inputs with barriers until
  * all inputs have received the barrier for a given checkpoint.
- * 
+ *
  * <p>To avoid back-pressuring the input streams (which may cause distributed deadlocks), the
- * BarrierBuffer continues receiving buffers from the blocked channels and stores them internally until 
+ * BarrierBuffer continues receiving buffers from the blocked channels and stores them internally until
  * the blocks are released.
  */
 @Internal
@@ -54,59 +52,68 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BarrierBuffer.class);
 
-	/** The gate that the buffer draws its input from */
+	/** The gate that the buffer draws its input from. */
 	private final InputGate inputGate;
 
-	/** Flags that indicate whether a channel is currently blocked/buffered */
+	/** Flags that indicate whether a channel is currently blocked/buffered. */
 	private final boolean[] blockedChannels;
 
-	/** The total number of channels that this buffer handles data from */
+	/** The total number of channels that this buffer handles data from. */
 	private final int totalNumberOfInputChannels;
 
-	/** To utility to write blocked data to a file channel */
+	/** To utility to write blocked data to a file channel. */
 	private final BufferSpiller bufferSpiller;
 
-	/** The pending blocked buffer/event sequences. Must be consumed before requesting
-	 * further data from the input gate. */
+	/**
+	 * The pending blocked buffer/event sequences. Must be consumed before requesting further data
+	 * from the input gate.
+	 */
 	private final ArrayDeque<BufferSpiller.SpilledBufferOrEventSequence> queuedBuffered;
 
-	/** The maximum number of bytes that may be buffered before an alignment is broken. -1 means unlimited */
+	/**
+	 * The maximum number of bytes that may be buffered before an alignment is broken. -1 means
+	 * unlimited.
+	 */
 	private final long maxBufferedBytes;
 
-	/** The sequence of buffers/events that has been unblocked and must now be consumed
-	 * before requesting further data from the input gate */
+	/**
+	 * The sequence of buffers/events that has been unblocked and must now be consumed before
+	 * requesting further data from the input gate.
+	 */
 	private BufferSpiller.SpilledBufferOrEventSequence currentBuffered;
 
-	/** Handler that receives the checkpoint notifications */
+	/** Handler that receives the checkpoint notifications. */
 	private StatefulTask toNotifyOnCheckpoint;
 
-	/** The ID of the checkpoint for which we expect barriers */
+	/** The ID of the checkpoint for which we expect barriers. */
 	private long currentCheckpointId = -1L;
 
-	/** The number of received barriers (= number of blocked/buffered channels)
-	 * IMPORTANT: A canceled checkpoint must always have 0 barriers */
+	/**
+	 * The number of received barriers (= number of blocked/buffered channels) IMPORTANT: A canceled
+	 * checkpoint must always have 0 barriers.
+	 */
 	private int numBarriersReceived;
 
-	/** The number of already closed channels */
+	/** The number of already closed channels. */
 	private int numClosedChannels;
 
-	/** The number of bytes in the queued spilled sequences */
+	/** The number of bytes in the queued spilled sequences. */
 	private long numQueuedBytes;
 
-	/** The timestamp as in {@link System#nanoTime()} at which the last alignment started */
+	/** The timestamp as in {@link System#nanoTime()} at which the last alignment started. */
 	private long startOfAlignmentTimestamp;
 
-	/** The time (in nanoseconds) that the latest alignment took */
+	/** The time (in nanoseconds) that the latest alignment took. */
 	private long latestAlignmentDurationNanos;
 
-	/** Flag to indicate whether we have drawn all available input */
+	/** Flag to indicate whether we have drawn all available input. */
 	private boolean endOfStream;
 
 	/**
 	 * Creates a new checkpoint stream aligner.
-	 * 
+	 *
 	 * <p>There is no limit to how much data may be buffered during an alignment.
-	 * 
+	 *
 	 * @param inputGate The input gate to draw the buffers and events from.
 	 * @param ioManager The I/O manager that gives access to the temp directories.
 	 *
@@ -118,15 +125,15 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	/**
 	 * Creates a new checkpoint stream aligner.
-	 * 
+	 *
 	 * <p>The aligner will allow only alignments that buffer up to the given number of bytes.
 	 * When that number is exceeded, it will stop the alignment and notify the task that the
 	 * checkpoint has been cancelled.
-	 * 
+	 *
 	 * @param inputGate The input gate to draw the buffers and events from.
 	 * @param ioManager The I/O manager that gives access to the temp directories.
 	 * @param maxBufferedBytes The maximum bytes to be buffered before the checkpoint aborts.
-	 * 
+	 *
 	 * @throws IOException Thrown, when the spilling to temp files cannot be initialized.
 	 */
 	public BarrierBuffer(InputGate inputGate, IOManager ioManager, long maxBufferedBytes) throws IOException {
@@ -437,7 +444,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	/**
 	 * Checks whether the channel with the given index is blocked.
-	 * 
+	 *
 	 * @param channelIndex The channel index to check.
 	 * @return True if the channel is blocked, false if not.
 	 */
@@ -447,7 +454,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	/**
 	 * Blocks the given channel index, from which a barrier has been received.
-	 * 
+	 *
 	 * @param channelIndex The channel index to block.
 	 */
 	private void onBarrier(int channelIndex) throws IOException {
@@ -519,8 +526,8 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	/**
 	 * Gets the ID defining the current pending, or just completed, checkpoint.
-	 * 
-	 * @return The ID of the pending of completed checkpoint. 
+	 *
+	 * @return The ID of the pending of completed checkpoint.
 	 */
 	public long getCurrentCheckpointId() {
 		return this.currentCheckpointId;
@@ -537,9 +544,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	}
 
 	// ------------------------------------------------------------------------
-	// Utilities 
+	// Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return String.format("last checkpoint: %d, current barriers: %d, closed channels: %d",

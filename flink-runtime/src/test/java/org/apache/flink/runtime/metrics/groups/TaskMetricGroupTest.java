@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
@@ -63,9 +63,9 @@ public class TaskMetricGroupTest extends TestLogger {
 	@Test
 	public void testGenerateScopeCustom() {
 		Configuration cfg = new Configuration();
-		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM, "abc");
-		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TM_JOB, "def");
-		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "<tm_id>.<job_id>.<task_id>.<task_attempt_id>");
+		cfg.setString(MetricOptions.SCOPE_NAMING_TM, "abc");
+		cfg.setString(MetricOptions.SCOPE_NAMING_TM_JOB, "def");
+		cfg.setString(MetricOptions.SCOPE_NAMING_TASK, "<tm_id>.<job_id>.<task_id>.<task_attempt_id>");
 		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
 
 		JobID jid = new JobID();
@@ -90,7 +90,7 @@ public class TaskMetricGroupTest extends TestLogger {
 	@Test
 	public void testGenerateScopeWilcard() {
 		Configuration cfg = new Configuration();
-		cfg.setString(ConfigConstants.METRICS_SCOPE_NAMING_TASK, "*.<task_attempt_id>.<subtask_index>");
+		cfg.setString(MetricOptions.SCOPE_NAMING_TASK, "*.<task_attempt_id>.<subtask_index>");
 		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
 
 		AbstractID executionId = new AbstractID();

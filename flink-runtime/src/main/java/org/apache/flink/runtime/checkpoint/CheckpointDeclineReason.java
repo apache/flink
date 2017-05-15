@@ -36,7 +36,9 @@ public enum CheckpointDeclineReason {
 
 	NOT_ALL_REQUIRED_TASKS_RUNNING("Not all required tasks are currently running."),
 
-	EXCEPTION("An Exception occurred while triggering the checkpoint.");
+	EXCEPTION("An Exception occurred while triggering the checkpoint."),
+
+	EXPIRED("The checkpoint expired before triggering was complete");
 
 	// ------------------------------------------------------------------------
 

@@ -37,7 +37,7 @@ public class MockRecordWriter extends RecordWriter<SerializationDelegate<StreamR
 		emittedRecords = new ArrayList<Integer>();
 		return true;
 	}
-	
+
 	@Override
 	public void emit(SerializationDelegate<StreamRecord<Tuple1<Integer>>> record) {
 		emittedRecords.add(record.getInstance().getValue().f0);

@@ -235,6 +235,30 @@ public class AllWindowTranslationTest {
 		fail("The trigger call should fail.");
 	}
 
+	@Test
+	@SuppressWarnings("rawtypes")
+	public void testMergingWindowsWithEvictor() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
+
+		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+
+		DataStream<Tuple3<String, String, Integer>> window1 = source
+				.windowAll(EventTimeSessionWindows.withGap(Time.seconds(5)))
+				.evictor(CountEvictor.of(5))
+				.process(new TestProcessAllWindowFunction());
+
+		OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>> transform = (OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>>) window1.getTransformation();
+		OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator = transform.getOperator();
+		Assert.assertTrue(operator instanceof WindowOperator);
+		WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator = (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
+		Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+		Assert.assertTrue(winOperator.getWindowAssigner() instanceof EventTimeSessionWindows);
+		Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+
+		processElementAndEnsureOutput(winOperator, winOperator.getKeySelector(), BasicTypeInfo.STRING_TYPE_INFO, new Tuple2<>("hello", 1));
+	}
+
 	// ------------------------------------------------------------------------
 	//  reduce() translation tests
 	// ------------------------------------------------------------------------
@@ -553,13 +577,13 @@ public class AllWindowTranslationTest {
 				.windowAll(SlidingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
 				.aggregate(new DummyAggregationFunction());
 
-		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform = 
+		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
 				(OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window1.getTransformation();
 
 		OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator = transform.getOperator();
 
 		Assert.assertTrue(operator instanceof WindowOperator);
-		WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator = 
+		WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
 				(WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
 
 		Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
@@ -581,13 +605,13 @@ public class AllWindowTranslationTest {
 				.windowAll(SlidingProcessingTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
 				.aggregate(new DummyAggregationFunction());
 
-		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform = 
+		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
 				(OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window1.getTransformation();
 
 		OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator = transform.getOperator();
 
 		Assert.assertTrue(operator instanceof WindowOperator);
-		WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator = 
+		WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
 				(WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
 
 		Assert.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
@@ -615,7 +639,7 @@ public class AllWindowTranslationTest {
 		OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator = transform.getOperator();
 
 		Assert.assertTrue(operator instanceof WindowOperator);
-		WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator = 
+		WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
 				(WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
 
 		Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
@@ -643,7 +667,7 @@ public class AllWindowTranslationTest {
 		OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator = transform.getOperator();
 
 		Assert.assertTrue(operator instanceof WindowOperator);
-		WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator = 
+		WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
 				(WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
 
 		Assert.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
@@ -1507,7 +1531,7 @@ public class AllWindowTranslationTest {
 		@Override
 		public void apply(
 				TimeWindow window,
-				Iterable<Tuple2<String, Integer>> values, 
+				Iterable<Tuple2<String, Integer>> values,
 				Collector<Tuple3<String, String, Integer>> out) throws Exception {
 
 			for (Tuple2<String, Integer> in : values) {
@@ -1515,4 +1539,19 @@ public class AllWindowTranslationTest {
 			}
 		}
 	}
+
+	private static class TestProcessAllWindowFunction
+			extends ProcessAllWindowFunction<Tuple2<String, Integer>, Tuple3<String, String, Integer>, TimeWindow> {
+
+		@Override
+		public void process(Context ctx,
+				Iterable<Tuple2<String, Integer>> values,
+				Collector<Tuple3<String, String, Integer>> out) throws Exception {
+
+			for (Tuple2<String, Integer> in : values) {
+				out.collect(new Tuple3<>(in.f0, in.f0, in.f1));
+			}
+		}
+	}
+
 }

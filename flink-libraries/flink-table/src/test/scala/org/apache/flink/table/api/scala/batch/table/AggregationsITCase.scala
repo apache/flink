@@ -18,15 +18,18 @@
 
 package org.apache.flink.table.api.scala.batch.table
 
+import java.math.BigDecimal
+
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.api.scala._
-import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.types.Row
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.examples.scala.WordCountTable.{WC => MyWC}
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMergeAndReset
+import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.types.Row
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -45,10 +48,10 @@ class AggregationsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
-      .select('_1.sum, '_1.min, '_1.max, '_1.count, '_1.avg)
+      .select('_1.sum, '_1.sum0, '_1.min, '_1.max, '_1.count, '_1.avg)
 
     val results = t.toDataSet[Row].collect()
-    val expected = "231,1,21,21,11"
+    val expected = "231,231,1,21,21,11"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -156,17 +159,17 @@ class AggregationsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val input = env.fromElements(
-      MyWC("hello", 1),
-      MyWC("hello", 1),
-      MyWC("ciao", 1),
-      MyWC("hola", 1),
-      MyWC("hola", 1))
+      WC("hello", 1),
+      WC("hello", 1),
+      WC("ciao", 1),
+      WC("hola", 1),
+      WC("hola", 1))
     val expr = input.toTable(tEnv)
     val result = expr
       .groupBy('word)
       .select('word, 'frequency.sum as 'frequency)
       .filter('frequency === 2)
-      .toDataSet[MyWC]
+      .toDataSet[WC]
 
     val mappedResult = result.map(w => (w.word, w.frequency * 10)).collect()
     val expected = "(hello,20)\n" + "(hola,20)"
@@ -204,12 +207,15 @@ class AggregationsITCase(
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val countFun = new CountAggFunction
+    val wAvgFun = new WeightedAvgWithMergeAndReset
 
     val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
-      .select('b, 'a.sum)
+      .select('b, 'a.sum, countFun('c), wAvgFun('b, 'a), wAvgFun('a, 'a))
 
-    val expected = "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n"
+    val expected = "1,1,1,1,1\n" + "2,5,2,2,2\n" + "3,15,3,3,5\n" + "4,34,4,4,8\n" +
+      "5,65,5,5,13\n" + "6,111,6,6,18\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -339,4 +345,35 @@ class AggregationsITCase(
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  @Test
+  def testAnalyticAggregation(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val ds = env.fromElements(
+      (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, BigDecimal.ONE),
+      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, new BigDecimal(2))).toTable(tEnv)
+    val res = ds.select(
+      '_1.stddevPop, '_2.stddevPop, '_3.stddevPop, '_4.stddevPop, '_5.stddevPop,
+      '_6.stddevPop, '_7.stddevPop,
+      '_1.stddevSamp, '_2.stddevSamp, '_3.stddevSamp, '_4.stddevSamp, '_5.stddevSamp,
+      '_6.stddevSamp, '_7.stddevSamp,
+      '_1.varPop, '_2.varPop, '_3.varPop, '_4.varPop, '_5.varPop,
+      '_6.varPop, '_7.varPop,
+      '_1.varSamp, '_2.varSamp, '_3.varSamp, '_4.varSamp, '_5.varSamp,
+      '_6.varSamp, '_7.varSamp)
+    val expected =
+        "0,0,0," +
+        "0,0.5,0.5,0.5," +
+        "1,1,1," +
+        "1,0.70710677,0.7071067811865476,0.7071067811865476," +
+        "0,0,0," +
+        "0,0.25,0.25,0.25," +
+        "1,1,1," +
+        "1,0.5,0.5,0.5"
+    val results = res.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 }
+
+case class WC(word: String, frequency: Long)

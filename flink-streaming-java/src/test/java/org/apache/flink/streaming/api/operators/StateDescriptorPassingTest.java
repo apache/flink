@@ -52,7 +52,7 @@ import static org.junit.Assert.*;
 /**
  * Various tests around the proper passing of state descriptors to the operators
  * and their serialization.
- * 
+ *
  * The tests use an arbitrary generic type to validate the behavior.
  */
 @SuppressWarnings("serial")
@@ -102,7 +102,7 @@ public class StateDescriptorPassingTest {
 				})
 				.timeWindow(Time.milliseconds(1000))
 				.reduce(new ReduceFunction<File>() {
-					
+
 					@Override
 					public File reduce(File value1, File value2) {
 						return null;
@@ -117,7 +117,7 @@ public class StateDescriptorPassingTest {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
-		
+
 		DataStream<File> src = env.fromElements(new File("/"));
 
 		SingleOutputStreamOperator<?> result = src
@@ -130,7 +130,7 @@ public class StateDescriptorPassingTest {
 				.timeWindow(Time.milliseconds(1000))
 				.apply(new WindowFunction<File, String, String, TimeWindow>() {
 					@Override
-					public void apply(String s, TimeWindow window, 
+					public void apply(String s, TimeWindow window,
 										Iterable<File> input, Collector<String> out) {}
 				});
 
@@ -255,7 +255,7 @@ public class StateDescriptorPassingTest {
 
 		Kryo kryo = ((KryoSerializer<?>) serializer).getKryo();
 
-		assertTrue("serializer registration was not properly passed on", 
+		assertTrue("serializer registration was not properly passed on",
 				kryo.getSerializer(File.class) instanceof JavaSerializer);
 	}
 

@@ -49,14 +49,11 @@ import java.util.concurrent.ThreadLocalRandom;
 public class CheckpointingCustomKvStateProgram {
 
 	public static void main(String[] args) throws Exception {
-		final String jarFile = args[0];
-		final String host = args[1];
-		final int port = Integer.parseInt(args[2]);
-		final String checkpointPath = args[3];
-		final String outputPath = args[4];
+		final String checkpointPath = args[0];
+		final String outputPath = args[1];
 		final int parallelism = 1;
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(parallelism);
 		env.getConfig().disableSysoutLogging();
@@ -231,6 +228,5 @@ public class CheckpointingCustomKvStateProgram {
 		public boolean canEqual(Object obj) {
 			return obj instanceof CustomIntSerializer;
 		}
-
 	}
 }

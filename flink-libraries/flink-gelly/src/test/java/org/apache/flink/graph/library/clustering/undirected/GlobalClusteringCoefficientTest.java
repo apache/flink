@@ -76,7 +76,7 @@ extends AsmTestBase {
 		Result expectedResult = new Result(1003442, 225147);
 
 		Result globalClusteringCoefficient = new GlobalClusteringCoefficient<LongValue, NullValue, NullValue>()
-			.run(undirectedRMatGraph)
+			.run(undirectedRMatGraph(10, 16))
 			.execute();
 
 		assertEquals(expectedResult, globalClusteringCoefficient);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,6 +17,12 @@
  */
 package org.apache.flink.streaming.api.graph;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -28,6 +34,7 @@ import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.SelectTransformation;
+import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.SplitTransformation;
@@ -37,26 +44,17 @@ import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
  * A generator that generates a {@link StreamGraph} from a graph of
  * {@link StreamTransformation StreamTransformations}.
  *
- * <p>
- * This traverses the tree of {@code StreamTransformations} starting from the sinks. At each
+ * <p>This traverses the tree of {@code StreamTransformations} starting from the sinks. At each
  * transformation we recursively transform the inputs, then create a node in the {@code StreamGraph}
  * and add edges from the input Nodes to our newly created node. The transformation methods
  * return the IDs of the nodes in the StreamGraph that represent the input transformation. Several
  * IDs can be returned to be able to deal with feedback transformations and unions.
  *
- * <p>
- * Partitioning, split/select and union don't create actual nodes in the {@code StreamGraph}. For
+ * <p>Partitioning, split/select and union don't create actual nodes in the {@code StreamGraph}. For
  * these, we create a virtual node in the {@code StreamGraph} that holds the specific property, i.e.
  * partitioning, selector and so on. When an edge is created from a virtual node to a downstream
  * node the {@code StreamGraph} resolved the id of the original node and creates an edge
@@ -66,7 +64,7 @@ import java.util.Map;
  *     Map-1 -&gt; HashPartition-2 -&gt; Map-3
  * </pre>
  *
- * where the numbers represent transformation IDs. We first recurse all the way down. {@code Map-1}
+ * <p>where the numbers represent transformation IDs. We first recurse all the way down. {@code Map-1}
  * is transformed, i.e. we create a {@code StreamNode} with ID 1. Then we transform the
  * {@code HashPartition}, for this, we create virtual node of ID 4 that holds the property
  * {@code HashPartition}. This transformation returns the ID 4. Then we transform the {@code Map-3}.
@@ -136,8 +134,7 @@ public class StreamGraphGenerator {
 	/**
 	 * Transforms one {@code StreamTransformation}.
 	 *
-	 * <p>
-	 * This checks whether we already transformed it and exits early in that case. If not it
+	 * <p>This checks whether we already transformed it and exits early in that case. If not it
 	 * delegates to one of the transformation specific methods.
 	 */
 	private Collection<Integer> transform(StreamTransformation<?> transform) {
@@ -182,6 +179,8 @@ public class StreamGraphGenerator {
 			transformedIds = transformCoFeedback((CoFeedbackTransformation<?>) transform);
 		} else if (transform instanceof PartitionTransformation<?>) {
 			transformedIds = transformPartition((PartitionTransformation<?>) transform);
+		} else if (transform instanceof SideOutputTransformation<?>) {
+			transformedIds = transformSideOutput((SideOutputTransformation<?>) transform);
 		} else {
 			throw new IllegalStateException("Unknown transformation: " + transform);
 		}
@@ -212,8 +211,7 @@ public class StreamGraphGenerator {
 	/**
 	 * Transforms a {@code UnionTransformation}.
 	 *
-	 * <p>
-	 * This is easy, we only have to transform the inputs and return all the IDs in a list so
+	 * <p>This is easy, we only have to transform the inputs and return all the IDs in a list so
 	 * that downstream operations can connect to all upstream nodes.
 	 */
 	private <T> Collection<Integer> transformUnion(UnionTransformation<T> union) {
@@ -230,8 +228,7 @@ public class StreamGraphGenerator {
 	/**
 	 * Transforms a {@code PartitionTransformation}.
 	 *
-	 * <p>
-	 * For this we create a virtual node in the {@code StreamGraph} that holds the partition
+	 * <p>For this we create a virtual node in the {@code StreamGraph} that holds the partition
 	 * property. @see StreamGraphGenerator
 	 */
 	private <T> Collection<Integer> transformPartition(PartitionTransformation<T> partition) {
@@ -251,8 +248,7 @@ public class StreamGraphGenerator {
 	/**
 	 * Transforms a {@code SplitTransformation}.
 	 *
-	 * <p>
-	 * We add the output selector to previously transformed nodes.
+	 * <p>We add the output selector to previously transformed nodes.
 	 */
 	private <T> Collection<Integer> transformSplit(SplitTransformation<T> split) {
 
@@ -275,8 +271,8 @@ public class StreamGraphGenerator {
 	/**
 	 * Transforms a {@code SelectTransformation}.
 	 *
-	 * <p>
-	 * For this we create a virtual node in the {@code StreamGraph} holds the selected names.
+	 * <p>For this we create a virtual node in the {@code StreamGraph} holds the selected names.
+	 *
 	 * @see org.apache.flink.streaming.api.graph.StreamGraphGenerator
 	 */
 	private <T> Collection<Integer> transformSelect(SelectTransformation<T> select) {
@@ -300,15 +296,42 @@ public class StreamGraphGenerator {
 	}
 
 	/**
+	 * Transforms a {@code SideOutputTransformation}.
+	 *
+	 * <p>For this we create a virtual node in the {@code StreamGraph} that holds the side-output
+	 * {@link org.apache.flink.util.OutputTag}.
+	 *
+	 * @see org.apache.flink.streaming.api.graph.StreamGraphGenerator
+	 */
+	private <T> Collection<Integer> transformSideOutput(SideOutputTransformation<T> sideOutput) {
+		StreamTransformation<?> input = sideOutput.getInput();
+		Collection<Integer> resultIds = transform(input);
+
+
+		// the recursive transform might have already transformed this
+		if (alreadyTransformed.containsKey(sideOutput)) {
+			return alreadyTransformed.get(sideOutput);
+		}
+
+		List<Integer> virtualResultIds = new ArrayList<>();
+
+		for (int inputId : resultIds) {
+			int virtualId = StreamTransformation.getNewNodeId();
+			streamGraph.addVirtualSideOutputNode(inputId, virtualId, sideOutput.getOutputTag());
+			virtualResultIds.add(virtualId);
+		}
+		return virtualResultIds;
+	}
+
+	/**
 	 * Transforms a {@code FeedbackTransformation}.
 	 *
-	 * <p>
-	 * This will recursively transform the input and the feedback edges. We return the concatenation
-	 * of the input IDs and the feedback IDs so that downstream operations can be wired to both.
+	 * <p>This will recursively transform the input and the feedback edges. We return the
+	 * concatenation of the input IDs and the feedback IDs so that downstream operations can be
+	 * wired to both.
 	 *
-	 * <p>
-	 * This is responsible for creating the IterationSource and IterationSink which
-	 * are used to feed back the elements.
+	 * <p>This is responsible for creating the IterationSource and IterationSink which are used to
+	 * feed back the elements.
 	 */
 	private <T> Collection<Integer> transformFeedback(FeedbackTransformation<T> iterate) {
 
@@ -337,7 +360,7 @@ public class StreamGraphGenerator {
 			iterate.getParallelism(),
 			iterate.getMaxParallelism(),
 			iterate.getMinResources(),
-			iterate.getPreferredResources()	);
+			iterate.getPreferredResources());
 
 		StreamNode itSource = itSourceAndSink.f0;
 		StreamNode itSink = itSourceAndSink.f1;
@@ -379,13 +402,11 @@ public class StreamGraphGenerator {
 	/**
 	 * Transforms a {@code CoFeedbackTransformation}.
 	 *
-	 * <p>
-	 * This will only transform feedback edges, the result of this transform will be wired
+	 * <p>This will only transform feedback edges, the result of this transform will be wired
 	 * to the second input of a Co-Transform. The original input is wired directly to the first
 	 * input of the downstream Co-Transform.
 	 *
-	 * <p>
-	 * This is responsible for creating the IterationSource and IterationSink which
+	 * <p>This is responsible for creating the IterationSource and IterationSink which
 	 * are used to feed back the elements.
 	 */
 	private <F> Collection<Integer> transformCoFeedback(CoFeedbackTransformation<F> coIterate) {
@@ -499,8 +520,7 @@ public class StreamGraphGenerator {
 	/**
 	 * Transforms a {@code OneInputTransformation}.
 	 *
-	 * <p>
-	 * This recursively transforms the inputs, creates a new {@code StreamNode} in the graph and
+	 * <p>This recursively transforms the inputs, creates a new {@code StreamNode} in the graph and
 	 * wired the inputs to this new node.
 	 */
 	private <IN, OUT> Collection<Integer> transformOneInputTransform(OneInputTransformation<IN, OUT> transform) {
@@ -539,8 +559,7 @@ public class StreamGraphGenerator {
 	/**
 	 * Transforms a {@code TwoInputTransformation}.
 	 *
-	 * <p>
-	 * This recusively transforms the inputs, creates a new {@code StreamNode} in the graph and
+	 * <p>This recusively transforms the inputs, creates a new {@code StreamNode} in the graph and
 	 * wired the inputs to this new node.
 	 */
 	private <IN1, IN2, OUT> Collection<Integer> transformTwoInputTransform(TwoInputTransformation<IN1, IN2, OUT> transform) {

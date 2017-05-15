@@ -117,6 +117,8 @@ public class DataSink<T> {
 	 *
 	 * @see org.apache.flink.api.java.tuple.Tuple
 	 * @see Order
+	 *
+	 * @deprecated Use {@link DataSet#sortPartition(int, Order)} instead
 	 */
 	@Deprecated
 	@PublicEvolving
@@ -164,6 +166,8 @@ public class DataSink<T> {
 	 * @return This data sink operator with specified output order.
 	 *
 	 * @see Order
+	 *
+	 * @deprecated Use {@link DataSet#sortPartition(String, Order)} instead
 	 */
 	@Deprecated
 	@PublicEvolving

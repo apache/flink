@@ -39,8 +39,7 @@ public interface CompletedCheckpointStore {
 	 * Adds a {@link CompletedCheckpoint} instance to the list of completed checkpoints.
 	 *
 	 * <p>Only a bounded number of checkpoints is kept. When exceeding the maximum number of
-	 * retained checkpoints, the oldest one will be discarded via {@link
-	 * CompletedCheckpoint#discard()}.
+	 * retained checkpoints, the oldest one will be discarded.
 	 */
 	void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception;
 

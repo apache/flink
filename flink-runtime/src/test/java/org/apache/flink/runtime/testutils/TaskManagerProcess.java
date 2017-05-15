@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.slf4j.Logger;
@@ -102,12 +102,12 @@ public class TaskManagerProcess extends TestJvmProcess {
 			try {
 				Configuration config = ParameterTool.fromArgs(args).getConfiguration();
 
-				if (!config.containsKey(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY)) {
-					config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
+				if (!config.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
+					config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 				}
 
-				if (!config.containsKey(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY)) {
-					config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 100);
+				if (!config.contains(TaskManagerOptions.NETWORK_NUM_BUFFERS)) {
+					config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
 				}
 
 

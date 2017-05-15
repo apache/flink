@@ -26,7 +26,8 @@ import org.apache.flink.table.functions.AggregateFunction
   *
   * @tparam T the type for the aggregation result
   */
-abstract class SumWithRetractAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T] {
+abstract class SumWithRetractAggFunctionTestBase[T: Numeric]
+  extends AggFunctionTestBase[T, SumWithRetractAccumulator[T]] {
 
   private val numeric: Numeric[T] = implicitly[Numeric[T]]
 
@@ -63,52 +64,61 @@ abstract class SumWithRetractAggFunctionTestBase[T: Numeric] extends AggFunction
     numeric.fromInt(2),
     null.asInstanceOf[T]
   )
+
+  override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
 
 class ByteSumWithRetractAggFunctionTest extends SumWithRetractAggFunctionTestBase[Byte] {
 
   override def maxVal = (Byte.MaxValue / 2).toByte
 
-  override def aggregator: AggregateFunction[Byte] = new ByteSumWithRetractAggFunction
+  override def aggregator: AggregateFunction[Byte, SumWithRetractAccumulator[Byte]] =
+    new ByteSumWithRetractAggFunction
 }
 
 class ShortSumWithRetractAggFunctionTest extends SumWithRetractAggFunctionTestBase[Short] {
 
   override def maxVal = (Short.MaxValue / 2).toShort
 
-  override def aggregator: AggregateFunction[Short] = new ShortSumWithRetractAggFunction
+  override def aggregator: AggregateFunction[Short, SumWithRetractAccumulator[Short]] =
+    new ShortSumWithRetractAggFunction
 }
 
 class IntSumWithRetractAggFunctionTest extends SumWithRetractAggFunctionTestBase[Int] {
 
   override def maxVal = Int.MaxValue / 2
 
-  override def aggregator: AggregateFunction[Int] = new IntSumWithRetractAggFunction
+  override def aggregator: AggregateFunction[Int, SumWithRetractAccumulator[Int]] =
+    new IntSumWithRetractAggFunction
 }
 
 class LongSumWithRetractAggFunctionTest extends SumWithRetractAggFunctionTestBase[Long] {
 
   override def maxVal = Long.MaxValue / 2
 
-  override def aggregator: AggregateFunction[Long] = new LongSumWithRetractAggFunction
+  override def aggregator: AggregateFunction[Long, SumWithRetractAccumulator[Long]] =
+    new LongSumWithRetractAggFunction
 }
 
 class FloatSumWithRetractAggFunctionTest extends SumWithRetractAggFunctionTestBase[Float] {
 
   override def maxVal = 12345.6789f
 
-  override def aggregator: AggregateFunction[Float] = new FloatSumWithRetractAggFunction
+  override def aggregator: AggregateFunction[Float, SumWithRetractAccumulator[Float]] =
+    new FloatSumWithRetractAggFunction
 }
 
 class DoubleSumWithRetractAggFunctionTest extends SumWithRetractAggFunctionTestBase[Double] {
 
   override def maxVal = 12345.6789d
 
-  override def aggregator: AggregateFunction[Double] = new DoubleSumWithRetractAggFunction
+  override def aggregator: AggregateFunction[Double, SumWithRetractAccumulator[Double]] =
+    new DoubleSumWithRetractAggFunction
 }
 
 
-class DecimalSumWithRetractAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
+class DecimalSumWithRetractAggFunctionTest
+  extends AggFunctionTestBase[BigDecimal, DecimalSumWithRetractAccumulator] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
@@ -141,7 +151,10 @@ class DecimalSumWithRetractAggFunctionTest extends AggFunctionTestBase[BigDecima
     null
   )
 
-  override def aggregator: AggregateFunction[BigDecimal] = new DecimalSumWithRetractAggFunction()
+  override def aggregator: AggregateFunction[BigDecimal, DecimalSumWithRetractAccumulator] =
+    new DecimalSumWithRetractAggFunction()
+
+  override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
 
 

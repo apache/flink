@@ -24,7 +24,7 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Preconditions;
 
-/*
+/**
  * @see <a href="http://mathworld.wolfram.com/CycleGraph.html">Cycle Graph at Wolfram MathWorld</a>
  */
 public class CycleGraph
@@ -39,7 +39,9 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	private long vertexCount;
 
 	/**
-	 * An undirected {@link Graph} where all edges form a single cycle.
+	 * An undirected {@link Graph} with {@code n} vertices where each vertex
+	 * v<sub>i</sub> is connected to adjacent vertices v<sub>(i+1)%n</sub> and
+	 * v<sub>(i-1)%n</sub>.
 	 *
 	 * @param env the Flink execution environment
 	 * @param vertexCount number of vertices

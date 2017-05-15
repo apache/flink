@@ -39,7 +39,7 @@ import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
 import org.apache.flink.streaming.util.serialization.SerializationSchema
-import org.apache.flink.util.Collector
+import org.apache.flink.util.{Collector, OutputTag}
 
 import scala.collection.JavaConverters._
 
@@ -237,6 +237,12 @@ class DataStream[T](stream: JavaStream[T]) {
     case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.uid(uid))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
+  }
+
+  @PublicEvolving
+  def getSideOutput[X: TypeInformation](tag: OutputTag[X]): DataStream[X] = javaStream match {
+    case stream : SingleOutputStreamOperator[X] =>
+      asScalaStream(stream.getSideOutput(tag: OutputTag[X]))
   }
 
   /**

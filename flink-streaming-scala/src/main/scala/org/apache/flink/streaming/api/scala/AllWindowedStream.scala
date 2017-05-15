@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.windowing.evictors.Evictor
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.Trigger
 import org.apache.flink.streaming.api.windowing.windows.Window
-import org.apache.flink.util.Collector
+import org.apache.flink.util.{Collector, OutputTag}
 import org.apache.flink.util.Preconditions.checkNotNull
 
 /**
@@ -68,6 +68,20 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
   @PublicEvolving
   def allowedLateness(lateness: Time): AllWindowedStream[T, W] = {
     javaStream.allowedLateness(lateness)
+    this
+  }
+
+  /**
+   * Send late arriving data to the side output identified by the given [[OutputTag]]. Data
+   * is considered late after the watermark has passed the end of the window plus the allowed
+   * lateness set using [[allowedLateness(Time)]].
+   *
+   * You can get the stream of late data using [[DataStream.getSideOutput()]] on the [[DataStream]]
+   * resulting from the windowed operation with the same [[OutputTag]].
+   */
+  @PublicEvolving
+  def sideOutputLateData(outputTag: OutputTag[T]): AllWindowedStream[T, W] = {
+    javaStream.sideOutputLateData(outputTag)
     this
   }
 
@@ -387,7 +401,8 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    *
    * @param function The fold function.
    * @return The data stream that is the result of applying the fold function to the window.
-   */
+    */
+  @deprecated("use [[aggregate()]] instead")
   def fold[R: TypeInformation](
       initialValue: R,
       function: FoldFunction[T,R]): DataStream[R] = {
@@ -407,7 +422,8 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    *
    * @param function The fold function.
    * @return The data stream that is the result of applying the fold function to the window.
-   */
+    */
+  @deprecated("use [[aggregate()]] instead")
   def fold[R: TypeInformation](initialValue: R)(function: (R, T) => R): DataStream[R] = {
     if (function == null) {
       throw new NullPointerException("Fold function must not be null.")
@@ -430,6 +446,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     * @param windowFunction The window function.
     * @return The data stream that is the result of applying the window function to the window.
     */
+  @deprecated("use [[aggregate()]] instead")
   def fold[ACC: TypeInformation, R: TypeInformation](
       initialValue: ACC,
       preAggregator: FoldFunction[T, ACC],
@@ -460,6 +477,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     * @param windowFunction The process window function.
     * @return The data stream that is the result of applying the window function to the window.
     */
+  @deprecated("use [[aggregate()]] instead")
   @PublicEvolving
   def fold[ACC: TypeInformation, R: TypeInformation](
       initialValue: ACC,
@@ -491,6 +509,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     * @param windowFunction The window function.
     * @return The data stream that is the result of applying the window function to the window.
     */
+  @deprecated("use [[aggregate()]] instead")
   def fold[ACC: TypeInformation, R: TypeInformation](
       initialValue: ACC,
       preAggregator: (ACC, T) => ACC,
@@ -526,6 +545,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     * @param windowFunction The window function.
     * @return The data stream that is the result of applying the window function to the window.
     */
+  @deprecated("use [[aggregate()]] instead")
   @PublicEvolving
   def fold[ACC: TypeInformation, R: TypeInformation](
       initialValue: ACC,

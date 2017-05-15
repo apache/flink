@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.util.Collector;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -39,7 +40,7 @@ import static org.junit.Assert.assertEquals;
  * Test ExecutionEnvironment from user perspective
  */
 @SuppressWarnings("serial")
-public class ExecutionEnvironmentITCase {
+public class ExecutionEnvironmentITCase extends TestLogger {
 	
 	private static final int PARALLELISM = 5;
 

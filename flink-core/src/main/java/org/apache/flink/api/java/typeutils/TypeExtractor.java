@@ -177,13 +177,21 @@ public class TypeExtractor {
 		return getUnaryOperatorReturnType((Function) flatMapInterface, FlatMapFunction.class, false, true, inType, functionName, allowMissing);
 	}
 
+	/**
+	 * @deprecated will be removed in a future version
+	 */
 	@PublicEvolving
+	@Deprecated
 	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<IN, OUT> foldInterface, TypeInformation<IN> inType)
 	{
 		return getFoldReturnTypes(foldInterface, inType, null, false);
 	}
 
+	/**
+	 * @deprecated will be removed in a future version
+	 */
 	@PublicEvolving
+	@Deprecated
 	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<IN, OUT> foldInterface, TypeInformation<IN> inType, String functionName, boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType((Function) foldInterface, FoldFunction.class, false, false, inType, functionName, allowMissing);
@@ -386,7 +394,7 @@ public class TypeExtractor {
 	 * @param inputTypeArgumentIndex Index of the type argument of function's first parameter
 	 *                               specifying the input type if it is wrapped (Iterable, Map,
 	 *                               etc.). Otherwise -1.
-	 * @param outputTypeArgumentIndex Index of the type argument of functions second parameter
+	 * @param outputTypeArgumentIndex Index of the type argument of function's second parameter
 	 *                                specifying the output type if it is wrapped in a Collector.
 	 *                                Otherwise -1.
 	 * @param inType Type of the input elements (In case of an iterable, it is the element type)
@@ -1711,9 +1719,6 @@ public class TypeExtractor {
 					// return type is same as field type (or the generic variant of it)
 					(m.getGenericReturnType().equals( fieldType ) || (fieldTypeWrapper != null && m.getReturnType().equals( fieldTypeWrapper )) || (fieldTypeGeneric != null && m.getGenericReturnType().equals(fieldTypeGeneric)) )
 				) {
-					if(hasGetter) {
-						throw new IllegalStateException("Detected more than one getter");
-					}
 					hasGetter = true;
 				}
 				// check for setters (<FieldName>_$eq for scala)
@@ -1723,9 +1728,6 @@ public class TypeExtractor {
 					// return type is void.
 					m.getReturnType().equals(Void.TYPE)
 				) {
-					if(hasSetter) {
-						throw new IllegalStateException("Detected more than one setter");
-					}
 					hasSetter = true;
 				}
 			}
@@ -1733,10 +1735,10 @@ public class TypeExtractor {
 				return true;
 			} else {
 				if(!hasGetter) {
-					LOG.debug(clazz+" does not contain a getter for field "+f.getName() );
+					LOG.info(clazz+" does not contain a getter for field "+f.getName() );
 				}
 				if(!hasSetter) {
-					LOG.debug(clazz+" does not contain a setter for field "+f.getName() );
+					LOG.info(clazz+" does not contain a setter for field "+f.getName() );
 				}
 				return false;
 			}
@@ -1771,7 +1773,7 @@ public class TypeExtractor {
 		for (Field field : fields) {
 			Type fieldType = field.getGenericType();
 			if(!isValidPojoField(field, clazz, typeHierarchy)) {
-				LOG.info(clazz + " is not a valid POJO type");
+				LOG.info(clazz + " is not a valid POJO type because not all fields are valid POJO fields.");
 				return null;
 			}
 			try {

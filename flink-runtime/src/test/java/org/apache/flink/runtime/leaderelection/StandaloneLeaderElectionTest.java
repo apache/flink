@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -46,12 +47,12 @@ public class StandaloneLeaderElectionTest extends TestLogger {
 			contender.waitForLeader(1000l);
 
 			assertTrue(contender.isLeader());
-			assertEquals(null, contender.getLeaderSessionID());
+			assertEquals(HighAvailabilityServices.DEFAULT_LEADER_ID, contender.getLeaderSessionID());
 
 			testingListener.waitForNewLeader(1000l);
 
 			assertEquals(TEST_URL, testingListener.getAddress());
-			assertEquals(null, testingListener.getLeaderSessionID());
+			assertEquals(HighAvailabilityServices.DEFAULT_LEADER_ID, testingListener.getLeaderSessionID());
 		} finally {
 			leaderElectionService.stop();
 			leaderRetrievalService.stop();

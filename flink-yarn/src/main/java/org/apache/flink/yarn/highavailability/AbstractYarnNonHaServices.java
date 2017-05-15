@@ -38,9 +38,6 @@ import java.io.IOException;
  */
 public abstract class AbstractYarnNonHaServices extends YarnHighAvailabilityServices {
 
-	/** The constant name of the ResourceManager RPC endpoint */
-	protected static final String RESOURCE_MANAGER_RPC_ENDPOINT_NAME = "resource_manager";
-
 	// ------------------------------------------------------------------------
 
 	/**
@@ -59,15 +56,6 @@ public abstract class AbstractYarnNonHaServices extends YarnHighAvailabilityServ
 			Configuration config,
 			org.apache.hadoop.conf.Configuration hadoopConf) throws IOException {
 		super(config, hadoopConf);
-	}
-
-	// ------------------------------------------------------------------------
-	//  Names
-	// ------------------------------------------------------------------------
-
-	@Override
-	public String getResourceManagerEndpointName() {
-		return RESOURCE_MANAGER_RPC_ENDPOINT_NAME;
 	}
 
 	// ------------------------------------------------------------------------

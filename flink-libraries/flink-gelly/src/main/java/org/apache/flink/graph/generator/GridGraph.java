@@ -35,7 +35,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 
-/*
+/**
  * @see <a href="http://mathworld.wolfram.com/GridGraph.html">Grid Graph at Wolfram MathWorld</a>
  */
 public class GridGraph
@@ -50,7 +50,8 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	private long vertexCount = 1;
 
 	/**
-	 * An undirected {@link Graph} connecting vertices in a regular tiling in one or more dimensions.
+	 * An undirected {@code Graph} connecting vertices in a regular tiling in
+	 * one or more dimensions and where the endpoints are optionally connected.
 	 *
 	 * @param env the Flink execution environment
 	 */
@@ -84,9 +85,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 	@Override
 	public Graph<LongValue, NullValue, NullValue> generate() {
-		if (dimensions.isEmpty()) {
-			throw new RuntimeException("No dimensions added to GridGraph");
-		}
+		Preconditions.checkState(!dimensions.isEmpty(), "No dimensions added to GridGraph");
 
 		// Vertices
 		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
@@ -107,7 +106,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@ForwardedFields("*->f0")
-	public class LinkVertexToNeighbors
+	private static class LinkVertexToNeighbors
 	implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
 
 		private long vertexCount;

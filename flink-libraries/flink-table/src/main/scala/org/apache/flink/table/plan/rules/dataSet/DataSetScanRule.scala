@@ -18,27 +18,26 @@
 
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{RelOptRuleCall, Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.flink.table.plan.nodes.dataset.{DataSetConvention, DataSetScan}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetScan
 import org.apache.flink.table.plan.schema.DataSetTable
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalNativeTableScan
 
 class DataSetScanRule
   extends ConverterRule(
-      classOf[LogicalTableScan],
-      Convention.NONE,
-      DataSetConvention.INSTANCE,
-      "DataSetScanRule")
-  {
+    classOf[FlinkLogicalNativeTableScan],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
+    "DataSetScanRule") {
 
   /**
    * If the input is not a DataSetTable, we want the TableScanRule to match instead
    */
   override def matches(call: RelOptRuleCall): Boolean = {
-    val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
+    val scan: FlinkLogicalNativeTableScan = call.rel(0).asInstanceOf[FlinkLogicalNativeTableScan]
     val dataSetTable = scan.getTable.unwrap(classOf[DataSetTable[Any]])
     dataSetTable match {
       case _: DataSetTable[Any] =>
@@ -49,8 +48,8 @@ class DataSetScanRule
   }
 
   def convert(rel: RelNode): RelNode = {
-    val scan: TableScan = rel.asInstanceOf[TableScan]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
+    val scan: FlinkLogicalNativeTableScan = rel.asInstanceOf[FlinkLogicalNativeTableScan]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
 
     new DataSetScan(
       rel.getCluster,

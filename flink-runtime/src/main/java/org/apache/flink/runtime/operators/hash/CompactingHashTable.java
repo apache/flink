@@ -451,12 +451,8 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
 						this.compactionMemory.allocateSegments((int)(newPointer >> this.pageSizeInBits));
 					}
 					return newPointer;
-				}
-				catch (EOFException ex) {
-					throw new RuntimeException("Memory ran out. Compaction failed. " +
-							getMemoryConsumptionString() + " Message: " + ex.getMessage());
-				}
-				catch (IndexOutOfBoundsException ex) {
+				} 
+				catch (EOFException | IndexOutOfBoundsException ex) {
 					throw new RuntimeException("Memory ran out. Compaction failed. " +
 							getMemoryConsumptionString() + " Message: " + ex.getMessage());
 				}

@@ -98,3 +98,43 @@ angular.module('flinkApp')
 .filter "increment", ->
   (number) ->
     parseInt(number) + 1
+
+.filter "humanizeChartNumeric", ['humanizeBytesFilter', 'humanizeDurationFilter', (humanizeBytesFilter, humanizeDurationFilter)->
+  (value, metric)->
+    return_val = ''
+    if value != null
+      if /bytes/i.test(metric.id) && /persecond/i.test(metric.id)
+        return_val = humanizeBytesFilter(value) + ' / s'
+      else if /bytes/i.test(metric.id)
+        return_val = humanizeBytesFilter(value)
+      else if /persecond/i.test(metric.id)
+        return_val = value + ' / s'
+      else if /time/i.test(metric.id) || /latency/i.test(metric.id)
+        return_val = humanizeDurationFilter(value, true)
+      else
+        return_val = value
+    return return_val
+]
+
+.filter "humanizeChartNumericTitle", ['humanizeDurationFilter', (humanizeDurationFilter)->
+  (value, metric)->
+    return_val = ''
+    if value != null
+      if /bytes/i.test(metric.id) && /persecond/i.test(metric.id)
+        return_val = value + ' Bytes / s'
+      else if /bytes/i.test(metric.id)
+        return_val = value + ' Bytes'
+      else if /persecond/i.test(metric.id)
+        return_val = value + ' / s'
+      else if /time/i.test(metric.id) || /latency/i.test(metric.id)
+        return_val = humanizeDurationFilter(value, false)
+      else
+        return_val = value
+    return return_val
+]
+
+.filter "searchMetrics", ->
+  (availableMetrics, query)->
+    queryRegex = new RegExp(query, "gi")
+    return (metric for metric in availableMetrics when metric.id.match(queryRegex))
+

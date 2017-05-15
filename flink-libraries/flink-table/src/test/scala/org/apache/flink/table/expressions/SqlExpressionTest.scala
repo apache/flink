@@ -100,7 +100,20 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("LOG10(1)", "0.0")
     testSqlApi("EXP(0)", "1.0")
     testSqlApi("CEIL(2.5)", "3")
+    testSqlApi("CEILING(2.5)", "3")
     testSqlApi("FLOOR(2.5)", "2")
+    testSqlApi("SIN(2.5)", "0.5984721441039564")
+    testSqlApi("COS(2.5)", "-0.8011436155469337")
+    testSqlApi("TAN(2.5)", "-0.7470222972386603")
+    testSqlApi("COT(2.5)", "-1.3386481283041514")
+    testSqlApi("ASIN(0.5)", "0.5235987755982989")
+    testSqlApi("ACOS(0.5)", "1.0471975511965979")
+    testSqlApi("ATAN(0.5)", "0.4636476090008061")
+    testSqlApi("DEGREES(0.5)", "28.64788975654116")
+    testSqlApi("RADIANS(0.5)", "0.008726646259971648")
+    testSqlApi("SIGN(-1.1)", "-1")
+    testSqlApi("ROUND(-12.345, 2)", "-12.35")
+    testSqlApi("PI", "3.141592653589793")
   }
 
   @Test

@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.nodes.dataset
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
@@ -47,6 +48,7 @@ class DataSetSingleRowJoin(
     rowRelDataType: RelDataType,
     joinCondition: RexNode,
     joinRowType: RelDataType,
+    joinType: JoinRelType,
     ruleDescription: String)
   extends BiRel(cluster, traitSet, leftNode, rightNode)
   with DataSetRel {
@@ -63,6 +65,7 @@ class DataSetSingleRowJoin(
       getRowType,
       joinCondition,
       joinRowType,
+      joinType,
       ruleDescription)
   }
 
@@ -97,7 +100,6 @@ class DataSetSingleRowJoin(
       tableEnv.getConfig,
       leftDataSet.getType,
       rightDataSet.getType,
-      leftIsSingle,
       joinCondition,
       broadcastSetName)
 
@@ -118,14 +120,18 @@ class DataSetSingleRowJoin(
       config: TableConfig,
       inputType1: TypeInformation[Row],
       inputType2: TypeInformation[Row],
-      firstIsSingle: Boolean,
       joinCondition: RexNode,
       broadcastInputSetName: String)
     : FlatMapFunction[Row, Row] = {
 
+    val isOuterJoin = joinType match {
+      case JoinRelType.LEFT | JoinRelType.RIGHT => true
+      case _ => false
+    }    
+    
     val codeGenerator = new CodeGenerator(
       config,
-      false,
+      isOuterJoin,
       inputType1,
       Some(inputType2))
 
@@ -138,13 +144,38 @@ class DataSetSingleRowJoin(
     val condition = codeGenerator.generateExpression(joinCondition)
 
     val joinMethodBody =
-      s"""
-        |${condition.code}
-        |if (${condition.resultTerm}) {
-        |  ${conversion.code}
-        |  ${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
-        |}
-        |""".stripMargin
+      if (joinType == JoinRelType.INNER) {
+        s"""
+         |${condition.code}
+         |if (${condition.resultTerm}) {
+         |  ${conversion.code}
+         |  ${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
+         |}
+         |""".stripMargin
+    } else {
+      val singleNode =
+        if (!leftIsSingle) {
+          rightNode
+        }
+        else {
+          leftNode
+        }
+
+      val notSuitedToCondition = singleNode
+        .getRowType
+        .getFieldList
+        .map(field => getRowType.getFieldNames.indexOf(field.getName))
+        .map(i => s"${conversion.resultTerm}.setField($i,null);")
+
+        s"""
+           |${condition.code}
+           |${conversion.code}
+           |if(!${condition.resultTerm}){
+           |${notSuitedToCondition.mkString("\n")}
+           |}
+           |${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
+           |""".stripMargin
+    }
 
     val genFunction = codeGenerator.generateFunction(
       ruleDescription,
@@ -152,16 +183,18 @@ class DataSetSingleRowJoin(
       joinMethodBody,
       returnType)
 
-    if (firstIsSingle) {
+    if (leftIsSingle) {
       new MapJoinRightRunner[Row, Row, Row](
         genFunction.name,
         genFunction.code,
+        isOuterJoin,
         genFunction.returnType,
         broadcastInputSetName)
     } else {
       new MapJoinLeftRunner[Row, Row, Row](
         genFunction.name,
         genFunction.code,
+        isOuterJoin,
         genFunction.returnType,
         broadcastInputSetName)
     }
@@ -181,7 +214,7 @@ class DataSetSingleRowJoin(
   }
 
   private def joinTypeToString: String = {
-    "NestedLoopJoin"
+    "NestedLoop" + joinType.toString.toLowerCase.capitalize + "Join"
   }
 
 }

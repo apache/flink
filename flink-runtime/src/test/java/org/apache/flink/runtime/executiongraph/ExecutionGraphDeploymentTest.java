@@ -24,11 +24,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import static org.junit.Assert.assertNotEquals;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -61,7 +59,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -342,50 +340,6 @@ public class ExecutionGraphDeploymentTest {
 	}
 
 	@Test
-	public void testRegistrationOfExecutionsFailingFinalize() {
-		try {
-
-			final JobVertexID jid1 = new JobVertexID();
-			final JobVertexID jid2 = new JobVertexID();
-
-			JobVertex v1 = new FailingFinalizeJobVertex("v1", jid1);
-			JobVertex v2 = new JobVertex("v2", jid2);
-
-			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 6, v2, 4).f1;
-
-			List<Execution> execList = new ArrayList<Execution>();
-			execList.addAll(executions.values());
-			// sort executions by job vertex. Failing job vertex first
-			Collections.sort(execList, new Comparator<Execution>() {
-				@Override
-				public int compare(Execution o1, Execution o2) {
-					return o1.getVertex().getSimpleName().compareTo(o2.getVertex().getSimpleName());
-				}
-			});
-
-			int cnt = 0;
-			for (Execution e : execList) {
-				cnt++;
-				e.markFinished();
-				if (cnt <= 6) {
-					// the last execution of the first job vertex triggers the failing finalize hook
-					assertEquals(ExecutionState.FINISHED, e.getState());
-				}
-				else {
-					// all following executions should be canceled
-					assertEquals(ExecutionState.CANCELED, e.getState());
-				}
-			}
-
-			assertEquals(0, executions.size());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
 	/**
 	 * Tests that a blocking batch job fails if there are not enough resources left to schedule the
 	 * succeeding tasks. This test case is related to [FLINK-4296] where finished producing tasks
@@ -473,6 +427,52 @@ public class ExecutionGraphDeploymentTest {
 			eg.getCheckpointCoordinator().getCheckpointStore().getMaxNumberOfRetainedCheckpoints());
 	}
 
+	private Tuple2<ExecutionGraph, Map<ExecutionAttemptID, Execution>> setupExecution(JobVertex v1, int dop1, JobVertex v2, int dop2) throws Exception {
+		final JobID jobId = new JobID();
+
+		v1.setParallelism(dop1);
+		v2.setParallelism(dop2);
+
+		v1.setInvokableClass(BatchTask.class);
+		v2.setInvokableClass(BatchTask.class);
+
+		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
+		for (int i = 0; i < dop1 + dop2; i++) {
+			scheduler.newInstanceAvailable(
+					ExecutionGraphTestUtils.getInstance(
+							new ActorTaskManagerGateway(
+									new ExecutionGraphTestUtils.SimpleActorGateway(
+											TestingUtils.directExecutionContext()))));
+		}
+
+		// execution graph that executes actions synchronously
+		ExecutionGraph eg = new ExecutionGraph(
+				new DirectScheduledExecutorService(),
+				TestingUtils.defaultExecutor(),
+				jobId,
+				"some job",
+				new Configuration(),
+				new SerializedValue<>(new ExecutionConfig()),
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy(),
+				scheduler);
+
+		eg.setQueuedSchedulingAllowed(false);
+
+		List<JobVertex> ordered = Arrays.asList(v1, v2);
+		eg.attachJobGraph(ordered);
+
+		assertEquals(dop1 + dop2, scheduler.getNumberOfAvailableSlots());
+
+		// schedule, this triggers mock deployment
+		eg.scheduleForExecution();
+
+		Map<ExecutionAttemptID, Execution> executions = eg.getRegisteredExecutions();
+		assertEquals(dop1 + dop2, executions.size());
+
+		return new Tuple2<>(eg, executions);
+	}
+
 	@Test
 	public void testSettingIllegalMaxNumberOfCheckpointsToRetain() throws Exception {
 
@@ -491,58 +491,8 @@ public class ExecutionGraphDeploymentTest {
 			eg.getCheckpointCoordinator().getCheckpointStore().getMaxNumberOfRetainedCheckpoints());
 	}
 
-	private Tuple2<ExecutionGraph, Map<ExecutionAttemptID, Execution>> setupExecution(JobVertex v1, int dop1, JobVertex v2, int dop2) throws Exception {
-		final JobID jobId = new JobID();
-
-		v1.setParallelism(dop1);
-		v2.setParallelism(dop2);
-
-		v1.setInvokableClass(BatchTask.class);
-		v2.setInvokableClass(BatchTask.class);
-
-		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
-		for (int i = 0; i < dop1 + dop2; i++) {
-			scheduler.newInstanceAvailable(
-				ExecutionGraphTestUtils.getInstance(
-					new ActorTaskManagerGateway(
-						new ExecutionGraphTestUtils.SimpleActorGateway(
-							TestingUtils.directExecutionContext()))));
-		}
-
-		// execution graph that executes actions synchronously
-		ExecutionGraph eg = new ExecutionGraph(
-			new DirectScheduledExecutorService(),
-			TestingUtils.defaultExecutor(),
-			jobId, 
-			"some job", 
-			new Configuration(), 
-			new SerializedValue<>(new ExecutionConfig()),
-			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy(),
-			scheduler);
-		
-		eg.setQueuedSchedulingAllowed(false);
-
-		List<JobVertex> ordered = Arrays.asList(v1, v2);
-		eg.attachJobGraph(ordered);
-
-		assertEquals(dop1 + dop2, scheduler.getNumberOfAvailableSlots());
-
-		// schedule, this triggers mock deployment
-		eg.scheduleForExecution();
-
-		Map<ExecutionAttemptID, Execution> executions = eg.getRegisteredExecutions();
-		assertEquals(dop1 + dop2, executions.size());
-
-		return new Tuple2<>(eg, executions);
-	}
-
 	@SuppressWarnings("serial")
 	public static class FailingFinalizeJobVertex extends JobVertex {
-
-		public FailingFinalizeJobVertex(String name) {
-			super(name);
-		}
 
 		public FailingFinalizeJobVertex(String name, JobVertexID id) {
 			super(name, id);
@@ -559,7 +509,7 @@ public class ExecutionGraphDeploymentTest {
 
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test");
-		jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+		jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
 			Collections.<JobVertexID>emptyList(),
 			Collections.<JobVertexID>emptyList(),
 			Collections.<JobVertexID>emptyList(),

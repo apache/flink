@@ -105,6 +105,12 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	private final Option SLOTS;
 	private final Option DETACHED;
 	private final Option ZOOKEEPER_NAMESPACE;
+
+	/**
+	 * @deprecated Streaming mode has been deprecated without replacement. Set the
+	 * {@link ConfigConstants#TASK_MANAGER_MEMORY_PRE_ALLOCATE_KEY} configuration
+	 * key to true to get the previous batch mode behaviour.
+	 */
 	@Deprecated
 	private final Option STREAMING;
 	private final Option NAME;
@@ -113,7 +119,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 *  -D fs.overwrite-files=true  -D taskmanager.network.numberOfBuffers=16368
+	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.network.memory.min=536346624</tt>
 	 */
 	private final Option DYNAMIC_PROPERTIES;
 
@@ -672,7 +678,12 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	public void stop() {
 		if (yarnCluster != null) {
 			LOG.info("Command line interface is shutting down the yarnCluster");
-			yarnCluster.shutdown();
+
+			try {
+				yarnCluster.shutdown();
+			} catch (Throwable t) {
+				LOG.warn("Could not properly shutdown the yarn cluster.", t);
+			}
 		}
 	}
 

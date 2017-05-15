@@ -18,13 +18,13 @@
 package org.apache.flink.table.runtime.aggregate
 
 import java.lang.Iterable
-import java.util.{ArrayList => JArrayList}
 
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
-import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.util.Collector
+import org.slf4j.LoggerFactory
 
 /**
   * It wraps the aggregate logic inside of
@@ -40,53 +40,45 @@ import org.apache.flink.util.{Collector, Preconditions}
   *  2. when partial aggregate is supported, the input data structure of reduce is
   * |groupKey1|groupKey2|sum1|count1|sum2|count2|windowStart|windowEnd|
   *
-  * @param aggregates             The aggregate functions.
-  * @param groupKeysMapping       The index mapping of group keys between intermediate aggregate Row
-  *                               and output Row.
-  * @param aggregateMapping       The index mapping between aggregate function list and
-  *                               aggregated value index in output Row.
-  * @param finalRowArity          The output row field count.
+  * @param genAggregations Code-generated [[GeneratedAggregations]]
+  * @param keysAndAggregatesArity    The total arity of keys and aggregates
   * @param finalRowWindowStartPos The relative window-start field position.
   * @param finalRowWindowEndPos   The relative window-end field position.
   * @param gap                    Session time window gap.
   */
 class DataSetSessionWindowAggReduceGroupFunction(
-    aggregates: Array[AggregateFunction[_ <: Any]],
-    groupKeysMapping: Array[(Int, Int)],
-    aggregateMapping: Array[(Int, Int)],
-    finalRowArity: Int,
+    genAggregations: GeneratedAggregationsFunction,
+    keysAndAggregatesArity: Int,
     finalRowWindowStartPos: Option[Int],
     finalRowWindowEndPos: Option[Int],
     gap: Long,
     isInputCombined: Boolean)
-  extends RichGroupReduceFunction[Row, Row] {
+  extends RichGroupReduceFunction[Row, Row]
+    with Compiler[GeneratedAggregations] {
 
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(groupKeysMapping)
+  private var collector: RowTimeWindowPropertyCollector = _
+  private val intermediateRowWindowStartPos = keysAndAggregatesArity
+  private val intermediateRowWindowEndPos = keysAndAggregatesArity + 1
 
-  private var aggregateBuffer: Row = _
   private var output: Row = _
-  private var collector: TimeWindowPropertyCollector = _
-  private val accumStartPos: Int = groupKeysMapping.length
-  private val intermediateRowArity: Int = accumStartPos + aggregates.length + 2
-  private val intermediateRowWindowStartPos = intermediateRowArity - 2
-  private val intermediateRowWindowEndPos = intermediateRowArity - 1
+  private var accumulators: Row = _
 
-  val accumulatorList: Array[JArrayList[Accumulator]] = Array.fill(aggregates.length) {
-    new JArrayList[Accumulator](2)
-  }
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
-    aggregateBuffer = new Row(intermediateRowArity)
-    output = new Row(finalRowArity)
-    collector = new TimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getClass.getClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
 
-    // init lists with two empty accumulators
-    for (i <- aggregates.indices) {
-      val accumulator = aggregates(i).createAccumulator()
-      accumulatorList(i).add(accumulator)
-      accumulatorList(i).add(accumulator)
-    }
+    output = function.createOutputRow()
+    accumulators = function.createAccumulators()
+    collector = new RowTimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
   }
 
   /**
@@ -105,13 +97,8 @@ class DataSetSessionWindowAggReduceGroupFunction(
     var windowEnd: java.lang.Long = null
     var currentRowTime: java.lang.Long = null
 
-
-    // reset first accumulator in merge list
-    var i = 0
-    while (i < aggregates.length) {
-      aggregates(i).resetAccumulator(accumulatorList(i).get(0))
-      i += 1
-    }
+    // reset accumulator
+    function.resetAccumulator(accumulators)
 
     val iterator = records.iterator()
 
@@ -125,38 +112,18 @@ class DataSetSessionWindowAggReduceGroupFunction(
         // calculate the current window and open a new window
         if (null != windowEnd) {
           // evaluate and emit the current window's result.
-          doEvaluateAndCollect(out, accumulatorList, windowStart, windowEnd)
-
-          // reset first accumulator in list
-          i = 0
-          while (i < aggregates.length) {
-            aggregates(i).resetAccumulator(accumulatorList(i).get(0))
-            i += 1
-          }
+          doEvaluateAndCollect(out, windowStart, windowEnd)
+          // reset accumulator
+          function.resetAccumulator(accumulators)
         } else {
-          // set group keys value to final output.
-          i = 0
-          while (i < groupKeysMapping.length) {
-            val (after, previous) = groupKeysMapping(i)
-            output.setField(after, record.getField(previous))
-            i += 1
-          }
+          // set keys to output
+          function.setForwardedFields(record, output)
         }
 
         windowStart = record.getField(intermediateRowWindowStartPos).asInstanceOf[Long]
       }
 
-      i = 0
-      while (i < aggregates.length) {
-        // insert received accumulator into acc list
-        val newAcc = record.getField(accumStartPos + i).asInstanceOf[Accumulator]
-        accumulatorList(i).set(1, newAcc)
-        // merge acc list
-        val retAcc = aggregates(i).merge(accumulatorList(i))
-        // insert result into acc list
-        accumulatorList(i).set(0, retAcc)
-        i += 1
-      }
+      function.mergeAccumulatorsPair(accumulators, record)
 
       windowEnd = if (isInputCombined) {
         // partial aggregate is supported
@@ -167,15 +134,13 @@ class DataSetSessionWindowAggReduceGroupFunction(
       }
     }
     // evaluate and emit the current window's result.
-    doEvaluateAndCollect(out, accumulatorList, windowStart, windowEnd)
+    doEvaluateAndCollect(out, windowStart, windowEnd)
   }
 
   /**
     * Evaluate and emit the data of the current window.
     *
     * @param out             the collection of the aggregate results
-    * @param accumulatorList an array (indexed by aggregate index) of the accumulator lists for
-    *                        each aggregate
     * @param windowStart     the window's start attribute value is the min (rowtime) of all rows
     *                        in the window.
     * @param windowEnd       the window's end property value is max (rowtime) + gap for all rows
@@ -183,18 +148,11 @@ class DataSetSessionWindowAggReduceGroupFunction(
     */
   def doEvaluateAndCollect(
       out: Collector[Row],
-      accumulatorList: Array[JArrayList[Accumulator]],
       windowStart: Long,
       windowEnd: Long): Unit = {
 
-    // merge the accumulators and then get value for the final output
-    var i = 0
-    while (i < aggregateMapping.length) {
-      val (after, previous) = aggregateMapping(i)
-      val agg = aggregates(previous)
-      output.setField(after, agg.getValue(accumulatorList(previous).get(0)))
-      i += 1
-    }
+    // set value for the final output
+    function.setAggregationResults(accumulators, output)
 
     // adds TimeWindow properties to output then emit output
     if (finalRowWindowStartPos.isDefined || finalRowWindowEndPos.isDefined) {

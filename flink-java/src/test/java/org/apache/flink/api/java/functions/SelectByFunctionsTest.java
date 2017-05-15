@@ -49,7 +49,7 @@ public class SelectByFunctionsTest {
 			Assert.assertSame("SelectByMax must return bigger tuple", bigger, maxByTuple.reduce(smaller, bigger));
 			Assert.assertSame("SelectByMax must return bigger tuple", bigger, maxByTuple.reduce(bigger, smaller));
 		} catch (Exception e) {
-			Assert.fail("No exception should be thrown while comapring both tuples");
+			Assert.fail("No exception should be thrown while comparing both tuples");
 		}
 	}
 	
@@ -67,7 +67,7 @@ public class SelectByFunctionsTest {
 			Assert.assertSame("SelectByMax must return the first given tuple", specialCaseBigger, maxByTuple.reduce(specialCaseBigger, bigger));
 			Assert.assertSame("SelectByMax must return the first given tuple", bigger, maxByTuple.reduce(bigger, specialCaseBigger));
 		} catch (Exception e) {
-			Assert.fail("No exception should be thrown while comapring both tuples");
+			Assert.fail("No exception should be thrown while comparing both tuples");
 		}
 	}
 	
@@ -82,7 +82,7 @@ public class SelectByFunctionsTest {
 			Assert.assertSame("SelectByMax must return bigger tuple", bigger, maxByTuple.reduce(specialCaseBigger, bigger));
 			Assert.assertSame("SelectByMax must return bigger tuple", bigger, maxByTuple.reduce(bigger, specialCaseBigger));
 		} catch (Exception e) {
-			Assert.fail("No exception should be thrown while comapring both tuples");
+			Assert.fail("No exception should be thrown while comparing both tuples");
 		}
 	}
 	
@@ -97,7 +97,7 @@ public class SelectByFunctionsTest {
 			Assert.assertSame("SelectByMax must return bigger tuple", bigger, maxByTuple.reduce(smaller, bigger));
 			Assert.assertSame("SelectByMax must return bigger tuple", bigger, maxByTuple.reduce(bigger, smaller));
 		} catch (Exception e) {
-			Assert.fail("No exception should be thrown while comapring both tuples");
+			Assert.fail("No exception should be thrown while comparing both tuples");
 		}
 	}
 	
@@ -112,7 +112,7 @@ public class SelectByFunctionsTest {
 			Assert.assertSame("SelectByMax must return bigger tuple", bigger, maxByTuple.reduce(bigger, bigger));
 			Assert.assertSame("SelectByMax must return smaller tuple", smaller, maxByTuple.reduce(smaller, smaller));
 		} catch (Exception e) {
-			Assert.fail("No exception should be thrown while comapring both tuples");
+			Assert.fail("No exception should be thrown while comparing both tuples");
 		}
 	}
 	
@@ -129,7 +129,7 @@ public class SelectByFunctionsTest {
 			Assert.assertSame("SelectByMin must return smaller tuple", smaller, minByTuple.reduce(smaller, bigger));
 			Assert.assertSame("SelectByMin must return smaller tuple", smaller, minByTuple.reduce(bigger, smaller));
 		} catch (Exception e) {
-			Assert.fail("No exception should be thrown while comapring both tuples");
+			Assert.fail("No exception should be thrown while comparing both tuples");
 		}
 	}
 	
@@ -145,7 +145,7 @@ public class SelectByFunctionsTest {
 			Assert.assertSame("SelectByMin must return the first given tuple", specialCaseBigger, minByTuple.reduce(specialCaseBigger, bigger));
 			Assert.assertSame("SelectByMin must return the first given tuple", bigger, minByTuple.reduce(bigger, specialCaseBigger));
 		} catch (Exception e) {
-			Assert.fail("No exception should be thrown while comapring both tuples");
+			Assert.fail("No exception should be thrown while comparing both tuples");
 		}
 	}
 	
@@ -161,7 +161,7 @@ public class SelectByFunctionsTest {
 			Assert.assertSame("SelectByMin must return smaller tuple", smaller, minByTuple.reduce(specialCaseSmaller, smaller));
 			Assert.assertSame("SelectByMin must return smaller tuple", smaller, minByTuple.reduce(smaller, specialCaseSmaller));
 		} catch (Exception e) {
-			Assert.fail("No exception should be thrown while comapring both tuples");
+			Assert.fail("No exception should be thrown while comparing both tuples");
 		}
 	}
 	
@@ -176,7 +176,7 @@ public class SelectByFunctionsTest {
 			Assert.assertSame("SelectByMin must return smaller tuple", smaller, minByTuple.reduce(smaller, bigger));
 			Assert.assertSame("SelectByMin must return smaller tuple", smaller, minByTuple.reduce(bigger, smaller));
 		} catch (Exception e) {
-			Assert.fail("No exception should be thrown while comapring both tuples");
+			Assert.fail("No exception should be thrown while comparing both tuples");
 		}
 	}
 	

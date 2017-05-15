@@ -33,7 +33,6 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 	
 	private static final Long ZERO = Long.valueOf(0);
 
-
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -82,5 +81,11 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof LongSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(LongValueSerializer.class.getCanonicalName());
 	}
 }

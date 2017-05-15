@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,7 +162,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public PipelinedSubpartitionView createReadView(BufferProvider bufferProvider, BufferAvailabilityListener availabilityListener) throws IOException {
+	public PipelinedSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
 		final int queueSize;
 
 		synchronized (buffers) {
@@ -211,7 +210,8 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public int getNumberOfQueuedBuffers() {
-			return buffers.size();
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		// since we do not synchronize, the size may actually be lower than 0!
+		return Math.max(buffers.size(), 0);
 	}
 }

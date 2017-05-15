@@ -27,8 +27,8 @@ import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchem
 public class Kafka09JsonTableSourceTest extends KafkaTableSourceTestBase {
 
 	@Override
-	protected KafkaTableSource createTableSource(String topic, Properties properties, String[] fieldNames, TypeInformation<?>[] typeInfo) {
-		return new Kafka09JsonTableSource(topic, properties, fieldNames, typeInfo);
+	protected KafkaTableSource createTableSource(String topic, Properties properties, TypeInformation<Row> typeInfo) {
+		return new Kafka09JsonTableSource(topic, properties, typeInfo);
 	}
 
 	@Override

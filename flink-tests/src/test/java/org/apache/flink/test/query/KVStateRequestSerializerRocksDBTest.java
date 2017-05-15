@@ -81,7 +81,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 			super(jobId, operatorIdentifier, userCodeClassLoader,
 				instanceBasePath,
 				dbOptions, columnFamilyOptions, kvStateRegistry, keySerializer,
-				numberOfKeyGroups, keyGroupRange, executionConfig);
+				numberOfKeyGroups, keyGroupRange, executionConfig, false);
 		}
 
 		@Override
@@ -120,6 +120,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 				1, new KeyGroupRange(0, 0),
 				new ExecutionConfig()
 			);
+		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
 		final InternalListState<VoidNamespace, Long> listState = longHeapKeyedStateBackend
@@ -154,8 +155,9 @@ public final class KVStateRequestSerializerRocksDBTest {
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
 				1, new KeyGroupRange(0, 0),
-				new ExecutionConfig()
-			);
+				new ExecutionConfig(),
+				false);
+		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
 		final InternalMapState<VoidNamespace, Long, String> mapState = (InternalMapState<VoidNamespace, Long, String>) 

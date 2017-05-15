@@ -78,7 +78,7 @@ extends AsmTestBase {
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		DataSet<Vertex<LongValue, LongValue>> inDegree = directedRMatGraph
+		DataSet<Vertex<LongValue, LongValue>> inDegree = directedRMatGraph(10, 16)
 			.run(new VertexInDegree<LongValue, NullValue, NullValue>()
 				.setIncludeZeroDegreeVertices(true));
 

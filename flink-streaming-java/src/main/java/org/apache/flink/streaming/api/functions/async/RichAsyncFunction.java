@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.api.functions.async;
 
+import java.io.Serializable;
+import java.util.List;
+import java.util.Map;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -47,21 +50,16 @@ import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Preconditions;
 
-import java.io.Serializable;
-import java.util.List;
-import java.util.Map;
-
 /**
  * Rich variant of the {@link AsyncFunction}. As a {@link RichFunction}, it gives access to the
  * {@link RuntimeContext} and provides setup and teardown methods:
  * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
  * {@link RichFunction#close()}.
  *
- * <p>
- * State related apis in {@link RuntimeContext} are not supported yet because the key may get
+ * <p>State related apis in {@link RuntimeContext} are not supported yet because the key may get
  * changed while accessing states in the working thread.
- * <p>
- * {@link IterationRuntimeContext#getIterationAggregator(String)} is not supported since the
+ *
+ * <p>{@link IterationRuntimeContext#getIterationAggregator(String)} is not supported since the
  * aggregator may be modified by multiple threads.
  *
  * @param <IN> The type of the input elements.

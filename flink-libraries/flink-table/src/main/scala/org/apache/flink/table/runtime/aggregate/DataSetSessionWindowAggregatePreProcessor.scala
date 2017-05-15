@@ -18,55 +18,55 @@
 package org.apache.flink.table.runtime.aggregate
 
 import java.lang.Iterable
-import java.util.{ArrayList => JArrayList}
 
 import org.apache.flink.api.common.functions.{AbstractRichFunction, GroupCombineFunction, MapPartitionFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
-import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.util.Collector
+import org.slf4j.LoggerFactory
 
 /**
   * This wraps the aggregate logic inside of
   * [[org.apache.flink.api.java.operators.GroupCombineOperator]].
   *
-  * @param aggregates          The aggregate functions.
-  * @param groupingKeys        The indexes of the grouping fields.
+  * @param genAggregations Code-generated [[GeneratedAggregations]]
+  * @param keysAndAggregatesArity    The total arity of keys and aggregates
   * @param gap                 Session time window gap.
   * @param intermediateRowType Intermediate row data type.
   */
 class DataSetSessionWindowAggregatePreProcessor(
-    aggregates: Array[AggregateFunction[_ <: Any]],
-    groupingKeys: Array[Int],
+    genAggregations: GeneratedAggregationsFunction,
+    keysAndAggregatesArity: Int,
     gap: Long,
-    @transient intermediateRowType: TypeInformation[Row])
+    @transient var intermediateRowType: TypeInformation[Row])
   extends AbstractRichFunction
   with MapPartitionFunction[Row,Row]
   with GroupCombineFunction[Row,Row]
-  with ResultTypeQueryable[Row] {
+  with ResultTypeQueryable[Row]
+  with Compiler[GeneratedAggregations] {
 
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(groupingKeys)
+  private var output: Row = _
+  private val rowTimeFieldPos = keysAndAggregatesArity
+  private var accumulators: Row = _
 
-  private var aggregateBuffer: Row = _
-  private val accumStartPos: Int = groupingKeys.length
-  private val rowTimeFieldPos = accumStartPos + aggregates.length
-
-  val accumulatorList: Array[JArrayList[Accumulator]] = Array.fill(aggregates.length) {
-    new JArrayList[Accumulator](2)
-  }
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
-    aggregateBuffer = new Row(rowTimeFieldPos + 2)
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getClass.getClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
 
-    // init lists with two empty accumulators
-    for (i <- aggregates.indices) {
-      val accumulator = aggregates(i).createAccumulator()
-      accumulatorList(i).add(accumulator)
-      accumulatorList(i).add(accumulator)
-    }
+    accumulators = function.createAccumulators()
+    output = function.createOutputRow()
   }
 
   /**
@@ -79,43 +79,13 @@ class DataSetSessionWindowAggregatePreProcessor(
     *
     */
   override def combine(records: Iterable[Row], out: Collector[Row]): Unit = {
-    preProcessing(records, out)
-  }
-
-  /**
-    * Divide window based on the rowtime
-    * (current'rowtime - previous’rowtime > gap), and then merge data (within a unified window)
-    * into an aggregate buffer.
-    *
-    * @param records  Intermediate aggregate Rows.
-    * @return Pre partition intermediate aggregate Row.
-    *
-    */
-  override def mapPartition(records: Iterable[Row], out: Collector[Row]): Unit = {
-    preProcessing(records, out)
-  }
-
-  /**
-    * Intermediate aggregate Rows, divide window based on the rowtime
-    * (current'rowtime - previous’rowtime > gap), and then merge data (within a unified window)
-    * into an aggregate buffer.
-    *
-    * @param records Intermediate aggregate Rows.
-    * @return PreProcessing intermediate aggregate Row.
-    *
-    */
-  private def preProcessing(records: Iterable[Row], out: Collector[Row]): Unit = {
 
     var windowStart: java.lang.Long = null
     var windowEnd: java.lang.Long = null
     var currentRowTime: java.lang.Long = null
 
-    // reset first accumulator in merge list
-    var i = 0
-    while (i < aggregates.length) {
-      aggregates(i).resetAccumulator(accumulatorList(i).get(0))
-      i += 1
-    }
+    // reset accumulator
+    function.resetAccumulator(accumulators)
 
     val iterator = records.iterator()
 
@@ -128,51 +98,44 @@ class DataSetSessionWindowAggregatePreProcessor(
         // calculate the current window and open a new window.
         if (windowEnd != null) {
           // emit the current window's merged data
-          doCollect(out, accumulatorList, windowStart, windowEnd)
+          doCollect(out, windowStart, windowEnd)
 
-          // reset first value of accumulator list
-          i = 0
-          while (i < aggregates.length) {
-            aggregates(i).resetAccumulator(accumulatorList(i).get(0))
-            i += 1
-          }
+          // reset accumulator
+          function.resetAccumulator(accumulators)
         } else {
           // set group keys to aggregateBuffer.
-          i = 0
-          while (i < groupingKeys.length) {
-            aggregateBuffer.setField(i, record.getField(i))
-            i += 1
-          }
+          function.setForwardedFields(record, output)
         }
 
         windowStart = record.getField(rowTimeFieldPos).asInstanceOf[Long]
       }
 
-      i = 0
-      while (i < aggregates.length) {
-        // insert received accumulator into acc list
-        val newAcc = record.getField(accumStartPos + i).asInstanceOf[Accumulator]
-        accumulatorList(i).set(1, newAcc)
-        // merge acc list
-        val retAcc = aggregates(i).merge(accumulatorList(i))
-        // insert result into acc list
-        accumulatorList(i).set(0, retAcc)
-        i += 1
-      }
+      function.mergeAccumulatorsPair(accumulators, record)
 
       // the current rowtime is the last rowtime of the next calculation.
       windowEnd = currentRowTime + gap
     }
     // emit the merged data of the current window.
-    doCollect(out, accumulatorList, windowStart, windowEnd)
+    doCollect(out, windowStart, windowEnd)
+  }
+
+  /**
+    * Divide window based on the rowtime
+    * (current'rowtime - previous’rowtime > gap), and then merge data (within a unified window)
+    * into an aggregate buffer.
+    *
+    * @param records  Intermediate aggregate Rows.
+    * @return Pre partition intermediate aggregate Row.
+    *
+    */
+  override def mapPartition(records: Iterable[Row], out: Collector[Row]): Unit = {
+    combine(records, out)
   }
 
   /**
     * Emit the merged data of the current window.
     *
     * @param out             the collection of the aggregate results
-    * @param accumulatorList an array (indexed by aggregate index) of the accumulator lists for
-    *                        each aggregate
     * @param windowStart     the window's start attribute value is the min (rowtime)
     *                        of all rows in the window.
     * @param windowEnd       the window's end property value is max (rowtime) + gap
@@ -180,24 +143,18 @@ class DataSetSessionWindowAggregatePreProcessor(
     */
   def doCollect(
       out: Collector[Row],
-      accumulatorList: Array[JArrayList[Accumulator]],
       windowStart: Long,
       windowEnd: Long): Unit = {
 
-    // merge the accumulators into one accumulator
-    var i = 0
-    while (i < aggregates.length) {
-      aggregateBuffer.setField(accumStartPos + i, accumulatorList(i).get(0))
-      i += 1
-    }
+    function.setAggregationResults(accumulators, output)
 
     // intermediate Row WindowStartPos is rowtime pos.
-    aggregateBuffer.setField(rowTimeFieldPos, windowStart)
+    output.setField(rowTimeFieldPos, windowStart)
 
     // intermediate Row WindowEndPos is rowtime pos + 1.
-    aggregateBuffer.setField(rowTimeFieldPos + 1, windowEnd)
+    output.setField(rowTimeFieldPos + 1, windowEnd)
 
-    out.collect(aggregateBuffer)
+    out.collect(output)
   }
 
   override def getProducedType: TypeInformation[Row] = {

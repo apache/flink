@@ -18,106 +18,69 @@
 package org.apache.flink.table.runtime.aggregate
 
 import java.lang.Iterable
-import java.util.{ArrayList => JArrayList}
 
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.types.Row
-import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.util.Collector
+import org.slf4j.LoggerFactory
 
 /**
   * It wraps the aggregate logic inside of
   * [[org.apache.flink.api.java.operators.GroupReduceOperator]].
   * It is only used for tumbling count-window on batch.
   *
+  * @param genAggregations  Code-generated [[GeneratedAggregations]]
   * @param windowSize       Tumble count window size
-  * @param aggregates       The aggregate functions.
-  * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
-  *                         and output Row.
-  * @param aggregateMapping The index mapping between aggregate function list and aggregated value
-  *                         index in output Row.
-  * @param finalRowArity    The output row field count
   */
 class DataSetTumbleCountWindowAggReduceGroupFunction(
-    private val windowSize: Long,
-    private val aggregates: Array[AggregateFunction[_ <: Any]],
-    private val groupKeysMapping: Array[(Int, Int)],
-    private val aggregateMapping: Array[(Int, Int)],
-    private val finalRowArity: Int)
-  extends RichGroupReduceFunction[Row, Row] {
-
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(groupKeysMapping)
+    private val genAggregations: GeneratedAggregationsFunction,
+    private val windowSize: Long)
+  extends RichGroupReduceFunction[Row, Row]
+    with Compiler[GeneratedAggregations] {
 
   private var output: Row = _
-  private val accumStartPos: Int = groupKeysMapping.length
+  private var accumulators: Row = _
 
-  val accumulatorList: Array[JArrayList[Accumulator]] = Array.fill(aggregates.length) {
-    new JArrayList[Accumulator](2)
-  }
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
-    output = new Row(finalRowArity)
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getClass.getClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
 
-    // init lists with two empty accumulators
-    for (i <- aggregates.indices) {
-      val accumulator = aggregates(i).createAccumulator()
-      accumulatorList(i).add(accumulator)
-      accumulatorList(i).add(accumulator)
-    }
+    output = function.createOutputRow()
+    accumulators = function.createAccumulators()
   }
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
     var count: Long = 0
     val iterator = records.iterator()
-    var i = 0
 
     while (iterator.hasNext) {
 
       if (count == 0) {
-        // reset first accumulator
-        i = 0
-        while (i < aggregates.length) {
-          aggregates(i).resetAccumulator(accumulatorList(i).get(0))
-          i += 1
-        }
+        function.resetAccumulator(accumulators)
       }
 
       val record = iterator.next()
       count += 1
 
-      i = 0
-      while (i < aggregates.length) {
-        // insert received accumulator into acc list
-        val newAcc = record.getField(accumStartPos + i).asInstanceOf[Accumulator]
-        accumulatorList(i).set(1, newAcc)
-        // merge acc list
-        val retAcc = aggregates(i).merge(accumulatorList(i))
-        // insert result into acc list
-        accumulatorList(i).set(0, retAcc)
-        i += 1
-      }
+      accumulators = function.mergeAccumulatorsPair(accumulators, record)
 
       if (windowSize == count) {
         // set group keys value to final output.
-        i = 0
-        while (i < groupKeysMapping.length) {
-          val (after, previous) = groupKeysMapping(i)
-          output.setField(after, record.getField(previous))
-          i += 1
-        }
+        function.setForwardedFields(record, output)
 
-        // merge the accumulators and then get value for the final output
-        i = 0
-        while (i < aggregateMapping.length) {
-          val (after, previous) = aggregateMapping(i)
-          val agg = aggregates(previous)
-          output.setField(after, agg.getValue(accumulatorList(previous).get(0)))
-          i += 1
-        }
-
+        function.setAggregationResults(accumulators, output)
         // emit the output
         out.collect(output)
         count = 0

@@ -32,7 +32,7 @@ class CorrelateFlatMapRunner[IN, OUT](
     flatMapCode: String,
     collectorName: String,
     collectorCode: String,
-    @transient returnType: TypeInformation[OUT])
+    @transient var returnType: TypeInformation[OUT])
   extends RichFlatMapFunction[IN, OUT]
   with ResultTypeQueryable[OUT]
   with Compiler[Any] {

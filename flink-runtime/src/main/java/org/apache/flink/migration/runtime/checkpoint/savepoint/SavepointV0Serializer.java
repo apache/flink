@@ -34,7 +34,7 @@ import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskStateList;
 import org.apache.flink.migration.util.SerializedValue;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializer;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -68,7 +68,7 @@ import java.util.Map;
  * don't rely on any involved Java classes to stay the same.
  */
 @SuppressWarnings("deprecation")
-public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
+public class SavepointV0Serializer implements SavepointSerializer<SavepointV2> {
 
 	public static final SavepointV0Serializer INSTANCE = new SavepointV0Serializer();
 	private static final StreamStateHandle SIGNAL_0 = new ByteStreamStateHandle("SIGNAL_0", new byte[]{0});
@@ -81,12 +81,12 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 
 
 	@Override
-	public void serialize(SavepointV1 savepoint, DataOutputStream dos) throws IOException {
+	public void serialize(SavepointV2 savepoint, DataOutputStream dos) throws IOException {
 		throw new UnsupportedOperationException("This serializer is read-only and only exists for backwards compatibility");
 	}
 
 	@Override
-	public SavepointV1 deserialize(DataInputStream dis, ClassLoader userClassLoader) throws IOException {
+	public SavepointV2 deserialize(DataInputStream dis, ClassLoader userClassLoader) throws IOException {
 
 		long checkpointId = dis.readLong();
 
@@ -165,7 +165,7 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 		return serializedValue;
 	}
 
-	private SavepointV1 convertSavepoint(
+	private SavepointV2 convertSavepoint(
 			List<TaskState> taskStates,
 			ClassLoader userClassLoader,
 			long checkpointID) throws Exception {
@@ -176,7 +176,7 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 			newTaskStates.add(convertTaskState(taskState, userClassLoader, checkpointID));
 		}
 
-		return new SavepointV1(checkpointID, newTaskStates);
+		return new SavepointV2(checkpointID, newTaskStates);
 	}
 
 	private org.apache.flink.runtime.checkpoint.TaskState convertTaskState(

@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory
 abstract class MapSideJoinRunner[IN1, IN2, SINGLE_IN, MULTI_IN, OUT](
     name: String,
     code: String,
-    @transient returnType: TypeInformation[OUT],
+    @transient var returnType: TypeInformation[OUT],
     broadcastSetName: String)
   extends RichFlatMapFunction[MULTI_IN, OUT]
     with ResultTypeQueryable[OUT]

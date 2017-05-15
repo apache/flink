@@ -22,10 +22,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.StreamStateHandle;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,32 +68,42 @@ public class SavepointLoader {
 		final Tuple2<Savepoint, StreamStateHandle> savepointAndHandle = 
 				SavepointStore.loadSavepointWithHandle(savepointPath, classLoader);
 
-		final Savepoint savepoint = savepointAndHandle.f0;
+		Savepoint savepoint = savepointAndHandle.f0;
 		final StreamStateHandle metadataHandle = savepointAndHandle.f1;
 
-		final Map<JobVertexID, TaskState> taskStates = new HashMap<>(savepoint.getTaskStates().size());
-
-		boolean expandedToLegacyIds = false;
+		if (savepoint.getTaskStates() != null) {
+			savepoint = SavepointV2.convertToOperatorStateSavepointV2(tasks, savepoint);
+		}
+		// generate mapping from operator to task
+		Map<OperatorID, ExecutionJobVertex> operatorToJobVertexMapping = new HashMap<>();
+		for (ExecutionJobVertex task : tasks.values()) {
+			for (OperatorID operatorID : task.getOperatorIDs()) {
+				operatorToJobVertexMapping.put(operatorID, task);
+			}
+		}
 
 		// (2) validate it (parallelism, etc)
-		for (TaskState taskState : savepoint.getTaskStates()) {
+		boolean expandedToLegacyIds = false;
 
-			ExecutionJobVertex executionJobVertex = tasks.get(taskState.getJobVertexID());
+		HashMap<OperatorID, OperatorState> operatorStates = new HashMap<>(savepoint.getOperatorStates().size());
+		for (OperatorState operatorState : savepoint.getOperatorStates()) {
+
+			ExecutionJobVertex executionJobVertex = operatorToJobVertexMapping.get(operatorState.getOperatorID());
 
 			// on the first time we can not find the execution job vertex for an id, we also consider alternative ids,
 			// for example as generated from older flink versions, to provide backwards compatibility.
 			if (executionJobVertex == null && !expandedToLegacyIds) {
-				tasks = ExecutionJobVertex.includeLegacyJobVertexIDs(tasks);
-				executionJobVertex = tasks.get(taskState.getJobVertexID());
+				operatorToJobVertexMapping = ExecutionJobVertex.includeAlternativeOperatorIDs(operatorToJobVertexMapping);
+				executionJobVertex = operatorToJobVertexMapping.get(operatorState.getOperatorID());
 				expandedToLegacyIds = true;
-				LOG.info("Could not find ExecutionJobVertex. Including legacy JobVertexIDs in search.");
+				LOG.info("Could not find ExecutionJobVertex. Including user-defined OperatorIDs in search.");
 			}
 
 			if (executionJobVertex != null) {
 
-				if (executionJobVertex.getMaxParallelism() == taskState.getMaxParallelism()
+				if (executionJobVertex.getMaxParallelism() == operatorState.getMaxParallelism()
 						|| !executionJobVertex.isMaxParallelismConfigured()) {
-					taskStates.put(taskState.getJobVertexID(), taskState);
+					operatorStates.put(operatorState.getOperatorID(), operatorState);
 				} else {
 					String msg = String.format("Failed to rollback to savepoint %s. " +
 									"Max parallelism mismatch between savepoint state and new program. " +
@@ -99,21 +111,21 @@ public class SavepointLoader {
 									"max parallelism %d. This indicates that the program has been changed " +
 									"in a non-compatible way after the savepoint.",
 							savepoint,
-							taskState.getJobVertexID(),
-							taskState.getMaxParallelism(),
+							operatorState.getOperatorID(),
+							operatorState.getMaxParallelism(),
 							executionJobVertex.getMaxParallelism());
 
 					throw new IllegalStateException(msg);
 				}
 			} else if (allowNonRestoredState) {
-				LOG.info("Skipping savepoint state for operator {}.", taskState.getJobVertexID());
+				LOG.info("Skipping savepoint state for operator {}.", operatorState.getOperatorID());
 			} else {
 				String msg = String.format("Failed to rollback to savepoint %s. " +
 								"Cannot map savepoint state for operator %s to the new program, " +
 								"because the operator is not available in the new program. If " +
 								"you want to allow to skip this, you can set the --allowNonRestoredState " +
 								"option on the CLI.",
-						savepointPath, taskState.getJobVertexID());
+						savepointPath, operatorState.getOperatorID());
 
 				throw new IllegalStateException(msg);
 			}
@@ -121,8 +133,17 @@ public class SavepointLoader {
 
 		// (3) convert to checkpoint so the system can fall back to it
 		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
-		return new CompletedCheckpoint(jobId, savepoint.getCheckpointId(), 0L, 0L,
-				taskStates, props, metadataHandle, savepointPath);
+
+		return new CompletedCheckpoint(
+			jobId,
+			savepoint.getCheckpointId(),
+			0L,
+			0L,
+			operatorStates,
+			savepoint.getMasterStates(),
+			props,
+			metadataHandle,
+			savepointPath);
 	}
 
 	// ------------------------------------------------------------------------

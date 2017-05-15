@@ -33,19 +33,19 @@ public class ArrayKeySelectorTest {
 		try {
 			String[] array1 = { "a", "b", "c", "d", "e" };
 			String[] array2 = { "v", "w", "x", "y", "z" };
-			
+
 			KeySelectorUtil.ArrayKeySelector<String[]> singleFieldSelector =
 					KeySelectorUtil.getSelectorForArray(new int[] {1}, BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO);
-			
+
 			assertEquals(new Tuple1<>("b"), singleFieldSelector.getKey(array1));
 			assertEquals(new Tuple1<>("w"), singleFieldSelector.getKey(array2));
 
 			KeySelectorUtil.ArrayKeySelector<String[]> twoFieldsSelector =
 					KeySelectorUtil.getSelectorForArray(new int[] {3, 0}, BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO);
-			
+
 			assertEquals(new Tuple2<>("d", "a"), twoFieldsSelector.getKey(array1));
 			assertEquals(new Tuple2<>("y", "v"), twoFieldsSelector.getKey(array2));
-			
+
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -59,7 +59,7 @@ public class ArrayKeySelectorTest {
 			int[] array1 = { 1, 2, 3, 4, 5 };
 			int[] array2 = { -5, -4, -3, -2, -1, 0 };
 
-			KeySelectorUtil.ArrayKeySelector<int[]> singleFieldSelector = 
+			KeySelectorUtil.ArrayKeySelector<int[]> singleFieldSelector =
 					KeySelectorUtil.getSelectorForArray(new int[] {1}, PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
 
 			assertEquals(new Tuple1<>(2), singleFieldSelector.getKey(array1));
@@ -67,7 +67,7 @@ public class ArrayKeySelectorTest {
 
 			KeySelectorUtil.ArrayKeySelector<int[]> twoFieldsSelector =
 					KeySelectorUtil.getSelectorForArray(new int[] {3, 0}, PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
-			
+
 			assertEquals(new Tuple2<>(4, 1), twoFieldsSelector.getKey(array1));
 			assertEquals(new Tuple2<>(-2, -5), twoFieldsSelector.getKey(array2));
 

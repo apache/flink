@@ -24,7 +24,7 @@ import org.apache.flink.annotation.PublicEvolving;
  * Special record type carrying a timestamp of its creation time at a source operator
  * and the vertexId and subtask index of the operator.
  *
- * At sinks, the marker can be used to approximate the time a record needs to travel
+ * <p>At sinks, the marker can be used to approximate the time a record needs to travel
  * through the dataflow.
  */
 @PublicEvolving
@@ -32,7 +32,7 @@ public final class LatencyMarker extends StreamElement {
 
 	// ------------------------------------------------------------------------
 
-	/** The time the latency mark is denoting */
+	/** The time the latency mark is denoting. */
 	private final long markedTime;
 
 	private final int vertexID;
@@ -40,7 +40,7 @@ public final class LatencyMarker extends StreamElement {
 	private final int subtaskIndex;
 
 	/**
-	 * Creates a latency mark with the given timestamp
+	 * Creates a latency mark with the given timestamp.
 	 */
 	public LatencyMarker(long markedTime, int vertexID, int subtaskIndex) {
 		this.markedTime = markedTime;
@@ -49,7 +49,7 @@ public final class LatencyMarker extends StreamElement {
 	}
 
 	/**
-	 * Returns the timestamp marked by the LatencyMarker
+	 * Returns the timestamp marked by the LatencyMarker.
 	 */
 	public long getMarkedTime() {
 		return markedTime;

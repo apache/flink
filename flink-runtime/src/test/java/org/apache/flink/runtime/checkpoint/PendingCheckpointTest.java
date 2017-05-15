@@ -22,18 +22,21 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
 import org.mockito.Mockito;
 
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
@@ -46,9 +49,11 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.powermock.api.mockito.PowerMockito.when;
 
 public class PendingCheckpointTest {
 
@@ -56,7 +61,14 @@ public class PendingCheckpointTest {
 	private static final ExecutionAttemptID ATTEMPT_ID = new ExecutionAttemptID();
 
 	static {
-		ACK_TASKS.put(ATTEMPT_ID, mock(ExecutionVertex.class));
+		ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
+		when(jobVertex.getOperatorIDs()).thenReturn(Collections.singletonList(new OperatorID()));
+		
+		ExecutionVertex vertex = mock(ExecutionVertex.class);
+		when(vertex.getMaxParallelism()).thenReturn(128);
+		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(1);
+		when(vertex.getJobVertex()).thenReturn(jobVertex);
+		ACK_TASKS.put(ATTEMPT_ID, vertex);
 	}
 
 	@Rule
@@ -181,8 +193,11 @@ public class PendingCheckpointTest {
 	@SuppressWarnings("unchecked")
 	public void testAbortDiscardsState() throws Exception {
 		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
-		TaskState state = mock(TaskState.class);
 		QueueExecutor executor = new QueueExecutor();
+
+		OperatorState state = mock(OperatorState.class);
+		doNothing().when(state).registerSharedStates(any(SharedStateRegistry.class));
+		doNothing().when(state).unregisterSharedStates(any(SharedStateRegistry.class));
 
 		String targetDir = tmpFolder.newFolder().getAbsolutePath();
 
@@ -288,6 +303,32 @@ public class PendingCheckpointTest {
 		}
 	}
 
+	/**
+	 * FLINK-5985
+	 * <p>
+	 * Ensures that subtasks that acknowledge their state as 'null' are considered stateless. This means that they
+	 * should not appear in the task states map of the checkpoint.
+	 */
+	@Test
+	public void testNullSubtaskStateLeadsToStatelessTask() throws Exception {
+		PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
+		pending.acknowledgeTask(ATTEMPT_ID, null, mock(CheckpointMetrics.class));
+		Assert.assertTrue(pending.getOperatorStates().isEmpty());
+	}
+
+	/**
+	 * FLINK-5985
+	 * <p>
+	 * This tests checks the inverse of {@link #testNullSubtaskStateLeadsToStatelessTask()}. We want to test that
+	 * for subtasks that acknowledge some state are given an entry in the task states of the checkpoint.
+	 */
+	@Test
+	public void testNonNullSubtaskStateLeadsToStatefulTask() throws Exception {
+		PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
+		pending.acknowledgeTask(ATTEMPT_ID, mock(SubtaskState.class), mock(CheckpointMetrics.class));
+		Assert.assertFalse(pending.getOperatorStates().isEmpty());
+	}
+
 	@Test
 	public void testSetCanceller() {
 		final CheckpointProperties props = new CheckpointProperties(false, false, true, true, true, true, true);
@@ -311,7 +352,11 @@ public class PendingCheckpointTest {
 		return createPendingCheckpoint(props, targetDirectory, Executors.directExecutor());
 	}
 
-	private static PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, String targetDirectory, Executor executor) {
+	private static PendingCheckpoint createPendingCheckpoint(
+			CheckpointProperties props,
+			String targetDirectory,
+			Executor executor) {
+
 		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
 		return new PendingCheckpoint(
 			new JobID(),
@@ -324,12 +369,12 @@ public class PendingCheckpointTest {
 	}
 
 	@SuppressWarnings("unchecked")
-	static void setTaskState(PendingCheckpoint pending, TaskState state) throws NoSuchFieldException, IllegalAccessException {
-		Field field = PendingCheckpoint.class.getDeclaredField("taskStates");
+	static void setTaskState(PendingCheckpoint pending, OperatorState state) throws NoSuchFieldException, IllegalAccessException {
+		Field field = PendingCheckpoint.class.getDeclaredField("operatorStates");
 		field.setAccessible(true);
-		Map<JobVertexID, TaskState> taskStates = (Map<JobVertexID, TaskState>) field.get(pending);
+		Map<OperatorID, OperatorState> taskStates = (Map<OperatorID, OperatorState>) field.get(pending);
 
-		taskStates.put(new JobVertexID(), state);
+		taskStates.put(new OperatorID(), state);
 	}
 
 	private static final class QueueExecutor implements Executor {

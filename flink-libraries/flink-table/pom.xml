@@ -23,11 +23,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-libraries</artifactId>
-		<version>1.3-SNAPSHOT</version>
+		<version>1.4-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-table_2.10</artifactId>
+	<artifactId>flink-table_${scala.binary.version}</artifactId>
 	<name>flink-table</name>
 
 	<packaging>jar</packaging>
@@ -38,8 +38,9 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala_2.10</artifactId>
+			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -51,7 +52,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.calcite</groupId>
 			<artifactId>calcite-core</artifactId>
-			<version>1.11.0</version>
+			<version>1.12.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.calcite.avatica</groupId>
@@ -92,19 +93,35 @@ under the License.
 			</exclusions>
 		</dependency>
 
+        <dependency>
+            <groupId>org.reflections</groupId>
+            <artifactId>reflections</artifactId>
+            <version>0.9.10</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.code.findbugs</groupId>
+                    <artifactId>annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava</artifactId>
+                </exclusion>
+            </exclusions>
+            <scope>compile</scope>
+        </dependency>
 
 		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_2.10</artifactId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests_2.10</artifactId>
+			<artifactId>flink-tests_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -120,9 +137,23 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-statebackend-rocksdb_2.10</artifactId>
+			<artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
 		</dependency>
 	</dependencies>
 
@@ -165,20 +196,26 @@ under the License.
 						<configuration>
 							<filters>
 								<filter>
+									<artifact>*:*</artifact>
 									<excludes>
-									    	<exclude>org-apache-calcite-jdbc.properties</exclude>
+										<exclude>org-apache-calcite-jdbc.properties</exclude>
 										<exclude>mozilla/**</exclude>
 										<exclude>codegen/**</exclude>
 										<exclude>google/**</exclude>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
 									</excludes>
-								 </filter>
+								</filter>
 							</filters>
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.apache.calcite:*</include>
 									<include>org.apache.calcite.avatica:*</include>
 									<include>net.hydromatic:*</include>
-								</includes>
+                                    <include>org.reflections:*</include>
+									<include>org.codehaus.janino:*</include>
+                                </includes>
 							</artifactSet>
 							<relocations>
 								<!-- We currently don't relocate slf4j as we have "logger not found" 
@@ -216,5 +253,4 @@ under the License.
 
 		</plugins>
 	</build>
-
 </project>
