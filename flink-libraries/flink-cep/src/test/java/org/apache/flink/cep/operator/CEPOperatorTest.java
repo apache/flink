@@ -228,7 +228,6 @@ public class CEPOperatorTest extends TestLogger {
 			new TimeoutKeyedCEPPatternOperator<>(
 				Event.createTypeSerializer(),
 				false,
-				keySelector,
 				IntSerializer.INSTANCE,
 				new NFAFactory(true),
 				true),
@@ -297,7 +296,7 @@ public class CEPOperatorTest extends TestLogger {
 		Event startEventK2 = new Event(43, "start", 1.0);
 
 		TestKeySelector keySelector = new TestKeySelector();
-		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOpearator(false, keySelector);
+		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOpearator(false);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
 
 		harness.open();
@@ -384,7 +383,6 @@ public class CEPOperatorTest extends TestLogger {
 		KeyedCEPPatternOperator<Event, Integer> operator = new KeyedCEPPatternOperator<>(
 				Event.createTypeSerializer(),
 				false,
-				keySelector,
 				IntSerializer.INSTANCE,
 				new ComplexNFAFactory(),
 				true);
@@ -475,7 +473,7 @@ public class CEPOperatorTest extends TestLogger {
 		Event startEventK2 = new Event(43, "start", 1.0);
 
 		TestKeySelector keySelector = new TestKeySelector();
-		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOpearator(true, keySelector);
+		KeyedCEPPatternOperator<Event, Integer> operator = getKeyedCepOpearator(true);
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
 
 		harness.open();
@@ -555,7 +553,7 @@ public class CEPOperatorTest extends TestLogger {
 		KeySelector<Event, Integer> keySelector = new TestKeySelector();
 
 		return new KeyedOneInputStreamOperatorTestHarness<>(
-			getKeyedCepOpearator(isProcessingTime, keySelector),
+			getKeyedCepOpearator(isProcessingTime),
 			keySelector,
 			BasicTypeInfo.INT_TYPE_INFO);
 	}
@@ -571,13 +569,11 @@ public class CEPOperatorTest extends TestLogger {
 	}
 
 	private KeyedCEPPatternOperator<Event, Integer> getKeyedCepOpearator(
-			boolean isProcessingTime,
-			KeySelector<Event, Integer> keySelector) {
+			boolean isProcessingTime) {
 
 		return new KeyedCEPPatternOperator<>(
 			Event.createTypeSerializer(),
 			isProcessingTime,
-			keySelector,
 			IntSerializer.INSTANCE,
 			new NFAFactory(),
 			true);

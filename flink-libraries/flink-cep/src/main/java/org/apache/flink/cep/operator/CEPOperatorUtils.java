@@ -63,7 +63,6 @@ public class CEPOperatorUtils {
 			// We have to use the KeyedCEPPatternOperator which can deal with keyed input streams
 			KeyedStream<T, K> keyedStream= (KeyedStream<T, K>) inputStream;
 
-			KeySelector<T, K> keySelector = keyedStream.getKeySelector();
 			TypeSerializer<K> keySerializer = keyedStream.getKeyType().createSerializer(keyedStream.getExecutionConfig());
 
 			patternStream = keyedStream.transform(
@@ -72,7 +71,6 @@ public class CEPOperatorUtils {
 				new KeyedCEPPatternOperator<>(
 					inputSerializer,
 					isProcessingTime,
-					keySelector,
 					keySerializer,
 					nfaFactory,
 					true));
@@ -87,7 +85,6 @@ public class CEPOperatorUtils {
 				new KeyedCEPPatternOperator<>(
 					inputSerializer,
 					isProcessingTime,
-					keySelector,
 					keySerializer,
 					nfaFactory,
 					false
@@ -127,7 +124,6 @@ public class CEPOperatorUtils {
 			// We have to use the KeyedCEPPatternOperator which can deal with keyed input streams
 			KeyedStream<T, K> keyedStream= (KeyedStream<T, K>) inputStream;
 
-			KeySelector<T, K> keySelector = keyedStream.getKeySelector();
 			TypeSerializer<K> keySerializer = keyedStream.getKeyType().createSerializer(keyedStream.getExecutionConfig());
 
 			patternStream = keyedStream.transform(
@@ -136,7 +132,6 @@ public class CEPOperatorUtils {
 				new TimeoutKeyedCEPPatternOperator<>(
 					inputSerializer,
 					isProcessingTime,
-					keySelector,
 					keySerializer,
 					nfaFactory,
 					true));
@@ -151,7 +146,6 @@ public class CEPOperatorUtils {
 				new TimeoutKeyedCEPPatternOperator<>(
 					inputSerializer,
 					isProcessingTime,
-					keySelector,
 					keySerializer,
 					nfaFactory,
 					false
