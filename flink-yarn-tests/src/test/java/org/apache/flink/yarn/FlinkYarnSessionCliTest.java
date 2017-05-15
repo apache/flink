@@ -68,7 +68,8 @@ public class FlinkYarnSessionCliTest {
 		CommandLineParser parser = new DefaultParser();
 		CommandLine cmd = null;
 		try {
-			cmd = parser.parse(options, new String[]{"run", "-j", "fake.jar", "-n", "15", "-D", "akka.ask.timeout=5 min"});
+			cmd = parser.parse(options, new String[]{"run", "-j", "fake.jar", "-n", "15",
+				"-D", "akka.ask.timeout=5 min", "-D", "env.java.opts=-DappName=foobar"});
 		} catch(Exception e) {
 			e.printStackTrace();
 			Assert.fail("Parsing failed with " + e.getMessage());
@@ -80,8 +81,9 @@ public class FlinkYarnSessionCliTest {
 
 		Map<String, String> dynProperties =
 			FlinkYarnSessionCli.getDynamicProperties(flinkYarnDescriptor.getDynamicPropertiesEncoded());
-		Assert.assertEquals(1, dynProperties.size());
+		Assert.assertEquals(2, dynProperties.size());
 		Assert.assertEquals("5 min", dynProperties.get("akka.ask.timeout"));
+		Assert.assertEquals("-DappName=foobar", dynProperties.get("env.java.opts"));
 	}
 
 	@Test
