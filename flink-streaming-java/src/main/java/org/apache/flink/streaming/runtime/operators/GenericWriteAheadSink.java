@@ -23,7 +23,9 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -88,15 +90,24 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 		Preconditions.checkState(this.checkpointedState == null,
 			"The reader state has already been initialized.");
 
-		checkpointedState = context.getOperatorStateStore()
-			.getSerializableListState("pending-checkpoints");
+		ListStateDescriptor<PendingCheckpoint> checkpointedStateDescriptor = new ListStateDescriptor<>("pending-checkpoints", PendingCheckpoint.class);
+		checkpointedState = context.getOperatorStateStore().getListState(checkpointedStateDescriptor);
 
 		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
 		if (context.isRestored()) {
 			LOG.info("Restoring state for the GenericWriteAheadSink (taskIdx={}).", subtaskIdx);
 
-			for (PendingCheckpoint pendingCheckpoint : checkpointedState.get()) {
-				this.pendingCheckpoints.add(pendingCheckpoint);
+			try {
+				for (PendingCheckpoint pendingCheckpoint : checkpointedState.get()) {
+					this.pendingCheckpoints.add(pendingCheckpoint);
+				}
+			} catch (IOException e) {
+				LOG.info("Reading pending checkpoint in older state for the GenericWriteAheadSink (taskIdx={}).", subtaskIdx);
+				this.pendingCheckpoints.clear();
+				ListState<PendingCheckpoint> javaCheckpointedState = context.getOperatorStateStore().getSerializableListState(checkpointedStateDescriptor.getName());
+				for (PendingCheckpoint pendingCheckpoint : javaCheckpointedState.get()) {
+					this.pendingCheckpoints.add(pendingCheckpoint);
+				}
 			}
 
 			if (LOG.isDebugEnabled()) {
