@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.types.Row;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -44,7 +45,7 @@ public abstract class KafkaTableSinkTestBase {
 	private static final String TOPIC = "testTopic";
 	protected static final String[] FIELD_NAMES = new String[] {"field1", "field2"};
 	private static final TypeInformation[] FIELD_TYPES = new TypeInformation[] { Types.INT(), Types.STRING() };
-	private static final KafkaPartitioner<Row> PARTITIONER = new CustomPartitioner();
+	private static final FlinkKafkaPartitioner<Row> PARTITIONER = new FlinkCustomPartitioner();
 	private static final Properties PROPERTIES = createSinkProperties();
 	@SuppressWarnings("unchecked")
 	private final FlinkKafkaProducerBase<Row> PRODUCER = new FlinkKafkaProducerBase<Row>(
@@ -82,8 +83,8 @@ public abstract class KafkaTableSinkTestBase {
 		assertEquals(new RowTypeInfo(FIELD_TYPES), newKafkaTableSink.getOutputType());
 	}
 
-	protected abstract KafkaTableSink createTableSink(String topic, Properties properties,
-			KafkaPartitioner<Row> partitioner, FlinkKafkaProducerBase<Row> kafkaProducer);
+	protected abstract KafkaTableSink createTableSink(String topic,
+			Properties properties, FlinkKafkaPartitioner<Row> partitioner, FlinkKafkaProducerBase<Row> kafkaProducer);
 
 	protected abstract SerializationSchema<Row> getSerializationSchema();
 
@@ -97,9 +98,17 @@ public abstract class KafkaTableSinkTestBase {
 		return properties;
 	}
 
+	@Deprecated
 	private static class CustomPartitioner extends KafkaPartitioner<Row> implements Serializable {
 		@Override
 		public int partition(Row next, byte[] serializedKey, byte[] serializedValue, int numPartitions) {
+			return 0;
+		}
+	}
+
+	private static class FlinkCustomPartitioner extends FlinkKafkaPartitioner<Row> {
+		@Override
+		public int partition(Row record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
 			return 0;
 		}
 	}
