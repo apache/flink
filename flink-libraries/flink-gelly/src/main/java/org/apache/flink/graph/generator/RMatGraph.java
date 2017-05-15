@@ -34,7 +34,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 
-/*
+/**
  * @see <a href="http://www.cs.cmu.edu/~christos/PUBLICATIONS/siam04.pdf">R-MAT: A Recursive Model for Graph Mining</a>
  */
 public class RMatGraph<T extends RandomGenerator>
@@ -75,8 +75,8 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	public float noise = DEFAULT_NOISE;
 
 	/**
-	 * Generate a directed or undirected power-law {@link Graph} using the
-	 * Recursive Matrix (R-Mat) model.
+	 * A directed power-law multi{@link Graph graph} generated using the
+	 * stochastic Recursive Matrix (R-Mat) model.
 	 *
 	 * @param env the Flink execution environment
 	 * @param randomGeneratorFactory source of randomness
@@ -166,7 +166,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 		return Graph.fromDataSet(vertices, edges, env);
 	}
 
-	private static final class GenerateEdges<T extends RandomGenerator>
+	private static class GenerateEdges<T extends RandomGenerator>
 	implements FlatMapFunction<BlockInfo<T>, Edge<LongValue, NullValue>> {
 
 		// Configuration

@@ -32,8 +32,11 @@ import static java.util.Objects.requireNonNull;
  *
  * @param <T> Type of the values folded int othe state
  * @param <ACC> Type of the value in the state
+ *
+ * @deprecated will be removed in a future version in favor of {@link AggregatingStateDescriptor}
  */
 @PublicEvolving
+@Deprecated
 public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState<T, ACC>, ACC> {
 	private static final long serialVersionUID = 1L;
 

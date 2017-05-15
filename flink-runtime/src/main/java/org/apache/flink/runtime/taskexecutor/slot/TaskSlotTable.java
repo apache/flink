@@ -509,6 +509,16 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		return new TaskIterator(jobId);
 	}
 
+	/**
+	 * Get the current allocation for the task slot with the given index.
+	 *
+	 * @param index identifying the slot for which the allocation id shall be retrieved
+	 * @return Allocation id of the specified slot if allocated; otherwise null
+	 */
+	public AllocationID getCurrentAllocation(int index) {
+		return taskSlots.get(index).getAllocationId();
+	}
+
 	// ---------------------------------------------------------------------
 	// TimeoutListener methods
 	// ---------------------------------------------------------------------

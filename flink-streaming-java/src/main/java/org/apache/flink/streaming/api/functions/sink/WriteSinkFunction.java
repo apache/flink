@@ -17,18 +17,17 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import org.apache.flink.annotation.PublicEvolving;
-
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * Simple implementation of the SinkFunction writing tuples as simple text to
  * the file specified by path. Tuples are collected to a list and written to the
  * file periodically. The file specified by path is created if it does not
  * exist, cleared if it exists before the writing.
- * 
+ *
  * @param <IN>
  *            Input tuple type
  */
@@ -48,7 +47,7 @@ public abstract class WriteSinkFunction<IN> implements SinkFunction<IN> {
 
 	/**
 	 * Creates target file if it does not exist, cleans it if it exists.
-	 * 
+	 *
 	 * @param path
 	 *            is the path to the location where the tuples are written
 	 */
@@ -65,7 +64,7 @@ public abstract class WriteSinkFunction<IN> implements SinkFunction<IN> {
 
 	/**
 	 * Condition for writing the contents of tupleList and clearing it.
-	 * 
+	 *
 	 * @return value of the updating condition
 	 */
 	protected abstract boolean updateCondition();

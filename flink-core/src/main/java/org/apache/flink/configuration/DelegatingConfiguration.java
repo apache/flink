@@ -290,6 +290,11 @@ public final class DelegatingConfiguration extends Configuration {
 		return backingConfig.containsKey(prefix + key);
 	}
 
+	@Override
+	public boolean contains(ConfigOption<?> configOption) {
+		return backingConfig.contains(prefixOption(configOption, prefix));
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override

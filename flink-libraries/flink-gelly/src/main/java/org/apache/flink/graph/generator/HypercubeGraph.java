@@ -24,7 +24,7 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Preconditions;
 
-/*
+/**
  * @see <a href="http://mathworld.wolfram.com/HypercubeGraph.html">Hypercube Graph at Wolfram MathWorld</a>
  */
 public class HypercubeGraph
@@ -39,7 +39,9 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	private long dimensions;
 
 	/**
-	 * An undirected {@link Graph} where edges form an n-dimensional hypercube.
+	 * An undirected {@code Graph} where edges form an n-dimensional hypercube.
+	 * Each vertex in a hypercube connects to one other vertex in each
+	 * dimension.
 	 *
 	 * @param env the Flink execution environment
 	 * @param dimensions number of dimensions

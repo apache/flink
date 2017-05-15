@@ -21,23 +21,37 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.migration.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.streaming.api.operators.InternalTimer;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.streaming.api.operators.InternalWatermarkCallbackService;
+import org.apache.flink.streaming.api.operators.CheckpointedRestoringOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.OnWatermarkCallback;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Migration;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.PriorityQueue;
@@ -55,7 +69,7 @@ import java.util.PriorityQueue;
  */
 public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	extends AbstractStreamOperator<OUT>
-	implements OneInputStreamOperator<IN, OUT> {
+	implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace>, CheckpointedRestoringOperator {
 
 	private static final long serialVersionUID = -4166778210774160757L;
 
@@ -82,36 +96,49 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	private final PriorityQueueFactory<StreamRecord<IN>> priorityQueueFactory = new PriorityQueueStreamRecordFactory<>();
 	private final NFACompiler.NFAFactory<IN> nfaFactory;
 
+	private transient InternalTimerService<VoidNamespace> timerService;
+
+	/**
+	 * {@link OutputTag} to use for late arriving events. Elements for which
+	 * {@code window.maxTimestamp + allowedLateness} is smaller than the current watermark will
+	 * be emitted to this.
+	 */
+	private final OutputTag<IN> lateDataOutputTag;
+
+	/**
+	 * The last seen watermark. This will be used to
+	 * decide if an incoming element is late or not.
+	 */
+	private long lastWatermark;
+
+	/**
+	 * A flag used in the case of migration that indicates if
+	 * we are restoring from an old keyed or non-keyed operator.
+	 */
+	private final boolean migratingFromOldKeyedOperator;
+
 	public AbstractKeyedCEPPatternOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
 			final KeySelector<IN, KEY> keySelector,
 			final TypeSerializer<KEY> keySerializer,
-			final NFACompiler.NFAFactory<IN> nfaFactory) {
+			final NFACompiler.NFAFactory<IN> nfaFactory,
+			final OutputTag<IN> lateDataOutputTag,
+			final boolean migratingFromOldKeyedOperator) {
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
 		this.keySelector = Preconditions.checkNotNull(keySelector);
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
-	}
 
-	public TypeSerializer<IN> getInputSerializer() {
-		return inputSerializer;
+		this.lateDataOutputTag = lateDataOutputTag;
+		this.migratingFromOldKeyedOperator = migratingFromOldKeyedOperator;
 	}
 
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
-
-		// we have to call initializeState here and in the migration restore()
-		// method because the restore() (from legacy) is called before the
-		// initializeState().
-
-		initializeState();
-	}
-
-	private void initializeState() {
 
 		if (nfaOperatorState == null) {
 			nfaOperatorState = getRuntimeContext().getState(
@@ -141,49 +168,14 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	public void open() throws Exception {
 		super.open();
 
-		final InternalWatermarkCallbackService<KEY> watermarkCallbackService = getInternalWatermarkCallbackService();
-
-		watermarkCallbackService.setWatermarkCallback(
-			new OnWatermarkCallback<KEY>() {
-
-				@Override
-				public void onWatermark(KEY key, Watermark watermark) throws IOException {
-
-					// 1) get the queue of pending elements for the key and the corresponding NFA,
-					// 2) process the pending elements in event time order by feeding them in the NFA
-					// 3) advance the time to the current watermark, so that expired patterns are discarded.
-					// 4) update the stored state for the key, by only storing the new NFA and priority queue iff they
-					//		have state to be used later.
-
-					// STEP 1
-					PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
-					NFA<IN> nfa = getNFA();
-
-					// STEP 2
-					while (!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= watermark.getTimestamp()) {
-						StreamRecord<IN> streamRecord = priorityQueue.poll();
-						processEvent(nfa, streamRecord.getValue(), streamRecord.getTimestamp());
-					}
-
-					// STEP 3
-					advanceTime(nfa, watermark.getTimestamp());
-
-					// STEP 4
-					updatePriorityQueue(priorityQueue);
-					updateNFA(nfa);
-
-					if (priorityQueue.isEmpty() && nfa.isEmpty()) {
-						watermarkCallbackService.unregisterKeyFromWatermarkCallback(key);
-					}
-				}
-			},
-			keySerializer
-		);
+		timerService = getInternalTimerService(
+				"watermark-callbacks",
+				VoidNamespaceSerializer.INSTANCE,
+				this);
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-
 		if (isProcessingTime) {
 			// there can be no out of order elements in processing time
 			NFA<IN> nfa = getNFA();
@@ -191,19 +183,98 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 			updateNFA(nfa);
 
 		} else {
-			getInternalWatermarkCallbackService().registerKeyForWatermarkCallback(keySelector.getKey(element.getValue()));
 
-			PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
+			// In event-time processing we assume correctness of the watermark.
+			// Events with timestamp smaller than the last seen watermark are considered late.
+			// Late events are put in a dedicated side output, if the user has specified one.
 
-			// event time processing
-			// we have to buffer the elements until we receive the proper watermark
-			if (getExecutionConfig().isObjectReuseEnabled()) {
-				// copy the StreamRecord so that it cannot be changed
-				priorityQueue.offer(new StreamRecord<IN>(inputSerializer.copy(element.getValue()), element.getTimestamp()));
+			if (element.getTimestamp() >= lastWatermark) {
+
+				// we have an event with a valid timestamp, so
+				// we buffer it until we receive the proper watermark.
+
+				saveRegisterWatermarkTimer();
+
+				PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
+				if (getExecutionConfig().isObjectReuseEnabled()) {
+					// copy the StreamRecord so that it cannot be changed
+					priorityQueue.offer(new StreamRecord<>(inputSerializer.copy(element.getValue()), element.getTimestamp()));
+				} else {
+					priorityQueue.offer(element);
+				}
+				updatePriorityQueue(priorityQueue);
 			} else {
-				priorityQueue.offer(element);
+				sideOutputLateElement(element);
 			}
-			updatePriorityQueue(priorityQueue);
+		}
+	}
+
+	/**
+	 * Registers a timer for {@code current watermark + 1}, this means that we get triggered
+	 * whenever the watermark advances, which is what we want for working off the queue of
+	 * buffered elements.
+	 */
+	private void saveRegisterWatermarkTimer() {
+		long currentWatermark = timerService.currentWatermark();
+		// protect against overflow
+		if (currentWatermark + 1 > currentWatermark) {
+			timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, currentWatermark + 1);
+		}
+	}
+
+	@Override
+	public void onEventTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
+
+		// 1) get the queue of pending elements for the key and the corresponding NFA,
+		// 2) process the pending elements in event time order by feeding them in the NFA
+		// 3) advance the time to the current watermark, so that expired patterns are discarded.
+		// 4) update the stored state for the key, by only storing the new NFA and priority queue iff they
+		//		have state to be used later.
+		// 5) update the last seen watermark.
+
+		// STEP 1
+		PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
+		NFA<IN> nfa = getNFA();
+
+		// STEP 2
+		while (!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= timerService.currentWatermark()) {
+			StreamRecord<IN> streamRecord = priorityQueue.poll();
+			processEvent(nfa, streamRecord.getValue(), streamRecord.getTimestamp());
+		}
+
+		// STEP 3
+		advanceTime(nfa, timerService.currentWatermark());
+
+		// STEP 4
+		updatePriorityQueue(priorityQueue);
+		updateNFA(nfa);
+
+		if (!priorityQueue.isEmpty() || !nfa.isEmpty()) {
+			saveRegisterWatermarkTimer();
+		}
+
+		// STEP 5
+		updateLastSeenWatermark(timerService.currentWatermark());
+	}
+
+	@Override
+	public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
+		// not used
+	}
+
+	private void updateLastSeenWatermark(long timestamp) {
+		this.lastWatermark = timestamp;
+	}
+
+	/**
+	 * Puts the provided late element in the dedicated side output,
+	 * if the user has specified one.
+	 *
+	 * @param element The late element.
+	 */
+	private void sideOutputLateElement(StreamRecord<IN> element) {
+		if (lateDataOutputTag != null) {
+			output.collect(lateDataOutputTag, element);
 		}
 	}
 
@@ -251,6 +322,64 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	 * @param timestamp to advance the time to
 	 */
 	protected abstract void advanceTime(NFA<IN> nfa, long timestamp);
+
+	//////////////////////			Backwards Compatibility			//////////////////////
+
+	@Override
+	public void restoreState(FSDataInputStream in) throws Exception {
+		if (in instanceof Migration) {
+			// absorb the introduced byte from the migration stream
+			int hasUdfState = in.read();
+			if (hasUdfState == 1) {
+				throw new Exception("Found UDF state but CEPOperator is not an UDF operator.");
+			}
+		}
+
+		DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(in);
+		timerService = getInternalTimerService(
+				"watermark-callbacks",
+				VoidNamespaceSerializer.INSTANCE,
+				this);
+
+		if (migratingFromOldKeyedOperator) {
+			int numberEntries = inputView.readInt();
+			for (int i = 0; i <numberEntries; i++) {
+				KEY key = keySerializer.deserialize(inputView);
+				setCurrentKey(key);
+				saveRegisterWatermarkTimer();
+			}
+		} else {
+
+			final ObjectInputStream ois = new ObjectInputStream(in);
+
+			// retrieve the NFA
+			@SuppressWarnings("unchecked")
+			NFA<IN> nfa = (NFA<IN>) ois.readObject();
+
+			// retrieve the elements that were pending in the priority queue
+			MultiplexingStreamRecordSerializer<IN> recordSerializer = new MultiplexingStreamRecordSerializer<>(inputSerializer);
+			PriorityQueue<StreamRecord<IN>> priorityQueue = priorityQueueFactory.createPriorityQueue();
+			int entries = ois.readInt();
+			for (int i = 0; i < entries; i++) {
+				StreamElement streamElement = recordSerializer.deserialize(inputView);
+				priorityQueue.offer(streamElement.<IN>asRecord());
+			}
+
+			// finally register the retrieved state with the new keyed state.
+			setCurrentKey((byte) 0);
+			nfaOperatorState.update(nfa);
+			priorityQueueOperatorState.update(priorityQueue);
+
+			if (!isProcessingTime) {
+				// this is relevant only for event/ingestion time
+
+				// need to work around type restrictions
+				setCurrentKey((byte) 0);
+				saveRegisterWatermarkTimer();
+			}
+			ois.close();
+		}
+	}
 
 	//////////////////////			Utility Classes			//////////////////////
 
@@ -367,6 +496,33 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		@Override
 		public int hashCode() {
 			return Objects.hash(factory, elementSerializer);
+		}
+
+		// --------------------------------------------------------------------------------------------
+		// Serializer configuration snapshotting & compatibility
+		// --------------------------------------------------------------------------------------------
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			return new CollectionSerializerConfigSnapshot(elementSerializer.snapshotConfiguration());
+		}
+
+		@Override
+		public CompatibilityResult<PriorityQueue<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+			if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
+				CompatibilityResult<T> compatResult = elementSerializer.ensureCompatibility(
+						((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+
+				if (!compatResult.isRequiresMigration()) {
+					return CompatibilityResult.compatible();
+				} else if (compatResult.getConvertDeserializer() != null) {
+					return CompatibilityResult.requiresMigration(
+						new PriorityQueueSerializer<>(
+							new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer()), factory));
+				}
+			}
+
+			return CompatibilityResult.requiresMigration();
 		}
 	}
 

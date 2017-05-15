@@ -18,37 +18,33 @@
 
 package org.apache.flink.util;
 
-import java.io.IOException;
 import java.util.Random;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * A statistically unique identification number.
  */
 @PublicEvolving
-public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, java.io.Serializable {
+public class AbstractID implements Comparable<AbstractID>, java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final Random RND = new Random();
-	
 
 	/** The size of a long in bytes */
 	private static final int SIZE_OF_LONG = 8;
 
 	/** The size of the ID in byte */
 	public static final int SIZE = 2 * SIZE_OF_LONG;
-	
+
+	// ------------------------------------------------------------------------
 
 	/** The upper part of the actual ID */
-	protected long upperPart;
+	protected final long upperPart;
 
 	/** The lower part of the actual ID */
-	protected long lowerPart;
+	protected final long lowerPart;
 
 	/** The memoized value returned by toString() */
 	private String toString;
@@ -79,10 +75,7 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 	}
 
 	/**
-	 * Creates a new abstract ID from the given one.
-	 * <p>
-	 * The given and the newly created abstract ID will be identical, i.e. a comparison by <code>equals</code> will
-	 * return <code>true</code> and both objects will have the same hash code.
+	 * Copy constructor: Creates a new abstract ID from the given one.
 	 *
 	 * @param id the abstract ID to copy
 	 */
@@ -101,7 +94,7 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 		this.lowerPart = RND.nextLong();
 		this.upperPart = RND.nextLong();
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -135,32 +128,16 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//  Serialization
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.lowerPart = in.readLong();
-		this.upperPart = in.readLong();
-
-		this.toString = null;
-	}
-
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeLong(this.lowerPart);
-		out.writeLong(this.upperPart);
-	}
-
-	// --------------------------------------------------------------------------------------------
 	//  Standard Utilities
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof AbstractID) {
-			AbstractID src = (AbstractID) obj;
-			return src.lowerPart == this.lowerPart && src.upperPart == this.upperPart;
+		if (obj == this) {
+			return true;
+		} else if (obj != null && obj.getClass() == getClass()) {
+			AbstractID that = (AbstractID) obj;
+			return that.lowerPart == this.lowerPart && that.upperPart == this.upperPart;
 		} else {
 			return false;
 		}

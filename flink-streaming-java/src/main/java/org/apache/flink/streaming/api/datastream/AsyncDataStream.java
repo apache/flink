@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
@@ -24,12 +25,10 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator;
 
-import java.util.concurrent.TimeUnit;
-
 /**
  * A helper class to apply {@link AsyncFunction} to a data stream.
- * <p>
- * <pre>{@code
+ *
+ * <p><pre>{@code
  * DataStream<String> input = ...
  * AsyncFunction<String, Tuple<String, String>> asyncFunc = ...
  *
@@ -40,6 +39,10 @@ import java.util.concurrent.TimeUnit;
 
 @PublicEvolving
 public class AsyncDataStream {
+
+	/**
+	 * Output mode for asynchronous operations.
+	 */
 	public enum OutputMode { ORDERED, UNORDERED }
 
 	private static final int DEFAULT_QUEUE_CAPACITY = 100;

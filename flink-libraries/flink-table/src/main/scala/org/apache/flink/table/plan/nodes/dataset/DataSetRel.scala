@@ -18,13 +18,12 @@
 
 package org.apache.flink.table.plan.nodes.dataset
 
-import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
-import org.apache.flink.table.plan.nodes.FlinkRel
+import org.apache.flink.table.plan.nodes.FlinkRelNode
 import org.apache.flink.types.Row
 
-trait DataSetRel extends RelNode with FlinkRel {
+trait DataSetRel extends FlinkRelNode {
 
   /**
     * Translates the [[DataSetRel]] node into a [[DataSet]] operator.
@@ -32,6 +31,6 @@ trait DataSetRel extends RelNode with FlinkRel {
     * @param tableEnv The [[BatchTableEnvironment]] of the translated Table.
     * @return DataSet of type [[Row]]
     */
-  def translateToPlan(tableEnv: BatchTableEnvironment) : DataSet[Row]
+  def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row]
 
 }

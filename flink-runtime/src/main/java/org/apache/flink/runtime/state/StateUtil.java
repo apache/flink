@@ -33,6 +33,15 @@ public class StateUtil {
 	}
 
 	/**
+	 * Returns the size of a state object
+	 *
+	 * @param handle The handle to the retrieved state
+	 */
+	public static long getStateSize(StateObject handle) {
+		return handle == null ? 0 : handle.getStateSize();
+	}
+
+	/**
 	 * Iterates through the passed state handles and calls discardState() on each handle that is not null. All
 	 * occurring exceptions are suppressed and collected until the iteration is over and emitted as a single exception.
 	 *

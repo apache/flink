@@ -21,20 +21,21 @@ import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTrait
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
-import org.apache.flink.table.plan.nodes.dataset.{DataSetConvention, DataSetWindowAggregate}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetWindowAggregate
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalWindowAggregate
 
 import scala.collection.JavaConversions._
 
 class DataSetWindowAggregateRule
   extends ConverterRule(
-      classOf[LogicalWindowAggregate],
-      Convention.NONE,
-      DataSetConvention.INSTANCE,
-      "DataSetWindowAggregateRule") {
+    classOf[FlinkLogicalWindowAggregate],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
+    "DataSetWindowAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val agg: LogicalWindowAggregate = call.rel(0).asInstanceOf[LogicalWindowAggregate]
+    val agg: FlinkLogicalWindowAggregate = call.rel(0).asInstanceOf[FlinkLogicalWindowAggregate]
 
     // check if we have distinct aggregates
     val distinctAggs = agg.getAggCallList.exists(_.isDistinct)
@@ -52,9 +53,9 @@ class DataSetWindowAggregateRule
   }
 
   override def convert(rel: RelNode): RelNode = {
-    val agg: LogicalWindowAggregate = rel.asInstanceOf[LogicalWindowAggregate]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val convInput: RelNode = RelOptRule.convert(agg.getInput, DataSetConvention.INSTANCE)
+    val agg: FlinkLogicalWindowAggregate = rel.asInstanceOf[FlinkLogicalWindowAggregate]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
+    val convInput: RelNode = RelOptRule.convert(agg.getInput, FlinkConventions.DATASET)
 
     new DataSetWindowAggregate(
       agg.getWindow,

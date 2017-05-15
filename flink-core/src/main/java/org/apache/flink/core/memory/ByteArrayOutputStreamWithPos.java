@@ -101,16 +101,13 @@ public class ByteArrayOutputStreamWithPos extends OutputStream {
 		return new String(buffer, 0, count, ConfigConstants.DEFAULT_CHARSET);
 	}
 
-	private int getEndPosition() {
-		return buffer.length;
-	}
-
 	public int getPosition() {
 		return count;
 	}
 
 	public void setPosition(int position) {
-		Preconditions.checkArgument(position < getEndPosition(), "Position out of bounds.");
+		Preconditions.checkArgument(position >= 0, "Position out of bounds.");
+		ensureCapacity(position + 1);
 		count = position;
 	}
 

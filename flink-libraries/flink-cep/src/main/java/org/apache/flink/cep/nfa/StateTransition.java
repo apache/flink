@@ -19,6 +19,8 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 
 import java.io.Serializable;
 import java.util.Objects;
@@ -27,13 +29,26 @@ public class StateTransition<T> implements Serializable {
 	private static final long serialVersionUID = -4825345749997891838L;
 
 	private final StateTransitionAction action;
+	private final State<T> sourceState;
 	private final State<T> targetState;
-	private final FilterFunction<T> condition;
+	private IterativeCondition<T> newCondition;
 
-	public StateTransition(final StateTransitionAction action, final State<T> targetState, final FilterFunction<T> condition) {
+	/**
+	 * @deprecated 	This field remains for backwards compatibility.
+	 * Now the conditions extend the {@link IterativeCondition}.
+	 */
+	@Deprecated
+	private FilterFunction<T> condition;
+
+	public StateTransition(
+			final State<T> sourceState,
+			final StateTransitionAction action,
+			final State<T> targetState,
+			final IterativeCondition<T> condition) {
 		this.action = action;
 		this.targetState = targetState;
-		this.condition = condition;
+		this.sourceState = sourceState;
+		this.newCondition = condition;
 	}
 
 	public StateTransitionAction getAction() {
@@ -44,8 +59,16 @@ public class StateTransition<T> implements Serializable {
 		return targetState;
 	}
 
-	public FilterFunction<T> getCondition() {
-		return condition;
+	public State<T> getSourceState() {
+		return sourceState;
+	}
+
+	public IterativeCondition<T> getCondition() {
+		if (condition != null) {
+			this.newCondition = new FilterWrapper<>(condition);
+			this.condition = null;
+		}
+		return newCondition;
 	}
 
 	@Override
@@ -55,6 +78,7 @@ public class StateTransition<T> implements Serializable {
 			StateTransition<T> other = (StateTransition<T>) obj;
 
 			return action == other.action &&
+				sourceState.getName().equals(other.sourceState.getName()) &&
 				targetState.getName().equals(other.targetState.getName());
 		} else {
 			return false;
@@ -64,21 +88,44 @@ public class StateTransition<T> implements Serializable {
 	@Override
 	public int hashCode() {
 		// we have to take the name of targetState because the transition might be reflexive
-		return Objects.hash(action, targetState.getName());
+		return Objects.hash(action, targetState.getName(), sourceState.getName());
 	}
 
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 
-		builder.append("StateTransition(").append(action).append(", ").append(targetState.getName());
+		builder.append("StateTransition(")
+			.append(action).append(", ")
+			.append(sourceState.getName()).append(", ")
+			.append(targetState.getName());
 
-		if (condition != null) {
+		if (newCondition != null) {
 			builder.append(", with filter)");
 		} else {
 			builder.append(")");
 		}
 
 		return builder.toString();
+	}
+
+	/**
+	 * A wrapper to transform a {@link FilterFunction} into a {@link SimpleCondition}.
+	 * This is used only when migrating from an older Flink version.
+	 */
+	private static class FilterWrapper<T> extends SimpleCondition<T> {
+
+		private static final long serialVersionUID = -4973016745698940430L;
+
+		private final FilterFunction<T> filterFunction;
+
+		FilterWrapper(FilterFunction<T> filterFunction) {
+			this.filterFunction = filterFunction;
+		}
+
+		@Override
+		public boolean filter(T value) throws Exception {
+			return filterFunction.filter(value);
+		}
 	}
 }

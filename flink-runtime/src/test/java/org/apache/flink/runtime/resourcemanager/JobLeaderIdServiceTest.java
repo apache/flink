@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.util.TestLogger;
@@ -64,7 +65,9 @@ public class JobLeaderIdServiceTest extends TestLogger {
 		final String address = "foobar";
 		final UUID leaderId = UUID.randomUUID();
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
-		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService();
+		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService(
+			null,
+			null);
 
 		highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
 
@@ -98,7 +101,7 @@ public class JobLeaderIdServiceTest extends TestLogger {
 	public void testRemovingJob() throws Exception {
 		final JobID jobId = new JobID();
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
-		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService();
+		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService(null, null);
 
 		highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
 
@@ -139,7 +142,9 @@ public class JobLeaderIdServiceTest extends TestLogger {
 	public void testInitialJobTimeout() throws Exception {
 		final JobID jobId = new JobID();
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
-		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService();
+		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService(
+			null,
+			null);
 
 		highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
 
@@ -181,7 +186,9 @@ public class JobLeaderIdServiceTest extends TestLogger {
 		final String address = "foobar";
 		final UUID leaderId = UUID.randomUUID();
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
-		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService();
+		TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService(
+			null,
+			null);
 
 		highAvailabilityServices.setJobMasterLeaderRetriever(jobId, leaderRetrievalService);
 

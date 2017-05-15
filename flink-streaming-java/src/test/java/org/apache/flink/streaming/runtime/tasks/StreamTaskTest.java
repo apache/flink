@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import akka.dispatch.Futures;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
@@ -62,7 +61,7 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackendFactory;
@@ -88,10 +87,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
-
 import org.apache.flink.util.TestLogger;
+import org.junit.Assert;
 import org.junit.Test;
-
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -111,8 +109,10 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -458,8 +458,8 @@ public class StreamTaskTest extends TestLogger {
 
 		StreamOperator<?> streamOperator = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
 
-		KeyGroupsStateHandle managedKeyedStateHandle = mock(KeyGroupsStateHandle.class);
-		KeyGroupsStateHandle rawKeyedStateHandle = mock(KeyGroupsStateHandle.class);
+		KeyedStateHandle managedKeyedStateHandle = mock(KeyedStateHandle.class);
+		KeyedStateHandle rawKeyedStateHandle = mock(KeyedStateHandle.class);
 		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStateHandle.class);
 		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStateHandle.class);
 
@@ -563,8 +563,8 @@ public class StreamTaskTest extends TestLogger {
 					(ChainedStateHandle<StreamStateHandle>)invocation.getArguments()[0],
 					(ChainedStateHandle<OperatorStateHandle>)invocation.getArguments()[1],
 					(ChainedStateHandle<OperatorStateHandle>)invocation.getArguments()[2],
-					(KeyGroupsStateHandle)invocation.getArguments()[3],
-					(KeyGroupsStateHandle)invocation.getArguments()[4]);
+					(KeyedStateHandle)invocation.getArguments()[3],
+					(KeyedStateHandle)invocation.getArguments()[4]);
 			}
 		});
 
@@ -574,8 +574,8 @@ public class StreamTaskTest extends TestLogger {
 
 		StreamOperator<?> streamOperator = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
 
-		KeyGroupsStateHandle managedKeyedStateHandle = mock(KeyGroupsStateHandle.class);
-		KeyGroupsStateHandle rawKeyedStateHandle = mock(KeyGroupsStateHandle.class);
+		KeyedStateHandle managedKeyedStateHandle = mock(KeyedStateHandle.class);
+		KeyedStateHandle rawKeyedStateHandle = mock(KeyedStateHandle.class);
 		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStateHandle.class);
 		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStateHandle.class);
 
@@ -640,6 +640,74 @@ public class StreamTaskTest extends TestLogger {
 		verify(rawOperatorStateHandle).discardState();
 	}
 
+	/**
+	 * FLINK-5985
+	 *
+	 * This test ensures that empty snapshots (no op/keyed stated whatsoever) will be reported as stateless tasks. This
+	 * happens by translating an empty {@link SubtaskState} into reporting 'null' to #acknowledgeCheckpoint.
+	 */
+	@Test
+	public void testEmptySubtaskStateLeadsToStatelessAcknowledgment() throws Exception {
+		final long checkpointId = 42L;
+		final long timestamp = 1L;
+
+		TaskInfo mockTaskInfo = mock(TaskInfo.class);
+
+		when(mockTaskInfo.getTaskNameWithSubtasks()).thenReturn("foobar");
+		when(mockTaskInfo.getIndexOfThisSubtask()).thenReturn(0);
+
+		Environment mockEnvironment = mock(Environment.class);
+
+		// latch blocks until the async checkpoint thread acknowledges
+		final OneShotLatch checkpointCompletedLatch = new OneShotLatch();
+		final List<SubtaskState> checkpointResult = new ArrayList<>(1);
+
+		// we remember what is acknowledged (expected to be null as our task will snapshot empty states).
+		doAnswer(new Answer() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				SubtaskState subtaskState = invocationOnMock.getArgumentAt(2, SubtaskState.class);
+				checkpointResult.add(subtaskState);
+				checkpointCompletedLatch.trigger();
+				return null;
+			}
+		}).when(mockEnvironment).acknowledgeCheckpoint(anyLong(), any(CheckpointMetrics.class), any(SubtaskState.class));
+
+		when(mockEnvironment.getTaskInfo()).thenReturn(mockTaskInfo);
+
+		StreamTask<?, AbstractStreamOperator<?>> streamTask = mock(StreamTask.class, Mockito.CALLS_REAL_METHODS);
+		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
+		streamTask.setEnvironment(mockEnvironment);
+
+		// mock the operators
+		StreamOperator<?> statelessOperator =
+				mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
+
+		// mock the returned empty snapshot result (all state handles are null)
+		OperatorSnapshotResult statelessOperatorSnapshotResult = new OperatorSnapshotResult();
+		when(statelessOperator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class)))
+				.thenReturn(statelessOperatorSnapshotResult);
+
+		// set up the task
+		StreamOperator<?>[] streamOperators = {statelessOperator};
+		OperatorChain<Void, AbstractStreamOperator<Void>> operatorChain = mock(OperatorChain.class);
+		when(operatorChain.getAllOperators()).thenReturn(streamOperators);
+
+		Whitebox.setInternalState(streamTask, "isRunning", true);
+		Whitebox.setInternalState(streamTask, "lock", new Object());
+		Whitebox.setInternalState(streamTask, "operatorChain", operatorChain);
+		Whitebox.setInternalState(streamTask, "cancelables", new CloseableRegistry());
+		Whitebox.setInternalState(streamTask, "configuration", new StreamConfig(new Configuration()));
+		Whitebox.setInternalState(streamTask, "asyncOperationsThreadPool", Executors.newCachedThreadPool());
+
+		streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forFullCheckpoint());
+		checkpointCompletedLatch.await(30, TimeUnit.SECONDS);
+		streamTask.cancel();
+
+		// ensure that 'null' was acknowledged as subtask state
+		Assert.assertNull(checkpointResult.get(0));
+	}
+
 	// ------------------------------------------------------------------------
 	//  Test Utilities
 	// ------------------------------------------------------------------------
@@ -692,7 +760,7 @@ public class StreamTaskTest extends TestLogger {
 
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(StreamTaskTest.class.getClassLoader());
-		
+
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
 		PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
@@ -746,16 +814,16 @@ public class StreamTaskTest extends TestLogger {
 			partitionProducerStateChecker,
 			executor);
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Test operators
 	// ------------------------------------------------------------------------
-	
+
 	public static class SlowlyDeserializingOperator extends StreamSource<Long, SourceFunction<Long>> {
 		private static final long serialVersionUID = 1L;
 
 		private volatile boolean canceled = false;
-		
+
 		public SlowlyDeserializingOperator() {
 			super(new MockSourceFunction());
 		}
@@ -779,7 +847,7 @@ public class StreamTaskTest extends TestLogger {
 		// slow deserialization
 		private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 			in.defaultReadObject();
-			
+
 			long delay = 500;
 			long deadline = System.currentTimeMillis() + delay;
 			do {
@@ -789,7 +857,7 @@ public class StreamTaskTest extends TestLogger {
 			} while ((delay = deadline - System.currentTimeMillis()) > 0);
 		}
 	}
-	
+
 	private static class MockSourceFunction implements SourceFunction<Long> {
 		private static final long serialVersionUID = 1L;
 
@@ -820,7 +888,7 @@ public class StreamTaskTest extends TestLogger {
 							return Mockito.mock(OperatorStateBackend.class);
 						}
 					});
-	
+
 				Mockito.when(stateBackendMock.createKeyedStateBackend(
 						Mockito.any(Environment.class),
 						Mockito.any(JobID.class),
@@ -887,7 +955,7 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	/**
-	 * A task that locks if cancellation attempts to cleanly shut down 
+	 * A task that locks if cancellation attempts to cleanly shut down
 	 */
 	public static class CancelLockingTask extends StreamTask<String, AbstractStreamOperator<String>> {
 
@@ -927,11 +995,11 @@ public class StreamTaskTest extends TestLogger {
 			// do not interrupt the lock holder here, to simulate spawned threads that
 			// we cannot properly interrupt on cancellation
 		}
-		
+
 	}
 
 	/**
-	 * A task that locks if cancellation attempts to cleanly shut down 
+	 * A task that locks if cancellation attempts to cleanly shut down
 	 */
 	public static class CancelFailingTask extends StreamTask<String, AbstractStreamOperator<String>> {
 

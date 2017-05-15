@@ -27,6 +27,7 @@ import java.io.ByteArrayInputStream;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class SavepointV1SerializerTest {
 
@@ -35,25 +36,29 @@ public class SavepointV1SerializerTest {
 	 */
 	@Test
 	public void testSerializeDeserializeV1() throws Exception {
-		Random r = new Random(42);
-		for (int i = 0; i < 100; ++i) {
+		final Random r = new Random(42);
+
+		for (int i = 0; i < 50; ++i) {
 			SavepointV1 expected =
-					new SavepointV1(i+ 123123, SavepointV1Test.createTaskStates(1 + r.nextInt(64), 1 + r.nextInt(64)));
+					new SavepointV1(i+ 123123, CheckpointTestUtils.createTaskStates(r, 1 + r.nextInt(64), 1 + r.nextInt(64)));
 
 			SavepointV1Serializer serializer = SavepointV1Serializer.INSTANCE;
 
 			// Serialize
 			ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();
-			serializer.serialize(expected, new DataOutputViewStreamWrapper(baos));
+			serializer.serializeOld(expected, new DataOutputViewStreamWrapper(baos));
 			byte[] bytes = baos.toByteArray();
 
 			// Deserialize
 			ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-			Savepoint actual = serializer.deserialize(
+			SavepointV2 actual = serializer.deserialize(
 					new DataInputViewStreamWrapper(bais),
 					Thread.currentThread().getContextClassLoader());
 
-			assertEquals(expected, actual);
+
+			assertEquals(expected.getCheckpointId(), actual.getCheckpointId());
+			assertEquals(expected.getTaskStates(), actual.getTaskStates());
+			assertTrue(actual.getMasterStates().isEmpty());
 		}
 	}
 }

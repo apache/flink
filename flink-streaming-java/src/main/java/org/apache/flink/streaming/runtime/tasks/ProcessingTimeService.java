@@ -22,10 +22,10 @@ import java.util.concurrent.ScheduledFuture;
 /**
  * Defines the current processing time and handles all related actions,
  * such as register timers for tasks to be executed in the future.
- * 
+ *
  * <p>The access to the time via {@link #getCurrentProcessingTime()} is always available, regardless of
  * whether the timer service has been shut down.
- * 
+ *
  * <p>The registration of timers follows a life cycle of three phases:
  * <ol>
  *     <li>In the initial state, it accepts timer registrations and triggers when the time is reached.</li>
@@ -46,10 +46,10 @@ public abstract class ProcessingTimeService {
 
 	/**
 	 * Registers a task to be executed when (processing) time is {@code timestamp}.
-	 * 
+	 *
 	 * @param timestamp   Time when the task is to be executed (in processing time)
 	 * @param target      The task to be executed
-	 * 
+	 *
 	 * @return The future that represents the scheduled task. This always returns some future,
 	 *         even if the timer was shut down
 	 */
@@ -75,7 +75,7 @@ public abstract class ProcessingTimeService {
 	 * returns for each call to {@link #registerTimer(long, ProcessingTimeCallback)} only a "mock" future.
 	 * Furthermore, the method clears all not yet started timers, and awaits the completion
 	 * of currently executing timers.
-	 * 
+	 *
 	 * <p>This method can be used to cleanly shut down the timer service. The using components
 	 * will not notice that the service is shut down (as for example via exceptions when registering
 	 * a new timer), but the service will simply not fire any timer any more.

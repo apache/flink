@@ -125,6 +125,8 @@ public class SecurityUtils {
 
 		private final org.apache.hadoop.conf.Configuration hadoopConf;
 
+		private final boolean isZkSaslDisable;
+
 		private final boolean useTicketCache;
 
 		private final String keytab;
@@ -164,6 +166,7 @@ public class SecurityUtils {
 				org.apache.hadoop.conf.Configuration hadoopConf,
 				List<? extends Class<? extends SecurityModule>> securityModules) {
 			this.hadoopConf = checkNotNull(hadoopConf);
+			this.isZkSaslDisable = flinkConf.getBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
 			this.keytab = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
 			this.principal = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
 			this.useTicketCache = flinkConf.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
@@ -173,6 +176,10 @@ public class SecurityUtils {
 			this.securityModules = Collections.unmodifiableList(securityModules);
 
 			validate();
+		}
+
+		public boolean isZkSaslDisable() {
+			return isZkSaslDisable;
 		}
 
 		public String getKeytab() {

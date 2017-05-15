@@ -30,6 +30,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base class for state that is stored in a file.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
 @SuppressWarnings("deprecation")

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -60,14 +59,14 @@ class InputChannelTestUtils {
 
 			@Override
 			public ResultSubpartitionView answer(InvocationOnMock invocation) throws Throwable {
-				BufferAvailabilityListener channel = (BufferAvailabilityListener) invocation.getArguments()[3];
-				return sources[num++].createReadView(null, channel);
+				BufferAvailabilityListener channel = (BufferAvailabilityListener) invocation.getArguments()[2];
+				return sources[num++].createReadView(channel);
 			}
 		};
 
 		ResultPartitionManager manager = mock(ResultPartitionManager.class);
 		when(manager.createSubpartitionView(
-				any(ResultPartitionID.class), anyInt(), any(BufferProvider.class), any(BufferAvailabilityListener.class)))
+				any(ResultPartitionID.class), anyInt(), any(BufferAvailabilityListener.class)))
 				.thenAnswer(viewCreator);
 
 		return manager;

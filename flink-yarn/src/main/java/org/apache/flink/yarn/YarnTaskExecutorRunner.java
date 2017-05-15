@@ -24,6 +24,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -207,12 +208,25 @@ public class YarnTaskExecutorRunner {
 			ResourceID resourceID = new ResourceID(containerId);
 			LOG.info("YARN assigned resource id {} for the task executor.", resourceID.toString());
 
-			haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config);
+			taskExecutorRpcService = TaskManagerRunner.createRpcService(config, haServices);
+
+			haServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+				config,
+				taskExecutorRpcService.getExecutor(),
+				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
+
+			HeartbeatServices heartbeatServices = HeartbeatServices.fromConfiguration(config);
+
 			metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 			// ---- (2) init task manager runner -------
-			taskExecutorRpcService = TaskManagerRunner.createRpcService(config, haServices);
-			taskManagerRunner = new TaskManagerRunner(config, resourceID, taskExecutorRpcService, haServices, metricRegistry);
+			taskManagerRunner = new TaskManagerRunner(
+				config,
+				resourceID,
+				taskExecutorRpcService,
+				haServices,
+				heartbeatServices,
+				metricRegistry);
 
 			// ---- (3) start the task manager runner
 			taskManagerRunner.start();

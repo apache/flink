@@ -18,9 +18,8 @@
 
 package org.apache.flink.streaming.api.functions;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
-
 import javax.annotation.Nullable;
+import org.apache.flink.streaming.api.watermark.Watermark;
 
 /**
  * The {@code AssignerWithPunctuatedWatermarks} assigns event time timestamps to elements,
@@ -33,7 +32,7 @@ import javax.annotation.Nullable;
  * The system will generate a new watermark, if the probed value is non-null
  * and has a timestamp larger than that of the previous watermark (to preserve
  * the contract of ascending watermarks).
- * 
+ *
  * <p>For use cases that should periodically emit watermarks based on element timestamps,
  * use the {@link AssignerWithPeriodicWatermarks} instead.
  *
@@ -41,7 +40,7 @@ import javax.annotation.Nullable;
  * generator. It assumes elements carry a timestamp that describes when they were created,
  * and that some elements carry a flag, marking them as the end of a sequence such that no
  * elements with smaller timestamps can come anymore.
- * 
+ *
  * <pre>{@code
  * public class WatermarkOnFlagAssigner implements AssignerWithPunctuatedWatermarks<MyElement> {
  *
@@ -54,18 +53,18 @@ import javax.annotation.Nullable;
  *     }
  * }
  * }</pre>
- * 
+ *
  * <p>Timestamps and watermarks are defined as {@code longs} that represent the
  * milliseconds since the Epoch (midnight, January 1, 1970 UTC).
  * A watermark with a certain value {@code t} indicates that no elements with event
  * timestamps {@code x}, where {@code x} is lower or equal to {@code t}, will occur any more.
- * 
+ *
  * @param <T> The type of the elements to which this assigner assigns timestamps.
- * 
+ *
  * @see org.apache.flink.streaming.api.watermark.Watermark
  */
 public interface AssignerWithPunctuatedWatermarks<T> extends TimestampAssigner<T> {
-	
+
 	/**
 	 * Asks this implementation if it wants to emit a watermark. This method is called right after
 	 * the {@link #extractTimestamp(Object, long)} method.

@@ -28,8 +28,11 @@ import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import org.apache.flink.configuration.Configuration;
@@ -48,7 +51,7 @@ import java.util.regex.Pattern;
 /**
  * Tests that the JobManager process properly exits when the JobManager actor dies.
  */
-public class JobManagerProcessReapingTest {
+public class JobManagerProcessReapingTest extends TestLogger {
 
 	@Test
 	public void testReapProcessOnFailure() {
@@ -117,10 +120,14 @@ public class JobManagerProcessReapingTest {
 
 			if (jobManagerPort != -1) {
 				try {
-					jobManagerRef = JobManager.getJobManagerActorRef(
-						"akka.tcp",
-						NetUtils.unresolvedHostAndPortToNormalizedString("localhost", jobManagerPort),
-						localSystem, new FiniteDuration(25, TimeUnit.SECONDS));
+					final String jobManagerAkkaUrl = AkkaRpcServiceUtils.getRpcUrl(
+						"localhost",
+						jobManagerPort,
+						JobMaster.JOB_MANAGER_NAME,
+						HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION,
+						AkkaRpcServiceUtils.AkkaProtocol.TCP);
+
+					jobManagerRef = AkkaUtils.getActorRef(jobManagerAkkaUrl, localSystem, new FiniteDuration(25L, TimeUnit.SECONDS));
 				} catch (Throwable t) {
 					// job manager probably not ready yet
 					lastError = t;

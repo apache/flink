@@ -18,19 +18,22 @@
 
 package org.apache.flink.core.io;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * This is the abstract base class for {@link IOReadableWritable} which allows to differentiate between serialization
  * versions. Concrete subclasses should typically override the {@link #write(DataOutputView)} and
  * {@link #read(DataInputView)}, thereby calling super to ensure version checking.
  */
-@PublicEvolving
+@Internal
 public abstract class VersionedIOReadableWritable implements IOReadableWritable, Versioned {
+
+	private int readVersion = Integer.MIN_VALUE;
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
@@ -39,34 +42,42 @@ public abstract class VersionedIOReadableWritable implements IOReadableWritable,
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		int foundVersion = in.readInt();
-		resolveVersionRead(foundVersion);
+		this.readVersion = in.readInt();
+		resolveVersionRead(readVersion);
 	}
 
 	/**
-	 * This method is a hook to react on the version tag that we find during read. This can also be used to initialize
-	 * further read logic w.r.t. the version at hand.
-	 * Default implementation of this method just checks the compatibility of a version number against the own version.
+	 * Returns the found serialization version. If this instance was not read from serialized bytes
+	 * but simply instantiated, then the current version is returned.
 	 *
-	 * @param foundVersion the version found from reading the input stream
-	 * @throws VersionMismatchException thrown when serialization versions mismatch
+	 * @return the read serialization version, or the current version if the instance was not read from bytes.
 	 */
-	protected void resolveVersionRead(int foundVersion) throws VersionMismatchException {
-		if (!isCompatibleVersion(foundVersion)) {
-			long expectedVersion = getVersion();
-			throw new VersionMismatchException(
-					"Incompatible version: found " + foundVersion + ", required " + expectedVersion);
+	public int getReadVersion() {
+		return (readVersion == Integer.MIN_VALUE) ? getVersion() : readVersion;
+	}
+
+	/**
+	 * Returns the compatible version values.
+	 *
+	 * <p>By default, the base implementation recognizes only the current version (identified by {@link #getVersion()})
+	 * as compatible. This method can be used as a hook and may be overridden to identify more compatible versions.
+	 *
+	 * @return an array of integers representing the compatible version values.
+	 */
+	public int[] getCompatibleVersions() {
+		return new int[] {getVersion()};
+	}
+
+	private void resolveVersionRead(int readVersion) throws VersionMismatchException {
+
+		int[] compatibleVersions = getCompatibleVersions();
+		for (int compatibleVersion : compatibleVersions) {
+			if (compatibleVersion == readVersion) {
+				return;
+			}
 		}
-	}
 
-	/**
-	 * Checks for compatibility between this and the found version. Subclasses can override this methods in case of
-	 * intended backwards backwards compatibility.
-	 *
-	 * @param version version number to compare against.
-	 * @return true, iff this is compatible to the passed version.
-	 */
-	public boolean isCompatibleVersion(int version) {
-		return getVersion() == version;
+		throw new VersionMismatchException(
+			"Incompatible version: found " + readVersion + ", compatible versions are " + Arrays.toString(compatibleVersions));
 	}
 }

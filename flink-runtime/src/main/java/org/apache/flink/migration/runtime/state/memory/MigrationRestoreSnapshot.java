@@ -25,6 +25,9 @@ import org.apache.flink.util.Migration;
 
 import java.io.IOException;
 
+/**
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
+ */
 @Deprecated
 @Internal
 public interface MigrationRestoreSnapshot<K, N, S> extends Migration {

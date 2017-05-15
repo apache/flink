@@ -48,7 +48,7 @@ public class TestingLeaderRetrievalService implements LeaderRetrievalService {
 	public void start(LeaderRetrievalListener listener) throws Exception {
 		this.listener = Preconditions.checkNotNull(listener);
 
-		if (leaderAddress != null) {
+		if (leaderSessionID != null && leaderAddress != null) {
 			listener.notifyLeaderAddress(leaderAddress, leaderSessionID);
 		}
 	}

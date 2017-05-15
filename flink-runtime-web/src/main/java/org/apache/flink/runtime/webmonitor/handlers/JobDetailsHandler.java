@@ -80,7 +80,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 				.replace(":jobid", graph.getJobID().toString());
 			String path2 = JOB_DETAILS_VERTICES_REST_PATH
 				.replace(":jobid", graph.getJobID().toString());
-			Collection<ArchivedJson> archives = new ArrayList();
+			Collection<ArchivedJson> archives = new ArrayList<>();
 			archives.add(new ArchivedJson(path1, json));
 			archives.add(new ArchivedJson(path2, json));
 			return archives;

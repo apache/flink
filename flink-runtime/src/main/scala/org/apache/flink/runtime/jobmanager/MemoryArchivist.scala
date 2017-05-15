@@ -23,16 +23,21 @@ import java.util
 import akka.actor.ActorRef
 import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobID
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils
 import org.apache.flink.runtime.{FlinkActor, LogMessages}
 import org.apache.flink.runtime.messages.webmonitor._
 import org.apache.flink.runtime.executiongraph.{ArchivedExecutionGraph, ExecutionGraph}
+import org.apache.flink.runtime.history.FsJobArchivist
 import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.state.filesystem.FsStateBackend
 
 import scala.collection.mutable
+import scala.concurrent.future
 
 /**
  * Actor which stores terminated Flink jobs. The number of stored Flink jobs is set by max_entries.
@@ -54,9 +59,12 @@ import scala.collection.mutable
  *
  *  - [[RequestJobCounts]] returns the number of finished, canceled, and failed jobs as a Tuple3
  *
- * @param max_entries Maximum number of stored Flink jobs
+ * @param maxEntries Maximum number of stored Flink jobs
+ * @param archivePath Optional path of the job archive directory
  */
-class MemoryArchivist(private val max_entries: Int)
+class MemoryArchivist(
+    private val maxEntries: Int,
+    private val archivePath: Option[Path])
   extends FlinkActor
   with LogMessages {
 
@@ -95,6 +103,8 @@ class MemoryArchivist(private val max_entries: Int)
           // ignore transitional states, e.g. Cancelling, Running, Failing, etc.
         case _ =>
       }
+
+      archiveJsonFiles(graph)
 
       trimHistory()
 
@@ -183,6 +193,27 @@ class MemoryArchivist(private val max_entries: Int)
     }
   }
 
+  private def archiveJsonFiles(graph: ArchivedExecutionGraph) {
+    // a suspended job is expected to continue on another job manager,
+    // so we aren't archiving it yet.
+    if (archivePath.isDefined && graph.getState.isGloballyTerminalState) {
+      try {
+        val p = FsStateBackend.validateAndNormalizeUri(archivePath.get.toUri)
+        future {
+          try {
+            FsJobArchivist.archiveJob(p, graph)
+          } catch {
+            case e: Exception =>
+              log.error("Failed to archive job.", e)
+          }
+        }(context.dispatcher)
+      } catch {
+        case e: Exception =>
+          log.warn(s"Failed to create Path for $archivePath. Job will not be archived.", e)
+      }
+    }
+  }
+
   // --------------------------------------------------------------------------
   //  Request Responses
   // --------------------------------------------------------------------------
@@ -218,7 +249,7 @@ class MemoryArchivist(private val max_entries: Int)
    * * if more than max_entries are in the queue.
    */
   private def trimHistory(): Unit = {
-    while (graphs.size > max_entries) {
+    while (graphs.size > maxEntries) {
       // get first graph inserted
       val (jobID, value) = graphs.head
       graphs.remove(jobID)

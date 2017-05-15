@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,14 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
+import java.util.Collection;
+import java.util.List;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
-
-import java.util.Collection;
-import java.util.List;
 
 /**
  * This Transformation represents a Sink.
@@ -42,7 +41,7 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 
 	// We need this because sinks can also have state that is partitioned by key
 	private KeySelector<T, ?> stateKeySelector;
-	
+
 	private TypeInformation<?> stateKeyType;
 
 	/**

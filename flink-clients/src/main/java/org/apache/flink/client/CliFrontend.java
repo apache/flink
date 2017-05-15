@@ -263,7 +263,11 @@ public class CliFrontend {
 		}
 		finally {
 			if (client != null) {
-				client.shutdown();
+				try {
+					client.shutdown();
+				} catch (Exception e) {
+					LOG.warn("Could not properly shut down the cluster client.", e);
+				}
 			}
 			if (program != null) {
 				program.deleteExtractedLibraries();
@@ -856,7 +860,7 @@ public class CliFrontend {
 			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
 			if (accumulatorsResult.size() > 0) {
 				System.out.println("Accumulator Results: ");
-				System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
+				System.out.println(AccumulatorHelper.getResultsFormatted(accumulatorsResult));
 			}
 		} else {
 			logAndSysout("Job has been submitted with JobID " + result.getJobID());
@@ -1079,7 +1083,7 @@ public class CliFrontend {
 		// do action
 		switch (action) {
 			case ACTION_RUN:
-				return CliFrontend.this.run(params);
+				return run(params);
 			case ACTION_LIST:
 				return list(params);
 			case ACTION_INFO:

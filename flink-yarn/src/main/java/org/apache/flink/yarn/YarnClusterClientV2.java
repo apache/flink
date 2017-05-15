@@ -31,7 +31,6 @@ import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.List;
@@ -58,11 +57,11 @@ public class YarnClusterClientV2 extends ClusterClient {
 	 *
 	 * @param clusterDescriptor The descriptor used to create yarn job
 	 * @param flinkConfig Flink configuration
-	 * @throws java.io.IOException
+	 * @throws Exception if the cluster client could not be created
 	 */
 	public YarnClusterClientV2(
 			final AbstractYarnClusterDescriptor clusterDescriptor,
-			org.apache.flink.configuration.Configuration flinkConfig) throws IOException {
+			org.apache.flink.configuration.Configuration flinkConfig) throws Exception {
 
 		super(flinkConfig);
 

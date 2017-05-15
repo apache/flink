@@ -56,11 +56,12 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 */
 	UUID DEFAULT_LEADER_ID = new UUID(0, 0);
 
-	// ------------------------------------------------------------------------
-	//  Endpoint Naming
-	// ------------------------------------------------------------------------
-
-	String getResourceManagerEndpointName();
+	/**
+	 * This JobID should be used to identify the old JobManager when using the
+	 * {@link HighAvailabilityServices}. With Flip-6 every JobManager will have a distinct
+	 * JobID assigned.
+	 */
+	JobID DEFAULT_JOB_ID = new JobID(0L, 0L);
 
 	// ------------------------------------------------------------------------
 	//  Services

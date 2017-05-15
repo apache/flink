@@ -24,8 +24,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 
-import org.apache.flink.configuration.ConfigConstants;
+import java.net.URI;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
@@ -33,6 +35,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -76,14 +80,14 @@ public final class WebMonitorUtils {
 			
 			if (logFilePath == null) {
 				LOG.warn("Log file environment variable '{}' is not set.", logEnv);
-				logFilePath = config.getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, null);
+				logFilePath = config.getString(JobManagerOptions.WEB_LOG_PATH);
 			}
 			
 			// not configured, cannot serve log files
 			if (logFilePath == null || logFilePath.length() < 4) {
 				LOG.warn("JobManager log files are unavailable in the web dashboard. " +
 					"Log file location not found in environment variable '{}' or configuration key '{}'.",
-					logEnv, ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY);
+					logEnv, JobManagerOptions.WEB_LOG_PATH.key());
 				return new LogFileLocation(null, null);
 			}
 			
@@ -143,6 +147,24 @@ public final class WebMonitorUtils {
 		}
 	}
 
+	public static JsonArchivist[] getJsonArchivists() {
+		try {
+			String classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor";
+			Class<? extends WebMonitor> clazz = Class.forName(classname).asSubclass(WebMonitor.class);
+			Method method = clazz.getMethod("getJsonArchivists");
+			JsonArchivist[] result = (JsonArchivist[]) method.invoke(null);
+			return result;
+		} catch (ClassNotFoundException e) {
+			LOG.error("Could not load web runtime monitor. " +
+				"Probably reason: flink-runtime-web is not in the classpath");
+			LOG.debug("Caught exception", e);
+			return new JsonArchivist[0];
+		} catch (Throwable t) {
+			LOG.error("Failed to retrieve archivers from web runtime monitor.", t);
+			return new JsonArchivist[0];
+		}
+	}
+
 	public static Map<String, String> fromKeyValueJsonArray(String jsonString) {
 		try {
 			Map<String, String> map = new HashMap<>();
@@ -190,6 +212,32 @@ public final class WebMonitorUtils {
 		return new JobDetails(job.getJobID(), job.getJobName(),
 				started, finished, status, lastChanged,
 				countsPerStatus, numTotalTasks);
+	}
+
+	/**
+	 * Checks and normalizes the given URI. This method first checks the validity of the
+	 * URI (scheme and path are not null) and then normalizes the URI to a path.
+	 *
+	 * @param archiveDirUri The URI to check and normalize.
+	 * @return A normalized URI as a Path.
+	 *
+	 * @throws IllegalArgumentException Thrown, if the URI misses scheme or path. 
+	 */
+	public static Path validateAndNormalizeUri(URI archiveDirUri) {
+		final String scheme = archiveDirUri.getScheme();
+		final String path = archiveDirUri.getPath();
+
+		// some validity checks
+		if (scheme == null) {
+			throw new IllegalArgumentException("The scheme (hdfs://, file://, etc) is null. " +
+				"Please specify the file system scheme explicitly in the URI.");
+		}
+		if (path == null) {
+			throw new IllegalArgumentException("The path to store the job archive data in is null. " +
+				"Please specify a directory path for the archiving the job data.");
+		}
+
+		return new Path(archiveDirUri);
 	}
 
 	/**

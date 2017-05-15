@@ -21,6 +21,8 @@ package org.apache.flink.runtime.heartbeat;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.util.DirectExecutorService;
 import org.apache.flink.util.TestLogger;
@@ -63,7 +65,7 @@ public class HeartbeatManagerTest extends TestLogger {
 		ResourceID ownResourceID = new ResourceID("foobar");
 		ResourceID targetResourceID = new ResourceID("barfoo");
 		HeartbeatListener<Object, Object> heartbeatListener = mock(HeartbeatListener.class);
-		ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
+		ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
 
 		Object expectedObject = new Object();
 
@@ -72,11 +74,10 @@ public class HeartbeatManagerTest extends TestLogger {
 		HeartbeatManagerImpl<Object, Object> heartbeatManager = new HeartbeatManagerImpl<>(
 			heartbeatTimeout,
 			ownResourceID,
+			heartbeatListener,
 			new DirectExecutorService(),
-			scheduledExecutorService,
+			scheduledExecutor,
 			LOG);
-
-		heartbeatManager.start(heartbeatListener);
 
 		HeartbeatTarget<Object> heartbeatTarget = mock(HeartbeatTarget.class);
 
@@ -86,9 +87,9 @@ public class HeartbeatManagerTest extends TestLogger {
 
 		verify(heartbeatListener, times(1)).reportPayload(targetResourceID, expectedObject);
 		verify(heartbeatListener, times(1)).retrievePayload();
-		verify(heartbeatTarget, times(1)).sendHeartbeat(ownResourceID, expectedObject);
+		verify(heartbeatTarget, times(1)).receiveHeartbeat(ownResourceID, expectedObject);
 
-		heartbeatManager.sendHeartbeat(targetResourceID, expectedObject);
+		heartbeatManager.receiveHeartbeat(targetResourceID, expectedObject);
 
 		verify(heartbeatListener, times(2)).reportPayload(targetResourceID, expectedObject);
 	}
@@ -102,10 +103,10 @@ public class HeartbeatManagerTest extends TestLogger {
 		ResourceID ownResourceID = new ResourceID("foobar");
 		ResourceID targetResourceID = new ResourceID("barfoo");
 		HeartbeatListener<Object, Object> heartbeatListener = mock(HeartbeatListener.class);
-		ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
+		ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
 		ScheduledFuture<?> scheduledFuture = mock(ScheduledFuture.class);
 
-		doReturn(scheduledFuture).when(scheduledExecutorService).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+		doReturn(scheduledFuture).when(scheduledExecutor).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
 
 		Object expectedObject = new Object();
 
@@ -114,20 +115,19 @@ public class HeartbeatManagerTest extends TestLogger {
 		HeartbeatManagerImpl<Object, Object> heartbeatManager = new HeartbeatManagerImpl<>(
 			heartbeatTimeout,
 			ownResourceID,
+			heartbeatListener,
 			new DirectExecutorService(),
-			scheduledExecutorService,
+			scheduledExecutor,
 			LOG);
-
-		heartbeatManager.start(heartbeatListener);
 
 		HeartbeatTarget<Object> heartbeatTarget = mock(HeartbeatTarget.class);
 
 		heartbeatManager.monitorTarget(targetResourceID, heartbeatTarget);
 
-		heartbeatManager.sendHeartbeat(targetResourceID, expectedObject);
+		heartbeatManager.receiveHeartbeat(targetResourceID, expectedObject);
 
 		verify(scheduledFuture, times(1)).cancel(true);
-		verify(scheduledExecutorService, times(2)).schedule(any(Runnable.class), eq(heartbeatTimeout), eq(TimeUnit.MILLISECONDS));
+		verify(scheduledExecutor, times(2)).schedule(any(Runnable.class), eq(heartbeatTimeout), eq(TimeUnit.MILLISECONDS));
 	}
 
 	/**
@@ -155,11 +155,10 @@ public class HeartbeatManagerTest extends TestLogger {
 		HeartbeatManagerImpl<Object, Object> heartbeatManager = new HeartbeatManagerImpl<>(
 			heartbeatTimeout,
 			ownResourceID,
+			heartbeatListener,
 			new DirectExecutorService(),
-			new ScheduledThreadPoolExecutor(1),
+			new ScheduledExecutorServiceAdapter(new ScheduledThreadPoolExecutor(1)),
 			LOG);
-
-		heartbeatManager.start(heartbeatListener);
 
 		HeartbeatTarget<Object> heartbeatTarget = mock(HeartbeatTarget.class);
 
@@ -168,7 +167,7 @@ public class HeartbeatManagerTest extends TestLogger {
 		heartbeatManager.monitorTarget(targetResourceID, heartbeatTarget);
 
 		for (int i = 0; i < numHeartbeats; i++) {
-			heartbeatManager.sendHeartbeat(targetResourceID, expectedObject);
+			heartbeatManager.receiveHeartbeat(targetResourceID, expectedObject);
 			Thread.sleep(heartbeatInterval);
 		}
 
@@ -206,20 +205,19 @@ public class HeartbeatManagerTest extends TestLogger {
 		HeartbeatManagerImpl<Object, Object> heartbeatManager = new HeartbeatManagerImpl<>(
 			heartbeatTimeout,
 			resourceID,
+			heartbeatListener,
 			new DirectExecutorService(),
-			new ScheduledThreadPoolExecutor(1),
+			new ScheduledExecutorServiceAdapter(new ScheduledThreadPoolExecutor(1)),
 			LOG);
 
 		HeartbeatManagerSenderImpl<Object, Object> heartbeatManager2 = new HeartbeatManagerSenderImpl<>(
 			heartbeatPeriod,
 			heartbeatTimeout,
 			resourceID2,
+			heartbeatListener2,
 			new DirectExecutorService(),
-			new ScheduledThreadPoolExecutor(1),
+			new ScheduledExecutorServiceAdapter(new ScheduledThreadPoolExecutor(1)),
 			LOG);;
-
-		heartbeatManager.start(heartbeatListener);
-		heartbeatManager2.start(heartbeatListener2);
 
 		heartbeatManager.monitorTarget(resourceID2, heartbeatManager2);
 		heartbeatManager2.monitorTarget(resourceID, heartbeatManager);
@@ -251,16 +249,15 @@ public class HeartbeatManagerTest extends TestLogger {
 		ResourceID targetID = new ResourceID("target");
 		Object object = new Object();
 
+		TestingHeartbeatListener heartbeatListener = new TestingHeartbeatListener(object);
+
 		HeartbeatManager<Object, Object> heartbeatManager = new HeartbeatManagerImpl<>(
 			heartbeatTimeout,
 			resourceID,
+			heartbeatListener,
 			new DirectExecutorService(),
-			new ScheduledThreadPoolExecutor(1),
+			new ScheduledExecutorServiceAdapter(new ScheduledThreadPoolExecutor(1)),
 			LOG);
-
-		TestingHeartbeatListener heartbeatListener = new TestingHeartbeatListener(object);
-
-		heartbeatManager.start(heartbeatListener);
 
 		heartbeatManager.monitorTarget(targetID, mock(HeartbeatTarget.class));
 

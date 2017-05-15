@@ -36,7 +36,10 @@ import java.io.IOException;
  * @param <N> The type of the namespace.
  * @param <T> The type of the values that can be folded into the state.
  * @param <ACC> The type of the value in the folding state.
+ *
+ * @deprecated will be removed in a future version
  */
+@Deprecated
 public class HeapFoldingState<K, N, T, ACC>
 		extends AbstractHeapState<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>>
 		implements InternalFoldingState<N, T, ACC> {
@@ -84,7 +87,7 @@ public class HeapFoldingState<K, N, T, ACC>
 		}
 	}
 
-	static final class FoldTransformation<T, ACC> implements StateTransformationFunction<ACC, T> {
+	private static final class FoldTransformation<T, ACC> implements StateTransformationFunction<ACC, T> {
 
 		private final FoldingStateDescriptor<T, ACC> stateDescriptor;
 		private final FoldFunction<T, ACC> foldFunction;

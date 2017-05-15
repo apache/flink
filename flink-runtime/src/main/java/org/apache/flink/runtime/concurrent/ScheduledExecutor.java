@@ -82,7 +82,7 @@ public interface ScheduledExecutor extends Executor {
 	 * @param delay the time between the end of the current and the start of the next execution
 	 * @param unit the time unit of the initial delay and the delay parameter
 	 * @return a ScheduledFuture representing the repeatedly executed task. This future never
-	 * completes unless th exectuion of the given task fails or if the future is cancelled
+	 * completes unless the execution of the given task fails or if the future is cancelled
 	 */
 	ScheduledFuture<?> scheduleWithFixedDelay(
 		Runnable command,

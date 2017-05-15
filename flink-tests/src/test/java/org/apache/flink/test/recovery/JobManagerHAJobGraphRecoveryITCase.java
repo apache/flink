@@ -32,6 +32,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -41,18 +43,16 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.JobManagerMessages.JobStatusResponse;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerActorTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
-import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.TestLogger;
 import org.apache.zookeeper.data.Stat;
@@ -70,7 +70,6 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -168,91 +167,6 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 	}
 
 	/**
-	 * Tests that submissions to non-leaders are handled.
-	 */
-	@Test
-	public void testSubmitJobToNonLeader() throws Exception {
-		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
-				ZooKeeper.getConnectString(), FileStateBackendBasePath.getPath());
-
-		// Configure the cluster
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 2);
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-
-		TestingCluster flink = new TestingCluster(config, false, false);
-
-		try {
-			final Deadline deadline = TestTimeOut.fromNow();
-
-			// Start the JobManager and TaskManager
-			flink.start(true);
-
-			JobGraph jobGraph = createBlockingJobGraph();
-
-			List<ActorRef> bothJobManagers = flink.getJobManagersAsJava();
-
-			ActorGateway leadingJobManager = flink.getLeaderGateway(deadline.timeLeft());
-
-			ActorGateway nonLeadingJobManager;
-			if (bothJobManagers.get(0).equals(leadingJobManager.actor())) {
-				nonLeadingJobManager = new AkkaActorGateway(bothJobManagers.get(1), null);
-			}
-			else {
-				nonLeadingJobManager = new AkkaActorGateway(bothJobManagers.get(0), null);
-			}
-
-			log.info("Leading job manager: " + leadingJobManager);
-			log.info("Non-leading job manager: " + nonLeadingJobManager);
-
-			// Submit the job
-			nonLeadingJobManager.tell(new SubmitJob(jobGraph, ListeningBehaviour.DETACHED));
-
-			log.info("Submitted job graph to " + nonLeadingJobManager);
-
-			// Wait for the job to start. We are asking the *leading** JM here although we've
-			// submitted the job to the non-leading JM. This is the behaviour under test.
-			JobManagerActorTestUtils.waitForJobStatus(jobGraph.getJobID(), JobStatus.RUNNING,
-					leadingJobManager, deadline.timeLeft());
-
-			log.info("Wait that the non-leader removes the submitted job.");
-
-			// Make sure that the **non-leading** JM has actually removed the job graph from its
-			// local state.
-			boolean success = false;
-			while (!success && deadline.hasTimeLeft()) {
-				JobStatusResponse jobStatusResponse = JobManagerActorTestUtils.requestJobStatus(
-						jobGraph.getJobID(), nonLeadingJobManager, deadline.timeLeft());
-
-				if (jobStatusResponse instanceof JobManagerMessages.JobNotFound) {
-					success = true;
-				}
-				else {
-					log.info(((JobManagerMessages.CurrentJobStatus)jobStatusResponse).status().toString());
-					Thread.sleep(100);
-				}
-			}
-
-			if (!success) {
-				fail("Non-leading JM was still holding reference to the job graph.");
-			}
-
-			Future<Object> jobRemoved = leadingJobManager.ask(
-				new TestingJobManagerMessages.NotifyWhenJobRemoved(jobGraph.getJobID()),
-				deadline.timeLeft());
-
-			leadingJobManager.tell(new JobManagerMessages.CancelJob(jobGraph.getJobID()));
-
-			Await.ready(jobRemoved, deadline.timeLeft());
-		}
-		finally {
-			flink.shutdown();
-		}
-
-		// Verify that everything is clean
-		verifyCleanRecoveryState(config);
-	}
-
-	/**
 	 * Tests that clients receive updates after recovery by a new leader.
 	 */
 	@Test
@@ -271,6 +185,11 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 
 		ActorSystem taskManagerSystem = null;
 
+		final HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+			config,
+			TestingUtils.defaultExecutor(),
+			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+
 		try {
 			final Deadline deadline = TestTimeOut.fromNow();
 
@@ -287,15 +206,20 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 
 			// Leader listener
 			TestingListener leaderListener = new TestingListener();
-			leaderRetrievalService = ZooKeeperUtils.createLeaderRetrievalService(config);
+			leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
 			leaderRetrievalService.start(leaderListener);
 
 			// The task manager
 			taskManagerSystem = AkkaUtils.createActorSystem(AkkaUtils.getDefaultAkkaConfig());
 			TaskManager.startTaskManagerComponentsAndActor(
-					config, ResourceID.generate(), taskManagerSystem, "localhost",
-					Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
-					false, TaskManager.class);
+				config,
+				ResourceID.generate(),
+				taskManagerSystem,
+				highAvailabilityServices,
+				"localhost",
+				Option.<String>empty(),
+				false,
+				TaskManager.class);
 
 			// Client test actor
 			TestActorRef<RecordingTestClient> clientRef = TestActorRef.create(
@@ -415,6 +339,8 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 			if (testSystem != null) {
 				testSystem.shutdown();
 			}
+
+			highAvailabilityServices.closeAndCleanupAllData();
 		}
 	}
 

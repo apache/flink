@@ -29,14 +29,15 @@ import org.junit.Test
 class NormalizationRulesTest extends TableTestBase {
 
   @Test
-  def testApplyNormalizationRuleForForBatchSQL(): Unit = {
+  def testApplyNormalizationRuleForBatchSQL(): Unit = {
     val util = batchTestUtil()
 
     // rewrite distinct aggregate
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .replaceNormRuleSet(RuleSets.ofList(AggregateExpandDistinctAggregatesRule.JOIN))
-      .replaceOptRuleSet(RuleSets.ofList())
-      .build()
+        .replaceNormRuleSet(RuleSets.ofList(AggregateExpandDistinctAggregatesRule.JOIN))
+        .replaceLogicalOptRuleSet(RuleSets.ofList())
+        .replacePhysicalOptRuleSet(RuleSets.ofList())
+        .build()
     util.tEnv.getConfig.setCalciteConfig(cc)
 
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -62,14 +63,15 @@ class NormalizationRulesTest extends TableTestBase {
   }
 
   @Test
-  def testApplyNormalizationRuleForForStreamSQL(): Unit = {
+  def testApplyNormalizationRuleForStreamSQL(): Unit = {
     val util = streamTestUtil()
 
     // rewrite distinct aggregate
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .replaceNormRuleSet(RuleSets.ofList(AggregateExpandDistinctAggregatesRule.JOIN))
-      .replaceOptRuleSet(RuleSets.ofList())
-      .build()
+        .replaceNormRuleSet(RuleSets.ofList(AggregateExpandDistinctAggregatesRule.JOIN))
+        .replaceLogicalOptRuleSet(RuleSets.ofList())
+        .replacePhysicalOptRuleSet(RuleSets.ofList())
+        .build()
     util.tEnv.getConfig.setCalciteConfig(cc)
 
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)

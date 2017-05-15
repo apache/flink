@@ -21,11 +21,11 @@ package org.apache.flink.graph.asm.degree.annotate.directed;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeOrder;
@@ -118,7 +118,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 	public DataSet<Vertex<K, Degrees>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// s, t, bitmask
-		DataSet<Tuple3<K, K, ByteValue>> edgesWithOrder = input.getEdges()
+		DataSet<Tuple2<K, ByteValue>> vertexWithEdgeOrder = input.getEdges()
 			.flatMap(new EmitAndFlipEdge<K, EV>())
 				.setParallelism(parallelism)
 				.name("Emit and flip edge")
@@ -128,9 +128,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 				.name("Reduce bitmask");
 
 		// s, d(s)
-		DataSet<Vertex<K, Degrees>> vertexDegrees = edgesWithOrder
+		DataSet<Vertex<K, Degrees>> vertexDegrees = vertexWithEdgeOrder
 			.groupBy(0)
-			.sortGroup(1, Order.ASCENDING)
 			.reduceGroup(new DegreeCount<K>())
 				.setParallelism(parallelism)
 				.name("Degree count");
@@ -178,22 +177,22 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@ForwardedFields("0; 1")
+	@ForwardedFields("0")
 	private static final class ReduceBitmask<T>
-	implements GroupReduceFunction<Tuple3<T, T, ByteValue>, Tuple3<T, T, ByteValue>> {
-		@Override
-		public void reduce(Iterable<Tuple3<T, T, ByteValue>> values, Collector<Tuple3<T, T, ByteValue>> out)
-				throws Exception {
-			Tuple3<T, T, ByteValue> output = null;
+	implements GroupReduceFunction<Tuple3<T, T, ByteValue>, Tuple2<T, ByteValue>> {
+		private Tuple2<T, ByteValue> output = new Tuple2<>(null, new ByteValue());
 
+		@Override
+		public void reduce(Iterable<Tuple3<T, T, ByteValue>> values, Collector<Tuple2<T, ByteValue>> out)
+				throws Exception {
 			byte bitmask = 0;
 
 			for (Tuple3<T, T, ByteValue> value: values) {
-				output = value;
+				output.f0 = value.f0;
 				bitmask |= value.f2.getValue();
 			}
 
-			output.f2.setValue(bitmask);
+			output.f1.setValue(bitmask);
 			out.collect(output);
 		}
 	}
@@ -203,21 +202,22 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 	 *
 	 * @param <T> ID type
 	 */
+	@ForwardedFields("0")
 	private static class DegreeCount<T>
-	implements GroupReduceFunction<Tuple3<T, T, ByteValue>, Vertex<T, Degrees>> {
+	implements GroupReduceFunction<Tuple2<T, ByteValue>, Vertex<T, Degrees>> {
 		private Vertex<T, Degrees> output = new Vertex<>(null, new Degrees());
 
 		@Override
-		public void reduce(Iterable<Tuple3<T, T, ByteValue>> values, Collector<Vertex<T, Degrees>> out)
+		public void reduce(Iterable<Tuple2<T, ByteValue>> values, Collector<Vertex<T, Degrees>> out)
 				throws Exception {
 			long degree = 0;
 			long outDegree = 0;
 			long inDegree = 0;
 
-			for (Tuple3<T, T, ByteValue> edge : values) {
+			for (Tuple2<T, ByteValue> edge : values) {
 				output.f0 = edge.f0;
 
-				byte bitmask = edge.f2.getValue();
+				byte bitmask = edge.f1.getValue();
 
 				degree++;
 

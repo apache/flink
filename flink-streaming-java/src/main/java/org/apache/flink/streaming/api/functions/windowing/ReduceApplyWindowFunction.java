@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,14 +17,17 @@
  */
 package org.apache.flink.streaming.api.functions.windowing;
 
+import java.util.Collections;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
-import java.util.Collections;
-
+/**
+ * Internal {@link WindowFunction} that is used for implementing a fold on a window configuration
+ * that only allows {@link WindowFunction} and cannot directly execute a {@link ReduceFunction}.
+ */
 @Internal
 public class ReduceApplyWindowFunction<K, W extends Window, T, R>
 	extends WrappingFunction<WindowFunction<T, R, K, W>>

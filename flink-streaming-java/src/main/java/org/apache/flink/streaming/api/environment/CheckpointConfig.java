@@ -18,14 +18,14 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.streaming.api.CheckpointingMode;
-
-import static java.util.Objects.requireNonNull;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Configuration that captures all checkpointing related settings.
@@ -35,16 +35,16 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	private static final long serialVersionUID = -750378776078908147L;
 
-	/** The default checkpoint mode: exactly once */
+	/** The default checkpoint mode: exactly once. */
 	public static final CheckpointingMode DEFAULT_MODE = CheckpointingMode.EXACTLY_ONCE;
 
-	/** The default timeout of a checkpoint attempt: 10 minutes */
+	/** The default timeout of a checkpoint attempt: 10 minutes. */
 	public static final long DEFAULT_TIMEOUT = 10 * 60 * 1000;
 
-	/** The default minimum pause to be made between checkpoints: none */
+	/** The default minimum pause to be made between checkpoints: none. */
 	public static final long DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS = 0;
 
-	/** The default limit of concurrently happening checkpoints: one */
+	/** The default limit of concurrently happening checkpoints: one. */
 	public static final int DEFAULT_MAX_CONCURRENT_CHECKPOINTS = 1;
 
 	// ------------------------------------------------------------------------
@@ -52,19 +52,19 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Checkpointing mode (exactly-once vs. at-least-once). */
 	private CheckpointingMode checkpointingMode = DEFAULT_MODE;
 
-	/** Periodic checkpoint triggering interval */
+	/** Periodic checkpoint triggering interval. */
 	private long checkpointInterval = -1; // disabled
 
-	/** Maximum time checkpoint may take before being discarded */
+	/** Maximum time checkpoint may take before being discarded. */
 	private long checkpointTimeout = DEFAULT_TIMEOUT;
 
-	/** Minimal pause between checkpointing attempts */
+	/** Minimal pause between checkpointing attempts. */
 	private long minPauseBetweenCheckpoints = DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS;
 
-	/** Maximum number of checkpoint attempts in progress at the same time */
+	/** Maximum number of checkpoint attempts in progress at the same time. */
 	private int maxConcurrentCheckpoints = DEFAULT_MAX_CONCURRENT_CHECKPOINTS;
 
-	/** Flag to force checkpointing in iterative jobs */
+	/** Flag to force checkpointing in iterative jobs. */
 	private boolean forceCheckpointing;
 
 	/** Cleanup behaviour for persistent checkpoints. */
@@ -74,16 +74,16 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Checks whether checkpointing is enabled.
-	 * 
+	 *
 	 * @return True if checkpointing is enables, false otherwise.
 	 */
 	public boolean isCheckpointingEnabled() {
 		return checkpointInterval > 0;
 	}
-	
+
 	/**
 	 * Gets the checkpointing mode (exactly-once vs. at-least-once).
-	 * 
+	 *
 	 * @return The checkpointing mode.
 	 */
 	public CheckpointingMode getCheckpointingMode() {
@@ -92,7 +92,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Sets the checkpointing mode (exactly-once vs. at-least-once).
-	 * 
+	 *
 	 * @param checkpointingMode The checkpointing mode.
 	 */
 	public void setCheckpointingMode(CheckpointingMode checkpointingMode) {
@@ -101,10 +101,10 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Gets the interval in which checkpoints are periodically scheduled.
-	 * 
+	 *
 	 * <p>This setting defines the base interval. Checkpoint triggering may be delayed by the settings
 	 * {@link #getMaxConcurrentCheckpoints()} and {@link #getMinPauseBetweenCheckpoints()}.
-	 * 
+	 *
 	 * @return The checkpoint interval, in milliseconds.
 	 */
 	public long getCheckpointInterval() {
@@ -128,7 +128,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Gets the maximum time that a checkpoint may take before being discarded.
-	 * 
+	 *
 	 * @return The checkpoint timeout, in milliseconds.
 	 */
 	public long getCheckpointTimeout() {
@@ -137,7 +137,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Sets the maximum time that a checkpoint may take before being discarded.
-	 * 
+	 *
 	 * @param checkpointTimeout The checkpoint timeout, in milliseconds.
 	 */
 	public void setCheckpointTimeout(long checkpointTimeout) {
@@ -164,10 +164,10 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * checkpoint coordinator may trigger another checkpoint after it becomes possible to trigger
 	 * another checkpoint with respect to the maximum number of concurrent checkpoints
 	 * (see {@link #setMaxConcurrentCheckpoints(int)}).
-	 * 
+	 *
 	 * <p>If the maximum number of concurrent checkpoints is set to one, this setting makes effectively sure
 	 * that a minimum amount of time passes where no checkpoint is in progress at all.
-	 * 
+	 *
 	 * @param minPauseBetweenCheckpoints The minimal pause before the next checkpoint is triggered.
 	 */
 	public void setMinPauseBetweenCheckpoints(long minPauseBetweenCheckpoints) {
@@ -182,7 +182,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * value is <i>n</i>, then no checkpoints will be triggered while <i>n</i> checkpoint attempts are
 	 * currently in flight. For the next checkpoint to be triggered, one checkpoint attempt would need
 	 * to finish or expire.
-	 * 
+	 *
 	 * @return The maximum number of concurrent checkpoint attempts.
 	 */
 	public int getMaxConcurrentCheckpoints() {
@@ -194,7 +194,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * value is <i>n</i>, then no checkpoints will be triggered while <i>n</i> checkpoint attempts are
 	 * currently in flight. For the next checkpoint to be triggered, one checkpoint attempt would need
 	 * to finish or expire.
-	 * 
+	 *
 	 * @param maxConcurrentCheckpoints The maximum number of concurrent checkpoint attempts.
 	 */
 	public void setMaxConcurrentCheckpoints(int maxConcurrentCheckpoints) {
@@ -206,9 +206,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Checks whether checkpointing is forced, despite currently non-checkpointable iteration feedback.
-	 * 
+	 *
 	 * @return True, if checkpointing is forced, false otherwise.
-	 * 
+	 *
 	 * @deprecated This will be removed once iterations properly participate in checkpointing.
 	 */
 	@Deprecated
@@ -219,9 +219,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Checks whether checkpointing is forced, despite currently non-checkpointable iteration feedback.
-	 * 
-	 * @param forceCheckpointing The flag to force checkpointing. 
-	 * 
+	 *
+	 * @param forceCheckpointing The flag to force checkpointing.
+	 *
 	 * @deprecated This will be removed once iterations properly participate in checkpointing.
 	 */
 	@Deprecated

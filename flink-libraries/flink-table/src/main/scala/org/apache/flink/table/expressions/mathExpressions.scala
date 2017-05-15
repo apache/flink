@@ -127,3 +127,161 @@ case class Sqrt(child: Expression) extends UnaryExpression with InputTypeSpec {
     relBuilder.call(SqlStdOperatorTable.POWER, child.toRexNode, Literal(0.5).toRexNode)
   }
 }
+
+case class Sin(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Sin")
+
+  override def toString: String = s"sin($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.SIN, child.toRexNode)
+  }
+}
+
+case class Cos(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Cos")
+
+  override def toString: String = s"cos($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.COS, child.toRexNode)
+  }
+}
+
+case class Tan(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Tan")
+
+  override def toString: String = s"tan($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.TAN, child.toRexNode)
+  }
+}
+
+case class Cot(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Cot")
+
+  override def toString: String = s"cot($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.COT, child.toRexNode)
+  }
+}
+
+case class Asin(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Asin")
+
+  override def toString: String = s"asin($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.ASIN, child.toRexNode)
+  }
+}
+
+case class Acos(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Acos")
+
+  override def toString: String = s"acos($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.ACOS, child.toRexNode)
+  }
+}
+
+case class Atan(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Atan")
+
+  override def toString: String = s"atan($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.ATAN, child.toRexNode)
+  }
+}
+
+case class Degrees(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Degrees")
+
+  override def toString: String = s"degrees($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.DEGREES, child.toRexNode)
+  }
+}
+
+case class Radians(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "Radians")
+
+  override def toString: String = s"radians($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.RADIANS, child.toRexNode)
+  }
+}
+
+case class Sign(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = child.resultType
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertNumericExpr(child.resultType, "sign")
+
+  override def toString: String = s"sign($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.SIGN, child.toRexNode)
+  }
+}
+
+case class Round(left: Expression, right: Expression) extends BinaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = left.resultType
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (!TypeCheckUtils.isInteger(right.resultType)) {
+      ValidationFailure(s"round right requires int, get " +
+        s"$right : ${right.resultType}")
+    }
+    TypeCheckUtils.assertNumericExpr(left.resultType, s"round left :$left")
+  }
+
+  override def toString: String = s"round($left, $right)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.ROUND, left.toRexNode, right.toRexNode)
+  }
+}
+
+case class Pi() extends LeafExpression {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override def toString: String = s"pi()"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.PI)
+  }
+}

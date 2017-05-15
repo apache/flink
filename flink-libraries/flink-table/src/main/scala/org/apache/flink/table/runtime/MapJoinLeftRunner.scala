@@ -19,19 +19,23 @@
 package org.apache.flink.table.runtime
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 class MapJoinLeftRunner[IN1, IN2, OUT](
     name: String,
     code: String,
-    @transient returnType: TypeInformation[OUT],
+    outerJoin: Boolean,
+    returnType: TypeInformation[OUT],
     broadcastSetName: String)
   extends MapSideJoinRunner[IN1, IN2, IN2, IN1, OUT](name, code, returnType, broadcastSetName) {
 
   override def flatMap(multiInput: IN1, out: Collector[OUT]): Unit = {
     broadcastSet match {
       case Some(singleInput) => function.join(multiInput, singleInput, out)
+      case None if outerJoin => function.join(multiInput, null.asInstanceOf[IN2], out)
       case None =>
     }
   }
+
 }

@@ -18,14 +18,8 @@
 
 package org.apache.flink.graph.library.similarity;
 
-import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
-import org.apache.flink.graph.asm.simple.undirected.Simplify;
-import org.apache.flink.graph.generator.RMatGraph;
-import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
-import org.apache.flink.graph.generator.random.RandomGenerableFactory;
 import org.apache.flink.graph.library.similarity.AdamicAdar.Result;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
@@ -117,16 +111,7 @@ extends AsmTestBase {
 	@Test
 	public void testRMatGraph()
 			throws Exception {
-		long vertexCount = 1 << 8;
-		long edgeCount = 8 * vertexCount;
-
-		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
-
-		Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
-			.generate()
-			.run(new Simplify<LongValue, NullValue, NullValue>(false));
-
-		DataSet<Result<LongValue>> aa = graph
+		DataSet<Result<LongValue>> aa = undirectedRMatGraph(8, 8)
 			.run(new AdamicAdar<LongValue, NullValue, NullValue>());
 
 		assertEquals(13954, aa.count());

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,26 +18,23 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
-
+import java.util.Collection;
+import java.util.List;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
-import java.util.Collection;
-import java.util.List;
-
 /**
  * This transformation represents a change of partitioning of the input elements.
  *
- * <p>
- * This does not create a physical operation, it only affects how upstream operations are
+ * <p>This does not create a physical operation, it only affects how upstream operations are
  * connected to downstream operations.
  *
  * @param <T> The type of the elements that result from this {@code PartitionTransformation}
  */
 @Internal
 public class PartitionTransformation<T> extends StreamTransformation<T> {
-	
+
 	private final StreamTransformation<T> input;
 	private final StreamPartitioner<T> partitioner;
 

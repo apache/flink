@@ -12,12 +12,14 @@
  */
 package org.apache.flink.python.api.functions.util;
 
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 
 /*
 Utility function to group and sort data.
 */
+@ForwardedFields("*->*")
 public class IdentityGroupReduce<IN> implements GroupReduceFunction<IN, IN> {
 	@Override
 	public final void reduce(Iterable<IN> values, Collector<IN> out) throws Exception {

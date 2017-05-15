@@ -26,7 +26,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 /**
  * Partitioner that distributes the data equally by selecting one output channel
  * randomly.
- * 
+ *
  * @param <T>
  *            Type of the Tuple
  */

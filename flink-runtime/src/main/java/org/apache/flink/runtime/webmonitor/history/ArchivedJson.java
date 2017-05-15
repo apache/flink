@@ -27,6 +27,7 @@ import org.apache.flink.util.Preconditions;
  * resembling the REST API.
  */
 public class ArchivedJson {
+
 	private final String path;
 	private final String json;
 	
@@ -41,5 +42,20 @@ public class ArchivedJson {
 
 	public String getJson() {
 		return json;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof ArchivedJson) {
+			ArchivedJson other = (ArchivedJson) obj;
+			return this.path.equals(other.path) && this.json.equals(other.json);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public String toString() {
+		return path +":" + json;
 	}
 }

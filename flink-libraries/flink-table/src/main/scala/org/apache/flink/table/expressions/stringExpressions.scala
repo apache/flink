@@ -111,7 +111,7 @@ case class Lower(child: Expression) extends UnaryExpression {
     }
   }
 
-  override def toString: String = s"($child).toLowerCase()"
+  override def toString: String = s"($child).lowerCase()"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.LOWER, child.toRexNode)

@@ -20,54 +20,27 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.util.TestLogger
-import org.junit.Test
-import org.scalatest.junit.JUnitSuiteLike
+import org.apache.flink.api.common.typeutils.{TypeInformationTestBase, TypeSerializer}
 
-class CaseClassTypeInfoTest extends TestLogger with JUnitSuiteLike {
+/**
+  * Test for [[CaseClassTypeInfo]].
+  */
+class CaseClassTypeInfoTest extends TypeInformationTestBase[CaseClassTypeInfo[_]] {
 
-  @Test
-  def testCaseClassTypeInfoEquality(): Unit = {
-    val tpeInfo1 = new CaseClassTypeInfo[Tuple2[Int, String]](
-      classOf[Tuple2[Int, String]],
+  override protected def getTestData: Array[CaseClassTypeInfo[_]] = Array(
+    new CaseClassTypeInfo[(Int, String)](
+      classOf[(Int, String)],
       Array(),
       Array(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
       Array("_1", "_2")) {
       override def createSerializer(config: ExecutionConfig): TypeSerializer[(Int, String)] = ???
-    }
-
-    val tpeInfo2 = new CaseClassTypeInfo[Tuple2[Int, String]](
-      classOf[Tuple2[Int, String]],
-      Array(),
-      Array(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
-      Array("_1", "_2")) {
-      override def createSerializer(config: ExecutionConfig): TypeSerializer[(Int, String)] = ???
-    }
-
-    assert(tpeInfo1.equals(tpeInfo2))
-    assert(tpeInfo1.hashCode() == tpeInfo2.hashCode())
-  }
-
-  @Test
-  def testCaseClassTypeInfoInequality(): Unit = {
-    val tpeInfo1 = new CaseClassTypeInfo[Tuple2[Int, String]](
-      classOf[Tuple2[Int, String]],
-      Array(),
-      Array(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
-      Array("_1", "_2")) {
-      override def createSerializer(config: ExecutionConfig): TypeSerializer[(Int, String)] = ???
-    }
-
-    val tpeInfo2 = new CaseClassTypeInfo[Tuple2[Int, Boolean]](
-      classOf[Tuple2[Int, Boolean]],
+    },
+    new CaseClassTypeInfo[(Int, Boolean)](
+      classOf[(Int, Boolean)],
       Array(),
       Array(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO),
       Array("_1", "_2")) {
       override def createSerializer(config: ExecutionConfig): TypeSerializer[(Int, Boolean)] = ???
     }
-
-    assert(!tpeInfo1.equals(tpeInfo2))
-  }
-
+  )
 }

@@ -18,21 +18,39 @@
 
 package org.apache.flink.table.plan.nodes.datastream
 
-import org.apache.calcite.rel.RelNode
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.StreamTableEnvironment
-import org.apache.flink.table.plan.nodes.FlinkRel
-import org.apache.flink.types.Row
+import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
+import org.apache.flink.table.plan.nodes.FlinkRelNode
+import org.apache.flink.table.runtime.types.CRow
 
-trait DataStreamRel extends RelNode with FlinkRel {
+trait DataStreamRel extends FlinkRelNode {
 
   /**
     * Translates the FlinkRelNode into a Flink operator.
     *
     * @param tableEnv The [[StreamTableEnvironment]] of the translated Table.
-    * @return DataStream of type [[Row]]
+    * @param queryConfig The configuration for the query to generate.
+    * @return DataStream of type [[CRow]]
     */
-  def translateToPlan(tableEnv: StreamTableEnvironment) : DataStream[Row]
+  def translateToPlan(
+    tableEnv: StreamTableEnvironment,
+    queryConfig: StreamQueryConfig): DataStream[CRow]
+
+  /**
+    * Whether the [[DataStreamRel]] requires that update and delete changes are sent with retraction
+    * messages.
+    */
+  def needsUpdatesAsRetraction: Boolean = false
+
+  /**
+    * Whether the [[DataStreamRel]] produces update and delete changes.
+    */
+  def producesUpdates: Boolean = false
+
+  /**
+    * Wheter the [[DataStreamRel]] consumes retraction messages instead of forwarding them.
+    * The node might or might not produce new retraction messages.
+    */
+  def consumesRetractions: Boolean = false
 
 }
-

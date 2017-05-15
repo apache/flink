@@ -347,7 +347,7 @@ class ArrayTypeTest extends ExpressionTestBase {
       Types.INT,
       Types.INT,
       PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
-      ObjectArrayTypeInfo.getInfoFor(Types.DATE),
+      ObjectArrayTypeInfo.getInfoFor(Types.SQL_DATE),
       ObjectArrayTypeInfo.getInfoFor(ObjectArrayTypeInfo.getInfoFor(Types.INT)),
       ObjectArrayTypeInfo.getInfoFor(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO),
       ObjectArrayTypeInfo.getInfoFor(Types.INT),

@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Ignore;
 
 import org.slf4j.Logger;
@@ -43,7 +44,7 @@ import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 @Ignore
-public class NetworkStackThroughputITCase {
+public class NetworkStackThroughputITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NetworkStackThroughputITCase.class);
 

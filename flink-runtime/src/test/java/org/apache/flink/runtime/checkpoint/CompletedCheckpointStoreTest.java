@@ -20,14 +20,14 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.messages.CheckpointMessagesTest;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +36,11 @@ import java.util.concurrent.CountDownLatch;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 /**
  * Test for basic {@link CompletedCheckpointStore} contract.
@@ -64,7 +69,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	@Test
 	public void testAddAndGetLatestCheckpoint() throws Exception {
 		CompletedCheckpointStore checkpoints = createCompletedCheckpoints(4);
-
+		
 		// Empty state
 		assertEquals(0, checkpoints.getNumberOfRetainedCheckpoints());
 		assertEquals(0, checkpoints.getAllCheckpoints().size());
@@ -100,12 +105,20 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
 
 		for (int i = 1; i < expected.length; i++) {
+			Collection<OperatorState> taskStates = expected[i - 1].getOperatorStates().values();
+
 			checkpoints.addCheckpoint(expected[i]);
 
 			// The ZooKeeper implementation discards asynchronously
 			expected[i - 1].awaitDiscard();
 			assertTrue(expected[i - 1].isDiscarded());
 			assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
+
+			for (OperatorState operatorState : taskStates) {
+				for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
+					verify(subtaskState, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
+				}
+			}
 		}
 	}
 
@@ -185,31 +198,46 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	// ---------------------------------------------------------------------------------------------
 
 	protected TestCompletedCheckpoint createCheckpoint(int id) throws IOException {
-		return createCheckpoint(id, 4);
-	}
+		int numberOfStates = 4;
+		CheckpointProperties props = CheckpointProperties.forStandardCheckpoint();
 
-	protected TestCompletedCheckpoint createCheckpoint(int id, int numberOfStates)
-			throws IOException {
-		return createCheckpoint(id, numberOfStates, CheckpointProperties.forStandardCheckpoint());
-	}
+		OperatorID operatorID = new OperatorID();
 
-	protected TestCompletedCheckpoint createCheckpoint(int id, int numberOfStates, CheckpointProperties props)
-			throws IOException {
-
-		JobVertexID jvid = new JobVertexID();
-
-		Map<JobVertexID, TaskState> taskGroupStates = new HashMap<>();
-		TaskState taskState = new TaskState(jvid, numberOfStates, numberOfStates, 1);
-		taskGroupStates.put(jvid, taskState);
+		Map<OperatorID, OperatorState> operatorGroupState = new HashMap<>();
+		OperatorState operatorState = new OperatorState(operatorID, numberOfStates, numberOfStates);
+		operatorGroupState.put(operatorID, operatorState);
 
 		for (int i = 0; i < numberOfStates; i++) {
-			ChainedStateHandle<StreamStateHandle> stateHandle = CheckpointCoordinatorTest.generateChainedStateHandle(
-					new CheckpointMessagesTest.MyHandle());
+			OperatorSubtaskState subtaskState = mock(OperatorSubtaskState.class);
 
-			taskState.putState(i, new SubtaskState(stateHandle, null, null, null, null));
+			operatorState.putState(i, subtaskState);
 		}
 
-		return new TestCompletedCheckpoint(new JobID(), id, 0, taskGroupStates, props);
+		return new TestCompletedCheckpoint(new JobID(), id, 0, operatorGroupState, props);
+	}
+
+	protected void resetCheckpoint(Collection<OperatorState> operatorStates) {
+		for (OperatorState operatorState : operatorStates) {
+			for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
+				Mockito.reset(subtaskState);
+			}
+		}
+	}
+
+	protected void verifyCheckpointRegistered(Collection<OperatorState> operatorStates, SharedStateRegistry registry) {
+		for (OperatorState operatorState : operatorStates) {
+			for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
+				verify(subtaskState, times(1)).registerSharedStates(eq(registry));
+			}
+		}
+	}
+
+	protected void verifyCheckpointDiscarded(Collection<OperatorState> operatorStates) {
+		for (OperatorState operatorState : operatorStates) {
+			for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
+				verify(subtaskState, times(1)).discardState();
+			}
+		}
 	}
 
 	private void verifyCheckpoint(CompletedCheckpoint expected, CompletedCheckpoint actual) {
@@ -234,15 +262,14 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			JobID jobId,
 			long checkpointId,
 			long timestamp,
-			Map<JobVertexID, TaskState> taskGroupStates,
+			Map<OperatorID, OperatorState> operatorGroupState,
 			CheckpointProperties props) {
-
-			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, taskGroupStates, props);
+			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, operatorGroupState, null, props, null, null);
 		}
 
 		@Override
-		public boolean subsume() throws Exception {
-			if (super.subsume()) {
+		public boolean discardOnSubsume(SharedStateRegistry sharedStateRegistry) throws Exception {
+			if (super.discardOnSubsume(sharedStateRegistry)) {
 				discard();
 				return true;
 			} else {
@@ -251,8 +278,8 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		}
 
 		@Override
-		public boolean discard(JobStatus jobStatus) throws Exception {
-			if (super.discard(jobStatus)) {
+		public boolean discardOnShutdown(JobStatus jobStatus, SharedStateRegistry sharedStateRegistry) throws Exception {
+			if (super.discardOnShutdown(jobStatus, sharedStateRegistry)) {
 				discard();
 				return true;
 			} else {

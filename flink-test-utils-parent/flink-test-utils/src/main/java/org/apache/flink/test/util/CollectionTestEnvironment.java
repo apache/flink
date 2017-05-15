@@ -60,4 +60,8 @@ public class CollectionTestEnvironment extends CollectionEnvironment {
 
 		initializeContextEnvironment(factory);
 	}
+
+	protected static void unsetAsContext() {
+		resetContextEnvironment();
+	}
 }

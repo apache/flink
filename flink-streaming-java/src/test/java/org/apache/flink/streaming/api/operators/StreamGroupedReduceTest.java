@@ -50,7 +50,7 @@ public class StreamGroupedReduceTest {
 	public void testGroupedReduce() throws Exception {
 
 		KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
-		
+
 		StreamGroupedReduce<Integer> operator = new StreamGroupedReduce<>(new MyReducer(), IntSerializer.INSTANCE);
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
@@ -82,7 +82,7 @@ public class StreamGroupedReduceTest {
 	public void testOpenClose() throws Exception {
 
 		KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
-		
+
 		StreamGroupedReduce<Integer> operator =
 				new StreamGroupedReduce<>(new TestOpenCloseReduceFunction(), IntSerializer.INSTANCE);
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =

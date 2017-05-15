@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
+import org.apache.flink.runtime.checkpoint.MasterState;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.util.Preconditions;
 
@@ -60,36 +62,26 @@ public class SavepointV1 implements Savepoint {
 	}
 
 	@Override
+	public Collection<MasterState> getMasterStates() {
+		// since checkpoints are never deserialized into this format,
+		// this method should never be called
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Collection<OperatorState> getOperatorStates() {
+		return null;
+	}
+
+	@Override
 	public void dispose() throws Exception {
-		for (TaskState taskState : taskStates) {
-			taskState.discardState();
-		}
-		taskStates.clear();
+		// since checkpoints are never deserialized into this format,
+		// this method should never be called
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public String toString() {
 		return "Savepoint(version=" + VERSION + ")";
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-
-		SavepointV1 that = (SavepointV1) o;
-		return checkpointId == that.checkpointId && getTaskStates().equals(that.getTaskStates());
-	}
-
-	@Override
-	public int hashCode() {
-		int result = (int) (checkpointId ^ (checkpointId >>> 32));
-		result = 31 * result + taskStates.hashCode();
-		return result;
 	}
 }

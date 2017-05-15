@@ -36,8 +36,7 @@ public class IntPrimitiveArraySerializer extends TypeSerializerSingleton<int[]>{
 	private static final int[] EMPTY = new int[0];
 
 	public static final IntPrimitiveArraySerializer INSTANCE = new IntPrimitiveArraySerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;

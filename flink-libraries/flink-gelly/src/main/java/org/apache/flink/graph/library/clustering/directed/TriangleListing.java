@@ -35,9 +35,9 @@ import org.apache.flink.graph.EdgeOrder;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.directed.EdgeDegreesPair;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
-import org.apache.flink.graph.library.clustering.directed.TriangleListing.Result;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.asm.result.TertiaryResult;
+import org.apache.flink.graph.library.clustering.directed.TriangleListing.Result;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.ByteValue;
@@ -429,13 +429,28 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		}
 
 		@Override
+		public void setVertexId0(T value) {
+			f0 = value;
+		}
+
+		@Override
 		public T getVertexId1() {
 			return f1;
 		}
 
 		@Override
+		public void setVertexId1(T value) {
+			f1 = value;
+		}
+
+		@Override
 		public T getVertexId2() {
 			return f2;
+		}
+
+		@Override
+		public void setVertexId2(T value) {
+			f2 = value;
 		}
 
 		/**

@@ -19,6 +19,9 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.reflect.ReflectDatumReader;
@@ -26,13 +29,17 @@ import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.util.Utf8;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
+import org.apache.flink.util.Preconditions;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -51,6 +58,14 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 	private final Class<T> type;
 	
 	private final Class<? extends T> typeToInstantiate;
+
+	/**
+	 * Map of class tag (using classname as tag) to their Kryo registration.
+	 *
+	 * <p>This map serves as a preview of the final registration result of
+	 * the Kryo instance, taking into account registration overwrites.
+	 */
+	private LinkedHashMap<String, KryoRegistration> kryoRegistrations;
 	
 	private transient ReflectDatumWriter<T> writer;
 	private transient ReflectDatumReader<T> reader;
@@ -73,6 +88,8 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 		this.typeToInstantiate = checkNotNull(typeToInstantiate);
 		
 		InstantiationUtil.checkForInstantiation(typeToInstantiate);
+
+		this.kryoRegistrations = buildKryoRegistrations(type);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -165,14 +182,9 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 			instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
 			kryo.setInstantiatorStrategy(instantiatorStrategy);
 
-			// register Avro types.
-			this.kryo.register(GenericData.Array.class, new Serializers.SpecificInstanceCollectionSerializerForArrayList());
-			this.kryo.register(Utf8.class);
-			this.kryo.register(GenericData.EnumSymbol.class);
-			this.kryo.register(GenericData.Fixed.class);
-			this.kryo.register(GenericData.StringType.class);
-			this.kryo.setAsmEnabled(true);
-			this.kryo.register(type);
+			kryo.setAsmEnabled(true);
+
+			KryoUtils.applyRegistrations(kryo, kryoRegistrations.values());
 		}
 	}
 	
@@ -200,5 +212,121 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof AvroSerializer;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Serializer configuration snapshotting & compatibility
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public AvroSerializerConfigSnapshot<T> snapshotConfiguration() {
+		return new AvroSerializerConfigSnapshot<>(type, typeToInstantiate, kryoRegistrations);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof AvroSerializerConfigSnapshot) {
+			final AvroSerializerConfigSnapshot<T> config = (AvroSerializerConfigSnapshot<T>) configSnapshot;
+
+			if (type.equals(config.getTypeClass()) && typeToInstantiate.equals(config.getTypeToInstantiate())) {
+				// resolve Kryo registrations; currently, since the Kryo registrations in Avro
+				// are fixed, there shouldn't be a problem with the resolution here.
+
+				LinkedHashMap<String, KryoRegistration> oldRegistrations = config.getKryoRegistrations();
+				oldRegistrations.putAll(kryoRegistrations);
+
+				for (Map.Entry<String, KryoRegistration> reconfiguredRegistrationEntry : kryoRegistrations.entrySet()) {
+					if (reconfiguredRegistrationEntry.getValue().isDummy()) {
+						return CompatibilityResult.requiresMigration();
+					}
+				}
+
+				this.kryoRegistrations = oldRegistrations;
+				return CompatibilityResult.compatible();
+			}
+		}
+
+		// ends up here if the preceding serializer is not
+		// the ValueSerializer, or serialized data type has changed
+		return CompatibilityResult.requiresMigration();
+	}
+
+	public static class AvroSerializerConfigSnapshot<T> extends KryoRegistrationSerializerConfigSnapshot<T> {
+
+		private static final int VERSION = 1;
+
+		private Class<? extends T> typeToInstantiate;
+
+		public AvroSerializerConfigSnapshot() {}
+
+		public AvroSerializerConfigSnapshot(
+				Class<T> baseType,
+				Class<? extends T> typeToInstantiate,
+				LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
+
+			super(baseType, kryoRegistrations);
+			this.typeToInstantiate = Preconditions.checkNotNull(typeToInstantiate);
+		}
+
+		@Override
+		public void write(DataOutputView out) throws IOException {
+			super.write(out);
+
+			out.writeUTF(typeToInstantiate.getName());
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public void read(DataInputView in) throws IOException {
+			super.read(in);
+
+			String classname = in.readUTF();
+			try {
+				typeToInstantiate = (Class<? extends T>) Class.forName(classname, true, getUserCodeClassLoader());
+			} catch (ClassNotFoundException e) {
+				throw new IOException("Cannot find requested class " + classname + " in classpath.", e);
+			}
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
+
+		public Class<? extends T> getTypeToInstantiate() {
+			return typeToInstantiate;
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+
+		// kryoRegistrations may be null if this Avro serializer is deserialized from an old version
+		if (kryoRegistrations == null) {
+			this.kryoRegistrations = buildKryoRegistrations(type);
+		}
+	}
+
+	private static <T> LinkedHashMap<String, KryoRegistration> buildKryoRegistrations(Class<T> serializedDataType) {
+		final LinkedHashMap<String, KryoRegistration> registrations = new LinkedHashMap<>();
+
+		// register Avro types.
+		registrations.put(
+				GenericData.Array.class.getName(),
+				new KryoRegistration(
+						GenericData.Array.class,
+						new ExecutionConfig.SerializableSerializer<>(new Serializers.SpecificInstanceCollectionSerializerForArrayList())));
+		registrations.put(Utf8.class.getName(), new KryoRegistration(Utf8.class));
+		registrations.put(GenericData.EnumSymbol.class.getName(), new KryoRegistration(GenericData.EnumSymbol.class));
+		registrations.put(GenericData.Fixed.class.getName(), new KryoRegistration(GenericData.Fixed.class));
+		registrations.put(GenericData.StringType.class.getName(), new KryoRegistration(GenericData.StringType.class));
+
+		// register the serialized data type
+		registrations.put(serializedDataType.getName(), new KryoRegistration(serializedDataType));
+
+		return registrations;
 	}
 }

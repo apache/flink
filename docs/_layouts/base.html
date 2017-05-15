@@ -69,10 +69,10 @@ under the License.
       the _layouts directory goes here.
       {% endcomment %}
       <div class="row">
-        <div class="col-lg-3">
+        <div class="col-lg-3" id="sidenavcol">
           {% include sidenav.html %}
         </div>
-        <div class="col-lg-9 content">
+        <div class="col-lg-9 content" id="contentcol">
           {% if page.mathjax %}
           {% include latex_commands.html %}
           {% endif %}

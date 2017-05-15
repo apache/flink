@@ -20,22 +20,12 @@ package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
 
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http.router.Handler;
 import io.netty.handler.codec.http.router.Router;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.stream.ChunkedWriteHandler;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -84,6 +74,7 @@ import org.apache.flink.runtime.webmonitor.metrics.JobMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.JobVertexMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.metrics.TaskManagerMetricsHandler;
+import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.FileUtils;
 
 import org.slf4j.Logger;
@@ -95,10 +86,8 @@ import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
 
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
 import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -133,17 +122,12 @@ public class WebRuntimeMonitor implements WebMonitor {
 	/** LeaderRetrievalListener which stores the currently leading JobManager and its archive */
 	private final JobManagerRetriever retriever;
 
-	private final Router router;
-
 	private final SSLContext serverSSLContext;
-
-	private final ServerBootstrap bootstrap;
 
 	private final Promise<String> jobManagerAddressPromise = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 	private final FiniteDuration timeout;
-
-	private Channel serverChannel;
+	private final WebFrontendBootstrap netty;
 
 	private final File webRootDir;
 
@@ -152,6 +136,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 	private final StackTraceSampleCoordinator stackTraceSamples;
 
 	private final BackPressureStatsTracker backPressureStatsTracker;
+
+	private final WebMonitorConfig cfg;
 
 	private AtomicBoolean cleanedUp = new AtomicBoolean();
 
@@ -167,8 +153,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		this.leaderRetrievalService = checkNotNull(leaderRetrievalService);
 		this.timeout = AkkaUtils.getTimeout(config);
 		this.retriever = new JobManagerRetriever(this, actorSystem, AkkaUtils.getTimeout(config), timeout);
-		
-		final WebMonitorConfig cfg = new WebMonitorConfig(config);
+		this.cfg = new WebMonitorConfig(config);
 
 		final String configuredAddress = cfg.getWebFrontendAddress();
 
@@ -207,21 +192,13 @@ public class WebRuntimeMonitor implements WebMonitor {
 		stackTraceSamples = new StackTraceSampleCoordinator(actorSystem.dispatcher(), 60000);
 
 		// Back pressure stats tracker config
-		int cleanUpInterval = config.getInteger(
-				ConfigConstants.JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL,
-				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL);
+		int cleanUpInterval = config.getInteger(JobManagerOptions.WEB_BACKPRESSURE_CLEANUP_INTERVAL);
 
-		int refreshInterval = config.getInteger(
-				ConfigConstants.JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL,
-				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL);
+		int refreshInterval = config.getInteger(JobManagerOptions.WEB_BACKPRESSURE_REFRESH_INTERVAL);
 
-		int numSamples = config.getInteger(
-				ConfigConstants.JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES,
-				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES);
+		int numSamples = config.getInteger(JobManagerOptions.WEB_BACKPRESSURE_NUM_SAMPLES);
 
-		int delay = config.getInteger(
-				ConfigConstants.JOB_MANAGER_WEB_BACK_PRESSURE_DELAY,
-				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_DELAY);
+		int delay = config.getInteger(JobManagerOptions.WEB_BACKPRESSURE_DELAY);
 
 		Time delayBetweenSamples = Time.milliseconds(delay);
 
@@ -235,10 +212,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		ExecutionContextExecutor context = ExecutionContext$.MODULE$.fromExecutor(executorService);
 
 		// Config to enable https access to the web-ui
-		boolean enableSSL = config.getBoolean(
-				ConfigConstants.JOB_MANAGER_WEB_SSL_ENABLED,
-				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_SSL_ENABLED) &&
-			SSLUtils.getSSLEnabled(config);
+		boolean enableSSL = config.getBoolean(JobManagerOptions.WEB_SSL_ENABLED) &&	SSLUtils.getSSLEnabled(config);
 
 		if (enableSSL) {
 			LOG.info("Enabling ssl for the web frontend");
@@ -258,7 +232,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		RuntimeMonitorHandler triggerHandler = handler(cancelWithSavepoint.getTriggerHandler());
 		RuntimeMonitorHandler inProgressHandler = handler(cancelWithSavepoint.getInProgressHandler());
 
-		router = new Router();
+		Router router = new Router();
 		// config how to interact with this web server
 		GET(router, new DashboardConfigHandler(cfg.getRefreshInterval()));
 
@@ -326,9 +300,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		// DELETE is the preferred way of stopping a job (Rest-conform)
 		DELETE(router, new JobStoppingHandler());
 
-		int maxCachedEntries = config.getInteger(
-				ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE,
-			ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE);
+		int maxCachedEntries = config.getInteger(JobManagerOptions.WEB_CHECKPOINTS_HISTORY_SIZE);
 		CheckpointStatsCache cache = new CheckpointStatsCache(maxCachedEntries);
 
 		// Register the checkpoint stats handlers
@@ -380,50 +352,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			LOG.warn("Error while adding shutdown hook", t);
 		}
 
-		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
-
-			@Override
-			protected void initChannel(SocketChannel ch) {
-				Handler handler = new Handler(router);
-
-				// SSL should be the first handler in the pipeline
-				if (serverSSLContext != null) {
-					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
-					sslEngine.setUseClientMode(false);
-					ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
-				}
-
-				ch.pipeline()
-						.addLast(new HttpServerCodec())
-						.addLast(new ChunkedWriteHandler())
-						.addLast(new HttpRequestHandler(uploadDir))
-						.addLast(handler.name(), handler)
-						.addLast(new PipelineErrorHandler(LOG));
-			}
-		};
-
-		NioEventLoopGroup bossGroup   = new NioEventLoopGroup(1);
-		NioEventLoopGroup workerGroup = new NioEventLoopGroup();
-
-		this.bootstrap = new ServerBootstrap();
-		this.bootstrap
-				.group(bossGroup, workerGroup)
-				.channel(NioServerSocketChannel.class)
-				.childHandler(initializer);
-
-		ChannelFuture ch;
-		if (configuredAddress == null) {
-			ch = this.bootstrap.bind(configuredPort);
-		} else {
-			ch = this.bootstrap.bind(configuredAddress, configuredPort);
-		}
-		this.serverChannel = ch.sync().channel();
-
-		InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
-		String address = bindAddress.getAddress().getHostAddress();
-		int port = bindAddress.getPort();
-
-		LOG.info("Web frontend listening at " + address + ':' + port);
+		this.netty = new WebFrontendBootstrap(router, LOG, uploadDir, serverSSLContext, configuredAddress, configuredPort, config);
 	}
 
 	/**
@@ -439,7 +368,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	 * 
 	 * @return array of all JsonArchivists relevant for the history server
 	 */
-	public static JsonArchivist[] getArchivers() {
+	public static JsonArchivist[] getJsonArchivists() {
 		JsonArchivist[] archivists = new JsonArchivist[]{
 			new CurrentJobsOverviewHandler.CurrentJobsOverviewJsonArchivist(),
 
@@ -480,7 +409,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			// this here repeatedly, because cache clean up only happens on
 			// interactions with the cache. We need it to make sure that we
 			// don't leak memory after completed jobs or long ago accessed stats.
-			bootstrap.childGroup().scheduleWithFixedDelay(new Runnable() {
+			netty.getBootstrap().childGroup().scheduleWithFixedDelay(new Runnable() {
 				@Override
 				public void run() {
 					try {
@@ -498,18 +427,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		synchronized (startupShutdownLock) {
 			leaderRetrievalService.stop();
 
-			if (this.serverChannel != null) {
-				this.serverChannel.close().awaitUninterruptibly();
-				this.serverChannel = null;
-			}
-			if (bootstrap != null) {
-				if (bootstrap.group() != null) {
-					bootstrap.group().shutdownGracefully();
-				}
-				if (bootstrap.childGroup() != null) {
-					bootstrap.childGroup().shutdownGracefully();
-				}
-			}
+			netty.shutdown();
 
 			stackTraceSamples.shutDown();
 
@@ -523,17 +441,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	@Override
 	public int getServerPort() {
-		Channel server = this.serverChannel;
-		if (server != null) {
-			try {
-				return ((InetSocketAddress) server.localAddress()).getPort();
-			}
-			catch (Exception e) {
-				LOG.error("Cannot access local server port", e);
-			}
-		}
-
-		return -1;
+		return netty.getServerPort();
 	}
 
 	private void cleanup() {
@@ -596,7 +504,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	// ------------------------------------------------------------------------
 
 	private RuntimeMonitorHandler handler(RequestHandler handler) {
-		return new RuntimeMonitorHandler(handler, retriever, jobManagerAddressPromise.future(), timeout,
+		return new RuntimeMonitorHandler(cfg, handler, retriever, jobManagerAddressPromise.future(), timeout,
 			serverSSLContext !=  null);
 	}
 
@@ -605,14 +513,14 @@ public class WebRuntimeMonitor implements WebMonitor {
 	}
 
 	private String getBaseDirStr(Configuration configuration) {
-		return configuration.getString(ConfigConstants.JOB_MANAGER_WEB_TMPDIR_KEY, System.getProperty("java.io.tmpdir"));
+		return configuration.getString(JobManagerOptions.WEB_TMP_DIR);
 	}
 
 	private File getUploadDir(Configuration configuration) {
-		File baseDir = new File(configuration.getString(ConfigConstants.JOB_MANAGER_WEB_UPLOAD_DIR_KEY,
+		File baseDir = new File(configuration.getString(JobManagerOptions.WEB_UPLOAD_DIR,
 			getBaseDirStr(configuration)));
 
-		boolean uploadDirSpecified = configuration.containsKey(ConfigConstants.JOB_MANAGER_WEB_UPLOAD_DIR_KEY);
+		boolean uploadDirSpecified = configuration.contains(JobManagerOptions.WEB_UPLOAD_DIR);
 		return uploadDirSpecified ? baseDir : new File(baseDir, "flink-web-" + UUID.randomUUID());
 	}
 }

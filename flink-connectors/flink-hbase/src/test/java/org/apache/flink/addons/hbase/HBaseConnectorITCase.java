@@ -22,7 +22,11 @@ package org.apache.flink.addons.hbase;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -36,6 +40,7 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -74,6 +79,12 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 	public static void activateHBaseCluster() throws IOException {
 		registerHBaseMiniClusterInClasspath();
 		prepareTable();
+		LimitNetworkBuffersTestEnvironment.setAsContext();
+	}
+
+	@AfterClass
+	public static void resetExecutionEnvironmentFactory() {
+		LimitNetworkBuffersTestEnvironment.unsetAsContext();
 	}
 
 	private static void prepareTable() throws IOException {
@@ -334,5 +345,31 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		assertEquals(360, (int)resultSet.get(0).f0);
 	}
 
+
+	/**
+	 * Allows the tests to use {@link ExecutionEnvironment#getExecutionEnvironment()} but with a
+	 * configuration that limits the maximum memory used for network buffers since the current
+	 * defaults are too high for Travis-CI.
+	 */
+	private static abstract class LimitNetworkBuffersTestEnvironment extends ExecutionEnvironment {
+
+		public static void setAsContext() {
+			Configuration config = new Configuration();
+			// the default network buffers size (10% of heap max =~ 150MB) seems to much for this test case
+			config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 80L << 20); // 80 MB
+			final LocalEnvironment le = new LocalEnvironment(config);
+
+			initializeContextEnvironment(new ExecutionEnvironmentFactory() {
+				@Override
+				public ExecutionEnvironment createExecutionEnvironment() {
+					return le;
+				}
+			});
+		}
+
+		public static void unsetAsContext() {
+			resetContextEnvironment();
+		}
+	}
 
 }

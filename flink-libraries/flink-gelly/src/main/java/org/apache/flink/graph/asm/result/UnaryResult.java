@@ -31,4 +31,11 @@ public interface UnaryResult<T> {
 	 * @return first vertex ID
 	 */
 	T getVertexId0();
+
+	/**
+	 * Set the first vertex ID.
+	 *
+	 * @param value new vertex ID
+	 */
+	void setVertexId0(T value);
 }

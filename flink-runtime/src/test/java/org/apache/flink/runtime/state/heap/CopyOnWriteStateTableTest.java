@@ -19,17 +19,25 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.StateTransformationFunction;
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -37,15 +45,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-public class CopyOnWriteStateTableTest {
+public class CopyOnWriteStateTableTest extends TestLogger {
 
 	/**
 	 * Testing the basic map operations.
 	 */
 	@Test
 	public void testPutGetRemoveContainsTransform() throws Exception {
-		RegisteredBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredBackendStateMetaInfo<>(
+		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+				new RegisteredKeyedBackendStateMetaInfo<>(
 						StateDescriptor.Type.UNKNOWN,
 						"test",
 						IntSerializer.INSTANCE,
@@ -116,8 +124,8 @@ public class CopyOnWriteStateTableTest {
 	 */
 	@Test
 	public void testIncrementalRehash() {
-		RegisteredBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredBackendStateMetaInfo<>(
+		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+				new RegisteredKeyedBackendStateMetaInfo<>(
 						StateDescriptor.Type.UNKNOWN,
 						"test",
 						IntSerializer.INSTANCE,
@@ -161,8 +169,8 @@ public class CopyOnWriteStateTableTest {
 	@Test
 	public void testRandomModificationsAndCopyOnWriteIsolation() throws Exception {
 
-		final RegisteredBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredBackendStateMetaInfo<>(
+		final RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+				new RegisteredKeyedBackendStateMetaInfo<>(
 						StateDescriptor.Type.UNKNOWN,
 						"test",
 						IntSerializer.INSTANCE,
@@ -316,8 +324,8 @@ public class CopyOnWriteStateTableTest {
 	 */
 	@Test
 	public void testCopyOnWriteContracts() {
-		RegisteredBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredBackendStateMetaInfo<>(
+		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+				new RegisteredKeyedBackendStateMetaInfo<>(
 						StateDescriptor.Type.UNKNOWN,
 						"test",
 						IntSerializer.INSTANCE,
@@ -378,6 +386,77 @@ public class CopyOnWriteStateTableTest {
 		stateTable.releaseSnapshot(snapshot1);
 		// no copy-on-write is active
 		Assert.assertTrue(originalState5 == stateTable.get(5, 1));
+	}
+
+	/**
+	 * This tests that serializers used for snapshots are duplicates of the ones used in
+	 * processing to avoid race conditions in stateful serializers.
+	 */
+	@Test
+	public void testSerializerDuplicationInSnapshot() throws IOException {
+
+		final TestDuplicateSerializer namespaceSerializer = new TestDuplicateSerializer();
+		final TestDuplicateSerializer stateSerializer = new TestDuplicateSerializer();;
+		final TestDuplicateSerializer keySerializer = new TestDuplicateSerializer();;
+
+		RegisteredKeyedBackendStateMetaInfo<Integer, Integer> metaInfo =
+			new RegisteredKeyedBackendStateMetaInfo<>(
+				StateDescriptor.Type.VALUE,
+				"test",
+				namespaceSerializer,
+				stateSerializer);
+
+		final KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
+		InternalKeyContext<Integer> mockKeyContext = new InternalKeyContext<Integer>() {
+			@Override
+			public Integer getCurrentKey() {
+				return 0;
+			}
+
+			@Override
+			public int getCurrentKeyGroupIndex() {
+				return 0;
+			}
+
+			@Override
+			public int getNumberOfKeyGroups() {
+				return 1;
+			}
+
+			@Override
+			public KeyGroupRange getKeyGroupRange() {
+				return keyGroupRange;
+			}
+
+			@Override
+			public TypeSerializer<Integer> getKeySerializer() {
+				return keySerializer;
+			}
+		};
+
+		CopyOnWriteStateTable<Integer, Integer, Integer> table =
+			new CopyOnWriteStateTable<>(mockKeyContext, metaInfo);
+
+		table.put(0, 0, 0, 0);
+		table.put(1, 0, 0, 1);
+		table.put(2, 0, 1, 2);
+
+
+		CopyOnWriteStateTableSnapshot<Integer, Integer, Integer> snapshot = table.createSnapshot();
+
+		try {
+
+			namespaceSerializer.disable();
+			keySerializer.disable();
+			stateSerializer.disable();
+
+			snapshot.writeMappingsInKeyGroup(
+				new DataOutputViewStreamWrapper(
+					new ByteArrayOutputStreamWithPos(1024)), 0);
+
+		} finally {
+			table.releaseSnapshot(snapshot);
+		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -481,6 +560,106 @@ public class CopyOnWriteStateTableTest {
 		@Override
 		public TypeSerializer<T> getKeySerializer() {
 			return serializer;
+		}
+	}
+
+	/**
+	 * Serializer that can be disabled. Duplicates are still enabled, so we can check that
+	 * serializers are duplicated.
+	 */
+	static class TestDuplicateSerializer extends TypeSerializer<Integer> {
+
+		private static final long serialVersionUID = 1L;
+
+		private static final Integer ZERO = 0;
+
+		private boolean disabled;
+
+		public TestDuplicateSerializer() {
+			this.disabled = false;
+		}
+
+		@Override
+		public boolean isImmutableType() {
+			return true;
+		}
+
+		@Override
+		public TypeSerializer<Integer> duplicate() {
+			return new TestDuplicateSerializer();
+		}
+
+		@Override
+		public Integer createInstance() {
+			return ZERO;
+		}
+
+		@Override
+		public Integer copy(Integer from) {
+			return from;
+		}
+
+		@Override
+		public Integer copy(Integer from, Integer reuse) {
+			return from;
+		}
+
+		@Override
+		public int getLength() {
+			return 4;
+		}
+
+		@Override
+		public void serialize(Integer record, DataOutputView target) throws IOException {
+			Assert.assertFalse(disabled);
+			target.writeInt(record);
+		}
+
+		@Override
+		public Integer deserialize(DataInputView source) throws IOException {
+			Assert.assertFalse(disabled);
+			return source.readInt();
+		}
+
+		@Override
+		public Integer deserialize(Integer reuse, DataInputView source) throws IOException {
+			Assert.assertFalse(disabled);
+			return deserialize(source);
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			Assert.assertFalse(disabled);
+			target.writeInt(source.readInt());
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof TestDuplicateSerializer;
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return obj instanceof TestDuplicateSerializer;
+		}
+
+		@Override
+		public int hashCode() {
+			return getClass().hashCode();
+		}
+
+		public void disable() {
+			this.disabled = true;
+		}
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public CompatibilityResult<Integer> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+			throw new UnsupportedOperationException();
 		}
 	}
 }

@@ -26,12 +26,19 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -40,6 +47,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.migration.MigrationNamespaceSerializerProxy;
 import org.apache.flink.migration.MigrationUtil;
 import org.apache.flink.migration.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.migration.state.MigrationKeyGroupStateHandle;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.async.AbstractAsyncIOCallable;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
@@ -47,12 +55,19 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DoneFuture;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
-import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
+import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
+import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StateMigrationUtil;
+import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
@@ -65,6 +80,7 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+import org.rocksdb.Checkpoint;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
@@ -81,13 +97,20 @@ import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -99,6 +122,10 @@ import java.util.concurrent.RunnableFuture;
 public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBKeyedStateBackend.class);
+
+	private final JobID jobId;
+
+	private final String operatorIdentifier;
 
 	/** The column family options from the options factory */
 	private final ColumnFamilyOptions columnOptions;
@@ -130,10 +157,29 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * Information about the k/v states as we create them. This is used to retrieve the
 	 * column family that is used for a state and also for sanity checks when restoring.
 	 */
-	private Map<String, Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>>> kvStateInformation;
+	private Map<String, Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>> kvStateInformation;
+
+	/**
+	 * Map of state names to their corresponding restored state meta info.
+	 *
+	 * TODO this map can be removed when eager-state registration is in place.
+	 * TODO we currently need this cached to check state migration strategies when new serializers are registered.
+	 */
+	private Map<String, RegisteredKeyedBackendStateMetaInfo.Snapshot> restoredKvStateMetaInfos;
 
 	/** Number of bytes required to prefix the key groups. */
 	private final int keyGroupPrefixBytes;
+
+	/** True if incremental checkpointing is enabled */
+	private final boolean enableIncrementalCheckpointing;
+
+	/** The sst files materialized in pending checkpoints */
+	private final SortedMap<Long, Map<StateHandleID, StreamStateHandle>> materializedSstFiles = new TreeMap<>();
+
+	/** The identifier of the last completed checkpoint */
+	private long lastCompletedCheckpointId = -1;
+
+	private static final String SST_FILE_SUFFIX = ".sst";
 
 	public RocksDBKeyedStateBackend(
 			JobID jobId,
@@ -146,10 +192,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			ExecutionConfig executionConfig
+			ExecutionConfig executionConfig,
+			boolean enableIncrementalCheckpointing
 	) throws IOException {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
+
+		this.jobId = Preconditions.checkNotNull(jobId);
+		this.operatorIdentifier = Preconditions.checkNotNull(operatorIdentifier);
+
+		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
+
 		this.columnOptions = Preconditions.checkNotNull(columnFamilyOptions);
 		this.dbOptions = Preconditions.checkNotNull(dbOptions);
 
@@ -172,21 +225,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			throw new IOException("Error cleaning RocksDB data directory.", e);
 		}
 
-		List<ColumnFamilyDescriptor> columnFamilyDescriptors = new ArrayList<>(1);
-		// RocksDB seems to need this...
-		columnFamilyDescriptors.add(new ColumnFamilyDescriptor("default".getBytes(ConfigConstants.DEFAULT_CHARSET)));
-		List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
-		try {
-
-			db = RocksDB.open(
-					Preconditions.checkNotNull(dbOptions),
-					instanceRocksDBPath.getAbsolutePath(),
-					columnFamilyDescriptors,
-					columnFamilyHandles);
-
-		} catch (RocksDBException e) {
-			throw new IOException("Error while opening RocksDB instance.", e);
-		}
 		keyGroupPrefixBytes = getNumberOfKeyGroups() > (Byte.MAX_VALUE + 1) ? 2 : 1;
 		kvStateInformation = new HashMap<>();
 	}
@@ -205,7 +243,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// and access it in a synchronized block that locks on #dbDisposeLock.
 			if (db != null) {
 
-				for (Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>> column :
+				for (Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> column :
 						kvStateInformation.values()) {
 					try {
 						column.f0.close();
@@ -240,6 +278,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return keyGroupPrefixBytes;
 	}
 
+	private boolean hasRegisteredState() {
+		return !kvStateInformation.isEmpty();
+	}
+
 	/**
 	 * Triggers an asynchronous snapshot of the keyed state backend from RocksDB. This snapshot can be canceled and
 	 * is also stopped when the backend is closed through {@link #dispose()}. For each backend, this method must always
@@ -253,27 +295,88 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * @throws Exception
 	 */
 	@Override
-	public RunnableFuture<KeyGroupsStateHandle> snapshot(
+	public RunnableFuture<KeyedStateHandle> snapshot(
 			final long checkpointId,
 			final long timestamp,
 			final CheckpointStreamFactory streamFactory,
 			CheckpointOptions checkpointOptions) throws Exception {
 
+		if (checkpointOptions.getCheckpointType() != CheckpointOptions.CheckpointType.SAVEPOINT &&
+			enableIncrementalCheckpointing) {
+			return snapshotIncrementally(checkpointId, timestamp, streamFactory);
+		} else {
+			return snapshotFully(checkpointId, timestamp, streamFactory);
+		}
+	}
+
+	private RunnableFuture<KeyedStateHandle> snapshotIncrementally(
+			final long checkpointId,
+			final long checkpointTimestamp,
+			final CheckpointStreamFactory checkpointStreamFactory) throws Exception {
+
+		final RocksDBIncrementalSnapshotOperation snapshotOperation =
+			new RocksDBIncrementalSnapshotOperation(
+				this,
+				checkpointStreamFactory,
+				checkpointId,
+				checkpointTimestamp);
+
+		synchronized (asyncSnapshotLock) {
+			if (db == null) {
+				throw new IOException("RocksDB closed.");
+			}
+
+			if (!hasRegisteredState()) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Asynchronous RocksDB snapshot performed on empty keyed state at " +
+							checkpointTimestamp + " . Returning null.");
+				}
+				return DoneFuture.nullValue();
+			}
+
+			snapshotOperation.takeSnapshot();
+		}
+
+		return new FutureTask<KeyedStateHandle>(
+			new Callable<KeyedStateHandle>() {
+				@Override
+				public KeyedStateHandle call() throws Exception {
+					return snapshotOperation.materializeSnapshot();
+				}
+			}
+		) {
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				snapshotOperation.stop();
+				return super.cancel(mayInterruptIfRunning);
+			}
+
+			@Override
+			protected void done() {
+				snapshotOperation.releaseResources(isCancelled());
+			}
+		};
+	}
+
+	private RunnableFuture<KeyedStateHandle> snapshotFully(
+			final long checkpointId,
+			final long timestamp,
+			final CheckpointStreamFactory streamFactory) throws Exception {
+
 		long startTime = System.currentTimeMillis();
 
-		final RocksDBSnapshotOperation snapshotOperation = new RocksDBSnapshotOperation(this, streamFactory);
+		final RocksDBFullSnapshotOperation snapshotOperation = new RocksDBFullSnapshotOperation(this, streamFactory);
 		// hold the db lock while operation on the db to guard us against async db disposal
 		synchronized (asyncSnapshotLock) {
 
 			if (db != null) {
 
-				if (kvStateInformation.isEmpty()) {
+				if (!hasRegisteredState()) {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Asynchronous RocksDB snapshot performed on empty keyed state at " + timestamp +
 								" . Returning null.");
 					}
-
-					return new DoneFuture<>(null);
+					return DoneFuture.nullValue();
 				}
 
 				snapshotOperation.takeDBSnapShot(checkpointId, timestamp);
@@ -283,8 +386,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		// implementation of the async IO operation, based on FutureTask
-		AbstractAsyncIOCallable<KeyGroupsStateHandle, CheckpointStreamFactory.CheckpointStateOutputStream> ioCallable =
-				new AbstractAsyncIOCallable<KeyGroupsStateHandle, CheckpointStreamFactory.CheckpointStateOutputStream>() {
+		AbstractAsyncIOCallable<KeyedStateHandle, CheckpointStreamFactory.CheckpointStateOutputStream> ioCallable =
+				new AbstractAsyncIOCallable<KeyedStateHandle, CheckpointStreamFactory.CheckpointStateOutputStream>() {
 
 					@Override
 					public CheckpointStreamFactory.CheckpointStateOutputStream openIOHandle() throws Exception {
@@ -337,7 +440,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/**
 	 * Encapsulates the process to perform a snapshot of a RocksDBKeyedStateBackend.
 	 */
-	static final class RocksDBSnapshotOperation {
+	static final class RocksDBFullSnapshotOperation {
 
 		static final int FIRST_BIT_IN_BYTE_MASK = 0x80;
 		static final int END_OF_KEY_GROUP_MARK = 0xFFFF;
@@ -357,7 +460,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private DataOutputView outputView;
 		private KeyGroupsStateHandle snapshotResultStateHandle;
 
-		RocksDBSnapshotOperation(
+		RocksDBFullSnapshotOperation(
 				RocksDBKeyedStateBackend<?> stateBackend,
 				CheckpointStreamFactory checkpointStreamFactory) {
 
@@ -416,7 +519,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 */
 		public void closeCheckpointStream() throws IOException {
 			if (outStream != null) {
-				stateBackend.cancelStreamRegistry.unregisterClosable(outStream);
 				snapshotResultStateHandle = closeSnapshotStreamAndGetHandle();
 			} else {
 				snapshotResultStateHandle = null;
@@ -480,23 +582,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private void writeKVStateMetaData() throws IOException {
 
-			List<KeyedBackendSerializationProxy.StateMetaInfo<?, ?>> metaInfoList =
+			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> metaInfoSnapshots =
 					new ArrayList<>(stateBackend.kvStateInformation.size());
 
 			int kvStateId = 0;
-			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>>> column :
+			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>> column :
 					stateBackend.kvStateInformation.entrySet()) {
 
-				RegisteredBackendStateMetaInfo<?, ?> metaInfo = column.getValue().f1;
-
-				KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoProxy =
-						new KeyedBackendSerializationProxy.StateMetaInfo<>(
-								metaInfo.getStateType(),
-								metaInfo.getName(),
-								metaInfo.getNamespaceSerializer(),
-								metaInfo.getStateSerializer());
-
-				metaInfoList.add(metaInfoProxy);
+				metaInfoSnapshots.add(column.getValue().f1.snapshot());
 
 				//retrieve iterator for this k/v states
 				readOptions = new ReadOptions();
@@ -509,7 +602,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			KeyedBackendSerializationProxy serializationProxy =
-					new KeyedBackendSerializationProxy(stateBackend.getKeySerializer(), metaInfoList);
+					new KeyedBackendSerializationProxy(stateBackend.getKeySerializer(), metaInfoSnapshots);
 
 			serializationProxy.write(outputView);
 		}
@@ -587,6 +680,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		private KeyGroupsStateHandle closeSnapshotStreamAndGetHandle() throws IOException {
+			stateBackend.cancelStreamRegistry.unregisterClosable(outStream);
 			StreamStateHandle stateHandle = outStream.closeAndGetHandle();
 			outStream = null;
 			return stateHandle != null ? new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle) : null;
@@ -602,11 +696,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		static void clearMetaDataFollowsFlag(byte[] key) {
-			key[0] &= (~RocksDBSnapshotOperation.FIRST_BIT_IN_BYTE_MASK);
+			key[0] &= (~RocksDBFullSnapshotOperation.FIRST_BIT_IN_BYTE_MASK);
 		}
 
 		static boolean hasMetaDataFollowsFlag(byte[] key) {
-			return 0 != (key[0] & RocksDBSnapshotOperation.FIRST_BIT_IN_BYTE_MASK);
+			return 0 != (key[0] & RocksDBFullSnapshotOperation.FIRST_BIT_IN_BYTE_MASK);
 		}
 
 		private static void checkInterrupted() throws InterruptedException {
@@ -616,8 +710,247 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
+	private static final class RocksDBIncrementalSnapshotOperation {
+
+		/** The backend which we snapshot */
+		private final RocksDBKeyedStateBackend<?> stateBackend;
+
+		/** Stream factory that creates the outpus streams to DFS */
+		private final CheckpointStreamFactory checkpointStreamFactory;
+
+		/** Id for the current checkpoint */
+		private final long checkpointId;
+
+		/** Timestamp for the current checkpoint */
+		private final long checkpointTimestamp;
+
+		/** All sst files that were part of the last previously completed checkpoint */
+		private Map<StateHandleID, StreamStateHandle> baseSstFiles;
+
+		/** The state meta data */
+		private final List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots = new ArrayList<>();
+
+		private FileSystem backupFileSystem;
+		private Path backupPath;
+
+		// Registry for all opened i/o streams
+		private final CloseableRegistry closeableRegistry = new CloseableRegistry();
+
+		// new sst files since the last completed checkpoint
+		private final Map<StateHandleID, StreamStateHandle> newSstFiles = new HashMap<>();
+
+		// old sst files which have been materialized in previous completed checkpoints
+		private final Map<StateHandleID, StreamStateHandle> oldSstFiles = new HashMap<>();
+
+		// handles to the misc files in the current snapshot
+		private final Map<StateHandleID, StreamStateHandle> miscFiles = new HashMap<>();
+
+		private StreamStateHandle metaStateHandle = null;
+
+		private RocksDBIncrementalSnapshotOperation(
+				RocksDBKeyedStateBackend<?> stateBackend,
+				CheckpointStreamFactory checkpointStreamFactory,
+				long checkpointId,
+				long checkpointTimestamp) {
+
+			this.stateBackend = stateBackend;
+			this.checkpointStreamFactory = checkpointStreamFactory;
+			this.checkpointId = checkpointId;
+			this.checkpointTimestamp = checkpointTimestamp;
+		}
+
+		private StreamStateHandle materializeStateData(Path filePath) throws Exception {
+			FSDataInputStream inputStream = null;
+			CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
+
+			try {
+				final byte[] buffer = new byte[8 * 1024];
+
+				FileSystem backupFileSystem = backupPath.getFileSystem();
+				inputStream = backupFileSystem.open(filePath);
+				closeableRegistry.registerClosable(inputStream);
+
+				outputStream = checkpointStreamFactory
+					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
+				closeableRegistry.registerClosable(outputStream);
+
+				while (true) {
+					int numBytes = inputStream.read(buffer);
+
+					if (numBytes == -1) {
+						break;
+					}
+
+					outputStream.write(buffer, 0, numBytes);
+				}
+
+				closeableRegistry.unregisterClosable(outputStream);
+				StreamStateHandle result = outputStream.closeAndGetHandle();
+				outputStream = null;
+
+				return result;
+			} finally {
+				if (inputStream != null) {
+					closeableRegistry.unregisterClosable(inputStream);
+					inputStream.close();
+				}
+
+				if (outputStream != null) {
+					closeableRegistry.unregisterClosable(outputStream);
+					outputStream.close();
+				}
+			}
+		}
+
+		private StreamStateHandle materializeMetaData() throws Exception {
+			CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
+
+			try {
+				outputStream = checkpointStreamFactory
+					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
+				closeableRegistry.registerClosable(outputStream);
+
+				KeyedBackendSerializationProxy serializationProxy =
+					new KeyedBackendSerializationProxy(stateBackend.keySerializer, stateMetaInfoSnapshots);
+				DataOutputView out = new DataOutputViewStreamWrapper(outputStream);
+
+				serializationProxy.write(out);
+
+				closeableRegistry.unregisterClosable(outputStream);
+				StreamStateHandle result = outputStream.closeAndGetHandle();
+				outputStream = null;
+
+				return result;
+			} finally {
+				if (outputStream != null) {
+					closeableRegistry.unregisterClosable(outputStream);
+					outputStream.close();
+				}
+			}
+		}
+
+		void takeSnapshot() throws Exception {
+			assert (Thread.holdsLock(stateBackend.asyncSnapshotLock));
+
+			// use the last completed checkpoint as the comparison base.
+			baseSstFiles = stateBackend.materializedSstFiles.get(stateBackend.lastCompletedCheckpointId);
+
+
+			// save meta data
+			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>> stateMetaInfoEntry
+					: stateBackend.kvStateInformation.entrySet()) {
+				stateMetaInfoSnapshots.add(stateMetaInfoEntry.getValue().f1.snapshot());
+			}
+
+			// save state data
+			backupPath = new Path(stateBackend.instanceBasePath.getAbsolutePath(), "chk-" + checkpointId);
+			backupFileSystem = backupPath.getFileSystem();
+			if (backupFileSystem.exists(backupPath)) {
+				throw new IllegalStateException("Unexpected existence of the backup directory.");
+			}
+
+			// create hard links of living files in the checkpoint path
+			Checkpoint checkpoint = Checkpoint.create(stateBackend.db);
+			checkpoint.createCheckpoint(backupPath.getPath());
+		}
+
+		KeyedStateHandle materializeSnapshot() throws Exception {
+
+			stateBackend.cancelStreamRegistry.registerClosable(closeableRegistry);
+
+			// write meta data
+			metaStateHandle = materializeMetaData();
+
+			// write state data
+			Preconditions.checkState(backupFileSystem.exists(backupPath));
+
+			FileStatus[] fileStatuses = backupFileSystem.listStatus(backupPath);
+			if (fileStatuses != null) {
+				for (FileStatus fileStatus : fileStatuses) {
+					final Path filePath = fileStatus.getPath();
+					final String fileName = filePath.getName();
+					final StateHandleID stateHandleID = new StateHandleID(fileName);
+
+					if (fileName.endsWith(SST_FILE_SUFFIX)) {
+						StreamStateHandle fileHandle =
+							baseSstFiles == null ? null : baseSstFiles.get(fileName);
+
+						if (fileHandle == null) {
+							fileHandle = materializeStateData(filePath);
+							newSstFiles.put(stateHandleID, fileHandle);
+						} else {
+							// we introduce a placeholder state handle, that is replaced with the
+							// original from the shared state registry (created from a previous checkpoint)
+							oldSstFiles.put(
+								stateHandleID,
+								new PlaceholderStreamStateHandle(fileHandle.getStateSize()));
+						}
+					} else {
+						StreamStateHandle fileHandle = materializeStateData(filePath);
+						miscFiles.put(stateHandleID, fileHandle);
+					}
+				}
+			}
+
+			Map<StateHandleID, StreamStateHandle> sstFiles =
+				new HashMap<>(newSstFiles.size() + oldSstFiles.size());
+
+			sstFiles.putAll(newSstFiles);
+			sstFiles.putAll(oldSstFiles);
+
+			synchronized (stateBackend.asyncSnapshotLock) {
+				stateBackend.materializedSstFiles.put(checkpointId, sstFiles);
+			}
+
+			return new IncrementalKeyedStateHandle(
+				stateBackend.operatorIdentifier,
+				stateBackend.keyGroupRange,
+				checkpointId,
+				newSstFiles,
+				oldSstFiles,
+				miscFiles,
+				metaStateHandle);
+		}
+
+		void stop() {
+			try {
+				closeableRegistry.close();
+			} catch (IOException e) {
+				LOG.warn("Could not properly close io streams.", e);
+			}
+		}
+
+		void releaseResources(boolean canceled) {
+			stateBackend.cancelStreamRegistry.unregisterClosable(closeableRegistry);
+
+			if (backupPath != null) {
+				try {
+					if (backupFileSystem.exists(backupPath)) {
+						backupFileSystem.delete(backupPath, true);
+					}
+				} catch (Exception e) {
+					LOG.warn("Could not properly delete the checkpoint directory.", e);
+				}
+			}
+
+			if (canceled) {
+				List<StateObject> statesToDiscard = new ArrayList<>();
+
+				statesToDiscard.add(metaStateHandle);
+				statesToDiscard.addAll(miscFiles.values());
+				statesToDiscard.addAll(newSstFiles.values());
+
+				try {
+					StateUtil.bestEffortDiscardAllStateObjects(statesToDiscard);
+				} catch (Exception e) {
+					LOG.warn("Could not properly discard states.", e);
+				}
+			}
+		}
+	}
+
 	@Override
-	public void restore(Collection<KeyGroupsStateHandle> restoreState) throws Exception {
+	public void restore(Collection<KeyedStateHandle> restoreState) throws Exception {
 		LOG.info("Initializing RocksDB keyed state backend from snapshot.");
 
 		if (LOG.isDebugEnabled()) {
@@ -625,11 +958,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		try {
-			if (MigrationUtil.isOldSavepointKeyedState(restoreState)) {
+			if (restoreState == null || restoreState.isEmpty()) {
+				createDB();
+			} else if (MigrationUtil.isOldSavepointKeyedState(restoreState)) {
 				LOG.info("Converting RocksDB state from old savepoint.");
 				restoreOldSavepointKeyedState(restoreState);
+			} else if (restoreState.iterator().next() instanceof IncrementalKeyedStateHandle) {
+				RocksDBIncrementalRestoreOperation restoreOperation = new RocksDBIncrementalRestoreOperation(this);
+				restoreOperation.restore(restoreState);
 			} else {
-				RocksDBRestoreOperation restoreOperation = new RocksDBRestoreOperation(this);
+				RocksDBFullRestoreOperation restoreOperation = new RocksDBFullRestoreOperation(this);
 				restoreOperation.doRestore(restoreState);
 			}
 		} catch (Exception ex) {
@@ -638,10 +976,68 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
+	@Override
+	public void notifyCheckpointComplete(long completedCheckpointId) {
+		synchronized (asyncSnapshotLock) {
+			if (completedCheckpointId < lastCompletedCheckpointId) {
+				return;
+			}
+
+			Iterator<Long> materializedCheckpointIterator = materializedSstFiles.keySet().iterator();
+			while (materializedCheckpointIterator.hasNext()) {
+				long materializedCheckpointId = materializedCheckpointIterator.next();
+
+				if (materializedCheckpointId < completedCheckpointId) {
+					materializedCheckpointIterator.remove();
+				}
+			}
+
+			lastCompletedCheckpointId = completedCheckpointId;
+		}
+	}
+
+	private void createDB() throws IOException {
+		db = openDB(instanceRocksDBPath.getAbsolutePath(),
+			new ArrayList<ColumnFamilyDescriptor>(),
+			null);
+	}
+
+	private RocksDB openDB(
+			String path,
+			List<ColumnFamilyDescriptor> stateColumnFamilyDescriptors,
+			List<ColumnFamilyHandle> stateColumnFamilyHandles) throws IOException {
+
+		List<ColumnFamilyDescriptor> columnFamilyDescriptors = new ArrayList<>(stateColumnFamilyDescriptors);
+		columnFamilyDescriptors.add(
+			new ColumnFamilyDescriptor(
+				"default".getBytes(ConfigConstants.DEFAULT_CHARSET), columnOptions));
+
+		List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(columnFamilyDescriptors.size());
+
+		RocksDB db;
+
+		try {
+			db = RocksDB.open(
+					Preconditions.checkNotNull(dbOptions),
+					Preconditions.checkNotNull(path),
+					columnFamilyDescriptors,
+					columnFamilyHandles);
+		} catch (RocksDBException e) {
+			throw new IOException("Error while opening RocksDB instance.", e);
+		}
+
+		if (stateColumnFamilyHandles != null) {
+			stateColumnFamilyHandles.addAll(
+				columnFamilyHandles.subList(0, columnFamilyHandles.size() - 1));
+		}
+
+		return db;
+	}
+
 	/**
 	 * Encapsulates the process of restoring a RocksDBKeyedStateBackend from a snapshot.
 	 */
-	static final class RocksDBRestoreOperation {
+	static final class RocksDBFullRestoreOperation {
 
 		private final RocksDBKeyedStateBackend<?> rocksDBKeyedStateBackend;
 
@@ -659,24 +1055,32 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 *
 		 * @param rocksDBKeyedStateBackend the state backend into which we restore
 		 */
-		public RocksDBRestoreOperation(RocksDBKeyedStateBackend<?> rocksDBKeyedStateBackend) {
+		public RocksDBFullRestoreOperation(RocksDBKeyedStateBackend<?> rocksDBKeyedStateBackend) {
 			this.rocksDBKeyedStateBackend = Preconditions.checkNotNull(rocksDBKeyedStateBackend);
 		}
 
 		/**
 		 * Restores all key-groups data that is referenced by the passed state handles.
 		 *
-		 * @param keyGroupsStateHandles List of all key groups state handles that shall be restored.
+		 * @param keyedStateHandles List of all key groups state handles that shall be restored.
 		 * @throws IOException
 		 * @throws ClassNotFoundException
 		 * @throws RocksDBException
 		 */
-		public void doRestore(Collection<KeyGroupsStateHandle> keyGroupsStateHandles)
+		public void doRestore(Collection<KeyedStateHandle> keyedStateHandles)
 				throws IOException, ClassNotFoundException, RocksDBException {
 
-			for (KeyGroupsStateHandle keyGroupsStateHandle : keyGroupsStateHandles) {
-				if (keyGroupsStateHandle != null) {
-					this.currentKeyGroupsStateHandle = keyGroupsStateHandle;
+			rocksDBKeyedStateBackend.createDB();
+
+			for (KeyedStateHandle keyedStateHandle : keyedStateHandles) {
+				if (keyedStateHandle != null) {
+
+					if (!(keyedStateHandle instanceof KeyGroupsStateHandle)) {
+						throw new IllegalStateException("Unexpected state handle type, " +
+								"expected: " + KeyGroupsStateHandle.class +
+								", but found: " + keyedStateHandle.getClass());
+					}
+					this.currentKeyGroupsStateHandle = (KeyGroupsStateHandle) keyedStateHandle;
 					restoreKeyGroupsInStateHandle();
 				}
 			}
@@ -719,33 +1123,38 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			serializationProxy.read(currentStateHandleInView);
 
-			List<KeyedBackendSerializationProxy.StateMetaInfo<?, ?>> metaInfoProxyList =
-					serializationProxy.getNamedStateSerializationProxies();
+			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> restoredMetaInfos =
+					serializationProxy.getStateMetaInfoSnapshots();
 
-			currentStateHandleKVStateColumnFamilies = new ArrayList<>(metaInfoProxyList.size());
+			currentStateHandleKVStateColumnFamilies = new ArrayList<>(restoredMetaInfos.size());
+			rocksDBKeyedStateBackend.restoredKvStateMetaInfos = new HashMap<>(restoredMetaInfos.size());
 
-			for (KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoProxy : metaInfoProxyList) {
-				Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>> columnFamily =
-						rocksDBKeyedStateBackend.kvStateInformation.get(metaInfoProxy.getStateName());
+			for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> restoredMetaInfo : restoredMetaInfos) {
 
-				if (null == columnFamily) {
+				if (!rocksDBKeyedStateBackend.kvStateInformation.containsKey(restoredMetaInfo.getName())) {
 					ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(
-						metaInfoProxy.getStateName().getBytes(ConfigConstants.DEFAULT_CHARSET),
+						restoredMetaInfo.getName().getBytes(ConfigConstants.DEFAULT_CHARSET),
 						rocksDBKeyedStateBackend.columnOptions);
 
-					RegisteredBackendStateMetaInfo<?, ?> stateMetaInfo =
-							new RegisteredBackendStateMetaInfo<>(metaInfoProxy);
+					RegisteredKeyedBackendStateMetaInfo<?, ?> stateMetaInfo =
+							new RegisteredKeyedBackendStateMetaInfo<>(
+								restoredMetaInfo.getStateType(),
+								restoredMetaInfo.getName(),
+								restoredMetaInfo.getNamespaceSerializer(),
+								restoredMetaInfo.getStateSerializer());
 
-					columnFamily = new Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>>(
-							rocksDBKeyedStateBackend.db.createColumnFamily(columnFamilyDescriptor),
-							stateMetaInfo);
+					rocksDBKeyedStateBackend.restoredKvStateMetaInfos.put(restoredMetaInfo.getName(), restoredMetaInfo);
 
-					rocksDBKeyedStateBackend.kvStateInformation.put(stateMetaInfo.getName(), columnFamily);
+					ColumnFamilyHandle columnFamily = rocksDBKeyedStateBackend.db.createColumnFamily(columnFamilyDescriptor);
+
+					rocksDBKeyedStateBackend.kvStateInformation.put(
+						stateMetaInfo.getName(),
+						new Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>(columnFamily, stateMetaInfo));
+
+					currentStateHandleKVStateColumnFamilies.add(columnFamily);
 				} else {
-					//TODO we could check here for incompatible serializer versions between previous tasks
+					// TODO with eager state registration in place, check here for serializer migration strategies
 				}
-
-				currentStateHandleKVStateColumnFamilies.add(columnFamily.f0);
 			}
 		}
 
@@ -758,6 +1167,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private void restoreKVStateData() throws IOException, RocksDBException {
 			//for all key-groups in the current state handle...
 			for (Tuple2<Integer, Long> keyGroupOffset : currentKeyGroupsStateHandle.getGroupRangeOffsets()) {
+				int keyGroup = keyGroupOffset.f0;
+
+				// Check that restored key groups all belong to the backend
+				Preconditions.checkState(rocksDBKeyedStateBackend.getKeyGroupRange().contains(keyGroup),
+					"The key group must belong to the backend");
+
 				long offset = keyGroupOffset.f1;
 				//not empty key-group?
 				if (0L != offset) {
@@ -770,14 +1185,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					while (keyGroupHasMoreKeys) {
 						byte[] key = BytePrimitiveArraySerializer.INSTANCE.deserialize(currentStateHandleInView);
 						byte[] value = BytePrimitiveArraySerializer.INSTANCE.deserialize(currentStateHandleInView);
-						if (RocksDBSnapshotOperation.hasMetaDataFollowsFlag(key)) {
+						if (RocksDBFullSnapshotOperation.hasMetaDataFollowsFlag(key)) {
 							//clear the signal bit in the key to make it ready for insertion again
-							RocksDBSnapshotOperation.clearMetaDataFollowsFlag(key);
+							RocksDBFullSnapshotOperation.clearMetaDataFollowsFlag(key);
 							rocksDBKeyedStateBackend.db.put(handle, key, value);
 							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-							kvStateId = RocksDBSnapshotOperation.END_OF_KEY_GROUP_MARK
+							kvStateId = RocksDBFullSnapshotOperation.END_OF_KEY_GROUP_MARK
 									& currentStateHandleInView.readShort();
-							if (RocksDBSnapshotOperation.END_OF_KEY_GROUP_MARK == kvStateId) {
+							if (RocksDBFullSnapshotOperation.END_OF_KEY_GROUP_MARK == kvStateId) {
 								keyGroupHasMoreKeys = false;
 							} else {
 								handle = currentStateHandleKVStateColumnFamilies.get(kvStateId);
@@ -787,6 +1202,276 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						}
 					}
 				}
+			}
+		}
+	}
+
+	private static class RocksDBIncrementalRestoreOperation {
+
+		private final RocksDBKeyedStateBackend<?> stateBackend;
+
+		private RocksDBIncrementalRestoreOperation(RocksDBKeyedStateBackend<?> stateBackend) {
+			this.stateBackend = stateBackend;
+		}
+
+		private List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> readMetaData(
+				StreamStateHandle metaStateHandle) throws Exception {
+
+			FSDataInputStream inputStream = null;
+
+			try {
+				inputStream = metaStateHandle.openInputStream();
+				stateBackend.cancelStreamRegistry.registerClosable(inputStream);
+
+				KeyedBackendSerializationProxy serializationProxy =
+					new KeyedBackendSerializationProxy(stateBackend.userCodeClassLoader);
+				DataInputView in = new DataInputViewStreamWrapper(inputStream);
+				serializationProxy.read(in);
+
+				return serializationProxy.getStateMetaInfoSnapshots();
+			} finally {
+				if (inputStream != null) {
+					stateBackend.cancelStreamRegistry.unregisterClosable(inputStream);
+					inputStream.close();
+				}
+			}
+		}
+
+		private void readStateData(
+				Path restoreFilePath,
+				StreamStateHandle remoteFileHandle) throws IOException {
+
+			FileSystem restoreFileSystem = restoreFilePath.getFileSystem();
+
+			FSDataInputStream inputStream = null;
+			FSDataOutputStream outputStream = null;
+
+			try {
+				inputStream = remoteFileHandle.openInputStream();
+				stateBackend.cancelStreamRegistry.registerClosable(inputStream);
+
+				outputStream = restoreFileSystem.create(restoreFilePath, FileSystem.WriteMode.OVERWRITE);
+				stateBackend.cancelStreamRegistry.registerClosable(outputStream);
+
+				byte[] buffer = new byte[8 * 1024];
+				while (true) {
+					int numBytes = inputStream.read(buffer);
+					if (numBytes == -1) {
+						break;
+					}
+
+					outputStream.write(buffer, 0, numBytes);
+				}
+			} finally {
+				if (inputStream != null) {
+					stateBackend.cancelStreamRegistry.unregisterClosable(inputStream);
+					inputStream.close();
+				}
+
+				if (outputStream != null) {
+					stateBackend.cancelStreamRegistry.unregisterClosable(outputStream);
+					outputStream.close();
+				}
+			}
+		}
+
+		private void restoreInstance(
+				IncrementalKeyedStateHandle restoreStateHandle,
+				boolean hasExtraKeys) throws Exception {
+
+			// read state data
+			Path restoreInstancePath = new Path(
+				stateBackend.instanceBasePath.getAbsolutePath(),
+				UUID.randomUUID().toString());
+
+			try {
+				final Map<StateHandleID, StreamStateHandle> newSstFiles =
+					restoreStateHandle.getCreatedSharedState();
+				final Map<StateHandleID, StreamStateHandle> oldSstFiles =
+					restoreStateHandle.getReferencedSharedState();
+				final Map<StateHandleID, StreamStateHandle> miscFiles =
+					restoreStateHandle.getPrivateState();
+
+				readAllStateData(newSstFiles, restoreInstancePath);
+				readAllStateData(oldSstFiles, restoreInstancePath);
+				readAllStateData(miscFiles, restoreInstancePath);
+
+				// read meta data
+				List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots =
+					readMetaData(restoreStateHandle.getMetaStateHandle());
+
+				List<ColumnFamilyDescriptor> columnFamilyDescriptors = new ArrayList<>();
+
+				stateBackend.restoredKvStateMetaInfos = new HashMap<>(stateMetaInfoSnapshots.size());
+
+				for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> stateMetaInfoSnapshot : stateMetaInfoSnapshots) {
+
+					ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(
+						stateMetaInfoSnapshot.getName().getBytes(ConfigConstants.DEFAULT_CHARSET),
+						stateBackend.columnOptions);
+
+					columnFamilyDescriptors.add(columnFamilyDescriptor);
+					stateBackend.restoredKvStateMetaInfos.put(stateMetaInfoSnapshot.getName(), stateMetaInfoSnapshot);
+				}
+
+				if (hasExtraKeys) {
+
+					List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>();
+
+					try (RocksDB restoreDb = stateBackend.openDB(
+							restoreInstancePath.getPath(),
+							columnFamilyDescriptors,
+							columnFamilyHandles)) {
+
+						for (int i = 0; i < columnFamilyHandles.size(); ++i) {
+							ColumnFamilyHandle columnFamilyHandle = columnFamilyHandles.get(i);
+							ColumnFamilyDescriptor columnFamilyDescriptor = columnFamilyDescriptors.get(i);
+							RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> stateMetaInfoSnapshot = stateMetaInfoSnapshots.get(i);
+
+							Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> registeredStateMetaInfoEntry =
+								stateBackend.kvStateInformation.get(stateMetaInfoSnapshot.getName());
+
+							if (null == registeredStateMetaInfoEntry) {
+
+								RegisteredKeyedBackendStateMetaInfo<?, ?> stateMetaInfo =
+									new RegisteredKeyedBackendStateMetaInfo<>(
+										stateMetaInfoSnapshot.getStateType(),
+										stateMetaInfoSnapshot.getName(),
+										stateMetaInfoSnapshot.getNamespaceSerializer(),
+										stateMetaInfoSnapshot.getStateSerializer());
+
+								registeredStateMetaInfoEntry =
+									new Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>(
+										stateBackend.db.createColumnFamily(columnFamilyDescriptor),
+										stateMetaInfo);
+
+								stateBackend.kvStateInformation.put(
+									stateMetaInfoSnapshot.getName(),
+									registeredStateMetaInfoEntry);
+							}
+
+							ColumnFamilyHandle targetColumnFamilyHandle = registeredStateMetaInfoEntry.f0;
+
+							try (RocksIterator iterator = restoreDb.newIterator(columnFamilyHandle)) {
+
+								int startKeyGroup = stateBackend.getKeyGroupRange().getStartKeyGroup();
+								byte[] startKeyGroupPrefixBytes = new byte[stateBackend.keyGroupPrefixBytes];
+								for (int j = 0; j < stateBackend.keyGroupPrefixBytes; ++j) {
+									startKeyGroupPrefixBytes[j] = (byte)(startKeyGroup >>> ((stateBackend.keyGroupPrefixBytes - j - 1) * Byte.SIZE));
+								}
+
+								iterator.seek(startKeyGroupPrefixBytes);
+
+								while (iterator.isValid()) {
+
+									int keyGroup = 0;
+									for (int j = 0; j < stateBackend.keyGroupPrefixBytes; ++j) {
+										keyGroup = (keyGroup << Byte.SIZE) + iterator.key()[j];
+									}
+
+									if (stateBackend.keyGroupRange.contains(keyGroup)) {
+										stateBackend.db.put(targetColumnFamilyHandle,
+											iterator.key(), iterator.value());
+									}
+
+									iterator.next();
+								}
+							}
+						}
+					}
+				} else {
+
+					// create hard links in the instance directory
+					if (!stateBackend.instanceRocksDBPath.mkdirs()) {
+						throw new IOException("Could not create RocksDB data directory.");
+					}
+
+					createFileHardLinksInRestorePath(newSstFiles, restoreInstancePath);
+					createFileHardLinksInRestorePath(oldSstFiles, restoreInstancePath);
+					createFileHardLinksInRestorePath(miscFiles, restoreInstancePath);
+
+					List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>();
+					stateBackend.db = stateBackend.openDB(
+						stateBackend.instanceRocksDBPath.getAbsolutePath(),
+						columnFamilyDescriptors, columnFamilyHandles);
+
+					for (int i = 0; i < columnFamilyDescriptors.size(); ++i) {
+						RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> stateMetaInfoSnapshot = stateMetaInfoSnapshots.get(i);
+
+						ColumnFamilyHandle columnFamilyHandle = columnFamilyHandles.get(i);
+						RegisteredKeyedBackendStateMetaInfo<?, ?> stateMetaInfo =
+							new RegisteredKeyedBackendStateMetaInfo<>(
+								stateMetaInfoSnapshot.getStateType(),
+								stateMetaInfoSnapshot.getName(),
+								stateMetaInfoSnapshot.getNamespaceSerializer(),
+								stateMetaInfoSnapshot.getStateSerializer());
+
+						stateBackend.kvStateInformation.put(
+							stateMetaInfoSnapshot.getName(),
+							new Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>(
+								columnFamilyHandle, stateMetaInfo));
+					}
+
+
+					// use the restore sst files as the base for succeeding checkpoints
+					Map<StateHandleID, StreamStateHandle> sstFiles = new HashMap<>();
+					sstFiles.putAll(newSstFiles);
+					sstFiles.putAll(oldSstFiles);
+					stateBackend.materializedSstFiles.put(restoreStateHandle.getCheckpointId(), sstFiles);
+
+					stateBackend.lastCompletedCheckpointId = restoreStateHandle.getCheckpointId();
+				}
+			} finally {
+				FileSystem restoreFileSystem = restoreInstancePath.getFileSystem();
+				if (restoreFileSystem.exists(restoreInstancePath)) {
+					restoreFileSystem.delete(restoreInstancePath, true);
+				}
+			}
+		}
+
+		private void readAllStateData(
+			Map<StateHandleID, StreamStateHandle> stateHandleMap,
+			Path restoreInstancePath) throws IOException {
+
+			for (Map.Entry<StateHandleID, StreamStateHandle> entry : stateHandleMap.entrySet()) {
+				StateHandleID stateHandleID = entry.getKey();
+				StreamStateHandle remoteFileHandle = entry.getValue();
+				readStateData(new Path(restoreInstancePath, stateHandleID.toString()), remoteFileHandle);
+			}
+		}
+
+		private void createFileHardLinksInRestorePath(
+			Map<StateHandleID, StreamStateHandle> stateHandleMap,
+			Path restoreInstancePath) throws IOException {
+
+			for (StateHandleID stateHandleID : stateHandleMap.keySet()) {
+				String newSstFileName = stateHandleID.toString();
+				File restoreFile = new File(restoreInstancePath.getPath(), newSstFileName);
+				File targetFile = new File(stateBackend.instanceRocksDBPath, newSstFileName);
+				Files.createLink(targetFile.toPath(), restoreFile.toPath());
+			}
+		}
+
+		void restore(Collection<KeyedStateHandle> restoreStateHandles) throws Exception {
+
+			boolean hasExtraKeys = (restoreStateHandles.size() > 1 ||
+				!restoreStateHandles.iterator().next().getKeyGroupRange().equals(stateBackend.keyGroupRange));
+
+			if (hasExtraKeys) {
+				stateBackend.createDB();
+			}
+
+			for (KeyedStateHandle rawStateHandle : restoreStateHandles) {
+
+				if (! (rawStateHandle instanceof IncrementalKeyedStateHandle)) {
+					throw new IllegalStateException("Unexpected state handle type, " +
+						"expected " + IncrementalKeyedStateHandle.class +
+						", but found " + rawStateHandle.getClass());
+				}
+
+				IncrementalKeyedStateHandle keyedStateHandle = (IncrementalKeyedStateHandle) rawStateHandle;
+
+				restoreInstance(keyedStateHandle, hasExtraKeys);
 			}
 		}
 	}
@@ -808,22 +1493,57 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	protected <N, S> ColumnFamilyHandle getColumnFamily(
 			StateDescriptor<?, S> descriptor, TypeSerializer<N> namespaceSerializer) throws IOException {
 
-		Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>> stateInfo =
+		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> stateInfo =
 				kvStateInformation.get(descriptor.getName());
 
-		RegisteredBackendStateMetaInfo<N, S> newMetaInfo = new RegisteredBackendStateMetaInfo<>(
-				descriptor.getType(),
-				descriptor.getName(),
-				namespaceSerializer,
-				descriptor.getSerializer());
+		RegisteredKeyedBackendStateMetaInfo<N, S> newMetaInfo = new RegisteredKeyedBackendStateMetaInfo<>(
+			descriptor.getType(),
+			descriptor.getName(),
+			namespaceSerializer,
+			descriptor.getSerializer());
 
 		if (stateInfo != null) {
-			if (newMetaInfo.isCompatibleWith(stateInfo.f1)) {
+			// TODO with eager registration in place, these checks should be moved to restore()
+
+			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> restoredMetaInfo =
+				restoredKvStateMetaInfos.get(descriptor.getName());
+
+			Preconditions.checkState(
+				newMetaInfo.getName().equals(restoredMetaInfo.getName()),
+				"Incompatible state names. " +
+					"Was [" + restoredMetaInfo.getName() + "], " +
+					"registered with [" + newMetaInfo.getName() + "].");
+
+			if (!newMetaInfo.getStateType().equals(StateDescriptor.Type.UNKNOWN)
+				&& !restoredMetaInfo.getStateType().equals(StateDescriptor.Type.UNKNOWN)) {
+
+				Preconditions.checkState(
+					newMetaInfo.getStateType().equals(restoredMetaInfo.getStateType()),
+					"Incompatible state types. " +
+						"Was [" + restoredMetaInfo.getStateType() + "], " +
+						"registered with [" + newMetaInfo.getStateType() + "].");
+			}
+
+			// check compatibility results to determine if state migration is required
+
+			CompatibilityResult<N> namespaceCompatibility = StateMigrationUtil.resolveCompatibilityResult(
+					restoredMetaInfo.getNamespaceSerializer(),
+					MigrationNamespaceSerializerProxy.class,
+					restoredMetaInfo.getNamespaceSerializerConfigSnapshot(),
+					newMetaInfo.getNamespaceSerializer());
+
+			CompatibilityResult<S> stateCompatibility = StateMigrationUtil.resolveCompatibilityResult(
+					restoredMetaInfo.getStateSerializer(),
+					TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer.class,
+					restoredMetaInfo.getStateSerializerConfigSnapshot(),
+					newMetaInfo.getStateSerializer());
+
+			if (!namespaceCompatibility.isRequiresMigration() && !stateCompatibility.isRequiresMigration()) {
 				stateInfo.f1 = newMetaInfo;
 				return stateInfo.f0;
 			} else {
-				throw new IOException("Trying to access state using wrong meta info, was " + stateInfo.f1 +
-						" trying access with " + newMetaInfo);
+				// TODO state migration currently isn't possible.
+				throw new RuntimeException("State migration currently isn't supported.");
 			}
 		}
 
@@ -832,7 +1552,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		try {
 			ColumnFamilyHandle columnFamily = db.createColumnFamily(columnDescriptor);
-			Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<N, S>> tuple =
+			Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, S>> tuple =
 					new Tuple2<>(columnFamily, newMetaInfo);
 			Map rawAccess = kvStateInformation;
 			rawAccess.put(descriptor.getName(), tuple);
@@ -1138,17 +1858,26 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	/**
 	 * For backwards compatibility, remove again later!
+	 *
+	 * @deprecated Internal method used for backwards compatibility.
 	 */
 	@Deprecated
-	private void restoreOldSavepointKeyedState(Collection<KeyGroupsStateHandle> restoreState) throws Exception {
-
-		if (restoreState.isEmpty()) {
-			return;
-		}
+	private void restoreOldSavepointKeyedState(Collection<KeyedStateHandle> restoreState) throws Exception {
+		createDB();
 
 		Preconditions.checkState(1 == restoreState.size(), "Only one element expected here.");
+
+		KeyedStateHandle keyedStateHandle = restoreState.iterator().next();
+		if (!(keyedStateHandle instanceof MigrationKeyGroupStateHandle)) {
+			throw new IllegalStateException("Unexpected state handle type, " +
+					"expected: " + MigrationKeyGroupStateHandle.class +
+					", but found: " + keyedStateHandle.getClass());
+		}
+
+		MigrationKeyGroupStateHandle keyGroupStateHandle = (MigrationKeyGroupStateHandle) keyedStateHandle;
+
 		HashMap<String, RocksDBStateBackend.FinalFullyAsyncSnapshot> namedStates;
-		try (FSDataInputStream inputStream = restoreState.iterator().next().openInputStream()) {
+		try (FSDataInputStream inputStream = keyGroupStateHandle.openInputStream()) {
 			namedStates = InstantiationUtil.deserializeObject(inputStream, userCodeClassLoader);
 		}
 
@@ -1157,6 +1886,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		// clear k/v state information before filling it
 		kvStateInformation.clear();
+
+		restoredKvStateMetaInfos = new HashMap<>(namedStates.size());
 
 		// first get the column family mapping
 		int numColumns = inputView.readInt();
@@ -1171,6 +1902,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			StateDescriptor stateDescriptor = (StateDescriptor) ooIn.readObject();
 
 			columnFamilyMapping.put(mappingByte, stateDescriptor);
+
+			// mimic a restored kv state meta info
+			restoredKvStateMetaInfos.put(
+				stateDescriptor.getName(),
+				new RegisteredKeyedBackendStateMetaInfo<>(
+					stateDescriptor.getType(),
+					stateDescriptor.getName(),
+					MigrationNamespaceSerializerProxy.INSTANCE,
+					stateDescriptor.getSerializer()).snapshot());
 
 			// this will fill in the k/v state information
 			getColumnFamily(stateDescriptor, MigrationNamespaceSerializerProxy.INSTANCE);

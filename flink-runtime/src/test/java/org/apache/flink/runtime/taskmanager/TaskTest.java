@@ -53,17 +53,19 @@ import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskMessages;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.WrappingRuntimeException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import scala.concurrent.duration.FiniteDuration;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
@@ -117,9 +119,9 @@ public class TaskTest extends TestLogger {
 	
 	@Before
 	public void createQueuesAndActors() {
-		taskManagerMessages = new LinkedBlockingQueue<Object>();
-		jobManagerMessages = new LinkedBlockingQueue<Object>();
-		listenerMessages = new LinkedBlockingQueue<Object>();
+		taskManagerMessages = new LinkedBlockingQueue<>();
+		jobManagerMessages = new LinkedBlockingQueue<>();
+		listenerMessages = new LinkedBlockingQueue<>();
 		taskManagerGateway = new ForwardingActorGateway(taskManagerMessages);
 		jobManagerGateway = new ForwardingActorGateway(jobManagerMessages);
 		listenerGateway = new ForwardingActorGateway(listenerMessages);
@@ -327,6 +329,32 @@ public class TaskTest extends TestLogger {
 			validateTaskManagerStateChange(ExecutionState.RUNNING, task, false);
 			validateUnregisterTask(task.getExecutionId());
 			
+			validateListenerMessage(ExecutionState.RUNNING, task, false);
+			validateListenerMessage(ExecutionState.FAILED, task, true);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testFailWithWrappedException() {
+		try {
+			Task task = createTask(FailingInvokableWithChainedException.class);
+			task.registerExecutionListener(listener);
+
+			task.run();
+
+			assertEquals(ExecutionState.FAILED, task.getExecutionState());
+			assertTrue(task.isCanceledOrFailed());
+
+			Throwable cause = task.getFailureCause();
+			assertTrue(cause instanceof IOException);
+
+			validateTaskManagerStateChange(ExecutionState.RUNNING, task, false);
+			validateUnregisterTask(task.getExecutionId());
+
 			validateListenerMessage(ExecutionState.RUNNING, task, false);
 			validateListenerMessage(ExecutionState.FAILED, task, true);
 		}
@@ -941,6 +969,9 @@ public class TaskTest extends TestLogger {
 			1,
 			invokable.getName(),
 			new Configuration());
+
+		TaskMetricGroup taskMetricGroup = mock(TaskMetricGroup.class);
+		when(taskMetricGroup.getIOMetricGroup()).thenReturn(mock(TaskIOMetricGroup.class));
 		
 		return new Task(
 			jobInformation,
@@ -963,7 +994,7 @@ public class TaskTest extends TestLogger {
 			libCache,
 			mock(FileCache.class),
 			new TestingTaskManagerRuntimeInfo(taskManagerConfig),
-			mock(TaskMetricGroup.class),
+			taskMetricGroup,
 			consumableNotifier,
 			partitionProducerStateChecker,
 			executor);
@@ -1227,6 +1258,29 @@ public class TaskTest extends TestLogger {
 
 		@Override
 		public void cancel() throws Exception {
+		}
+	}
+
+	public static final class FailingInvokableWithChainedException extends AbstractInvokable {
+
+		@Override
+		public void invoke() throws Exception {
+			throw new TestWrappedException(new IOException("test"));
+		}
+
+		@Override
+		public void cancel() {}
+	}
+
+	// ------------------------------------------------------------------------
+	//  test exceptions
+	// ------------------------------------------------------------------------
+
+	private static class TestWrappedException extends WrappingRuntimeException {
+		private static final long serialVersionUID = 1L;
+
+		public TestWrappedException(@Nonnull Throwable cause) {
+			super(cause);
 		}
 	}
 }

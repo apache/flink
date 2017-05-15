@@ -41,13 +41,6 @@ public class StringUtilsTest extends TestLogger {
 	}
 
 	@Test
-	public void testEscapeHTML() {
-		String testString = "\b \t / \n \f \r <default>";
-		String controlString = StringUtils.escapeHtml(testString);
-		assertEquals("\\b \\t \\/ <br> \\f \\r &lt;default&gt;", controlString);
-	}
-	
-	@Test
 	public void testStringToHexArray() {
 		String hex = "019f314a";
 		byte[] hexArray = StringUtils.hexStringToByte(hex);

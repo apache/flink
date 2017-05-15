@@ -31,8 +31,7 @@ public final class BooleanValueSerializer extends TypeSerializerSingleton<Boolea
 	private static final long serialVersionUID = 1L;
 	
 	public static final BooleanValueSerializer INSTANCE = new BooleanValueSerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -85,5 +84,11 @@ public final class BooleanValueSerializer extends TypeSerializerSingleton<Boolea
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof BooleanValueSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(BooleanSerializer.class.getCanonicalName());
 	}
 }

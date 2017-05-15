@@ -18,10 +18,9 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import java.io.IOException;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.watermark.Watermark;
-
-import java.io.IOException;
 
 /**
  * A callback registered with the {@link InternalWatermarkCallbackService} service. This callback will

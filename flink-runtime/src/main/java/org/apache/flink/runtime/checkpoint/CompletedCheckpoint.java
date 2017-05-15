@@ -18,20 +18,24 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats.DiscardCallback;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -89,11 +93,14 @@ public class CompletedCheckpoint implements Serializable {
 	/** The duration of the checkpoint (completion timestamp - trigger timestamp). */
 	private final long duration;
 
-	/** States of the different task groups belonging to this checkpoint */
-	private final Map<JobVertexID, TaskState> taskStates;
+	/** States of the different operator groups belonging to this checkpoint */
+	private final Map<OperatorID, OperatorState> operatorStates;
 
 	/** Properties for this checkpoint. */
 	private final CheckpointProperties props;
+
+	/** States that were created by a hook on the master (in the checkpoint coordinator) */
+	private final Collection<MasterState> masterHookStates;
 
 	/** The state handle to the externalized meta data, if the metadata has been externalized */
 	@Nullable
@@ -105,39 +112,17 @@ public class CompletedCheckpoint implements Serializable {
 
 	/** Optional stats tracker callback for discard. */
 	@Nullable
-	private transient volatile DiscardCallback discardCallback;
+	private transient volatile CompletedCheckpointStats.DiscardCallback discardCallback;
 
 	// ------------------------------------------------------------------------
 
-	@VisibleForTesting
-	CompletedCheckpoint(
-			JobID job,
-			long checkpointID,
-			long timestamp,
-			long completionTimestamp,
-			Map<JobVertexID, TaskState> taskStates) {
-
-		this(job, checkpointID, timestamp, completionTimestamp, taskStates,
-				CheckpointProperties.forStandardCheckpoint());
-	}
-
 	public CompletedCheckpoint(
 			JobID job,
 			long checkpointID,
 			long timestamp,
 			long completionTimestamp,
-			Map<JobVertexID, TaskState> taskStates,
-			CheckpointProperties props) {
-
-		this(job, checkpointID, timestamp, completionTimestamp, taskStates, props, null, null);
-	}
-
-	public CompletedCheckpoint(
-			JobID job,
-			long checkpointID,
-			long timestamp,
-			long completionTimestamp,
-			Map<JobVertexID, TaskState> taskStates,
+			Map<OperatorID, OperatorState> operatorStates,
+			@Nullable Collection<MasterState> masterHookStates,
 			CheckpointProperties props,
 			@Nullable StreamStateHandle externalizedMetadata,
 			@Nullable String externalPointer) {
@@ -149,14 +134,21 @@ public class CompletedCheckpoint implements Serializable {
 		checkArgument((externalPointer == null) == (externalizedMetadata == null),
 				"external pointer without externalized metadata must be both null or both non-null");
 
-		checkArgument(!props.externalizeCheckpoint() || externalPointer != null, 
+		checkArgument(!props.externalizeCheckpoint() || externalPointer != null,
 			"Checkpoint properties require externalized checkpoint, but checkpoint is not externalized");
 
 		this.job = checkNotNull(job);
 		this.checkpointID = checkpointID;
 		this.timestamp = timestamp;
 		this.duration = completionTimestamp - timestamp;
-		this.taskStates = checkNotNull(taskStates);
+
+		// we create copies here, to make sure we have no shared mutable
+		// data structure with the "outside world"
+		this.operatorStates = new HashMap<>(checkNotNull(operatorStates));
+		this.masterHookStates = masterHookStates == null || masterHookStates.isEmpty() ?
+				Collections.<MasterState>emptyList() :
+				new ArrayList<>(masterHookStates);
+
 		this.props = checkNotNull(props);
 		this.externalizedMetadata = externalizedMetadata;
 		this.externalPointer = externalPointer;
@@ -184,22 +176,28 @@ public class CompletedCheckpoint implements Serializable {
 		return props;
 	}
 
-	public boolean subsume() throws Exception {
+	public void discardOnFailedStoring() throws Exception {
+		new UnstoredDiscardStategy().discard();
+	}
+
+	public boolean discardOnSubsume(SharedStateRegistry sharedStateRegistry) throws Exception {
+
 		if (props.discardOnSubsumed()) {
-			discard();
+			new StoredDiscardStrategy(sharedStateRegistry).discard();
 			return true;
 		}
 
 		return false;
 	}
 
-	public boolean discard(JobStatus jobStatus) throws Exception {
+	public boolean discardOnShutdown(JobStatus jobStatus, SharedStateRegistry sharedStateRegistry) throws Exception {
+
 		if (jobStatus == JobStatus.FINISHED && props.discardOnJobFinished() ||
 				jobStatus == JobStatus.CANCELED && props.discardOnJobCancelled() ||
 				jobStatus == JobStatus.FAILED && props.discardOnJobFailed() ||
 				jobStatus == JobStatus.SUSPENDED && props.discardOnJobSuspended()) {
 
-			discard();
+			new StoredDiscardStrategy(sharedStateRegistry).discard();
 			return true;
 		} else {
 			if (externalPointer != null) {
@@ -211,60 +209,22 @@ public class CompletedCheckpoint implements Serializable {
 		}
 	}
 
-	void discard() throws Exception {
-		try {
-			// collect exceptions and continue cleanup
-			Exception exception = null;
-
-			// drop the metadata, if we have some
-			if (externalizedMetadata != null) {
-				try {
-					externalizedMetadata.discardState();
-				}
-				catch (Exception e) {
-					exception = e;
-				}
-			}
-
-			// drop the actual state
-			try {
-				StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
-			}
-			catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			if (exception != null) {
-				throw exception;
-			}
-		}
-		finally {
-			taskStates.clear();
-
-			// to be null-pointer safe, copy reference to stack
-			DiscardCallback discardCallback = this.discardCallback;
-			if (discardCallback != null) {
-				discardCallback.notifyDiscardedCheckpoint();
-			}
-		}
-	}
-
 	public long getStateSize() {
 		long result = 0L;
 
-		for (TaskState taskState : taskStates.values()) {
-			result += taskState.getStateSize();
+		for (OperatorState operatorState : operatorStates.values()) {
+			result += operatorState.getStateSize();
 		}
 
 		return result;
 	}
 
-	public Map<JobVertexID, TaskState> getTaskStates() {
-		return taskStates;
+	public Map<OperatorID, OperatorState> getOperatorStates() {
+		return operatorStates;
 	}
 
-	public TaskState getTaskState(JobVertexID jobVertexID) {
-		return taskStates.get(jobVertexID);
+	public Collection<MasterState> getMasterHookStates() {
+		return Collections.unmodifiableCollection(masterHookStates);
 	}
 
 	public boolean isExternalized() {
@@ -290,10 +250,118 @@ public class CompletedCheckpoint implements Serializable {
 		this.discardCallback = discardCallback;
 	}
 
+	/**
+	 * Register all shared states in the given registry. This is method is called
+	 * when the completed checkpoint has been successfully added into the store.
+	 *
+	 * @param sharedStateRegistry The registry where shared states are registered
+	 */
+	public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
+		sharedStateRegistry.registerAll(operatorStates.values());
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
 		return String.format("Checkpoint %d @ %d for %s", checkpointID, timestamp, job);
+	}
+
+	/**
+	 * Base class for the discarding strategies of {@link CompletedCheckpoint}.
+	 */
+	private abstract class DiscardStrategy {
+
+		protected Exception storedException;
+
+		public DiscardStrategy() {
+			this.storedException = null;
+		}
+
+		public void discard() throws Exception {
+
+			try {
+				// collect exceptions and continue cleanup
+				storedException = null;
+
+				doDiscardExternalizedMetaData();
+				doDiscardSharedState();
+				doDiscardPrivateState();
+				doReportStoredExceptions();
+			} finally {
+				clearTaskStatesAndNotifyDiscardCompleted();
+			}
+		}
+
+		protected void doDiscardExternalizedMetaData() {
+			// drop the metadata, if we have some
+			if (externalizedMetadata != null) {
+				try {
+					externalizedMetadata.discardState();
+				} catch (Exception e) {
+					storedException = e;
+				}
+			}
+		}
+
+		protected void doDiscardPrivateState() {
+			// discard private state objects
+			try {
+				StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
+			} catch (Exception e) {
+				storedException = ExceptionUtils.firstOrSuppressed(e, storedException);
+			}
+		}
+
+		protected abstract void doDiscardSharedState();
+
+		protected void doReportStoredExceptions() throws Exception {
+			if (storedException != null) {
+				throw storedException;
+			}
+		}
+
+		protected void clearTaskStatesAndNotifyDiscardCompleted() {
+			operatorStates.clear();
+			// to be null-pointer safe, copy reference to stack
+			CompletedCheckpointStats.DiscardCallback discardCallback =
+				CompletedCheckpoint.this.discardCallback;
+
+			if (discardCallback != null) {
+				discardCallback.notifyDiscardedCheckpoint();
+			}
+		}
+	}
+
+	/**
+	 * Discard all shared states created in the checkpoint. This strategy is applied
+	 * when the completed checkpoint fails to be added into the store.
+	 */
+	private class UnstoredDiscardStategy extends CompletedCheckpoint.DiscardStrategy {
+
+		@Override
+		protected void doDiscardSharedState() {
+			// nothing to do because we did not register any shared state yet. unregistered, new
+			// shared state is then still considered private state and deleted as part of
+			// doDiscardPrivateState().
+		}
+	}
+
+	/**
+	 * Unregister all shared states from the given registry. This is strategy is
+	 * applied when the completed checkpoint is subsumed or the job terminates.
+	 */
+	private class StoredDiscardStrategy extends CompletedCheckpoint.DiscardStrategy {
+
+		SharedStateRegistry sharedStateRegistry;
+
+		public StoredDiscardStrategy(SharedStateRegistry sharedStateRegistry) {
+			this.sharedStateRegistry = Preconditions.checkNotNull(sharedStateRegistry);
+		}
+
+		@Override
+		protected void doDiscardSharedState() {
+			sharedStateRegistry.unregisterAll(operatorStates.values());
+		}
 	}
 }

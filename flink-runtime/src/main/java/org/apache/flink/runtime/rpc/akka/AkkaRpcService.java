@@ -187,7 +187,7 @@ public class AkkaRpcService implements RpcService {
 
 		synchronized (lock) {
 			checkState(!stopped, "RpcService is stopped");
-			actorRef = actorSystem.actorOf(akkaRpcActorProps);
+			actorRef = actorSystem.actorOf(akkaRpcActorProps, rpcEndpoint.getEndpointId());
 			actors.add(actorRef);
 		}
 

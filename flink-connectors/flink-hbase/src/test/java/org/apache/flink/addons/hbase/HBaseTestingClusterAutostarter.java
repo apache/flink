@@ -23,6 +23,7 @@ package org.apache.flink.addons.hbase;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.impl.Log4JLogger;
+import org.apache.flink.util.TestLogger;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -77,7 +78,7 @@ import static org.junit.Assert.fail;
 //
 // https://github.com/apache/hbase/blob/master/hbase-server/src/test/java/org/apache/hadoop/hbase/filter/FilterTestingCluster.java
 //
-public class HBaseTestingClusterAutostarter implements Serializable {
+public class HBaseTestingClusterAutostarter extends TestLogger implements Serializable {
 
 	private static final Log LOG = LogFactory.getLog(HBaseTestingClusterAutostarter.class);
 

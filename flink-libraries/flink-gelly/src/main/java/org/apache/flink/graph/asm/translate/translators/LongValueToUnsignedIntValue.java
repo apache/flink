@@ -30,6 +30,8 @@ import org.apache.flink.types.LongValue;
 public class LongValueToUnsignedIntValue
 implements TranslateFunction<LongValue, IntValue> {
 
+	public static final long MAX_VERTEX_COUNT = 1L << 32;
+
 	@Override
 	public IntValue translate(LongValue value, IntValue reuse)
 			throws Exception {
@@ -39,10 +41,10 @@ implements TranslateFunction<LongValue, IntValue> {
 
 		long l = value.getValue();
 
-		if (l < 0 || l >= (1L << 32)) {
+		if (l < 0 || l >= MAX_VERTEX_COUNT) {
 			throw new IllegalArgumentException("Cannot cast long value " + value + " to integer.");
 		} else {
-			reuse.setValue((int)(l & 0xffffffffL));
+			reuse.setValue((int) (l & (MAX_VERTEX_COUNT - 1)));
 		}
 
 		return reuse;

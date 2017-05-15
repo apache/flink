@@ -24,6 +24,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.ArrayList;
 
+/**
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
+ */
 @Deprecated
 @SuppressWarnings("deprecation")
 public class MemListState<K, N, V> {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -168,8 +168,10 @@ public class SourceStreamTaskTest {
 				// simulate some work
 				try {
 					Thread.sleep(readDelay);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+				}
+				catch (InterruptedException e) {
+					// ignore and reset interruption state
+					Thread.currentThread().interrupt();
 				}
 
 				synchronized (lockObject) {

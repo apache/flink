@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,6 +17,10 @@
  */
 package org.apache.flink.streaming.api.functions.windowing;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Collections;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
@@ -31,14 +35,17 @@ import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.Collections;
-
+/**
+ * Internal {@link ProcessAllWindowFunction} that is used for implementing a fold on a window
+ * configuration that only allows {@link ProcessAllWindowFunction} and cannot directly execute a
+ * {@link FoldFunction}.
+ *
+ * @deprecated will be removed in a future version
+ */
 @Internal
+@Deprecated
 public class FoldApplyProcessAllWindowFunction<W extends Window, T, ACC, R>
-	extends RichProcessAllWindowFunction<T, R, W>
+	extends ProcessAllWindowFunction<T, R, W>
 	implements OutputTypeConfigurable<R> {
 
 	private static final long serialVersionUID = 1L;
@@ -50,6 +57,7 @@ public class FoldApplyProcessAllWindowFunction<W extends Window, T, ACC, R>
 	private TypeSerializer<ACC> accSerializer;
 	private final TypeInformation<ACC> accTypeInformation;
 	private transient ACC initialValue;
+	private transient InternalProcessApplyAllWindowContext<ACC, R, W> ctx;
 
 	public FoldApplyProcessAllWindowFunction(ACC initialValue, FoldFunction<T, ACC> foldFunction, ProcessAllWindowFunction<ACC, R, W> windowFunction, TypeInformation<ACC> accTypeInformation) {
 		this.windowFunction = windowFunction;
@@ -70,6 +78,9 @@ public class FoldApplyProcessAllWindowFunction<W extends Window, T, ACC, R>
 		ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
 		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
 		initialValue = accSerializer.deserialize(in);
+
+		ctx = new InternalProcessApplyAllWindowContext<>(windowFunction);
+
 	}
 
 	@Override
@@ -92,12 +103,19 @@ public class FoldApplyProcessAllWindowFunction<W extends Window, T, ACC, R>
 			result = foldFunction.fold(result, val);
 		}
 
-		windowFunction.process(windowFunction.new Context() {
-			@Override
-			public W window() {
-				return context.window();
-			}
-		}, Collections.singletonList(result), out);
+		this.ctx.window = context.window();
+		this.ctx.windowState = context.windowState();
+		this.ctx.globalState = context.globalState();
+
+		windowFunction.process(ctx, Collections.singletonList(result), out);
+	}
+
+	@Override
+	public void clear(final Context context) throws Exception {
+		this.ctx.window = context.window();
+		this.ctx.windowState = context.windowState();
+		this.ctx.globalState = context.globalState();
+		windowFunction.clear(ctx);
 	}
 
 	@Override

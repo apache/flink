@@ -51,9 +51,10 @@ import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.MutableObjectIterator;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-public class LargeRecordHandlerITCase {
+public class LargeRecordHandlerITCase extends TestLogger {
 
 	@Test
 	public void testRecordHandlerCompositeKey() {

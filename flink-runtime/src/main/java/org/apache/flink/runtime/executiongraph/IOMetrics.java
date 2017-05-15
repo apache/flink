@@ -25,7 +25,9 @@ import java.io.Serializable;
  * An instance of this class represents a snapshot of the io-related metrics of a single task.
  */
 public class IOMetrics implements Serializable {
+
 	private static final long serialVersionUID = -7208093607556457183L;
+
 	protected long numRecordsIn;
 	protected long numRecordsOut;
 

@@ -70,14 +70,14 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		final PipelinedSubpartition subpartition = createSubpartition();
 
 		// Successful request
-		assertNotNull(subpartition.createReadView(null, new BufferAvailabilityListener() {
+		assertNotNull(subpartition.createReadView(new BufferAvailabilityListener() {
 			@Override
 			public void notifyBuffersAvailable(long numBuffers) {
 			}
 		}));
 
 		try {
-			subpartition.createReadView(null, new BufferAvailabilityListener() {
+			subpartition.createReadView(new BufferAvailabilityListener() {
 				@Override
 				public void notifyBuffersAvailable(long numBuffers) {
 				}
@@ -94,7 +94,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		BufferAvailabilityListener listener = mock(BufferAvailabilityListener.class);
 
-		ResultSubpartitionView view = subpartition.createReadView(null, listener);
+		ResultSubpartitionView view = subpartition.createReadView(listener);
 
 		// Empty => should return null
 		assertNull(view.getNextBuffer());
@@ -221,7 +221,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		final PipelinedSubpartition subpartition = createSubpartition();
 
 		TestSubpartitionConsumer consumer = new TestSubpartitionConsumer(isSlowConsumer, consumerCallback);
-		final PipelinedSubpartitionView view = subpartition.createReadView(null, consumer);
+		final PipelinedSubpartitionView view = subpartition.createReadView(consumer);
 		consumer.setSubpartitionView(view);
 
 		Future<Boolean> producerResult = executorService.submit(

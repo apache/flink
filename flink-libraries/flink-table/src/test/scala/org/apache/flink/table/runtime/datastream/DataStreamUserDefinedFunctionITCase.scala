@@ -23,7 +23,7 @@ import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamTestData}
-import org.apache.flink.table.expressions.utils.{Func13, RichFunc2}
+import org.apache.flink.table.expressions.utils.{Func13, Func18, RichFunc2}
 import org.apache.flink.table.utils._
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -51,7 +51,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .join(func0('c) as('d, 'e))
       .select('c, 'd, 'e)
       .join(pojoFunc0('c))
-      .where(('age > 20))
+      .where('age > 20)
       .select('c, 'name, 'age)
       .toDataStream[Row]
 
@@ -78,6 +78,24 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
     val expected = mutable.MutableList(
       "nosharp,null,null", "Jack#22,Jack,22",
       "John#19,John,19", "Anna#44,Anna,44")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testUserDefinedTableFunctionWithScalarFunction(): Unit = {
+    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val func0 = new TableFunc0
+
+    val result = t
+      .join(func0('c) as('d, 'e))
+      .where(Func18('d, "J"))
+      .select('c, 'd, 'e)
+      .toDataStream[Row]
+
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList("Jack#22,Jack,22", "John#19,John,19")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

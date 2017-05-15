@@ -23,14 +23,15 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.leaderelection.LeaderContender;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -40,13 +41,8 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.FileNotFoundException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
-import static org.mockito.Mockito.*;
-
 
 public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 
@@ -65,6 +61,8 @@ public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 
 	@BeforeClass
 	public static void createHDFS() throws Exception {
+		Assume.assumeTrue(!OperatingSystem.isWindows());
+
 		final File tempDir = TEMP_DIR.newFolder();
 
 		org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
@@ -95,35 +93,15 @@ public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	@Test
-	public void testConstantResourceManagerName() throws Exception {
-		final Configuration flinkConfig = new Configuration();
-		flinkConfig.setString(YarnConfigOptions.APP_MASTER_RPC_ADDRESS, "localhost");
-		flinkConfig.setInteger(YarnConfigOptions.APP_MASTER_RPC_PORT, 1427);
-
-		YarnHighAvailabilityServices services1 = new YarnPreConfiguredMasterNonHaServices(flinkConfig, hadoopConfig);
-		YarnHighAvailabilityServices services2 = new YarnPreConfiguredMasterNonHaServices(flinkConfig, hadoopConfig);
-
-		try {
-			String rmName1 = services1.getResourceManagerEndpointName();
-			String rmName2 = services2.getResourceManagerEndpointName();
-
-			assertNotNull(rmName1);
-			assertNotNull(rmName2);
-			assertEquals(rmName1, rmName2);
-		}
-		finally {
-			services1.closeAndCleanupAllData();
-			services2.closeAndCleanupAllData();
-		}
-	}
-
-	@Test
 	public void testMissingRmConfiguration() throws Exception {
 		final Configuration flinkConfig = new Configuration();
 
 		// missing resource manager address
 		try {
-			new YarnPreConfiguredMasterNonHaServices(flinkConfig, hadoopConfig);
+			new YarnPreConfiguredMasterNonHaServices(
+				flinkConfig,
+				hadoopConfig,
+				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 			fail();
 		} catch (IllegalConfigurationException e) {
 			// expected
@@ -133,7 +111,10 @@ public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 
 		// missing resource manager port
 		try {
-			new YarnPreConfiguredMasterNonHaServices(flinkConfig, hadoopConfig);
+			new YarnPreConfiguredMasterNonHaServices(
+				flinkConfig,
+				hadoopConfig,
+				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 			fail();
 		} catch (IllegalConfigurationException e) {
 			// expected
@@ -142,7 +123,10 @@ public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 		flinkConfig.setInteger(YarnConfigOptions.APP_MASTER_RPC_PORT, 1427);
 
 		// now everything is good ;-)
-		new YarnPreConfiguredMasterNonHaServices(flinkConfig, hadoopConfig).closeAndCleanupAllData();
+		new YarnPreConfiguredMasterNonHaServices(
+			flinkConfig,
+			hadoopConfig,
+			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION).closeAndCleanupAllData();
 	}
 
 	@Test
@@ -152,7 +136,10 @@ public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 		flinkConfig.setInteger(YarnConfigOptions.APP_MASTER_RPC_PORT, 1427);
 
 		// create the services
-		YarnHighAvailabilityServices services = new YarnPreConfiguredMasterNonHaServices(flinkConfig, hadoopConfig);
+		YarnHighAvailabilityServices services = new YarnPreConfiguredMasterNonHaServices(
+			flinkConfig,
+			hadoopConfig,
+			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 		services.closeAndCleanupAllData();
 
 		final FileSystem fileSystem = HDFS_ROOT_PATH.getFileSystem();
@@ -183,7 +170,10 @@ public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 		flinkConfig.setString(YarnConfigOptions.APP_MASTER_RPC_ADDRESS, "localhost");
 		flinkConfig.setInteger(YarnConfigOptions.APP_MASTER_RPC_PORT, 1427);
 
-		YarnHighAvailabilityServices services = new YarnPreConfiguredMasterNonHaServices(flinkConfig, hadoopConfig);
+		YarnHighAvailabilityServices services = new YarnPreConfiguredMasterNonHaServices(
+			flinkConfig,
+			hadoopConfig,
+			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 		// this method is not supported
 		try {
