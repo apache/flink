@@ -17,8 +17,6 @@
  */
 package org.apache.flink.streaming.connectors.kafka.partitioner;
 
-import java.io.Serializable;
-
 /**
  * A partitioner ensuring that each internal Flink partition ends up in one Kafka partition.
  *
@@ -48,30 +46,26 @@ import java.io.Serializable;
  *  Not all Kafka partitions contain data
  *  To avoid such an unbalanced partitioning, use a round-robin kafka partitioner. (note that this will
  *  cause a lot of network connections between all the Flink instances and all the Kafka brokers
- *  @deprecated Use {@link FlinkFixedPartitioner} instead.
  *
  */
-@Deprecated
-public class FixedPartitioner<T> extends KafkaPartitioner<T> implements Serializable {
-	private static final long serialVersionUID = 1627268846962918126L;
+public class FlinkFixedPartitioner<T> extends FlinkKafkaPartitioner<T> {
 
-	private int targetPartition = -1;
+	private int parallelInstanceId;
 
 	@Override
-	public void open(int parallelInstanceId, int parallelInstances, int[] partitions) {
-		if (parallelInstanceId < 0 || parallelInstances <= 0 || partitions.length == 0) {
+	public void open(int parallelInstanceId, int parallelInstances) {
+		if (parallelInstanceId < 0 || parallelInstances <= 0) {
+			throw new IllegalArgumentException();
+		}
+		this.parallelInstanceId = parallelInstanceId;
+	}
+	
+	@Override
+	public int partition(T record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
+		if(null == partitions || partitions.length == 0) {
 			throw new IllegalArgumentException();
 		}
 		
-		this.targetPartition = partitions[parallelInstanceId % partitions.length];
-	}
-
-	@Override
-	public int partition(T next, byte[] serializedKey, byte[] serializedValue, int numPartitions) {
-		if (targetPartition >= 0) {
-			return targetPartition;
-		} else {
-			throw new RuntimeException("The partitioner has not been initialized properly");
-		}
+		return partitions[parallelInstanceId % partitions.length];
 	}
 }
