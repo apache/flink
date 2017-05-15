@@ -246,7 +246,7 @@ trait ImplicitExpressionOperations {
 
 
   /**
-    * Returns the start time of a window when applied on a window reference.
+    * Returns the start time (inclusive) of a window when applied on a window reference.
     */
   def start = WindowStart(expr)
 
