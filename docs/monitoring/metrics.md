@@ -732,6 +732,42 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
+#### Availability:
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 30%">Metrics</th>
+      <th class="text-left" style="width: 50%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="4"><strong>Job (only available on JobManager)</strong></th>
+      <td>restartingTime</td>
+      <td>The time it took to restart the job, or how long the current restart has been in progress.</td>
+    </tr>
+    <tr>
+      <td>uptime</td>
+      <td>
+        The time that the job has been running without interruption.
+        <p>Returns -1 for completed jobs.</p>
+      </td>
+    </tr>
+    <tr>
+      <td>downtime</td>
+      <td>
+        For jobs currently in a failing/recovering situation, the time elapsed during this outage.
+        <p>Returns 0 for running jobs and -1 for completed jobs.</p>
+      </td>
+    </tr>
+    <tr>
+      <td>fullRestarts</td>
+      <td>The total number of full restarts since this job was submitted.</td>
+    </tr>
+  </tbody>
+</table>
+
 #### Checkpointing:
 <table class="table table-bordered">
   <thead>
