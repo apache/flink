@@ -78,7 +78,6 @@ public class CEPFrom12MigrationTest {
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
 								false,
-								keySelector,
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
 								true),
@@ -126,7 +125,6 @@ public class CEPFrom12MigrationTest {
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
 								false,
-								keySelector,
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
 								true),
@@ -200,7 +198,6 @@ public class CEPFrom12MigrationTest {
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
 								false,
-								keySelector,
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
 								true),
@@ -246,7 +243,6 @@ public class CEPFrom12MigrationTest {
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
 								false,
-								keySelector,
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
 								true),
@@ -332,7 +328,6 @@ public class CEPFrom12MigrationTest {
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
 								false,
-								keySelector,
 								IntSerializer.INSTANCE,
 								new SinglePatternNFAFactory(),
 								true),
@@ -371,7 +366,6 @@ public class CEPFrom12MigrationTest {
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
 								false,
-								keySelector,
 								IntSerializer.INSTANCE,
 								new SinglePatternNFAFactory(),
 								true),

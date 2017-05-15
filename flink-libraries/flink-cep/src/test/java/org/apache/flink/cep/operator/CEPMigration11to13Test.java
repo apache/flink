@@ -103,7 +103,6 @@ public class CEPMigration11to13Test {
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
 								false,
-								keySelector,
 								IntSerializer.INSTANCE,
 								new NFAFactory(),
 								true),
@@ -178,7 +177,6 @@ public class CEPMigration11to13Test {
 						new KeyedCEPPatternOperator<>(
 								Event.createTypeSerializer(),
 								false,
-								keySelector,
 								ByteSerializer.INSTANCE,
 								new NFAFactory(),
 								false),
