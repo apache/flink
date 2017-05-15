@@ -84,16 +84,18 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 * @param previousTimestamp Timestamp of the value for the previous relation
 	 * @param version           Version of the previous relation
 	 */
-	public void put(
+	public int put(
 			final K key,
 			final V value,
 			final long timestamp,
 			final K previousKey,
 			final V previousValue,
 			final long previousTimestamp,
+			final int previousCounter,
 			final DeweyNumber version) {
 
-		final SharedBufferEntry<K, V> previousSharedBufferEntry = get(previousKey, previousValue, previousTimestamp);
+		final SharedBufferEntry<K, V> previousSharedBufferEntry =
+				get(previousKey, previousValue, previousTimestamp, previousCounter);
 
 		// sanity check whether we've found the previous element
 		if (previousSharedBufferEntry == null && previousValue != null) {
@@ -104,7 +106,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 				"the element belonging to that entry has been already pruned.");
 		}
 
-		put(key, value, timestamp, previousSharedBufferEntry, version);
+		return put(key, value, timestamp, previousSharedBufferEntry, version);
 	}
 
 	/**
@@ -116,16 +118,16 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 * @param timestamp Timestamp of the current value (a value requires always a timestamp to make it uniquely referable))
 	 * @param version   Version of the previous relation
 	 */
-	public void put(
+	public int put(
 			final K key,
 			final V value,
 			final long timestamp,
 			final DeweyNumber version) {
 
-		put(key, value, timestamp, null, version);
+		return put(key, value, timestamp, null, version);
 	}
 
-	private void put(
+	private int put(
 			final K key,
 			final V value,
 			final long timestamp,
@@ -138,7 +140,16 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 			pages.put(key, page);
 		}
 
-		page.add(new ValueTimeWrapper<>(value, timestamp), previousSharedBufferEntry, version);
+		// this assumes that elements are processed in order (in terms of time)
+		int counter = 0;
+		if (previousSharedBufferEntry != null) {
+			ValueTimeWrapper<V> prev = previousSharedBufferEntry.getValueTime();
+			if (prev != null && prev.getTimestamp() == timestamp) {
+				counter = prev.getCounter() + 1;
+			}
+		}
+		page.add(new ValueTimeWrapper<>(value, timestamp, counter), previousSharedBufferEntry, version);
+		return counter;
 	}
 
 	public boolean isEmpty() {
@@ -182,17 +193,19 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 * @return Collection of previous relations starting with the given value
 	 */
 	public Collection<ListMultimap<K, V>> extractPatterns(
-		final K key,
-		final V value,
-		final long timestamp,
-		final DeweyNumber version) {
+			final K key,
+			final V value,
+			final long timestamp,
+			final int counter,
+			final DeweyNumber version) {
+
 		Collection<ListMultimap<K, V>> result = new ArrayList<>();
 
 		// stack to remember the current extraction states
 		Stack<ExtractionState<K, V>> extractionStates = new Stack<>();
 
 		// get the starting shared buffer entry for the previous relation
-		SharedBufferEntry<K, V> entry = get(key, value, timestamp);
+		SharedBufferEntry<K, V> entry = get(key, value, timestamp, counter);
 
 		if (entry != null) {
 			extractionStates.add(new ExtractionState<>(entry, version, new Stack<SharedBufferEntry<K, V>>()));
@@ -206,7 +219,6 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 				// termination criterion
 				if (currentEntry == null) {
-					// TODO: 5/5/17 this should be a list 
 					final ListMultimap<K, V> completePath = ArrayListMultimap.create();
 
 					while(!currentPath.isEmpty()) {
@@ -259,8 +271,8 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 * @param value     Value to lock
 	 * @param timestamp Timestamp of the value to lock
 	 */
-	public void lock(final K key, final V value, final long timestamp) {
-		SharedBufferEntry<K, V> entry = get(key, value, timestamp);
+	public void lock(final K key, final V value, final long timestamp, int counter) {
+		SharedBufferEntry<K, V> entry = get(key, value, timestamp, counter);
 		if (entry != null) {
 			entry.increaseReferenceCounter();
 		}
@@ -274,8 +286,8 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 * @param value     Value to release
 	 * @param timestamp Timestamp of the value to release
 	 */
-	public void release(final K key, final V value, final long timestamp) {
-		SharedBufferEntry<K, V> entry = get(key, value, timestamp);
+	public void release(final K key, final V value, final long timestamp, int counter) {
+		SharedBufferEntry<K, V> entry = get(key, value, timestamp, counter);
 		if (entry != null) {
 			internalRemove(entry);
 		}
@@ -312,6 +324,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 				valueSerializer.serialize(valueTimeWrapper.value, target);
 				oos.writeLong(valueTimeWrapper.getTimestamp());
+				oos.writeInt(valueTimeWrapper.getCounter());
 
 				int edges = sharedBuffer.edges.size();
 				totalEdges += edges;
@@ -382,8 +395,9 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 				// restore the SharedBufferEntries for the given page
 				V value = valueSerializer.deserialize(source);
 				long timestamp = ois.readLong();
+				int counter = ois.readInt();
 
-				ValueTimeWrapper<V> valueTimeWrapper = new ValueTimeWrapper<>(value, timestamp);
+				ValueTimeWrapper<V> valueTimeWrapper = new ValueTimeWrapper<>(value, timestamp, counter);
 				SharedBufferEntry<K, V> sharedBufferEntry = new SharedBufferEntry<K, V>(valueTimeWrapper, page);
 
 				sharedBufferEntry.referenceCounter = ois.readInt();
@@ -477,16 +491,12 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	}
 
 	private SharedBufferEntry<K, V> get(
-		final K key,
-		final V value,
-		final long timestamp) {
-		if (pages.containsKey(key)) {
-			return pages
-				.get(key)
-				.get(new ValueTimeWrapper<V>(value, timestamp));
-		} else {
-			return null;
-		}
+			final K key,
+			final V value,
+			final long timestamp,
+			final int counter) {
+		SharedBufferPage<K, V> page = pages.get(key);
+		return page == null ? null : page.get(new ValueTimeWrapper<V>(value, timestamp, counter));
 	}
 
 	private void internalRemove(final SharedBufferEntry<K, V> entry) {
@@ -664,21 +674,22 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 * @param <V> Type of the value
 	 */
 	private static class SharedBufferEntry<K, V> {
+
 		private final ValueTimeWrapper<V> valueTime;
 		private final Set<SharedBufferEdge<K, V>> edges;
 		private final SharedBufferPage<K, V> page;
 		private int referenceCounter;
 
-		public SharedBufferEntry(
-			final ValueTimeWrapper<V> valueTime,
-			final SharedBufferPage<K, V> page) {
+		SharedBufferEntry(
+				final ValueTimeWrapper<V> valueTime,
+				final SharedBufferPage<K, V> page) {
 			this(valueTime, null, page);
 		}
 
-		public SharedBufferEntry(
-			final ValueTimeWrapper<V> valueTime,
-			final SharedBufferEdge<K, V> edge,
-			final SharedBufferPage<K, V> page) {
+		SharedBufferEntry(
+				final ValueTimeWrapper<V> valueTime,
+				final SharedBufferEdge<K, V> edge,
+				final SharedBufferPage<K, V> page) {
 			this.valueTime = valueTime;
 			edges = new HashSet<>();
 
@@ -819,17 +830,29 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	}
 
 	/**
-	 * Wrapper for a value timestamp pair.
+	 * Wrapper for a value-timestamp pair.
 	 *
 	 * @param <V> Type of the value
 	 */
 	static class ValueTimeWrapper<V> {
+
 		private final V value;
 		private final long timestamp;
+		private final int counter;
 
-		public ValueTimeWrapper(final V value, final long timestamp) {
+		ValueTimeWrapper(final V value, final long timestamp, final int counter) {
 			this.value = value;
 			this.timestamp = timestamp;
+			this.counter = counter;
+		}
+
+		/**
+		 * Returns a counter used to disambiguate between different accepted
+		 * elements with the same value and timestamp that refer to the same
+		 * looping state.
+		 */
+		public int getCounter() {
+			return counter;
 		}
 
 		public V getValue() {
@@ -842,7 +865,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 		@Override
 		public String toString() {
-			return "ValueTimeWrapper(" + value + ", " + timestamp + ")";
+			return "ValueTimeWrapper(" + value + ", " + timestamp + ", " + counter + ")";
 		}
 
 		@Override
@@ -851,7 +874,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 				@SuppressWarnings("unchecked")
 				ValueTimeWrapper<V> other = (ValueTimeWrapper<V>)obj;
 
-				return timestamp == other.getTimestamp() && value.equals(other.getValue());
+				return timestamp == other.getTimestamp() && value.equals(other.getValue()) && counter == other.getCounter();
 			} else {
 				return false;
 			}
@@ -859,7 +882,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 		@Override
 		public int hashCode() {
-			return (int) (this.timestamp ^ this.timestamp >>> 32) + 31 * value.hashCode();
+			return (int) (31 * (timestamp ^ timestamp >>> 32) + 31 * value.hashCode()) + counter;
 		}
 	}
 
@@ -871,15 +894,21 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 * @param <V> Type of the value
 	 */
 	private static class ExtractionState<K, V> {
+
 		private final SharedBufferEntry<K, V> entry;
 		private final DeweyNumber version;
 		private final Stack<SharedBufferEntry<K, V>> path;
 
-		public ExtractionState(
-			final SharedBufferEntry<K, V> entry,
-			final DeweyNumber version,
-			final Stack<SharedBufferEntry<K, V>> path) {
+		ExtractionState(
+				final SharedBufferEntry<K, V> entry,
+				final DeweyNumber version) {
+			this(entry, version, null);
+		}
 
+		ExtractionState(
+				final SharedBufferEntry<K, V> entry,
+				final DeweyNumber version,
+				final Stack<SharedBufferEntry<K, V>> path) {
 			this.entry = entry;
 			this.version = version;
 			this.path = path;
