@@ -45,7 +45,7 @@ public class JavaSerializer<T> extends Serializer<T> {
 
 	public JavaSerializer() {}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Override
 	public void write(Kryo kryo, Output output, T o) {
 		try {
@@ -62,7 +62,7 @@ public class JavaSerializer<T> extends Serializer<T> {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Override
 	public T read(Kryo kryo, Input input, Class aClass) {
 		try {

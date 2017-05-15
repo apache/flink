@@ -125,9 +125,7 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 			datumWriter = new SpecificDatumWriter<E>(avroValueType);
 			try {
 				schema = ((org.apache.avro.specific.SpecificRecordBase)avroValueType.newInstance()).getSchema();
-			} catch (InstantiationException e) {
-				throw new RuntimeException(e.getMessage());
-			} catch (IllegalAccessException e) {
+			} catch (InstantiationException | IllegalAccessException e) {
 				throw new RuntimeException(e.getMessage());
 			}
 		} else {

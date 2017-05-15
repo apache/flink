@@ -29,7 +29,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testPartitionedUnboundedOverRow(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e)
+    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     val resScala = t
       .window(SOver partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_ROW as 'w)
@@ -44,7 +44,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testUnboundedOverRow(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e)
+    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     val resScala = t
       .window(SOver orderBy 'rowtime preceding UNBOUNDED_ROW following CURRENT_ROW as 'w)
@@ -59,7 +59,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testPartitionedBoundedOverRow(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e)
+    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     val resScala = t
       .window(SOver partitionBy('a, 'd) orderBy 'rowtime preceding 10.rows as 'w)
@@ -74,7 +74,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testBoundedOverRow(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e)
+    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     val resScala = t
       .window(SOver orderBy 'rowtime preceding 10.rows following CURRENT_ROW as 'w)
@@ -89,7 +89,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testPartitionedUnboundedOverRange(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e)
+    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     val resScala = t
       .window(SOver partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_RANGE as 'w)
@@ -104,7 +104,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testUnboundedOverRange(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e)
+    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     val resScala = t
       .window(SOver orderBy 'rowtime preceding UNBOUNDED_RANGE following CURRENT_RANGE as 'w)
@@ -120,7 +120,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testPartitionedBoundedOverRange(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e)
+    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     val resScala = t
       .window(SOver partitionBy('a, 'c) orderBy 'rowtime preceding 10.minutes as 'w)
@@ -135,7 +135,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testBoundedOverRange(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e)
+    val t = util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     val resScala = t
       .window(SOver orderBy 'rowtime preceding 4.hours following CURRENT_RANGE as 'w)

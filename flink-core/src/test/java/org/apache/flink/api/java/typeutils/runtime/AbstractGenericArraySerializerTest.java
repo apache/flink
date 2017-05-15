@@ -18,12 +18,6 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.Random;
-
-import org.junit.Assert;
-import org.junit.Test;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
@@ -34,6 +28,12 @@ import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest.ComplexNestedObject2;
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest.SimpleTypes;
 import org.apache.flink.util.StringUtils;
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.Random;
 
 public abstract class AbstractGenericArraySerializerTest {
 	
@@ -110,11 +110,11 @@ public abstract class AbstractGenericArraySerializerTest {
 	@Test
 	public void testBeanStyleObjects() {
 		{
-			Book b1 = new Book(976243875L, "The Serialization Odysse", 42);
+			Book b1 = new Book(976243875L, "The Serialization Odyssey", 42);
 			Book b2 = new Book(0L, "Debugging byte streams", 1337);
 			Book b3 = new Book(-1L, "Low level interfaces", 0xC0FFEE);
 			Book b4 = new Book(Long.MAX_VALUE, "The joy of bits and bytes", 0xDEADBEEF);
-			Book b5 = new Book(Long.MIN_VALUE, "Winnign a prize for creative test strings", 0xBADF00);
+			Book b5 = new Book(Long.MIN_VALUE, "Winning a prize for creative test strings", 0xBADF00);
 			Book b6 = new Book(-2L, "Distributed Systems", 0xABCDEF0123456789L);
 			
 			runTests(	new Book[] {b1, b2},

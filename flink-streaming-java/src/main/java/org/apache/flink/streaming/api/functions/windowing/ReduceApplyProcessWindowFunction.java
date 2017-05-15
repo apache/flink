@@ -33,7 +33,7 @@ import org.apache.flink.util.Collector;
  */
 @Internal
 public class ReduceApplyProcessWindowFunction<K, W extends Window, T, R>
-	extends RichProcessWindowFunction<T, R, K, W> {
+	extends ProcessWindowFunction<T, R, K, W> {
 
 	private static final long serialVersionUID = 1L;
 

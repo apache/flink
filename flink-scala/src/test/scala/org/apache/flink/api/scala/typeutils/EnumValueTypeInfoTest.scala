@@ -18,39 +18,23 @@
 
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase
 import org.apache.flink.api.scala.typeutils.AlternateEnumeration.AlternateEnumeration
 import org.apache.flink.api.scala.typeutils.TestEnumeration.TestEnumeration
-import org.apache.flink.util.TestLogger
-import org.junit.Test
-import org.scalatest.junit.JUnitSuiteLike
 
-class EnumValueTypeInfoTest extends TestLogger with JUnitSuiteLike {
+/**
+  * Test for [[EnumValueTypeInfo]].
+  */
+class EnumValueTypeInfoTest extends TypeInformationTestBase[EnumValueTypeInfo[_]] {
 
-  @Test
-  def testEnumValueTypeInfoEquality(): Unit = {
-    val enumTypeInfo1 = new EnumValueTypeInfo[TestEnumeration.type](
+  override protected def getTestData: Array[EnumValueTypeInfo[_]] = Array(
+    new EnumValueTypeInfo[TestEnumeration.type](
       TestEnumeration,
-      classOf[TestEnumeration])
-    val enumTypeInfo2 = new EnumValueTypeInfo[TestEnumeration.type](
-      TestEnumeration,
-      classOf[TestEnumeration])
-
-    assert(enumTypeInfo1.equals(enumTypeInfo2))
-    assert(enumTypeInfo1.hashCode() == enumTypeInfo2.hashCode())
-  }
-
-  @Test
-  def testEnumValueTypeInfoInequality(): Unit = {
-    val enumTypeInfo1 = new EnumValueTypeInfo[TestEnumeration.type](
-      TestEnumeration,
-      classOf[TestEnumeration])
-    val enumTypeInfo2 = new EnumValueTypeInfo[AlternateEnumeration.type](
+      classOf[TestEnumeration]),
+    new EnumValueTypeInfo[AlternateEnumeration.type](
       AlternateEnumeration,
       classOf[AlternateEnumeration])
-
-    assert(!enumTypeInfo1.equals(enumTypeInfo2))
-  }
-
+  )
 }
 
 object TestEnumeration extends Enumeration {

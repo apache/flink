@@ -18,6 +18,9 @@
 
 package org.apache.flink.test.optimizer.jsonplan;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
@@ -31,9 +34,6 @@ import org.apache.flink.examples.java.relational.TPCHQuery3;
 import org.apache.flink.examples.java.relational.WebLogAnalysis;
 import org.apache.flink.examples.java.wordcount.WordCount;
 import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonParseException;
-import org.codehaus.jackson.JsonParser;
 import org.junit.Assert;
 import org.junit.Test;
 

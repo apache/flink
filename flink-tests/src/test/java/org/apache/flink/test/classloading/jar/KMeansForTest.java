@@ -52,22 +52,15 @@ public class KMeansForTest {
 	// *************************************************************************
 
 	public static void main(String[] args) throws Exception {
-		if (args.length < 7) {
+		if (args.length < 3) {
 			throw new IllegalArgumentException("Missing parameters");
 		}
 
-		final String jarFile = args[0];
-		final String host = args[1];
-		final int port = Integer.parseInt(args[2]);
+		final String pointsData = args[0];
+		final String centersData = args[1];
+		final int numIterations = Integer.parseInt(args[2]);
 
-		final int parallelism = Integer.parseInt(args[3]);
-
-		final String pointsData = args[4];
-		final String centersData = args[5];
-		final int numIterations = Integer.parseInt(args[6]);
-
-		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
-		env.setParallelism(parallelism);
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 
 		// get input data

@@ -26,13 +26,16 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -41,7 +44,6 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
@@ -214,6 +216,7 @@ public class YarnApplicationMasterRunner {
 	protected int runApplicationMaster(Configuration config) {
 		ActorSystem actorSystem = null;
 		WebMonitor webMonitor = null;
+		HighAvailabilityServices highAvailabilityServices = null;
 
 		int numberProcessors = Hardware.getNumberCPUCores();
 
@@ -331,6 +334,16 @@ public class YarnApplicationMasterRunner {
 			// 3) Resource Master for YARN
 			// 4) Process reapers for the JobManager and Resource Master
 
+			// 0: Start the JobManager services
+
+			// update the configuration used to create the high availability services
+			config.setString(JobManagerOptions.ADDRESS, akkaHostname);
+			config.setInteger(JobManagerOptions.PORT, akkaPort);
+
+			highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+				config,
+				ioExecutor,
+				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 			// 1: the JobManager
 			LOG.debug("Starting JobManager actor");
@@ -341,7 +354,8 @@ public class YarnApplicationMasterRunner {
 				actorSystem,
 				futureExecutor,
 				ioExecutor,
-				new Some<>(JobManager.JOB_MANAGER_NAME()),
+				highAvailabilityServices,
+				new Some<>(JobMaster.JOB_MANAGER_NAME),
 				Option.<String>empty(),
 				getJobManagerClass(),
 				getArchivistClass())._1();
@@ -350,11 +364,15 @@ public class YarnApplicationMasterRunner {
 			// 2: the web monitor
 			LOG.debug("Starting Web Frontend");
 
-			webMonitor = BootstrapTools.startWebMonitorIfConfigured(config, actorSystem, jobManager, LOG);
+			webMonitor = BootstrapTools.startWebMonitorIfConfigured(
+				config,
+				highAvailabilityServices,
+				actorSystem,
+				jobManager,
+				LOG);
 
 			String protocol = "http://";
-			if (config.getBoolean(ConfigConstants.JOB_MANAGER_WEB_SSL_ENABLED,
-				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_SSL_ENABLED) && SSLUtils.getSSLEnabled(config)) {
+			if (config.getBoolean(JobManagerOptions.WEB_SSL_ENABLED) && SSLUtils.getSSLEnabled(config)) {
 				protocol = "https://";
 			}
 			final String webMonitorURL = webMonitor == null ? null :
@@ -363,15 +381,11 @@ public class YarnApplicationMasterRunner {
 			// 3: Flink's Yarn ResourceManager
 			LOG.debug("Starting YARN Flink Resource Manager");
 
-			// we need the leader retrieval service here to be informed of new leaders and session IDs
-			LeaderRetrievalService leaderRetriever = 
-				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager);
-
 			Props resourceMasterProps = YarnFlinkResourceManager.createActorProps(
 				getResourceManagerClass(),
 				config,
 				yarnConfig,
-				leaderRetriever,
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 				appMasterHostname,
 				webMonitorURL,
 				taskManagerParameters,
@@ -433,6 +447,14 @@ public class YarnApplicationMasterRunner {
 				webMonitor.stop();
 			} catch (Throwable t) {
 				LOG.error("Failed to stop the web frontend", t);
+			}
+		}
+
+		if (highAvailabilityServices != null) {
+			try {
+				highAvailabilityServices.close();
+			} catch (Throwable t) {
+				LOG.error("Failed to stop the high availability services.", t);
 			}
 		}
 

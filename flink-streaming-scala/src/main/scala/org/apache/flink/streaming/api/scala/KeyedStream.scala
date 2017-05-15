@@ -184,6 +184,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * using an associative fold function and an initial value. An independent 
    * aggregate is kept per key.
    */
+  @deprecated("will be removed in a future version")
   def fold[R: TypeInformation](initialValue: R, folder: FoldFunction[T,R]): 
       DataStream[R] = {
     if (folder == null) {
@@ -201,6 +202,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * using an associative fold function and an initial value. An independent 
    * aggregate is kept per key.
    */
+  @deprecated("will be removed in a future version")
   def fold[R: TypeInformation](initialValue: R)(fun: (R,T) => R): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Fold function must not be null.")
@@ -507,6 +509,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     * @return Queryable state instance
     */
   @PublicEvolving
+  @deprecated("will be removed in a future version")
   def asQueryableState[ACC](
       queryableStateName: String,
       stateDescriptor: FoldingStateDescriptor[T, ACC]) : QueryableStateStream[K, ACC] =  {

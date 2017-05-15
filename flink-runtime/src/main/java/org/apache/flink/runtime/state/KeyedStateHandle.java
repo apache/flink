@@ -23,7 +23,7 @@ package org.apache.flink.runtime.state;
  * recovering from failures, the handle will be passed to all tasks whose key
  * group ranges overlap with it.
  */
-public interface KeyedStateHandle extends StateObject {
+public interface KeyedStateHandle extends CompositeStateHandle {
 
 	/**
 	 * Returns the range of the key groups contained in the state.

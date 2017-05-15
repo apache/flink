@@ -170,7 +170,9 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final int numKeys = 256;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+			cluster.configuration(),
+			cluster.highAvailabilityServices());
 
 		JobID jobId = null;
 
@@ -396,7 +398,9 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final int numElements = 1024;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+			cluster.configuration(),
+			cluster.highAvailabilityServices());
 
 		JobID jobId = null;
 		try {
@@ -461,7 +465,9 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final int numElements = 1024;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+			cluster.configuration(),
+			cluster.highAvailabilityServices());
 
 		JobID jobId = null;
 		try {
@@ -586,7 +592,9 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final int numElements = 1024;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+			cluster.configuration(),
+			cluster.highAvailabilityServices());
 
 		JobID jobId = null;
 		try {
@@ -679,7 +687,9 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final int numElements = 1024;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+			cluster.configuration(),
+			cluster.highAvailabilityServices());
 
 		JobID jobId = null;
 		try {
@@ -743,7 +753,9 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final int numElements = 1024;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+			cluster.configuration(),
+			cluster.highAvailabilityServices());
 
 		JobID jobId = null;
 		try {
@@ -844,7 +856,9 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final int numElements = 1024;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+			cluster.configuration(),
+			cluster.highAvailabilityServices());
 
 		JobID jobId = null;
 		try {
@@ -1008,6 +1022,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 	 */
 	private static class TestKeyRangeSource extends RichParallelSourceFunction<Tuple2<Integer, Long>>
 			implements CheckpointListener {
+		private static final long serialVersionUID = -5744725196953582710L;
 
 		private final static AtomicLong LATEST_CHECKPOINT_ID = new AtomicLong();
 		private final int numKeys;
@@ -1055,6 +1070,8 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 	}
 
 	private static class SumFold implements FoldFunction<Tuple2<Integer, Long>, String> {
+		private static final long serialVersionUID = -6249227626701264599L;
+
 		@Override
 		public String fold(String accumulator, Tuple2<Integer, Long> value) throws Exception {
 			long acc = Long.valueOf(accumulator);
@@ -1064,6 +1081,8 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 	}
 
 	private static class SumReduce implements ReduceFunction<Tuple2<Integer, Long>> {
+		private static final long serialVersionUID = -8651235077342052336L;
+
 		@Override
 		public Tuple2<Integer, Long> reduce(Tuple2<Integer, Long> value1, Tuple2<Integer, Long> value2) throws Exception {
 			value1.f1 += value2.f1;

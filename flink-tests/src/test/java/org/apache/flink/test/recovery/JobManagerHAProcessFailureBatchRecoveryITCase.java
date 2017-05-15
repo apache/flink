@@ -34,16 +34,18 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.taskmanager.TaskManager;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerActorTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
-import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -238,7 +240,8 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 		// Task managers
 		final ActorSystem[] tmActorSystem = new ActorSystem[numberOfTaskManagers];
 
-		// Leader election service
+		HighAvailabilityServices highAvailabilityServices = null;
+
 		LeaderRetrievalService leaderRetrievalService = null;
 
 		// Coordination between the processes goes through a directory
@@ -263,13 +266,22 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
 
+			highAvailabilityServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+				config,
+				TestingUtils.defaultExecutor());
+
 			// Start the task manager process
 			for (int i = 0; i < numberOfTaskManagers; i++) {
 				tmActorSystem[i] = AkkaUtils.createActorSystem(AkkaUtils.getDefaultAkkaConfig());
 				TaskManager.startTaskManagerComponentsAndActor(
-						config, ResourceID.generate(), tmActorSystem[i], "localhost",
-						Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
-						false, TaskManager.class);
+					config,
+					ResourceID.generate(),
+					tmActorSystem[i],
+					highAvailabilityServices,
+					"localhost",
+					Option.<String>empty(),
+					false,
+					TaskManager.class);
 			}
 
 			// Test actor system
@@ -279,7 +291,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 
 			// Leader listener
 			TestingListener leaderListener = new TestingListener();
-			leaderRetrievalService = ZooKeeperUtils.createLeaderRetrievalService(config);
+			leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
 			leaderRetrievalService.start(leaderListener);
 
 			// Initial submission
@@ -376,6 +388,10 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 				if (jmProces != null) {
 					jmProces.destroy();
 				}
+			}
+
+			if (highAvailabilityServices != null) {
+				highAvailabilityServices.closeAndCleanupAllData();
 			}
 
 			// Delete coordination directory

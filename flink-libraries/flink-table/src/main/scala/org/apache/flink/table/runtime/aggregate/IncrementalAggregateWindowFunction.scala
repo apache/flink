@@ -24,6 +24,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.Window
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.util.Collector
 
 /**
@@ -37,12 +38,12 @@ class IncrementalAggregateWindowFunction[W <: Window](
     private val numGroupingKey: Int,
     private val numAggregates: Int,
     private val finalRowArity: Int)
-  extends RichWindowFunction[Row, Row, Tuple, W] {
+  extends RichWindowFunction[Row, CRow, Tuple, W] {
 
-  private var output: Row = _
+  private var output: CRow = _
 
   override def open(parameters: Configuration): Unit = {
-    output = new Row(finalRowArity)
+    output = new CRow(new Row(finalRowArity), true)
   }
 
   /**
@@ -53,7 +54,7 @@ class IncrementalAggregateWindowFunction[W <: Window](
       key: Tuple,
       window: W,
       records: Iterable[Row],
-      out: Collector[Row]): Unit = {
+      out: Collector[CRow]): Unit = {
 
     val iterator = records.iterator
 
@@ -62,12 +63,12 @@ class IncrementalAggregateWindowFunction[W <: Window](
 
       var i = 0
       while (i < numGroupingKey) {
-        output.setField(i, key.getField(i))
+        output.row.setField(i, key.getField(i))
         i += 1
       }
       i = 0
       while (i < numAggregates) {
-        output.setField(numGroupingKey + i, record.getField(i))
+        output.row.setField(numGroupingKey + i, record.getField(i))
         i += 1
       }
 

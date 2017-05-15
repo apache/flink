@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-shaded-hadoop</artifactId>
-		<version>1.3-SNAPSHOT</version>
+		<version>1.4-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -70,20 +70,23 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jsp-api-2.1</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jsp-2.1</artifactId>
 				</exclusion>
-
 				<exclusion>
 					<groupId>org.eclipse.jdt</groupId>
 					<artifactId>core</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty</artifactId>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -104,6 +107,10 @@ under the License.
 				<exclusion>
 					<groupId>tomcat</groupId>
 					<artifactId>jasper-runtime</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
@@ -191,6 +198,10 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jsp-api-2.1</artifactId>
 				</exclusion>
 				<exclusion>
@@ -202,8 +213,8 @@ under the License.
 					<artifactId>core</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty</artifactId>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -224,6 +235,10 @@ under the License.
 				<exclusion>
 					<groupId>tomcat</groupId>
 					<artifactId>jasper-runtime</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
@@ -299,6 +314,10 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jsp-api-2.1</artifactId>
 				</exclusion>
 				<exclusion>
@@ -322,8 +341,8 @@ under the License.
 					<artifactId>netty</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty</artifactId>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -344,6 +363,10 @@ under the License.
 				<exclusion>
 					<groupId>tomcat</groupId>
 					<artifactId>jasper-runtime</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
@@ -419,6 +442,10 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jsp-api-2.1</artifactId>
 				</exclusion>
 				<exclusion>
@@ -442,8 +469,8 @@ under the License.
 					<artifactId>netty</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty</artifactId>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -464,6 +491,10 @@ under the License.
 				<exclusion>
 					<groupId>tomcat</groupId>
 					<artifactId>jasper-runtime</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
@@ -539,6 +570,10 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jsp-api-2.1</artifactId>
 				</exclusion>
 				<exclusion>
@@ -562,8 +597,8 @@ under the License.
 					<artifactId>netty</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty</artifactId>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -584,6 +619,10 @@ under the License.
 				<exclusion>
 					<groupId>tomcat</groupId>
 					<artifactId>jasper-runtime</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>

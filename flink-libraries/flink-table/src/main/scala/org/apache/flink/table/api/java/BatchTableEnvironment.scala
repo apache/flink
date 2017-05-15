@@ -22,7 +22,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.table.api._
-import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 
 /**
   * The [[TableEnvironment]] for a Java batch [[DataSet]]
@@ -177,5 +177,25 @@ class BatchTableEnvironment(
       .asInstanceOf[TypeInformation[T]]
 
     registerTableFunctionInternal[T](name, tf)
+  }
+
+  /**
+    * Registers an [[AggregateFunction]] under a unique name in the TableEnvironment's catalog.
+    * Registered functions can be referenced in Table API and SQL queries.
+    *
+    * @param name The name under which the function is registered.
+    * @param f The AggregateFunction to register.
+    * @tparam T The type of the output value.
+    * @tparam ACC The type of aggregate accumulator.
+    */
+  def registerFunction[T, ACC](
+      name: String,
+      f: AggregateFunction[T, ACC])
+  : Unit = {
+    implicit val typeInfo: TypeInformation[T] = TypeExtractor
+      .createTypeInfo(f, classOf[AggregateFunction[T, ACC]], f.getClass, 0)
+      .asInstanceOf[TypeInformation[T]]
+
+    registerAggregateFunctionInternal[T, ACC](name, f)
   }
 }

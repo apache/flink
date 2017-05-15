@@ -28,7 +28,6 @@ public class PythonPlanSender {
 		this.output = new DataOutputStream(output);
 	}
 
-	@SuppressWarnings("unchecked")
 	public void sendRecord(Object record) throws IOException {
 		byte[] data = SerializationUtils.getSerializer(record).serialize(record);
 		output.write(data);

@@ -21,9 +21,9 @@ package org.apache.flink.table.plan.rules
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.table.plan.rules.common._
+import org.apache.flink.table.plan.rules.logical._
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
-import org.apache.flink.table.plan.rules.logical._
 import org.apache.flink.table.plan.nodes.logical._
 
 object FlinkRuleSets {
@@ -99,6 +99,9 @@ object FlinkRuleSets {
     // scan optimization
     PushProjectIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
+
+    // Unnest rule
+    LogicalUnnestRule.INSTANCE,
 
     // translate to flink logical rel nodes
     FlinkLogicalAggregate.CONVERTER,
@@ -176,8 +179,9 @@ object FlinkRuleSets {
     */
   val DATASTREAM_OPT_RULES: RuleSet = RuleSets.ofList(
     // translate to DataStream nodes
+    DataStreamGroupAggregateRule.INSTANCE,
     DataStreamOverAggregateRule.INSTANCE,
-    DataStreamAggregateRule.INSTANCE,
+    DataStreamGroupWindowAggregateRule.INSTANCE,
     DataStreamCalcRule.INSTANCE,
     DataStreamScanRule.INSTANCE,
     DataStreamUnionRule.INSTANCE,
@@ -190,7 +194,10 @@ object FlinkRuleSets {
     * RuleSet to decorate plans for stream / DataStream execution
     */
   val DATASTREAM_DECO_RULES: RuleSet = RuleSets.ofList(
-    // rules
+    // retraction rules
+    DataStreamRetractionRules.DEFAULT_RETRACTION_INSTANCE,
+    DataStreamRetractionRules.UPDATES_AS_RETRACTION_INSTANCE,
+    DataStreamRetractionRules.ACCMODE_INSTANCE
   )
 
 }

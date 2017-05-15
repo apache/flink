@@ -82,4 +82,10 @@ public final class BooleanSerializer extends TypeSerializerSingleton<Boolean> {
 	public boolean canEqual(Object obj) {
 		return obj instanceof BooleanSerializer;
 	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(BooleanValueSerializer.class.getCanonicalName());
+	}
 }

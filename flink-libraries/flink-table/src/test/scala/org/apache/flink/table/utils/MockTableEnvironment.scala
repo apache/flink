@@ -19,13 +19,16 @@
 package org.apache.flink.table.utils
 
 import org.apache.calcite.tools.RuleSet
-import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 
 class MockTableEnvironment extends TableEnvironment(new TableConfig) {
 
-  override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = ???
+  override private[flink] def writeToSink[T](
+      table: Table,
+      sink: TableSink[T],
+      queryConfig: QueryConfig): Unit = ???
 
   override protected def checkValidTableName(name: String): Unit = ???
 
@@ -36,4 +39,5 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
   override protected def getBuiltInNormRuleSet: RuleSet = ???
 
   override protected def getBuiltInPhysicalOptRuleSet: RuleSet = ???
+
 }

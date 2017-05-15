@@ -18,14 +18,6 @@
 
 package org.apache.flink.api.io.avro;
 
-import static org.junit.Assert.*;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.util.*;
-
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileWriter;
@@ -58,6 +50,22 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test the avro input format.
@@ -273,7 +281,7 @@ public class AvroRecordInputFormatTest {
 		DatumReader<GenericData.Record> datumReader = new GenericDatumReader<>(userSchema);
 
 		try (FileReader<GenericData.Record> dataFileReader = DataFileReader.openReader(testFile, datumReader)) {
-			// initialize Record by reading it from disk (thats easier than creating it by hand)
+			// initialize Record by reading it from disk (that's easier than creating it by hand)
 			GenericData.Record rec = new GenericData.Record(userSchema);
 			dataFileReader.next(rec);
 			

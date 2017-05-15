@@ -45,7 +45,7 @@ LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
 # Maven command to run. We set the forkCount manually, because otherwise Maven sees too many cores
 # on the Travis VMs.
-MVN="mvn -Dflink.forkCount=2 -B $PROFILE -Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES clean install"
+MVN="mvn -Dflink.forkCount=2 -Dflink.forkCountTestPackage=1 -B $PROFILE -Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES clean install"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
@@ -75,6 +75,7 @@ upload_artifacts_s3() {
 	echo "COMPRESSING build artifacts."
 
 	cd $ARTIFACTS_DIR
+	dmesg > container.log
 	tar -zcvf $ARTIFACTS_FILE *
 
 	# Upload to secured S3

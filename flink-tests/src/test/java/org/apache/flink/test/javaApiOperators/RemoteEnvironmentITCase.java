@@ -26,7 +26,7 @@ import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.minicluster.StandaloneMiniCluster;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
@@ -39,14 +39,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class RemoteEnvironmentITCase extends TestLogger {
 
 	private static final int TM_SLOTS = 4;
-
-	private static final int NUM_TM = 1;
 
 	private static final int USER_DOP = 2;
 
@@ -54,32 +51,23 @@ public class RemoteEnvironmentITCase extends TestLogger {
 
 	private static final String VALID_STARTUP_TIMEOUT = "100 s";
 
-	private static LocalFlinkMiniCluster cluster;
+	private static Configuration configuration;
+
+	private static StandaloneMiniCluster cluster;
+
 
 	@BeforeClass
-	public static void setupCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TM);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, TM_SLOTS);
-			cluster = new LocalFlinkMiniCluster(config, false);
-			cluster.start();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Error starting test cluster: " + e.getMessage());
-		}
+	public static void setupCluster() throws Exception {
+		configuration = new Configuration();
+
+		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, TM_SLOTS);
+
+		cluster = new StandaloneMiniCluster(configuration);
 	}
 
 	@AfterClass
-	public static void tearDownCluster() {
-		try {
-			cluster.stop();
-		}
-		catch (Throwable t) {
-			t.printStackTrace();
-			fail("ClusterClient shutdown caused an exception: " + t.getMessage());
-		}
+	public static void tearDownCluster() throws Exception {
+		cluster.close();
 	}
 
 	/**
@@ -91,8 +79,8 @@ public class RemoteEnvironmentITCase extends TestLogger {
 		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, INVALID_STARTUP_TIMEOUT);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				cluster.hostname(),
-				cluster.getLeaderRPCPort(),
+				cluster.getHostname(),
+				cluster.getPort(),
 				config
 		);
 		env.getConfig().disableSysoutLogging();
@@ -116,8 +104,8 @@ public class RemoteEnvironmentITCase extends TestLogger {
 		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				cluster.hostname(),
-				cluster.getLeaderRPCPort(),
+				cluster.getHostname(),
+				cluster.getPort(),
 				config
 		);
 		env.setParallelism(USER_DOP);

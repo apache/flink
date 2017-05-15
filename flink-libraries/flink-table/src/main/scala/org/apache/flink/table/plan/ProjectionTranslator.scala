@@ -19,9 +19,8 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{OverWindow, StreamTableEnvironment, TableEnvironment}
+import org.apache.flink.table.api.{OverWindow, TableEnvironment}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{ProcTime, RowTime}
 import org.apache.flink.table.plan.logical.{LogicalNode, Project}
 
 import scala.collection.mutable
@@ -231,28 +230,12 @@ object ProjectionTranslator {
 
       val overWindow = overWindows.find(_.alias.equals(unresolvedCall.alias))
       if (overWindow.isDefined) {
-        if (tEnv.isInstanceOf[StreamTableEnvironment]) {
-          val timeIndicator = overWindow.get.orderBy match {
-            case u: UnresolvedFieldReference if u.name.toLowerCase == "rowtime" =>
-              RowTime()
-            case u: UnresolvedFieldReference if u.name.toLowerCase == "proctime" =>
-              ProcTime()
-            case e: Expression => e
-          }
-          OverCall(
-            unresolvedCall.agg,
-            overWindow.get.partitionBy,
-            timeIndicator,
-            overWindow.get.preceding,
-            overWindow.get.following)
-        } else {
-          OverCall(
-            unresolvedCall.agg,
-            overWindow.get.partitionBy,
-            overWindow.get.orderBy,
-            overWindow.get.preceding,
-            overWindow.get.following)
-        }
+        OverCall(
+          unresolvedCall.agg,
+          overWindow.get.partitionBy,
+          overWindow.get.orderBy,
+          overWindow.get.preceding,
+          overWindow.get.following)
       } else {
         unresolvedCall
       }
@@ -303,6 +286,11 @@ object ProjectionTranslator {
         (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
       }
 
+    case aggfc @ AggFunctionCall(clazz, args) =>
+      args.foldLeft(fieldReferences) {
+        (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
+      }
+
     // array constructor
     case c @ ArrayConstructor(args) =>
       args.foldLeft(fieldReferences) {
@@ -327,4 +315,56 @@ object ProjectionTranslator {
       }
   }
 
+  /**
+    * Find and replace UDAGG function Call to AggFunctionCall
+    *
+    * @param field    the expression to check
+    * @param tableEnv the TableEnvironment
+    * @return an expression with correct AggFunctionCall type for UDAGG functions
+    */
+  def replaceAggFunctionCall(field: Expression, tableEnv: TableEnvironment): Expression = {
+    field match {
+      case l: LeafExpression => l
+
+      case u: UnaryExpression =>
+        val c = replaceAggFunctionCall(u.child, tableEnv)
+        u.makeCopy(Array(c))
+
+      case b: BinaryExpression =>
+        val l = replaceAggFunctionCall(b.left, tableEnv)
+        val r = replaceAggFunctionCall(b.right, tableEnv)
+        b.makeCopy(Array(l, r))
+
+      // Functions calls
+      case c @ Call(name, args) =>
+        val function = tableEnv.getFunctionCatalog.lookupFunction(name, args)
+        if (function.isInstanceOf[AggFunctionCall]) {
+          function
+        } else {
+          val newArgs =
+            args.map(
+            (exp: Expression) =>
+              replaceAggFunctionCall(exp, tableEnv))
+          c.makeCopy(Array(name, newArgs))
+        }
+
+      // Scala functions
+      case sfc @ ScalarFunctionCall(clazz, args) =>
+        val newArgs: Seq[Expression] =
+          args.map(
+            (exp: Expression) =>
+              replaceAggFunctionCall(exp, tableEnv))
+        sfc.makeCopy(Array(clazz, newArgs))
+
+      // Array constructor
+      case c @ ArrayConstructor(args) =>
+        val newArgs =
+          c.elements
+            .map((exp: Expression) => replaceAggFunctionCall(exp, tableEnv))
+        c.makeCopy(Array(newArgs))
+
+      // Other expressions
+      case e: Expression => e
+    }
+  }
 }

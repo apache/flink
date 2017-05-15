@@ -94,12 +94,34 @@ public class JobManagerOptions {
 	// ------------------------------------------------------------------------
 
 	/**
+	 * Config parameter defining the runtime monitor web-frontend server address.
+	 */
+	public static final ConfigOption<String> WEB_FRONTEND_ADDRESS =
+		key("jobmanager.web.address")
+			.noDefaultValue();
+
+	/**
 	 * The port for the runtime monitor web-frontend server.
 	 */
 	public static final ConfigOption<Integer> WEB_PORT =
 		key("jobmanager.web.port")
 		.defaultValue(8081);
 
+	/**
+	 * The config parameter defining the Access-Control-Allow-Origin header for all
+	 * responses from the web-frontend.
+	 */
+	public static final ConfigOption<String> WEB_ACCESS_CONTROL_ALLOW_ORIGIN =
+		key("jobmanager.web.access-control-allow-origin")
+			.defaultValue("*");
+
+	/**
+	 * The config parameter defining the refresh interval for the web-frontend.
+	 */
+	public static final ConfigOption<Long> WEB_REFRESH_INTERVAL =
+		key("jobmanager.web.refresh-interval")
+			.defaultValue(3000L);
+	
 	/**
 	 * Config parameter to override SSL support for the JobManager Web UI
 	 */

@@ -54,7 +54,7 @@ class SelectByFunctionTest {
           bigger, maxByTuple.reduce(bigger, smaller))
       } catch {
         case e : Exception =>
-          Assert.fail("No exception should be thrown while comapring both tuples")
+          Assert.fail("No exception should be thrown while comparing both tuples")
       }
   }
 
@@ -77,7 +77,7 @@ class SelectByFunctionTest {
         bigger, maxByTuple.reduce(bigger, specialCaseBigger))
     } catch {
       case e : Exception => Assert.fail("No exception should be thrown " +
-        "while comapring both tuples")
+        "while comparing both tuples")
     }
   }
 
@@ -95,7 +95,7 @@ class SelectByFunctionTest {
         bigger, maxByTuple.reduce(bigger, specialCaseBigger))
     } catch {
       case e : Exception => Assert.fail("No exception should be thrown" +
-        " while comapring both tuples")
+        " while comparing both tuples")
     }
   }
 
@@ -113,7 +113,7 @@ class SelectByFunctionTest {
         bigger, maxByTuple.reduce(bigger, smaller))
     } catch {
       case e : Exception => Assert.fail("No exception should be thrown " +
-        "while comapring both tuples")
+        "while comparing both tuples")
     }
   }
 
@@ -132,7 +132,7 @@ class SelectByFunctionTest {
         smaller, maxByTuple.reduce(smaller, smaller))
     } catch {
       case e : Exception => Assert.fail("No exception should be thrown" +
-        " while comapring both tuples")
+        " while comparing both tuples")
     }
   }
 
@@ -153,7 +153,7 @@ class SelectByFunctionTest {
         smaller, minByTuple.reduce(bigger, smaller))
     } catch {
       case e : Exception => Assert.fail("No exception should be thrown " +
-        "while comapring both tuples")
+        "while comparing both tuples")
     }
   }
 
@@ -174,7 +174,7 @@ class SelectByFunctionTest {
         bigger, minByTuple.reduce(bigger, specialCaseBigger))
     } catch {
       case e : Exception => Assert.fail("No exception should be thrown " +
-        "while comapring both tuples")
+        "while comparing both tuples")
     }
   }
 
@@ -195,7 +195,7 @@ class SelectByFunctionTest {
         smaller, minByTuple.reduce(smaller, specialCaseSmaller))
     } catch {
       case e : Exception => Assert.fail("No exception should be thrown" +
-        " while comapring both tuples")
+        " while comparing both tuples")
     }
   }
 
@@ -213,7 +213,7 @@ class SelectByFunctionTest {
         smaller, minByTuple.reduce(bigger, smaller))
     } catch {
       case e : Exception => Assert.fail("No exception should be thrown" +
-        " while comapring both tuples")
+        " while comparing both tuples")
     }
   }
 }

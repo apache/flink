@@ -41,7 +41,7 @@ class DataSetSessionWindowAggregatePreProcessor(
     genAggregations: GeneratedAggregationsFunction,
     keysAndAggregatesArity: Int,
     gap: Long,
-    @transient intermediateRowType: TypeInformation[Row])
+    @transient var intermediateRowType: TypeInformation[Row])
   extends AbstractRichFunction
   with MapPartitionFunction[Row,Row]
   with GroupCombineFunction[Row,Row]

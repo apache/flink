@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -111,34 +111,32 @@ public class BlobServer extends Thread implements BlobService {
 		this.blobStore = checkNotNull(blobStore);
 
 		// configure and create the storage directory
-		String storageDirectory = config.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
+		String storageDirectory = config.getString(BlobServerOptions.STORAGE_DIRECTORY);
 		this.storageDir = BlobUtils.initStorageDirectory(storageDirectory);
 		LOG.info("Created BLOB server storage directory {}", storageDir);
 
 		// configure the maximum number of concurrent connections
-		final int maxConnections = config.getInteger(
-				ConfigConstants.BLOB_FETCH_CONCURRENT_KEY, ConfigConstants.DEFAULT_BLOB_FETCH_CONCURRENT);
+		final int maxConnections = config.getInteger(BlobServerOptions.FETCH_CONCURRENT);
 		if (maxConnections >= 1) {
 			this.maxConnections = maxConnections;
 		}
 		else {
 			LOG.warn("Invalid value for maximum connections in BLOB server: {}. Using default value of {}",
-					maxConnections, ConfigConstants.DEFAULT_BLOB_FETCH_CONCURRENT);
-			this.maxConnections = ConfigConstants.DEFAULT_BLOB_FETCH_CONCURRENT;
+					maxConnections, BlobServerOptions.FETCH_CONCURRENT.defaultValue());
+			this.maxConnections = BlobServerOptions.FETCH_CONCURRENT.defaultValue();
 		}
 
 		// configure the backlog of connections
-		int backlog = config.getInteger(ConfigConstants.BLOB_FETCH_BACKLOG_KEY, ConfigConstants.DEFAULT_BLOB_FETCH_BACKLOG);
+		int backlog = config.getInteger(BlobServerOptions.FETCH_BACKLOG);
 		if (backlog < 1) {
 			LOG.warn("Invalid value for BLOB connection backlog: {}. Using default value of {}",
-					backlog, ConfigConstants.DEFAULT_BLOB_FETCH_BACKLOG);
-			backlog = ConfigConstants.DEFAULT_BLOB_FETCH_BACKLOG;
+					backlog, BlobServerOptions.FETCH_BACKLOG.defaultValue());
+			backlog = BlobServerOptions.FETCH_BACKLOG.defaultValue();
 		}
 
 		this.shutdownHook = BlobUtils.addShutdownHook(this, LOG);
 
-		if (config.getBoolean(ConfigConstants.BLOB_SERVICE_SSL_ENABLED,
-				ConfigConstants.DEFAULT_BLOB_SERVICE_SSL_ENABLED)) {
+		if (config.getBoolean(BlobServerOptions.SSL_ENABLED)) {
 			try {
 				serverSSLContext = SSLUtils.createSSLServerContext(config);
 			} catch (Exception e) {
@@ -148,7 +146,7 @@ public class BlobServer extends Thread implements BlobService {
 
 		//  ----------------------- start the server -------------------
 
-		String serverPortRange = config.getString(ConfigConstants.BLOB_SERVER_PORT, ConfigConstants.DEFAULT_BLOB_SERVER_PORT);
+		String serverPortRange = config.getString(BlobServerOptions.PORT);
 
 		Iterator<Integer> ports = NetUtils.getPortRangeFromString(serverPortRange);
 

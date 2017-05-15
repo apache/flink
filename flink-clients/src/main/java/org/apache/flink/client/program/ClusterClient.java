@@ -42,6 +42,9 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobListeningContext;
 import org.apache.flink.runtime.client.JobRetrievalException;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -72,7 +75,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-
 /**
  * Encapsulates the functionality necessary to submit a program to a remote cluster.
  */
@@ -94,6 +96,9 @@ public abstract class ClusterClient {
 
 	/** Lookup timeout for the job manager retrieval service */
 	private final FiniteDuration lookupTimeout;
+
+	/** Service factory for high available */
+	protected final HighAvailabilityServices highAvailabilityServices;
 
 	/** Flag indicating whether to sysout print execution updates */
 	private boolean printStatusDuringExecution = true;
@@ -119,10 +124,25 @@ public abstract class ClusterClient {
 	 *
 	 * @param flinkConfig The config used to obtain the job-manager's address, and used to configure the optimizer.
 	 *
-	 * @throws java.io.IOException Thrown, if the client's actor system could not be started.
+	 * @throws Exception we cannot create the high availability services
 	 */
-	public ClusterClient(Configuration flinkConfig) throws IOException {
+	public ClusterClient(Configuration flinkConfig) throws Exception {
+		this(flinkConfig,
+			HighAvailabilityServicesUtils.createHighAvailabilityServices(
+				flinkConfig,
+				Executors.directExecutor(),
+				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION));
+	}
 
+	/**
+	 * Creates a instance that submits the programs to the JobManager defined in the
+	 * configuration. This method will try to resolve the JobManager hostname and throw an exception
+	 * if that is not possible.
+	 *
+	 * @param flinkConfig The config used to obtain the job-manager's address, and used to configure the optimizer.
+	 * @param highAvailabilityServices HighAvailabilityServices to use for leader retrieval
+	 */
+	public ClusterClient(Configuration flinkConfig, HighAvailabilityServices highAvailabilityServices) {
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
 
@@ -130,6 +150,8 @@ public abstract class ClusterClient {
 		this.lookupTimeout = AkkaUtils.getLookupTimeout(flinkConfig);
 
 		this.actorSystemLoader = new LazyActorSystemLoader(flinkConfig, LOG);
+
+		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
 	}
 
 	// ------------------------------------------------------------------------
@@ -202,12 +224,16 @@ public abstract class ClusterClient {
 	/**
 	 * Shuts down the client. This stops the internal actor system and actors.
 	 */
-	public void shutdown() {
+	public void shutdown() throws Exception {
 		synchronized (this) {
 			try {
 				finalizeCluster();
 			} finally {
-				this.actorSystemLoader.shutdown();
+				actorSystemLoader.shutdown();
+			}
+
+			if (highAvailabilityServices != null) {
+				highAvailabilityServices.closeAndCleanupAllData();
 			}
 		}
 	}
@@ -241,7 +267,8 @@ public abstract class ClusterClient {
 		try {
 			LeaderConnectionInfo leaderConnectionInfo =
 				LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
-					LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig), timeout);
+					highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+					timeout);
 
 			return AkkaUtils.getInetSockeAddressFromAkkaURL(leaderConnectionInfo.getAddress());
 		} catch (Exception e) {
@@ -411,17 +438,17 @@ public abstract class ClusterClient {
 
 		waitForClusterToBeReady();
 
-		final LeaderRetrievalService leaderRetrievalService;
-		try {
-			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig, true);
-		} catch (Exception e) {
-			throw new ProgramInvocationException("Could not create the leader retrieval service", e);
-		}
-
 		try {
 			logAndSysout("Submitting job with JobID: " + jobGraph.getJobID() + ". Waiting for job completion.");
-			this.lastJobExecutionResult = JobClient.submitJobAndWait(actorSystemLoader.get(), flinkConfig,
-				leaderRetrievalService, jobGraph, timeout, printStatusDuringExecution, classLoader);
+			this.lastJobExecutionResult = JobClient.submitJobAndWait(
+				actorSystemLoader.get(),
+				flinkConfig,
+				highAvailabilityServices,
+				jobGraph,
+				timeout,
+				printStatusDuringExecution,
+				classLoader);
+
 			return this.lastJobExecutionResult;
 		} catch (JobExecutionException e) {
 			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
@@ -462,13 +489,6 @@ public abstract class ClusterClient {
 	 * @throws JobExecutionException if an error occurs during monitoring the job execution
 	 */
 	public JobExecutionResult retrieveJob(JobID jobID) throws JobExecutionException {
-		final LeaderRetrievalService leaderRetrievalService;
-		try {
-			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
-		} catch (Exception e) {
-			throw new JobRetrievalException(jobID, "Could not create the leader retrieval service", e);
-		}
-
 		ActorGateway jobManagerGateway;
 		try {
 			jobManagerGateway = getJobManagerGateway();
@@ -477,13 +497,13 @@ public abstract class ClusterClient {
 		}
 
 		final JobListeningContext listeningContext = JobClient.attachToRunningJob(
-				jobID,
-				jobManagerGateway,
-				flinkConfig,
-				actorSystemLoader.get(),
-				leaderRetrievalService,
-				timeout,
-				printStatusDuringExecution);
+			jobID,
+			jobManagerGateway,
+			flinkConfig,
+			actorSystemLoader.get(),
+			highAvailabilityServices,
+			timeout,
+			printStatusDuringExecution);
 
 		return JobClient.awaitJobResult(listeningContext);
 	}
@@ -496,13 +516,6 @@ public abstract class ClusterClient {
 	 * @throws JobExecutionException if an error occurs during monitoring the job execution
 	 */
 	public JobListeningContext connectToJob(JobID jobID) throws JobExecutionException {
-		final LeaderRetrievalService leaderRetrievalService;
-		try {
-			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
-		} catch (Exception e) {
-			throw new JobRetrievalException(jobID, "Could not create the leader retrieval service", e);
-		}
-
 		ActorGateway jobManagerGateway;
 		try {
 			jobManagerGateway = getJobManagerGateway();
@@ -515,7 +528,7 @@ public abstract class ClusterClient {
 				jobManagerGateway,
 				flinkConfig,
 				actorSystemLoader.get(),
-				leaderRetrievalService,
+				highAvailabilityServices,
 				timeout,
 				printStatusDuringExecution);
 	}
@@ -721,7 +734,7 @@ public abstract class ClusterClient {
 	public ActorGateway getJobManagerGateway() throws Exception {
 		LOG.debug("Looking up JobManager");
 		return LeaderRetrievalUtils.retrieveLeaderGateway(
-			LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig),
+			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 			actorSystemLoader.get(),
 			lookupTimeout);
 	}

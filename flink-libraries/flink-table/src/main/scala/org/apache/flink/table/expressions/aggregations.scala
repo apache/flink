@@ -23,13 +23,18 @@ import org.apache.calcite.sql.SqlKind._
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.tools.RelBuilder.AggCall
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.utils.AggSqlFunction
+import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.typeutils.TypeCheckUtils
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
-abstract sealed class Aggregation extends UnaryExpression {
+abstract sealed class Aggregation extends Expression {
 
-  override def toString = s"Aggregate($child)"
+  override def toString = s"Aggregate"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
     throw new UnsupportedOperationException("Aggregate cannot be transformed to RexNode")
@@ -47,6 +52,7 @@ abstract sealed class Aggregation extends UnaryExpression {
 }
 
 case class Sum(child: Expression) extends Aggregation {
+  override private[flink] def children: Seq[Expression] = Seq(child)
   override def toString = s"sum($child)"
 
   override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
@@ -67,6 +73,7 @@ case class Sum(child: Expression) extends Aggregation {
 }
 
 case class Sum0(child: Expression) extends Aggregation {
+  override private[flink] def children: Seq[Expression] = Seq(child)
   override def toString = s"sum0($child)"
 
   override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
@@ -83,6 +90,7 @@ case class Sum0(child: Expression) extends Aggregation {
 }
 
 case class Min(child: Expression) extends Aggregation {
+  override private[flink] def children: Seq[Expression] = Seq(child)
   override def toString = s"min($child)"
 
   override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
@@ -100,6 +108,7 @@ case class Min(child: Expression) extends Aggregation {
 }
 
 case class Max(child: Expression) extends Aggregation {
+  override private[flink] def children: Seq[Expression] = Seq(child)
   override def toString = s"max($child)"
 
   override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
@@ -117,6 +126,7 @@ case class Max(child: Expression) extends Aggregation {
 }
 
 case class Count(child: Expression) extends Aggregation {
+  override private[flink] def children: Seq[Expression] = Seq(child)
   override def toString = s"count($child)"
 
   override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
@@ -131,6 +141,7 @@ case class Count(child: Expression) extends Aggregation {
 }
 
 case class Avg(child: Expression) extends Aggregation {
+  override private[flink] def children: Seq[Expression] = Seq(child)
   override def toString = s"avg($child)"
 
   override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
@@ -148,6 +159,7 @@ case class Avg(child: Expression) extends Aggregation {
 }
 
 case class StddevPop(child: Expression) extends Aggregation {
+  override private[flink] def children: Seq[Expression] = Seq(child)
   override def toString = s"stddev_pop($child)"
 
   override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
@@ -164,6 +176,7 @@ case class StddevPop(child: Expression) extends Aggregation {
 }
 
 case class StddevSamp(child: Expression) extends Aggregation {
+  override private[flink] def children: Seq[Expression] = Seq(child)
   override def toString = s"stddev_samp($child)"
 
   override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
@@ -180,6 +193,7 @@ case class StddevSamp(child: Expression) extends Aggregation {
 }
 
 case class VarPop(child: Expression) extends Aggregation {
+  override private[flink] def children: Seq[Expression] = Seq(child)
   override def toString = s"var_pop($child)"
 
   override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
@@ -196,6 +210,7 @@ case class VarPop(child: Expression) extends Aggregation {
 }
 
 case class VarSamp(child: Expression) extends Aggregation {
+  override private[flink] def children: Seq[Expression] = Seq(child)
   override def toString = s"var_samp($child)"
 
   override private[flink] def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
@@ -209,4 +224,58 @@ case class VarSamp(child: Expression) extends Aggregation {
 
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) =
     new SqlAvgAggFunction(VAR_SAMP)
+}
+
+case class AggFunctionCall(
+    aggregateFunction: AggregateFunction[_, _],
+    args: Seq[Expression])
+  extends Aggregation {
+
+  override private[flink] def children: Seq[Expression] = args
+
+  override def resultType: TypeInformation[_] = getResultTypeOfAggregateFunction(aggregateFunction)
+
+  override def validateInput(): ValidationResult = {
+    val signature = children.map(_.resultType)
+    // look for a signature that matches the input types
+    val foundSignature = getAccumulateMethodSignature(aggregateFunction, signature)
+    if (foundSignature.isEmpty) {
+      ValidationFailure(s"Given parameters do not match any signature. \n" +
+                          s"Actual: ${signatureToString(signature)} \n" +
+                          s"Expected: ${
+                            getMethodSignatures(aggregateFunction, "accumulate").drop(1)
+                              .map(signatureToString).mkString(", ")}")
+    } else {
+      ValidationSuccess
+    }
+  }
+
+  override def toString(): String = s"${aggregateFunction.getClass.getSimpleName}($args)"
+
+  override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
+    val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    val sqlFunction = AggSqlFunction(aggregateFunction.getClass.getSimpleName,
+                                     aggregateFunction,
+                                     resultType,
+                                     typeFactory)
+    relBuilder.aggregateCall(sqlFunction, false, null, name, args.map(_.toRexNode): _*)
+  }
+
+  override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
+    val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    AggSqlFunction(aggregateFunction.getClass.getSimpleName,
+                   aggregateFunction,
+                   resultType,
+                   typeFactory)
+  }
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    relBuilder.call(
+      AggSqlFunction(aggregateFunction.getClass.getSimpleName,
+                     aggregateFunction,
+                     resultType,
+                     typeFactory),
+      args.map(_.toRexNode): _*)
+  }
 }

@@ -191,10 +191,6 @@ public class WindowedStream<T, K, W extends Window> {
 	 */
 	@PublicEvolving
 	public WindowedStream<T, K, W> evictor(Evictor<? super T, ? super W> evictor) {
-		if (windowAssigner instanceof MergingWindowAssigner) {
-			throw new UnsupportedOperationException("Cannot use a merging WindowAssigner with an Evictor.");
-		}
-
 		if (windowAssigner instanceof BaseAlignedWindowAssigner) {
 			throw new UnsupportedOperationException("Cannot use a " + windowAssigner.getClass().getSimpleName() + " with an Evictor.");
 		}
@@ -491,7 +487,10 @@ public class WindowedStream<T, K, W extends Window> {
 	 *
 	 * @param function The fold function.
 	 * @return The data stream that is the result of applying the fold function to the window.
+	 *
+	 * @deprecated use {@link #aggregate(AggregationFunction)} instead
 	 */
+	@Deprecated
 	public <R> SingleOutputStreamOperator<R> fold(R initialValue, FoldFunction<T, R> function) {
 		if (function instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction can not be a RichFunction. " +
@@ -511,7 +510,10 @@ public class WindowedStream<T, K, W extends Window> {
 	 *
 	 * @param function The fold function.
 	 * @return The data stream that is the result of applying the fold function to the window.
+	 *
+	 * @deprecated use {@link #aggregate(AggregateFunction, TypeInformation, TypeInformation)} instead
 	 */
+	@Deprecated
 	public <R> SingleOutputStreamOperator<R> fold(R initialValue, FoldFunction<T, R> function, TypeInformation<R> resultType) {
 		if (function instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction can not be a RichFunction. " +
@@ -532,8 +534,11 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param foldFunction The fold function that is used for incremental aggregation.
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
+	 *
+	 * @deprecated use {@link #aggregate(AggregateFunction, WindowFunction)} instead
 	 */
 	@PublicEvolving
+	@Deprecated
 	public <ACC, R> SingleOutputStreamOperator<R> fold(ACC initialValue, FoldFunction<T, ACC> foldFunction, WindowFunction<ACC, R, K, W> function) {
 
 		TypeInformation<ACC> foldAccumulatorType = TypeExtractor.getFoldReturnTypes(foldFunction, input.getType(),
@@ -558,8 +563,11 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param foldAccumulatorType Type information for the result type of the fold function
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
+	 *
+	 * @deprecated use {@link #aggregate(AggregateFunction, ProcessWindowFunction, TypeInformation, TypeInformation, TypeInformation)} instead
 	 */
 	@PublicEvolving
+	@Deprecated
 	public <ACC, R> SingleOutputStreamOperator<R> fold(ACC initialValue,
 			FoldFunction<T, ACC> foldFunction,
 			WindowFunction<ACC, R, K, W> function,
@@ -642,8 +650,11 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param foldFunction The fold function that is used for incremental aggregation.
 	 * @param windowFunction The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
+	 *
+	 * @deprecated use {@link #aggregate(AggregateFunction, WindowFunction)} instead
 	 */
 	@PublicEvolving
+	@Deprecated
 	public <R, ACC> SingleOutputStreamOperator<R> fold(ACC initialValue, FoldFunction<T, ACC> foldFunction, ProcessWindowFunction<ACC, R, K, W> windowFunction) {
 		if (foldFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction can not be a RichFunction.");
@@ -671,7 +682,10 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param windowFunction The process window function.
 	 * @param windowResultType The process window function result type.
 	 * @return The data stream that is the result of applying the fold function to the window.
+	 *
+	 * @deprecated use {@link #aggregate(AggregateFunction, WindowFunction, TypeInformation, TypeInformation, TypeInformation)} instead
 	 */
+	@Deprecated
 	@Internal
 	public <R, ACC> SingleOutputStreamOperator<R> fold(
 			ACC initialValue,

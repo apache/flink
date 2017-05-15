@@ -23,9 +23,11 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.types.Row
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.util.Collector
-import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.types.Row
 import org.slf4j.LoggerFactory
 
 /**
@@ -36,13 +38,14 @@ import org.slf4j.LoggerFactory
   */
 class ProcTimeUnboundedNonPartitionedOver(
     genAggregations: GeneratedAggregationsFunction,
-    aggregationStateType: RowTypeInfo)
-  extends ProcessFunction[Row, Row]
+    aggregationStateType: RowTypeInfo,
+    queryConfig: StreamQueryConfig)
+  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with CheckpointedFunction
     with Compiler[GeneratedAggregations] {
 
   private var accumulators: Row = _
-  private var output: Row = _
+  private var output: CRow = _
   private var state: ListState[Row] = _
   val LOG = LoggerFactory.getLogger(this.getClass)
 
@@ -58,7 +61,7 @@ class ProcTimeUnboundedNonPartitionedOver(
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
 
-    output = function.createOutputRow()
+    output = new CRow(function.createOutputRow(), true)
     if (null == accumulators) {
       val it = state.get().iterator()
       if (it.hasNext) {
@@ -67,19 +70,35 @@ class ProcTimeUnboundedNonPartitionedOver(
         accumulators = function.createAccumulators()
       }
     }
+    initCleanupTimeState("ProcTimeUnboundedNonPartitionedOverCleanupTime")
   }
 
   override def processElement(
-    input: Row,
-    ctx: ProcessFunction[Row, Row]#Context,
-    out: Collector[Row]): Unit = {
+      inputC: CRow,
+      ctx: ProcessFunction[CRow, CRow]#Context,
+      out: Collector[CRow]): Unit = {
+    // register state-cleanup timer
+    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
-    function.setForwardedFields(input, output)
+
+    val input = inputC.row
+
+    function.setForwardedFields(input, output.row)
 
     function.accumulate(accumulators, input)
-    function.setAggregationResults(accumulators, output)
+    function.setAggregationResults(accumulators, output.row)
 
     out.collect(output)
+  }
+
+  override def onTimer(
+    timestamp: Long,
+    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+    out: Collector[CRow]): Unit = {
+
+    if (needToCleanupState(timestamp)) {
+      cleanupState(state)
+    }
   }
 
   override def snapshotState(context: FunctionSnapshotContext): Unit = {

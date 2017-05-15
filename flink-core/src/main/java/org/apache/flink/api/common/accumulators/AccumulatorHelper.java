@@ -112,7 +112,7 @@ public class AccumulatorHelper {
 		return resultMap;
 	}
 
-	public static String getResultsFormated(Map<String, Object> map) {
+	public static String getResultsFormatted(Map<String, Object> map) {
 		StringBuilder builder = new StringBuilder();
 		for (Map.Entry<String, Object> entry : map.entrySet()) {
 			builder

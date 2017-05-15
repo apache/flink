@@ -24,9 +24,11 @@ import org.apache.flink.api.java.{DataSet => JDataSet}
 import org.apache.flink.table.api.{Table, TableEnvironment}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
+import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.scala.batch.utils.LogicalPlanFormatUtils
 import org.junit.Assert.assertEquals
@@ -174,7 +176,10 @@ case class BatchTableTestUtil() extends TableTestUtil {
 
 case class StreamTableTestUtil() extends TableTestUtil {
 
+  val javaEnv = mock(classOf[JStreamExecutionEnvironment])
+  when(javaEnv.getStreamTimeCharacteristic).thenReturn(TimeCharacteristic.EventTime)
   val env = mock(classOf[StreamExecutionEnvironment])
+  when(env.getWrappedStreamExecutionEnvironment).thenReturn(javaEnv)
   val tEnv = TableEnvironment.getTableEnvironment(env)
 
   def addTable[T: TypeInformation](
@@ -211,7 +216,7 @@ case class StreamTableTestUtil() extends TableTestUtil {
 
   def verifyTable(resultTable: Table, expected: String): Unit = {
     val relNode = resultTable.getRelNode
-    val optimized = tEnv.optimize(relNode)
+    val optimized = tEnv.optimize(relNode, updatesAsRetraction = false)
     val actual = RelOptUtil.toString(optimized)
     assertEquals(
       expected.split("\n").map(_.trim).mkString("\n"),
@@ -221,7 +226,7 @@ case class StreamTableTestUtil() extends TableTestUtil {
   // the print methods are for debugging purposes only
   def printTable(resultTable: Table): Unit = {
     val relNode = resultTable.getRelNode
-    val optimized = tEnv.optimize(relNode)
+    val optimized = tEnv.optimize(relNode, updatesAsRetraction = false)
     println(RelOptUtil.toString(optimized))
   }
 
