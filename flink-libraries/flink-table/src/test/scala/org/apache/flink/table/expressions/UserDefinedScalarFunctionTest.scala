@@ -21,11 +21,11 @@ package org.apache.flink.table.expressions
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.types.Row
 import org.apache.flink.table.api.{Types, ValidationException}
-import org.apache.flink.table.api.java.utils.UserDefinedScalarFunctions.{JavaFunc0, JavaFunc1, JavaFunc2, JavaFunc3}
+import org.apache.flink.table.api.java.utils.UserDefinedScalarFunctions._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
@@ -263,6 +263,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   def testJavaBoxedPrimitives(): Unit = {
     val JavaFunc0 = new JavaFunc0()
     val JavaFunc1 = new JavaFunc1()
+    val JavaFunc4 = new JavaFunc4()
 
     testAllApis(
       JavaFunc0('f8),
@@ -288,6 +289,13 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "JavaFunc1(Null(TIME), 15, Null(TIMESTAMP))",
       "JavaFunc1(NULL, 15, NULL)",
       "null and 15 and null")
+
+    testAllApis(
+      JavaFunc4('f10, array("a", "b", "c")),
+      "JavaFunc4(f10, array('a', 'b', 'c'))",
+      "JavaFunc4(f10, array['a', 'b', 'c'])",
+      "[1, 2, null] and [a, b, c]"
+    )
   }
 
   @Test
@@ -317,7 +325,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Any = {
-    val testData = new Row(10)
+    val testData = new Row(11)
     testData.setField(0, 42)
     testData.setField(1, "Test")
     testData.setField(2, null)
@@ -328,6 +336,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     testData.setField(7, 12)
     testData.setField(8, 1000L)
     testData.setField(9, Seq("Hello", "World"))
+    testData.setField(10, Array[Integer](1, 2, null))
     testData
   }
 
@@ -342,7 +351,8 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Types.SQL_TIMESTAMP,
       Types.INTERVAL_MONTHS,
       Types.INTERVAL_MILLIS,
-      TypeInformation.of(classOf[Seq[String]])
+      TypeInformation.of(classOf[Seq[String]]),
+      BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO
     ).asInstanceOf[TypeInformation[Any]]
   }
 
@@ -368,6 +378,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "JavaFunc1" -> new JavaFunc1,
     "JavaFunc2" -> new JavaFunc2,
     "JavaFunc3" -> new JavaFunc3,
+    "JavaFunc4" -> new JavaFunc4,
     "RichFunc0" -> new RichFunc0,
     "RichFunc1" -> new RichFunc1,
     "RichFunc2" -> new RichFunc2

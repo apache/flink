@@ -20,7 +20,7 @@ package org.apache.flink.table.expressions
 
 import java.sql.Date
 
-import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.types.Row
@@ -248,6 +248,12 @@ class ArrayTypeTest extends ExpressionTestBase {
       "f4.at(2).at(2)",
       "f4[2][2]",
       "null")
+
+    testAllApis(
+      'f11.at(1),
+      "f11.at(1)",
+      "f11[1]",
+      "1")
   }
 
   @Test
@@ -264,6 +270,12 @@ class ArrayTypeTest extends ExpressionTestBase {
       "f4.cardinality()",
       "CARDINALITY(f4)",
       "null")
+
+    testAllApis(
+      'f11.cardinality(),
+      "f11.cardinality()",
+      "CARDINALITY(f11)",
+      "1")
 
     // element
     testAllApis(
@@ -289,6 +301,12 @@ class ArrayTypeTest extends ExpressionTestBase {
       "f4.element()",
       "ELEMENT(f4)",
       "null")
+
+    testAllApis(
+      'f11.element(),
+      "f11.element()",
+      "ELEMENT(f11)",
+      "1")
 
     // comparison
     testAllApis(
@@ -320,6 +338,30 @@ class ArrayTypeTest extends ExpressionTestBase {
       "f2 !== f7",
       "f2 <> f7",
       "true")
+
+    testAllApis(
+      'f11 === 'f11,
+      "f11 === f11",
+      "f11 = f11",
+      "true")
+
+    testAllApis(
+      'f11 === 'f9,
+      "f11 === f9",
+      "f11 = f9",
+      "true")
+
+    testAllApis(
+      'f11 !== 'f11,
+      "f11 !== f11",
+      "f11 <> f11",
+      "false")
+
+    testAllApis(
+      'f11 !== 'f9,
+      "f11 !== f9",
+      "f11 <> f9",
+      "false")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -327,7 +369,7 @@ class ArrayTypeTest extends ExpressionTestBase {
   case class MyCaseClass(string: String, int: Int)
 
   override def testData: Any = {
-    val testData = new Row(11)
+    val testData = new Row(12)
     testData.setField(0, null)
     testData.setField(1, 42)
     testData.setField(2, Array(1, 2, 3))
@@ -339,6 +381,7 @@ class ArrayTypeTest extends ExpressionTestBase {
     testData.setField(8, Array(4.0))
     testData.setField(9, Array[Integer](1))
     testData.setField(10, Array[Integer]())
+    testData.setField(11, Array[Integer](1))
     testData
   }
 
@@ -354,7 +397,8 @@ class ArrayTypeTest extends ExpressionTestBase {
       PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
       PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
       ObjectArrayTypeInfo.getInfoFor(Types.INT),
-      ObjectArrayTypeInfo.getInfoFor(Types.INT)
+      ObjectArrayTypeInfo.getInfoFor(Types.INT),
+      BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO
     ).asInstanceOf[TypeInformation[Any]]
   }
 }

@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.api.java.utils;
 
+import java.util.Arrays;
 import org.apache.flink.table.functions.ScalarFunction;
 
 public class UserDefinedScalarFunctions {
@@ -50,6 +51,12 @@ public class UserDefinedScalarFunctions {
 
 		public String eval(String c) {
 			return c;
+		}
+	}
+
+	public static class JavaFunc4 extends ScalarFunction {
+		public String eval(Integer[] a, String[] b) {
+			return Arrays.toString(a) + " and " + Arrays.toString(b);
 		}
 	}
 

@@ -243,24 +243,25 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		List<SmallPojo> data = new ArrayList<>();
-		data.add(new SmallPojo("Peter", 28, 4000.00, "Sales"));
-		data.add(new SmallPojo("Anna", 56, 10000.00, "Engineering"));
-		data.add(new SmallPojo("Lucy", 42, 6000.00, "HR"));
+		data.add(new SmallPojo("Peter", 28, 4000.00, "Sales", new Integer[] {42}));
+		data.add(new SmallPojo("Anna", 56, 10000.00, "Engineering", new Integer[] {}));
+		data.add(new SmallPojo("Lucy", 42, 6000.00, "HR", new Integer[] {1, 2, 3}));
 
 		Table table = tableEnv
 			.fromDataSet(env.fromCollection(data),
 				"department AS a, " +
 				"age AS b, " +
 				"salary AS c, " +
-				"name AS d")
-			.select("a, b, c, d");
+				"name AS d," +
+				"roles as e")
+			.select("a, b, c, d, e");
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
 		String expected =
-			"Sales,28,4000.0,Peter\n" +
-			"Engineering,56,10000.0,Anna\n" +
-			"HR,42,6000.0,Lucy\n";
+			"Sales,28,4000.0,Peter,[42]\n" +
+			"Engineering,56,10000.0,Anna,[]\n" +
+			"HR,42,6000.0,Lucy,[1, 2, 3]\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -297,24 +298,25 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
 		List<SmallPojo> data = new ArrayList<>();
-		data.add(new SmallPojo("Peter", 28, 4000.00, "Sales"));
-		data.add(new SmallPojo("Anna", 56, 10000.00, "Engineering"));
-		data.add(new SmallPojo("Lucy", 42, 6000.00, "HR"));
+		data.add(new SmallPojo("Peter", 28, 4000.00, "Sales", new Integer[] {42}));
+		data.add(new SmallPojo("Anna", 56, 10000.00, "Engineering", new Integer[] {}));
+		data.add(new SmallPojo("Lucy", 42, 6000.00, "HR", new Integer[] {1, 2, 3}));
 
 		Table table = tableEnv
 			.fromDataSet(env.fromCollection(data),
 				"department AS a, " +
 				"age AS b, " +
 				"salary AS c, " +
-				"name AS d")
-			.select("a, b, c, d");
+				"name AS d," +
+				"roles AS e")
+			.select("a, b, c, d, e");
 
 		DataSet<SmallPojo2> ds = tableEnv.toDataSet(table, SmallPojo2.class);
 		List<SmallPojo2> results = ds.collect();
 		String expected =
-			"Sales,28,4000.0,Peter\n" +
-			"Engineering,56,10000.0,Anna\n" +
-			"HR,42,6000.0,Lucy\n";
+			"Sales,28,4000.0,Peter,[42]\n" +
+			"Engineering,56,10000.0,Anna,[]\n" +
+			"HR,42,6000.0,Lucy,[1, 2, 3]\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -487,17 +489,19 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 
 		public SmallPojo() { }
 
-		public SmallPojo(String name, int age, double salary, String department) {
+		public SmallPojo(String name, int age, double salary, String department, Integer[] roles) {
 			this.name = name;
 			this.age = age;
 			this.salary = salary;
 			this.department = department;
+			this.roles = roles;
 		}
 
 		public String name;
 		public int age;
 		public double salary;
 		public String department;
+		public Integer[] roles;
 	}
 
 	@SuppressWarnings("unused")
@@ -580,21 +584,23 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 
 		public SmallPojo2() { }
 
-		public SmallPojo2(String a, int b, double c, String d) {
+		public SmallPojo2(String a, int b, double c, String d, Integer[] e) {
 			this.a = a;
 			this.b = b;
 			this.c = c;
 			this.d = d;
+			this.e = e;
 		}
 
 		public String a;
 		public int b;
 		public double c;
 		public String d;
+		public Integer[] e;
 
 		@Override
 		public String toString() {
-			return a + "," + b + "," + c + "," + d;
+			return a + "," + b + "," + c + "," + d + "," + Arrays.toString(e);
 		}
 	}
 
