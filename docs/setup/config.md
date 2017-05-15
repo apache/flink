@@ -542,23 +542,7 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 ### Queryable State
 
-#### Server
-
-- `query.server.enable`: Enable queryable state (Default: `true`).
-
-- `query.server.port`: Port to bind queryable state server to (Default: `0`, binds to random port).
-
-- `query.server.network-threads`: Number of network (Netty's event loop) Threads for queryable state server (Default: `0`, picks number of slots).
-
-- `query.server.query-threads`: Number of query Threads for queryable state server (Default: `0`, picks number of slots).
-
-#### Client
-
-- `query.client.network-threads`: Number of network (Netty's event loop) Threads for queryable state client (Default: `0`, picks number of available cores as returned by `Runtime.getRuntime().availableProcessors()`).
-
-- `query.client.lookup.num-retries`: Number of retries on KvState lookup failure due to unavailable JobManager (Default: `3`).
-
-- `query.client.lookup.retry-delay`: Retry delay in milliseconds on KvState lookup failure due to unavailable JobManager (Default: `1000`).
+{% include generated/queryable_state_configuration.html %}
 
 ### Metrics
 
