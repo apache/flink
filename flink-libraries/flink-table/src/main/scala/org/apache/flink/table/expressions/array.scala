@@ -22,9 +22,10 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, PrimitiveArrayTypeInfo}
+import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
 import org.apache.flink.table.calcite.FlinkRelBuilder
+import org.apache.flink.table.typeutils.TypeCheckUtils.isArray
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 import scala.collection.JavaConverters._
@@ -75,12 +76,13 @@ case class ArrayElementAt(array: Expression, index: Expression) extends Expressi
 
   override private[flink] def resultType = array.resultType match {
     case oati: ObjectArrayTypeInfo[_, _] => oati.getComponentInfo
+    case bati: BasicArrayTypeInfo[_, _] => bati.getComponentInfo
     case pati: PrimitiveArrayTypeInfo[_] => pati.getComponentType
   }
 
   override private[flink] def validateInput(): ValidationResult = {
     array.resultType match {
-      case _: ObjectArrayTypeInfo[_, _] | _: PrimitiveArrayTypeInfo[_] =>
+      case ati: TypeInformation[_] if isArray(ati)  =>
         if (index.resultType == INT_TYPE_INFO) {
           // check for common user mistake
           index match {
@@ -114,7 +116,7 @@ case class ArrayCardinality(array: Expression) extends Expression {
 
   override private[flink] def validateInput(): ValidationResult = {
     array.resultType match {
-      case _: ObjectArrayTypeInfo[_, _] | _: PrimitiveArrayTypeInfo[_] => ValidationSuccess
+      case ati: TypeInformation[_] if isArray(ati) => ValidationSuccess
       case other@_ => ValidationFailure(s"Array expected but was '$other'.")
     }
   }
@@ -134,12 +136,13 @@ case class ArrayElement(array: Expression) extends Expression {
 
   override private[flink] def resultType = array.resultType match {
     case oati: ObjectArrayTypeInfo[_, _] => oati.getComponentInfo
+    case bati: BasicArrayTypeInfo[_, _] => bati.getComponentInfo
     case pati: PrimitiveArrayTypeInfo[_] => pati.getComponentType
   }
 
   override private[flink] def validateInput(): ValidationResult = {
     array.resultType match {
-      case _: ObjectArrayTypeInfo[_, _] | _: PrimitiveArrayTypeInfo[_] => ValidationSuccess
+      case ati: TypeInformation[_] if isArray(ati) => ValidationSuccess
       case other@_ => ValidationFailure(s"Array expected but was '$other'.")
     }
   }
