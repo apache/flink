@@ -42,15 +42,7 @@ The configuration files for the TaskManagers can be different, Flink does not as
 
 - `env.java.home`: The path to the Java installation to use (DEFAULT: system's default Java installation, if found). Needs to be specified if the startup scripts fail to automatically resolve the java home directory. Can be specified to point to a specific java installation or version. If this option is not specified, the startup scripts also evaluate the `$JAVA_HOME` environment variable.
 
-- `env.java.opts`: Set custom JVM options. This value is respected by Flink's start scripts, both JobManager and
-TaskManager, and Flink's YARN client. This can be used to set different garbage collectors or to include remote
-debuggers into the JVMs running Flink's services. Enclosing options in double quotes delays parameter substitution
-allowing access to variables from Flink's startup scripts. Use `env.java.opts.jobmanager` and `env.java.opts.taskmanager`
-for JobManager or TaskManager-specific options, respectively.
-
-- `env.java.opts.jobmanager`: JobManager-specific JVM options. These are used in addition to the regular `env.java.opts`.
-
-- `env.java.opts.taskmanager`: TaskManager-specific JVM options. These are used in addition to the regular `env.java.opts`.
+Environment variables can be set separately for the [JobManager](#env-java-opts-jobmanager) and [TaskManager](#env-java-opts-taskmanager), or for [both](#env-java-opts).
 
 - `jobmanager.rpc.address`: The external address of the JobManager, which is the master/coordinator of the distributed system (DEFAULT: localhost). **Note:** The address (host name or IP) should be accessible by all nodes including the client.
 
@@ -236,6 +228,10 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 - `fs.hdfs.hdfsdefault`: The absolute path of Hadoop's own configuration file "hdfs-default.xml" (DEFAULT: null).
 
 - `fs.hdfs.hdfssite`: The absolute path of Hadoop's own configuration file "hdfs-site.xml" (DEFAULT: null).
+
+### Environment Options
+
+{% include generated/environment_options_configuration.html %}
 
 ### JobManager &amp; TaskManager
 
