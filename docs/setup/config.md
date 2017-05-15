@@ -564,27 +564,7 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 ### Metrics
 
-- `metrics.reporters`: The list of named reporters, i.e. "foo,bar".
-
-- `metrics.reporter.<name>.<config>`: Generic setting `<config>` for the reporter named `<name>`.
-
-- `metrics.reporter.<name>.class`: The reporter class to use for the reporter named `<name>`.
-
-- `metrics.reporter.<name>.interval`: The reporter interval to use for the reporter named `<name>`.
-
-- `metrics.scope.jm`: (Default: &lt;host&gt;.jobmanager) Defines the scope format string that is applied to all metrics scoped to a JobManager.
-
-- `metrics.scope.jm.job`: (Default: &lt;host&gt;.jobmanager.&lt;job_name&gt;) Defines the scope format string that is applied to all metrics scoped to a job on a JobManager.
-
-- `metrics.scope.tm`: (Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;) Defines the scope format string that is applied to all metrics scoped to a TaskManager.
-
-- `metrics.scope.tm.job`: (Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;) Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager.
-
-- `metrics.scope.task`: (Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;task_name&gt;.&lt;subtask_index&gt;) Defines the scope format string that is applied to all metrics scoped to a task.
-
-- `metrics.scope.operator`: (Default: &lt;host&gt;.taskmanager.&lt;tm_id&gt;.&lt;job_name&gt;.&lt;operator_name&gt;.&lt;subtask_index&gt;) Defines the scope format string that is applied to all metrics scoped to an operator.
-
-- `metrics.latency.history-size`: (Default: 128) Defines the number of measured latencies to maintain at each operator
+{% include generated/metric_configuration.html %}
 
 ### History Server
 
