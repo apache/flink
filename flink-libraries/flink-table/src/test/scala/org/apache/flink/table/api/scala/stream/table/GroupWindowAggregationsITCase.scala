@@ -50,6 +50,37 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
     (16L, 3, "Hello world"))
 
   @Test
+  def testProcessingTimeSlidingGroupWindowOverCountGroupKeyNotInProjection(): Unit = {
+    val data = List(
+      (1L, 1, "Hi", 1, 1),
+      (2L, 2, "Hello", 2, 2),
+      (4L, 2, "Hello", 2, 2),
+      (8L, 3, "Hello world", 3, 3),
+      (16L, 3, "Hello world", 3, 3))
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env.fromCollection(data)
+    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'int2, 'int3, 'proctime.proctime)
+
+    val weightAvgFun = new WeightedAvg
+
+    val windowedTable = table
+      .window(Slide over 2.rows every 1.rows on 'proctime as 'w)
+      .groupBy('w, 'int2, 'int3, 'string)
+      .select(weightAvgFun('long, 'int))
+
+    val results = windowedTable.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = Seq("12", "8", "2", "3", "1")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
   def testProcessingTimeSlidingGroupWindowOverCount(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
