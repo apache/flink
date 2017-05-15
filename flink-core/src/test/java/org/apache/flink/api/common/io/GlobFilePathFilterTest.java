@@ -19,6 +19,8 @@ package org.apache.flink.api.common.io;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.util.OperatingSystem;
+import org.junit.Assume;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -110,6 +112,8 @@ public class GlobFilePathFilterTest {
 
 	@Test
 	public void testExcludeFilenameWithStart() {
+		Assume.assumeTrue("Windows does not allow asterisks in file names.", !OperatingSystem.isWindows());
+
 		GlobFilePathFilter matcher = new GlobFilePathFilter(
 			Collections.singletonList("**"),
 			Collections.singletonList("\\*"));

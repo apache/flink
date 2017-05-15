@@ -320,7 +320,7 @@ public class SchedulerSlotSharingTest {
 	}
 	
 	@Test
-	public void allocateSlotWithTemprarilyEmptyVertexGroup() {
+	public void allocateSlotWithTemporarilyEmptyVertexGroup() {
 		try {
 			JobVertexID jid1 = new JobVertexID();
 			JobVertexID jid2 = new JobVertexID();

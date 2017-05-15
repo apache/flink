@@ -30,12 +30,13 @@ import java.util.List;
 
 import com.google.common.io.Files;
 
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.StartupUtils;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,7 +45,7 @@ import org.junit.Test;
  * Tests that verify the startup behavior of the JobManager in failure
  * situations, when the JobManager cannot be started.
  */
-public class JobManagerStartupTest {
+public class JobManagerStartupTest extends TestLogger {
 
 	private final static String DOES_NOT_EXISTS_NO_SIR = "does-not-exist-no-sir";
 
@@ -101,7 +102,7 @@ public class JobManagerStartupTest {
 					throw (BindException) cause;
 				}	
 			}
-			fail("this should throw a BindException");
+			throw e;
 		}
 		finally {
 			try {
@@ -129,7 +130,7 @@ public class JobManagerStartupTest {
 		}
 		Configuration failConfig = new Configuration();
 		String nonExistDirectory = new File(blobStorageDirectory, DOES_NOT_EXISTS_NO_SIR).getAbsolutePath();
-		failConfig.setString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, nonExistDirectory);
+		failConfig.setString(BlobServerOptions.STORAGE_DIRECTORY, nonExistDirectory);
 
 		try {
 			JobManager.runJobManager(failConfig, JobManagerMode.CLUSTER, "localhost", portNum);

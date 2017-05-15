@@ -21,7 +21,9 @@ package org.apache.flink.runtime.operators.testutils.types;
 import java.io.IOException;
 import java.util.Arrays;
 
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -126,5 +128,15 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 	@Override
 	public int hashCode() {
 		return IntListSerializer.class.hashCode();
+	}
+
+	@Override
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public CompatibilityResult<IntList> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		throw new UnsupportedOperationException();
 	}
 }

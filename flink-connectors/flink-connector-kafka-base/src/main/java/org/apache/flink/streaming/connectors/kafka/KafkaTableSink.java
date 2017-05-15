@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.types.Row;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.table.sinks.StreamTableSink;
+import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
@@ -29,12 +29,12 @@ import org.apache.flink.util.Preconditions;
 import java.util.Properties;
 
 /**
- * A version-agnostic Kafka {@link StreamTableSink}.
+ * A version-agnostic Kafka {@link AppendStreamTableSink}.
  *
  * <p>The version-specific Kafka consumers need to extend this class and
  * override {@link #createKafkaProducer(String, Properties, SerializationSchema, KafkaPartitioner)}}.
  */
-public abstract class KafkaTableSink implements StreamTableSink<Row> {
+public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 
 	protected final String topic;
 	protected final Properties properties;

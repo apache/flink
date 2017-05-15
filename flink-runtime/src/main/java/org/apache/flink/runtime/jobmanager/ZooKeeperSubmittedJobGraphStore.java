@@ -143,11 +143,13 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 			if (isRunning) {
 				jobGraphListener = null;
 
-				pathCache.close();
-
-				client.close();
-
-				isRunning = false;
+				try {
+					pathCache.close();
+				} catch (Exception e) {
+					throw new Exception("Could not properly stop the ZooKeeperSubmittedJobGraphStore.", e);
+				} finally {
+					isRunning = false;
+				}
 			}
 		}
 	}

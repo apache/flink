@@ -33,7 +33,6 @@ public final class DoubleSerializer extends TypeSerializerSingleton<Double> {
 	
 	private static final Double ZERO = Double.valueOf(0);
 
-	
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -82,5 +81,11 @@ public final class DoubleSerializer extends TypeSerializerSingleton<Double> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof DoubleSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(DoubleValueSerializer.class.getCanonicalName());
 	}
 }

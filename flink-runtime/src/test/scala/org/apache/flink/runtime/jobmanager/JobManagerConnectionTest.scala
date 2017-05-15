@@ -59,7 +59,10 @@ class JobManagerConnectionTest {
       mustReturnWithinTimeout(Duration(5*timeout, TimeUnit.MILLISECONDS)) {
         () => {
           try {
-            JobManager.getJobManagerActorRef(endpoint, actorSystem, config)
+            AkkaUtils.getActorRef(
+              endpoint,
+              actorSystem,
+              AkkaUtils.getLookupTimeout(config))
             fail("Should fail since the JobManager is not reachable")
           }
           catch {
@@ -95,7 +98,10 @@ class JobManagerConnectionTest {
       mustReturnWithinTimeout(Duration(5*timeout, TimeUnit.MILLISECONDS)) {
         () => {
           try {
-            JobManager.getJobManagerActorRef(endpoint, actorSystem, config)
+            AkkaUtils.getActorRef(
+              endpoint,
+              actorSystem,
+              AkkaUtils.getLookupTimeout(config))
             fail("Should fail since the JobManager is not reachable")
           }
           catch {

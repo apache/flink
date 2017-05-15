@@ -41,10 +41,13 @@ class CompositeAccessTest extends ExpressionTestBase {
       "f0.get('intField')",
       "testTable.f0.intField",
       "42")
+    testSqlApi("f0.intField", "42")
 
     testSqlApi("testTable.f0.stringField", "Bob")
+    testSqlApi("f0.stringField", "Bob")
 
     testSqlApi("testTable.f0.booleanField", "true")
+    testSqlApi("f0.booleanField", "true")
 
     // single field by int key
     testTableApi(
@@ -58,22 +61,29 @@ class CompositeAccessTest extends ExpressionTestBase {
       "f1.get('objectField').get('intField')",
       "testTable.f1.objectField.intField",
       "25")
+    testSqlApi("f1.objectField.intField", "25")
 
     testSqlApi("testTable.f1.objectField.stringField", "Timo")
+    testSqlApi("f1.objectField.stringField", "Timo")
 
     testSqlApi("testTable.f1.objectField.booleanField", "false")
+    testSqlApi("f1.objectField.booleanField", "false")
 
     testAllApis(
       'f2.get(0),
       "f2.get(0)",
       "testTable.f2._1",
       "a")
+    testSqlApi("f2._1", "a")
 
     testSqlApi("testTable.f3.f1", "b")
+    testSqlApi("f3.f1", "b")
 
     testSqlApi("testTable.f4.myString", "Hello")
+    testSqlApi("f4.myString", "Hello")
 
     testSqlApi("testTable.f5", "13")
+    testSqlApi("f5", "13")
 
     testAllApis(
       'f7.get("_1"),
@@ -83,18 +93,21 @@ class CompositeAccessTest extends ExpressionTestBase {
 
     // composite field return type
     testSqlApi("testTable.f6", "MyCaseClass2(null)")
+    testSqlApi("f6", "MyCaseClass2(null)")
 
     testAllApis(
       'f1.get("objectField"),
       "f1.get('objectField')",
       "testTable.f1.objectField",
       "MyCaseClass(25,Timo,false)")
+    testSqlApi("f1.objectField", "MyCaseClass(25,Timo,false)")
 
     testAllApis(
       'f0,
       "f0",
       "testTable.f0",
       "MyCaseClass(42,Bob,true)")
+    testSqlApi("f0", "MyCaseClass(42,Bob,true)")
 
     // flattening (test base only returns first column)
     testAllApis(
@@ -102,12 +115,14 @@ class CompositeAccessTest extends ExpressionTestBase {
       "f1.get('objectField').flatten()",
       "testTable.f1.objectField.*",
       "25")
+    testSqlApi("f1.objectField.*", "25")
 
     testAllApis(
       'f0.flatten(),
       "flatten(f0)",
       "testTable.f0.*",
       "42")
+    testSqlApi("f0.*", "42")
 
     testTableApi(12.flatten(), "12.flatten()", "12")
 
@@ -115,8 +130,13 @@ class CompositeAccessTest extends ExpressionTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
-  def testWrongSqlField(): Unit = {
+  def testWrongSqlFieldFull(): Unit = {
     testSqlApi("testTable.f5.test", "13")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testWrongSqlField(): Unit = {
+    testSqlApi("f5.test", "13")
   }
 
   @Test(expected = classOf[ValidationException])

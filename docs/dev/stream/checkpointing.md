@@ -32,7 +32,7 @@ any type of more elaborate operation.
 In order to make state fault tolerant, Flink needs to **checkpoint** the state. Checkpoints allow Flink to recover state and positions
 in the streams to give the application the same semantics as a failure-free execution.
 
-The [documentation on streaming fault tolerance](../../internals/stream_checkpointing.html) describe in detail the technique behind Flink's streaming fault tolerance mechanism.
+The [documentation on streaming fault tolerance](../../internals/stream_checkpointing.html) describes in detail the technique behind Flink's streaming fault tolerance mechanism.
 
 
 ## Prerequisites
@@ -124,12 +124,13 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
 ## Selecting a State Backend
 
-The checkpointing mechanism stores the progress in the data sources and data sinks, the state of windows, as well as the [user-defined state](state.html) consistently to
-provide *exactly once* processing semantics. Where the checkpoints are stored (e.g., JobManager memory, file system, database) depends on the configured
+Flink's [checkpointing mechanism]({{ site.baseurl }}/internals/stream_checkpointing.html) stores consistent snapshots
+of all the state in timers and stateful operators, including connectors, windows, and any [user-defined state](state.html).
+Where the checkpoints are stored (e.g., JobManager memory, file system, database) depends on the configured
 **State Backend**. 
 
-By default state will be kept in memory, and checkpoints will be stored in-memory at the master node (the JobManager). For proper persistence of large state,
-Flink supports various forms of storing and checkpointing state in so called **State Backends**, which can be set via `StreamExecutionEnvironment.setStateBackend(…)`.
+By default, state is kept in memory in the TaskManagers and checkpoints are stored in memory in the JobManager. For proper persistence of large state,
+Flink supports various approaches for storing and checkpointing state in other state backends. The choice of state backend can be configured via `StreamExecutionEnvironment.setStateBackend(…)`.
 
 See [state backends](../../ops/state_backends.html) for more details on the available state backends and options for job-wide and cluster-wide configuration.
 

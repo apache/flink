@@ -22,6 +22,9 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution;
+import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.storm.Config;
 import org.apache.storm.generated.AlreadyAliveException;
 import org.apache.storm.generated.InvalidTopologyException;
@@ -43,12 +46,10 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Some;
@@ -204,7 +205,7 @@ public class FlinkClient {
 		final ClusterClient client;
 		try {
 			client = new StandaloneClusterClient(configuration);
-		} catch (final IOException e) {
+		} catch (final Exception e) {
 			throw new RuntimeException("Could not establish a connection to the job manager", e);
 		}
 
@@ -244,7 +245,7 @@ public class FlinkClient {
 		final ClusterClient client;
 		try {
 			client = new StandaloneClusterClient(configuration);
-		} catch (final IOException e) {
+		} catch (final Exception e) {
 			throw new RuntimeException("Could not establish a connection to the job manager", e);
 		}
 
@@ -326,9 +327,14 @@ public class FlinkClient {
 			throw new RuntimeException("Could not start actor system to communicate with JobManager", e);
 		}
 
-		return JobManager.getJobManagerActorRef(AkkaUtils.getAkkaProtocol(configuration),
-				NetUtils.unresolvedHostAndPortToNormalizedString(this.jobManagerHost, this.jobManagerPort),
-				actorSystem, AkkaUtils.getLookupTimeout(configuration));
+		final String jobManagerAkkaUrl = AkkaRpcServiceUtils.getRpcUrl(
+			jobManagerHost,
+			jobManagerPort,
+			JobMaster.JOB_MANAGER_NAME,
+			AddressResolution.TRY_ADDRESS_RESOLUTION,
+			configuration);
+
+		return AkkaUtils.getActorRef(jobManagerAkkaUrl, actorSystem, AkkaUtils.getLookupTimeout(configuration));
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })

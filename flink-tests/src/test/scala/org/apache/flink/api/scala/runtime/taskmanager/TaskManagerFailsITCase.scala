@@ -226,7 +226,7 @@ class TaskManagerFailsITCase(_system: ActorSystem)
 
           tm ! NotifyWhenRegisteredAtJobManager
 
-          expectMsg(RegisteredAtJobManager)
+          expectMsgClass(classOf[RegisteredAtJobManager])
 
           jmGateway.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), self)
 

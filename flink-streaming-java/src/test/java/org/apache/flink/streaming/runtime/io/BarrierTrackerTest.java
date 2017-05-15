@@ -526,7 +526,7 @@ public class BarrierTrackerTest {
 
 			final long expectedId = checkpointIDs[i++];
 			if (expectedId < 0) {
-				assertEquals("wrong checkpoint id for checkoint abort", -expectedId, checkpointId);
+				assertEquals("wrong checkpoint id for checkpoint abort", -expectedId, checkpointId);
 			} else {
 				fail("got 'abortCheckpointOnBarrier()' when expecting an 'triggerCheckpointOnBarrier()'");
 			}

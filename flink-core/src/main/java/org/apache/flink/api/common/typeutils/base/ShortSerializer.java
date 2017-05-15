@@ -33,7 +33,6 @@ public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 	
 	private static final Short ZERO = Short.valueOf((short)0);
 
-	
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -82,5 +81,11 @@ public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof ShortSerializer;
+	}
+
+	@Override
+	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
+		return super.isCompatibleSerializationFormatIdentifier(identifier)
+			|| identifier.equals(ShortValueSerializer.class.getCanonicalName());
 	}
 }

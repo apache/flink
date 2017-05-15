@@ -55,8 +55,8 @@ val outputTag = OutputTag[String]("side-output")
 Notice how the `OutputTag` is typed according to the type of elements that the side output stream
 contains.
 
-Emitting data to a side output it only possible when using a
-[ProcessFunction]({{ site.baseurl }}/dev/stream/process_function.html). In the function, you can use the `Context` parameter
+Emitting data to a side output is only possible from within a
+[ProcessFunction]({{ site.baseurl }}/dev/stream/process_function.html). You can use the `Context` parameter
 to emit data to a side output identified by an `OutputTag`:
 
 <div class="codetabs" markdown="1">

@@ -39,7 +39,7 @@ class CsvTableSink(
     fieldDelim: Option[String],
     numFiles: Option[Int],
     writeMode: Option[WriteMode])
-  extends TableSinkBase[Row] with BatchTableSink[Row] with StreamTableSink[Row] {
+  extends TableSinkBase[Row] with BatchTableSink[Row] with AppendStreamTableSink[Row] {
 
   /**
     * A simple [[TableSink]] to emit data as CSV files.

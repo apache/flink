@@ -484,6 +484,15 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
+	 * Gets the list of assigned user jar paths.
+	 *
+	 * @return The list of assigned user jar paths
+	 */
+	public List<Path> getUserJars() {
+		return userJars;
+	}
+
+	/**
 	 * Adds the BLOB referenced by the key to the JobGraph's dependencies.
 	 *
 	 * @param key

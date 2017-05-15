@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
@@ -38,7 +38,7 @@ public class BlobServerRangeTest extends TestLogger {
 	@Test
 	public void testOnEphemeralPort() throws IOException {
 		Configuration conf = new Configuration();
-		conf.setString(ConfigConstants.BLOB_SERVER_PORT, "0");
+		conf.setString(BlobServerOptions.PORT, "0");
 		BlobServer srv = new BlobServer(conf);
 		srv.shutdown();
 	}
@@ -59,7 +59,7 @@ public class BlobServerRangeTest extends TestLogger {
 		}
 
 		Configuration conf = new Configuration();
-		conf.setString(ConfigConstants.BLOB_SERVER_PORT, String.valueOf(socket.getLocalPort()));
+		conf.setString(BlobServerOptions.PORT, String.valueOf(socket.getLocalPort()));
 
 		// this thing is going to throw an exception
 		try {
@@ -88,7 +88,7 @@ public class BlobServerRangeTest extends TestLogger {
 		}
 		int availablePort = NetUtils.getAvailablePort();
 		Configuration conf = new Configuration();
-		conf.setString(ConfigConstants.BLOB_SERVER_PORT, sockets[0].getLocalPort() + "," + sockets[1].getLocalPort() + "," + availablePort);
+		conf.setString(BlobServerOptions.PORT, sockets[0].getLocalPort() + "," + sockets[1].getLocalPort() + "," + availablePort);
 
 		// this thing is going to throw an exception
 		try {

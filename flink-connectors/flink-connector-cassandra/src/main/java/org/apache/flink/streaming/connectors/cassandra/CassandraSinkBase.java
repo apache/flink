@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * CassandraSinkBase is the common abstract class of {@link CassandraPojoSink} and {@link CassandraTupleSink}.
@@ -40,10 +41,12 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 	protected transient Cluster cluster;
 	protected transient Session session;
 
-	protected transient Throwable exception = null;
+	protected transient volatile Throwable exception;
 	protected transient FutureCallback<V> callback;
 
 	private final ClusterBuilder builder;
+
+	private final AtomicInteger updatesPending = new AtomicInteger();
 
 	protected CassandraSinkBase(ClusterBuilder builder) {
 		this.builder = builder;
@@ -55,11 +58,24 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 		this.callback = new FutureCallback<V>() {
 			@Override
 			public void onSuccess(V ignored) {
+				int pending = updatesPending.decrementAndGet();
+				if (pending == 0) {
+					synchronized (updatesPending) {
+						updatesPending.notifyAll();
+					}
+				}
 			}
 
 			@Override
 			public void onFailure(Throwable t) {
+				int pending = updatesPending.decrementAndGet();
+				if (pending == 0) {
+					synchronized (updatesPending) {
+						updatesPending.notifyAll();
+					}
+				}
 				exception = t;
+				
 				LOG.error("Error while sending value.", t);
 			}
 		};
@@ -70,29 +86,43 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 	@Override
 	public void invoke(IN value) throws Exception {
 		if (exception != null) {
-			throw new IOException("invoke() failed", exception);
+			throw new IOException("Error while sending value.", exception);
 		}
 		ListenableFuture<V> result = send(value);
+		updatesPending.incrementAndGet();
 		Futures.addCallback(result, callback);
 	}
 
 	public abstract ListenableFuture<V> send(IN value);
 
 	@Override
-	public void close() {
+	public void close() throws Exception {
 		try {
-			if (session != null) {
-				session.close();
+			if (exception != null) {
+				throw new IOException("Error while sending value.", exception);
 			}
-		} catch (Exception e) {
-			LOG.error("Error while closing session.", e);
-		}
-		try {
-			if (cluster != null) {
-				cluster.close();
+
+			while (updatesPending.get() > 0) {
+				synchronized (updatesPending) {
+					updatesPending.wait();
+				}
 			}
-		} catch (Exception e) {
-			LOG.error("Error while closing cluster.", e);
+			
+		} finally {
+			try {
+				if (session != null) {
+					session.close();
+				}
+			} catch (Exception e) {
+				LOG.error("Error while closing session.", e);
+			}
+			try {
+				if (cluster != null) {
+					cluster.close();
+				}
+			} catch (Exception e) {
+				LOG.error("Error while closing cluster.", e);
+			}
 		}
 	}
 }

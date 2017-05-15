@@ -46,7 +46,7 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
   extends RichGroupReduceFunction[Row, Row]
     with Compiler[GeneratedAggregations] {
 
-  private var collector: TimeWindowPropertyCollector = _
+  private var collector: RowTimeWindowPropertyCollector = _
   protected var aggregateBuffer: Row = new Row(keysAndAggregatesArity + 1)
 
   private var output: Row = _
@@ -67,7 +67,7 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
 
     output = function.createOutputRow()
     accumulators = function.createAccumulators()
-    collector = new TimeWindowPropertyCollector(windowStartPos, windowEndPos)
+    collector = new RowTimeWindowPropertyCollector(windowStartPos, windowEndPos)
   }
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {

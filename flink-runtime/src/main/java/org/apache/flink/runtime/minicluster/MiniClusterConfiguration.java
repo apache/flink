@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -190,7 +191,7 @@ public class MiniClusterConfiguration {
 	 * 3. Distribute the available free memory equally among all components (JMs, RMs and TMs) and
 	 * calculate the managed memory from the share of memory for a single task manager.
 	 *
-	 * @return
+	 * @return size of managed memory per task manager (in megabytes)
 	 */
 	private long getOrCalculateManagedMemoryPerTaskManager() {
 		if (managedMemoryPerTaskManager == -1) {
@@ -206,9 +207,6 @@ public class MiniClusterConfiguration {
 				// share the available memory among all running components
 
 				float memoryFraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
-				long networkBuffersMemory =
-					(long) config.getInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS) *
-						(long) config.getInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE);
 
 				long freeMemory = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag();
 
@@ -217,12 +215,13 @@ public class MiniClusterConfiguration {
 				long memoryPerComponent = freeMemory / (numTaskManagers + numResourceManagers + numJobManagers);
 
 				// subtract the network buffer memory
+				long networkBuffersMemory = TaskManagerServices.calculateNetworkBufferMemory(memoryPerComponent, config);
 				long memoryMinusNetworkBuffers = memoryPerComponent - networkBuffersMemory;
 
 				// calculate the managed memory size
 				long managedMemoryBytes = (long) (memoryMinusNetworkBuffers * memoryFraction);
 
-				return managedMemoryBytes >>> 20;
+				return managedMemoryBytes >> 20; // bytes to megabytes
 			} else {
 				return memorySize;
 			}

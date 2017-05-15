@@ -35,6 +35,6 @@ public class NotCondition<T> extends IterativeCondition<T> {
 
 	@Override
 	public boolean filter(T value, Context<T> ctx) throws Exception {
-		return !original.filter(value, ctx);
+		return original != null && !original.filter(value, ctx);
 	}
 }

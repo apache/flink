@@ -36,8 +36,7 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 	private static final boolean[] EMPTY = new boolean[0];
 
 	public static final BooleanPrimitiveArraySerializer INSTANCE = new BooleanPrimitiveArraySerializer();
-	
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;

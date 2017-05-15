@@ -48,7 +48,7 @@ Flink offers different levels of abstraction to develop streaming/batch applicat
     for certain operations only. The *DataSet API* offers additional primitives on bounded data sets, like loops/iterations.
 
   - The **Table API** is a declarative DSL centered around *tables*, which may be dynamically changing tables (when representing streams).
-    The Table API follows the (extended) relational model: Tables have a schema attached (similar to tables in relational databases)
+    The [Table API](../dev/table_api.html) follows the (extended) relational model: Tables have a schema attached (similar to tables in relational databases)
     and the API offers comparable operations, such as select, project, join, group-by, aggregate, etc.
     Table API programs declaratively define *what logical operation should be done* rather than specifying exactly
    *how the code for the operation looks*. Though the Table API is extensible by various types of user-defined
@@ -60,7 +60,7 @@ Flink offers different levels of abstraction to develop streaming/batch applicat
 
   - The highest level abstraction offered by Flink is **SQL**. This abstraction is similar to the *Table API* both in semantics and
     expressiveness, but represents programs as SQL query expressions.
-    The SQL abstraction closely interacts with the Table API, and SQL queries can be executed over tables defined in the *Table API*.
+    The [SQL](../dev/table_api.html#sql) abstraction closely interacts with the Table API, and SQL queries can be executed over tables defined in the *Table API*.
 
 
 ## Programs and Dataflows
@@ -80,6 +80,9 @@ arbitrary **directed acyclic graphs** *(DAGs)*. Although special forms of cycles
 
 Often there is a one-to-one correspondence between the transformations in the programs and the operators
 in the dataflow. Sometimes, however, one transformation may consist of multiple transformation operators.
+
+Sources and sinks are documented in the [streaming connectors](../dev/connectors/index.html) and [batch connectors](../dev/batch/connectors.html) docs.
+Transformations are documented in [DataStream transformations](../dev/datastream_api.html#datastream-transformations) and [DataSet transformations](../dev/batch/dataset_transformations.html).
 
 {% top %}
 
@@ -112,6 +115,8 @@ Streams can transport data between two operators in a *one-to-one* (or *forwardi
     is preserved, but the parallelism does introduce non-determinism regarding the order in
     which the aggregated results for different keys arrive at the sink.
 
+Details about configuring and controlling parallelism can be found in the docs on [parallel execution](../dev/parallel.html).
+
 {% top %}
 
 ## Windows
@@ -128,6 +133,7 @@ One typically distinguishes different types of windows, such as *tumbling window
 <img src="../fig/windows.svg" alt="Time- and Count Windows" class="offset" width="80%" />
 
 More window examples can be found in this [blog post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html).
+More details are in the [window docs](../dev/windows.html).
 
 {% top %}
 
@@ -165,6 +171,8 @@ This alignment also allows Flink to redistribute the state and adjust the stream
 
 <img src="../fig/state_partitioning.svg" alt="State and Partitioning" class="offset" width="50%" />
 
+For more information, see the documentation on [working with state](../dev/stream/state.html).
+
 {% top %}
 
 ## Checkpoints for Fault Tolerance
@@ -178,17 +186,21 @@ point of the checkpoint.
 The checkpoint interval is a means of trading off the overhead of fault tolerance during execution with the recovery time (the number
 of events that need to be replayed).
 
-More details on checkpoints and fault tolerance are in the [fault tolerance docs]({{ site.baseurl }}/internals/stream_checkpointing.html).
+The description of the [fault tolerance internals]({{ site.baseurl }}/internals/stream_checkpointing.html) provides
+more information about how Flink manages checkpoints and related topics.
+Details about enabling and configuring checkpointing are in the [checkpointing API docs](../dev/stream/checkpointing.html).
+
 
 {% top %}
 
 ## Batch on Streaming
 
-Flink executes batch programs as a special case of streaming programs, where the streams are bounded (finite number of elements).
+Flink executes [batch programs](../dev/batch/index.html) as a special case of streaming programs, where the streams are bounded (finite number of elements).
 A *DataSet* is treated internally as a stream of data. The concepts above thus apply to batch programs in the
 same way as well as they apply to streaming programs, with minor exceptions:
 
-  - Programs in the DataSet API do not use checkpoints. Recovery happens by fully replaying the streams.
+  - [Fault tolerance for batch programs](../dev/batch/fault_tolerance.html) does not use checkpointing.
+    Recovery happens by fully replaying the streams.
     That is possible, because inputs are bounded. This pushes the cost more towards the recovery,
     but makes the regular processing cheaper, because it avoids checkpoints.
 

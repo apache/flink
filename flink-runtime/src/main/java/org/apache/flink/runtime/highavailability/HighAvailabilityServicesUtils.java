@@ -18,43 +18,111 @@
 
 package org.apache.flink.runtime.highavailability;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
+import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
+import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.util.ConfigurationException;
 
+import java.util.concurrent.Executor;
+
+/**
+ * Utils class to instantiate {@link HighAvailabilityServices} implementations.
+ */
 public class HighAvailabilityServicesUtils {
 
-	public static HighAvailabilityServices createAvailableOrEmbeddedServices(Configuration config) throws Exception {
+	public static HighAvailabilityServices createAvailableOrEmbeddedServices(
+		Configuration config,
+		Executor executor) throws Exception {
 		HighAvailabilityMode highAvailabilityMode = LeaderRetrievalUtils.getRecoveryMode(config);
 
 		switch (highAvailabilityMode) {
 			case NONE:
-				return new EmbeddedNonHaServices();
+				return new EmbeddedHaServices(executor);
 
 			case ZOOKEEPER:
-				return new ZookeeperHaServices(ZooKeeperUtils.startCuratorFramework(config), 
-						Executors.directExecutor(), config);
+				return new ZooKeeperHaServices(
+					ZooKeeperUtils.startCuratorFramework(config),
+					executor,
+					config);
 
 			default:
 				throw new Exception("High availability mode " + highAvailabilityMode + " is not supported.");
 		}
 	}
 	
-	
-	public static HighAvailabilityServices createHighAvailabilityServices(Configuration configuration) throws Exception {
+	public static HighAvailabilityServices createHighAvailabilityServices(
+		Configuration configuration,
+		Executor executor,
+		AddressResolution addressResolution) throws Exception {
+
 		HighAvailabilityMode highAvailabilityMode = LeaderRetrievalUtils.getRecoveryMode(configuration);
 
 		switch(highAvailabilityMode) {
 			case NONE:
-				final String resourceManagerAddress = null;
-				return new NonHaServices(resourceManagerAddress);
+				final Tuple2<String, Integer> hostnamePort = getJobManagerAddress(configuration);
+
+				final String jobManagerRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
+					hostnamePort.f0,
+					hostnamePort.f1,
+					JobMaster.JOB_MANAGER_NAME,
+					addressResolution,
+					configuration);
+				final String resourceManagerRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
+					hostnamePort.f0,
+					hostnamePort.f1,
+					ResourceManager.RESOURCE_MANAGER_NAME,
+					addressResolution,
+					configuration);
+
+				return new StandaloneHaServices(resourceManagerRpcUrl, jobManagerRpcUrl);
 			case ZOOKEEPER:
-				return new ZookeeperHaServices(ZooKeeperUtils.startCuratorFramework(configuration), 
-						Executors.directExecutor(), configuration);
+				return new ZooKeeperHaServices(
+					ZooKeeperUtils.startCuratorFramework(configuration),
+					executor,
+					configuration);
 			default:
 				throw new Exception("Recovery mode " + highAvailabilityMode + " is not supported.");
 		}
+	}
+
+	/**
+	 * Returns the JobManager's hostname and port extracted from the given
+	 * {@link Configuration}.
+	 *
+	 * @param configuration Configuration to extract the JobManager's address from
+	 * @return The JobManager's hostname and port
+	 * @throws ConfigurationException if the JobManager's address cannot be extracted from the configuration
+	 */
+	public static Tuple2<String, Integer> getJobManagerAddress(Configuration configuration) throws ConfigurationException {
+
+		final String hostname = configuration.getString(JobManagerOptions.ADDRESS);
+		final int port = configuration.getInteger(JobManagerOptions.PORT);
+
+		if (hostname == null) {
+			throw new ConfigurationException("Config parameter '" + JobManagerOptions.ADDRESS +
+				"' is missing (hostname/address of JobManager to connect to).");
+		}
+
+		if (port <= 0 || port >= 65536) {
+			throw new ConfigurationException("Invalid value for '" + JobManagerOptions.PORT +
+				"' (port of the JobManager actor system) : " + port +
+				".  it must be greater than 0 and less than 65536.");
+		}
+
+		return Tuple2.of(hostname, port);
+	}
+
+	public enum AddressResolution {
+		TRY_ADDRESS_RESOLUTION,
+		NO_ADDRESS_RESOLUTION
 	}
 }

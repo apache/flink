@@ -25,6 +25,7 @@ import org.apache.commons.cli.CommandLine
 import org.apache.flink.client.cli.CliFrontendParser
 import org.apache.flink.client.program.ClusterClient
 import org.apache.flink.client.CliFrontend
+import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration}
 import org.apache.flink.runtime.minicluster.{FlinkMiniCluster, LocalFlinkMiniCluster}
 
@@ -140,18 +141,17 @@ object FlinkShell {
 
   def fetchConnectionInfo(
     config: Config
-  ): (String, Int, Option[Either[FlinkMiniCluster, ClusterClient]]) = {
+  ): (String, Int, Option[Either[StandaloneMiniCluster, ClusterClient]]) = {
     config.executionMode match {
       case ExecutionMode.LOCAL => // Local mode
         val config = GlobalConfiguration.loadConfiguration()
         config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 0)
 
-        val miniCluster = new LocalFlinkMiniCluster(config, false)
-        miniCluster.start()
+        val miniCluster = new StandaloneMiniCluster(config)
 
         println("\nStarting local Flink cluster (host: localhost, " +
-          s"port: ${miniCluster.getLeaderRPCPort}).\n")
-        ("localhost", miniCluster.getLeaderRPCPort, Some(Left(miniCluster)))
+          s"port: ${miniCluster.getPort}).\n")
+        ("localhost", miniCluster.getPort, Some(Left(miniCluster)))
 
       case ExecutionMode.REMOTE => // Remote mode
         if (config.host.isEmpty || config.port.isEmpty) {
@@ -188,7 +188,7 @@ object FlinkShell {
     val (repl, cluster) = try {
       val (host, port, cluster) = fetchConnectionInfo(config)
       val conf = cluster match {
-        case Some(Left(miniCluster)) => miniCluster.userConfiguration
+        case Some(Left(miniCluster)) => miniCluster.getConfiguration
         case Some(Right(yarnCluster)) => yarnCluster.getFlinkConfiguration
         case None => GlobalConfiguration.loadConfiguration()
       }
@@ -218,7 +218,7 @@ object FlinkShell {
     } finally {
       repl.closeInterpreter()
       cluster match {
-        case Some(Left(miniCluster)) => miniCluster.stop()
+        case Some(Left(miniCluster)) => miniCluster.close()
         case Some(Right(yarnCluster)) => yarnCluster.shutdown()
         case _ =>
       }

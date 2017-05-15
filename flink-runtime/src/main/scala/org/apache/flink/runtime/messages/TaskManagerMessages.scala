@@ -101,9 +101,10 @@ object TaskManagerMessages {
 
   /**
    * Acknowledges that the task manager has been successfully registered at any job manager. This
-   * message is a response to [[NotifyWhenRegisteredAtJobManager]].
+   * message is a response to [[NotifyWhenRegisteredAtJobManager]] and contains the current leader
+   * session id.
    */
-  case object RegisteredAtJobManager
+  case class RegisteredAtJobManager(leaderId: UUID)
 
   /** Tells the address of the new leading [[org.apache.flink.runtime.jobmanager.JobManager]]
     * and the new leader session ID.
@@ -149,14 +150,6 @@ object TaskManagerMessages {
    */
   def getNotifyWhenRegisteredAtJobManagerMessage:
   NotifyWhenRegisteredAtJobManager.type = NotifyWhenRegisteredAtJobManager
-
-  /**
-   * Accessor for the case object instance, to simplify Java interoperability.
-   *
-   * @return The RegisteredAtJobManager case object instance.
-   */
-  def getRegisteredAtJobManagerMessage:
-            RegisteredAtJobManager.type = RegisteredAtJobManager
 
   /**
     * Accessor for the case object instance, to simplify Java interoperability.

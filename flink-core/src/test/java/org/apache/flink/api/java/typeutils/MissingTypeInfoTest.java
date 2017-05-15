@@ -19,29 +19,26 @@
 package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class MissingTypeInfoTest extends TestLogger {
-	static final String functionName = "foobar";
-	static final InvalidTypesException testException = new InvalidTypesException("Test exception.");
+public class MissingTypeInfoTest extends TypeInformationTestBase<MissingTypeInfo> {
+	private static final String functionName = "foobar";
+	private static final InvalidTypesException testException = new InvalidTypesException("Test exception.");
 
-	@Test
-	public void testMissingTypeInfoEquality() {
-		MissingTypeInfo tpeInfo1 = new MissingTypeInfo(functionName, testException);
-		MissingTypeInfo tpeInfo2 = new MissingTypeInfo(functionName, testException);
-
-		assertEquals(tpeInfo1, tpeInfo2);
-		assertEquals(tpeInfo1.hashCode(), tpeInfo2.hashCode());
+	@Override
+	protected MissingTypeInfo[] getTestData() {
+		return new MissingTypeInfo[] {
+			new MissingTypeInfo(functionName, testException),
+			new MissingTypeInfo("alt" + functionName, testException)
+		};
 	}
 
-	@Test
-	public void testMissingTypeInfoInequality() {
-		MissingTypeInfo tpeInfo1 = new MissingTypeInfo(functionName, testException);
-		MissingTypeInfo tpeInfo2 = new MissingTypeInfo("alt" + functionName, testException);
-
-		assertNotEquals(tpeInfo1, tpeInfo2);
+	@Override
+	public void testSerialization() {
+		// this class is not intended to be serialized
 	}
 }

@@ -18,11 +18,21 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.flink.util.TestLogger;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-public class EnumTypeInfoTest extends TestLogger {
+/**
+ * Test for {@link EnumTypeInfo}.
+ */
+public class EnumTypeInfoTest extends TypeInformationTestBase<EnumTypeInfo<?>> {
+
+	@Override
+	@SuppressWarnings("unchecked")
+	protected EnumTypeInfo<?>[] getTestData() {
+		return new EnumTypeInfo<?>[] {
+			(EnumTypeInfo<?>) new EnumTypeInfo(TestEnum.class),
+			(EnumTypeInfo<?>) new EnumTypeInfo(AlternativeEnum.class)
+		};
+	}
 
 	enum TestEnum {
 		ONE, TWO
@@ -30,22 +40,5 @@ public class EnumTypeInfoTest extends TestLogger {
 
 	enum AlternativeEnum {
 		ONE, TWO
-	}
-
-	@Test
-	public void testEnumTypeEquality() {
-		EnumTypeInfo<TestEnum> enumTypeInfo1 = new EnumTypeInfo<TestEnum>(TestEnum.class);
-		EnumTypeInfo<TestEnum> enumTypeInfo2 = new EnumTypeInfo<TestEnum>(TestEnum.class);
-
-		assertEquals(enumTypeInfo1, enumTypeInfo2);
-		assertEquals(enumTypeInfo1.hashCode(), enumTypeInfo2.hashCode());
-	}
-
-	@Test
-	public void testEnumTypeInequality() {
-		EnumTypeInfo<TestEnum> enumTypeInfo1 = new EnumTypeInfo<TestEnum>(TestEnum.class);
-		EnumTypeInfo<AlternativeEnum> enumTypeInfo2 = new EnumTypeInfo<AlternativeEnum>(AlternativeEnum.class);
-
-		assertNotEquals(enumTypeInfo1, enumTypeInfo2);
 	}
 }

@@ -36,6 +36,7 @@ import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -66,8 +67,13 @@ public class CustomDistributionITCase extends TestLogger {
 
 	@Before
 	public void prepare() {
-		TestEnvironment clusterEnv = new TestEnvironment(cluster, 1);
+		TestEnvironment clusterEnv = new TestEnvironment(cluster, 1, false);
 		clusterEnv.setAsContext();
+	}
+
+	@After
+	public void cleanup() {
+		TestEnvironment.unsetAsContext();
 	}
 
 	// ------------------------------------------------------------------------

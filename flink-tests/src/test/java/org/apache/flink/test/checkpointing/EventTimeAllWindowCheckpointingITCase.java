@@ -30,13 +30,13 @@ import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -65,6 +65,8 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 
 	private static LocalFlinkMiniCluster cluster;
 
+	private static TestStreamEnvironment env;
+
 
 	@BeforeClass
 	public static void startTestCluster() {
@@ -76,6 +78,8 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 		config.setString(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT, "60 s");
 		cluster = new LocalFlinkMiniCluster(config, false);
 		cluster.start();
+
+		env = new TestStreamEnvironment(cluster, PARALLELISM);
 	}
 
 	@AfterClass
@@ -95,9 +99,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 		FailingSource.reset();
 		
 		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
-			
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
@@ -159,9 +160,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 		FailingSource.reset();
 
 		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
-
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
@@ -220,9 +218,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 		FailingSource.reset();
 
 		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
-
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
@@ -292,9 +287,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 		FailingSource.reset();
 
 		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
-
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
@@ -364,9 +356,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 		FailingSource.reset();
 
 		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getLeaderRPCPort());
-
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);

@@ -30,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -48,39 +49,30 @@ public class AccumulatorErrorITCase extends TestLogger {
 
 	private static LocalFlinkMiniCluster cluster;
 
+	private static ExecutionEnvironment env;
+
 	@BeforeClass
 	public static void startCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 3);
-			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 12L);
-			cluster = new LocalFlinkMiniCluster(config, false);
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 3);
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 12L);
+		cluster = new LocalFlinkMiniCluster(config, false);
 
-			cluster.start();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to start test cluster: " + e.getMessage());
-		}
+		cluster.start();
+
+		env = new TestEnvironment(cluster, 6, false);
 	}
 
 	@AfterClass
 	public static void shutdownCluster() {
-		try {
-			cluster.shutdown();
-			cluster = null;
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to stop test cluster: " + e.getMessage());
-		}
+		cluster.shutdown();
+		cluster = null;
 	}
 
 	@Test
 	public void testFaultyAccumulator() throws Exception {
 
-		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
 		env.getConfig().disableSysoutLogging();
 
 		// Test Exception forwarding with faulty Accumulator implementation
@@ -93,11 +85,9 @@ public class AccumulatorErrorITCase extends TestLogger {
 		try {
 			env.execute();
 			fail("Should have failed.");
-		} catch (ProgramInvocationException e) {
-			Assert.assertTrue("Exception should be passed:",
-					e.getCause() instanceof JobExecutionException);
+		} catch (JobExecutionException e) {
 			Assert.assertTrue("Root cause should be:",
-					e.getCause().getCause() instanceof CustomException);
+					e.getCause() instanceof CustomException);
 		}
 	}
 
@@ -105,7 +95,6 @@ public class AccumulatorErrorITCase extends TestLogger {
 	@Test
 	public void testInvalidTypeAccumulator() throws Exception {
 
-		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
 		env.getConfig().disableSysoutLogging();
 
 		// Test Exception forwarding with faulty Accumulator implementation
@@ -119,13 +108,11 @@ public class AccumulatorErrorITCase extends TestLogger {
 		try {
 			env.execute();
 			fail("Should have failed.");
-		} catch (ProgramInvocationException e) {
-			Assert.assertTrue("Exception should be passed:",
-					e.getCause() instanceof JobExecutionException);
+		} catch (JobExecutionException e) {
 			Assert.assertTrue("Root cause should be:",
-					e.getCause().getCause() instanceof Exception);
+					e.getCause() instanceof Exception);
 			Assert.assertTrue("Root cause should be:",
-					e.getCause().getCause().getCause() instanceof UnsupportedOperationException);
+					e.getCause().getCause() instanceof UnsupportedOperationException);
 		}
 	}
 
