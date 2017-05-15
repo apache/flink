@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -78,9 +77,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 	private final TypeSerializer<IN> inputSerializer;
 
-	// necessary to extract the key from the input elements
-	private final KeySelector<IN, KEY> keySelector;
-
 	// necessary to serialize the set of seen keys
 	private final TypeSerializer<KEY> keySerializer;
 
@@ -112,14 +108,12 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	public AbstractKeyedCEPPatternOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
-			final KeySelector<IN, KEY> keySelector,
 			final TypeSerializer<KEY> keySerializer,
 			final NFACompiler.NFAFactory<IN> nfaFactory,
 			final boolean migratingFromOldKeyedOperator) {
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
-		this.keySelector = Preconditions.checkNotNull(keySelector);
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
 
