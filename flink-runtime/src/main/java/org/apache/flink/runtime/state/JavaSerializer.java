@@ -66,15 +66,16 @@ final class JavaSerializer<T extends Serializable> extends TypeSerializerSinglet
 
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
-		InstantiationUtil.serializeObject(new DataOutputViewStream(target), record);
+		try (final DataOutputViewStream outViewWrapper = new DataOutputViewStream(target)) {
+			InstantiationUtil.serializeObject(outViewWrapper, record);
+		}
 	}
 
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
-		try {
-			return InstantiationUtil.deserializeObject(
-					new DataInputViewStream(source),
-					Thread.currentThread().getContextClassLoader());
+		try (final DataInputViewStream inViewWrapper = new DataInputViewStream(source)) {
+			return InstantiationUtil.deserializeObject(inViewWrapper,
+				Thread.currentThread().getContextClassLoader());
 		} catch (ClassNotFoundException e) {
 			throw new IOException("Could not deserialize object.", e);
 		}
