@@ -19,7 +19,7 @@ under the License.
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	
+
 	<groupId>${groupId}</groupId>
 	<artifactId>${artifactId}</artifactId>
 	<version>${version}</version>
@@ -33,6 +33,7 @@ under the License.
 		<flink.version>1.4-SNAPSHOT</flink.version>
 		<slf4j.version>1.7.7</slf4j.version>
 		<log4j.version>1.2.17</log4j.version>
+		<scala.binary.version>@scala.binary.version@</scala.binary.version>
 	</properties>
 
 	<repositories>
@@ -48,9 +49,9 @@ under the License.
 			</snapshots>
 		</repository>
 	</repositories>
-	
+
 	<!-- 
-		
+
 		Execute "mvn clean package -Pbuild-jar"
 		to build a jar file out of this project!
 
@@ -103,7 +104,6 @@ under the License.
 			<artifactId>log4j</artifactId>
 			<version>${log4j.version}</version>
 		</dependency>
-		
 	</dependencies>
 
 	<profiles>
@@ -312,8 +312,7 @@ under the License.
 				</configuration>
 			</plugin>
 		</plugins>
-		
-			
+
 		<!-- If you want to use Java 8 Lambda Expressions uncomment the following lines -->
 		<!--
 		<pluginManagement>
@@ -333,7 +332,7 @@ under the License.
 						</dependency>
 					</dependencies>
 				</plugin>
-		
+
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
 					<artifactId>lifecycle-mapping</artifactId>
@@ -375,6 +374,5 @@ under the License.
 			</plugins>
 		</pluginManagement>
 		-->
-		
 	</build>
 </project>
