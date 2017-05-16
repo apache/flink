@@ -63,9 +63,9 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompletedCheckpo
 	@Override
 	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
 		
-		checkpoints.addLast(checkpoint);
-
 		checkpoint.registerSharedStates(sharedStateRegistry);
+
+		checkpoints.addLast(checkpoint);
 
 		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
 			try {

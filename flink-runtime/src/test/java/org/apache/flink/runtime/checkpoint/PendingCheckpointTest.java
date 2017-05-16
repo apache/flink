@@ -197,7 +197,6 @@ public class PendingCheckpointTest {
 
 		OperatorState state = mock(OperatorState.class);
 		doNothing().when(state).registerSharedStates(any(SharedStateRegistry.class));
-		doNothing().when(state).unregisterSharedStates(any(SharedStateRegistry.class));
 
 		String targetDir = tmpFolder.newFolder().getAbsolutePath();
 

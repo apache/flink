@@ -54,7 +54,7 @@ public class SharedStateRegistry {
 	}
 
 	/**
-	 * Register a reference to the given (supposedly new) shared state in the registry.
+	 * Register a reference to the given shared state in the registry.
 	 * This does the following: We check if the state handle is actually new by the
 	 * registrationKey. If it is new, we register it with a reference count of 1. If there is
 	 * already a state handle registered under the given key, we dispose the given "new" state
@@ -62,14 +62,14 @@ public class SharedStateRegistry {
 	 * a replacement with the result.
 	 *
 	 * <p>IMPORTANT: caller should check the state handle returned by the result, because the
-	 * registry is performing deduplication and could potentially return a handle that is supposed
+	 * registry is performing de-duplication and could potentially return a handle that is supposed
 	 * to replace the one from the registration request.
 	 *
 	 * @param state the shared state for which we register a reference.
 	 * @return the result of this registration request, consisting of the state handle that is
 	 * registered under the key by the end of the oepration and its current reference count.
 	 */
-	public Result registerNewReference(SharedStateRegistryKey registrationKey, StreamStateHandle state) {
+	public Result registerReference(SharedStateRegistryKey registrationKey, StreamStateHandle state) {
 
 		Preconditions.checkNotNull(state);
 
@@ -96,28 +96,6 @@ public class SharedStateRegistry {
 	}
 
 	/**
-	 * Obtains one reference to the given shared state in the registry. This increases the
-	 * reference count by one.
-	 *
-	 * @param registrationKey the shared state for which we obtain a reference.
-	 * @return the shared state for which we release a reference.
-	 * @return the result of the request, consisting of the reference count after this operation
-	 * and the state handle.
-	 */
-	public Result obtainReference(SharedStateRegistryKey registrationKey) {
-
-		Preconditions.checkNotNull(registrationKey);
-
-		synchronized (registeredStates) {
-			SharedStateRegistry.SharedStateEntry entry =
-				Preconditions.checkNotNull(registeredStates.get(registrationKey),
-					"Could not find a state for the given registration key!");
-			entry.increaseReferenceCount();
-			return new Result(entry);
-		}
-	}
-
-	/**
 	 * Releases one reference to the given shared state in the registry. This decreases the
 	 * reference count by one. Once the count reaches zero, the shared state is deleted.
 	 *
@@ -125,7 +103,7 @@ public class SharedStateRegistry {
 	 * @return the result of the request, consisting of the reference count after this operation
 	 * and the state handle, or null if the state handle was deleted through this request.
 	 */
-	public Result releaseReference(SharedStateRegistryKey registrationKey) {
+	public Result unregisterReference(SharedStateRegistryKey registrationKey) {
 
 		Preconditions.checkNotNull(registrationKey);
 
@@ -172,28 +150,16 @@ public class SharedStateRegistry {
 		}
 	}
 
-	/**
-	 * Unregister all the shared states referenced by the given.
-	 *
-	 * @param stateHandles The shared states to unregister.
-	 */
-	public void unregisterAll(Iterable<? extends CompositeStateHandle> stateHandles) {
-		if (stateHandles == null) {
-			return;
-		}
-
-		synchronized (registeredStates) {
-			for (CompositeStateHandle stateHandle : stateHandles) {
-				stateHandle.unregisterSharedStates(this);
-			}
-		}
-	}
-
 	private void scheduleAsyncDelete(StreamStateHandle streamStateHandle) {
-		if (streamStateHandle != null) {
+		// We do the small optimization to not issue discards for placeholders, which are NOPs.
+		if (streamStateHandle != null && !isPlaceholder(streamStateHandle)) {
 			asyncDisposalExecutor.execute(
 				new SharedStateRegistry.AsyncDisposalRunnable(streamStateHandle));
 		}
+	}
+
+	private boolean isPlaceholder(StreamStateHandle stateHandle) {
+		return stateHandle instanceof PlaceholderStreamStateHandle;
 	}
 
 	/**

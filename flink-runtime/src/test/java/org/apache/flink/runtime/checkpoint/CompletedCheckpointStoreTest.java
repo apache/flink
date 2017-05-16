@@ -23,8 +23,8 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.TestLogger;
+import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -37,11 +37,6 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 /**
  * Test for basic {@link CompletedCheckpointStore} contract.
@@ -114,12 +109,6 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			expected[i - 1].awaitDiscard();
 			assertTrue(expected[i - 1].isDiscarded());
 			assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
-
-			for (OperatorState operatorState : taskStates) {
-				for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
-					verify(subtaskState, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
-				}
-			}
 		}
 	}
 
@@ -209,7 +198,8 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		operatorGroupState.put(operatorID, operatorState);
 
 		for (int i = 0; i < numberOfStates; i++) {
-			OperatorSubtaskState subtaskState = mock(OperatorSubtaskState.class);
+			OperatorSubtaskState subtaskState =
+				new TestOperatorSubtaskState();
 
 			operatorState.putState(i, subtaskState);
 		}
@@ -217,18 +207,10 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		return new TestCompletedCheckpoint(new JobID(), id, 0, operatorGroupState, props);
 	}
 
-	protected void resetCheckpoint(Collection<OperatorState> operatorStates) {
-		for (OperatorState operatorState : operatorStates) {
-			for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
-				Mockito.reset(subtaskState);
-			}
-		}
-	}
-
 	protected void verifyCheckpointRegistered(Collection<OperatorState> operatorStates, SharedStateRegistry registry) {
 		for (OperatorState operatorState : operatorStates) {
 			for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
-				verify(subtaskState, times(1)).registerSharedStates(eq(registry));
+				Assert.assertTrue(((TestOperatorSubtaskState)subtaskState).registered);
 			}
 		}
 	}
@@ -236,7 +218,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	protected void verifyCheckpointDiscarded(Collection<OperatorState> operatorStates) {
 		for (OperatorState operatorState : operatorStates) {
 			for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
-				verify(subtaskState, times(1)).discardState();
+				Assert.assertTrue(((TestOperatorSubtaskState)subtaskState).discarded);
 			}
 		}
 	}
@@ -330,6 +312,39 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		@Override
 		public int hashCode() {
 			return getJobId().hashCode() + (int) getCheckpointID();
+		}
+	}
+
+	static class TestOperatorSubtaskState extends OperatorSubtaskState {
+		private static final long serialVersionUID = 522580433699164230L;
+
+		boolean registered;
+		boolean discarded;
+
+		public TestOperatorSubtaskState() {
+			super(null, null, null, null, null);
+			this.registered = false;
+			this.discarded = false;
+		}
+
+		@Override
+		public void discardState() {
+			super.discardState();
+			Assert.assertFalse(discarded);
+			discarded = true;
+			registered = false;
+		}
+
+		@Override
+		public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
+			super.registerSharedStates(sharedStateRegistry);
+			Assert.assertFalse(discarded);
+			registered = true;
+		}
+
+		public void reset() {
+			registered = false;
+			discarded = false;
 		}
 	}
 

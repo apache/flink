@@ -105,6 +105,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -170,8 +171,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** True if incremental checkpointing is enabled */
 	private final boolean enableIncrementalCheckpointing;
 
-	/** The sst files materialized in pending checkpoints */
-	private final SortedMap<Long, Map<StateHandleID, StreamStateHandle>> materializedSstFiles = new TreeMap<>();
+	/** The state handle ids of all sst files materialized in snapshots for previous checkpoints */
+	private final SortedMap<Long, Set<StateHandleID>> materializedSstFiles = new TreeMap<>();
 
 	/** The identifier of the last completed checkpoint */
 	private long lastCompletedCheckpointId = -1;
@@ -720,7 +721,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private final long checkpointTimestamp;
 
 		/** All sst files that were part of the last previously completed checkpoint */
-		private Map<StateHandleID, StreamStateHandle> baseSstFiles;
+		private Set<StateHandleID> baseSstFiles;
 
 		/** The state meta data */
 		private final List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots = new ArrayList<>();
@@ -732,10 +733,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private final CloseableRegistry closeableRegistry = new CloseableRegistry();
 
 		// new sst files since the last completed checkpoint
-		private final Map<StateHandleID, StreamStateHandle> newSstFiles = new HashMap<>();
-
-		// old sst files which have been materialized in previous completed checkpoints
-		private final Map<StateHandleID, StreamStateHandle> oldSstFiles = new HashMap<>();
+		private final Map<StateHandleID, StreamStateHandle> sstFiles = new HashMap<>();
 
 		// handles to the misc files in the current snapshot
 		private final Map<StateHandleID, StreamStateHandle> miscFiles = new HashMap<>();
@@ -830,7 +828,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// use the last completed checkpoint as the comparison base.
 			baseSstFiles = stateBackend.materializedSstFiles.get(stateBackend.lastCompletedCheckpointId);
 
-
 			// save meta data
 			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>> stateMetaInfoEntry
 					: stateBackend.kvStateInformation.entrySet()) {
@@ -867,18 +864,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					final StateHandleID stateHandleID = new StateHandleID(fileName);
 
 					if (fileName.endsWith(SST_FILE_SUFFIX)) {
-						StreamStateHandle fileHandle =
-							baseSstFiles == null ? null : baseSstFiles.get(fileName);
+						final boolean existsAlready =
+							baseSstFiles == null ? false : baseSstFiles.contains(stateHandleID);
 
-						if (fileHandle == null) {
-							fileHandle = materializeStateData(filePath);
-							newSstFiles.put(stateHandleID, fileHandle);
-						} else {
+						if (existsAlready) {
 							// we introduce a placeholder state handle, that is replaced with the
 							// original from the shared state registry (created from a previous checkpoint)
-							oldSstFiles.put(
+							sstFiles.put(
 								stateHandleID,
-								new PlaceholderStreamStateHandle(fileHandle.getStateSize()));
+								new PlaceholderStreamStateHandle());
+						} else {
+							sstFiles.put(stateHandleID, materializeStateData(filePath));
 						}
 					} else {
 						StreamStateHandle fileHandle = materializeStateData(filePath);
@@ -887,22 +883,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				}
 			}
 
-			Map<StateHandleID, StreamStateHandle> sstFiles =
-				new HashMap<>(newSstFiles.size() + oldSstFiles.size());
 
-			sstFiles.putAll(newSstFiles);
-			sstFiles.putAll(oldSstFiles);
 
 			synchronized (stateBackend.asyncSnapshotLock) {
-				stateBackend.materializedSstFiles.put(checkpointId, sstFiles);
+				stateBackend.materializedSstFiles.put(checkpointId, sstFiles.keySet());
 			}
 
 			return new IncrementalKeyedStateHandle(
 				stateBackend.operatorIdentifier,
 				stateBackend.keyGroupRange,
 				checkpointId,
-				newSstFiles,
-				oldSstFiles,
+				sstFiles,
 				miscFiles,
 				metaStateHandle);
 		}
@@ -933,7 +924,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				statesToDiscard.add(metaStateHandle);
 				statesToDiscard.addAll(miscFiles.values());
-				statesToDiscard.addAll(newSstFiles.values());
+				statesToDiscard.addAll(sstFiles.values());
 
 				try {
 					StateUtil.bestEffortDiscardAllStateObjects(statesToDiscard);
@@ -1308,15 +1299,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				UUID.randomUUID().toString());
 
 			try {
-				final Map<StateHandleID, StreamStateHandle> newSstFiles =
-					restoreStateHandle.getCreatedSharedState();
-				final Map<StateHandleID, StreamStateHandle> oldSstFiles =
-					restoreStateHandle.getReferencedSharedState();
+				final Map<StateHandleID, StreamStateHandle> sstFiles =
+					restoreStateHandle.getSharedState();
 				final Map<StateHandleID, StreamStateHandle> miscFiles =
 					restoreStateHandle.getPrivateState();
 
-				readAllStateData(newSstFiles, restoreInstancePath);
-				readAllStateData(oldSstFiles, restoreInstancePath);
+				readAllStateData(sstFiles, restoreInstancePath);
 				readAllStateData(miscFiles, restoreInstancePath);
 
 				// read meta data
@@ -1409,8 +1397,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						throw new IOException("Could not create RocksDB data directory.");
 					}
 
-					createFileHardLinksInRestorePath(newSstFiles, restoreInstancePath);
-					createFileHardLinksInRestorePath(oldSstFiles, restoreInstancePath);
+					createFileHardLinksInRestorePath(sstFiles, restoreInstancePath);
 					createFileHardLinksInRestorePath(miscFiles, restoreInstancePath);
 
 					List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>();
@@ -1437,10 +1424,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 
 					// use the restore sst files as the base for succeeding checkpoints
-					Map<StateHandleID, StreamStateHandle> sstFiles = new HashMap<>();
-					sstFiles.putAll(newSstFiles);
-					sstFiles.putAll(oldSstFiles);
-					stateBackend.materializedSstFiles.put(restoreStateHandle.getCheckpointId(), sstFiles);
+					stateBackend.materializedSstFiles.put(restoreStateHandle.getCheckpointId(), sstFiles.keySet());
 
 					stateBackend.lastCompletedCheckpointId = restoreStateHandle.getCheckpointId();
 				}

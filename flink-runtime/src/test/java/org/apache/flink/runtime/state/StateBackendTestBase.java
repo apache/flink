@@ -539,7 +539,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		snapshot2.registerSharedStates(sharedStateRegistry);
 
-		snapshot.unregisterSharedStates(sharedStateRegistry);
 		snapshot.discardState();
 
 		backend.dispose();
@@ -631,7 +630,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		snapshot2.registerSharedStates(sharedStateRegistry);
 
-		snapshot.unregisterSharedStates(sharedStateRegistry);
 		snapshot.discardState();
 
 		backend.dispose();

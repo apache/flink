@@ -98,11 +98,6 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
 	}
 
 	@Override
-	public void unregisterSharedStates(SharedStateRegistry stateRegistry) {
-		// No shared states
-	}
-
-	@Override
 	public void discardState() throws Exception {
 		stateHandle.discardState();
 	}

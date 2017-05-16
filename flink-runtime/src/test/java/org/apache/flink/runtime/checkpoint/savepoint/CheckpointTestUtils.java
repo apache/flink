@@ -34,7 +34,6 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle.StateMetaInfo;
-import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.util.TestByteStreamStateHandleDeepCompare;
@@ -273,18 +272,17 @@ public class CheckpointTestUtils {
 	private CheckpointTestUtils() {}
 
 
-	private static IncrementalKeyedStateHandle createDummyIncrementalKeyedStateHandle(Random rnd) {
+	public static IncrementalKeyedStateHandle createDummyIncrementalKeyedStateHandle(Random rnd) {
 		return new IncrementalKeyedStateHandle(
 			createRandomUUID(rnd).toString(),
 			new KeyGroupRange(1, 1),
 			42L,
-			createRandomOwnedHandleMap(rnd),
-			createRandomReferencedHandleMap(rnd),
-			createRandomOwnedHandleMap(rnd),
+			createRandomStateHandleMap(rnd),
+			createRandomStateHandleMap(rnd),
 			createDummyStreamStateHandle(rnd));
 	}
 
-	private static Map<StateHandleID, StreamStateHandle> createRandomOwnedHandleMap(Random rnd) {
+	public static Map<StateHandleID, StreamStateHandle> createRandomStateHandleMap(Random rnd) {
 		final int size = rnd.nextInt(4);
 		Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
 		for (int i = 0; i < size; ++i) {
@@ -296,24 +294,13 @@ public class CheckpointTestUtils {
 		return result;
 	}
 
-	private static Map<StateHandleID, StreamStateHandle> createRandomReferencedHandleMap(Random rnd) {
-		final int size = rnd.nextInt(4);
-		Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
-		for (int i = 0; i < size; ++i) {
-			StateHandleID randomId = new StateHandleID(createRandomUUID(rnd).toString());
-			result.put(randomId, new PlaceholderStreamStateHandle(rnd.nextInt(1024)));
-		}
-
-		return result;
-	}
-
-	private static KeyGroupsStateHandle createDummyKeyGroupStateHandle(Random rnd) {
+	public static KeyGroupsStateHandle createDummyKeyGroupStateHandle(Random rnd) {
 		return new KeyGroupsStateHandle(
 			new KeyGroupRangeOffsets(1, 1, new long[]{rnd.nextInt(1024)}),
 			createDummyStreamStateHandle(rnd));
 	}
 
-	private static StreamStateHandle createDummyStreamStateHandle(Random rnd) {
+	public static StreamStateHandle createDummyStreamStateHandle(Random rnd) {
 		return new TestByteStreamStateHandleDeepCompare(
 			String.valueOf(createRandomUUID(rnd)),
 			String.valueOf(createRandomUUID(rnd)).getBytes(ConfigConstants.DEFAULT_CHARSET));
