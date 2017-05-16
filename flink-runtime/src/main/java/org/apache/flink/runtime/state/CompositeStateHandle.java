@@ -34,7 +34,8 @@ package org.apache.flink.runtime.state;
  * this handle and considered as private state until it is registered for the first time. Registration
  * transfers ownership to the {@link SharedStateRegistry}.
  * The composite state handle should only delete all private states in the
- * {@link StateObject#discardState()} method.
+ * {@link StateObject#discardState()} method, the {@link SharedStateRegistry} is responsible for
+ * deleting shared states after they were registered.
  */
 public interface CompositeStateHandle extends StateObject {
 
@@ -45,18 +46,10 @@ public interface CompositeStateHandle extends StateObject {
 	 * <p>
 	 * After this is completed, newly created shared state is considered as published is no longer
 	 * owned by this handle. This means that it should no longer be deleted as part of calls to
-	 * {@link #discardState()}.
+	 * {@link #discardState()}. Instead, {@link #discardState()} will trigger an unregistration
+	 * from the registry.
 	 *
 	 * @param stateRegistry The registry where shared states are registered.
 	 */
 	void registerSharedStates(SharedStateRegistry stateRegistry);
-
-	/**
-	 * Unregister both created and referenced shared states in the given
-	 * {@link SharedStateRegistry}. This method is called when the checkpoint is
-	 * subsumed or the job is shut down.
-	 *
-	 * @param stateRegistry The registry where shared states are registered.
-	 */
-	void unregisterSharedStates(SharedStateRegistry stateRegistry);
 }

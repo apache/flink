@@ -52,9 +52,11 @@ public class RecoverableCompletedCheckpointStore extends AbstractCompletedCheckp
 
 	@Override
 	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
-		checkpoints.addLast(checkpoint);
 
 		checkpoint.registerSharedStates(sharedStateRegistry);
+
+		checkpoints.addLast(checkpoint);
+
 
 		if (checkpoints.size() > 1) {
 			CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
@@ -76,7 +78,6 @@ public class RecoverableCompletedCheckpointStore extends AbstractCompletedCheckp
 			suspended.clear();
 
 			for (CompletedCheckpoint checkpoint : checkpoints) {
-				sharedStateRegistry.unregisterAll(checkpoint.getOperatorStates().values());
 				suspended.add(checkpoint);
 			}
 

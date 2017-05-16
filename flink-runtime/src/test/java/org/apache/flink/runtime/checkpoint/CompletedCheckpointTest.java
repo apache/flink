@@ -100,7 +100,6 @@ public class CompletedCheckpointTest {
 		checkpoint.discardOnSubsume(sharedStateRegistry);
 
 		verify(state, times(1)).discardState();
-		verify(state, times(1)).unregisterSharedStates(sharedStateRegistry);
 	}
 
 	/**
@@ -138,7 +137,6 @@ public class CompletedCheckpointTest {
 			checkpoint.discardOnShutdown(status, sharedStateRegistry);
 			verify(state, times(0)).discardState();
 			assertEquals(true, file.exists());
-			verify(state, times(0)).unregisterSharedStates(sharedStateRegistry);
 
 			// Discard
 			props = new CheckpointProperties(false, false, true, true, true, true, true);
@@ -152,7 +150,6 @@ public class CompletedCheckpointTest {
 
 			checkpoint.discardOnShutdown(status, sharedStateRegistry);
 			verify(state, times(1)).discardState();
-			verify(state, times(1)).unregisterSharedStates(sharedStateRegistry);
 		}
 	}
 

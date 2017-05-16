@@ -639,12 +639,6 @@ public class CheckpointCoordinatorTest {
 			assertEquals(checkpointIdNew, successNew.getCheckpointID());
 			assertTrue(successNew.getOperatorStates().isEmpty());
 
-			// validate that the subtask states in old savepoint have unregister their shared states
-			{
-				verify(subtaskState1, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
-				verify(subtaskState2, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
-			}
-
 			// validate that the relevant tasks got a confirmation message
 			{
 				verify(vertex1.getCurrentExecutionAttempt(), times(1)).triggerCheckpoint(eq(checkpointIdNew), eq(timestampNew), any(CheckpointOptions.class));
@@ -925,9 +919,6 @@ public class CheckpointCoordinatorTest {
 			verify(subtaskState1_2, times(1)).discardState();
 
 			// validate that all subtask states in the second checkpoint are not discarded
-			verify(subtaskState2_1, never()).unregisterSharedStates(any(SharedStateRegistry.class));
-			verify(subtaskState2_2, never()).unregisterSharedStates(any(SharedStateRegistry.class));
-			verify(subtaskState2_3, never()).unregisterSharedStates(any(SharedStateRegistry.class));
 			verify(subtaskState2_1, never()).discardState();
 			verify(subtaskState2_2, never()).discardState();
 			verify(subtaskState2_3, never()).discardState();
@@ -951,9 +942,6 @@ public class CheckpointCoordinatorTest {
 			coord.shutdown(JobStatus.FINISHED);
 
 			// validate that the states in the second checkpoint have been discarded
-			verify(subtaskState2_1, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
-			verify(subtaskState2_2, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
-			verify(subtaskState2_3, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
 			verify(subtaskState2_1, times(1)).discardState();
 			verify(subtaskState2_2, times(1)).discardState();
 			verify(subtaskState2_3, times(1)).discardState();
@@ -1562,10 +1550,6 @@ public class CheckpointCoordinatorTest {
 		verify(subtaskState1, never()).discardState();
 		verify(subtaskState2, never()).discardState();
 
-		// Savepoints are not supposed to have any shared state.
-		verify(subtaskState1, never()).unregisterSharedStates(any(SharedStateRegistry.class));
-		verify(subtaskState2, never()).unregisterSharedStates(any(SharedStateRegistry.class));
-
 		// validate that the relevant tasks got a confirmation message
 		{
 			verify(vertex1.getCurrentExecutionAttempt(), times(1)).triggerCheckpoint(eq(checkpointIdNew), eq(timestampNew), any(CheckpointOptions.class));
@@ -2087,15 +2071,6 @@ public class CheckpointCoordinatorTest {
 
 		// shutdown the store
 		store.shutdown(JobStatus.SUSPENDED);
-
-		// All shared states should be unregistered once the store is shut down
-		for (CompletedCheckpoint completedCheckpoint : completedCheckpoints) {
-			for (OperatorState taskState : completedCheckpoint.getOperatorStates().values()) {
-				for (OperatorSubtaskState subtaskState : taskState.getStates()) {
-					verify(subtaskState, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
-				}
-			}
-		}
 
 		// restore the store
 		Map<JobVertexID, ExecutionJobVertex> tasks = new HashMap<>();

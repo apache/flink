@@ -141,13 +141,6 @@ public class TaskState implements CompositeStateHandle {
 	}
 
 	@Override
-	public void unregisterSharedStates(SharedStateRegistry sharedStateRegistry) {
-		for (SubtaskState subtaskState : subtaskStates.values()) {
-			subtaskState.unregisterSharedStates(sharedStateRegistry);
-		}
-	}
-
-	@Override
 	public long getStateSize() {
 		long result = 0L;
 

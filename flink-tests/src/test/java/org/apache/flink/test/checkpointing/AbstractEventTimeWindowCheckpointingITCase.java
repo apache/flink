@@ -29,6 +29,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -147,8 +148,14 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			}
 			case ROCKSDB_INCREMENTAL: {
 				String rocksDb = tempFolder.newFolder().getAbsolutePath();
+				String backups = tempFolder.newFolder().getAbsolutePath();
+				// we use the fs backend with small threshold here to test the behaviour with file
+				// references, not self contained byte handles
 				RocksDBStateBackend rdb =
-					new RocksDBStateBackend(new MemoryStateBackend(MAX_MEM_STATE_SIZE), true);
+					new RocksDBStateBackend(
+						new FsStateBackend(
+							new Path("file://" + backups).toUri(), 16),
+						true);
 				rdb.setDbStoragePath(rocksDb);
 				this.stateBackend = rdb;
 				break;

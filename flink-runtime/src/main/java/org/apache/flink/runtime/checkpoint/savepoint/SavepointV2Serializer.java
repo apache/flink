@@ -29,7 +29,6 @@ import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
@@ -75,7 +74,6 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 	private static final byte KEY_GROUPS_HANDLE = 3;
 	private static final byte PARTITIONABLE_OPERATOR_STATE_HANDLE = 4;
 	private static final byte INCREMENTAL_KEY_GROUPS_HANDLE = 5;
-	private static final byte PLACEHOLDER_STREAM_STATE_HANDLE = 6;
 
 	/** The singleton instance of the serializer */
 	public static final SavepointV2Serializer INSTANCE = new SavepointV2Serializer();
@@ -328,8 +326,7 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 
 			serializeStreamStateHandle(incrementalKeyedStateHandle.getMetaStateHandle(), dos);
 
-			serializeStreamStateHandleMap(incrementalKeyedStateHandle.getCreatedSharedState(), dos);
-			serializeStreamStateHandleMap(incrementalKeyedStateHandle.getReferencedSharedState(), dos);
+			serializeStreamStateHandleMap(incrementalKeyedStateHandle.getSharedState(), dos);
 			serializeStreamStateHandleMap(incrementalKeyedStateHandle.getPrivateState(), dos);
 		} else {
 			throw new IllegalStateException("Unknown KeyedStateHandle type: " + stateHandle.getClass());
@@ -390,16 +387,14 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 				KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
 
 			StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis);
-			Map<StateHandleID, StreamStateHandle> createdStates = deserializeStreamStateHandleMap(dis);
-			Map<StateHandleID, StreamStateHandle> referencedStates = deserializeStreamStateHandleMap(dis);
+			Map<StateHandleID, StreamStateHandle> sharedStates = deserializeStreamStateHandleMap(dis);
 			Map<StateHandleID, StreamStateHandle> privateStates = deserializeStreamStateHandleMap(dis);
 
 			return new IncrementalKeyedStateHandle(
 				operatorId,
 				keyGroupRange,
 				checkpointId,
-				createdStates,
-				referencedStates,
+				sharedStates,
 				privateStates,
 				metaDataStateHandle);
 		} else {
@@ -485,10 +480,6 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			byte[] internalData = byteStreamStateHandle.getData();
 			dos.writeInt(internalData.length);
 			dos.write(byteStreamStateHandle.getData());
-		} else if (stateHandle instanceof PlaceholderStreamStateHandle) {
-			PlaceholderStreamStateHandle placeholder = (PlaceholderStreamStateHandle) stateHandle;
-			dos.writeByte(PLACEHOLDER_STREAM_STATE_HANDLE);
-			dos.writeLong(placeholder.getStateSize());
 		} else {
 			throw new IOException("Unknown implementation of StreamStateHandle: " + stateHandle.getClass());
 		}
@@ -510,8 +501,6 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			byte[] data = new byte[numBytes];
 			dis.readFully(data);
 			return new ByteStreamStateHandle(handleName, data);
-		} else if (PLACEHOLDER_STREAM_STATE_HANDLE == type) {
-			return new PlaceholderStreamStateHandle(dis.readLong());
 		} else {
 			throw new IOException("Unknown implementation of StreamStateHandle, code: " + type);
 		}
