@@ -257,16 +257,19 @@ case class AggFunctionCall(
     val sqlFunction = AggSqlFunction(aggregateFunction.getClass.getSimpleName,
                                      aggregateFunction,
                                      resultType,
-                                     typeFactory)
+                                     typeFactory,
+                                     aggregateFunction.requiresOver)
     relBuilder.aggregateCall(sqlFunction, false, null, name, args.map(_.toRexNode): _*)
   }
 
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    AggSqlFunction(aggregateFunction.getClass.getSimpleName,
+    val sqlAgg = AggSqlFunction(aggregateFunction.getClass.getSimpleName,
                    aggregateFunction,
                    resultType,
-                   typeFactory)
+                   typeFactory,
+                   aggregateFunction.requiresOver)
+    sqlAgg
   }
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
@@ -275,7 +278,8 @@ case class AggFunctionCall(
       AggSqlFunction(aggregateFunction.getClass.getSimpleName,
                      aggregateFunction,
                      resultType,
-                     typeFactory),
+                     typeFactory,
+                     aggregateFunction.requiresOver),
       args.map(_.toRexNode): _*)
   }
 }

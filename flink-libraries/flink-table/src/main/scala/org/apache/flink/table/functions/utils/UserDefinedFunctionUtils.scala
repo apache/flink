@@ -291,7 +291,7 @@ object UserDefinedFunctionUtils {
     //check if a qualified accumulate method exists before create Sql function
     checkAndExtractMethods(aggFunction, "accumulate")
     val resultType: TypeInformation[_] = getResultTypeOfAggregateFunction(aggFunction, typeInfo)
-    AggSqlFunction(name, aggFunction, resultType, typeFactory)
+    AggSqlFunction(name, aggFunction, resultType, typeFactory, aggFunction.requiresOver)
   }
 
   // ----------------------------------------------------------------------------------------------
