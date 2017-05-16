@@ -27,7 +27,6 @@ import org.apache.flink.table.plan.stats.TableStats
 /**
   * Defines a table in an [[ExternalCatalog]].
   *
-  * @param identifier           Identifier of the table (database name and table name)
   * @param tableType            Table type, e.g csv, hbase, kafka
   * @param schema               Schema of the table (column names and types)
   * @param properties           Properties of the table
@@ -37,7 +36,6 @@ import org.apache.flink.table.plan.stats.TableStats
   * @param lastAccessTime       Timestamp of last access of the table
   */
 case class ExternalCatalogTable(
-    identifier: TableIdentifier,
     tableType: String,
     schema: TableSchema,
     properties: JMap[String, String] = new JHashMap(),
@@ -45,17 +43,3 @@ case class ExternalCatalogTable(
     comment: String = null,
     createTime: JLong = System.currentTimeMillis,
     lastAccessTime: JLong = -1L)
-
-/**
-  * Identifier for a catalog table.
-  *
-  * @param database Database name
-  * @param table    Table name
-  */
-case class TableIdentifier(
-    database: String,
-    table: String) {
-
-  override def toString: String = s"$database.$table"
-
-}

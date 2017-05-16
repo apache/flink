@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.catalog
 
-import org.apache.flink.table.api.{DatabaseAlreadyExistException, DatabaseNotExistException, TableAlreadyExistException, TableNotExistException}
 import java.util.{List => JList}
 
-import scala.collection.mutable.HashMap
+import org.apache.flink.table.api.{DatabaseAlreadyExistException, DatabaseNotExistException, TableAlreadyExistException, TableNotExistException}
+
+import scala.collection.mutable
 import scala.collection.JavaConverters._
 
 /**
@@ -29,127 +30,85 @@ import scala.collection.JavaConverters._
   *
   * It could be used for testing or developing instead of used in production environment.
   */
-class InMemoryExternalCatalog extends CrudExternalCatalog {
+class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
 
-  private val databases = new HashMap[String, Database]
+  private val databases = new mutable.HashMap[String, ExternalCatalog]
+  private val tables = new mutable.HashMap[String, ExternalCatalogTable]
 
-  @throws[DatabaseNotExistException]
   @throws[TableAlreadyExistException]
   override def createTable(
-      table: ExternalCatalogTable,
-      ignoreIfExists: Boolean): Unit = synchronized {
-    val dbName = table.identifier.database
-    val tables = getTables(dbName)
-    val tableName = table.identifier.table
-    if (tables.contains(tableName)) {
-      if (!ignoreIfExists) {
-        throw new TableAlreadyExistException(dbName, tableName)
-      }
-    } else {
-      tables.put(tableName, table)
+    tableName: String,
+    table: ExternalCatalogTable,
+    ignoreIfExists: Boolean): Unit = synchronized {
+    tables.get(tableName) match {
+      case Some(_) if !ignoreIfExists => throw new TableAlreadyExistException(name, tableName)
+      case _ => tables.put(tableName, table)
     }
   }
 
-  @throws[DatabaseNotExistException]
   @throws[TableNotExistException]
-  override def dropTable(
-      dbName: String,
-      tableName: String,
-      ignoreIfNotExists: Boolean): Unit = synchronized {
-    val tables = getTables(dbName)
+  override def dropTable(tableName: String, ignoreIfNotExists: Boolean): Unit = synchronized {
     if (tables.remove(tableName).isEmpty && !ignoreIfNotExists) {
-      throw new TableNotExistException(dbName, tableName)
+      throw new TableNotExistException(name, tableName)
     }
   }
 
-  @throws[DatabaseNotExistException]
   @throws[TableNotExistException]
-  override def alterTable(
-      table: ExternalCatalogTable,
-      ignoreIfNotExists: Boolean): Unit = synchronized {
-    val dbName = table.identifier.database
-    val tables = getTables(dbName)
-    val tableName = table.identifier.table
+  override def alterTable(tableName: String, table: ExternalCatalogTable,
+                          ignoreIfNotExists: Boolean): Unit = synchronized {
     if (tables.contains(tableName)) {
       tables.put(tableName, table)
     } else if (!ignoreIfNotExists) {
-      throw new TableNotExistException(dbName, tableName)
-    }
-  }
-
-  @throws[DatabaseNotExistException]
-  override def listTables(dbName: String): JList[String] = synchronized {
-    val tables = getTables(dbName)
-    tables.keys.toList.asJava
-  }
-
-  @throws[DatabaseNotExistException]
-  @throws[TableNotExistException]
-  override def getTable(dbName: String, tableName: String): ExternalCatalogTable = synchronized {
-    val tables = getTables(dbName)
-    tables.get(tableName) match {
-      case Some(table) => table
-      case None => throw new TableNotExistException(dbName, tableName)
+      throw new TableNotExistException(name, tableName)
     }
   }
 
   @throws[DatabaseAlreadyExistException]
-  override def createDatabase(
-      db: ExternalCatalogDatabase,
-      ignoreIfExists: Boolean): Unit = synchronized {
-    val dbName = db.dbName
-    if (databases.contains(dbName)) {
-      if (!ignoreIfExists) {
-        throw new DatabaseAlreadyExistException(dbName)
-      }
-    } else {
-      databases.put(dbName, new Database(db))
-    }
-  }
-
-  @throws[DatabaseNotExistException]
-  override def alterDatabase(
-      db: ExternalCatalogDatabase,
-      ignoreIfNotExists: Boolean): Unit = synchronized {
-    val dbName = db.dbName
+  override def createDatabase(dbName: String, db: ExternalCatalog,
+                              ignoreIfExists: Boolean): Unit = synchronized {
     databases.get(dbName) match {
-      case Some(database) => database.db = db
-      case None =>
-        if (!ignoreIfNotExists) {
-          throw new DatabaseNotExistException(dbName)
-        }
+      case Some(_) if !ignoreIfExists => throw DatabaseAlreadyExistException(dbName, null)
+      case _ => databases.put(dbName, db)
     }
   }
 
   @throws[DatabaseNotExistException]
-  override def dropDatabase(
-      dbName: String,
-      ignoreIfNotExists: Boolean): Unit = synchronized {
+  override def dropDatabase(dbName: String, ignoreIfNotExists: Boolean): Unit = synchronized {
     if (databases.remove(dbName).isEmpty && !ignoreIfNotExists) {
+      throw DatabaseNotExistException(dbName, null)
+    }
+  }
+
+  override def alterDatabase(
+    dbName: String, db: ExternalCatalog,
+    ignoreIfNotExists: Boolean): Unit = synchronized {
+    if (databases.contains(dbName)) {
+      databases.put(dbName, db)
+    } else if (!ignoreIfNotExists) {
       throw new DatabaseNotExistException(dbName)
     }
   }
 
-  override def listDatabases(): JList[String] = synchronized {
-    databases.keys.toList.asJava
+  override def getTable(tableName: String): ExternalCatalogTable = synchronized {
+    tables.get(tableName) match {
+      case Some(t) => t
+      case _ => throw TableNotExistException(name, tableName, null)
+    }
+  }
+
+  override def listTables(): JList[String] = synchronized {
+    tables.keys.toList.asJava
   }
 
   @throws[DatabaseNotExistException]
-  override def getDatabase(dbName: String): ExternalCatalogDatabase = synchronized {
+  override def getSubCatalog(dbName: String): ExternalCatalog = synchronized {
     databases.get(dbName) match {
-      case Some(database) => database.db
-      case None => throw new DatabaseNotExistException(dbName)
+      case Some(d) => d
+      case _ => throw DatabaseNotExistException(dbName, null)
     }
   }
 
-  private def getTables(db: String): HashMap[String, ExternalCatalogTable] =
-    databases.get(db) match {
-      case Some(database) => database.tables
-      case None => throw new DatabaseNotExistException(db)
-    }
-
-  private class Database(var db: ExternalCatalogDatabase) {
-    val tables = new HashMap[String, ExternalCatalogTable]
+  override def listSubCatalog(): JList[String] = synchronized {
+    databases.keys.toList.asJava
   }
-
 }

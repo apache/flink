@@ -26,37 +26,34 @@ import org.apache.flink.table.api._
 trait CrudExternalCatalog extends ExternalCatalog {
 
   /**
-    * Adds a table to the catalog.
+    * Adds a table to the current level of the catalog.
     *
+    * @param tableName      The name of the table
     * @param table          Description of the table to add
     * @param ignoreIfExists Flag to specify behavior if a table with the given name already exists:
     *                       if set to false, it throws a TableAlreadyExistException,
     *                       if set to true, nothing happens.
-    * @throws DatabaseNotExistException  thrown if database does not exist
     * @throws TableAlreadyExistException thrown if table already exists and ignoreIfExists is false
     */
-  @throws[DatabaseNotExistException]
   @throws[TableAlreadyExistException]
-  def createTable(table: ExternalCatalogTable, ignoreIfExists: Boolean): Unit
+  def createTable(tableName: String, table: ExternalCatalogTable, ignoreIfExists: Boolean): Unit
 
   /**
-    * Deletes table from a database of the catalog.
+    * Deletes table from the current catalog.
     *
-    * @param dbName            Name of the database
     * @param tableName         Name of the table
     * @param ignoreIfNotExists Flag to specify behavior if the table or database does not exist:
     *                          if set to false, throw an exception,
     *                          if set to true, nothing happens.
-    * @throws DatabaseNotExistException thrown if the database does not exist in the catalog
     * @throws TableNotExistException    thrown if the table does not exist in the catalog
     */
-  @throws[DatabaseNotExistException]
   @throws[TableNotExistException]
-  def dropTable(dbName: String, tableName: String, ignoreIfNotExists: Boolean): Unit
+  def dropTable(tableName: String, ignoreIfNotExists: Boolean): Unit
 
   /**
     * Modifies an existing table in the catalog.
     *
+    * @param tableName         The name of the table
     * @param table             New description of the table to update
     * @param ignoreIfNotExists Flag to specify behavior if the table or database does not exist:
     *                          if set to false, throw an exception,
@@ -64,13 +61,13 @@ trait CrudExternalCatalog extends ExternalCatalog {
     * @throws DatabaseNotExistException thrown if the database does not exist in the catalog
     * @throws TableNotExistException    thrown if the table does not exist in the catalog
     */
-  @throws[DatabaseNotExistException]
   @throws[TableNotExistException]
-  def alterTable(table: ExternalCatalogTable, ignoreIfNotExists: Boolean): Unit
+  def alterTable(tableName: String, table: ExternalCatalogTable, ignoreIfNotExists: Boolean): Unit
 
   /**
     * Adds a database to the catalog.
     *
+    * @param dbName         The name of the database
     * @param db             Description of the database to create
     * @param ignoreIfExists Flag to specify behavior if a database with the given name already
     *                       exists: if set to false, it throws a DatabaseAlreadyExistException,
@@ -79,7 +76,7 @@ trait CrudExternalCatalog extends ExternalCatalog {
     *                                       and ignoreIfExists is false
     */
   @throws[DatabaseAlreadyExistException]
-  def createDatabase(db: ExternalCatalogDatabase, ignoreIfExists: Boolean): Unit
+  def createDatabase(dbName: String, db: ExternalCatalog, ignoreIfExists: Boolean): Unit
 
   /**
     * Deletes a database from the catalog.
@@ -96,6 +93,7 @@ trait CrudExternalCatalog extends ExternalCatalog {
   /**
     * Modifies an existing database in the catalog.
     *
+    * @param dbName            Name of the database.
     * @param db                New description of the database to update
     * @param ignoreIfNotExists Flag to specify behavior if the database does not exist:
     *                          if set to false, throw an exception,
@@ -103,6 +101,6 @@ trait CrudExternalCatalog extends ExternalCatalog {
     * @throws DatabaseNotExistException thrown if the database does not exist in the catalog
     */
   @throws[DatabaseNotExistException]
-  def alterDatabase(db: ExternalCatalogDatabase, ignoreIfNotExists: Boolean): Unit
+  def alterDatabase(dbName: String, db: ExternalCatalog, ignoreIfNotExists: Boolean): Unit
 
 }
