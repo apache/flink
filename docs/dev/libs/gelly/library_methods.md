@@ -207,6 +207,28 @@ The algorithm takes a directed, vertex (and possibly edge) attributed graph as i
 vertex represents a group of vertices and each edge represents a group of edges from the input graph. Furthermore, each
 vertex and edge in the output graph stores the common group value and the number of represented elements.
 
+## Minimum Spanning Tree
+
+#### Overview
+This is an implementation of the distributed minimum spanning tree (MST) algorithm. A minimum spanning tree for a connected and
+undirected graph is a subset of edges with minimum possible total edge weight that connects all the vertices without cycles. 
+One of the possible use cases for MST could be laying out cables that connect all buildings with the minimum total cable length.
+
+#### Details
+Unlike a sequential version of the algorithm, a distributed MST algorithm is based on the message-passing model. 
+We use [vertex-centric iterations](#vertex-centric-iterations) to implement the Borůvka algorithm described in 
+[this paper](https://cs.uwaterloo.ca/~kdaudjee/comparison.pdf). As there are different steps inside the iteration,
+the implementation uses an `Aggregator` to detect the step terminations. All the information about reserved or picked edges 
+are stored in vertex values and at the end a `FlatMap` function is applied on the vertices to generate results.
+
+#### Usage
+The algorithm takes an undirected graph as input and outputs a `DataSet` of picked Edges (with src < target).
+The Vertex ID and Edge value type has to be `Comparable`.
+The constructor takes two parameters:
+
+* `parallelism`: the parallelism of iterations
+* `maxIterations`: the maximum number of iterations to run
+
 ## Clustering
 
 ### Average Clustering Coefficient
