@@ -19,36 +19,38 @@ package org.apache.flink.table.runtime.triggers
 
 import java.lang.{Long => JLong}
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.api.common.state._
 import org.apache.flink.streaming.api.windowing.triggers.Trigger.TriggerContext
 import org.apache.flink.streaming.api.windowing.triggers.{Trigger, TriggerResult}
-import org.apache.flink.streaming.api.windowing.windows.Window
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
-import org.apache.flink.table.runtime.triggers.CountTriggerWithCleanupState.Sum
+import org.apache.flink.table.runtime.triggers.StateCleaningCountTrigger.Sum
 
-class CountTriggerWithCleanupState[W <: Window](queryConfig: StreamQueryConfig, maxCount: Long)
-  extends Trigger[Any, W] {
+/**
+  * A {@link Trigger} that fires once the count of elements in a pane reaches the given count
+  * or the cleanup timer is triggered.
+  */
+@PublicEvolving
+class StateCleaningCountTrigger(queryConfig: StreamQueryConfig, maxCount: Long)
+  extends Trigger[Any, GlobalWindow] {
 
-  private val serialVersionUID: Long = 1L
+  private val serialVersionUID = 1L
 
   protected val minRetentionTime: Long = queryConfig.getMinIdleStateRetentionTime
   protected val maxRetentionTime: Long = queryConfig.getMaxIdleStateRetentionTime
   protected val stateCleaningEnabled: Boolean = minRetentionTime > 1
 
-  private val stateDesc: ReducingStateDescriptor[JLong] =
+  private val stateDesc =
     new ReducingStateDescriptor[JLong]("count", new Sum, Types.LONG)
 
-  private val cleanupStateDesc: ValueStateDescriptor[JLong] =
+  private val cleanupStateDesc =
     new ValueStateDescriptor[JLong]("countCleanup", Types.LONG)
 
-  override def canMerge: Boolean = true
+  override def canMerge = false
 
-  override def onMerge(window: W, ctx: Trigger.OnMergeContext) {
-    ctx.mergePartitionedState(stateDesc)
-  }
-
-  override def toString: String = "CountTriggerWithCleanupState(" +
+  override def toString: String = "CountTriggerGlobalWindowithCleanupState(" +
     "minIdleStateRetentionTime=" + queryConfig.getMinIdleStateRetentionTime + ", " +
     "maxIdleStateRetentionTime=" + queryConfig.getMaxIdleStateRetentionTime + ", " +
     "maxCount=" + maxCount + ")"
@@ -56,7 +58,7 @@ class CountTriggerWithCleanupState[W <: Window](queryConfig: StreamQueryConfig, 
   override def onElement(
       element: Any,
       timestamp: Long,
-      window: W,
+      window: GlobalWindow,
       ctx: TriggerContext): TriggerResult = {
 
     val currentTime = ctx.getCurrentProcessingTime
@@ -82,7 +84,7 @@ class CountTriggerWithCleanupState[W <: Window](queryConfig: StreamQueryConfig, 
       }
     }
 
-    val count: ReducingState[JLong] = ctx.getPartitionedState(stateDesc)
+    val count = ctx.getPartitionedState(stateDesc)
     count.add(1L)
 
     if (count.get >= maxCount) {
@@ -90,12 +92,12 @@ class CountTriggerWithCleanupState[W <: Window](queryConfig: StreamQueryConfig, 
       return TriggerResult.FIRE
     }
 
-    return TriggerResult.CONTINUE
+    TriggerResult.CONTINUE
   }
 
   override def onProcessingTime(
       time: Long,
-      window: W,
+      window: GlobalWindow,
       ctx: TriggerContext): TriggerResult = {
 
     if (stateCleaningEnabled) {
@@ -106,41 +108,33 @@ class CountTriggerWithCleanupState[W <: Window](queryConfig: StreamQueryConfig, 
         return TriggerResult.FIRE_AND_PURGE
       }
     }
-    return TriggerResult.CONTINUE
-  }
-
-  override def onEventTime(
-      time: Long,
-      window: W,
-      ctx: TriggerContext): TriggerResult = {
     TriggerResult.CONTINUE
   }
 
-  override def clear(
-      window: W,
-      ctx: TriggerContext): Unit = {
+  override def onEventTime(time: Long, window: GlobalWindow, ctx: TriggerContext) = {
+    TriggerResult.CONTINUE
+  }
+
+  override def clear(window: GlobalWindow, ctx: TriggerContext): Unit = {
     ctx.getPartitionedState(stateDesc).clear()
     ctx.getPartitionedState(cleanupStateDesc).clear()
   }
 
 }
 
-object CountTriggerWithCleanupState {
+object StateCleaningCountTrigger {
 
   /**
+    * Create a [[StateCleaningCountTrigger]] instance.
     *
+    * @param queryConfig query configuration.
     * @param maxCount The count of elements at which to fire.
-    * @tparam W The type of { @link Window Windows} on which this trigger can operate.
     */
-  def of[W <: Window](
-      queryConfig: StreamQueryConfig,
-      maxCount: Long): CountTriggerWithCleanupState[W] =
-    new CountTriggerWithCleanupState[W](queryConfig, maxCount)
+  def of(queryConfig: StreamQueryConfig, maxCount: Long): StateCleaningCountTrigger =
+    new StateCleaningCountTrigger(queryConfig, maxCount)
 
   class Sum extends ReduceFunction[JLong] {
-    override def reduce(
-        value1: JLong,
-        value2: JLong): JLong = value1 + value2
+    override def reduce(value1: JLong, value2: JLong): JLong = value1 + value2
   }
 
 }

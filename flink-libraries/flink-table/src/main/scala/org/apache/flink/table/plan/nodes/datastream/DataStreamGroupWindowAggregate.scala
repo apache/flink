@@ -25,7 +25,6 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream, DataStream, KeyedStream, WindowedStream}
 import org.apache.flink.streaming.api.windowing.assigners._
-import org.apache.flink.streaming.api.windowing.evictors.CountEvictor
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, Window => DataStreamWindow}
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
@@ -42,7 +41,7 @@ import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
-import org.apache.flink.table.runtime.triggers.CountTriggerWithCleanupState
+import org.apache.flink.table.runtime.triggers.StateCleaningCountTrigger
 import org.slf4j.LoggerFactory
 
 class DataStreamGroupWindowAggregate(
@@ -245,8 +244,7 @@ object DataStreamGroupWindowAggregate {
     case TumblingGroupWindow(_, timeField, size)
         if isProctimeAttribute(timeField) && isRowCountLiteral(size)=>
       stream.countWindow(toLong(size))
-      .trigger(PurgingTrigger.of(
-        CountTriggerWithCleanupState.of[GlobalWindow](queryConfig, toLong(size))));
+      .trigger(PurgingTrigger.of(StateCleaningCountTrigger.of(queryConfig, toLong(size))));
 
     case TumblingGroupWindow(_, timeField, size)
         if isRowtimeAttribute(timeField) && isTimeIntervalLiteral(size) =>
@@ -266,8 +264,7 @@ object DataStreamGroupWindowAggregate {
     case SlidingGroupWindow(_, timeField, size, slide)
         if isProctimeAttribute(timeField) && isRowCountLiteral(size) =>
       stream.countWindow(toLong(size), toLong(slide))
-      .evictor(CountEvictor.of(toLong(size)))
-      .trigger(CountTriggerWithCleanupState.of[GlobalWindow](queryConfig, toLong(slide)));
+      .trigger(StateCleaningCountTrigger.of(queryConfig, toLong(slide)));
 
     case SlidingGroupWindow(_, timeField, size, slide)
         if isRowtimeAttribute(timeField) && isTimeIntervalLiteral(size)=>
@@ -302,8 +299,7 @@ object DataStreamGroupWindowAggregate {
     case TumblingGroupWindow(_, timeField, size)
         if isProctimeAttribute(timeField) && isRowCountLiteral(size)=>
       stream.countWindowAll(toLong(size))
-      .trigger(PurgingTrigger.of(
-        CountTriggerWithCleanupState.of[GlobalWindow](queryConfig, toLong(size))));
+      .trigger(PurgingTrigger.of(StateCleaningCountTrigger.of(queryConfig, toLong(size))));
 
     case TumblingGroupWindow(_, _, size) if isTimeInterval(size.resultType) =>
       stream.windowAll(TumblingEventTimeWindows.of(toTime(size)))
@@ -322,8 +318,7 @@ object DataStreamGroupWindowAggregate {
     case SlidingGroupWindow(_, timeField, size, slide)
         if isProctimeAttribute(timeField) && isRowCountLiteral(size)=>
       stream.countWindowAll(toLong(size), toLong(slide))
-      .evictor(CountEvictor.of(toLong(size)))
-      .trigger(CountTriggerWithCleanupState.of[GlobalWindow](queryConfig, toLong(slide)));
+      .trigger(StateCleaningCountTrigger.of(queryConfig, toLong(slide)));
 
     case SlidingGroupWindow(_, timeField, size, slide)
         if isRowtimeAttribute(timeField) && isTimeIntervalLiteral(size)=>
@@ -344,7 +339,6 @@ object DataStreamGroupWindowAggregate {
         if isRowtimeAttribute(timeField) && isTimeIntervalLiteral(gap) =>
       stream.windowAll(EventTimeSessionWindows.withGap(toTime(gap)))
   }
-
 
 }
 
