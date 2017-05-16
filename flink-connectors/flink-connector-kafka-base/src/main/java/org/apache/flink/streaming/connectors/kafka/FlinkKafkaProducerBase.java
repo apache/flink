@@ -17,6 +17,19 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -47,19 +60,6 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-
 import static java.util.Objects.requireNonNull;
 
 
@@ -88,6 +88,12 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	 */
 	public static final String KEY_KAFKA_META_TIMEOUT_MS = "flink.kafka.meta.timeout.ms";
 	public static final String DEFAULT_KAFKA_META_TIMEOUT_MS = "100";
+
+	/**
+	 * Configuration key for max retries to fetch meta of kafka
+	 */
+	public static final String KEY_KAFKA_META_MAX_RETRY = "flink.kafka.meta.max.retry";
+	public static final String DEFAULT_KAFKA_META_MAX_RETRY = "3";
 
 	/**
 	 * User defined properties for the Producer
@@ -129,6 +135,11 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	 * Timeout of fetching kafka meta
 	 */
 	protected long kafkaMetaTimeoutMs;
+
+	/**
+	 * Retry times of fetching kafka meta
+	 */
+	protected long kafkaMetaRetryTimes;
 	
 	// -------------------------------- Runtime fields ------------------------------------------
 
@@ -251,6 +262,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		executor = Executors.newCachedThreadPool();
 
 		this.kafkaMetaTimeoutMs = Long.parseLong(producerConfig.getProperty(KEY_KAFKA_META_TIMEOUT_MS, DEFAULT_KAFKA_META_TIMEOUT_MS));
+		this.kafkaMetaRetryTimes = Long.parseLong(producerConfig.getProperty(KEY_KAFKA_META_MAX_RETRY, DEFAULT_KAFKA_META_MAX_RETRY));
 
 		RuntimeContext ctx = getRuntimeContext();
 		if(null != flinkKafkaPartitioner) {
@@ -308,13 +320,18 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	}
 
 	protected int[] getPartitionsByTopic(String topic, KafkaProducer<byte[], byte[]> producer) {
-		Future<int[]> future = executor.submit(new PartitionMetaTask(topic, producer));
+		Exception exception = null;
+		for(int i = 0; i < kafkaMetaRetryTimes; i++) {
+			Future<int[]> future = executor.submit(new PartitionMetaTask(topic, producer));
 
-		try {
-			return future.get(kafkaMetaTimeoutMs, TimeUnit.MILLISECONDS);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
+			try {
+				return future.get(kafkaMetaTimeoutMs, TimeUnit.MILLISECONDS);
+			} catch (Exception e) {
+				LOG.warn("Fetch kafka meta fail in retry[" + i + "]", e);
+				exception = e;
+			}
 		}
+		throw new RuntimeException(exception);
 	}
 
 	class PartitionMetaTask implements Callable<int[]> {
