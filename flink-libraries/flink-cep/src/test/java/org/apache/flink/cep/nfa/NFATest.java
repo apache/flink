@@ -20,16 +20,18 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.cep.Event;
+import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -185,33 +187,60 @@ public class NFATest extends TestLogger {
 
 	@Test
 	public void testNFASerialization() throws IOException, ClassNotFoundException {
-		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 0, false);
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 1858562682635302605L;
 
-		State<Event> startingState = new State<>("", State.StateType.Start);
-		State<Event> startState = new State<>("start", State.StateType.Normal);
-		State<Event> endState = new State<>("end", State.StateType.Final);
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).followedByAny("middle").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 8061969839441121955L;
 
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("b");
+			}
+		}).oneOrMore().optional().allowCombinations().followedByAny("end").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 8061969839441121955L;
 
-		startingState.addTake(
-			new NameFilter("start"));
-		startState.addTake(
-			new NameFilter("end"));
-		startState.addIgnore(null);
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("d");
+			}
+		});
 
-		nfa.addState(startingState);
-		nfa.addState(startState);
-		nfa.addState(endState);
+		NFACompiler.NFAFactory<Event> nfaFactory = NFACompiler.compileFactory(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = nfaFactory.createNFA();
+
+		Event a = new Event(40, "a", 1.0);
+		Event b = new Event(41, "b", 2.0);
+		Event c = new Event(42, "c", 3.0);
+		Event b1 = new Event(41, "b", 3.0);
+		Event b2= new Event(41, "b", 4.0);
+		Event b3 = new Event(41, "b", 5.0);
+		Event d = new Event(43, "d", 4.0);
+
+		nfa.process(a, 1);
+		nfa.process(b, 2);
+		nfa.process(c, 3);
+		nfa.process(b1, 4);
+		nfa.process(b2, 5);
+		nfa.process(b3, 6);
+		nfa.process(d, 7);
+		nfa.process(a, 8);
+
+		NFA.NFASerializer<Event> serializer = new NFA.NFASerializer<>(Event.createTypeSerializer());
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos = new ObjectOutputStream(baos);
-
-		oos.writeObject(nfa);
+		serializer.serialize(nfa, new DataOutputViewStreamWrapper(baos));
+		baos.close();
 
 		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-		ObjectInputStream ois = new ObjectInputStream(bais);
 
-		@SuppressWarnings("unchecked")
-		NFA<Event> copy = (NFA<Event>) ois.readObject();
+		NFA.NFASerializer<Event> deserializer = new NFA.NFASerializer<>(Event.createTypeSerializer());
+		NFA<Event> copy = deserializer.deserialize(new DataInputViewStreamWrapper(bais));
+		bais.close();
 
 		assertEquals(nfa, copy);
 	}
@@ -250,21 +279,5 @@ public class NFATest extends TestLogger {
 		nfa.addState(endingState);
 
 		return nfa;
-	}
-
-	private static class NameFilter extends SimpleCondition<Event> {
-
-		private static final long serialVersionUID = 7472112494752423802L;
-
-		private final String name;
-
-		public NameFilter(final String name) {
-			this.name = name;
-		}
-
-		@Override
-		public boolean filter(Event value) throws Exception {
-			return value.getName().equals(name);
-		}
 	}
 }

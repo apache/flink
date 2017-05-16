@@ -379,7 +379,6 @@ public class CEPOperatorTest extends TestLogger {
 		Event middle1Event3 = new Event(41, "a", 4.0);
 		Event middle2Event1 = new Event(41, "b", 5.0);
 
-		TestKeySelector keySelector = new TestKeySelector();
 		KeyedCEPPatternOperator<Event, Integer> operator = new KeyedCEPPatternOperator<>(
 				Event.createTypeSerializer(),
 				false,
