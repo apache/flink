@@ -82,7 +82,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 	///////////////			State			//////////////
 
-	private static final String NFA_OPERATOR_STATE_NAME = "nfaOperatorState";
+	private static final String NFA_OPERATOR_STATE_NAME = "nfaOperatorStateName";
 	private static final String PRIORITY_QUEUE_STATE_NAME = "priorityQueueStateName";
 
 	private transient ValueState<NFA<IN>> nfaOperatorState;
@@ -127,8 +127,8 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		if (nfaOperatorState == null) {
 			nfaOperatorState = getRuntimeContext().getState(
 				new ValueStateDescriptor<>(
-					NFA_OPERATOR_STATE_NAME,
-					new NFA.Serializer<IN>()));
+						NFA_OPERATOR_STATE_NAME,
+						new NFA.NFASerializer<>(inputSerializer)));
 		}
 
 		@SuppressWarnings("unchecked,rawtypes")
@@ -311,12 +311,20 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 				VoidNamespaceSerializer.INSTANCE,
 				this);
 
+		// this is with the old serializer so that we can read the state.
+		ValueState<NFA<IN>> oldNfaOperatorState = getRuntimeContext().getState(
+				new ValueStateDescriptor<>("nfaOperatorState", new NFA.Serializer<IN>()));
+
 		if (migratingFromOldKeyedOperator) {
 			int numberEntries = inputView.readInt();
-			for (int i = 0; i <numberEntries; i++) {
+			for (int i = 0; i < numberEntries; i++) {
 				KEY key = keySerializer.deserialize(inputView);
 				setCurrentKey(key);
 				saveRegisterWatermarkTimer();
+
+				NFA<IN> nfa = oldNfaOperatorState.value();
+				oldNfaOperatorState.clear();
+				nfaOperatorState.update(nfa);
 			}
 		} else {
 

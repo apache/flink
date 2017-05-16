@@ -30,6 +30,7 @@ import org.apache.flink.cep.SubEvent;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -379,7 +380,6 @@ public class CEPOperatorTest extends TestLogger {
 		Event middle1Event3 = new Event(41, "a", 4.0);
 		Event middle2Event1 = new Event(41, "b", 5.0);
 
-		TestKeySelector keySelector = new TestKeySelector();
 		KeyedCEPPatternOperator<Event, Integer> operator = new KeyedCEPPatternOperator<>(
 				Event.createTypeSerializer(),
 				false,
@@ -530,7 +530,113 @@ public class CEPOperatorTest extends TestLogger {
 
 		harness.close();
 	}
-	
+
+	@Test
+	public void testCEPOperatorSerializationWRocksDB() throws Exception {
+		String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
+		RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
+
+		final Event startEvent1 = new Event(40, "start", 1.0);
+		final Event startEvent2 = new Event(40, "start", 2.0);
+		final SubEvent middleEvent1 = new SubEvent(40, "foo1", 1.0, 10);
+		final SubEvent middleEvent2 = new SubEvent(40, "foo2", 2.0, 10);
+		final SubEvent middleEvent3 = new SubEvent(40, "foo3", 3.0, 10);
+		final SubEvent middleEvent4 = new SubEvent(40, "foo4", 1.0, 10);
+		final Event nextOne = new Event(40, "next-one", 1.0);
+		final Event endEvent = new Event(40, "end", 1.0);
+
+		final Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("start");
+			}
+		}).followedBy("middle").subtype(SubEvent.class).where(new IterativeCondition<SubEvent>() {
+
+			private static final long serialVersionUID = 6215754202506583964L;
+
+			@Override
+			public boolean filter (SubEvent value, Context < SubEvent > ctx) throws Exception {
+				if (!value.getName().startsWith("foo")) {
+					return false;
+				}
+
+				double sum = 0.0;
+				for (Event event : ctx.getEventsForPattern("middle")) {
+					sum += event.getPrice();
+				}
+				sum += value.getPrice();
+				return Double.compare(sum, 5.0) < 0;
+			}
+		}).oneOrMore().allowCombinations().followedBy("end").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 7056763917392056548L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("end");
+			}
+		});
+
+		KeyedCEPPatternOperator<Event, Integer> operator = new KeyedCEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				false,
+				IntSerializer.INSTANCE,
+				new NFACompiler.NFAFactory<Event>() {
+
+					private static final long serialVersionUID = 477082663248051994L;
+
+					@Override
+					public NFA<Event> createNFA() {
+						return NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+					}
+				},
+				true);
+
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(operator);
+		harness.setStateBackend(rocksDBStateBackend);
+		harness.open();
+
+		harness.processWatermark(0L);
+		harness.processElement(new StreamRecord<>(startEvent1, 1));
+		harness.processElement(new StreamRecord<Event>(middleEvent1, 2));
+		harness.processWatermark(2L);
+		harness.processElement(new StreamRecord<Event>(middleEvent2, 3));
+		harness.processElement(new StreamRecord<>(startEvent2, 4));
+		harness.processElement(new StreamRecord<Event>(middleEvent3, 5));
+		harness.processWatermark(5L);
+		harness.processElement(new StreamRecord<Event>(middleEvent4, 5));
+		harness.processElement(new StreamRecord<>(nextOne, 6));
+		harness.processElement(new StreamRecord<>(endEvent, 8));
+		harness.processWatermark(100L);
+
+		List<List<Event>> resultingPatterns = new ArrayList<>();
+		while (!harness.getOutput().isEmpty()) {
+			Object o = harness.getOutput().poll();
+			if (!(o instanceof Watermark)) {
+				StreamRecord<Map<String, List<Event>>> el = (StreamRecord<Map<String, List<Event>>>) o;
+				List<Event> res = new ArrayList<>();
+				for (List<Event> le: el.getValue().values()) {
+					res.addAll(le);
+				}
+				resultingPatterns.add(res);
+			}
+		}
+
+		compareMaps(resultingPatterns,
+				Lists.<List<Event>>newArrayList(
+						Lists.newArrayList(startEvent1, endEvent, middleEvent1, middleEvent2, middleEvent4),
+						Lists.newArrayList(startEvent1, endEvent, middleEvent2, middleEvent1),
+						Lists.newArrayList(startEvent1, endEvent, middleEvent3, middleEvent1),
+						Lists.newArrayList(startEvent2, endEvent, middleEvent3, middleEvent4),
+						Lists.newArrayList(startEvent1, endEvent, middleEvent4, middleEvent1),
+						Lists.newArrayList(startEvent1, endEvent, middleEvent1),
+						Lists.newArrayList(startEvent2, endEvent, middleEvent3)
+				)
+		);
+	}
+
 	private void verifyWatermark(Object outputObject, long timestamp) {
 		assertTrue(outputObject instanceof Watermark);
 		assertEquals(timestamp, ((Watermark) outputObject).getTimestamp());

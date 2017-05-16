@@ -103,7 +103,6 @@ public class CEPFrom12MigrationTest {
 	}
 
 	@Test
-	@Ignore
 	public void testRestoreAfterBranchingPattern() throws Exception {
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
@@ -171,6 +170,54 @@ public class CEPFrom12MigrationTest {
 		assertEquals(middleEvent2, patternMap2.get("middle").get(0));
 		assertEquals(endEvent, patternMap2.get("end").get(0));
 
+		// and now go for a checkpoint with the new serializers
+
+		final Event startEvent1 = new Event(42, "start", 2.0);
+		final SubEvent middleEvent3 = new SubEvent(42, "foo", 1.0, 11.0);
+		final Event endEvent1 = new Event(42, "end", 2.0);
+
+		harness.processElement(new StreamRecord<Event>(startEvent1, 21));
+		harness.processElement(new StreamRecord<Event>(middleEvent3, 23));
+
+		// simulate snapshot/restore with some elements in internal sorting queue
+		OperatorStateHandles snapshot = harness.snapshot(1L, 1L);
+		harness.close();
+
+		harness = new KeyedOneInputStreamOperatorTestHarness<>(
+				new KeyedCEPPatternOperator<>(
+						Event.createTypeSerializer(),
+						false,
+						IntSerializer.INSTANCE,
+						new NFAFactory(),
+						true),
+				keySelector,
+				BasicTypeInfo.INT_TYPE_INFO);
+
+		harness.setup();
+		harness.initializeState(snapshot);
+		harness.open();
+
+		harness.processElement(new StreamRecord<>(endEvent1, 25));
+
+		harness.processWatermark(new Watermark(50));
+
+		result = harness.getOutput();
+
+		// watermark and the result
+		assertEquals(2, result.size());
+
+		Object resultObject3 = result.poll();
+		assertTrue(resultObject3 instanceof StreamRecord);
+		StreamRecord<?> resultRecord3 = (StreamRecord<?>) resultObject3;
+		assertTrue(resultRecord3.getValue() instanceof Map);
+
+		@SuppressWarnings("unchecked")
+		Map<String, List<Event>> patternMap3 = (Map<String, List<Event>>) resultRecord3.getValue();
+
+		assertEquals(startEvent1, patternMap3.get("start").get(0));
+		assertEquals(middleEvent3, patternMap3.get("middle").get(0));
+		assertEquals(endEvent1, patternMap3.get("end").get(0));
+
 		harness.close();
 	}
 
@@ -220,7 +267,6 @@ public class CEPFrom12MigrationTest {
 	}
 
 	@Test
-	@Ignore
 	public void testRestoreStartingNewPatternAfterMigration() throws Exception {
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
@@ -302,6 +348,54 @@ public class CEPFrom12MigrationTest {
 		assertEquals(middleEvent2, patternMap3.get("middle").get(0));
 		assertEquals(endEvent, patternMap3.get("end").get(0));
 
+		// and now go for a checkpoint with the new serializers
+
+		final Event startEvent3 = new Event(42, "start", 2.0);
+		final SubEvent middleEvent3 = new SubEvent(42, "foo", 1.0, 11.0);
+		final Event endEvent1 = new Event(42, "end", 2.0);
+
+		harness.processElement(new StreamRecord<Event>(startEvent3, 21));
+		harness.processElement(new StreamRecord<Event>(middleEvent3, 23));
+
+		// simulate snapshot/restore with some elements in internal sorting queue
+		OperatorStateHandles snapshot = harness.snapshot(1L, 1L);
+		harness.close();
+
+		harness = new KeyedOneInputStreamOperatorTestHarness<>(
+				new KeyedCEPPatternOperator<>(
+						Event.createTypeSerializer(),
+						false,
+						IntSerializer.INSTANCE,
+						new NFAFactory(),
+						true),
+				keySelector,
+				BasicTypeInfo.INT_TYPE_INFO);
+
+		harness.setup();
+		harness.initializeState(snapshot);
+		harness.open();
+
+		harness.processElement(new StreamRecord<>(endEvent1, 25));
+
+		harness.processWatermark(new Watermark(50));
+
+		result = harness.getOutput();
+
+		// watermark and the result
+		assertEquals(2, result.size());
+
+		Object resultObject4 = result.poll();
+		assertTrue(resultObject4 instanceof StreamRecord);
+		StreamRecord<?> resultRecord4 = (StreamRecord<?>) resultObject4;
+		assertTrue(resultRecord4.getValue() instanceof Map);
+
+		@SuppressWarnings("unchecked")
+		Map<String, List<Event>> patternMap4 = (Map<String, List<Event>>) resultRecord4.getValue();
+
+		assertEquals(startEvent3, patternMap4.get("start").get(0));
+		assertEquals(middleEvent3, patternMap4.get("middle").get(0));
+		assertEquals(endEvent1, patternMap4.get("end").get(0));
+
 		harness.close();
 	}
 
@@ -347,7 +441,6 @@ public class CEPFrom12MigrationTest {
 
 
 	@Test
-	@Ignore
 	public void testSinglePatternAfterMigration() throws Exception {
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
