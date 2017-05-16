@@ -19,10 +19,16 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
+import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
+import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -38,6 +44,8 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 	public static final int VERSION = 3;
 
 	private TypeSerializer<?> keySerializer;
+	private TypeSerializerConfigSnapshot keySerializerConfigSnapshot;
+
 	private List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots;
 
 	private ClassLoader userCodeClassLoader;
@@ -51,6 +59,7 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots) {
 
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
+		this.keySerializerConfigSnapshot = Preconditions.checkNotNull(keySerializer.snapshotConfiguration());
 
 		Preconditions.checkNotNull(stateMetaInfoSnapshots);
 		Preconditions.checkArgument(stateMetaInfoSnapshots.size() <= Short.MAX_VALUE);
@@ -63,6 +72,10 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 
 	public TypeSerializer<?> getKeySerializer() {
 		return keySerializer;
+	}
+
+	public TypeSerializerConfigSnapshot getKeySerializerConfigSnapshot() {
+		return keySerializerConfigSnapshot;
 	}
 
 	@Override
@@ -80,10 +93,24 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
 
-		new TypeSerializerSerializationProxy<>(keySerializer).write(out);
+		// write in a way to be fault tolerant of read failures when deserializing the key serializer
+		try (
+			ByteArrayOutputStreamWithPos buffer = new ByteArrayOutputStreamWithPos();
+			DataOutputViewStreamWrapper bufferWrapper = new DataOutputViewStreamWrapper(buffer)){
 
+			new TypeSerializerSerializationProxy<>(keySerializer).write(bufferWrapper);
+
+			// write offset of key serializer's configuration snapshot
+			out.writeInt(buffer.getPosition());
+			TypeSerializerUtil.writeSerializerConfigSnapshot(bufferWrapper, keySerializerConfigSnapshot);
+
+			// flush buffer
+			out.writeInt(buffer.getPosition());
+			out.write(buffer.getBuf(), 0, buffer.getPosition());
+		}
+
+		// write individual registered keyed state metainfos
 		out.writeShort(stateMetaInfoSnapshots.size());
-
 		for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> metaInfo : stateMetaInfoSnapshots) {
 			KeyedBackendStateMetaInfoSnapshotReaderWriters
 				.getWriterForVersion(VERSION, metaInfo)
@@ -97,8 +124,34 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 
 		final TypeSerializerSerializationProxy<?> keySerializerProxy =
 			new TypeSerializerSerializationProxy<>(userCodeClassLoader);
-		keySerializerProxy.read(in);
-		this.keySerializer = keySerializerProxy.getTypeSerializer();
+
+		// only starting from version 3, we have the key serializer and its config snapshot written
+		if (getReadVersion() >= 3) {
+			int keySerializerConfigSnapshotOffset = in.readInt();
+			int numBufferedBytes = in.readInt();
+			byte[] keySerializerAndConfigBytes = new byte[numBufferedBytes];
+			in.readFully(keySerializerAndConfigBytes);
+
+			try (
+				ByteArrayInputStreamWithPos buffer = new ByteArrayInputStreamWithPos(keySerializerAndConfigBytes);
+				DataInputViewStreamWrapper bufferWrapper = new DataInputViewStreamWrapper(buffer)) {
+
+				try {
+					keySerializerProxy.read(bufferWrapper);
+					this.keySerializer = keySerializerProxy.getTypeSerializer();
+				} catch (IOException e) {
+					this.keySerializer = null;
+				}
+
+				buffer.setPosition(keySerializerConfigSnapshotOffset);
+				this.keySerializerConfigSnapshot =
+					TypeSerializerUtil.readSerializerConfigSnapshot(bufferWrapper, userCodeClassLoader);
+			}
+		} else {
+			keySerializerProxy.read(in);
+			this.keySerializer = keySerializerProxy.getTypeSerializer();
+			this.keySerializerConfigSnapshot = null;
+		}
 
 		int numKvStates = in.readShort();
 		stateMetaInfoSnapshots = new ArrayList<>(numKvStates);
