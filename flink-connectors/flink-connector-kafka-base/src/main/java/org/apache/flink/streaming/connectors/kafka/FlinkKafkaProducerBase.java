@@ -24,11 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -84,18 +79,6 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	public static final String KEY_DISABLE_METRICS = "flink.disable-metrics";
 
 	/**
-	 * Configuration key for fetching meta of kafka
-	 */
-	public static final String KEY_KAFKA_META_TIMEOUT_MS = "flink.kafka.meta.timeout.ms";
-	public static final String DEFAULT_KAFKA_META_TIMEOUT_MS = "100";
-
-	/**
-	 * Configuration key for max retries to fetch meta of kafka
-	 */
-	public static final String KEY_KAFKA_META_MAX_RETRY = "flink.kafka.meta.max.retry";
-	public static final String DEFAULT_KAFKA_META_MAX_RETRY = "3";
-
-	/**
 	 * User defined properties for the Producer
 	 */
 	protected final Properties producerConfig;
@@ -132,22 +115,14 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	protected boolean flushOnCheckpoint;
 
 	/**
-	 * Timeout of fetching kafka meta
-	 */
-	protected long kafkaMetaTimeoutMs;
-
-	/**
 	 * Retry times of fetching kafka meta
 	 */
 	protected long kafkaMetaRetryTimes;
-	
+
 	// -------------------------------- Runtime fields ------------------------------------------
 
 	/** KafkaProducer instance */
 	protected transient KafkaProducer<byte[], byte[]> producer;
-
-	/** ExecutorService for get partition meta in future **/
-	protected transient ExecutorService executor;
 
 	/** The callback than handles error propagation or logging callbacks */
 	protected transient Callback callback;
@@ -224,9 +199,9 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	/**
 	 * Defines whether the producer should fail on errors, or only log them.
 	 * If this is set to true, then exceptions will be only logged, if set to false,
-	 * exceptions will be eventually thrown and cause the streaming program to 
+	 * exceptions will be eventually thrown and cause the streaming program to
 	 * fail (and enter recovery).
-	 * 
+	 *
 	 * @param logFailuresOnly The flag to indicate logging-only on exceptions.
 	 */
 	public void setLogFailuresOnly(boolean logFailuresOnly) {
@@ -252,17 +227,13 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	}
 
 	// ----------------------------------- Utilities --------------------------
-	
+
 	/**
 	 * Initializes the connection to Kafka.
 	 */
 	@Override
 	public void open(Configuration configuration) {
 		producer = getKafkaProducer(this.producerConfig);
-		executor = Executors.newCachedThreadPool();
-
-		this.kafkaMetaTimeoutMs = Long.parseLong(producerConfig.getProperty(KEY_KAFKA_META_TIMEOUT_MS, DEFAULT_KAFKA_META_TIMEOUT_MS));
-		this.kafkaMetaRetryTimes = Long.parseLong(producerConfig.getProperty(KEY_KAFKA_META_MAX_RETRY, DEFAULT_KAFKA_META_MAX_RETRY));
 
 		RuntimeContext ctx = getRuntimeContext();
 		if(null != flinkKafkaPartitioner) {
@@ -271,7 +242,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 			}
 			flinkKafkaPartitioner.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks());
 		}
-		
+
 		LOG.info("Starting FlinkKafkaProducer ({}/{}) to produce into default topic {}",
 				ctx.getIndexOfThisSubtask() + 1, ctx.getNumberOfParallelSubtasks(), defaultTopicId);
 
@@ -320,49 +291,23 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	}
 
 	protected int[] getPartitionsByTopic(String topic, KafkaProducer<byte[], byte[]> producer) {
-		Exception exception = null;
-		for(int i = 0; i < kafkaMetaRetryTimes; i++) {
-			Future<int[]> future = executor.submit(new PartitionMetaTask(topic, producer));
+		// the fetched list is immutable, so we're creating a mutable copy in order to sort it
+		List<PartitionInfo> partitionsList = new ArrayList<>(producer.partitionsFor(topic));
 
-			try {
-				return future.get(kafkaMetaTimeoutMs, TimeUnit.MILLISECONDS);
-			} catch (Exception e) {
-				LOG.warn("Fetch kafka meta fail in retry[" + i + "]", e);
-				exception = e;
-			}
-		}
-		throw new RuntimeException(exception);
-	}
-
-	class PartitionMetaTask implements Callable<int[]> {
-		private final String topic;
-		private final KafkaProducer<byte[], byte[]> producer;
-		
-		public PartitionMetaTask(String topic, KafkaProducer<byte[], byte[]> producer) {
-			this.topic = topic;
-			this.producer = producer;
-		}
-		
-		@Override
-		public int[] call() throws Exception {
-			// the fetched list is immutable, so we're creating a mutable copy in order to sort it
-			List<PartitionInfo> partitionsList = new ArrayList<>(producer.partitionsFor(this.topic));
-
-			// sort the partitions by partition id to make sure the fetched partition list is the same across subtasks
-			Collections.sort(partitionsList, new Comparator<PartitionInfo>() {
+		// sort the partitions by partition id to make sure the fetched partition list is the same across subtasks
+		Collections.sort(partitionsList, new Comparator<PartitionInfo>() {
 				@Override
 				public int compare(PartitionInfo o1, PartitionInfo o2) {
-					return Integer.compare(o1.partition(), o2.partition());
-				}
+				return Integer.compare(o1.partition(), o2.partition());
+			}
 			});
 
-			int[] partitions = new int[partitionsList.size()];
-			for (int i = 0; i < partitions.length; i++) {
-				partitions[i] = partitionsList.get(i).partition();
-			}
-			
-			return partitions;
+		int[] partitions = new int[partitionsList.size()];
+		for (int i = 0; i < partitions.length; i++) {
+			partitions[i] = partitionsList.get(i).partition();
 		}
+
+		return partitions;
 	}
 
 	/**
@@ -388,7 +333,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 			partitions = this.getPartitionsByTopic(targetTopic, producer);
 			this.topicPartitionsMap.put(targetTopic, partitions);
 		}
-		
+
 		ProducerRecord<byte[], byte[]> record;
 		if (flinkKafkaPartitioner == null) {
 			record = new ProducerRecord<>(targetTopic, serializedKey, serializedValue);
@@ -409,7 +354,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		if (producer != null) {
 			producer.close();
 		}
-		
+
 		// make sure we propagate pending errors
 		checkErroneous();
 	}
@@ -466,15 +411,15 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 			throw new Exception("Failed to send data to Kafka: " + e.getMessage(), e);
 		}
 	}
-	
+
 	public static Properties getPropertiesFromBrokerList(String brokerList) {
 		String[] elements = brokerList.split(",");
-		
+
 		// validate the broker addresses
 		for (String broker: elements) {
 			NetUtils.getCorrectHostnamePort(broker);
 		}
-		
+
 		Properties props = new Properties();
 		props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
 		return props;
