@@ -81,7 +81,7 @@ class WindowAggregateTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "1970-01-01 00:00:00 AS $f0", "c", "a")
+          term("select", "rowtime", "c", "a")
         ),
         term("window", TumblingGroupWindow('w$, 'rowtime, 900000.millis)),
         term("select",
@@ -109,7 +109,7 @@ class WindowAggregateTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "1970-01-01 00:00:00 AS $f0", "c", "a")
+          term("select", "proctime", "c", "a")
         ),
         term("window", SlidingGroupWindow('w$, 'proctime, 3600000.millis, 900000.millis)),
         term("select",
@@ -138,7 +138,7 @@ class WindowAggregateTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "1970-01-01 00:00:00 AS $f0", "c", "a")
+          term("select", "proctime", "c", "a")
         ),
         term("window", SessionGroupWindow('w$, 'proctime, 900000.millis)),
         term("select",
