@@ -47,7 +47,7 @@ public class OperatorSnapshotUtil {
 	public static void writeStateHandle(OperatorStateHandles state, String path) throws IOException {
 		FileOutputStream out = new FileOutputStream(path);
 		
-		try(DataOutputStream dos = new DataOutputStream(out)) {
+		try (DataOutputStream dos = new DataOutputStream(out)) {
 
 			dos.writeInt(state.getOperatorChainIndex());
 
@@ -103,7 +103,7 @@ public class OperatorSnapshotUtil {
 
 	public static OperatorStateHandles readStateHandle(String path) throws IOException, ClassNotFoundException {
 		FileInputStream in = new FileInputStream(path);
-		try(DataInputStream dis = new DataInputStream(in)) {
+		try (DataInputStream dis = new DataInputStream(in)) {
 			int index = dis.readInt();
 
 			StreamStateHandle legacyState = SavepointV1Serializer.deserializeStreamStateHandle(dis);
