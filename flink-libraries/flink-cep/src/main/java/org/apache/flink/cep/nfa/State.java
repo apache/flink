@@ -146,6 +146,8 @@ public class State<T> implements Serializable {
 		Stop
 	}
 
+	////////////////			Backwards Compatibility			////////////////////
+
 	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
 		ois.defaultReadObject();
 

@@ -20,7 +20,10 @@ package org.apache.flink.cep.nfa;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.cep.Event;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -130,15 +133,14 @@ public class SharedBufferTest extends TestLogger {
 		sharedBuffer.put("a[]", events[6], timestamp, "a[]", events[5], timestamp, 5, DeweyNumber.fromString("1.1"));
 		sharedBuffer.put("b", events[7], timestamp, "a[]", events[6], timestamp, 6, DeweyNumber.fromString("1.1.0"));
 
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos = new ObjectOutputStream(baos);
+		SharedBuffer.SharedBufferSerializer serializer = new SharedBuffer.SharedBufferSerializer(
+				StringSerializer.INSTANCE, Event.createTypeSerializer());
 
-		oos.writeObject(sharedBuffer);
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		serializer.serialize(sharedBuffer, new DataOutputViewStreamWrapper(baos));
 
 		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-		ObjectInputStream ois = new ObjectInputStream(bais);
-
-		SharedBuffer<String, Event> copy = (SharedBuffer<String, Event>)ois.readObject();
+		SharedBuffer<String, Event> copy = serializer.deserialize(new DataInputViewStreamWrapper(bais));
 
 		assertEquals(sharedBuffer, copy);
 	}

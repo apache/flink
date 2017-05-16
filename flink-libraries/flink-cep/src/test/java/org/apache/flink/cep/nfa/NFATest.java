@@ -20,16 +20,19 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.cep.Event;
+import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -185,35 +188,136 @@ public class NFATest extends TestLogger {
 
 	@Test
 	public void testNFASerialization() throws IOException, ClassNotFoundException {
-		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 0, false);
+		Pattern<Event, ?> pattern1 = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 1858562682635302605L;
 
-		State<Event> startingState = new State<>("", State.StateType.Start);
-		State<Event> startState = new State<>("start", State.StateType.Normal);
-		State<Event> endState = new State<>("end", State.StateType.Final);
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).followedByAny("middle").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 8061969839441121955L;
 
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("b");
+			}
+		}).oneOrMore().optional().allowCombinations().followedByAny("end").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 8061969839441121955L;
 
-		startingState.addTake(
-			new NameFilter("start"));
-		startState.addTake(
-			new NameFilter("end"));
-		startState.addIgnore(null);
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("d");
+			}
+		});
 
-		nfa.addState(startingState);
-		nfa.addState(startState);
-		nfa.addState(endState);
+		Pattern<Event, ?> pattern2 = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 1858562682635302605L;
 
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos = new ObjectOutputStream(baos);
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).notFollowedBy("not").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = -6085237016591726715L;
 
-		oos.writeObject(nfa);
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedByAny("middle").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 8061969839441121955L;
 
-		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-		ObjectInputStream ois = new ObjectInputStream(bais);
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("b");
+			}
+		}).oneOrMore().optional().allowCombinations().followedByAny("end").where(new IterativeCondition<Event>() {
+			private static final long serialVersionUID = 8061969839441121955L;
 
-		@SuppressWarnings("unchecked")
-		NFA<Event> copy = (NFA<Event>) ois.readObject();
+			@Override
+			public boolean filter(Event value, Context<Event> ctx) throws Exception {
+				double sum = 0.0;
+				for (Event e : ctx.getEventsForPattern("middle")) {
+					sum += e.getPrice();
+				}
+				return sum > 5.0;
+			}
+		});
 
-		assertEquals(nfa, copy);
+		Pattern<Event, ?> pattern3 = Pattern.<Event>begin("start")
+				.notFollowedBy("not").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = -6085237016591726715L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedByAny("middle").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 8061969839441121955L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("b");
+			}
+		}).oneOrMore().allowCombinations().followedByAny("end").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 8061969839441121955L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("d");
+			}
+		});
+
+		List<Pattern<Event, ?>> patterns = new ArrayList<>();
+		patterns.add(pattern1);
+		patterns.add(pattern2);
+		patterns.add(pattern3);
+
+		for (Pattern<Event, ?> p: patterns) {
+			NFACompiler.NFAFactory<Event> nfaFactory = NFACompiler.compileFactory(p, Event.createTypeSerializer(), false);
+			NFA<Event> nfa = nfaFactory.createNFA();
+
+			Event a = new Event(40, "a", 1.0);
+			Event b = new Event(41, "b", 2.0);
+			Event c = new Event(42, "c", 3.0);
+			Event b1 = new Event(41, "b", 3.0);
+			Event b2 = new Event(41, "b", 4.0);
+			Event b3 = new Event(41, "b", 5.0);
+			Event d = new Event(43, "d", 4.0);
+
+			nfa.process(a, 1);
+			nfa.process(b, 2);
+			nfa.process(c, 3);
+			nfa.process(b1, 4);
+			nfa.process(b2, 5);
+			nfa.process(b3, 6);
+			nfa.process(d, 7);
+			nfa.process(a, 8);
+
+			NFA.NFASerializer<Event> serializer = new NFA.NFASerializer<>(Event.createTypeSerializer());
+
+			//serialize
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			serializer.serialize(nfa, new DataOutputViewStreamWrapper(baos));
+			baos.close();
+
+			// copy
+			NFA.NFASerializer<Event> copySerializer = new NFA.NFASerializer<>(Event.createTypeSerializer());
+			ByteArrayInputStream in = new ByteArrayInputStream(baos.toByteArray());
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			copySerializer.copy(new DataInputViewStreamWrapper(in), new DataOutputViewStreamWrapper(out));
+			in.close();
+			out.close();
+
+			// deserialize
+			ByteArrayInputStream bais = new ByteArrayInputStream(out.toByteArray());
+			NFA.NFASerializer<Event> deserializer = new NFA.NFASerializer<>(Event.createTypeSerializer());
+			NFA<Event> copy = deserializer.deserialize(new DataInputViewStreamWrapper(bais));
+			bais.close();
+
+			assertEquals(nfa, copy);
+		}
 	}
 
 	private NFA<Event> createStartEndNFA(long windowLength) {
@@ -250,21 +354,5 @@ public class NFATest extends TestLogger {
 		nfa.addState(endingState);
 
 		return nfa;
-	}
-
-	private static class NameFilter extends SimpleCondition<Event> {
-
-		private static final long serialVersionUID = 7472112494752423802L;
-
-		private final String name;
-
-		public NameFilter(final String name) {
-			this.name = name;
-		}
-
-		@Override
-		public boolean filter(Event value) throws Exception {
-			return value.getName().equals(name);
-		}
 	}
 }
