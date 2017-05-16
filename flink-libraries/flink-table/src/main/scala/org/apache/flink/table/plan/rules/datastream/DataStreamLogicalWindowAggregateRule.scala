@@ -22,6 +22,7 @@ import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.table.api.scala.{Session, Slide, Tumble}
 import org.apache.flink.table.api.{TableException, Window}
@@ -33,29 +34,32 @@ import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 class DataStreamLogicalWindowAggregateRule
   extends LogicalWindowAggregateRule("DataStreamLogicalWindowAggregateRule") {
 
-  /** Returns a zero literal of the correct time type */
+  /** Returns a reference to the time attribute with a time indicator type */
   override private[table] def getInAggregateGroupExpression(
-      rexBuilder: RexBuilder,
-      windowExpression: RexCall): RexNode = createZeroLiteral(rexBuilder, windowExpression)
-
-  /** Returns a zero literal of the correct time type */
-  override private[table] def getOutAggregateGroupExpression(
-      rexBuilder: RexBuilder,
-      windowExpression: RexCall): RexNode = createZeroLiteral(rexBuilder, windowExpression)
-
-  private def createZeroLiteral(
       rexBuilder: RexBuilder,
       windowExpression: RexCall): RexNode = {
 
-    val timeType = windowExpression.operands.get(0).getType
-    timeType match {
+    val timeAttribute = windowExpression.operands.get(0)
+    timeAttribute match {
 
-      case _ if FlinkTypeFactory.isTimeIndicatorType(timeType) =>
-        rexBuilder.makeLiteral(0L, timeType, true)
+      case _ if FlinkTypeFactory.isTimeIndicatorType(timeAttribute.getType) =>
+        timeAttribute
 
       case _ =>
-        throw TableException(s"""Time attribute expected but $timeType encountered.""")
+        throw TableException(
+          s"""Time attribute expected but ${timeAttribute.getType} encountered.""")
     }
+  }
+
+  /** Returns a zero literal of a timestamp type */
+  override private[table] def getOutAggregateGroupExpression(
+      rexBuilder: RexBuilder,
+      windowExpression: RexCall): RexNode = {
+
+    rexBuilder.makeLiteral(
+      0L,
+      rexBuilder.getTypeFactory.createSqlType(SqlTypeName.TIMESTAMP),
+      true)
   }
 
   override private[table] def translateWindowExpression(

@@ -299,8 +299,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "long", "1970-01-01 00:00:00 AS $f1",
-            "TIME_MATERIALIZATION(rowtime) AS $f2")
+          term("select", "long", "rowtime", "TIME_MATERIALIZATION(rowtime) AS $f2")
         ),
         term("groupBy", "long"),
         term(
