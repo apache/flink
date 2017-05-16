@@ -68,7 +68,6 @@ class DataStreamGroupAggregateRule
       traitSet,
       convInput,
       agg.getNamedAggCalls,
-      rel.getRowType,
       new RowSchema(rel.getRowType),
       new RowSchema(agg.getInput.getRowType),
       agg.getGroupSet.toArray)

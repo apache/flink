@@ -43,7 +43,6 @@ import org.slf4j.LoggerFactory
   * @param traitSet        Trait set of the RelNode
   * @param inputNode       The input RelNode of aggregation
   * @param namedAggregates List of calls to aggregate functions and their output field names
-  * @param rowRelDataType  The type of the rows of the RelNode
   * @param inputSchema     The type of the rows consumed by this RelNode
   * @param schema          The type of the rows emitted by this RelNode
   * @param groupings       The position (in the input Row) of the grouping keys
@@ -53,7 +52,6 @@ class DataStreamGroupAggregate(
     traitSet: RelTraitSet,
     inputNode: RelNode,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    rowRelDataType: RelDataType,
     schema: RowSchema,
     inputSchema: RowSchema,
     groupings: Array[Int])
@@ -79,7 +77,6 @@ class DataStreamGroupAggregate(
       traitSet,
       inputs.get(0),
       namedAggregates,
-      getRowType,
       schema,
       inputSchema,
       groupings)
