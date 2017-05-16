@@ -20,13 +20,15 @@ package org.apache.flink.table.catalog
 
 import java.util.{List => JList}
 
-import org.apache.flink.table.api.{DatabaseAlreadyExistException, DatabaseNotExistException, TableAlreadyExistException, TableNotExistException}
+import org.apache.flink.table.api.{CatalogAlreadyExistException, CatalogNotExistException, TableAlreadyExistException, TableNotExistException}
 
 import scala.collection.mutable
 import scala.collection.JavaConverters._
 
 /**
   * This class is an in-memory implementation of [[ExternalCatalog]].
+  *
+  * @param name      The name of the catalog
   *
   * It could be used for testing or developing instead of used in production environment.
   */
@@ -54,8 +56,10 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
   }
 
   @throws[TableNotExistException]
-  override def alterTable(tableName: String, table: ExternalCatalogTable,
-                          ignoreIfNotExists: Boolean): Unit = synchronized {
+  override def alterTable(
+    tableName: String,
+    table: ExternalCatalogTable,
+    ignoreIfNotExists: Boolean): Unit = synchronized {
     if (tables.contains(tableName)) {
       tables.put(tableName, table)
     } else if (!ignoreIfNotExists) {
@@ -63,29 +67,34 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
     }
   }
 
-  @throws[DatabaseAlreadyExistException]
-  override def createDatabase(dbName: String, db: ExternalCatalog,
-                              ignoreIfExists: Boolean): Unit = synchronized {
-    databases.get(dbName) match {
-      case Some(_) if !ignoreIfExists => throw DatabaseAlreadyExistException(dbName, null)
-      case _ => databases.put(dbName, db)
+  @throws[CatalogAlreadyExistException]
+  override def createSubCatalog(
+    catalogName: String,
+    catalog: ExternalCatalog,
+    ignoreIfExists: Boolean): Unit = synchronized {
+    databases.get(catalogName) match {
+      case Some(_) if !ignoreIfExists => throw CatalogAlreadyExistException(catalogName, null)
+      case _ => databases.put(catalogName, catalog)
     }
   }
 
-  @throws[DatabaseNotExistException]
-  override def dropDatabase(dbName: String, ignoreIfNotExists: Boolean): Unit = synchronized {
-    if (databases.remove(dbName).isEmpty && !ignoreIfNotExists) {
-      throw DatabaseNotExistException(dbName, null)
-    }
-  }
-
-  override def alterDatabase(
-    dbName: String, db: ExternalCatalog,
+  @throws[CatalogNotExistException]
+  override def dropSubCatalog(
+    catalogName: String,
     ignoreIfNotExists: Boolean): Unit = synchronized {
-    if (databases.contains(dbName)) {
-      databases.put(dbName, db)
+    if (databases.remove(catalogName).isEmpty && !ignoreIfNotExists) {
+      throw CatalogNotExistException(catalogName, null)
+    }
+  }
+
+  override def alterSubCatalog(
+    catalogName: String,
+    catalog: ExternalCatalog,
+    ignoreIfNotExists: Boolean): Unit = synchronized {
+    if (databases.contains(catalogName)) {
+      databases.put(catalogName, catalog)
     } else if (!ignoreIfNotExists) {
-      throw new DatabaseNotExistException(dbName)
+      throw new CatalogNotExistException(catalogName)
     }
   }
 
@@ -100,15 +109,15 @@ class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
     tables.keys.toList.asJava
   }
 
-  @throws[DatabaseNotExistException]
-  override def getSubCatalog(dbName: String): ExternalCatalog = synchronized {
-    databases.get(dbName) match {
+  @throws[CatalogNotExistException]
+  override def getSubCatalog(catalogName: String): ExternalCatalog = synchronized {
+    databases.get(catalogName) match {
       case Some(d) => d
-      case _ => throw DatabaseNotExistException(dbName, null)
+      case _ => throw CatalogNotExistException(catalogName, null)
     }
   }
 
-  override def listSubCatalog(): JList[String] = synchronized {
+  override def listSubCatalogs(): JList[String] = synchronized {
     databases.keys.toList.asJava
   }
 }

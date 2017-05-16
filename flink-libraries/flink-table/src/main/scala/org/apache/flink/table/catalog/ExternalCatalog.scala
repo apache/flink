@@ -53,7 +53,7 @@ trait ExternalCatalog {
     *
     * @return The requested database
     */
-  @throws[DatabaseNotExistException]
+  @throws[CatalogNotExistException]
   def getSubCatalog(dbName: String): ExternalCatalog
 
   /**
@@ -61,6 +61,6 @@ trait ExternalCatalog {
     *
     * @return The list of database names
     */
-  def listSubCatalog(): JList[String]
+  def listSubCatalogs(): JList[String]
 
 }

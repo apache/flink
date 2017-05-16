@@ -22,7 +22,7 @@ import java.util.{Collections => JCollections, Collection => JCollection, Linked
 
 import org.apache.calcite.linq4j.tree.Expression
 import org.apache.calcite.schema._
-import org.apache.flink.table.api.{DatabaseNotExistException, TableNotExistException}
+import org.apache.flink.table.api.{CatalogNotExistException, TableNotExistException}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
@@ -56,7 +56,7 @@ class ExternalCatalogSchema(
       val db = catalog.getSubCatalog(name)
       new ExternalCatalogSchema(name, db)
     } catch {
-      case _: DatabaseNotExistException =>
+      case _: CatalogNotExistException =>
         LOG.warn(s"Sub-catalog $name does not exist in externalCatalog $catalogIdentifier")
         null
     }
@@ -68,7 +68,7 @@ class ExternalCatalogSchema(
     *
     * @return names of this schema's child schemas
     */
-  override def getSubSchemaNames: JSet[String] = new JLinkedHashSet(catalog.listSubCatalog())
+  override def getSubSchemaNames: JSet[String] = new JLinkedHashSet(catalog.listSubCatalogs())
 
   override def getTable(name: String): Table = try {
     val externalCatalogTable = catalog.getTable(name)
@@ -99,7 +99,7 @@ class ExternalCatalogSchema(
     * @param plusOfThis
     */
   def registerSubSchemas(plusOfThis: SchemaPlus) {
-    catalog.listSubCatalog().asScala.foreach(db => plusOfThis.add(db, getSubSchema(db)))
+    catalog.listSubCatalogs().asScala.foreach(db => plusOfThis.add(db, getSubSchema(db)))
   }
 }
 

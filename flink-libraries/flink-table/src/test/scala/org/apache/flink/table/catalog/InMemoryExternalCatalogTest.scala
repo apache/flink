@@ -95,28 +95,28 @@ class InMemoryExternalCatalogTest {
     catalog.dropTable("nonexisted", ignoreIfNotExists = false)
   }
 
-  @Test(expected = classOf[DatabaseNotExistException])
+  @Test(expected = classOf[CatalogNotExistException])
   def testGetNotExistDatabase(): Unit = {
     catalog.getSubCatalog("notexistedDb")
   }
 
   @Test
   def testCreateDatabase(): Unit = {
-    catalog.createDatabase("db2", new InMemoryExternalCatalog("db2"), ignoreIfExists = false)
-    assertEquals(1, catalog.listSubCatalog().size)
+    catalog.createSubCatalog("db2", new InMemoryExternalCatalog("db2"), ignoreIfExists = false)
+    assertEquals(1, catalog.listSubCatalogs().size)
   }
 
-  @Test(expected = classOf[DatabaseAlreadyExistException])
+  @Test(expected = classOf[CatalogAlreadyExistException])
   def testCreateExistedDatabase(): Unit = {
-    catalog.createDatabase("existed", new InMemoryExternalCatalog("existed"),
+    catalog.createSubCatalog("existed", new InMemoryExternalCatalog("existed"),
       ignoreIfExists = false)
 
     assertNotNull(catalog.getSubCatalog("existed"))
-    val databases = catalog.listSubCatalog()
+    val databases = catalog.listSubCatalogs()
     assertEquals(1, databases.size())
     assertEquals("existed", databases.get(0))
 
-    catalog.createDatabase("existed", new InMemoryExternalCatalog("existed"),
+    catalog.createSubCatalog("existed", new InMemoryExternalCatalog("existed"),
       ignoreIfExists = false)
   }
 
@@ -124,8 +124,8 @@ class InMemoryExternalCatalogTest {
   def testNestedCatalog(): Unit = {
     val sub = new InMemoryExternalCatalog("sub")
     val sub1 = new InMemoryExternalCatalog("sub1")
-    catalog.createDatabase("sub", sub, ignoreIfExists = false)
-    sub.createDatabase("sub1", sub1, ignoreIfExists = false)
+    catalog.createSubCatalog("sub", sub, ignoreIfExists = false)
+    sub.createSubCatalog("sub1", sub1, ignoreIfExists = false)
     sub1.createTable("table", createTableInstance(), ignoreIfExists = false)
     val tables = catalog.getSubCatalog("sub").getSubCatalog("sub1").listTables()
     assertEquals(1, tables.size())

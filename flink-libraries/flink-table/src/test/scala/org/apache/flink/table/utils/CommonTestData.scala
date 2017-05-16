@@ -121,8 +121,8 @@ object CommonTestData {
     val catalog = new InMemoryExternalCatalog("test")
     val db1 = new InMemoryExternalCatalog("db1")
     val db2 = new InMemoryExternalCatalog("db2")
-    catalog.createDatabase("db1", db1, ignoreIfExists = false)
-    catalog.createDatabase("db2", db2, ignoreIfExists = false)
+    catalog.createSubCatalog("db1", db1, ignoreIfExists = false)
+    catalog.createSubCatalog("db2", db2, ignoreIfExists = false)
 
     // Register the table with both catalogs
     catalog.createTable("tb1", externalCatalogTable1, ignoreIfExists = false)

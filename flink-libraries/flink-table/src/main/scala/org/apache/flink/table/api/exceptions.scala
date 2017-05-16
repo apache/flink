@@ -114,7 +114,7 @@ case class TableAlreadyExistException(
   * @param db database name
   * @param cause the cause
   */
-case class DatabaseNotExistException(
+case class CatalogNotExistException(
     db: String,
     cause: Throwable)
     extends RuntimeException(s"Database $db does not exist.", cause) {
@@ -128,7 +128,7 @@ case class DatabaseNotExistException(
   * @param db database name
   * @param cause the cause
   */
-case class DatabaseAlreadyExistException(
+case class CatalogAlreadyExistException(
     db: String,
     cause: Throwable)
     extends RuntimeException(s"Database $db already exists.", cause) {
