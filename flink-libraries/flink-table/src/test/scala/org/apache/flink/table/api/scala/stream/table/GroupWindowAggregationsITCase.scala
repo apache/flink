@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.api.scala.stream.table
 
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment}
 import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.stream.table.GroupWindowAggregationsITCase.TimestampAndWatermarkWithOffset
@@ -41,7 +42,8 @@ import scala.collection.mutable
   * programs is possible.
   */
 class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
-
+  private val queryConfig = new StreamQueryConfig()
+  queryConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
   val data = List(
     (1L, 1, "Hi"),
     (2L, 2, "Hello"),
@@ -68,7 +70,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
       .select('string, countFun('int), 'int.avg,
               weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
-    val results = windowedTable.toDataStream[Row]
+    val results = windowedTable.toDataStream[Row](queryConfig)
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -136,7 +138,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
       .select(countFun('string), 'int.avg,
               weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
-    val results = windowedTable.toDataStream[Row]
+    val results = windowedTable.toDataStream[Row](queryConfig)
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
