@@ -21,10 +21,13 @@ package org.apache.flink.streaming.connectors.elasticsearch;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.common.settings.Settings;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * An {@link ElasticsearchApiCallBridge} is used to bridge incompatible Elasticsearch Java API calls across different versions.
@@ -40,10 +43,25 @@ public interface ElasticsearchApiCallBridge extends Serializable {
 	/**
 	 * Creates an Elasticsearch {@link Client}.
 	 *
+	 * In comparison to {@link initClient}, this method creates a default {@link Client}.
+	 *
 	 * @param clientConfig The configuration to use when constructing the client.
 	 * @return The created client.
 	 */
 	Client createClient(Map<String, String> clientConfig);
+
+	/**
+	 * Initializes an Elasticsearch {@link Client}.
+	 *
+	 * A {@link Settings} object is created, which is passed to {@link mapper} in order to allow the creation of a
+	 * {@link TransportClient}. {@link createClient} creates and initializes a default client for cases where the
+	 * implementation doesn't matter.
+	 *
+	 * @param clientConfig The configuration to use when constructing the client.
+	 * @param mapper Receives a {@link Settings} object that can be used to create a {@link TransportClient}.
+	 * @return The initialized client that has been created by {@link mapper}.
+	 */
+	Client initClient(Map<String, String> clientConfig, Function<Settings, TransportClient> mapper);
 
 	/**
 	 * Extracts the cause of failure of a bulk item action.

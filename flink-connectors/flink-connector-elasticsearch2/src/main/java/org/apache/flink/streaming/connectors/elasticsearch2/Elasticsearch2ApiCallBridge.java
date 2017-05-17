@@ -36,6 +36,7 @@ import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 2.x.
@@ -60,9 +61,19 @@ public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge {
 
 	@Override
 	public Client createClient(Map<String, String> clientConfig) {
+		return initClient(clientConfig, new Function<Settings, TransportClient>() {
+			@Override
+			public TransportClient apply(Settings settings) {
+				return TransportClient.builder().settings(settings).build();
+			}
+		});
+	}
+
+	@Override
+	public Client initClient(Map<String, String> clientConfig, Function<Settings, TransportClient> mapper) {
 		Settings settings = Settings.settingsBuilder().put(clientConfig).build();
 
-		TransportClient transportClient = TransportClient.builder().settings(settings).build();
+		TransportClient transportClient = mapper.apply(settings);
 		for (TransportAddress address : ElasticsearchUtils.convertInetSocketAddresses(transportAddresses)) {
 			transportClient.addTransportAddress(address);
 		}

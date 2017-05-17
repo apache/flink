@@ -32,6 +32,8 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
+import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -44,6 +46,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.Function;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -515,6 +518,11 @@ public class ElasticsearchSinkBaseTest {
 
 		@Override
 		public Client createClient(Map<String, String> clientConfig) {
+			return mock(Client.class);
+		}
+
+		@Override
+		public Client initClient(Map<String, String> clientConfig, Function<Settings, TransportClient> mapper) {
 			return mock(Client.class);
 		}
 

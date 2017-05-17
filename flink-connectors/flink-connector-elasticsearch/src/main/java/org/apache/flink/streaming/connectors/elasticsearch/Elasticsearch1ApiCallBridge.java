@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
@@ -67,6 +68,16 @@ public class Elasticsearch1ApiCallBridge implements ElasticsearchApiCallBridge {
 
 	@Override
 	public Client createClient(Map<String, String> clientConfig) {
+		return initClient(clientConfig, new Function<Settings, TransportClient>() {
+			@Override
+			public TransportClient apply(Settings settings) {
+				return new TransportClient(settings);
+			}
+		});
+	}
+
+	@Override
+	public Client initClient(Map<String, String> clientConfig, Function<Settings, TransportClient> mapper) {
 		if (transportAddresses == null) {
 
 			// Make sure that we disable http access to our embedded node
@@ -93,7 +104,7 @@ public class Elasticsearch1ApiCallBridge implements ElasticsearchApiCallBridge {
 				.put(clientConfig)
 				.build();
 
-			TransportClient transportClient = new TransportClient(settings);
+			TransportClient transportClient = mapper.apply(settings);
 			for (TransportAddress transport: transportAddresses) {
 				transportClient.addTransportAddress(transport);
 			}
