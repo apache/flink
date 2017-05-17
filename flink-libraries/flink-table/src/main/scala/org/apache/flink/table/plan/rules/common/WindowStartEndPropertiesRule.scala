@@ -36,13 +36,21 @@ class WindowStartEndPropertiesRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val project = call.rel(0).asInstanceOf[LogicalProject]
     // project includes at least on group auxiliary function
-    project.getProjects.exists {
-      case c: RexCall => c.getOperator.isGroupAuxiliary
-      case _ => false
+
+    def hasGroupAuxiliaries(node: RexNode): Boolean = {
+      node match {
+        case c: RexCall if c.getOperator.isGroupAuxiliary => true
+        case c: RexCall =>
+          c.operands.exists(hasGroupAuxiliaries)
+        case _ => false
+      }
     }
+
+    project.getProjects.exists(hasGroupAuxiliaries)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
+
     val project = call.rel(0).asInstanceOf[LogicalProject]
     val innerProject = call.rel(1).asInstanceOf[LogicalProject]
     val agg = call.rel(2).asInstanceOf[LogicalWindowAggregate]
@@ -62,20 +70,27 @@ class WindowStartEndPropertiesRule
     transformed.project(
       innerProject.getProjects ++ Seq(transformed.field("w$start"), transformed.field("w$end")))
 
-    // replace window auxiliary function by access to window properties
-    transformed.project(
-      project.getProjects.map{ x =>
-        if (WindowStartEndPropertiesRule.isWindowStart(x)) {
+    def replaceGroupAuxiliaries(node: RexNode): RexNode = {
+      node match {
+        case c: RexCall if WindowStartEndPropertiesRule.isWindowStart(c) =>
           // replace expression by access to window start
-          rexBuilder.makeCast(x.getType, transformed.field("w$start"), false)
-        } else if (WindowStartEndPropertiesRule.isWindowEnd(x)) {
+          rexBuilder.makeCast(c.getType, transformed.field("w$start"), false)
+        case c: RexCall if WindowStartEndPropertiesRule.isWindowEnd(c) =>
           // replace expression by access to window end
-          rexBuilder.makeCast(x.getType, transformed.field("w$end"), false)
-        } else {
+          rexBuilder.makeCast(c.getType, transformed.field("w$end"), false)
+        case c: RexCall =>
+          // replace expressions in children
+          val newOps = c.getOperands.map(replaceGroupAuxiliaries)
+          c.clone(c.getType, newOps)
+        case x =>
           // preserve expression
           x
-        }
       }
+    }
+
+    // replace window auxiliary function by access to window properties
+    transformed.project(
+      project.getProjects.map(replaceGroupAuxiliaries)
     )
     val res = transformed.build()
     call.transformTo(res)

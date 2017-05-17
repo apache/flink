@@ -150,6 +150,33 @@ class WindowAggregateTest extends TableTestBase {
     streamUtil.verifySql(sql, expected)
   }
 
+  @Test
+  def testExpressionOnWindowAuxFunction() = {
+    val sql =
+      "SELECT " +
+        "  COUNT(*), " +
+        "  TUMBLE_END(rowtime, INTERVAL '15' MINUTE) + INTERVAL '1' MINUTE " +
+        "FROM MyTable " +
+        "GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)"
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupWindowAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "rowtime")
+          ),
+          term("window", TumblingGroupWindow('w$, 'rowtime, 900000.millis)),
+          term("select", "COUNT(*) AS EXPR$0", "start('w$) AS w$start", "end('w$) AS w$end")
+        ),
+        term("select", "EXPR$0", "DATETIME_PLUS(w$end, 60000) AS $f1")
+      )
+
+    streamUtil.verifySql(sql, expected)
+  }
+
   @Test(expected = classOf[TableException])
   def testTumbleWindowNoOffset(): Unit = {
     val sqlQuery =
