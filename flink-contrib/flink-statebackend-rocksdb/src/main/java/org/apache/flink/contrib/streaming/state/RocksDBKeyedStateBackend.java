@@ -1116,12 +1116,26 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 * @throws ClassNotFoundException
 		 * @throws RocksDBException
 		 */
+		@SuppressWarnings("unchecked")
 		private void restoreKVStateMetaData() throws IOException, ClassNotFoundException, RocksDBException {
 
 			KeyedBackendSerializationProxy serializationProxy =
 					new KeyedBackendSerializationProxy(rocksDBKeyedStateBackend.userCodeClassLoader);
 
 			serializationProxy.read(currentStateHandleInView);
+
+			// check for key serializer compatibility; this also reconfigures the
+			// key serializer to be compatible, if it is required and is possible
+			if (StateMigrationUtil.resolveCompatibilityResult(
+					serializationProxy.getKeySerializer(),
+					TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer.class,
+					serializationProxy.getKeySerializerConfigSnapshot(),
+					(TypeSerializer) rocksDBKeyedStateBackend.keySerializer)
+				.isRequiresMigration()) {
+
+				throw new RuntimeException("The new key serializer is not compatible to read previous keys. " +
+					"Aborting now since state migration is currently not available");
+			}
 
 			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> restoredMetaInfos =
 					serializationProxy.getStateMetaInfoSnapshots();
@@ -1214,6 +1228,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			this.stateBackend = stateBackend;
 		}
 
+		@SuppressWarnings("unchecked")
 		private List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> readMetaData(
 				StreamStateHandle metaStateHandle) throws Exception {
 
@@ -1227,6 +1242,19 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					new KeyedBackendSerializationProxy(stateBackend.userCodeClassLoader);
 				DataInputView in = new DataInputViewStreamWrapper(inputStream);
 				serializationProxy.read(in);
+
+				// check for key serializer compatibility; this also reconfigures the
+				// key serializer to be compatible, if it is required and is possible
+				if (StateMigrationUtil.resolveCompatibilityResult(
+						serializationProxy.getKeySerializer(),
+						TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer.class,
+						serializationProxy.getKeySerializerConfigSnapshot(),
+						(TypeSerializer) stateBackend.keySerializer)
+					.isRequiresMigration()) {
+
+					throw new RuntimeException("The new key serializer is not compatible to read previous keys. " +
+						"Aborting now since state migration is currently not available");
+				}
 
 				return serializationProxy.getStateMetaInfoSnapshots();
 			} finally {

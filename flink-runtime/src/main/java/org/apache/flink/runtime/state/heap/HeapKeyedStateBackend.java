@@ -54,6 +54,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.StateMigrationUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
@@ -384,6 +385,19 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						new KeyedBackendSerializationProxy(userCodeClassLoader);
 
 				serializationProxy.read(inView);
+
+				// check for key serializer compatibility; this also reconfigures the
+				// key serializer to be compatible, if it is required and is possible
+				if (StateMigrationUtil.resolveCompatibilityResult(
+						serializationProxy.getKeySerializer(),
+						TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer.class,
+						serializationProxy.getKeySerializerConfigSnapshot(),
+						(TypeSerializer) keySerializer)
+					.isRequiresMigration()) {
+
+					throw new RuntimeException("The new key serializer is not compatible to read previous keys. " +
+						"Aborting now since state migration is currently not available");
+				}
 
 				List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> restoredMetaInfos =
 						serializationProxy.getStateMetaInfoSnapshots();
