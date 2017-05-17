@@ -42,13 +42,13 @@ public class BlobServerPutTest {
 	private final Random rnd = new Random();
 
 	@Test
-	public void testPutBufferSuccessful() {
+	public void testPutBufferSuccessful() throws IOException {
 		BlobServer server = null;
 		BlobClient client = null;
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -95,34 +95,25 @@ public class BlobServerPutTest {
 			BlobUtils.readFully(is3, result3, 0, result3.length, null);
 			is3.close();
 			assertArrayEquals(data, result3);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
+				client.close();
 			}
 			if (server != null) {
-				server.shutdown();
+				server.close();
 			}
 		}
 	}
 
 
 	@Test
-	public void testPutStreamSuccessful() {
+	public void testPutStreamSuccessful() throws IOException {
 		BlobServer server = null;
 		BlobClient client = null;
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -143,12 +134,7 @@ public class BlobServerPutTest {
 				String stringKey = "my test key";
 				client.put(jid, stringKey, new ByteArrayInputStream(data));
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			if (client != null) {
 				try {
 					client.close();
@@ -157,19 +143,19 @@ public class BlobServerPutTest {
 				}
 			}
 			if (server != null) {
-				server.shutdown();
+				server.close();
 			}
 		}
 	}
 
 	@Test
-	public void testPutChunkedStreamSuccessful() {
+	public void testPutChunkedStreamSuccessful() throws IOException {
 		BlobServer server = null;
 		BlobClient client = null;
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -190,27 +176,18 @@ public class BlobServerPutTest {
 				String stringKey = "my test key";
 				client.put(jid, stringKey, new ChunkedInputStream(data, 17));
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
+				client.close();
 			}
 			if (server != null) {
-				server.shutdown();
+				server.close();
 			}
 		}
 	}
 
 	@Test
-	public void testPutBufferFails() {
+	public void testPutBufferFails() throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
 		BlobServer server = null;
@@ -219,7 +196,7 @@ public class BlobServerPutTest {
 		File tempFileDir = null;
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, new VoidBlobStore());
 
 			// make sure the blob server cannot create any files in its storage dir
 			tempFileDir = server.createTemporaryFilename().getParentFile().getParentFile();
@@ -250,31 +227,22 @@ public class BlobServerPutTest {
 				// expected
 			}
 
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			// set writable again to make sure we can remove the directory
 			if (tempFileDir != null) {
 				tempFileDir.setWritable(true, false);
 			}
 			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
+				client.close();
 			}
 			if (server != null) {
-				server.shutdown();
+				server.close();
 			}
 		}
 	}
 
 	@Test
-	public void testPutNamedBufferFails() {
+	public void testPutNamedBufferFails() throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
 		BlobServer server = null;
@@ -283,7 +251,7 @@ public class BlobServerPutTest {
 		File tempFileDir = null;
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, new VoidBlobStore());
 
 			// make sure the blob server cannot create any files in its storage dir
 			tempFileDir = server.createTemporaryFilename().getParentFile().getParentFile();
@@ -317,25 +285,16 @@ public class BlobServerPutTest {
 			catch (IllegalStateException e) {
 				// expected
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			// set writable again to make sure we can remove the directory
 			if (tempFileDir != null) {
 				tempFileDir.setWritable(true, false);
 			}
 			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
+				client.close();
 			}
 			if (server != null) {
-				server.shutdown();
+				server.close();
 			}
 		}
 	}

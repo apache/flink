@@ -18,38 +18,32 @@
 
 package org.apache.flink.runtime.blob;
 
-import java.io.Closeable;
+import org.apache.flink.api.common.JobID;
+
+import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 
 /**
- * A simple store and retrieve binary large objects (BLOBs).
+ * View on blobs stored in a {@link BlobStore}.
  */
-public interface BlobService extends Closeable {
+public interface BlobView {
 
 	/**
-	 * This method returns the URL of the file associated with the provided blob key.
+	 * Copies a blob to a local file.
 	 *
-	 * @param key blob key associated with the requested file
-	 * @return The URL to the file.
-	 * @throws IOException
+	 * @param blobKey   The blob ID
+	 * @param localFile The local file to copy to
+	 * @throws IOException If the copy fails
 	 */
-	URL getURL(BlobKey key) throws IOException;
-
+	void get(BlobKey blobKey, File localFile) throws IOException;
 
 	/**
-	 * This method deletes the file associated with the provided blob key.
+	 * Copies a blob to a local file.
 	 *
-	 * @param key associated with the file to be deleted
-	 * @throws IOException
+	 * @param jobId     The JobID part of ID for the blob
+	 * @param key       The String part of ID for the blob
+	 * @param localFile The local file to copy to
+	 * @throws IOException If the copy fails
 	 */
-	void delete(BlobKey key) throws IOException;
-
-	/**
-	 * Returns the port of the blob service.
-	 * @return the port of the blob service.
-	 */
-	int getPort();
-	
-	BlobClient createClient() throws IOException;
+	void get(JobID jobId, String key, File localFile) throws IOException;
 }
