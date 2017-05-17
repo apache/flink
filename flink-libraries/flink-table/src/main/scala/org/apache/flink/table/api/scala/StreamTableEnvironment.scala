@@ -146,7 +146,7 @@ class StreamTableEnvironment(
     * @tparam T The type of the resulting [[DataStream]].
     * @return The converted [[DataStream]].
     */
-  @Deprecated("This method only supports conversion of append-only tables. In order to make this" +
+  @deprecated("This method only supports conversion of append-only tables. In order to make this" +
     " more explicit in the future, please use toAppendStream() instead.")
   def toDataStream[T: TypeInformation](table: Table): DataStream[T] = toAppendStream(table)
 
@@ -170,7 +170,7 @@ class StreamTableEnvironment(
     * @tparam T The type of the resulting [[DataStream]].
     * @return The converted [[DataStream]].
     */
-  @Deprecated("This method only supports conversion of append-only tables. In order to make this" +
+  @deprecated("This method only supports conversion of append-only tables. In order to make this" +
     " more explicit in the future, please use toAppendStream() instead.")
   def toDataStream[T: TypeInformation](
     table: Table,
