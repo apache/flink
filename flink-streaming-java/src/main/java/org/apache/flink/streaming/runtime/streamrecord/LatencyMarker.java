@@ -65,7 +65,6 @@ public final class LatencyMarker extends StreamElement {
 
 	// ------------------------------------------------------------------------
 
-
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {

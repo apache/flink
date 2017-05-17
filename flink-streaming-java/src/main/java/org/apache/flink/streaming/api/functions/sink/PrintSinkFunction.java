@@ -17,11 +17,11 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import java.io.PrintStream;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+
+import java.io.PrintStream;
 
 /**
  * Implementation of the SinkFunction writing every tuple to the standard

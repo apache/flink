@@ -45,8 +45,8 @@ import static org.junit.Assert.assertTrue;
 @SuppressWarnings("serial")
 public class SourceExternalCheckpointTriggerTest {
 
-	static final OneShotLatch ready = new OneShotLatch();
-	static final MultiShotLatch sync = new MultiShotLatch();
+	private static final OneShotLatch ready = new OneShotLatch();
+	private static final MultiShotLatch sync = new MultiShotLatch();
 
 	@Test
 	public void testCheckpointsTriggeredBySource() throws Exception {
@@ -129,7 +129,7 @@ public class SourceExternalCheckpointTriggerTest {
 
 		private final long numEvents;
 		private final long checkpointFrequency;
-		
+
 		private CheckpointTrigger trigger;
 
 		ExternalCheckpointsSource(long numEvents, long checkpointFrequency) {

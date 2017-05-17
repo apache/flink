@@ -39,12 +39,16 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.InputStream;
 import java.util.BitSet;
 
+/**
+ * Tests for {@link StreamOperator} snapshot restoration.
+ */
 public class StreamOperatorSnapshotRestoreTest {
 
 	private static final int MAX_PARALLELISM = 10;

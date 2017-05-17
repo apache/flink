@@ -30,8 +30,8 @@ public class FileMonitoringFunctionTest {
 
 	@Test
 	public void testForEmptyLocation() throws Exception {
-		final FileMonitoringFunction fileMonitoringFunction
-				= new FileMonitoringFunction("?non-existing-path", 1L, FileMonitoringFunction.WatchType.ONLY_NEW_FILES);
+		final FileMonitoringFunction fileMonitoringFunction =
+				new FileMonitoringFunction("?non-existing-path", 1L, FileMonitoringFunction.WatchType.ONLY_NEW_FILES);
 
 		new Thread() {
 			@Override
@@ -61,7 +61,9 @@ public class FileMonitoringFunctionTest {
 					public void markAsTemporarilyIdle() {}
 
 					@Override
-					public Object getCheckpointLock() { return null; }
+					public Object getCheckpointLock() {
+						return null;
+					}
 
 					@Override
 					public void close() {}

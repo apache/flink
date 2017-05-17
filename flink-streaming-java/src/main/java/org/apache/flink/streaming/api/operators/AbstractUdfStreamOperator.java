@@ -18,9 +18,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import static java.util.Objects.requireNonNull;
-
-import java.io.Serializable;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
@@ -42,6 +39,10 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.functions.StreamingFunctionUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Migration;
+
+import java.io.Serializable;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * This is used as the base class for operators that have a user-defined
@@ -84,7 +85,6 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	// ------------------------------------------------------------------------
 	//  operator life cycle
 	// ------------------------------------------------------------------------
-
 
 	@Override
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {

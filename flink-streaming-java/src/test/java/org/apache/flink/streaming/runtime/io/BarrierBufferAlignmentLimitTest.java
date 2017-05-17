@@ -20,10 +20,10 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.decline.AlignmentLimitExceededException;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -34,7 +34,6 @@ import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -48,7 +47,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.eq;
@@ -57,7 +55,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * Tests for the barrier buffer's maximum limit of buffered/spilled bytes
+ * Tests for the barrier buffer's maximum limit of buffered/spilled bytes.
  */
 public class BarrierBufferAlignmentLimitTest {
 
@@ -65,7 +63,7 @@ public class BarrierBufferAlignmentLimitTest {
 
 	private static final Random RND = new Random();
 
-	private static IOManager IO_MANAGER;
+	private static IOManager ioManager;
 
 	// ------------------------------------------------------------------------
 	//  Setup
@@ -73,12 +71,12 @@ public class BarrierBufferAlignmentLimitTest {
 
 	@BeforeClass
 	public static void setup() {
-		IO_MANAGER = new IOManagerAsync();
+		ioManager = new IOManagerAsync();
 	}
 
 	@AfterClass
 	public static void shutdownIOManager() {
-		IO_MANAGER.shutdown();
+		ioManager.shutdown();
 	}
 
 	// ------------------------------------------------------------------------
@@ -86,7 +84,7 @@ public class BarrierBufferAlignmentLimitTest {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * This tests that a single alignment that buffers too much data cancels
+	 * This tests that a single alignment that buffers too much data cancels.
 	 */
 	@Test
 	public void testBreakCheckpointAtAlignmentLimit() throws Exception {
@@ -116,7 +114,7 @@ public class BarrierBufferAlignmentLimitTest {
 
 		// the barrier buffer has a limit that only 1000 bytes may be spilled in alignment
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = new BarrierBuffer(gate, IO_MANAGER, 1000);
+		BarrierBuffer buffer = new BarrierBuffer(gate, ioManager, 1000);
 
 		StatefulTask toNotify = mock(StatefulTask.class);
 		buffer.registerCheckpointEventHandler(toNotify);
@@ -173,7 +171,7 @@ public class BarrierBufferAlignmentLimitTest {
 	 *   - an alignment starts
 	 *   - barriers from a second checkpoint queue before the first completes
 	 *   - together they are larger than the threshold
-	 *   - after the first checkpoint (with second checkpoint data queued) aborts, the second completes
+	 *   - after the first checkpoint (with second checkpoint data queued) aborts, the second completes.
 	 */
 	@Test
 	public void testAlignmentLimitWithQueuedAlignments() throws Exception {
@@ -210,7 +208,7 @@ public class BarrierBufferAlignmentLimitTest {
 
 		// the barrier buffer has a limit that only 1000 bytes may be spilled in alignment
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
-		BarrierBuffer buffer = new BarrierBuffer(gate, IO_MANAGER, 500);
+		BarrierBuffer buffer = new BarrierBuffer(gate, ioManager, 500);
 
 		StatefulTask toNotify = mock(StatefulTask.class);
 		buffer.registerCheckpointEventHandler(toNotify);
@@ -315,7 +313,7 @@ public class BarrierBufferAlignmentLimitTest {
 
 	private static void checkNoTempFilesRemain() {
 		// validate that all temp files have been removed
-		for (File dir : IO_MANAGER.getSpillingDirectories()) {
+		for (File dir : ioManager.getSpillingDirectories()) {
 			for (String file : dir.list()) {
 				if (file != null && !(file.equals(".") || file.equals(".."))) {
 					fail("barrier buffer did not clean up temp files. remaining file: " + file);
@@ -325,7 +323,7 @@ public class BarrierBufferAlignmentLimitTest {
 	}
 
 	/**
-	 * A validation matcher for checkpoint metadata against checkpoint IDs
+	 * A validation matcher for checkpoint metadata against checkpoint IDs.
 	 */
 	private static class CheckpointMatcher extends BaseMatcher<CheckpointMetaData> {
 

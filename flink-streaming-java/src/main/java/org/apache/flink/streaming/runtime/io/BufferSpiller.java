@@ -17,15 +17,6 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
-import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
@@ -36,6 +27,15 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.util.StringUtils;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The buffer spiller takes the buffers and events from a data stream and adds them to a spill file.
@@ -348,7 +348,6 @@ public class BufferSpiller {
 			final int length = buffer.getInt();
 			final boolean isBuffer = buffer.get() == 0;
 
-
 			if (isBuffer) {
 				// deserialize buffer
 				if (length > pageSize) {
@@ -380,7 +379,6 @@ public class BufferSpiller {
 						buffer.flip();
 					}
 				}
-
 
 				Buffer buf = new Buffer(seg, FreeingBufferRecycler.INSTANCE);
 				buf.setSize(length);

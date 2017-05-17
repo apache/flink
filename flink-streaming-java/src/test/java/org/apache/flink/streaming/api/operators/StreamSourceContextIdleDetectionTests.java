@@ -27,6 +27,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.CollectorOutput;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -39,19 +40,22 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link StreamSource} awareness of source idleness.
+ */
 @RunWith(Parameterized.class)
 public class StreamSourceContextIdleDetectionTests {
 
 	/** The tests in this class will be parameterized with these enumerations.*/
 	private enum TestMethod {
 
-		/** test idleness detection using the {@link SourceFunction.SourceContext#collect(Object)} method */
+		// test idleness detection using the {@link SourceFunction.SourceContext#collect(Object)} method
 		COLLECT,
 
-		/** test idleness detection using the {@link SourceFunction.SourceContext#collectWithTimestamp(Object, long)} method */
+		// test idleness detection using the {@link SourceFunction.SourceContext#collectWithTimestamp(Object, long)} method
 		COLLECT_WITH_TIMESTAMP,
 
-		/** test idleness detection using the {@link SourceFunction.SourceContext#emitWatermark(Watermark)} method */
+		// test idleness detection using the {@link SourceFunction.SourceContext#emitWatermark(Watermark)} method
 		EMIT_WATERMARK
 	}
 
@@ -73,7 +77,7 @@ public class StreamSourceContextIdleDetectionTests {
 	 * (7) Advance time to 510 and trigger idleness detection. Since no records were collected in-between the two
 	 *     idleness detections, status should have been toggle back to IDLE.
 	 *
-	 * Inline comments will refer to the corresponding tested steps in the scenario.
+	 * <p>Inline comments will refer to the corresponding tested steps in the scenario.
 	 */
 	@Test
 	public void testManualWatermarkContext() throws Exception {
@@ -103,12 +107,12 @@ public class StreamSourceContextIdleDetectionTests {
 		assertTrue(mockStreamStatusMaintainer.getStreamStatus().isIdle());
 
 		// corresponds to step (3) of scenario (please see method-level Javadoc comment)
-		processingTimeService.setCurrentTime(initialTime + 2*idleTimeout);
-		processingTimeService.setCurrentTime(initialTime + 3*idleTimeout);
+		processingTimeService.setCurrentTime(initialTime + 2 * idleTimeout);
+		processingTimeService.setCurrentTime(initialTime + 3 * idleTimeout);
 		assertTrue(mockStreamStatusMaintainer.getStreamStatus().isIdle());
 
 		// corresponds to step (4) of scenario (please see method-level Javadoc comment)
-		processingTimeService.setCurrentTime(initialTime + 3*idleTimeout + idleTimeout/10);
+		processingTimeService.setCurrentTime(initialTime + 3 * idleTimeout + idleTimeout / 10);
 		switch (testMethod) {
 			case COLLECT:
 				context.collect("msg");
@@ -123,7 +127,7 @@ public class StreamSourceContextIdleDetectionTests {
 		assertTrue(mockStreamStatusMaintainer.getStreamStatus().isActive());
 
 		// corresponds to step (5) of scenario (please see method-level Javadoc comment)
-		processingTimeService.setCurrentTime(initialTime + 3*idleTimeout + 2*idleTimeout/10);
+		processingTimeService.setCurrentTime(initialTime + 3 * idleTimeout + 2 * idleTimeout / 10);
 		switch (testMethod) {
 			case COLLECT:
 				context.collect("msg");
@@ -138,11 +142,11 @@ public class StreamSourceContextIdleDetectionTests {
 		assertTrue(mockStreamStatusMaintainer.getStreamStatus().isActive());
 
 		// corresponds to step (6) of scenario (please see method-level Javadoc comment)
-		processingTimeService.setCurrentTime(initialTime + 4*idleTimeout + idleTimeout/10);
+		processingTimeService.setCurrentTime(initialTime + 4 * idleTimeout + idleTimeout / 10);
 		assertTrue(mockStreamStatusMaintainer.getStreamStatus().isActive());
 
 		// corresponds to step (7) of scenario (please see method-level Javadoc comment)
-		processingTimeService.setCurrentTime(initialTime + 5*idleTimeout + idleTimeout/10);
+		processingTimeService.setCurrentTime(initialTime + 5 * idleTimeout + idleTimeout / 10);
 		assertTrue(mockStreamStatusMaintainer.getStreamStatus().isIdle());
 	}
 
@@ -159,7 +163,7 @@ public class StreamSourceContextIdleDetectionTests {
 	 *     should have been "piggy-backed" in the task, allowing the status to be toggled to IDLE before the next
 	 *     actual idle detection task at 530.
 	 *
-	 * Inline comments will refer to the corresponding tested steps in the scenario.
+	 * <p>Inline comments will refer to the corresponding tested steps in the scenario.
 	 */
 	@Test
 	public void testAutomaticWatermarkContext() throws Exception {
@@ -189,24 +193,24 @@ public class StreamSourceContextIdleDetectionTests {
 		// corresponds to step (2) of scenario (please see method-level Javadoc comment)
 		processingTimeService.setCurrentTime(initialTime + watermarkInterval);
 		expectedOutput.add(new Watermark(processingTimeService.getCurrentProcessingTime() - (processingTimeService.getCurrentProcessingTime() % watermarkInterval)));
-		processingTimeService.setCurrentTime(initialTime + 2*watermarkInterval);
+		processingTimeService.setCurrentTime(initialTime + 2 * watermarkInterval);
 		expectedOutput.add(new Watermark(processingTimeService.getCurrentProcessingTime() - (processingTimeService.getCurrentProcessingTime() % watermarkInterval)));
 		processingTimeService.setCurrentTime(initialTime + idleTimeout);
 		assertTrue(mockStreamStatusMaintainer.getStreamStatus().isIdle());
 		assertEquals(expectedOutput, output);
 
 		// corresponds to step (3) of scenario (please see method-level Javadoc comment)
-		processingTimeService.setCurrentTime(initialTime + 3*watermarkInterval);
-		processingTimeService.setCurrentTime(initialTime + 4*watermarkInterval);
-		processingTimeService.setCurrentTime(initialTime + 2*idleTimeout);
-		processingTimeService.setCurrentTime(initialTime + 6*watermarkInterval);
-		processingTimeService.setCurrentTime(initialTime + 7*watermarkInterval);
-		processingTimeService.setCurrentTime(initialTime + 3*idleTimeout);
+		processingTimeService.setCurrentTime(initialTime + 3 * watermarkInterval);
+		processingTimeService.setCurrentTime(initialTime + 4 * watermarkInterval);
+		processingTimeService.setCurrentTime(initialTime + 2 * idleTimeout);
+		processingTimeService.setCurrentTime(initialTime + 6 * watermarkInterval);
+		processingTimeService.setCurrentTime(initialTime + 7 * watermarkInterval);
+		processingTimeService.setCurrentTime(initialTime + 3 * idleTimeout);
 		assertTrue(mockStreamStatusMaintainer.getStreamStatus().isIdle());
 		assertEquals(expectedOutput, output);
 
 		// corresponds to step (4) of scenario (please see method-level Javadoc comment)
-		processingTimeService.setCurrentTime(initialTime + 3*idleTimeout + idleTimeout/10);
+		processingTimeService.setCurrentTime(initialTime + 3 * idleTimeout + idleTimeout / 10);
 		switch (testMethod) {
 			case COLLECT:
 				context.collect("msg");
@@ -232,8 +236,8 @@ public class StreamSourceContextIdleDetectionTests {
 		}
 
 		// corresponds to step (5) of scenario (please see method-level Javadoc comment)
-		processingTimeService.setCurrentTime(initialTime + 8*watermarkInterval);
-		processingTimeService.setCurrentTime(initialTime + 3*idleTimeout + 3*idleTimeout/10);
+		processingTimeService.setCurrentTime(initialTime + 8 * watermarkInterval);
+		processingTimeService.setCurrentTime(initialTime + 3 * idleTimeout + 3 * idleTimeout / 10);
 		switch (testMethod) {
 			case COLLECT:
 				context.collect("msg");
@@ -266,7 +270,7 @@ public class StreamSourceContextIdleDetectionTests {
 				assertEquals(expectedOutput, output);
 		}
 
-		processingTimeService.setCurrentTime(initialTime + 10*watermarkInterval);
+		processingTimeService.setCurrentTime(initialTime + 10 * watermarkInterval);
 		switch (testMethod) {
 			case COLLECT:
 			case COLLECT_WITH_TIMESTAMP:
@@ -280,7 +284,7 @@ public class StreamSourceContextIdleDetectionTests {
 		}
 
 		// corresponds to step (6) of scenario (please see method-level Javadoc comment)
-		processingTimeService.setCurrentTime(initialTime + 4*idleTimeout + idleTimeout/10);
+		processingTimeService.setCurrentTime(initialTime + 4 * idleTimeout + idleTimeout / 10);
 		switch (testMethod) {
 			case COLLECT:
 			case COLLECT_WITH_TIMESTAMP:
@@ -293,7 +297,7 @@ public class StreamSourceContextIdleDetectionTests {
 		}
 
 		// corresponds to step (7) of scenario (please see method-level Javadoc comment)
-		processingTimeService.setCurrentTime(initialTime + 11*watermarkInterval);
+		processingTimeService.setCurrentTime(initialTime + 11 * watermarkInterval);
 		assertTrue(mockStreamStatusMaintainer.getStreamStatus().isIdle());
 		assertEquals(expectedOutput, output);
 	}

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -36,6 +37,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -80,7 +82,7 @@ public class StreamOperatorChainingTest {
 	private void testMultiChaining(StreamExecutionEnvironment env) throws Exception {
 
 		// the actual elements will not be used
-		DataStream<Integer> input = env.fromElements(1,2,3);
+		DataStream<Integer> input = env.fromElements(1, 2, 3);
 
 		sink1Results = new ArrayList<>();
 		sink2Results = new ArrayList<>();
@@ -188,7 +190,7 @@ public class StreamOperatorChainingTest {
 	private void testMultiChainingWithSplit(StreamExecutionEnvironment env) throws Exception {
 
 		// the actual elements will not be used
-		DataStream<Integer> input = env.fromElements(1,2,3);
+		DataStream<Integer> input = env.fromElements(1, 2, 3);
 
 		sink1Results = new ArrayList<>();
 		sink2Results = new ArrayList<>();

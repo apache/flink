@@ -17,12 +17,16 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+
+/**
+ * Tests for {@link ConcatenatedExtract}.
+ */
 public class ConcatenatedExtractTest {
 
 	private String[] testStringArray1 = { "1", "2", "3" };

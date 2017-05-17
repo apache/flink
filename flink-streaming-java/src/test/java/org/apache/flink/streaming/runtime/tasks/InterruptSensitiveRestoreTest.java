@@ -68,6 +68,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.SerializedValue;
+
 import org.junit.Test;
 
 import java.io.EOFException;
@@ -92,7 +93,7 @@ import static org.mockito.Mockito.when;
  * This test checks that task restores that get stuck in the presence of interrupts
  * are handled properly.
  *
- * In practice, reading from HDFS is interrupt sensitive: The HDFS code frequently deadlocks
+ * <p>In practice, reading from HDFS is interrupt sensitive: The HDFS code frequently deadlocks
  * or livelocks if it is interrupted.
  */
 public class InterruptSensitiveRestoreTest {
@@ -185,7 +186,6 @@ public class InterruptSensitiveRestoreTest {
 		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
 
-
 		ChainedStateHandle<StreamStateHandle> operatorState = null;
 		List<KeyedStateHandle> keyedStateFromBackend = Collections.emptyList();
 		List<KeyedStateHandle> keyedStateFromStream = Collections.emptyList();
@@ -197,7 +197,7 @@ public class InterruptSensitiveRestoreTest {
 				new OperatorStateHandle.StateMetaInfo(new long[]{0}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
 		operatorStateMetadata.put(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, metaInfo);
 
-		KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(new KeyGroupRange(0,0));
+		KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(new KeyGroupRange(0, 0));
 
 		Collection<OperatorStateHandle> operatorStateHandles =
 				Collections.singletonList(new OperatorStateHandle(operatorStateMetadata, state));
@@ -381,7 +381,6 @@ public class InterruptSensitiveRestoreTest {
 		@Override
 		public void cancel() {}
 
-
 		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
 			fail("should never be called");
@@ -389,7 +388,7 @@ public class InterruptSensitiveRestoreTest {
 
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
-			((StateInitializationContext)context).getRawOperatorStateInputs().iterator().next().getStream().read();
+			((StateInitializationContext) context).getRawOperatorStateInputs().iterator().next().getStream().read();
 		}
 	}
 }

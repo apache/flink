@@ -18,10 +18,9 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import org.apache.commons.io.IOUtils;
-
 import org.apache.flink.streaming.api.watermark.Watermark;
 
+import org.apache.commons.io.IOUtils;
 import org.junit.Test;
 
 import java.io.EOFException;
@@ -29,7 +28,8 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction}.
@@ -37,7 +37,6 @@ import static org.junit.Assert.*;
 public class SocketTextStreamFunctionTest {
 
 	private static final String LOCALHOST = "127.0.0.1";
-
 
 	@Test
 	public void testSocketSourceSimpleOutput() throws Exception {

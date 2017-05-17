@@ -15,22 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.operators.co;
 
-
-import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * Tests {@link CoProcessOperator}.
@@ -96,7 +94,6 @@ public class CoProcessOperatorTest extends TestLogger {
 
 		testHarness.close();
 	}
-
 
 	private static class WatermarkQueryingProcessFunction extends CoProcessFunction<Integer, String, String> {
 

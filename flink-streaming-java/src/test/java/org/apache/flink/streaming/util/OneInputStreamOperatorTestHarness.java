@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -85,7 +86,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	public void processElement(IN value, long timestamp) throws Exception {
 		processElement(new StreamRecord<>(value, timestamp));
 	}
-
 
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		operator.setKeyContextElement1(element);

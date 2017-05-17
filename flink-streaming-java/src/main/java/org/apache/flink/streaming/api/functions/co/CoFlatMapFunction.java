@@ -18,11 +18,11 @@
 
 package org.apache.flink.streaming.api.functions.co;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
 
 /**
  * A CoFlatMapFunction implements a flat-map transformation over two

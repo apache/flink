@@ -89,7 +89,6 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		// does not hold any resources, so no cleanup needed
 	}
 
-
 	@Override
 	protected void run() throws Exception {
 		headOperator.run(getCheckpointLock(), getStreamStatusMaintainer());

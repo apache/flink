@@ -67,7 +67,6 @@ public class ComparableAggregator<T> extends AggregationFunction<T> {
 		this(aggregationType, FieldAccessorFactory.getAccessor(typeInfo, field, config), first);
 	}
 
-
 	@SuppressWarnings("unchecked")
 	@Override
 	public T reduce(T value1, T value2) throws Exception {

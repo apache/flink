@@ -17,8 +17,9 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
-import java.lang.reflect.Array;
 import org.apache.flink.annotation.Internal;
+
+import java.lang.reflect.Array;
 
 /**
  * Extracts multiple fields from an array and puts them into a new array of the

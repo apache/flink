@@ -68,6 +68,9 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link AccumulatingProcessingTimeWindowOperator}.
+ */
 @SuppressWarnings({"serial"})
 @PrepareForTest(InternalIterableWindowFunction.class)
 @RunWith(PowerMockRunner.class)
@@ -220,7 +223,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
 			testHarness.close();
 
-
 			op = new AccumulatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1500, 1000);
 
@@ -278,7 +280,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				testHarness.setProcessingTime(currentTime);
 			}
 
-
 			List<Integer> result = extractFromStreamRecords(testHarness.extractOutputStreamRecords());
 			assertEquals(numElements, result.size());
 
@@ -321,7 +322,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				currentTime = currentTime + 10;
 				testHarness.setProcessingTime(currentTime);
 			}
-
 
 			List<Integer> result = extractFromStreamRecords(testHarness.extractOutputStreamRecords());
 			assertEquals(numElements, result.size());
@@ -476,7 +476,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 			testHarness.setProcessingTime(200);
 
-
 			List<Integer> result = extractFromStreamRecords(testHarness.extractOutputStreamRecords());
 			assertEquals(6, result.size());
 
@@ -523,7 +522,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			testHarness.processElement(new StreamRecord<>(6));
 
 			testHarness.setProcessingTime(200);
-
 
 			List<Integer> result = extractFromStreamRecords(testHarness.extractOutputStreamRecords());
 			assertEquals(6, result.size());
@@ -837,7 +835,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			testHarness.restore(state);
 			testHarness.open();
 
-
 			// inject again the remaining elements
 			for (int i = numElementsFirst; i < numElements; i++) {
 				testHarness.processElement(new StreamRecord<>(i));
@@ -928,7 +925,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			testHarness.setup();
 			testHarness.restore(state);
 			testHarness.open();
-
 
 			// inject again the remaining elements
 			for (int i = numElementsFirst; i < numElements; i++) {
@@ -1040,7 +1036,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 		// we use a concurrent map here even though there is no concurrency, to
 		// get "volatile" style access to entries
-		static final Map<Integer, Integer> globalCounts = new ConcurrentHashMap<>();
+		private static final Map<Integer, Integer> globalCounts = new ConcurrentHashMap<>();
 
 		private ValueState<Integer> state;
 
@@ -1053,9 +1049,9 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 		@Override
 		public void process(Integer key,
-						  Context context,
-						  Iterable<Integer> values,
-						  Collector<Integer> out) throws Exception {
+						Context context,
+						Iterable<Integer> values,
+						Collector<Integer> out) throws Exception {
 			for (Integer i : values) {
 				// we need to update this state before emitting elements. Else, the test's main
 				// thread will have received all output elements before the state is updated and
@@ -1093,8 +1089,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 	}
 
 	private static StreamTask<?, ?> createMockTaskWithTimer(
-		final ProcessingTimeService timerService)
-	{
+		final ProcessingTimeService timerService) {
 		StreamTask<?, ?> mockTask = createMockTask();
 		when(mockTask.getProcessingTimeService()).thenReturn(timerService);
 		return mockTask;

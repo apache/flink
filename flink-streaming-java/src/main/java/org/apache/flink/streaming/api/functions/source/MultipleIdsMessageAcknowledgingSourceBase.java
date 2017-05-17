@@ -18,18 +18,20 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.Iterator;
-import java.util.List;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * Abstract base class for data sources that receive elements from a message queue and
@@ -131,7 +133,6 @@ public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, Sessi
 	// ------------------------------------------------------------------------
 	//  Checkpointing the data
 	// ------------------------------------------------------------------------
-
 
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {

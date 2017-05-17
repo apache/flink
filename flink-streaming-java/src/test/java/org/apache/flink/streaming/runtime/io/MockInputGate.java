@@ -28,6 +28,9 @@ import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Queue;
 
+/**
+ * Mock {@link InputGate}.
+ */
 public class MockInputGate implements InputGate {
 
 	private final int pageSize;

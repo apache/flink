@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.windowing.evictors;
 
-import java.util.Iterator;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
+
+import java.util.Iterator;
 
 /**
  * An {@link Evictor} that keeps up to a certain amount of elements.
@@ -50,7 +52,6 @@ public class CountEvictor<W extends Window> implements Evictor<Object, W> {
 			evict(elements, size, ctx);
 		}
 	}
-
 
 	@Override
 	public void evictAfter(Iterable<TimestampedValue<Object>> elements, int size, W window, EvictorContext ctx) {

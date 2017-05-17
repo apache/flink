@@ -17,17 +17,19 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.IOUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.util.IOUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A source function that reads strings from a socket. The source will read bytes from the socket
@@ -63,7 +65,6 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 	private transient Socket currentSocket;
 
 	private volatile boolean isRunning = true;
-
 
 	public SocketTextStreamFunction(String hostname, int port, String delimiter, long maxNumRetries) {
 		this(hostname, port, delimiter, maxNumRetries, DEFAULT_CONNECTION_RETRY_SLEEP);

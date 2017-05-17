@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -95,6 +93,9 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.Preconditions;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream

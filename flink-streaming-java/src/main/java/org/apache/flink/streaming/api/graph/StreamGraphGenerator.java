@@ -15,14 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.graph;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -41,8 +36,16 @@ import org.apache.flink.streaming.api.transformations.SplitTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A generator that generates a {@link StreamGraph} from a graph of
@@ -264,7 +267,6 @@ public class StreamGraphGenerator {
 			streamGraph.addOutputSelector(inputId, split.getOutputSelector());
 		}
 
-
 		return resultIds;
 	}
 
@@ -278,7 +280,6 @@ public class StreamGraphGenerator {
 	private <T> Collection<Integer> transformSelect(SelectTransformation<T> select) {
 		StreamTransformation<T> input = select.getInput();
 		Collection<Integer> resultIds = transform(input);
-
 
 		// the recursive transform might have already transformed this
 		if (alreadyTransformed.containsKey(select)) {
@@ -306,7 +307,6 @@ public class StreamGraphGenerator {
 	private <T> Collection<Integer> transformSideOutput(SideOutputTransformation<T> sideOutput) {
 		StreamTransformation<?> input = sideOutput.getInput();
 		Collection<Integer> resultIds = transform(input);
-
 
 		// the recursive transform might have already transformed this
 		if (alreadyTransformed.containsKey(sideOutput)) {
@@ -508,7 +508,6 @@ public class StreamGraphGenerator {
 			);
 		}
 
-
 		if (sink.getStateKeySelector() != null) {
 			TypeSerializer<?> keySerializer = sink.getStateKeyType().createSerializer(env.getConfig());
 			streamGraph.setOneInputStateKey(sink.getId(), sink.getStateKeySelector(), keySerializer);
@@ -591,7 +590,6 @@ public class StreamGraphGenerator {
 			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
 			streamGraph.setTwoInputStateKey(transform.getId(), transform.getStateKeySelector1(), transform.getStateKeySelector2(), keySerializer);
 		}
-
 
 		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
 		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());

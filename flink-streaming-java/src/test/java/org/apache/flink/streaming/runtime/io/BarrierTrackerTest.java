@@ -263,7 +263,7 @@ public class BarrierTrackerTest {
 	 * discard a pending checkpoint as soon as it sees a barrier from a
 	 * later checkpoint from some channel.
 	 *
-	 * This behavior is crucial, otherwise topologies where different inputs
+	 * <p>This behavior is crucial, otherwise topologies where different inputs
 	 * have different latency (and that latency is close to or higher than the
 	 * checkpoint interval) may skip many checkpoints, or fail to complete a
 	 * checkpoint all together.

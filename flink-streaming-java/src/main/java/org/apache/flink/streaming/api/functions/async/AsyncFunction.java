@@ -18,10 +18,11 @@
 
 package org.apache.flink.streaming.api.functions.async;
 
-import java.io.Serializable;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
+
+import java.io.Serializable;
 
 /**
  * A function to trigger Async I/O operation.

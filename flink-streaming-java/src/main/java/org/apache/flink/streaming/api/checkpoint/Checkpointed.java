@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.api.checkpoint;
 
-import java.io.Serializable;
 import org.apache.flink.annotation.PublicEvolving;
+
+import java.io.Serializable;
 
 /**
  * This method must be implemented by functions that have state that needs to be

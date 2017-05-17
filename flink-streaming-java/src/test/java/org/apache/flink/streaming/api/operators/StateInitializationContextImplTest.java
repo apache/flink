@@ -39,6 +39,7 @@ import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.util.LongArrayList;
 import org.apache.flink.util.Preconditions;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -54,6 +55,9 @@ import java.util.Set;
 
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for {@link StateInitializationContextImpl}.
+ */
 public class StateInitializationContextImplTest {
 
 	static final int NUM_HANDLES = 10;
@@ -66,7 +70,6 @@ public class StateInitializationContextImplTest {
 
 	@Before
 	public void setUp() throws Exception {
-
 
 		this.writtenKeyGroups = 0;
 		this.writtenOperatorStates = new HashSet<>();
@@ -203,7 +206,6 @@ public class StateInitializationContextImplTest {
 		int count = 0;
 		int stopCount = NUM_HANDLES / 2;
 		boolean isClosed = false;
-
 
 		try {
 			for (KeyGroupStatePartitionStreamProvider stateStreamProvider

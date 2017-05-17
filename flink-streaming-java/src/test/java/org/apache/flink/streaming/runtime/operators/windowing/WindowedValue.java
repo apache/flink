@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.streaming.api.windowing.windows.Window;
@@ -24,24 +25,24 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  * a {@link org.apache.flink.streaming.api.functions.windowing.WindowFunction}.
  */
 public class WindowedValue<T, W extends Window> {
-  private final T value;
-  private final W window;
+	private final T value;
+	private final W window;
 
-  public WindowedValue(T value, W window) {
-    this.value = value;
-    this.window = window;
-  }
+	public WindowedValue(T value, W window) {
+		this.value = value;
+		this.window = window;
+	}
 
-  public T value() {
-    return value;
-  }
+	public T value() {
+		return value;
+	}
 
-  public W window() {
-    return window;
-  }
+	public W window() {
+		return window;
+	}
 
-  @Override
-  public String toString() {
-    return "WindowedValue(" + value + ", " + window + ")";
-  }
+	@Override
+	public String toString() {
+		return "WindowedValue(" + value + ", " + window + ")";
+	}
 }

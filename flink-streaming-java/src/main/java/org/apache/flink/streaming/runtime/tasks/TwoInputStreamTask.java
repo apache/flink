@@ -17,9 +17,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -27,6 +24,9 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A {@link StreamTask} for executing a {@link TwoInputStreamOperator}.

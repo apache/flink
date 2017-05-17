@@ -24,6 +24,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link KeyMap}.
+ */
 public class KeyMapPutIfAbsentTest {
 
 	@Test
@@ -38,7 +41,7 @@ public class KeyMapPutIfAbsentTest {
 				factory.set(2 * i + 1);
 				map.putIfAbsent(i, factory);
 
-				assertEquals(i+1, map.size());
+				assertEquals(i + 1, map.size());
 				assertTrue(map.getCurrentTableCapacity() > map.size());
 				assertTrue(map.getCurrentTableCapacity() > map.getRehashThreshold());
 				assertTrue(map.size() <= map.getRehashThreshold());

@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.api.operators.co;
 
+package org.apache.flink.streaming.api.operators.co;
 
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -32,6 +32,7 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -324,7 +325,6 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		testHarness.close();
 	}
 
-
 	private static class IntToStringKeySelector<T> implements KeySelector<Integer, String> {
 		private static final long serialVersionUID = 1L;
 
@@ -413,7 +413,6 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 			ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
 		}
 
-
 		@Override
 		public void onTimer(
 				long timestamp,
@@ -494,7 +493,6 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 			ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
 		}
 
-
 		@Override
 		public void onTimer(
 				long timestamp,
@@ -518,7 +516,6 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			ctx.timerService().registerProcessingTimeTimer(5);
 		}
-
 
 		@Override
 		public void onTimer(

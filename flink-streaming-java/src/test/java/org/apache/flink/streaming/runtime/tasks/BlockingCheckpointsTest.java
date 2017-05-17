@@ -67,6 +67,7 @@ import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.util.SerializedValue;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -80,8 +81,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * This test checks that task checkpoints that block and do not react to thread interrupts
- * are
+ * This test checks that task checkpoints that block and do not react to thread interrupts.
  */
 public class BlockingCheckpointsTest {
 
@@ -281,10 +281,9 @@ public class BlockingCheckpointsTest {
 		}
 	}
 
-	// ------------------------------------------------------------------------
-	//  stream task that simply triggers a checkpoint
-	// ------------------------------------------------------------------------
-
+	/**
+	 * Stream task that simply triggers a checkpoint.
+	 */
 	public static final class TestStreamTask extends OneInputStreamTask<Object, Object> {
 
 		@Override

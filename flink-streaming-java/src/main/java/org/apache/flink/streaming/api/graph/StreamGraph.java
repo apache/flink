@@ -17,17 +17,6 @@
 
 package org.apache.flink.streaming.api.graph;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
@@ -60,8 +49,21 @@ import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.util.OutputTag;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Class representing the streaming topology. It contains all the information
@@ -93,7 +95,6 @@ public class StreamGraph extends StreamingPlan {
 	private AbstractStateBackend stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
 
-
 	public StreamGraph(StreamExecutionEnvironment environment) {
 		this.environment = environment;
 		this.executionConfig = environment.getConfig();
@@ -117,7 +118,6 @@ public class StreamGraph extends StreamingPlan {
 		sources = new HashSet<>();
 		sinks = new HashSet<>();
 	}
-
 
 	public StreamExecutionEnvironment getEnvironment() {
 		return environment;
@@ -156,7 +156,6 @@ public class StreamGraph extends StreamingPlan {
 	public boolean isChainingEnabled() {
 		return chaining;
 	}
-
 
 	public boolean isIterative() {
 		return !vertexIDtoLoopTimeout.isEmpty();
@@ -557,7 +556,6 @@ public class StreamGraph extends StreamingPlan {
 	public Collection<Integer> getSourceIDs() {
 		return sources;
 	}
-
 
 	public Collection<Integer> getSinkIDs() {
 		return sinks;

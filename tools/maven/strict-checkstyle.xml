@@ -36,7 +36,7 @@ This file is based on the checkstyle file of Apache Beam.
   <!--</module>-->
 
   <module name="NewlineAtEndOfFile">
-    <!-- windows can use \n\r vs \n, so enforce the most used one ie UNIx style -->
+    <!-- windows can use \r\n vs \n, so enforce the most used one ie UNIx style -->
     <property name="lineSeparator" value="lf" />
   </module>
 
@@ -84,7 +84,7 @@ This file is based on the checkstyle file of Apache Beam.
   -->
 
   <module name="FileLength">
-    <property name="max" value="2500"/>
+    <property name="max" value="3000"/>
   </module>
 
   <!-- All Java AST specific tests live under TreeWalker module. -->
@@ -197,9 +197,11 @@ This file is based on the checkstyle file of Apache Beam.
     <module name="ImportOrder">
       <!-- Checks for out of order import statements. -->
       <property name="severity" value="error"/>
-      <!-- This ensures that static imports go first. -->
-      <property name="option" value="top"/>
+      <!-- Flink imports first, then other imports, then javax and java imports, then static imports. -->
+      <property name="groups" value="org.apache.flink,*,javax,java"/>
+      <property name="separated" value="true"/>
       <property name="sortStaticImportsAlphabetically" value="true"/>
+      <property name="option" value="bottom"/>
       <property name="tokens" value="STATIC_IMPORT, IMPORT"/>
       <message key="import.ordering"
                value="Import {0} appears after other imports that it should precede"/>
@@ -477,6 +479,18 @@ This file is based on the checkstyle file of Apache Beam.
     WHITESPACE CHECKS
 
     -->
+
+    <module name="EmptyLineSeparator">
+	  <!-- Checks for empty line separator between tokens. The only
+           excluded token is VARIABLE_DEF, allowing class fields to
+           be declared on consecutive lines.
+      -->
+	  <property name="allowMultipleEmptyLines" value="false"/>
+	  <property name="allowMultipleEmptyLinesInsideClassMembers" value="false"/>
+	  <property name="tokens" value="PACKAGE_DEF, IMPORT, CLASS_DEF,
+	    INTERFACE_DEF, ENUM_DEF, STATIC_INIT, INSTANCE_INIT, METHOD_DEF,
+	    CTOR_DEF"/>
+    </module>
 
     <module name="WhitespaceAround">
       <!-- Checks that various tokens are surrounded by whitespace.

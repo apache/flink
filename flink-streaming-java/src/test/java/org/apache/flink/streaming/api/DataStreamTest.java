@@ -17,9 +17,6 @@
 
 package org.apache.flink.streaming.api;
 
-import java.lang.reflect.Method;
-import java.util.List;
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -57,18 +54,18 @@ import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
-import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -80,8 +77,18 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import static org.junit.Assert.*;
+import java.lang.reflect.Method;
+import java.util.List;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+/**
+ * Tests for {@link DataStream}.
+ */
 @SuppressWarnings("serial")
 public class DataStreamTest {
 
@@ -142,7 +149,7 @@ public class DataStreamTest {
 				}
 			}).setParallelism(2);
 
-		DataStream<Long> unionDifferingParallelism= input2.union(input3).map(new MapFunction<Long, Long>() {
+		DataStream<Long> unionDifferingParallelism = input2.union(input3).map(new MapFunction<Long, Long>() {
 			@Override
 			public Long map(Long value) throws Exception {
 				return null;
@@ -578,6 +585,7 @@ public class DataStreamTest {
 					@Override
 					public void flatMap1(Long value, Collector<Long> out) throws Exception {
 					}
+
 					@Override
 					public void flatMap2(Long value, Collector<Long> out) throws Exception {
 					}
@@ -744,7 +752,6 @@ public class DataStreamTest {
 		assertTrue(getOperatorForDataStream(processed) instanceof ProcessOperator);
 	}
 
-
 	@Test
 	public void operatorTest() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -760,7 +767,6 @@ public class DataStreamTest {
 		DataStream<Integer> map = src.map(mapFunction);
 		map.addSink(new DiscardingSink<Integer>());
 		assertEquals(mapFunction, getFunctionForDataStream(map));
-
 
 		FlatMapFunction<Long, Integer> flatMapFunction = new FlatMapFunction<Long, Integer>() {
 			private static final long serialVersionUID = 1L;
@@ -1090,7 +1096,7 @@ public class DataStreamTest {
 		expectedException.expect(InvalidProgramException.class);
 		expectedException.expectMessage(new StringStartsWith("Type " + expectedTypeInfo + " cannot be used as key."));
 
-		input.keyBy(new KeySelector<Tuple2<Integer[],String>, Tuple2<Integer[],String>>() {
+		input.keyBy(new KeySelector<Tuple2<Integer[], String>, Tuple2<Integer[], String>>() {
 			@Override
 			public Tuple2<Integer[], String> getKey(Tuple2<Integer[], String> value) throws Exception {
 				return value;
@@ -1121,6 +1127,9 @@ public class DataStreamTest {
 		});
 	}
 
+	/**
+	 * POJO without hashCode.
+	 */
 	public static class POJOWithoutHashCode {
 
 		private int[] id;
@@ -1140,6 +1149,9 @@ public class DataStreamTest {
 		}
 	}
 
+	/**
+	 * POJO with hashCode.
+	 */
 	public static class POJOWithHashCode extends POJOWithoutHashCode {
 
 		public POJOWithHashCode() {
@@ -1244,7 +1256,7 @@ public class DataStreamTest {
 		}
 	}
 
-	public static class CustomPOJO {
+	private static class CustomPOJO {
 		private String s;
 		private int i;
 

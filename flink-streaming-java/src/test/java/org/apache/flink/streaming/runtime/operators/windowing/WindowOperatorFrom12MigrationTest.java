@@ -15,13 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import static org.junit.Assert.fail;
-
-import java.util.Comparator;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -57,8 +53,15 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
+
 import org.junit.Ignore;
 import org.junit.Test;
+
+import java.util.Comparator;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.fail;
 
 /**
  * Tests for checking whether {@link WindowOperator} can restore from snapshots that were done
@@ -78,7 +81,7 @@ public class WindowOperatorFrom12MigrationTest {
 	@Ignore
 	@Test
 	public void writeSessionWindowsWithCountTriggerSnapshot() throws Exception {
-		final int SESSION_SIZE = 3;
+		final int sessionSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -86,7 +89,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
-				EventTimeSessionWindows.withGap(Time.seconds(SESSION_SIZE)),
+				EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -122,7 +125,7 @@ public class WindowOperatorFrom12MigrationTest {
 	@Test
 	public void testRestoreSessionWindowsWithCountTrigger() throws Exception {
 
-		final int SESSION_SIZE = 3;
+		final int sessionSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -130,7 +133,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
-				EventTimeSessionWindows.withGap(Time.seconds(SESSION_SIZE)),
+				EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -157,7 +160,6 @@ public class WindowOperatorFrom12MigrationTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), 6500));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 3), 7000));
 
-
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
 
 		// add an element that merges the two "key1" sessions, they should now have count 6, and therfore fire
@@ -177,7 +179,7 @@ public class WindowOperatorFrom12MigrationTest {
 	@Test
 	public void writeSessionWindowsWithCountTriggerInMintConditionSnapshot() throws Exception {
 
-		final int SESSION_SIZE = 3;
+		final int sessionSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -185,7 +187,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
-				EventTimeSessionWindows.withGap(Time.seconds(SESSION_SIZE)),
+				EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -215,7 +217,7 @@ public class WindowOperatorFrom12MigrationTest {
 	@Test
 	public void testRestoreSessionWindowsWithCountTriggerInMintCondition() throws Exception {
 
-		final int SESSION_SIZE = 3;
+		final int sessionSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -223,7 +225,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple3<String, Long, Long>, TimeWindow> operator = new WindowOperator<>(
-				EventTimeSessionWindows.withGap(Time.seconds(SESSION_SIZE)),
+				EventTimeSessionWindows.withGap(Time.seconds(sessionSize)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -280,7 +282,7 @@ public class WindowOperatorFrom12MigrationTest {
 	@Ignore
 	@Test
 	public void writeReducingEventTimeWindowsSnapshot() throws Exception {
-		final int WINDOW_SIZE = 3;
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -289,7 +291,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -336,7 +338,7 @@ public class WindowOperatorFrom12MigrationTest {
 
 	@Test
 	public void testRestoreReducingEventTimeWindows() throws Exception {
-		final int WINDOW_SIZE = 3;
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -345,7 +347,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -391,7 +393,7 @@ public class WindowOperatorFrom12MigrationTest {
 	@Ignore
 	@Test
 	public void writeApplyEventTimeWindowsSnapshot() throws Exception {
-		final int WINDOW_SIZE = 3;
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -399,7 +401,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -446,7 +448,7 @@ public class WindowOperatorFrom12MigrationTest {
 
 	@Test
 	public void testRestoreApplyEventTimeWindows() throws Exception {
-		final int WINDOW_SIZE = 3;
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -454,7 +456,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -500,7 +502,7 @@ public class WindowOperatorFrom12MigrationTest {
 	@Ignore
 	@Test
 	public void writeReducingProcessingTimeWindowsSnapshot() throws Exception {
-		final int WINDOW_SIZE = 3;
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -509,7 +511,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingProcessingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingProcessingTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -550,7 +552,7 @@ public class WindowOperatorFrom12MigrationTest {
 
 	@Test
 	public void testRestoreReducingProcessingTimeWindows() throws Exception {
-		final int WINDOW_SIZE = 3;
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -559,7 +561,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingProcessingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingProcessingTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -600,7 +602,7 @@ public class WindowOperatorFrom12MigrationTest {
 	@Ignore
 	@Test
 	public void writeApplyProcessingTimeWindowsSnapshot() throws Exception {
-		final int WINDOW_SIZE = 3;
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -608,7 +610,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingProcessingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingProcessingTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -648,7 +650,7 @@ public class WindowOperatorFrom12MigrationTest {
 
 	@Test
 	public void testRestoreApplyProcessingTimeWindows() throws Exception {
-		final int WINDOW_SIZE = 3;
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -656,7 +658,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingProcessingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingProcessingTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -738,7 +740,7 @@ public class WindowOperatorFrom12MigrationTest {
 
 	@Test
 	public void testRestoreAggregatingAlignedProcessingTimeWindows() throws Exception {
-		final int WINDOW_SIZE = 3;
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -747,7 +749,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingProcessingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingProcessingTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -841,7 +843,7 @@ public class WindowOperatorFrom12MigrationTest {
 
 	@Test
 	public void testRestoreAccumulatingAlignedProcessingTimeWindows() throws Exception {
-		final int WINDOW_SIZE = 3;
+		final int windowSize = 3;
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
@@ -850,7 +852,7 @@ public class WindowOperatorFrom12MigrationTest {
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
-				TumblingProcessingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
+				TumblingProcessingTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 				new TimeWindow.Serializer(),
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
@@ -891,7 +893,6 @@ public class WindowOperatorFrom12MigrationTest {
 
 		testHarness.close();
 	}
-
 
 	private static class TupleKeySelector implements KeySelector<Tuple2<String, Integer>, String> {
 		private static final long serialVersionUID = 1L;
@@ -950,7 +951,7 @@ public class WindowOperatorFrom12MigrationTest {
 		}
 	}
 
-	public static class SumReducer implements ReduceFunction<Tuple2<String, Integer>> {
+	private static class SumReducer implements ReduceFunction<Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
 		@Override
 		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
@@ -959,7 +960,7 @@ public class WindowOperatorFrom12MigrationTest {
 		}
 	}
 
-	public static class RichSumReducer<W extends Window> extends RichWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String, W> {
+	private static class RichSumReducer<W extends Window> extends RichWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String, W> {
 		private static final long serialVersionUID = 1L;
 
 		private boolean openCalled = false;
@@ -995,7 +996,7 @@ public class WindowOperatorFrom12MigrationTest {
 
 	}
 
-	public static class SessionWindowFunction implements WindowFunction<Tuple2<String, Integer>, Tuple3<String, Long, Long>, String, TimeWindow> {
+	private static class SessionWindowFunction implements WindowFunction<Tuple2<String, Integer>, Tuple3<String, Long, Long>, String, TimeWindow> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

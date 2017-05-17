@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import akka.dispatch.Futures;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
@@ -88,6 +87,8 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+
+import akka.dispatch.Futures;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -137,13 +138,16 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
+/**
+ * Tests for {@link StreamTask}.
+ */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(StreamTask.class)
 @PowerMockIgnore("org.apache.log4j.*")
 @SuppressWarnings("deprecation")
 public class StreamTaskTest extends TestLogger {
 
-	private static OneShotLatch SYNC_LATCH;
+	private static OneShotLatch syncLatch;
 
 	/**
 	 * This test checks that cancel calls that are issued before the operator is
@@ -242,7 +246,7 @@ public class StreamTaskTest extends TestLogger {
 
 	@Test
 	public void testCancellationNotBlockedOnLock() throws Exception {
-		SYNC_LATCH = new OneShotLatch();
+		syncLatch = new OneShotLatch();
 
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		Task task = createTask(CancelLockingTask.class, cfg, new Configuration());
@@ -251,7 +255,7 @@ public class StreamTaskTest extends TestLogger {
 		// execution state RUNNING is not enough, we need to wait until the stream task's run() method
 		// is entered
 		task.startTaskThread();
-		SYNC_LATCH.await();
+		syncLatch.await();
 
 		// cancel the execution - this should lead to smooth shutdown
 		task.cancelExecution();
@@ -262,7 +266,7 @@ public class StreamTaskTest extends TestLogger {
 
 	@Test
 	public void testCancellationFailsWithBlockingLock() throws Exception {
-		SYNC_LATCH = new OneShotLatch();
+		syncLatch = new OneShotLatch();
 
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		Task task = createTask(CancelFailingTask.class, cfg, new Configuration());
@@ -271,7 +275,7 @@ public class StreamTaskTest extends TestLogger {
 		// execution state RUNNING is not enough, we need to wait until the stream task's run() method
 		// is entered
 		task.startTaskThread();
-		SYNC_LATCH.await();
+		syncLatch.await();
 
 		// cancel the execution - this should lead to smooth shutdown
 		task.cancelExecution();
@@ -422,7 +426,7 @@ public class StreamTaskTest extends TestLogger {
 	/**
 	 * FLINK-5667
 	 *
-	 * Tests that a concurrent cancel operation does not discard the state handles of an
+	 * <p>Tests that a concurrent cancel operation does not discard the state handles of an
 	 * acknowledged checkpoint. The situation can only happen if the cancel call is executed
 	 * after Environment.acknowledgeCheckpoint() and before the
 	 * CloseableRegistry.unregisterClosable() call.
@@ -534,7 +538,7 @@ public class StreamTaskTest extends TestLogger {
 	/**
 	 * FLINK-5667
 	 *
-	 * Tests that a concurrent cancel operation discards the state handles of a not yet
+	 * <p>Tests that a concurrent cancel operation discards the state handles of a not yet
 	 * acknowledged checkpoint and prevents sending an acknowledge message to the
 	 * CheckpointCoordinator. The situation can only happen if the cancel call is executed
 	 * before Environment.acknowledgeCheckpoint().
@@ -560,11 +564,11 @@ public class StreamTaskTest extends TestLogger {
 				completeSubtask.await();
 
 				return new SubtaskState(
-					(ChainedStateHandle<StreamStateHandle>)invocation.getArguments()[0],
-					(ChainedStateHandle<OperatorStateHandle>)invocation.getArguments()[1],
-					(ChainedStateHandle<OperatorStateHandle>)invocation.getArguments()[2],
-					(KeyedStateHandle)invocation.getArguments()[3],
-					(KeyedStateHandle)invocation.getArguments()[4]);
+					(ChainedStateHandle<StreamStateHandle>) invocation.getArguments()[0],
+					(ChainedStateHandle<OperatorStateHandle>) invocation.getArguments()[1],
+					(ChainedStateHandle<OperatorStateHandle>) invocation.getArguments()[2],
+					(KeyedStateHandle) invocation.getArguments()[3],
+					(KeyedStateHandle) invocation.getArguments()[4]);
 			}
 		});
 
@@ -643,7 +647,7 @@ public class StreamTaskTest extends TestLogger {
 	/**
 	 * FLINK-5985
 	 *
-	 * This test ensures that empty snapshots (no op/keyed stated whatsoever) will be reported as stateless tasks. This
+	 * <p>This test ensures that empty snapshots (no op/keyed stated whatsoever) will be reported as stateless tasks. This
 	 * happens by translating an empty {@link SubtaskState} into reporting 'null' to #acknowledgeCheckpoint.
 	 */
 	@Test
@@ -819,7 +823,7 @@ public class StreamTaskTest extends TestLogger {
 	//  Test operators
 	// ------------------------------------------------------------------------
 
-	public static class SlowlyDeserializingOperator extends StreamSource<Long, SourceFunction<Long>> {
+	private static class SlowlyDeserializingOperator extends StreamSource<Long, SourceFunction<Long>> {
 		private static final long serialVersionUID = 1L;
 
 		private volatile boolean canceled = false;
@@ -955,7 +959,7 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	/**
-	 * A task that locks if cancellation attempts to cleanly shut down
+	 * A task that locks if cancellation attempts to cleanly shut down.
 	 */
 	public static class CancelLockingTask extends StreamTask<String, AbstractStreamOperator<String>> {
 
@@ -973,7 +977,7 @@ public class StreamTaskTest extends TestLogger {
 			latch.await();
 
 			// we are at the point where cancelling can happen
-			SYNC_LATCH.trigger();
+			syncLatch.trigger();
 
 			// just put this to sleep until it is interrupted
 			try {
@@ -999,7 +1003,7 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	/**
-	 * A task that locks if cancellation attempts to cleanly shut down
+	 * A task that locks if cancellation attempts to cleanly shut down.
 	 */
 	public static class CancelFailingTask extends StreamTask<String, AbstractStreamOperator<String>> {
 
@@ -1021,7 +1025,7 @@ public class StreamTaskTest extends TestLogger {
 				latch.await();
 
 				// we are at the point where cancelling can happen
-				SYNC_LATCH.trigger();
+				syncLatch.trigger();
 
 				// try to acquire the lock - this is not possible as long as the lock holder
 				// thread lives
@@ -1050,7 +1054,7 @@ public class StreamTaskTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * A thread that holds a lock as long as it lives
+	 * A thread that holds a lock as long as it lives.
 	 */
 	private static final class LockHolder extends Thread implements Closeable {
 

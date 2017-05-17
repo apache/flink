@@ -34,12 +34,16 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collections;
 
+/**
+ * Tests for {@link InputFormatSourceFunction}.
+ */
 public class InputFormatSourceFunctionTest {
 
 	@Test
@@ -81,8 +85,7 @@ public class InputFormatSourceFunctionTest {
 		Assert.assertTrue(!format.isInputFormatOpen);
 	}
 
-
-	private static class LifeCycleTestInputFormat extends RichInputFormat<Integer,InputSplit> {
+	private static class LifeCycleTestInputFormat extends RichInputFormat<Integer, InputSplit> {
 
 		private static final long serialVersionUID = 7408902249499583273L;
 		private boolean isConfigured = false;

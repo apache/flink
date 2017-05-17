@@ -17,11 +17,11 @@
 
 package org.apache.flink.streaming.api.collector.selector;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
+
+import java.io.Serializable;
 
 /**
  * Interface for defining an OutputSelector for a {@link SplitStream} using

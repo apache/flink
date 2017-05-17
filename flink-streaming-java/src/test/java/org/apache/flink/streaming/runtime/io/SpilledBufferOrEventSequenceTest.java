@@ -37,7 +37,11 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests that validate the behavior of the {@link SpilledBufferOrEventSequence} in isolation,
@@ -46,11 +50,10 @@ import static org.junit.Assert.*;
 public class SpilledBufferOrEventSequenceTest {
 
 	private final ByteBuffer buffer = ByteBuffer.allocateDirect(128 * 1024).order(ByteOrder.LITTLE_ENDIAN);
-	private final int pageSize = 32*1024;
+	private final int pageSize = 32 * 1024;
 
 	private File tempFile;
 	private FileChannel fileChannel;
-
 
 	@Before
 	public void initTempChannel() {

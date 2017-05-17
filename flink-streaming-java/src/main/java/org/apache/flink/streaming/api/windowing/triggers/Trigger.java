@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.windowing.triggers;
 
-import java.io.Serializable;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.MergingState;
@@ -28,6 +27,8 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+
+import java.io.Serializable;
 
 /**
  * A {@code Trigger} determines when a pane of a window should be evaluated to emit the

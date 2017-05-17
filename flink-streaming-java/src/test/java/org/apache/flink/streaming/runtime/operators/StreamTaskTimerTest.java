@@ -24,15 +24,16 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the timer service of {@link org.apache.flink.streaming.runtime.tasks.StreamTask}.
@@ -64,7 +65,6 @@ public class StreamTaskTimerTest {
 		});
 
 		assertEquals(1, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
-
 
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();
@@ -109,8 +109,7 @@ public class StreamTaskTimerTest {
 			long deadline = System.currentTimeMillis() + 20000;
 			while (errorRef.get() == null &&
 					ValidatingProcessingTimeCallback.numInSequence < 4 &&
-					System.currentTimeMillis() < deadline)
-			{
+					System.currentTimeMillis() < deadline) {
 				Thread.sleep(100);
 			}
 
@@ -170,6 +169,9 @@ public class StreamTaskTimerTest {
 
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Identity mapper.
+	 */
 	public static class DummyMapFunction<T> implements MapFunction<T, T> {
 		@Override
 		public T map(T value) {

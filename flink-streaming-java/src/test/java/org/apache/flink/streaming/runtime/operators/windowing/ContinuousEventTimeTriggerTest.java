@@ -15,15 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousEventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
+import com.google.common.collect.Lists;
 import org.junit.Test;
 
 import java.util.Collection;
@@ -62,7 +64,7 @@ public class ContinuousEventTimeTriggerTest {
 
 
 	/**
-	 * Verify that state <TimeWindow>of separate windows does not leak into other windows.
+	 * Verify that state &lt;TimeWindow&gt;of separate windows does not leak into other windows.
 	 */
 	@Test
 	public void testWindowSeparationAndFiring() throws Exception {

@@ -21,6 +21,9 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link FieldFromArray}.
+ */
 public class FieldFromArrayTest {
 
 	String[] testStringArray = { "0", "1", "2", "3", "4" };

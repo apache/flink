@@ -27,6 +27,9 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+/**
+ * Test base for {@link GenericWriteAheadSink}.
+ */
 public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink<IN>> extends TestLogger {
 
 	protected abstract S createSink() throws Exception;

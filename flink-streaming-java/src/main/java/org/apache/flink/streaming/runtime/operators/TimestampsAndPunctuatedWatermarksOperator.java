@@ -38,7 +38,6 @@ public class TimestampsAndPunctuatedWatermarksOperator<T>
 
 	private long currentWatermark = Long.MIN_VALUE;
 
-
 	public TimestampsAndPunctuatedWatermarksOperator(AssignerWithPunctuatedWatermarks<T> assigner) {
 		super(assigner);
 		this.chainingStrategy = ChainingStrategy.ALWAYS;

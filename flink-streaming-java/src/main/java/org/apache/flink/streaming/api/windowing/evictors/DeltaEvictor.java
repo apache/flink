@@ -15,14 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.windowing.evictors;
 
-import com.google.common.collect.Iterables;
-import java.util.Iterator;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
+
+import com.google.common.collect.Iterables;
+
+import java.util.Iterator;
 
 /**
  * An {@link Evictor} that keeps elements based on a {@link DeltaFunction} and a threshold.

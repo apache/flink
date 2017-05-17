@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.util.typeutils;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -30,8 +28,14 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+
+/**
+ * Tests for field accessors.
+ */
 public class FieldAccessorTest {
 
 	// Note, that AggregationFunctionTest indirectly also tests FieldAccessors.
@@ -59,7 +63,6 @@ public class FieldAccessorTest {
 		assertEquals("b", f0.get(t));
 		assertEquals("b", t.f0);
 
-
 		FieldAccessor<Tuple2<String, Integer>, Integer> f1n = FieldAccessorFactory.getAccessor(tpeInfo, 1, null);
 		assertEquals(7, (int) f1n.get(t));
 		assertEquals(7, (int) t.f1);
@@ -81,11 +84,11 @@ public class FieldAccessorTest {
 		assertEquals("b", t.f0);
 
 		// This is technically valid (the ".0" is selecting the 0th field of a basic type).
-		FieldAccessor<Tuple2<String, Integer>, String> f0_0 = FieldAccessorFactory.getAccessor(tpeInfo, "f0.0", null);
-		assertEquals("b", f0_0.get(t));
+		FieldAccessor<Tuple2<String, Integer>, String> f0f0 = FieldAccessorFactory.getAccessor(tpeInfo, "f0.0", null);
+		assertEquals("b", f0f0.get(t));
 		assertEquals("b", t.f0);
-		t = f0_0.set(t, "cc");
-		assertEquals("cc", f0_0.get(t));
+		t = f0f0.set(t, "cc");
+		assertEquals("cc", f0f0.get(t));
 		assertEquals("cc", t.f0);
 
 	}
@@ -103,7 +106,7 @@ public class FieldAccessorTest {
 	public void testTupleInTuple() {
 		Tuple2<String, Tuple3<Integer, Long, Double>> t = Tuple2.of("aa", Tuple3.of(5, 9L, 2.0));
 		TupleTypeInfo<Tuple2<String, Tuple3<Integer, Long, Double>>> tpeInfo =
-				(TupleTypeInfo<Tuple2<String, Tuple3<Integer, Long, Double>>>)TypeExtractor.getForObject(t);
+				(TupleTypeInfo<Tuple2<String, Tuple3<Integer, Long, Double>>>) TypeExtractor.getForObject(t);
 
 		FieldAccessor<Tuple2<String, Tuple3<Integer, Long, Double>>, String> f0 = FieldAccessorFactory
 			.getAccessor(tpeInfo, "f0", null);
@@ -148,6 +151,9 @@ public class FieldAccessorTest {
 		FieldAccessorFactory.getAccessor(TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class), 2, null);
 	}
 
+	/**
+	 * POJO.
+	 */
 	public static class Foo {
 		public int x;
 		public Tuple2<String, Long> t;
@@ -203,6 +209,9 @@ public class FieldAccessorTest {
 		FieldAccessorFactory.getAccessor(tpeInfo, "illegal.illegal.illegal", null);
 	}
 
+	/**
+	 * POJO for testing field access.
+	 */
 	public static class Inner {
 		public long x;
 		public boolean b;
@@ -220,16 +229,19 @@ public class FieldAccessorTest {
 
 		@Override
 		public String toString() {
-			return ((Long)x).toString() + ", " + b;
+			return ((Long) x).toString() + ", " + b;
 		}
 	}
 
+	/**
+	 * POJO containing POJO.
+	 */
 	public static class Outer {
 		public int a;
 		public Inner i;
 		public short b;
 
-		public Outer(){}
+		public Outer() {}
 
 		public Outer(int a, Inner i, short b) {
 			this.a = a;
@@ -239,13 +251,13 @@ public class FieldAccessorTest {
 
 		@Override
 		public String toString() {
-			return a+", "+i.toString()+", "+b;
+			return a + ", " + i.toString() + ", " + b;
 		}
 	}
 
 	@Test
 	public void testPojoInPojo() {
-		Outer o = new Outer(10, new Inner(4L), (short)12);
+		Outer o = new Outer(10, new Inner(4L), (short) 12);
 		PojoTypeInfo<Outer> tpeInfo = (PojoTypeInfo<Outer>) TypeInformation.of(Outer.class);
 
 		FieldAccessor<Outer, Long> fix = FieldAccessorFactory.getAccessor(tpeInfo, "i.x", null);
@@ -268,21 +280,19 @@ public class FieldAccessorTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testArray() {
-		int[] a = new int[]{3,5};
+		int[] a = new int[]{3, 5};
 		FieldAccessor<int[], Integer> fieldAccessor =
 				(FieldAccessor<int[], Integer>) (Object)
 						FieldAccessorFactory.getAccessor(PrimitiveArrayTypeInfo.getInfoFor(a.getClass()), 1, null);
 
 		assertEquals(Integer.class, fieldAccessor.getFieldType().getTypeClass());
 
-		assertEquals((Integer)a[1], fieldAccessor.get(a));
+		assertEquals((Integer) a[1], fieldAccessor.get(a));
 
 		a = fieldAccessor.set(a, 6);
-		assertEquals((Integer)a[1], fieldAccessor.get(a));
+		assertEquals((Integer) a[1], fieldAccessor.get(a));
 
-
-
-		Integer[] b = new Integer[]{3,5};
+		Integer[] b = new Integer[]{3, 5};
 		FieldAccessor<Integer[], Integer> fieldAccessor2 =
 				(FieldAccessor<Integer[], Integer>) (Object)
 						FieldAccessorFactory.getAccessor(BasicArrayTypeInfo.getInfoFor(b.getClass()), 1, null);
@@ -295,6 +305,9 @@ public class FieldAccessorTest {
 		assertEquals(b[1], fieldAccessor2.get(b));
 	}
 
+	/**
+	 * POJO with array.
+	 */
 	public static class ArrayInPojo {
 		public long x;
 		public int[] arr;
@@ -311,8 +324,8 @@ public class FieldAccessorTest {
 
 	@Test
 	public void testArrayInPojo() {
-		ArrayInPojo o = new ArrayInPojo(10L, new int[]{3,4,5}, 12);
-		PojoTypeInfo<ArrayInPojo> tpeInfo = (PojoTypeInfo<ArrayInPojo>)TypeInformation.of(ArrayInPojo.class);
+		ArrayInPojo o = new ArrayInPojo(10L, new int[]{3, 4, 5}, 12);
+		PojoTypeInfo<ArrayInPojo> tpeInfo = (PojoTypeInfo<ArrayInPojo>) TypeInformation.of(ArrayInPojo.class);
 
 		FieldAccessor<ArrayInPojo, Integer> fix = FieldAccessorFactory.getAccessor(tpeInfo, "arr.1", null);
 		assertEquals(4, (int) fix.get(o));

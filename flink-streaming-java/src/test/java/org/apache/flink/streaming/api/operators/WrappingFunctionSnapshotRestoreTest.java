@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -38,8 +39,10 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * Test snapshot state with {@link WrappingFunction}.
+ */
 public class WrappingFunctionSnapshotRestoreTest {
-
 
 	@Test
 	public void testSnapshotAndRestoreWrappedCheckpointedFunction() throws Exception {

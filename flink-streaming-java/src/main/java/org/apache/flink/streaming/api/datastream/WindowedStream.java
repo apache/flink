@@ -18,9 +18,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -78,6 +75,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@code WindowedStream} represents a data stream where elements are grouped by
@@ -1709,7 +1709,6 @@ public class WindowedStream<T, K, W extends Window> {
 			InternalWindowFunction<Iterable<T>, R, K, TimeWindow> timeWindowFunction =
 					(InternalWindowFunction<Iterable<T>, R, K, TimeWindow>) function;
 
-
 			OneInputStreamOperator<T, R> op = new AccumulatingProcessingTimeWindowOperator<>(
 					timeWindowFunction, input.getKeySelector(),
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
@@ -1720,7 +1719,6 @@ public class WindowedStream<T, K, W extends Window> {
 
 		return null;
 	}
-
 
 	public StreamExecutionEnvironment getExecutionEnvironment() {
 		return input.getExecutionEnvironment();

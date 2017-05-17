@@ -65,6 +65,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -72,6 +73,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nonnull;
+
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Comparator;
@@ -91,7 +93,14 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link AsyncWaitOperator}. These test that:
@@ -361,7 +370,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	/**
-	 *	Tests that the AsyncWaitOperator works together with chaining
+	 *	Tests that the AsyncWaitOperator works together with chaining.
 	 */
 	@Test
 	public void testOperatorChainWithProcessingTime() throws Exception {
@@ -601,7 +610,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 				super(jobConfig, taskConfig, executionConfig, memorySize, inputSplitProvider, bufferSize);
 		}
 
-
 		@Override
 		public void acknowledgeCheckpoint(
 				long checkpointId,
@@ -702,7 +710,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 * emitter is currently waiting on the checkpoint lock (e.g. in the case of two chained async
 	 * wait operators where the latter operator's queue is currently full).
 	 *
-	 * Note that this test does not enforce the exact strict ordering because with the fix it is no
+	 * <p>Note that this test does not enforce the exact strict ordering because with the fix it is no
 	 * longer possible. However, it provokes the described situation without the fix.
 	 */
 	@Test(timeout = 10000L)
@@ -880,7 +888,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	/**
 	 * FLINK-6435
 	 *
-	 * Tests that a user exception triggers the completion of a StreamElementQueueEntry and does not wait to until
+	 * <p>Tests that a user exception triggers the completion of a StreamElementQueueEntry and does not wait to until
 	 * another StreamElementQueueEntry is properly completed before it is collected.
 	 */
 	@Test(timeout = 2000)
@@ -891,7 +899,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	/**
 	 * FLINK-6435
 	 *
-	 * Tests that a user exception triggers the completion of a StreamElementQueueEntry and does not wait to until
+	 * <p>Tests that a user exception triggers the completion of a StreamElementQueueEntry and does not wait to until
 	 * another StreamElementQueueEntry is properly completed before it is collected.
 	 */
 	@Test(timeout = 2000)
@@ -945,7 +953,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	/**
 	 * FLINK-6435
 	 *
-	 * Tests that timeout exceptions are properly handled in ordered output mode. The proper handling means that
+	 * <p>Tests that timeout exceptions are properly handled in ordered output mode. The proper handling means that
 	 * a StreamElementQueueEntry is completed in case of a timeout exception.
 	 */
 	@Test
@@ -956,7 +964,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	/**
 	 * FLINK-6435
 	 *
-	 * Tests that timeout exceptions are properly handled in ordered output mode. The proper handling means that
+	 * <p>Tests that timeout exceptions are properly handled in ordered output mode. The proper handling means that
 	 * a StreamElementQueueEntry is completed in case of a timeout exception.
 	 */
 	@Test

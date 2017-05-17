@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import java.util.ArrayList;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -38,6 +37,8 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.UnionIterator;
+
+import java.util.ArrayList;
 
 /**
  * Key/value map organized in panes for accumulating windows (with a window function).
@@ -128,7 +129,6 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 			this.contextOperator = contextOperator;
 			this.context = context;
 		}
-
 
 		@Override
 		public void startNewKey(Key key) {
