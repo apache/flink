@@ -37,7 +37,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -235,17 +234,11 @@ public class SecurityUtils {
 				return Collections.emptyList();
 			}
 
-			List<String> parsed = new LinkedList<>();
-
-			String[] splitArr = value.split(",");
-			for (int i = 0; i < splitArr.length; i++) {
-				String trimmed = splitArr[i].trim();
-				if (!trimmed.isEmpty()) {
-					parsed.add(trimmed);
-				}
-			}
-
-			return parsed;
+			return Arrays.asList(value
+				.replaceAll("\\s*,\\s*", ",") // remove whitespaces surrounding commas
+				.replaceAll(",,", ",") // remove empty entries
+				.trim() // remove leading and trailing whitespaces of whole list
+				.split(","));
 		}
 	}
 
