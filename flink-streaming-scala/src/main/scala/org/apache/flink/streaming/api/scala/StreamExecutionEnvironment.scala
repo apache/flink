@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
+import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
 import org.apache.flink.util.SplittableIterator
 
@@ -284,8 +286,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     *            FixedDelayRestartStrategyConfiguration contains the number of execution retries.
     */
   @PublicEvolving
-  def setNumberOfExecutionRetries(numRetries: Int): Unit = {
+  def setNumberOfExecutionRetries(numRetries: Int): StreamExecutionEnvironment = {
     javaEnv.setNumberOfExecutionRetries(numRetries)
+    this
   }
 
   /**
@@ -297,7 +300,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     *            FixedDelayRestartStrategyConfiguration contains the number of execution retries.
     */
   @PublicEvolving
-  def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
+  def getNumberOfExecutionRetries: Int = javaEnv.getNumberOfExecutionRetries
 
   // --------------------------------------------------------------------------------------------
   // Registry for types and serializers
@@ -317,8 +320,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def addDefaultKryoSerializer[T <: Serializer[_] with Serializable](
       `type`: Class[_],
       serializer: T)
-    : Unit = {
+    : StreamExecutionEnvironment = {
     javaEnv.addDefaultKryoSerializer(`type`, serializer)
+    this
   }
 
   /**
@@ -329,8 +333,12 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * @param serializerClass
    * The class of the serializer to use.
    */
-  def addDefaultKryoSerializer(`type`: Class[_], serializerClass: Class[_ <: Serializer[_]]) {
+  def addDefaultKryoSerializer(
+      `type`: Class[_],
+      serializerClass: Class[_ <: Serializer[_]])
+    : StreamExecutionEnvironment = {
     javaEnv.addDefaultKryoSerializer(`type`, serializerClass)
+    this
   }
 
   /**
@@ -342,8 +350,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def registerTypeWithKryoSerializer[T <: Serializer[_] with Serializable](
       clazz: Class[_],
       serializer: T)
-    : Unit = {
+    : StreamExecutionEnvironment = {
     javaEnv.registerTypeWithKryoSerializer(clazz, serializer)
+    this
   }
 
   /**
@@ -360,8 +369,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * sure that only tags are written.
    *
    */
-  def registerType(typeClass: Class[_]) {
+  def registerType(typeClass: Class[_]): StreamExecutionEnvironment = {
     javaEnv.registerType(typeClass)
+    this
   }
 
   // --------------------------------------------------------------------------------------------
@@ -379,8 +389,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * @param characteristic The time characteristic.
    */
   @PublicEvolving
-  def setStreamTimeCharacteristic(characteristic: TimeCharacteristic) : Unit = {
+  def setStreamTimeCharacteristic(characteristic: TimeCharacteristic) : StreamExecutionEnvironment = {
     javaEnv.setStreamTimeCharacteristic(characteristic)
+    this
   }
 
   /**
@@ -390,7 +401,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * @return The time characteristic.
    */
   @PublicEvolving
-  def getStreamTimeCharacteristic = javaEnv.getStreamTimeCharacteristic()
+  def getStreamTimeCharacteristic: TimeCharacteristic = javaEnv.getStreamTimeCharacteristic()
 
   // --------------------------------------------------------------------------------------------
   // Data stream creations
@@ -626,7 +637,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * The program execution will be logged and displayed with a generated
    * default name.
    */
-  def execute() = javaEnv.execute()
+  def execute(): JobExecutionResult = javaEnv.execute()
 
   /**
    * Triggers the program execution. The environment will execute all parts of
@@ -635,7 +646,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * 
    * The program execution will be logged and displayed with the provided name.
    */
-  def execute(jobName: String) = javaEnv.execute(jobName)
+  def execute(jobName: String): JobExecutionResult = javaEnv.execute(jobName)
 
   /**
    * Creates the plan with which the system will execute the program, and
@@ -643,7 +654,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * flow graph. Note that this needs to be called, before the plan is
    * executed.
    */
-  def getExecutionPlan = javaEnv.getExecutionPlan
+  def getExecutionPlan: String = javaEnv.getExecutionPlan
 
   /**
    * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job.
@@ -651,7 +662,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * @return The StreamGraph representing the transformations
    */
   @Internal
-  def getStreamGraph = javaEnv.getStreamGraph
+  def getStreamGraph: StreamGraph = javaEnv.getStreamGraph
 
   /**
    * Getter of the wrapped [[org.apache.flink.streaming.api.environment.StreamExecutionEnvironment]]
@@ -659,7 +670,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * @return The encased ExecutionEnvironment
    */
   @Internal
-  def getWrappedStreamExecutionEnvironment = javaEnv
+  def getWrappedStreamExecutionEnvironment: JavaEnv = javaEnv
 
   /**
    * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
