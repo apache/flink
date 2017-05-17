@@ -68,7 +68,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
       .select('string, countFun('int), 'int.avg,
               weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
-    val results = windowedTable.toDataStream[Row]
+    val results = windowedTable.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -110,7 +110,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
       .select('string, countFun('int), 'int.avg,
               weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
-    val results = windowedTable.toDataStream[Row]
+    val results = windowedTable.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -136,7 +136,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
       .select(countFun('string), 'int.avg,
               weightAvgFun('long, 'int), weightAvgFun('int, 'int))
 
-    val results = windowedTable.toDataStream[Row]
+    val results = windowedTable.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -164,7 +164,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
       .select('string, countFun('string), 'int.avg, weightAvgFun('long, 'int),
               weightAvgFun('int, 'int), 'int.min, 'int.max, 'int.sum, 'w.start, 'w.end)
 
-    val results = windowedTable.toDataStream[Row]
+    val results = windowedTable.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -200,7 +200,7 @@ class GroupWindowAggregationsITCase extends StreamingMultipleProgramsTestBase {
       .groupBy('w, 'int2, 'int3, 'string)
       .select(weightAvgFun('long, 'int))
 
-    val results = windowedTable.toDataStream[Row]
+    val results = windowedTable.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 

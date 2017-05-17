@@ -53,7 +53,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .join(pojoFunc0('c))
       .where('age > 20)
       .select('c, 'name, 'age)
-      .toDataStream[Row]
+      .toAppendStream[Row]
 
     result.addSink(new StreamITCase.StringSink)
     env.execute()
@@ -70,7 +70,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
     val result = t
       .leftOuterJoin(func0('c) as('d, 'e))
       .select('c, 'd, 'e)
-      .toDataStream[Row]
+      .toAppendStream[Row]
 
     result.addSink(new StreamITCase.StringSink)
     env.execute()
@@ -90,7 +90,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .join(func0('c) as('d, 'e))
       .where(Func18('d, "J"))
       .select('c, 'd, 'e)
-      .toDataStream[Row]
+      .toAppendStream[Row]
 
     result.addSink(new StreamITCase.StringSink)
     env.execute()
@@ -111,7 +111,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .join(tableFunc1('c) as 's)
       .select('a, 's)
 
-    val results = result.toDataStream[Row]
+    val results = result.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -135,7 +135,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .join(tableFunc1(richFunc2('c)) as 's)
       .select('a, 's)
 
-    val results = result.toDataStream[Row]
+    val results = result.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -164,7 +164,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .select('c, 'd, 'e, 'f, 'g)
       .join(func32('c) as ('h, 'i))
       .select('c, 'd, 'f, 'h, 'e, 'g, 'i)
-      .toDataStream[Row]
+      .toAppendStream[Row]
 
     result.addSink(new StreamITCase.StringSink)
     env.execute()

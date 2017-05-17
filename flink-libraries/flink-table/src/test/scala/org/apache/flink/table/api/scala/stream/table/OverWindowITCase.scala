@@ -68,7 +68,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .select('c, countFun('b) over 'w as 'mycount, weightAvgFun('a, 'b) over 'w as 'wAvg)
       .select('c, 'mycount, 'wAvg)
 
-    val results = windowedTable.toDataStream[Row]
+    val results = windowedTable.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -123,7 +123,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
         'b.min over 'w,
         weightAvgFun('b, 'a) over 'w)
 
-    val result = windowedTable.toDataStream[Row]
+    val result = windowedTable.toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -178,7 +178,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val windowedTable = table
       .window(Over partitionBy 'a orderBy 'proctime preceding 4.rows following CURRENT_ROW as 'w)
       .select('a, 'c.sum over 'w, 'c.min over 'w)
-    val result = windowedTable.toDataStream[Row]
+    val result = windowedTable.toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -241,7 +241,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
       .select('c, 'a, 'a.count over 'w, 'a.sum over 'w)
 
-    val result = windowedTable.toDataStream[Row]
+    val result = windowedTable.toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -304,7 +304,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
         Over partitionBy 'c orderBy 'rowtime preceding 1.seconds following CURRENT_RANGE as 'w)
       .select('c, 'b, 'a.count over 'w, 'a.sum over 'w)
 
-    val result = windowedTable.toDataStream[Row]
+    val result = windowedTable.toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink)
     env.execute()
 

@@ -48,7 +48,7 @@ class DataStreamCalcITCase extends StreamingMultipleProgramsTestBase {
       .where("RichFunc2(c)='ABC#Hello'")
       .select('c)
 
-    val results = result.toDataStream[Row]
+    val results = result.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -71,7 +71,7 @@ class DataStreamCalcITCase extends StreamingMultipleProgramsTestBase {
       .where("RichFunc2(c)='Abc#Hello' || RichFunc1(a)=3 && b=2")
       .select('c)
 
-    val results = result.toDataStream[Row]
+    val results = result.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
