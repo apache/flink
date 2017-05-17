@@ -21,6 +21,7 @@ package org.apache.flink.cep;
 import org.apache.flink.api.common.functions.Function;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -52,5 +53,5 @@ public interface PatternTimeoutFunction<IN, OUT> extends Function, Serializable 
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the
 	 * 					 operation to fail and may trigger recovery.
 	 */
-	OUT timeout(Map<String, IN> pattern, long timeoutTimestamp) throws Exception;
+	OUT timeout(Map<String, List<IN>> pattern, long timeoutTimestamp) throws Exception;
 }

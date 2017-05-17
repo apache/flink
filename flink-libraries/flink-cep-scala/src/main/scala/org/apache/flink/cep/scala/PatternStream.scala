@@ -18,17 +18,17 @@
 package org.apache.flink.cep.scala
 
 import java.util.{Map => JMap}
+import java.util.{List => JList}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.cep.{PatternFlatSelectFunction, PatternFlatTimeoutFunction, PatternSelectFunction, PatternTimeoutFunction, PatternStream => JPatternStream}
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
 import org.apache.flink.streaming.api.scala.{asScalaStream, _}
-import org.apache.flink.util.{Collector, OutputTag}
+import org.apache.flink.util.Collector
 import org.apache.flink.types.{Either => FEither}
 import org.apache.flink.api.java.tuple.{Tuple2 => FTuple2}
 import java.lang.{Long => JLong}
 
-import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.cep.operator.CEPOperatorUtils
 import org.apache.flink.cep.scala.pattern.Pattern
 
@@ -46,22 +46,7 @@ import scala.collection.mutable
   */
 class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
-  private[flink] var lateDataOutputTag: OutputTag[T] = null
-
   private[flink] def wrappedPatternStream = jPatternStream
-
-
-  /**
-    * Send late arriving data to the side output identified by the given {@link OutputTag}. The
-    * CEP library assumes correctness of the watermark, so an element is considered late if its
-    * timestamp is smaller than the last received watermark.
-    */
-  @PublicEvolving
-  def sideOutputLateData(outputTag: OutputTag[T]): PatternStream[T] = {
-    jPatternStream.sideOutputLateData(outputTag)
-    lateDataOutputTag = outputTag
-    this
-  }
 
   def getPattern: Pattern[T, T] = Pattern(jPatternStream.getPattern.asInstanceOf[JPattern[T, T]])
 
@@ -109,8 +94,7 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
     val patternStream = CEPOperatorUtils.createTimeoutPatternStream(
       jPatternStream.getInputStream(),
-      jPatternStream.getPattern(),
-      lateDataOutputTag)
+      jPatternStream.getPattern())
 
     val cleanedSelect = cleanClosure(patternSelectFunction)
     val cleanedTimeout = cleanClosure(patternTimeoutFunction)
@@ -118,7 +102,7 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
     implicit val eitherTypeInfo = createTypeInformation[Either[L, R]]
 
     asScalaStream(patternStream).map[Either[L, R]] {
-     input: FEither[FTuple2[JMap[String, T], JLong], JMap[String, T]] =>
+     input: FEither[FTuple2[JMap[String, JList[T]], JLong], JMap[String, JList[T]]] =>
        if (input.isLeft) {
          val timeout = input.left()
          val timeoutEvent = cleanedTimeout.timeout(timeout.f0, timeout.f1)
@@ -175,8 +159,7 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
   : DataStream[Either[L, R]] = {
     val patternStream = CEPOperatorUtils.createTimeoutPatternStream(
       jPatternStream.getInputStream(),
-      jPatternStream.getPattern(),
-      lateDataOutputTag
+      jPatternStream.getPattern()
     )
 
     val cleanedSelect = cleanClosure(patternFlatSelectFunction)
@@ -185,7 +168,7 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
     implicit val eitherTypeInfo = createTypeInformation[Either[L, R]]
 
     asScalaStream(patternStream).flatMap[Either[L, R]] {
-      (input: FEither[FTuple2[JMap[String, T], JLong], JMap[String, T]],
+      (input: FEither[FTuple2[JMap[String, JList[T]], JLong], JMap[String, JList[T]]],
         collector: Collector[Either[L, R]]) =>
 
         if (input.isLeft()) {
@@ -216,12 +199,14 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
     * @tparam R Type of the resulting elements
     * @return [[DataStream]] which contains the resulting elements from the pattern select function.
     */
-  def select[R: TypeInformation](patternSelectFun: mutable.Map[String, T] => R): DataStream[R] = {
+  def select[R: TypeInformation](
+    patternSelectFun: mutable.Map[String, JList[T]] => R)
+  : DataStream[R] = {
     val cleanFun = cleanClosure(patternSelectFun)
 
     val patternSelectFunction: PatternSelectFunction[T, R] = new PatternSelectFunction[T, R] {
 
-      def select(in: JMap[String, T]): R = cleanFun(in.asScala)
+      def select(in: JMap[String, JList[T]]): R = cleanFun(in.asScala)
     }
     select(patternSelectFunction)
   }
@@ -247,18 +232,18 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
     *         events.
     */
   def select[L: TypeInformation, R: TypeInformation](
-      patternTimeoutFunction: (mutable.Map[String, T], Long) => L) (
-      patternSelectFunction: mutable.Map[String, T] => R)
+      patternTimeoutFunction: (mutable.Map[String, JList[T]], Long) => L) (
+      patternSelectFunction: mutable.Map[String, JList[T]] => R)
     : DataStream[Either[L, R]] = {
 
     val cleanSelectFun = cleanClosure(patternSelectFunction)
     val cleanTimeoutFun = cleanClosure(patternTimeoutFunction)
 
     val patternSelectFun = new PatternSelectFunction[T, R] {
-      override def select(pattern: JMap[String, T]): R = cleanSelectFun(pattern.asScala)
+      override def select(pattern: JMap[String, JList[T]]): R = cleanSelectFun(pattern.asScala)
     }
     val patternTimeoutFun = new PatternTimeoutFunction[T, L] {
-      override def timeout(pattern: JMap[String, T], timeoutTimestamp: Long): L = {
+      override def timeout(pattern: JMap[String, JList[T]], timeoutTimestamp: Long): L = {
         cleanTimeoutFun(pattern.asScala, timeoutTimestamp)
       }
     }
@@ -277,14 +262,14 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
     * @return [[DataStream]] which contains the resulting elements from the pattern flat select
     *         function.
     */
-  def flatSelect[R: TypeInformation](patternFlatSelectFun: (mutable.Map[String, T],
+  def flatSelect[R: TypeInformation](patternFlatSelectFun: (mutable.Map[String, JList[T]],
     Collector[R]) => Unit): DataStream[R] = {
     val cleanFun = cleanClosure(patternFlatSelectFun)
 
     val patternFlatSelectFunction: PatternFlatSelectFunction[T, R] =
       new PatternFlatSelectFunction[T, R] {
 
-        def flatSelect(pattern: JMap[String, T], out: Collector[R]): Unit =
+        def flatSelect(pattern: JMap[String, JList[T]], out: Collector[R]): Unit =
           cleanFun(pattern.asScala, out)
       }
     flatSelect(patternFlatSelectFunction)
@@ -311,22 +296,22 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
     *         timeout events wrapped in a [[Either]] type.
     */
   def flatSelect[L: TypeInformation, R: TypeInformation](
-      patternFlatTimeoutFunction: (mutable.Map[String, T], Long, Collector[L]) => Unit) (
-      patternFlatSelectFunction: (mutable.Map[String, T], Collector[R]) => Unit)
+      patternFlatTimeoutFunction: (mutable.Map[String, JList[T]], Long, Collector[L]) => Unit) (
+      patternFlatSelectFunction: (mutable.Map[String, JList[T]], Collector[R]) => Unit)
     : DataStream[Either[L, R]] = {
 
     val cleanSelectFun = cleanClosure(patternFlatSelectFunction)
     val cleanTimeoutFun = cleanClosure(patternFlatTimeoutFunction)
 
     val patternFlatSelectFun = new PatternFlatSelectFunction[T, R] {
-      override def flatSelect(pattern: JMap[String, T], out: Collector[R]): Unit = {
+      override def flatSelect(pattern: JMap[String, JList[T]], out: Collector[R]): Unit = {
         cleanSelectFun(pattern.asScala, out)
       }
     }
 
     val patternFlatTimeoutFun = new PatternFlatTimeoutFunction[T, L] {
       override def timeout(
-        pattern: JMap[String, T],
+        pattern: JMap[String, JList[T]],
         timeoutTimestamp: Long, out: Collector[L])
       : Unit = {
         cleanTimeoutFun(pattern.asScala, timeoutTimestamp, out)
@@ -335,17 +320,6 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
     flatSelect(patternFlatTimeoutFun, patternFlatSelectFun)
   }
-
-  /**
-    * Gets the {@link DataStream} that contains the elements that are emitted from an operation
-    * into the side output with the given {@link OutputTag}.
-    *
-    * @param tag The tag identifying a specific side output.
-    */
-    @PublicEvolving
-    def getSideOutput[X: TypeInformation](tag: OutputTag[X]): DataStream[X] = {
-      asScalaStream(jPatternStream.getSideOutput(tag))
-    }
 }
 
 object PatternStream {

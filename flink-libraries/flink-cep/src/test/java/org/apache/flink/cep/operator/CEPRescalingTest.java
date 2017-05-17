@@ -37,6 +37,7 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
@@ -79,7 +80,7 @@ public class CEPRescalingTest {
 
 		// now we start the test, we go from parallelism 1 to 2.
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 			getTestHarness(maxParallelism, 1, 0);
 		harness.open();
 
@@ -99,7 +100,7 @@ public class CEPRescalingTest {
 		// so we initialize the two tasks and we put the rest of
 		// the valid elements for the pattern on task 0.
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness1 =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness1 =
 			getTestHarness(maxParallelism, 2, 0);
 
 		harness1.setup();
@@ -120,7 +121,7 @@ public class CEPRescalingTest {
 		verifyWatermark(harness1.getOutput().poll(), 2);
 		verifyPattern(harness1.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness2 =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness2 =
 			getTestHarness(maxParallelism, 2, 1);
 
 		harness2.setup();
@@ -198,15 +199,15 @@ public class CEPRescalingTest {
 
 		// starting the test, we will go from parallelism of 3 to parallelism of 2
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness1 =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness1 =
 			getTestHarness(maxParallelism, 3, 0);
 		harness1.open();
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness2 =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness2 =
 			getTestHarness(maxParallelism, 3, 1);
 		harness2.open();
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness3 =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness3 =
 			getTestHarness(maxParallelism, 3, 2);
 		harness3.open();
 
@@ -251,13 +252,13 @@ public class CEPRescalingTest {
 			harness3.snapshot(0, 0)
 		);
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness4 =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness4 =
 			getTestHarness(maxParallelism, 2, 0);
 		harness4.setup();
 		harness4.initializeState(snapshot);
 		harness4.open();
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness5 =
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness5 =
 			getTestHarness(maxParallelism, 2, 1);
 		harness5.setup();
 		harness5.initializeState(snapshot);
@@ -295,8 +296,8 @@ public class CEPRescalingTest {
 		assertTrue(resultRecord.getValue() instanceof Map);
 
 		@SuppressWarnings("unchecked")
-		Map<String, Event> patternMap = (Map<String, Event>) resultRecord.getValue();
-		if (patternMap.get("start").getId() == 7) {
+		Map<String, List<Event>> patternMap = (Map<String, List<Event>>) resultRecord.getValue();
+		if (patternMap.get("start").get(0).getId() == 7) {
 			verifyPattern(harness4.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
 			verifyPattern(harness4.getOutput().poll(), startEvent3, middleEvent3, endEvent3);
 		} else {
@@ -327,13 +328,13 @@ public class CEPRescalingTest {
 		assertTrue(resultRecord.getValue() instanceof Map);
 
 		@SuppressWarnings("unchecked")
-		Map<String, Event> patternMap = (Map<String, Event>) resultRecord.getValue();
-		assertEquals(start, patternMap.get("start"));
-		assertEquals(middle, patternMap.get("middle"));
-		assertEquals(end, patternMap.get("end"));
+		Map<String, List<Event>> patternMap = (Map<String, List<Event>>) resultRecord.getValue();
+		assertEquals(start, patternMap.get("start").get(0));
+		assertEquals(middle, patternMap.get("middle").get(0));
+		assertEquals(end, patternMap.get("end").get(0));
 	}
 
-	private KeyedOneInputStreamOperatorTestHarness<Integer, Event, Map<String, Event>> getTestHarness(
+	private KeyedOneInputStreamOperatorTestHarness<Integer, Event, Map<String, List<Event>>> getTestHarness(
 		int maxParallelism,
 		int taskParallelism,
 		int subtaskIdx) throws Exception {
@@ -343,10 +344,8 @@ public class CEPRescalingTest {
 			new KeyedCEPPatternOperator<>(
 				Event.createTypeSerializer(),
 				false,
-				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				new NFAFactory(),
-				null,
 				true),
 			keySelector,
 			BasicTypeInfo.INT_TYPE_INFO,
