@@ -457,6 +457,8 @@ use the `env.java.opts` setting, which is the `%jvmopts%` variable in the String
 
 - `yarn.tags` A comma-separated list of tags to apply to the Flink YARN application.
 
+- `yarn.per-job-cluster.include-user-jar` (Default: ORDER) Control whether and how the user-jar is included in the system class path for per-job clusters. Setting this parameter to `DISABLED` causes the jar to be included in the user class path instead. Setting this parameter to one of `FIRST`, `LAST` or `ORDER` causes the jar to be included in the system class path, with the jar either being placed at the beginning of the class path (`FIRST`), at the end (`LAST`), or based on the lexicographic order (`ORDER`).
+
 ### Mesos
 
 

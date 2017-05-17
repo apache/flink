@@ -245,6 +245,18 @@ Note: You can use a different configuration directory per job by setting the env
 
 Note: It is possible to combine `-m yarn-cluster` with a detached YARN submission (`-yd`) to "fire and forget" a Flink job to the YARN cluster. In this case, your application will not get any accumulator results or exceptions from the ExecutionEnvironment.execute() call!
 
+### User jars & Classpath
+
+By default Flink will include the user jars into the system classpath when running a single job. This behavior can be controlled with the `yarn.per-job-cluster.include-user-jar` parameter.
+
+When setting this to `DISABLED` Flink will include the jar in the user classpath instead.
+
+The user-jars position in the class path can be controlled by setting the parameter to one of the following:
+
+- `ORDER`: (default) Adds the jar to the system class path based on the lexicographic order.
+- `FIRST`: Adds the jar to the beginning of the system class path.
+- `LAST`: Adds the jar to the end of the system class path.
+
 ## Recovery behavior of Flink on YARN
 
 Flink's YARN client has the following configuration parameters to control how to behave in case of container failures. These parameters can be set either from the `conf/flink-conf.yaml` or when starting the YARN session, using `-D` parameters.
