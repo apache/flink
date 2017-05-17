@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.util.Arrays;
 
@@ -43,6 +44,9 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	/** The byte buffer storing the actual key data. */
 	private final byte[] key;
 
+	/** The random suffix to avoid hash conflicting. */
+	private int randSuffix;
+
 	/**
 	 * Constructs a new BLOB key.
 	 */
@@ -62,6 +66,20 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 		}
 
 		this.key = key;
+	}
+
+	/**
+	 * Constructs a new BLOB key from the given byte array and a random Integer.
+	 * @param key the actual key data
+	 * @param rand the random Integer to avoid hash conflicting
+	 */
+	BlobKey(byte[] key, int rand) {
+		if (key.length != SIZE) {
+			throw new IllegalArgumentException("BLOB key must have a size of " + SIZE + " bytes");
+		}
+
+		this.key = key;
+		this.randSuffix = rand;
 	}
 
 	/**
@@ -101,7 +119,7 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 			hexChars[i * 2 + 1] = HEX_ARRAY[v & 0x0f];
 		}
 
-		return new String(hexChars);
+		return new String(hexChars) + "_" + randSuffix;
 	}
 
 	@Override
@@ -146,7 +164,17 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 			bytesRead += read;
 		}
 
-		return new BlobKey(key);
+		bytesRead = 0;
+		final byte[] randSuffix = new byte[4];
+		while (bytesRead < 4) {
+			final int read = inputStream.read(randSuffix, bytesRead, 4 - bytesRead);
+			if (read < 0) {
+				throw new EOFException("Read an incomplete BLOB key");
+			}
+			bytesRead += read;
+		}
+
+		return new BlobKey(key, ByteBuffer.wrap(randSuffix).getInt());
 	}
 
 	/**
@@ -159,5 +187,7 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	 */
 	void writeToOutputStream(final OutputStream outputStream) throws IOException {
 		outputStream.write(this.key);
+		byte[] bytes = ByteBuffer.allocate(4).putInt(randSuffix).array();
+		outputStream.write(bytes);
 	}
 }
