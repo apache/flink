@@ -72,6 +72,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Mock {@link Environment}.
+ */
 public class StreamMockEnvironment implements Environment {
 
 	private final TaskInfo taskInfo;
@@ -105,7 +108,7 @@ public class StreamMockEnvironment implements Environment {
 	private volatile boolean wasFailedExternally = false;
 
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, ExecutionConfig executionConfig,
-								 long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
+								long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this.taskInfo = new TaskInfo(
 			"", /* task name */
 			1, /* num key groups / max parallelism */
@@ -130,7 +133,7 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, long memorySize,
-								 MockInputSplitProvider inputSplitProvider, int bufferSize) {
+								MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this(jobConfig, taskConfig, new ExecutionConfig(), memorySize, inputSplitProvider, bufferSize);
 	}
 

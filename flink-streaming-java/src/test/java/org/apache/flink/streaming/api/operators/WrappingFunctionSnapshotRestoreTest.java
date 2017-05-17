@@ -39,6 +39,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * Test snapshot state with {@link WrappingFunction}.
+ */
 public class WrappingFunctionSnapshotRestoreTest {
 
 

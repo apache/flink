@@ -44,6 +44,9 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link FoldApplyWindowFunction}.
+ */
 public class FoldApplyWindowFunctionTest {
 
 	/**
@@ -139,7 +142,7 @@ public class FoldApplyWindowFunctionTest {
 		Assert.assertEquals(expected, result);
 	}
 
-	public static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
+	private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
 
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {

@@ -33,6 +33,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Tests for {@link GenericWriteAheadSink}.
+ */
 public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Integer>, GenericWriteAheadSinkTest.ListSink> {
 
 	@Override
@@ -182,7 +185,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 	}
 
-	public static class SimpleCommitter extends CheckpointCommitter {
+	private static class SimpleCommitter extends CheckpointCommitter {
 		private static final long serialVersionUID = 1L;
 
 		private List<Tuple2<Long, Integer>> checkpoints;
@@ -232,7 +235,7 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		}
 	}
 
-	public static class FailingCommitter extends CheckpointCommitter {
+	private static class FailingCommitter extends CheckpointCommitter {
 		private static final long serialVersionUID = 1L;
 
 		private List<Tuple2<Long, Integer>> checkpoints;

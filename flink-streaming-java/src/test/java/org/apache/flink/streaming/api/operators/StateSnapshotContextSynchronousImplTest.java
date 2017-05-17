@@ -41,6 +41,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.when;
 
+/**
+ * Tests for {@link StateSnapshotContextSynchronousImpl}.
+ */
 public class StateSnapshotContextSynchronousImplTest extends TestLogger {
 
 	private StateSnapshotContextSynchronousImpl snapshotContext;

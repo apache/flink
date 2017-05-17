@@ -30,6 +30,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Tests for {@link ListCheckpointed}.
+ */
 public class ListCheckpointedTest {
 
 	@Test

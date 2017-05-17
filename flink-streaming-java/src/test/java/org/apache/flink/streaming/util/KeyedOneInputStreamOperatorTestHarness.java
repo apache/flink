@@ -148,7 +148,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 					timestamp,
 					streamFactory,
 					CheckpointOptions.forFullCheckpoint());
-			if(!keyedSnapshotRunnable.isDone()) {
+			if (!keyedSnapshotRunnable.isDone()) {
 				Thread runner = new Thread(keyedSnapshotRunnable);
 				runner.start();
 			}

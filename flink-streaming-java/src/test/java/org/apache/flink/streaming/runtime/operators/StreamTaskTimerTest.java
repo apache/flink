@@ -110,8 +110,7 @@ public class StreamTaskTimerTest {
 			long deadline = System.currentTimeMillis() + 20000;
 			while (errorRef.get() == null &&
 					ValidatingProcessingTimeCallback.numInSequence < 4 &&
-					System.currentTimeMillis() < deadline)
-			{
+					System.currentTimeMillis() < deadline) {
 				Thread.sleep(100);
 			}
 
@@ -171,6 +170,9 @@ public class StreamTaskTimerTest {
 
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Identity mapper.
+	 */
 	public static class DummyMapFunction<T> implements MapFunction<T, T> {
 		@Override
 		public T map(T value) {

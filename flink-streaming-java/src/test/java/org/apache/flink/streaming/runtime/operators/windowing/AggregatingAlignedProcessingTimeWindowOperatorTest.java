@@ -56,6 +56,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for aligned {@link AggregatingProcessingTimeWindowOperator}.
+ */
 @SuppressWarnings("serial")
 public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
@@ -66,9 +69,9 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 	private final KeySelector<String, String> mockKeySelector = mock(KeySelector.class);
 
 	private final KeySelector<Tuple2<Integer, Integer>, Integer> fieldOneSelector =
-			new KeySelector<Tuple2<Integer,Integer>, Integer>() {
+			new KeySelector<Tuple2<Integer, Integer>, Integer>() {
 				@Override
-				public Integer getKey(Tuple2<Integer,Integer> value) {
+				public Integer getKey(Tuple2<Integer, Integer> value) {
 					return value.f0;
 				}
 	};
@@ -824,7 +827,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 	private static class StatefulFunction extends RichReduceFunction<Tuple2<Integer, Integer>> {
 
-		static final Map<Integer, Integer> globalCounts = new ConcurrentHashMap<>();
+		private static final Map<Integer, Integer> globalCounts = new ConcurrentHashMap<>();
 
 		private ValueState<Integer> state;
 

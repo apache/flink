@@ -41,7 +41,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Test cases for {@link RichAsyncFunction}
+ * Test cases for {@link RichAsyncFunction}.
  */
 public class RichAsyncFunctionTest {
 

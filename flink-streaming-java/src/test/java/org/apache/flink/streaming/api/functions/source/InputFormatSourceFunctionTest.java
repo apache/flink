@@ -41,6 +41,9 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Collections;
 
+/**
+ * Tests for {@link InputFormatSourceFunction}.
+ */
 public class InputFormatSourceFunctionTest {
 
 	@Test
@@ -83,7 +86,7 @@ public class InputFormatSourceFunctionTest {
 	}
 
 
-	private static class LifeCycleTestInputFormat extends RichInputFormat<Integer,InputSplit> {
+	private static class LifeCycleTestInputFormat extends RichInputFormat<Integer, InputSplit> {
 
 		private static final long serialVersionUID = 7408902249499583273L;
 		private boolean isConfigured = false;

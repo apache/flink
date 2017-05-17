@@ -258,18 +258,18 @@ public class AbstractStreamOperatorTest {
 	 */
 	@Test
 	public void testStateAndTimerStateShufflingScalingUp() throws Exception {
-		final int MAX_PARALLELISM = 10;
+		final int maxParallelism = 10;
 
 		// first get two keys that will fall into different key-group ranges that go
 		// to different operator subtasks when we restore
 
 		// get two sub key-ranges so that we can restore two ranges separately
-		KeyGroupRange subKeyGroupRange1 = new KeyGroupRange(0, (MAX_PARALLELISM / 2) - 1);
-		KeyGroupRange subKeyGroupRange2 = new KeyGroupRange(subKeyGroupRange1.getEndKeyGroup() + 1, MAX_PARALLELISM - 1);
+		KeyGroupRange subKeyGroupRange1 = new KeyGroupRange(0, (maxParallelism / 2) - 1);
+		KeyGroupRange subKeyGroupRange2 = new KeyGroupRange(subKeyGroupRange1.getEndKeyGroup() + 1, maxParallelism - 1);
 
 		// get two different keys, one per sub range
-		int key1 = getKeyInKeyGroupRange(subKeyGroupRange1, MAX_PARALLELISM);
-		int key2 = getKeyInKeyGroupRange(subKeyGroupRange2, MAX_PARALLELISM);
+		int key1 = getKeyInKeyGroupRange(subKeyGroupRange1, maxParallelism);
+		int key2 = getKeyInKeyGroupRange(subKeyGroupRange2, maxParallelism);
 
 		TestOperator testOperator = new TestOperator();
 
@@ -278,7 +278,7 @@ public class AbstractStreamOperatorTest {
 						testOperator,
 						new TestKeySelector(),
 						BasicTypeInfo.INT_TYPE_INFO,
-						MAX_PARALLELISM,
+						maxParallelism,
 						1, /* num subtasks */
 						0 /* subtask index */);
 
@@ -309,7 +309,7 @@ public class AbstractStreamOperatorTest {
 						testOperator1,
 						new TestKeySelector(),
 						BasicTypeInfo.INT_TYPE_INFO,
-						MAX_PARALLELISM,
+						maxParallelism,
 						2, /* num subtasks */
 						0 /* subtask index */);
 
@@ -349,7 +349,7 @@ public class AbstractStreamOperatorTest {
 						testOperator2,
 						new TestKeySelector(),
 						BasicTypeInfo.INT_TYPE_INFO,
-						MAX_PARALLELISM,
+						maxParallelism,
 						2, /* num subtasks */
 						1 /* subtask index */);
 
@@ -380,18 +380,18 @@ public class AbstractStreamOperatorTest {
 
 	@Test
 	public void testStateAndTimerStateShufflingScalingDown() throws Exception {
-		final int MAX_PARALLELISM = 10;
+		final int maxParallelism = 10;
 
 		// first get two keys that will fall into different key-group ranges that go
 		// to different operator subtasks when we restore
 
 		// get two sub key-ranges so that we can restore two ranges separately
-		KeyGroupRange subKeyGroupRange1 = new KeyGroupRange(0, (MAX_PARALLELISM / 2) - 1);
-		KeyGroupRange subKeyGroupRange2 = new KeyGroupRange(subKeyGroupRange1.getEndKeyGroup() + 1, MAX_PARALLELISM - 1);
+		KeyGroupRange subKeyGroupRange1 = new KeyGroupRange(0, (maxParallelism / 2) - 1);
+		KeyGroupRange subKeyGroupRange2 = new KeyGroupRange(subKeyGroupRange1.getEndKeyGroup() + 1, maxParallelism - 1);
 
 		// get two different keys, one per sub range
-		int key1 = getKeyInKeyGroupRange(subKeyGroupRange1, MAX_PARALLELISM);
-		int key2 = getKeyInKeyGroupRange(subKeyGroupRange2, MAX_PARALLELISM);
+		int key1 = getKeyInKeyGroupRange(subKeyGroupRange1, maxParallelism);
+		int key2 = getKeyInKeyGroupRange(subKeyGroupRange2, maxParallelism);
 
 		TestOperator testOperator1 = new TestOperator();
 
@@ -400,7 +400,7 @@ public class AbstractStreamOperatorTest {
 				testOperator1,
 				new TestKeySelector(),
 				BasicTypeInfo.INT_TYPE_INFO,
-				MAX_PARALLELISM,
+				maxParallelism,
 				2, /* num subtasks */
 				0 /* subtask index */);
 
@@ -417,7 +417,7 @@ public class AbstractStreamOperatorTest {
 				testOperator2,
 				new TestKeySelector(),
 				BasicTypeInfo.INT_TYPE_INFO,
-				MAX_PARALLELISM,
+				maxParallelism,
 				2, /* num subtasks */
 				1 /* subtask index */);
 
@@ -455,7 +455,7 @@ public class AbstractStreamOperatorTest {
 				testOperator3,
 				new TestKeySelector(),
 				BasicTypeInfo.INT_TYPE_INFO,
-				MAX_PARALLELISM,
+				maxParallelism,
 				1, /* num subtasks */
 				0 /* subtask index */);
 

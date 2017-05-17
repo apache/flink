@@ -33,6 +33,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link TestProcessingTimeService}.
+ */
 public class TestProcessingTimeServiceTest {
 
 	@Test
@@ -90,6 +93,9 @@ public class TestProcessingTimeServiceTest {
 
 	// ------------------------------------------------------------------------
 
+	/**
+	 * An {@link AsyncExceptionHandler} storing the handled exception.
+	 */
 	public static class ReferenceSettingExceptionHandler implements AsyncExceptionHandler {
 
 		private final AtomicReference<Throwable> errorReference;

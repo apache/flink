@@ -83,11 +83,11 @@ public class BarrierBufferMassiveRandomTest {
 	//  Mocks and Generators
 	// ------------------------------------------------------------------------
 
-	protected interface BarrierGenerator {
-		public boolean isNextBarrier();
+	private interface BarrierGenerator {
+		boolean isNextBarrier();
 	}
 
-	protected static class RandomBarrier implements BarrierGenerator {
+	private static class RandomBarrier implements BarrierGenerator {
 
 		private static final Random rnd = new Random();
 
@@ -118,7 +118,7 @@ public class BarrierBufferMassiveRandomTest {
 		}
 	}
 
-	protected static class RandomGeneratingInputGate implements InputGate {
+	private static class RandomGeneratingInputGate implements InputGate {
 
 		private final int numChannels;
 		private final BufferPool[] bufferPools;

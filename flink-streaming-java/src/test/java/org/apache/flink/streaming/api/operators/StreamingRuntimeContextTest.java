@@ -67,6 +67,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link StreamingRuntimeContext}.
+ */
 public class StreamingRuntimeContextTest {
 
 	@Test
@@ -246,7 +249,7 @@ public class StreamingRuntimeContextTest {
 
 		AbstractStreamOperator<?> operatorMock = mock(AbstractStreamOperator.class);
 
-		KeyedStateBackend keyedStateBackend= mock(KeyedStateBackend.class);
+		KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
 
 		DefaultKeyedStateStore keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, config);
 
@@ -272,7 +275,7 @@ public class StreamingRuntimeContextTest {
 		AbstractStreamOperator<?> operatorMock = mock(AbstractStreamOperator.class);
 		ExecutionConfig config = new ExecutionConfig();
 
-		KeyedStateBackend keyedStateBackend= mock(KeyedStateBackend.class);
+		KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
 
 		DefaultKeyedStateStore keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, config);
 
@@ -308,7 +311,7 @@ public class StreamingRuntimeContextTest {
 		AbstractStreamOperator<?> operatorMock = mock(AbstractStreamOperator.class);
 		ExecutionConfig config = new ExecutionConfig();
 
-		KeyedStateBackend keyedStateBackend= mock(KeyedStateBackend.class);
+		KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
 
 		DefaultKeyedStateStore keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, config);
 

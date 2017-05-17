@@ -26,6 +26,9 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link StreamIterationHead}.
+ */
 public class StreamIterationHeadTest {
 
 	@Test

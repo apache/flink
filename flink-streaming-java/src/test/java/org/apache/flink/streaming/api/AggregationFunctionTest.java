@@ -26,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
@@ -42,6 +43,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link AggregationFunction}.
+ */
 public class AggregationFunctionTest {
 
 	@Test
@@ -187,9 +191,9 @@ public class AggregationFunctionTest {
 
 		// preparing expected outputs
 		List<Tuple3<Integer, Integer, Integer>> maxByFirstExpected = ImmutableList.of(
-				Tuple3.of(0,0,0), Tuple3.of(0,1,1), Tuple3.of(0,2,2),
-				Tuple3.of(0,2,2), Tuple3.of(0,2,2), Tuple3.of(0,2,2),
-				Tuple3.of(0,2,2), Tuple3.of(0,2,2), Tuple3.of(0,2,2));
+				Tuple3.of(0, 0, 0), Tuple3.of(0, 1, 1), Tuple3.of(0, 2, 2),
+				Tuple3.of(0, 2, 2), Tuple3.of(0, 2, 2), Tuple3.of(0, 2, 2),
+				Tuple3.of(0, 2, 2), Tuple3.of(0, 2, 2), Tuple3.of(0, 2, 2));
 
 		List<Tuple3<Integer, Integer, Integer>> maxByLastExpected = ImmutableList.of(
 				Tuple3.of(0, 0, 0), Tuple3.of(0, 1, 1), Tuple3.of(0, 2, 2),
@@ -197,9 +201,9 @@ public class AggregationFunctionTest {
 				Tuple3.of(0, 2, 5), Tuple3.of(0, 2, 5), Tuple3.of(0, 2, 8));
 
 		List<Tuple3<Integer, Integer, Integer>> minByFirstExpected = ImmutableList.of(
-				Tuple3.of(0,0,0), Tuple3.of(0,0,0), Tuple3.of(0,0,0),
-				Tuple3.of(0,0,0), Tuple3.of(0,0,0), Tuple3.of(0,0,0),
-				Tuple3.of(0,0,0), Tuple3.of(0,0,0), Tuple3.of(0,0,0));
+				Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0),
+				Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0),
+				Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0));
 
 		List<Tuple3<Integer, Integer, Integer>> minByLastExpected = ImmutableList.of(
 				Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0), Tuple3.of(0, 0, 0),
@@ -208,7 +212,7 @@ public class AggregationFunctionTest {
 
 		// some necessary boiler plate
 		TypeInformation<Tuple3<Integer, Integer, Integer>> typeInfo = TypeExtractor
-				.getForObject(Tuple3.of(0,0,0));
+				.getForObject(Tuple3.of(0, 0, 0));
 
 		ExecutionConfig config = new ExecutionConfig();
 
@@ -350,6 +354,9 @@ public class AggregationFunctionTest {
 		return inputList;
 	}
 
+	/**
+	 * POJO.
+	 */
 	public static class MyPojo implements Serializable {
 
 		private static final long serialVersionUID = 1L;
@@ -379,6 +386,9 @@ public class AggregationFunctionTest {
 		}
 	}
 
+	/**
+	 * POJO.
+	 */
 	public static class MyPojo3 implements Serializable {
 
 		private static final long serialVersionUID = 1L;

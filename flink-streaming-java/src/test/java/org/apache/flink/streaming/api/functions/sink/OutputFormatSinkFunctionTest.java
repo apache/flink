@@ -25,6 +25,9 @@ import org.apache.flink.api.common.io.RichOutputFormat;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+/**
+ * Tests for {@link OutputFormatSinkFunction}.
+ */
 public class OutputFormatSinkFunctionTest {
 
 	@Test

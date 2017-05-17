@@ -26,6 +26,9 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 
+/**
+ * Tests for {@link BroadcastPartitioner}.
+ */
 public class BroadcastPartitionerTest {
 
 	private BroadcastPartitioner<Tuple> broadcastPartitioner1;

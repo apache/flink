@@ -40,7 +40,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 /**
- * Tests for {@link TumblingEventTimeWindows}
+ * Tests for {@link TumblingEventTimeWindows}.
  */
 public class TumblingEventTimeWindowsTest extends TestLogger {
 

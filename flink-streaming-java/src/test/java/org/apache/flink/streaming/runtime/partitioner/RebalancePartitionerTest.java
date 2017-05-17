@@ -26,6 +26,9 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link RebalancePartitioner}.
+ */
 public class RebalancePartitionerTest {
 
 	private RebalancePartitioner<Tuple> distributePartitioner;

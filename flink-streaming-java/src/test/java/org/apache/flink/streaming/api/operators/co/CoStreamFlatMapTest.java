@@ -44,7 +44,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class CoStreamFlatMapTest implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private final static class MyCoFlatMap implements CoFlatMapFunction<String, Integer, String> {
+	private static final class MyCoFlatMap implements CoFlatMapFunction<String, Integer, String> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

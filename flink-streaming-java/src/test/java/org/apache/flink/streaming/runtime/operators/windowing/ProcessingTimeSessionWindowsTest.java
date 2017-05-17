@@ -53,7 +53,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for {@link ProcessingTimeSessionWindows}
+ * Tests for {@link ProcessingTimeSessionWindows}.
  */
 public class ProcessingTimeSessionWindowsTest extends TestLogger {
 

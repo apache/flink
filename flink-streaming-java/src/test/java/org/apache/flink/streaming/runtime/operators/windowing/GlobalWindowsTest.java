@@ -35,7 +35,7 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
 /**
- * Tests for {@link GlobalWindows}
+ * Tests for {@link GlobalWindows}.
  */
 public class GlobalWindowsTest extends TestLogger {
 

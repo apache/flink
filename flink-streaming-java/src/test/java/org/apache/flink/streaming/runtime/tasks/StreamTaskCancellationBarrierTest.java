@@ -42,6 +42,9 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+/**
+ * Test checkpoint cancellation barrier.
+ */
 public class StreamTaskCancellationBarrierTest {
 
 	/**
@@ -72,9 +75,8 @@ public class StreamTaskCancellationBarrierTest {
 	/**
 	 * This test verifies (for onw input tasks) that the Stream tasks react the following way to
 	 * receiving a checkpoint cancellation barrier:
-	 *
 	 *   - send a "decline checkpoint" notification out (to the JobManager)
-	 *   - emit a cancellation barrier downstream
+	 *   - emit a cancellation barrier downstream.
 	 */
 	@Test
 	public void testDeclineCallOnCancelBarrierOneInput() throws Exception {
@@ -116,11 +118,10 @@ public class StreamTaskCancellationBarrierTest {
 	}
 
 	/**
-	 * This test verifies (for onw input tasks) that the Stream tasks react the following way to
+	 * This test verifies (for one input tasks) that the Stream tasks react the following way to
 	 * receiving a checkpoint cancellation barrier:
-	 *
 	 *   - send a "decline checkpoint" notification out (to the JobManager)
-	 *   - emit a cancellation barrier downstream
+	 *   - emit a cancellation barrier downstream.
 	 */
 	@Test
 	public void testDeclineCallOnCancelBarrierTwoInputs() throws Exception {

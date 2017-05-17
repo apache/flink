@@ -123,7 +123,7 @@ public class TriggerTestHarness<T, W extends Window> {
 
 	/**
 	 * Injects one element into the trigger for the given window and returns the result of
-	 * {@link Trigger#onElement(Object, long, Window, Trigger.TriggerContext)}
+	 * {@link Trigger#onElement(Object, long, Window, Trigger.TriggerContext)}.
 	 */
 	public TriggerResult processElement(StreamRecord<T> element, W window) throws Exception {
 		TestTriggerContext<Integer, W> triggerContext = new TestTriggerContext<>(

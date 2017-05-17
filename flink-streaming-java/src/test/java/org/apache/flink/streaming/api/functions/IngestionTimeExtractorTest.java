@@ -25,6 +25,9 @@ import org.junit.Test;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link IngestionTimeExtractor}.
+ */
 public class IngestionTimeExtractorTest {
 
 	@Test

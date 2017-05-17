@@ -118,7 +118,7 @@ public class HeapInternalTimerServiceTest {
 		for (int i = 0; i < totalNoOfTimers; i++) {
 
 			// create the timer to be registered
-			InternalTimer<Integer, String> timer = new InternalTimer<>(10 + i, i, "hello_world_"+ i);
+			InternalTimer<Integer, String> timer = new InternalTimer<>(10 + i, i, "hello_world_" + i);
 			int keyGroupIdx =  KeyGroupRangeAssignment.assignToKeyGroup(timer.getKey(), totalNoOfKeyGroups);
 
 			// add it in the adequate expected set of timers per keygroup

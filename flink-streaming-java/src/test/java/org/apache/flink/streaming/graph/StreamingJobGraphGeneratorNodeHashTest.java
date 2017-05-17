@@ -167,7 +167,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 	 * B (unchained): [ (src0) ] -> [ (map) -> (filter) -> (sink) ]
 	 * </pre>
 	 *
-	 * The hashes for the single vertex in A and the source vertex in B need to be different.
+	 * <p>The hashes for the single vertex in A and the source vertex in B need to be different.
 	 */
 	@Test
 	public void testNodeHashAfterSourceUnchaining() throws Exception {
@@ -209,7 +209,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 	 * B (unchained): [ (src0) ] -> [ (map) -> (filter) -> (sink) ]
 	 * </pre>
 	 *
-	 * The hashes for the single vertex in A and the source vertex in B need to be different.
+	 * <p>The hashes for the single vertex in A and the source vertex in B need to be different.
 	 */
 	@Test
 	public void testNodeHashAfterIntermediateUnchaining() throws Exception {

@@ -136,12 +136,12 @@ public class FromElementsFunctionTest {
 	@Test
 	public void testCheckpointAndRestore() {
 		try {
-			final int NUM_ELEMENTS = 10000;
+			final int numElements = 10000;
 
-			List<Integer> data = new ArrayList<Integer>(NUM_ELEMENTS);
-			List<Integer> result = new ArrayList<Integer>(NUM_ELEMENTS);
+			List<Integer> data = new ArrayList<Integer>(numElements);
+			List<Integer> result = new ArrayList<Integer>(numElements);
 
-			for (int i = 0; i < NUM_ELEMENTS; i++) {
+			for (int i = 0; i < numElements; i++) {
 				data.add(i);
 			}
 
@@ -173,7 +173,7 @@ public class FromElementsFunctionTest {
 			Thread.sleep(1000);
 
 			// make a checkpoint
-			List<Integer> checkpointData = new ArrayList<>(NUM_ELEMENTS);
+			List<Integer> checkpointData = new ArrayList<>(numElements);
 			OperatorStateHandles handles = null;
 			synchronized (ctx.getCheckpointLock()) {
 				handles = testHarness.snapshot(566, System.currentTimeMillis());
@@ -217,7 +217,7 @@ public class FromElementsFunctionTest {
 	//  Test Types
 	// ------------------------------------------------------------------------
 
-	public static class MyPojo {
+	private static class MyPojo {
 
 		public long val1;
 		public int val2;
@@ -246,7 +246,7 @@ public class FromElementsFunctionTest {
 		}
 	}
 
-	public static class SerializationErrorType implements Value {
+	private static class SerializationErrorType implements Value {
 
 		private static final long serialVersionUID = -6037206294939421807L;
 
@@ -261,7 +261,7 @@ public class FromElementsFunctionTest {
 		}
 	}
 
-	public static class DeserializeTooMuchType implements Value {
+	private static class DeserializeTooMuchType implements Value {
 
 		private static final long serialVersionUID = -6037206294939421807L;
 

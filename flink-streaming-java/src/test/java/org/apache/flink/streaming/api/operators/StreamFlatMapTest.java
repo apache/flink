@@ -42,7 +42,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class StreamFlatMapTest {
 
-	public static final class MyFlatMap implements FlatMapFunction<Integer, Integer> {
+	private static final class MyFlatMap implements FlatMapFunction<Integer, Integer> {
 
 		private static final long serialVersionUID = 1L;
 

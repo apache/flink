@@ -42,6 +42,9 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
+/**
+ * Test processing files during rescaling.
+ */
 public class ContinuousFileProcessingRescalingTest {
 
 	@Test

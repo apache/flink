@@ -30,6 +30,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.when;
 
+/**
+ * Tests for {@link OperatorSnapshotResult}.
+ */
 public class OperatorSnapshotResultTest extends TestLogger {
 
 	/**

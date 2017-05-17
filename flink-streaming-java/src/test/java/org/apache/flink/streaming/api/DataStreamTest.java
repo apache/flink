@@ -86,6 +86,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link DataStream}.
+ */
 @SuppressWarnings("serial")
 public class DataStreamTest {
 
@@ -146,7 +149,7 @@ public class DataStreamTest {
 				}
 			}).setParallelism(2);
 
-		DataStream<Long> unionDifferingParallelism= input2.union(input3).map(new MapFunction<Long, Long>() {
+		DataStream<Long> unionDifferingParallelism = input2.union(input3).map(new MapFunction<Long, Long>() {
 			@Override
 			public Long map(Long value) throws Exception {
 				return null;
@@ -1094,7 +1097,7 @@ public class DataStreamTest {
 		expectedException.expect(InvalidProgramException.class);
 		expectedException.expectMessage(new StringStartsWith("Type " + expectedTypeInfo + " cannot be used as key."));
 
-		input.keyBy(new KeySelector<Tuple2<Integer[],String>, Tuple2<Integer[],String>>() {
+		input.keyBy(new KeySelector<Tuple2<Integer[], String>, Tuple2<Integer[], String>>() {
 			@Override
 			public Tuple2<Integer[], String> getKey(Tuple2<Integer[], String> value) throws Exception {
 				return value;
@@ -1125,6 +1128,9 @@ public class DataStreamTest {
 		});
 	}
 
+	/**
+	 * POJO without hashCode.
+	 */
 	public static class POJOWithoutHashCode {
 
 		private int[] id;
@@ -1144,6 +1150,9 @@ public class DataStreamTest {
 		}
 	}
 
+	/**
+	 * POJO with hashCode.
+	 */
 	public static class POJOWithHashCode extends POJOWithoutHashCode {
 
 		public POJOWithHashCode() {
@@ -1248,7 +1257,7 @@ public class DataStreamTest {
 		}
 	}
 
-	public static class CustomPOJO {
+	private static class CustomPOJO {
 		private String s;
 		private int i;
 

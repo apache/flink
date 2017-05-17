@@ -57,7 +57,7 @@ public class PurgingTriggerTest {
 		for (Method triggerMethod : Trigger.class.getDeclaredMethods()) {
 
 			// try retrieving the method, this will throw an exception if we can't find it
-			PurgingTrigger.class.getDeclaredMethod(triggerMethod.getName(),triggerMethod.getParameterTypes());
+			PurgingTrigger.class.getDeclaredMethod(triggerMethod.getName(), triggerMethod.getParameterTypes());
 		}
 	}
 

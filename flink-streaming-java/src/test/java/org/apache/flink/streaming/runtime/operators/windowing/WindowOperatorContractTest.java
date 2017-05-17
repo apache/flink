@@ -2392,7 +2392,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		doAnswer(new Answer<Object>() {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext)invocationOnMock.getArguments()[2];
+				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext) invocationOnMock.getArguments()[2];
 				context.windowState().getState(valueStateDescriptor).update("hello");
 				return null;
 			}
@@ -2401,7 +2401,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		doAnswer(new Answer<Object>() {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext)invocationOnMock.getArguments()[1];
+				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext) invocationOnMock.getArguments()[1];
 				context.windowState().getState(valueStateDescriptor).clear();
 				return null;
 			}
@@ -2441,7 +2441,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		doAnswer(new Answer<Object>() {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext)invocationOnMock.getArguments()[2];
+				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext) invocationOnMock.getArguments()[2];
 				context.windowState().getState(valueStateDescriptor).update("hello");
 				return null;
 			}
@@ -2481,7 +2481,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		doAnswer(new Answer<Object>() {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext)invocationOnMock.getArguments()[2];
+				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext) invocationOnMock.getArguments()[2];
 				timeAdaptor.verifyCorrectTime(testHarness, context);
 				return null;
 			}
@@ -2490,7 +2490,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		doAnswer(new Answer<Object>() {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext)invocationOnMock.getArguments()[1];
+				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext) invocationOnMock.getArguments()[1];
 				timeAdaptor.verifyCorrectTime(testHarness, context);
 				return null;
 			}
@@ -2535,9 +2535,9 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
 		int numTimersOtherDomain(AbstractStreamOperatorTestHarness testHarness);
 
-		void shouldRegisterTimerOnElement(Trigger<?, TimeWindow> mockTrigger, final long timestamp) throws Exception;
+		void shouldRegisterTimerOnElement(Trigger<?, TimeWindow> mockTrigger, long timestamp) throws Exception;
 
-		void shouldDeleteTimerOnElement(Trigger<?, TimeWindow> mockTrigger, final long timestamp) throws Exception;
+		void shouldDeleteTimerOnElement(Trigger<?, TimeWindow> mockTrigger, long timestamp) throws Exception;
 
 		void shouldContinueOnTime(Trigger<?, TimeWindow> mockTrigger) throws Exception;
 

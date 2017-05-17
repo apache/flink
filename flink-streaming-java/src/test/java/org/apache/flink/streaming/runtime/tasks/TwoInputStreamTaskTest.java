@@ -42,8 +42,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * Tests for {@link org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask}. Theses tests
  * implicitly also test the {@link org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor}.
  *
- * <p>
- * Note:<br>
+ * <p>Note:<br>
  * We only use a {@link CoStreamMap} operator here. We also test the individual operators but Map is
  * used as a representative to test TwoInputStreamTask, since TwoInputStreamTask is used for all
  * TwoInputStreamOperators.

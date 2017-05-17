@@ -29,6 +29,9 @@ import org.junit.Test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link KeyGroupStreamPartitioner}.
+ */
 public class KeyGroupStreamPartitionerTest extends TestLogger {
 
 	private KeyGroupStreamPartitioner<Tuple2<String, Integer>, String> keyGroupPartitioner;

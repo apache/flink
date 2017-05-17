@@ -25,6 +25,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link StreamStatus}.
+ */
 public class StreamStatusTest {
 
 	@Test (expected = IllegalArgumentException.class)

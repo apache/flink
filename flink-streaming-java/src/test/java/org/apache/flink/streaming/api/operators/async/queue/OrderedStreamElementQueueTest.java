@@ -45,7 +45,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
- * {@link OrderedStreamElementQueue} specific tests
+ * {@link OrderedStreamElementQueue} specific tests.
  */
 public class OrderedStreamElementQueueTest extends TestLogger {
 

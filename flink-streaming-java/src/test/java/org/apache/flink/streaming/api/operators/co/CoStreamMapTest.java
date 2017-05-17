@@ -43,7 +43,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class CoStreamMapTest implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private final static class MyCoMap implements CoMapFunction<Double, Integer, String> {
+	private static final class MyCoMap implements CoMapFunction<Double, Integer, String> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

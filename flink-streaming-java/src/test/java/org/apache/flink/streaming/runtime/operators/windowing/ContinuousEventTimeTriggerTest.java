@@ -63,7 +63,7 @@ public class ContinuousEventTimeTriggerTest {
 
 
 	/**
-	 * Verify that state <TimeWindow>of separate windows does not leak into other windows.
+	 * Verify that state &lt;TimeWindow&gt;of separate windows does not leak into other windows.
 	 */
 	@Test
 	public void testWindowSeparationAndFiring() throws Exception {

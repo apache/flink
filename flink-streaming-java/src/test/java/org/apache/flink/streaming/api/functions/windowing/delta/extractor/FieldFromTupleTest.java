@@ -49,6 +49,9 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link FieldFromTuple}.
+ */
 public class FieldFromTupleTest {
 
 	private String[] testStrings;

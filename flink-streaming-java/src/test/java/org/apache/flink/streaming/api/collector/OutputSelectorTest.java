@@ -28,6 +28,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link OutputSelector}.
+ */
 public class OutputSelectorTest {
 
 	static final class MyOutputSelector implements OutputSelector<Tuple1<Integer>> {

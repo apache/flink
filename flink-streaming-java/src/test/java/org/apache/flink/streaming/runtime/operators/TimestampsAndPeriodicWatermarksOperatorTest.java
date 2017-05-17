@@ -32,6 +32,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link TimestampsAndPeriodicWatermarksOperator}.
+ */
 public class TimestampsAndPeriodicWatermarksOperatorTest {
 
 	@Test

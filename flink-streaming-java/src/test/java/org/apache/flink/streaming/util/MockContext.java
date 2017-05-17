@@ -28,6 +28,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+/**
+ * Simple test context for stream operators.
+ */
 public class MockContext<IN, OUT> {
 
 	private List<OUT> outputs;

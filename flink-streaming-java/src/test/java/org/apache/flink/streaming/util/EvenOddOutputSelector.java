@@ -21,6 +21,9 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 
 import java.util.Arrays;
 
+/**
+ * Tests for {@link OutputSelector}.
+ */
 public class EvenOddOutputSelector implements OutputSelector<Integer> {
 	private static final long serialVersionUID = 1L;
 

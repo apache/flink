@@ -60,8 +60,7 @@ public class StreamGraphGeneratorTest {
 	/**
 	 * This tests whether virtual Transformations behave correctly.
 	 *
-	 * <p>
-	 * Verifies that partitioning, output selector, selected names are correctly set in the
+	 * <p>Verifies that partitioning, output selector, selected names are correctly set in the
 	 * StreamGraph when they are intermixed.
 	 */
 	@Test
@@ -144,7 +143,7 @@ public class StreamGraphGeneratorTest {
 	/**
 	 * This tests whether virtual Transformations behave correctly.
 	 *
-	 * Checks whether output selector, partitioning works correctly when applied on a union.
+	 * <p>Checks whether output selector, partitioning works correctly when applied on a union.
 	 */
 	@Test
 	public void testVirtualTransformations2() throws Exception {
@@ -271,7 +270,7 @@ public class StreamGraphGeneratorTest {
 	}
 
 	/**
-	 * Tests that the global and operator-wide max parallelism setting is respected
+	 * Tests that the global and operator-wide max parallelism setting is respected.
 	 */
 	@Test
 	public void testMaxParallelismForwarding() {
@@ -388,13 +387,13 @@ public class StreamGraphGeneratorTest {
 		env.getConfig().setMaxParallelism(maxParallelism);
 
 		DataStream<Integer> keyedResult = input1.connect(input2).keyBy(
-			 new KeySelector<Integer, Integer>() {
-				 private static final long serialVersionUID = -6908614081449363419L;
+			new KeySelector<Integer, Integer>() {
+				private static final long serialVersionUID = -6908614081449363419L;
 
-				 @Override
-				 public Integer getKey(Integer value) throws Exception {
-					 return value;
-				 }
+				@Override
+				public Integer getKey(Integer value) throws Exception {
+					return value;
+				}
 			},
 			new KeySelector<Integer, Integer>() {
 				private static final long serialVersionUID = 3195683453223164931L;

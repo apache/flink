@@ -25,8 +25,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 /**
  * A test harness for testing a {@link TwoInputStreamOperator}.
  *
- * <p>
- * This mock task provides the operator with a basic runtime context and allows pushing elements
+ * <p>This mock task provides the operator with a basic runtime context and allows pushing elements
  * and watermarks into the operator. {@link java.util.Deque}s containing the emitted elements
  * and watermarks can be retrieved. you are free to modify these.
  */

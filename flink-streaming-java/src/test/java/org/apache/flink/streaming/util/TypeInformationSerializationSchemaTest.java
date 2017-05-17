@@ -34,6 +34,9 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link TypeInformationSerializationSchema}.
+ */
 public class TypeInformationSerializationSchemaTest {
 
 	@Test
@@ -83,7 +86,7 @@ public class TypeInformationSerializationSchemaTest {
 	//  Test data types
 	// ------------------------------------------------------------------------
 
-	public static class MyPOJO {
+	private static class MyPOJO {
 
 		public int aField;
 		public List<Date> aList;

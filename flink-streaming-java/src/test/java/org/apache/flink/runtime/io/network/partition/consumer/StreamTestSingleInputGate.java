@@ -180,7 +180,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 		return true;
 	}
 
-	public static class InputValue<T> {
+	private static class InputValue<T> {
 		private Object elementOrEvent;
 		private boolean isStreamEnd;
 		private boolean isStreamRecord;

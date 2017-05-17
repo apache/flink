@@ -35,6 +35,9 @@ import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link StreamElementSerializer}.
+ */
 public class StreamElementSerializerTest {
 
 	@Test

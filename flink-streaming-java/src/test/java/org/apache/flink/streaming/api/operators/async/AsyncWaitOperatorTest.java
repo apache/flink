@@ -370,7 +370,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	/**
-	 *	Tests that the AsyncWaitOperator works together with chaining
+	 *	Tests that the AsyncWaitOperator works together with chaining.
 	 */
 	@Test
 	public void testOperatorChainWithProcessingTime() throws Exception {
@@ -711,7 +711,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 * emitter is currently waiting on the checkpoint lock (e.g. in the case of two chained async
 	 * wait operators where the latter operator's queue is currently full).
 	 *
-	 * Note that this test does not enforce the exact strict ordering because with the fix it is no
+	 * <p>Note that this test does not enforce the exact strict ordering because with the fix it is no
 	 * longer possible. However, it provokes the described situation without the fix.
 	 */
 	@Test(timeout = 10000L)
@@ -889,7 +889,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	/**
 	 * FLINK-6435
 	 *
-	 * Tests that a user exception triggers the completion of a StreamElementQueueEntry and does not wait to until
+	 * <p>Tests that a user exception triggers the completion of a StreamElementQueueEntry and does not wait to until
 	 * another StreamElementQueueEntry is properly completed before it is collected.
 	 */
 	@Test(timeout = 2000)
@@ -900,7 +900,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	/**
 	 * FLINK-6435
 	 *
-	 * Tests that a user exception triggers the completion of a StreamElementQueueEntry and does not wait to until
+	 * <p>Tests that a user exception triggers the completion of a StreamElementQueueEntry and does not wait to until
 	 * another StreamElementQueueEntry is properly completed before it is collected.
 	 */
 	@Test(timeout = 2000)
@@ -954,7 +954,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	/**
 	 * FLINK-6435
 	 *
-	 * Tests that timeout exceptions are properly handled in ordered output mode. The proper handling means that
+	 * <p>Tests that timeout exceptions are properly handled in ordered output mode. The proper handling means that
 	 * a StreamElementQueueEntry is completed in case of a timeout exception.
 	 */
 	@Test
@@ -965,7 +965,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	/**
 	 * FLINK-6435
 	 *
-	 * Tests that timeout exceptions are properly handled in ordered output mode. The proper handling means that
+	 * <p>Tests that timeout exceptions are properly handled in ordered output mode. The proper handling means that
 	 * a StreamElementQueueEntry is completed in case of a timeout exception.
 	 */
 	@Test

@@ -50,7 +50,7 @@ import static org.junit.Assert.fail;
 public class SpilledBufferOrEventSequenceTest {
 
 	private final ByteBuffer buffer = ByteBuffer.allocateDirect(128 * 1024).order(ByteOrder.LITTLE_ENDIAN);
-	private final int pageSize = 32*1024;
+	private final int pageSize = 32 * 1024;
 
 	private File tempFile;
 	private FileChannel fileChannel;

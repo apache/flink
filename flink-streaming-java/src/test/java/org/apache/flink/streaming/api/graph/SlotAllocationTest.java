@@ -47,7 +47,9 @@ public class SlotAllocationTest extends TestLogger {
 
 		FilterFunction<Long> dummyFilter = new FilterFunction<Long>() {
 			@Override
-			public boolean filter(Long value) { return false; }
+			public boolean filter(Long value) {
+				return false;
+			}
 		};
 
 		env.generateSequence(1, 10)
@@ -90,7 +92,9 @@ public class SlotAllocationTest extends TestLogger {
 
 		FilterFunction<Long> dummyFilter = new FilterFunction<Long>() {
 			@Override
-			public boolean filter(Long value) { return false; }
+			public boolean filter(Long value) {
+				return false;
+			}
 		};
 
 		DataStream<Long> src1 = env.generateSequence(1, 10);
@@ -128,7 +132,9 @@ public class SlotAllocationTest extends TestLogger {
 
 		FilterFunction<Long> dummyFilter = new FilterFunction<Long>() {
 			@Override
-			public boolean filter(Long value) { return false; }
+			public boolean filter(Long value) {
+				return false;
+			}
 		};
 
 		DataStream<Long> src1 = env.generateSequence(1, 10).slotSharingGroup("group-1");

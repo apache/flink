@@ -78,22 +78,22 @@ public class SourceStreamTaskTest {
 	 * and element emission. This also verifies that there are no concurrent invocations
 	 * of the checkpoint method on the source operator.
 	 *
-	 * The source emits elements and performs checkpoints. We have several checkpointer threads
+	 * <p>The source emits elements and performs checkpoints. We have several checkpointer threads
 	 * that fire checkpoint requests at the source task.
 	 *
-	 * If element emission and checkpointing are not in series the count of elements at the
+	 * <p>If element emission and checkpointing are not in series the count of elements at the
 	 * beginning of a checkpoint and at the end of a checkpoint are not the same because the
 	 * source kept emitting elements while the checkpoint was ongoing.
 	 */
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testCheckpointing() throws Exception {
-		final int NUM_ELEMENTS = 100;
-		final int NUM_CHECKPOINTS = 100;
-		final int NUM_CHECKPOINTERS = 1;
-		final int CHECKPOINT_INTERVAL = 5; // in ms
-		final int SOURCE_CHECKPOINT_DELAY = 1000; // how many random values we sum up in storeCheckpoint
-		final int SOURCE_READ_DELAY = 1; // in ms
+		final int numElements = 100;
+		final int numCheckpoints = 100;
+		final int numCheckpointers = 1;
+		final int checkpointInterval = 5; // in ms
+		final int sourceCheckpointDelay = 1000; // how many random values we sum up in storeCheckpoint
+		final int sourceReadDelay = 1; // in ms
 
 		ExecutorService executor = Executors.newFixedThreadPool(10);
 		try {
@@ -104,25 +104,25 @@ public class SourceStreamTaskTest {
 			testHarness.setupOutputForSingletonOperatorChain();
 
 			StreamConfig streamConfig = testHarness.getStreamConfig();
-			StreamSource<Tuple2<Long, Integer>, ?> sourceOperator = new StreamSource<>(new MockSource(NUM_ELEMENTS, SOURCE_CHECKPOINT_DELAY, SOURCE_READ_DELAY));
+			StreamSource<Tuple2<Long, Integer>, ?> sourceOperator = new StreamSource<>(new MockSource(numElements, sourceCheckpointDelay, sourceReadDelay));
 			streamConfig.setStreamOperator(sourceOperator);
 
 			// prepare the
 
-			Future<Boolean>[] checkpointerResults = new Future[NUM_CHECKPOINTERS];
+			Future<Boolean>[] checkpointerResults = new Future[numCheckpointers];
 
 			// invoke this first, so the tasks are actually running when the checkpoints are scheduled
 			testHarness.invoke();
 
-			for (int i = 0; i < NUM_CHECKPOINTERS; i++) {
-				checkpointerResults[i] = executor.submit(new Checkpointer(NUM_CHECKPOINTS, CHECKPOINT_INTERVAL, sourceTask));
+			for (int i = 0; i < numCheckpointers; i++) {
+				checkpointerResults[i] = executor.submit(new Checkpointer(numCheckpoints, checkpointInterval, sourceTask));
 			}
 
 			testHarness.waitForTaskCompletion();
 
 			// Get the result from the checkpointers, if these threw an exception it
 			// will be rethrown here
-			for (int i = 0; i < NUM_CHECKPOINTERS; i++) {
+			for (int i = 0; i < numCheckpointers; i++) {
 				if (!checkpointerResults[i].isDone()) {
 					checkpointerResults[i].cancel(true);
 				}
@@ -132,7 +132,7 @@ public class SourceStreamTaskTest {
 			}
 
 			List<Tuple2<Long, Integer>> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
-			Assert.assertEquals(NUM_ELEMENTS, resultElements.size());
+			Assert.assertEquals(numElements, resultElements.size());
 		}
 		finally {
 			executor.shutdown();
@@ -241,7 +241,7 @@ public class SourceStreamTaskTest {
 		}
 	}
 
-	public static class OpenCloseTestSource extends RichSourceFunction<String> {
+	private static class OpenCloseTestSource extends RichSourceFunction<String> {
 		private static final long serialVersionUID = 1L;
 
 		public static boolean openCalled = false;

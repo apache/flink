@@ -47,6 +47,9 @@ import java.util.concurrent.TimeUnit;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+/**
+ * Tests for {@link Emitter}.
+ */
 public class EmitterTest extends TestLogger {
 
 	private static final long timeout = 10000L;

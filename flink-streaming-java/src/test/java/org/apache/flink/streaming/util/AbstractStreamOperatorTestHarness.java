@@ -89,19 +89,19 @@ import static org.mockito.Mockito.when;
  */
 public class AbstractStreamOperatorTestHarness<OUT> {
 
-	final protected StreamOperator<OUT> operator;
+	protected final StreamOperator<OUT> operator;
 
-	final protected ConcurrentLinkedQueue<Object> outputList;
+	protected final ConcurrentLinkedQueue<Object> outputList;
 
-	final protected Map<OutputTag<?>, ConcurrentLinkedQueue<Object>> sideOutputLists;
+	protected final Map<OutputTag<?>, ConcurrentLinkedQueue<Object>> sideOutputLists;
 
-	final protected StreamConfig config;
+	protected final StreamConfig config;
 
-	final protected ExecutionConfig executionConfig;
+	protected final ExecutionConfig executionConfig;
 
-	final protected TestProcessingTimeService processingTimeService;
+	protected final TestProcessingTimeService processingTimeService;
 
-	final protected StreamTask<?, ?> mockTask;
+	protected final StreamTask<?, ?> mockTask;
 
 	final Environment environment;
 
@@ -292,16 +292,14 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	}
 
 	/**
-	 * Calls
-	 * {@link StreamOperator#setup(StreamTask, StreamConfig, Output)} ()}
+	 * Calls {@link StreamOperator#setup(StreamTask, StreamConfig, Output)} ()}.
 	 */
 	public void setup() {
 		setup(null);
 	}
 
 	/**
-	 * Calls
-	 * {@link StreamOperator#setup(StreamTask, StreamConfig, Output)} ()}
+	 * Calls {@link StreamOperator#setup(StreamTask, StreamConfig, Output)} ()}.
 	 */
 	public void setup(TypeSerializer<OUT> outputSerializer) {
 		operator.setup(mockTask, config, new MockOutput(outputSerializer));
@@ -417,17 +415,14 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	 * and repacks them into a single {@link OperatorStateHandles} so that the parallelism of the test
 	 * can change arbitrarily (i.e. be able to scale both up and down).
 	 *
-	 * <p>
-	 * After repacking the partial states, use {@link #initializeState(OperatorStateHandles)} to initialize
+	 * <p>After repacking the partial states, use {@link #initializeState(OperatorStateHandles)} to initialize
 	 * a new instance with the resulting state. Bear in mind that for parallelism greater than one, you
 	 * have to use the constructor {@link #AbstractStreamOperatorTestHarness(StreamOperator, int, int, int)}.
 	 *
-	 * <p>
-	 * <b>NOTE: </b> each of the {@code handles} in the argument list is assumed to be from a single task of a single
+	 * <p><b>NOTE: </b> each of the {@code handles} in the argument list is assumed to be from a single task of a single
 	 * operator (i.e. chain length of one).
 	 *
-	 * <p>
-	 * For an example of how to use it, have a look at
+	 * <p>For an example of how to use it, have a look at
 	 * {@link AbstractStreamOperatorTest#testStateAndTimerStateShufflingScalingDown()}.
 	 *
 	 * @param handles the different states to be merged.
@@ -541,7 +536,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		CheckpointStreamFactory.CheckpointStateOutputStream outStream = stateBackend.createStreamFactory(
 				new JobID(),
 				"test_op").createCheckpointStateOutputStream(checkpointId, timestamp);
-		if(operator instanceof StreamCheckpointedOperator) {
+		if (operator instanceof StreamCheckpointedOperator) {
 			((StreamCheckpointedOperator) operator).snapshotState(outStream, checkpointId, timestamp);
 			return outStream.closeAndGetHandle();
 		} else {
@@ -550,7 +545,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#notifyOfCompletedCheckpoint(long)} ()}
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#notifyOfCompletedCheckpoint(long)} ()}.
 	 */
 	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
 		operator.notifyOfCompletedCheckpoint(checkpointId);
@@ -563,7 +558,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	@Deprecated
 	@SuppressWarnings("deprecation")
 	public void restore(StreamStateHandle snapshot) throws Exception {
-		if(operator instanceof StreamCheckpointedOperator) {
+		if (operator instanceof StreamCheckpointedOperator) {
 			try (FSDataInputStream in = snapshot.openInputStream()) {
 				((StreamCheckpointedOperator) operator).restoreState(in);
 			}

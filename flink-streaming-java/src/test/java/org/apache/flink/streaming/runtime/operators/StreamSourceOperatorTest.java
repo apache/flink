@@ -58,6 +58,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link StreamSource} operators.
+ */
 @SuppressWarnings("serial")
 public class StreamSourceOperatorTest {
 
@@ -179,7 +182,7 @@ public class StreamSourceOperatorTest {
 	}
 
 	/**
-	 * Test that latency marks are emitted
+	 * Test that latency marks are emitted.
 	 */
 	@Test
 	public void testLatencyMarkEmission() throws Exception {

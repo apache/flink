@@ -41,7 +41,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for {@link TumblingProcessingTimeWindows}
+ * Tests for {@link TumblingProcessingTimeWindows}.
  */
 public class TumblingProcessingTimeWindowsTest extends TestLogger {
 

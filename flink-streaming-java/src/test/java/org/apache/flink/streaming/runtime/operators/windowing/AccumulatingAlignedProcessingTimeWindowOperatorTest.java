@@ -68,6 +68,9 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link AccumulatingProcessingTimeWindowOperator}.
+ */
 @SuppressWarnings({"serial"})
 @PrepareForTest(InternalIterableWindowFunction.class)
 @RunWith(PowerMockRunner.class)
@@ -1040,7 +1043,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 		// we use a concurrent map here even though there is no concurrency, to
 		// get "volatile" style access to entries
-		static final Map<Integer, Integer> globalCounts = new ConcurrentHashMap<>();
+		private static final Map<Integer, Integer> globalCounts = new ConcurrentHashMap<>();
 
 		private ValueState<Integer> state;
 
@@ -1053,9 +1056,9 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 		@Override
 		public void process(Integer key,
-						  Context context,
-						  Iterable<Integer> values,
-						  Collector<Integer> out) throws Exception {
+						Context context,
+						Iterable<Integer> values,
+						Collector<Integer> out) throws Exception {
 			for (Integer i : values) {
 				// we need to update this state before emitting elements. Else, the test's main
 				// thread will have received all output elements before the state is updated and
@@ -1093,8 +1096,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 	}
 
 	private static StreamTask<?, ?> createMockTaskWithTimer(
-		final ProcessingTimeService timerService)
-	{
+		final ProcessingTimeService timerService) {
 		StreamTask<?, ?> mockTask = createMockTask();
 		when(mockTask.getProcessingTimeService()).thenReturn(timerService);
 		return mockTask;

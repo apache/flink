@@ -46,6 +46,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link StreamExecutionEnvironment}.
+ */
 public class StreamExecutionEnvironmentTest {
 
 	@Test
@@ -243,7 +246,7 @@ public class StreamExecutionEnvironmentTest {
 		return (SourceFunction<T>) operator.getUserFunction();
 	}
 
-	public static class DummySplittableIterator<T> extends SplittableIterator<T> {
+	private static class DummySplittableIterator<T> extends SplittableIterator<T> {
 		private static final long serialVersionUID = 1312752876092210499L;
 
 		@SuppressWarnings("unchecked")
@@ -273,7 +276,7 @@ public class StreamExecutionEnvironmentTest {
 		}
 	}
 
-	public static class ParentClass {
+	private static class ParentClass {
 		int num;
 		String string;
 		public ParentClass(int num, String string) {
@@ -282,7 +285,7 @@ public class StreamExecutionEnvironmentTest {
 		}
 	}
 
-	public static class SubClass extends ParentClass{
+	private static class SubClass extends ParentClass{
 		public SubClass(int num, String string) {
 			super(num, string);
 		}

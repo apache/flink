@@ -25,6 +25,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.ArrayList;
 
+/**
+ * Mock {@link RecordWriter}.
+ */
 public class MockRecordWriter extends RecordWriter<SerializationDelegate<StreamRecord<Tuple1<Integer>>>> {
 
 	public ArrayList<Integer> emittedRecords;

@@ -27,6 +27,9 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link ShufflePartitioner}.
+ */
 public class ShufflePartitionerTest {
 
 	private ShufflePartitioner<Tuple> shufflePartitioner;

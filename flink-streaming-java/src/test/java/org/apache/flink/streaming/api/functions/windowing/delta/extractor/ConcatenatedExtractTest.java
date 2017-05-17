@@ -24,6 +24,9 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link ConcatenatedExtract}.
+ */
 public class ConcatenatedExtractTest {
 
 	private String[] testStringArray1 = { "1", "2", "3" };

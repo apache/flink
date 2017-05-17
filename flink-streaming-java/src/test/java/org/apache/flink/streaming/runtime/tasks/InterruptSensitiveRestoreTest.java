@@ -93,7 +93,7 @@ import static org.mockito.Mockito.when;
  * This test checks that task restores that get stuck in the presence of interrupts
  * are handled properly.
  *
- * In practice, reading from HDFS is interrupt sensitive: The HDFS code frequently deadlocks
+ * <p>In practice, reading from HDFS is interrupt sensitive: The HDFS code frequently deadlocks
  * or livelocks if it is interrupted.
  */
 public class InterruptSensitiveRestoreTest {
@@ -198,7 +198,7 @@ public class InterruptSensitiveRestoreTest {
 				new OperatorStateHandle.StateMetaInfo(new long[]{0}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
 		operatorStateMetadata.put(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, metaInfo);
 
-		KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(new KeyGroupRange(0,0));
+		KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(new KeyGroupRange(0, 0));
 
 		Collection<OperatorStateHandle> operatorStateHandles =
 				Collections.singletonList(new OperatorStateHandle(operatorStateMetadata, state));
@@ -390,7 +390,7 @@ public class InterruptSensitiveRestoreTest {
 
 		@Override
 		public void initializeState(FunctionInitializationContext context) throws Exception {
-			((StateInitializationContext)context).getRawOperatorStateInputs().iterator().next().getStream().read();
+			((StateInitializationContext) context).getRawOperatorStateInputs().iterator().next().getStream().read();
 		}
 	}
 }

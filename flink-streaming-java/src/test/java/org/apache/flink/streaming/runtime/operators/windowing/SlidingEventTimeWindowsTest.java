@@ -40,7 +40,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 /**
- * Tests for {@link SlidingEventTimeWindows}
+ * Tests for {@link SlidingEventTimeWindows}.
  */
 public class SlidingEventTimeWindowsTest extends TestLogger {
 

@@ -26,6 +26,9 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 
+/**
+ * Tests for {@link GlobalPartitioner}.
+ */
 public class GlobalPartitionerTest {
 
 	private GlobalPartitioner<Tuple> globalPartitioner;

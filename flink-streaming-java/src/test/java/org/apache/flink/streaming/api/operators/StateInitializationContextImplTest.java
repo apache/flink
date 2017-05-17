@@ -55,6 +55,9 @@ import java.util.Set;
 
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for {@link StateInitializationContextImpl}.
+ */
 public class StateInitializationContextImplTest {
 
 	static final int NUM_HANDLES = 10;

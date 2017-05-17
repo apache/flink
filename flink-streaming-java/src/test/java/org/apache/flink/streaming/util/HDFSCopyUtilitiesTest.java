@@ -34,6 +34,9 @@ import java.io.FileOutputStream;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link HDFSCopyFromLocal} and {@link HDFSCopyToLocal}.
+ */
 public class HDFSCopyUtilitiesTest {
 
 	@Rule

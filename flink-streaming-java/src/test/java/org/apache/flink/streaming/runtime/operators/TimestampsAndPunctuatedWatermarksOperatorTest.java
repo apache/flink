@@ -30,6 +30,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link TimestampsAndPunctuatedWatermarksOperator}.
+ */
 public class TimestampsAndPunctuatedWatermarksOperatorTest {
 
 	@Test
