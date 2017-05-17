@@ -208,10 +208,16 @@ Once used in a job, you can retrieve the job ID and then query any key's current
 
 {% highlight java %}
 final Configuration config = new Configuration();
-config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, queryAddress);
-config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, queryPort);
+config.setString(JobManagerOptions.ADDRESS, queryAddress);
+config.setInteger(JobManagerOptions.PORT, queryPort);
 
-QueryableStateClient client = new QueryableStateClient(config);
+final HighAvailabilityServices highAvailabilityServices =
+      HighAvailabilityServicesUtils.createHighAvailabilityServices(
+           config,
+           TestingUtils.defaultExecutor(),
+           HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
+
+QueryableStateClient client = new QueryableStateClient(config, highAvailabilityServices);
 
 final TypeSerializer<Long> keySerializer =
         TypeInformation.of(new TypeHint<Long>() {}).createSerializer(new ExecutionConfig());
