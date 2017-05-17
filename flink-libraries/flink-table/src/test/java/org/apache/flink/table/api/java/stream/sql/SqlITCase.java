@@ -66,7 +66,7 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		String sqlQuery = "SELECT a,c FROM MyTableRow";
 		Table result = tableEnv.sql(sqlQuery);
 
-		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
+		DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
 		resultSet.addSink(new StreamITCase.StringSink());
 		env.execute();
 
@@ -91,7 +91,7 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		String sqlQuery = "SELECT * FROM MyTable";
 		Table result = tableEnv.sql(sqlQuery);
 
-		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
+		DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
 		resultSet.addSink(new StreamITCase.StringSink());
 		env.execute();
 
@@ -115,7 +115,7 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		String sqlQuery = "SELECT a, b, e FROM MyTable WHERE c < 4";
 		Table result = tableEnv.sql(sqlQuery);
 
-		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
+		DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
 		resultSet.addSink(new StreamITCase.StringSink());
 		env.execute();
 
@@ -146,7 +146,7 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 							"(SELECT a, b, c FROM T2 WHERE a	< 3)";
 		Table result = tableEnv.sql(sqlQuery);
 
-		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
+		DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
 		resultSet.addSink(new StreamITCase.StringSink());
 		env.execute();
 

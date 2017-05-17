@@ -87,7 +87,7 @@ package object scala extends ImplicitExpressionConversions {
 
   implicit def table2RowDataStream(table: Table): DataStream[Row] = {
     val tableEnv = table.tableEnv.asInstanceOf[ScalaStreamTableEnv]
-    tableEnv.toDataStream[Row](table)
+    tableEnv.toAppendStream[Row](table)
   }
 
   implicit def tableFunctionCall2Table[T](tf: TableFunction[T]): TableFunctionConversions[T] = {
