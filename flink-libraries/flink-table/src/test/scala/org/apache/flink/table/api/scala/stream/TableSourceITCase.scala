@@ -46,7 +46,7 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
 
     tEnv.sql(
       "SELECT id, `first`, `last`, score FROM persons WHERE id < 4 ")
-      .toDataStream[Row]
+      .toAppendStream[Row]
       .addSink(new StreamITCase.StringSink)
 
     env.execute()
@@ -71,7 +71,7 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
     tEnv.scan("csvTable")
       .where('id > 4)
       .select('last, 'score * 2)
-      .toDataStream[Row]
+      .toAppendStream[Row]
       .addSink(new StreamITCase.StringSink)
 
     env.execute()
