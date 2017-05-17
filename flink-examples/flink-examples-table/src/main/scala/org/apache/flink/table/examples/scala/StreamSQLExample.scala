@@ -62,7 +62,7 @@ object StreamSQLExample {
       "SELECT * FROM OrderA WHERE amount > 2 UNION ALL " +
         "SELECT * FROM OrderB WHERE amount < 2")
 
-    result.toDataStream[Order].print()
+    result.toAppendStream[Order].print()
 
     env.execute()
   }

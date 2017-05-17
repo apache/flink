@@ -103,7 +103,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 
     val t = table.select('rowtime.cast(Types.STRING))
 
-    val results = t.toDataStream[Row]
+    val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -134,7 +134,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       .filter('rowtime.cast(Types.LONG) > 4)
       .select('rowtime, 'rowtime.floor(TimeIntervalUnit.DAY), 'rowtime.ceil(TimeIntervalUnit.DAY))
 
-    val results = t.toDataStream[Row]
+    val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -161,7 +161,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 
     val t = table.join(func('rowtime, 'proctime) as 's).select('rowtime, 's)
 
-    val results = t.toDataStream[Row]
+    val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -191,7 +191,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 
     val t = table.unionAll(table).select('rowtime)
 
-    val results = t.toDataStream[Row]
+    val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -229,7 +229,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val t = tEnv.sql("SELECT COUNT(`rowtime`) FROM MyTable " +
       "GROUP BY TUMBLE(rowtime, INTERVAL '0.003' SECOND)")
 
-    val results = t.toDataStream[Row]
+    val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -262,7 +262,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       .groupBy('w2)
       .select('w2.rowtime, 'w2.end, 'int.count)
 
-    val results = t.toDataStream[Row]
+    val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
