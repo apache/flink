@@ -17,8 +17,6 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
-import java.util.Collection;
-import java.util.Collections;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -27,6 +25,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * A {@link WindowAssigner} that assigns all elements to the same {@link GlobalWindow}.

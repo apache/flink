@@ -17,7 +17,6 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing.functions;
 
-import java.util.Collections;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -25,6 +24,8 @@ import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
+
+import java.util.Collections;
 
 /**
  * Internal window function for wrapping a {@link ProcessWindowFunction} that takes an

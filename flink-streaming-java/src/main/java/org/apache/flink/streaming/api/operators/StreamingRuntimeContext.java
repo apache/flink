@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import java.util.List;
-import java.util.Map;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
@@ -42,6 +40,9 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * Implementation of the {@link org.apache.flink.api.common.functions.RuntimeContext},

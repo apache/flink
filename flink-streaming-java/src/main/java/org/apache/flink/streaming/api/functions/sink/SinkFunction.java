@@ -17,10 +17,10 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.Function;
+
+import java.io.Serializable;
 
 /**
  * Interface for implementing user defined sink functionality.

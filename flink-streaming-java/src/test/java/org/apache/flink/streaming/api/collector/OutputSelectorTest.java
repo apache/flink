@@ -17,16 +17,16 @@
 
 package org.apache.flink.streaming.api.collector;
 
-import static org.junit.Assert.assertEquals;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
 
 public class OutputSelectorTest {
 

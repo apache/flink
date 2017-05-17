@@ -39,6 +39,7 @@ import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.util.LongArrayList;
 import org.apache.flink.util.Preconditions;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

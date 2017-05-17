@@ -18,10 +18,10 @@
 
 package org.apache.flink.streaming.api.graph;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utility class that turns a {@link WithMasterCheckpointHook} into a

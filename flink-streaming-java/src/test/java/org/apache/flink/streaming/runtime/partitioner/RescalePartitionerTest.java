@@ -56,7 +56,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class RescalePartitionerTest extends TestLogger {

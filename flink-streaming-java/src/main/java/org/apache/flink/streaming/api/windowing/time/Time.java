@@ -18,10 +18,11 @@
 
 package org.apache.flink.streaming.api.windowing.time;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import org.apache.flink.annotation.Public;
 
 import java.util.concurrent.TimeUnit;
-import org.apache.flink.annotation.Public;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The definition of a time interval for windowing. The time characteristic referred

@@ -17,7 +17,10 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
@@ -29,9 +32,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nonnull;
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link ProcessingTimeService} which assigns as current processing time the result of calling

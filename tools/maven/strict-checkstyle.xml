@@ -197,9 +197,11 @@ This file is based on the checkstyle file of Apache Beam.
     <module name="ImportOrder">
       <!-- Checks for out of order import statements. -->
       <property name="severity" value="error"/>
-      <!-- This ensures that static imports go first. -->
-      <property name="option" value="top"/>
+      <!-- Flink imports first, then other imports, then javax and java imports, then static imports. -->
+      <property name="groups" value="org.apache.flink,*,javax,java"/>
+      <property name="separated" value="true"/>
       <property name="sortStaticImportsAlphabetically" value="true"/>
+      <property name="option" value="bottom"/>
       <property name="tokens" value="STATIC_IMPORT, IMPORT"/>
       <message key="import.ordering"
                value="Import {0} appears after other imports that it should precede"/>

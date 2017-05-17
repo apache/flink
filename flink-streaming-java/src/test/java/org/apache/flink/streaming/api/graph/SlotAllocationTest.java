@@ -17,19 +17,20 @@
 
 package org.apache.flink.streaming.api.graph;
 
-import static org.junit.Assert.*;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.util.TestLogger;
+
+import org.junit.Test;
 
 import java.util.List;
 
-import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-
-import org.apache.flink.streaming.api.functions.co.CoMapFunction;
-import org.apache.flink.util.TestLogger;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 /**
  * This verifies that slot sharing groups are correctly forwarded from user job to JobGraph.

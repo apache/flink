@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.api.graph;
 
-import java.util.Map;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+
+import java.util.Map;
 
 /**
  * Interface for different implementations of generating hashes over a stream graph.

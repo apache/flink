@@ -17,8 +17,9 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta;
 
-import java.io.Serializable;
 import org.apache.flink.annotation.PublicEvolving;
+
+import java.io.Serializable;
 
 /**
  * This interface allows the implementation of a function which calculates the

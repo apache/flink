@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import java.util.ArrayList;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -27,6 +26,8 @@ import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
+
+import java.util.ArrayList;
 
 /**
  * Special window operator implementation for windows that fire at the same time for all keys with

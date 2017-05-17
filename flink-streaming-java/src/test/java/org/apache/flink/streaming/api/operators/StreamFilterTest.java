@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.configuration.Configuration;
@@ -26,8 +24,11 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Tests for {@link StreamFilter}. These test that:

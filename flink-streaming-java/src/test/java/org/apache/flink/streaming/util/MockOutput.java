@@ -17,15 +17,16 @@
 
 package org.apache.flink.streaming.util;
 
-import java.io.Serializable;
-import java.util.Collection;
-
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
+
+import org.apache.commons.lang3.SerializationUtils;
+
+import java.io.Serializable;
+import java.util.Collection;
 
 public class MockOutput<T> implements Output<StreamRecord<T>> {
 	private Collection<T> outputs;

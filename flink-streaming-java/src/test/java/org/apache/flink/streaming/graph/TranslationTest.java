@@ -26,7 +26,8 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class TranslationTest {

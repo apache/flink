@@ -17,18 +17,19 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+
+import org.apache.sling.commons.json.JSONArray;
+import org.apache.sling.commons.json.JSONException;
+import org.apache.sling.commons.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.sling.commons.json.JSONArray;
-import org.apache.sling.commons.json.JSONException;
-import org.apache.sling.commons.json.JSONObject;
 
 /**
  * Helper class for generating a JSON representation from a {@link StreamGraph}.

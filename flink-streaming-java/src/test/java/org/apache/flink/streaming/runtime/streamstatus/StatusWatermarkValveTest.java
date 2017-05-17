@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.streamstatus;
 
 import org.apache.flink.streaming.api.watermark.Watermark;
+
 import org.junit.Test;
 
 import java.util.concurrent.BlockingQueue;

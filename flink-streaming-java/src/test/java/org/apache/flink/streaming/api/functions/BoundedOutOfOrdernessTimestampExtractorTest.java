@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.util.typeutils;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -30,7 +28,10 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 public class FieldAccessorTest {
 

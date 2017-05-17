@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -31,8 +29,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Tests for {@link StreamGroupedReduce}. These test that:

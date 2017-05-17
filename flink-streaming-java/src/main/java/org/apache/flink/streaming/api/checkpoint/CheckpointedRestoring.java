@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.api.checkpoint;
 
-import java.io.Serializable;
 import org.apache.flink.annotation.PublicEvolving;
+
+import java.io.Serializable;
 
 /**
  * This deprecated interface contains the methods for restoring from the legacy checkpointing mechanism of state.

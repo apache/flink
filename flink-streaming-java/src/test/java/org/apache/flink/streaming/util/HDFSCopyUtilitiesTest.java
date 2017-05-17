@@ -19,6 +19,7 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.OperatingSystem;
+
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;

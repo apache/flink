@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
