@@ -82,7 +82,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		AbstractCompletedCheckpointStore checkpoints = createCompletedCheckpoints(3);
 
 		TestCompletedCheckpoint[] expected = new TestCompletedCheckpoint[] {
-				createCheckpoint(0), createCheckpoint(1), createCheckpoint(2)
+				createCheckpoint(101), createCheckpoint(99), createCheckpoint(100)
 		};
 
 		// Add multiple checkpoints
