@@ -19,7 +19,6 @@
 package org.apache.flink.test.query;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -66,7 +65,6 @@ public final class KVStateRequestSerializerRocksDBTest {
 	final static class RocksDBKeyedStateBackend2<K> extends RocksDBKeyedStateBackend<K> {
 
 		RocksDBKeyedStateBackend2(
-				final JobID jobId,
 				final String operatorIdentifier,
 				final ClassLoader userCodeClassLoader,
 				final File instanceBasePath,
@@ -78,7 +76,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 				final KeyGroupRange keyGroupRange,
 				final ExecutionConfig executionConfig) throws Exception {
 
-			super(jobId, operatorIdentifier, userCodeClassLoader,
+			super(operatorIdentifier, userCodeClassLoader,
 				instanceBasePath,
 				dbOptions, columnFamilyOptions, kvStateRegistry, keySerializer,
 				numberOfKeyGroups, keyGroupRange, executionConfig, false);
@@ -110,7 +108,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 		ColumnFamilyOptions columnFamilyOptions = PredefinedOptions.DEFAULT.createColumnOptions();
 		final RocksDBKeyedStateBackend2<Long> longHeapKeyedStateBackend =
 			new RocksDBKeyedStateBackend2<>(
-				new JobID(), "no-op",
+				"no-op",
 				ClassLoader.getSystemClassLoader(),
 				temporaryFolder.getRoot(),
 				dbOptions,
@@ -147,7 +145,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 		ColumnFamilyOptions columnFamilyOptions = PredefinedOptions.DEFAULT.createColumnOptions();
 		final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
 			new RocksDBKeyedStateBackend<>(
-				new JobID(), "no-op",
+				"no-op",
 				ClassLoader.getSystemClassLoader(),
 				temporaryFolder.getRoot(),
 				dbOptions,
