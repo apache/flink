@@ -247,7 +247,7 @@ Note: It is possible to combine `-m yarn-cluster` with a detached YARN submissio
 
 ### User jars & Classpath
 
-By default Flink will include the user jars into the system classpath when running a single job. This behavior can be controlled with the `yarn.per-job-cluster.include-job-jar` parameter.
+By default Flink will include the user jars into the system classpath when running a single job. This behavior can be controlled with the `yarn.per-job-cluster.include-user-jar` parameter.
 
 When setting this to `DISABLED` Flink will include the jar in the user classpath instead.
 
