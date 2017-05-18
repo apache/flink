@@ -22,7 +22,9 @@ import java.io.Serializable;
 /**
  * It contains a open() method which is called on each parallel instance.
  * Partitioners must be serializable!
- * @deprecated Use {@link FlinkKafkaPartitioner} instead.
+ *
+ * @deprecated This partitioner does not handle partitioning properly in the case of
+ *             multiple topics, and has been deprecated. Please use {@link FlinkKafkaPartitioner} instead.
  */
 @Deprecated
 public abstract class KafkaPartitioner<T> implements Serializable {
@@ -34,22 +36,10 @@ public abstract class KafkaPartitioner<T> implements Serializable {
 	 * @param parallelInstanceId 0-indexed id of the parallel instance in Flink
 	 * @param parallelInstances the total number of parallel instances
 	 * @param partitions an array describing the partition IDs of the available Kafka partitions.
-	 * @deprecated Use {@link FlinkKafkaPartitioner#open(int, int)} instead.
 	 */
-	@Deprecated
 	public void open(int parallelInstanceId, int parallelInstances, int[] partitions) {
 		// overwrite this method if needed.
 	}
 
-	/**
-	 *
-	 * @param next
-	 * @param serializedKey
-	 * @param serializedValue
-	 * @param numPartitions
-	 * @return
-	 * @deprecated Use {@link FlinkKafkaPartitioner#partition(T, byte[], byte[], String, int[])} instead.
-	 */
-	@Deprecated
 	public abstract int partition(T next, byte[] serializedKey, byte[] serializedValue, int numPartitions);
 }
