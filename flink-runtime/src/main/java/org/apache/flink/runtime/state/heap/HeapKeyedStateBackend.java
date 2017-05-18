@@ -272,8 +272,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 		}
 
-		final KeyedBackendSerializationProxy serializationProxy =
-				new KeyedBackendSerializationProxy(keySerializer, metaInfoSnapshots);
+		final KeyedBackendSerializationProxy<K> serializationProxy =
+				new KeyedBackendSerializationProxy<>(keySerializer, metaInfoSnapshots);
 
 		//--------------------------------------------------- this becomes the end of sync part
 
@@ -383,8 +383,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			try {
 				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(fsDataInputStream);
 
-				KeyedBackendSerializationProxy serializationProxy =
-						new KeyedBackendSerializationProxy(userCodeClassLoader);
+				KeyedBackendSerializationProxy<K> serializationProxy =
+						new KeyedBackendSerializationProxy<>(userCodeClassLoader);
 
 				serializationProxy.read(inView);
 
@@ -395,7 +395,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						serializationProxy.getKeySerializer(),
 						TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer.class,
 						serializationProxy.getKeySerializerConfigSnapshot(),
-						(TypeSerializer) keySerializer)
+						keySerializer)
 						.isRequiresMigration()) {
 
 						// TODO replace with state migration; note that key hash codes need to remain the same after migration
@@ -405,7 +405,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 					keySerializerRestored = true;
 				}
-				
+
 				List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> restoredMetaInfos =
 						serializationProxy.getStateMetaInfoSnapshots();
 

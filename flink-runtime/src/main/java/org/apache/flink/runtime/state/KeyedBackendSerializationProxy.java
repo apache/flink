@@ -39,11 +39,11 @@ import java.util.List;
  * Serialization proxy for all meta data in keyed state backends. In the future we might also requiresMigration the actual state
  * serialization logic here.
  */
-public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable {
+public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritable {
 
 	public static final int VERSION = 3;
 
-	private TypeSerializer<?> keySerializer;
+	private TypeSerializer<K> keySerializer;
 	private TypeSerializerConfigSnapshot keySerializerConfigSnapshot;
 
 	private List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots;
@@ -55,7 +55,7 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 	}
 
 	public KeyedBackendSerializationProxy(
-			TypeSerializer<?> keySerializer,
+			TypeSerializer<K> keySerializer,
 			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots) {
 
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
@@ -70,7 +70,7 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		return stateMetaInfoSnapshots;
 	}
 
-	public TypeSerializer<?> getKeySerializer() {
+	public TypeSerializer<K> getKeySerializer() {
 		return keySerializer;
 	}
 
@@ -122,7 +122,7 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
-		final TypeSerializerSerializationProxy<?> keySerializerProxy =
+		final TypeSerializerSerializationProxy<K> keySerializerProxy =
 			new TypeSerializerSerializationProxy<>(userCodeClassLoader);
 
 		// only starting from version 3, we have the key serializer and its config snapshot written
