@@ -300,10 +300,9 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		lazyInitializeForJob(env, operatorIdentifier);
 
 		File instanceBasePath =
-				new File(getNextStoragePath(), "job-" + jobId.toString() + "_op-" + operatorIdentifier + "_uuid-" + UUID.randomUUID());
+				new File(getNextStoragePath(), "job-" + jobId + "_op-" + operatorIdentifier + "_uuid-" + UUID.randomUUID());
 
 		return new RocksDBKeyedStateBackend<>(
-				jobID,
 				operatorIdentifier,
 				env.getUserClassLoader(),
 				instanceBasePath,
