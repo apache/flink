@@ -334,20 +334,20 @@ object ProjectionTranslator {
         val l = replaceAggFunctionCall(b.left, tableEnv)
         val r = replaceAggFunctionCall(b.right, tableEnv)
         b.makeCopy(Array(l, r))
-
       // Functions calls
       case c @ Call(name, args) =>
         val function = tableEnv.getFunctionCatalog.lookupFunction(name, args)
-        if (function.isInstanceOf[AggFunctionCall] || function.isInstanceOf[Aggregation]) {
-          function
-        } else {
-          val newArgs =
-            args.map(
-            (exp: Expression) =>
-              replaceAggFunctionCall(exp, tableEnv))
-          c.makeCopy(Array(name, newArgs))
+        function match {
+          case a: AggFunctionCall => a
+          case a: Aggregation => a
+          case p: AbstractWindowProperty => p
+          case _ =>
+            val newArgs =
+              args.map(
+                (exp: Expression) =>
+                  replaceAggFunctionCall(exp, tableEnv))
+            c.makeCopy(Array(name, newArgs))
         }
-
       // Scala functions
       case sfc @ ScalarFunctionCall(clazz, args) =>
         val newArgs: Seq[Expression] =
