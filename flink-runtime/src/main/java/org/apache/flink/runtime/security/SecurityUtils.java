@@ -235,9 +235,8 @@ public class SecurityUtils {
 			}
 
 			return Arrays.asList(value
-				.replaceAll("\\s*,\\s*", ",") // remove whitespaces surrounding commas
-				.replaceAll(",,", ",") // remove empty entries
-				.trim() // remove leading and trailing whitespaces of whole list
+				.trim()
+				.replaceAll("(\\s*,+\\s*)+", ",")
 				.split(","));
 		}
 	}

@@ -132,7 +132,7 @@ public class SecurityUtilsTest {
 		// ------- empty trailing String entries with whitespaces
 
 		testFlinkConf = new Configuration();
-		testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar, , Client,");
+		testFlinkConf.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Foo bar, ,, Client,");
 		testSecurityConf = new SecurityUtils.SecurityConfiguration(
 			testFlinkConf, new org.apache.hadoop.conf.Configuration(),
 			Collections.singletonList(TestSecurityModule.class));
