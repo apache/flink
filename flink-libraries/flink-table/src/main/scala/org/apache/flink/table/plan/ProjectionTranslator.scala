@@ -334,11 +334,11 @@ object ProjectionTranslator {
         val l = replaceAggFunctionCall(b.left, tableEnv)
         val r = replaceAggFunctionCall(b.right, tableEnv)
         b.makeCopy(Array(l, r))
-
       // Functions calls
       case c @ Call(name, args) =>
         val function = tableEnv.getFunctionCatalog.lookupFunction(name, args)
-        if (function.isInstanceOf[AggFunctionCall] || function.isInstanceOf[Aggregation]) {
+        if (function.isInstanceOf[AbstractWindowProperty] ||
+          function.isInstanceOf[AggFunctionCall] || function.isInstanceOf[Aggregation]) {
           function
         } else {
           val newArgs =
