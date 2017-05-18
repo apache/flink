@@ -30,13 +30,15 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.api.java.stream.utils.StreamTestData;
-import org.apache.flink.table.api.scala.stream.utils.StreamITCase;
+import org.apache.flink.table.runtime.datastream.StreamITCase;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+
+
 
 /**
  * Integration tests for streaming SQL.

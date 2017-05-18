@@ -19,57 +19,22 @@
 package org.apache.flink.table.api.scala.stream.table
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.utils.TableTestBase
-import org.junit.Test
-import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.OverAgg0
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+import org.junit.Test
 
 class GroupAggregationsTest extends TableTestBase {
 
-  /**
-    * OVER clause is necessary for [[OverAgg0]] window function.
-    */
-  @Test(expected = classOf[ValidationException])
-  def testOverAggregation(): Unit = {
-    val util = streamTestUtil()
-    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
-    val overAgg = new OverAgg0
-    table.select(overAgg('a, 'b))
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testGroupingOnNonExistentField(): Unit = {
-    val util = streamTestUtil()
-    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
-
-    val ds = table
-             // must fail. '_foo is not a valid field
-             .groupBy('_foo)
-             .select('a.avg)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testGroupingInvalidSelection(): Unit = {
-    val util = streamTestUtil()
-    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
-
-    val ds = table
-             .groupBy('a, 'b)
-             // must fail. 'c is not a grouping key or aggregation
-             .select('c)
-  }
-
   @Test
-  def testGroupbyWithoutWindow() = {
+  def testGroupAggregate() = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     val resultTable = table
-                      .groupBy('b)
-                      .select('a.count)
+      .groupBy('b)
+      .select('a.count)
 
     val expected =
       unaryNode(
@@ -96,9 +61,9 @@ class GroupAggregationsTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     val resultTable = table
-            .select('a, 4 as 'four, 'b)
-            .groupBy('four, 'a)
-            .select('four, 'b.sum)
+      .select('a, 4 as 'four, 'b)
+      .groupBy('four, 'a)
+      .select('four, 'b.sum)
 
     val expected =
       unaryNode(
@@ -124,9 +89,9 @@ class GroupAggregationsTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     val resultTable = table
-            .select('b, 4 as 'four, 'a)
-            .groupBy('b, 'four)
-            .select('four, 'a.sum)
+      .select('b, 4 as 'four, 'a)
+      .groupBy('b, 'four)
+      .select('four, 'a.sum)
 
     val expected =
       unaryNode(
@@ -152,9 +117,9 @@ class GroupAggregationsTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     val resultTable = table
-            .select('a as 'a, 'b % 3 as 'd, 'c as 'c)
-            .groupBy('d)
-            .select('c.min, 'a.avg)
+      .select('a as 'a, 'b % 3 as 'd, 'c as 'c)
+      .groupBy('d)
+      .select('c.min, 'a.avg)
 
     val expected =
       unaryNode(
@@ -180,9 +145,9 @@ class GroupAggregationsTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     val resultTable = table
-            .groupBy('b)
-            .select('b, 'a.sum)
-            .where('b === 2)
+      .groupBy('b)
+      .select('b, 'a.sum)
+      .where('b === 2)
 
     val expected =
       unaryNode(
@@ -205,8 +170,8 @@ class GroupAggregationsTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     val resultTable = table
-            .groupBy('b)
-            .select('b, 'a.cast(BasicTypeInfo.DOUBLE_TYPE_INFO).avg)
+      .groupBy('b)
+      .select('b, 'a.cast(BasicTypeInfo.DOUBLE_TYPE_INFO).avg)
 
     val expected =
       unaryNode(

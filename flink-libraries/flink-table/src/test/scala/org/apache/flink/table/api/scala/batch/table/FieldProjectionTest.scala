@@ -20,9 +20,8 @@ package org.apache.flink.table.api.scala.batch.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.batch.table.FieldProjectionTest._
-import org.apache.flink.table.expressions.{Upper, WindowReference}
+import org.apache.flink.table.expressions.Upper
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.plan.logical.TumblingGroupWindow
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableTestBase, _}
 import org.junit.Test
@@ -33,12 +32,9 @@ import org.junit.Test
   */
 class FieldProjectionTest extends TableTestBase {
 
-  val util: BatchTableTestUtil = batchTestUtil()
-
-  val streamUtil: StreamTableTestUtil = streamTestUtil()
-
   @Test
   def testSimpleSelect(): Unit = {
+    val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.select('a, 'b)
 
@@ -53,6 +49,7 @@ class FieldProjectionTest extends TableTestBase {
 
   @Test
   def testSelectAllFields(): Unit = {
+    val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable1 = sourceTable.select('*)
     val resultTable2 = sourceTable.select('a, 'b, 'c, 'd)
@@ -65,6 +62,7 @@ class FieldProjectionTest extends TableTestBase {
 
   @Test
   def testSelectAggregation(): Unit = {
+    val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.select('a.sum, 'b.max)
 
@@ -92,9 +90,10 @@ class FieldProjectionTest extends TableTestBase {
 
   @Test
   def testSelectFunction(): Unit = {
+    val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
 
-    util.tEnv.registerFunction("hashCode", MyHashCode)
+    util.tableEnv.registerFunction("hashCode", MyHashCode)
 
     val resultTable = sourceTable.select("hashCode(c), b")
 
@@ -109,6 +108,7 @@ class FieldProjectionTest extends TableTestBase {
 
   @Test
   def testSelectFromGroupedTable(): Unit = {
+    val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy('a, 'c).select('a)
 
@@ -131,6 +131,7 @@ class FieldProjectionTest extends TableTestBase {
 
   @Test
   def testSelectAllFieldsFromGroupedTable(): Unit = {
+    val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy('a, 'c).select('a, 'c)
 
@@ -149,6 +150,7 @@ class FieldProjectionTest extends TableTestBase {
 
   @Test
   def testSelectAggregationFromGroupedTable(): Unit = {
+    val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy('c).select('a.sum)
 
@@ -173,6 +175,7 @@ class FieldProjectionTest extends TableTestBase {
 
   @Test
   def testSelectFromGroupedTableWithNonTrivialKey(): Unit = {
+    val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy(Upper('c) as 'k).select('a.sum)
 
@@ -197,6 +200,7 @@ class FieldProjectionTest extends TableTestBase {
 
   @Test
   def testSelectFromGroupedTableWithFunctionKey(): Unit = {
+    val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.groupBy(MyHashCode('c) as 'k).select('a.sum)
 
@@ -220,67 +224,8 @@ class FieldProjectionTest extends TableTestBase {
   }
 
   @Test
-  def testSelectFromStreamingWindow(): Unit = {
-    val sourceTable = streamUtil
-      .addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd, 'rowtime.rowtime)
-    val resultTable = sourceTable
-        .window(Tumble over 5.millis on 'rowtime as 'w)
-        .groupBy('w)
-        .select(Upper('c).count, 'a.sum)
-
-    val expected =
-      unaryNode(
-        "DataStreamGroupWindowAggregate",
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(0),
-          term("select", "c", "a", "rowtime", "UPPER(c) AS $f3")
-        ),
-        term("window",
-          TumblingGroupWindow(
-            WindowReference("w"),
-            'rowtime,
-            5.millis)),
-        term("select", "COUNT($f3) AS TMP_0", "SUM(a) AS TMP_1")
-      )
-
-    streamUtil.verifyTable(resultTable, expected)
-  }
-
-  @Test
-  def testSelectFromStreamingGroupedWindow(): Unit = {
-    val sourceTable = streamUtil
-      .addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd, 'rowtime.rowtime)
-    val resultTable = sourceTable
-        .window(Tumble over 5.millis on 'rowtime as 'w)
-        .groupBy('w, 'b)
-        .select(Upper('c).count, 'a.sum, 'b)
-
-    val expected = unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamGroupWindowAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "c", "a", "b", "rowtime", "UPPER(c) AS $f4")
-          ),
-          term("groupBy", "b"),
-          term("window",
-            TumblingGroupWindow(
-              WindowReference("w"),
-              'rowtime,
-              5.millis)),
-          term("select", "b", "COUNT($f4) AS TMP_0", "SUM(a) AS TMP_1")
-        ),
-        term("select", "TMP_0", "TMP_1", "b")
-    )
-
-    streamUtil.verifyTable(resultTable, expected)
-  }
-
-  @Test
   def testSelectFromAggregatedPojoTable(): Unit = {
+    val util = batchTestUtil()
     val sourceTable = util.addTable[WC]("MyTable", 'word, 'frequency)
     val resultTable = sourceTable
       .groupBy('word)

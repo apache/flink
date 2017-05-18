@@ -18,9 +18,9 @@
 package org.apache.flink.table.api.scala.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvg
-import org.apache.flink.table.api.java.{Slide => JSlide}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvg
+import org.apache.flink.table.api.java.{Slide => JSlide, Session => JSession, Tumble => JTumble}
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
@@ -29,14 +29,14 @@ import org.junit.Test
 class GroupWindowStringExpressionTest extends TableTestBase {
 
   @Test
-  def testJavaScalaTableAPIEquality(): Unit = {
+  def testRowTimeSlide(): Unit = {
     val util = streamTestUtil()
     val t = util.addTable[(Int, Long, String)]('int, 'long, 'string, 'rowtime.rowtime)
 
     val myCountFun = new CountAggFunction
-    util.tEnv.registerFunction("myCountFun", myCountFun)
+    util.tableEnv.registerFunction("myCountFun", myCountFun)
     val weightAvgFun = new WeightedAvg
-    util.tEnv.registerFunction("weightAvgFun", weightAvgFun)
+    util.tableEnv.registerFunction("weightAvgFun", weightAvgFun)
 
     // Expression / Scala API
     val resScala = t
@@ -66,4 +66,193 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     verifyTableEquals(resJava, resScala)
   }
+
+  @Test
+  def testRowTimeTumble(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, Long, String)]('int, 'long, 'rowtime.rowtime, 'string)
+
+    val myCountFun = new CountAggFunction
+    util.tableEnv.registerFunction("myCountFun", myCountFun)
+    val weightAvgFun = new WeightedAvg
+    util.tableEnv.registerFunction("weightAvgFun", weightAvgFun)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Tumble over 4.hours on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .select(
+        'string,
+        myCountFun('string),
+        'int.sum,
+        weightAvgFun('long, 'int),
+        weightAvgFun('int, 'int) * 2,
+        'w.start,
+        'w.end)
+
+    // String / Java API
+    val resJava = t
+      .window(JTumble.over("4.hours").on("rowtime").as("w"))
+      .groupBy("w, string")
+      .select(
+        "string, " +
+        "myCountFun(string), " +
+        "int.sum, " +
+        "weightAvgFun(long, int), " +
+        "weightAvgFun(int, int) * 2, " +
+        "start(w)," +
+        "end(w)")
+
+    verifyTableEquals(resJava, resScala)
+  }
+
+  @Test
+  def testRowTimeSession(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]('int, 'long, 'string, 'rowtime.rowtime)
+
+    val myCountFun = new CountAggFunction
+    util.tableEnv.registerFunction("myCountFun", myCountFun)
+    val weightAvgFun = new WeightedAvg
+    util.tableEnv.registerFunction("weightAvgFun", weightAvgFun)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Session withGap 4.hours on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .select(
+        'string,
+        myCountFun('string),
+        'int.sum,
+        weightAvgFun('long, 'int),
+        weightAvgFun('int, 'int) * 2,
+        'w.start)
+
+    // String / Java API
+    val resJava = t
+      .window(JSession.withGap("4.hours").on("rowtime").as("w"))
+      .groupBy("w, string")
+      .select(
+        "string, " +
+        "myCountFun(string), " +
+        "int.sum, " +
+        "weightAvgFun(long, int), " +
+        "weightAvgFun(int, int) * 2, " +
+        "start(w)"
+      )
+
+    verifyTableEquals(resJava, resScala)
+  }
+  @Test
+  def testProcTimeSlide(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]('int, 'long, 'string, 'proctime.proctime)
+
+    val myCountFun = new CountAggFunction
+    util.tableEnv.registerFunction("myCountFun", myCountFun)
+    val weightAvgFun = new WeightedAvg
+    util.tableEnv.registerFunction("weightAvgFun", weightAvgFun)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Slide over 4.hours every 2.hours on 'proctime as 'w)
+      .groupBy('w)
+      .select(
+        myCountFun('string),
+        'int.sum,
+        weightAvgFun('long, 'int),
+        weightAvgFun('int, 'int) * 2,
+        'w.start,
+        'w.end)
+
+    // String / Java API
+    val resJava = t
+      .window(JSlide.over("4.hours").every("2.hours").on("proctime").as("w"))
+      .groupBy("w")
+      .select(
+        "myCountFun(string), " +
+        "int.sum, " +
+        "weightAvgFun(long, int), " +
+        "weightAvgFun(int, int) * 2, " +
+        "start(w)," +
+        "end(w)")
+
+    verifyTableEquals(resJava, resScala)
+  }
+
+  @Test
+  def testProcTimeTumble(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]('int, 'long,'string, 'proctime.proctime)
+
+    val myCountFun = new CountAggFunction
+    util.tableEnv.registerFunction("myCountFun", myCountFun)
+    val weightAvgFun = new WeightedAvg
+    util.tableEnv.registerFunction("weightAvgFun", weightAvgFun)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Tumble over 4.hours on 'proctime as 'w)
+      .groupBy('w)
+      .select(
+        myCountFun('string),
+        'int.sum,
+        weightAvgFun('long, 'int),
+        weightAvgFun('int, 'int) * 2,
+        'w.start,
+        'w.end)
+
+    // String / Java API
+    val resJava = t
+      .window(JTumble.over("4.hours").on("proctime").as("w"))
+      .groupBy("w")
+      .select(
+        "myCountFun(string), " +
+        "int.sum, " +
+        "weightAvgFun(long, int), " +
+        "weightAvgFun(int, int) * 2, " +
+        "start(w)," +
+        "end(w)")
+
+    verifyTableEquals(resJava, resScala)
+  }
+
+  @Test
+  def testProcTimeSession(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]('int, 'long, 'string, 'proctime.proctime)
+
+    val myCountFun = new CountAggFunction
+    util.tableEnv.registerFunction("myCountFun", myCountFun)
+    val weightAvgFun = new WeightedAvg
+    util.tableEnv.registerFunction("weightAvgFun", weightAvgFun)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Session withGap 4.hours on 'proctime as 'w)
+      .groupBy('w)
+      .select(
+        myCountFun('string),
+        'int.sum,
+        weightAvgFun('long, 'int),
+        weightAvgFun('int, 'int) * 2,
+        'w.start,
+        'w.end)
+
+    // String / Java API
+    val resJava = t
+      .window(JSession.withGap("4.hours").on("proctime").as("w"))
+      .groupBy("w")
+      .select(
+        "myCountFun(string), " +
+        "int.sum, " +
+        "weightAvgFun(long, int), " +
+        "weightAvgFun(int, int) * 2, " +
+        "start(w), " +
+        "end(w)"
+      )
+
+    verifyTableEquals(resJava, resScala)
+  }
+
 }

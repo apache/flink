@@ -18,21 +18,10 @@
 
 package org.apache.flink.table.expressions
 
-import java.util.{HashMap => JHashMap}
-
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.{MapTypeInfo, RowTypeInfo}
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.expressions.utils.ExpressionTestBase
-import org.apache.flink.types.Row
+import org.apache.flink.table.expressions.utils.MapTypeTestBase
 import org.junit.Test
 
-class MapTypeTest extends ExpressionTestBase {
-
-  @Test(expected = classOf[ValidationException])
-  def testWrongKeyType(): Unit = {
-    testSqlApi("f4[12]", "FAIL")
-  }
+class MapTypeTest extends MapTypeTestBase {
 
   @Test
   def testItem(): Unit = {
@@ -41,32 +30,6 @@ class MapTypeTest extends ExpressionTestBase {
     testSqlApi("f2['b']", "13")
     testSqlApi("f3[1]", "null")
     testSqlApi("f3[12]", "a")
-  }
-
-  // ----------------------------------------------------------------------------------------------
-
-  override def testData: Any = {
-    val testData = new Row(4)
-    testData.setField(0, null)
-    testData.setField(1, new JHashMap[String, Int]())
-    val map = new JHashMap[String, Int]()
-    map.put("a", 12)
-    map.put("b", 13)
-    testData.setField(2, map)
-    val map2 = new JHashMap[Int, String]()
-    map2.put(12, "a")
-    map2.put(13, "b")
-    testData.setField(3, map2)
-    testData
-  }
-
-  override def typeInfo: TypeInformation[Any] = {
-    new RowTypeInfo(
-      new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
-      new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-      new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-      new MapTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO)
-    ).asInstanceOf[TypeInformation[Any]]
   }
 
 }

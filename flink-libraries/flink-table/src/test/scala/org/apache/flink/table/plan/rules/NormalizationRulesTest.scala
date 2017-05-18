@@ -38,7 +38,7 @@ class NormalizationRulesTest extends TableTestBase {
         .replaceLogicalOptRuleSet(RuleSets.ofList())
         .replacePhysicalOptRuleSet(RuleSets.ofList())
         .build()
-    util.tEnv.getConfig.setCalciteConfig(cc)
+    util.tableEnv.getConfig.setCalciteConfig(cc)
 
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
@@ -72,7 +72,7 @@ class NormalizationRulesTest extends TableTestBase {
         .replaceLogicalOptRuleSet(RuleSets.ofList())
         .replacePhysicalOptRuleSet(RuleSets.ofList())
         .build()
-    util.tEnv.getConfig.setCalciteConfig(cc)
+    util.tableEnv.getConfig.setCalciteConfig(cc)
 
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 

@@ -27,7 +27,7 @@ import org.junit._
 class CastingStringExpressionTest {
 
   @Test
-  def testNumericAutocastInArithmetic() {
+  def testNumericAutoCastInArithmetic() {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = TableEnvironment.getTableEnvironment(env)
@@ -47,7 +47,7 @@ class CastingStringExpressionTest {
 
   @Test
   @throws[Exception]
-  def testNumericAutocastInComparison() {
+  def testNumericAutoCastInComparison() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = TableEnvironment.getTableEnvironment(env)
 
