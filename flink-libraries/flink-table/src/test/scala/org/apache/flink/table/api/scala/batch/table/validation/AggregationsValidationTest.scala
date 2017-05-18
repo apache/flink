@@ -19,24 +19,24 @@
 package org.apache.flink.table.api.scala.batch.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{OverAgg0, WeightedAvgWithMergeAndReset}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableEnvironment, ValidationException}
+import org.apache.flink.table.utils.TableTestBase
 import org.junit._
 
-class AggregationsValidationTest {
+class AggregationsValidationTest extends TableTestBase {
 
   /**
     * OVER clause is necessary for [[OverAgg0]] window function.
     */
   @Test(expected = classOf[ValidationException])
   def testOverAggregation(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
-    val input = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+
     val overAgg = new OverAgg0
-    input.select('c.count, overAgg('b, 'a))
+    t.select('c.count, overAgg('b, 'a))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -52,199 +52,176 @@ class AggregationsValidationTest {
 
   @Test(expected = classOf[ValidationException])
   def testNoNestedAggregations(): Unit = {
+    val util = batchTestUtil()
+    val t = util.addTable[(String, Int)]("Table2")
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    env.fromElements(("Hello", 1)).toTable(tEnv)
-      // Must fail. Sum aggregation can not be chained.
-      .select('_2.sum.sum)
+    // Must fail. Sum aggregation can not be chained.
+    t.select('_2.sum.sum)
   }
 
   @Test(expected = classOf[ValidationException])
   def testGroupingOnNonExistentField(): Unit = {
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-      // must fail. '_foo not a valid field
-      .groupBy('_foo)
-      .select('a.avg)
+    // must fail. '_foo not a valid field
+    t.groupBy('_foo)
+    .select('a.avg)
   }
 
   @Test(expected = classOf[ValidationException])
   def testGroupingInvalidSelection(): Unit = {
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-      .groupBy('a, 'b)
-      // must fail. 'c is not a grouping key or aggregation
-      .select('c)
+    t.groupBy('a, 'b)
+    // must fail. 'c is not a grouping key or aggregation
+    .select('c)
   }
 
   @Test(expected = classOf[ValidationException])
   def testAggregationOnNonExistingField(): Unit = {
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
-      // Must fail. Field 'foo does not exist.
-      .select('foo.avg)
+    // Must fail. Field 'foo does not exist.
+    t.select('foo.avg)
   }
 
   @Test(expected = classOf[ValidationException])
   @throws[Exception]
   def testInvalidUdAggArgs() {
-    val env= ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
 
-    val input = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
-    input
-      // must fail. UDAGG does not accept String type
-      .select(myWeightedAvg('c, 'a))
+    // must fail. UDAGG does not accept String type
+    t.select(myWeightedAvg('c, 'a))
   }
 
   @Test(expected = classOf[ValidationException])
   @throws[Exception]
   def testGroupingInvalidUdAggArgs() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
 
-    val input = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
-    input
-      .groupBy('b)
-      // must fail. UDAGG does not accept String type
-      .select(myWeightedAvg('c, 'a))
+    t.groupBy('b)
+    // must fail. UDAGG does not accept String type
+    .select(myWeightedAvg('c, 'a))
   }
 
   @Test(expected = classOf[ValidationException])
   @throws[Exception]
   def testGroupingNestedUdAgg() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
 
-    val input = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
-    input
-      .groupBy('c)
-      // must fail. UDAGG does not accept String type
-      .select(myWeightedAvg(myWeightedAvg('b, 'a), 'a))
+    t.groupBy('c)
+    // must fail. UDAGG does not accept String type
+    .select(myWeightedAvg(myWeightedAvg('b, 'a), 'a))
   }
 
   @Test(expected = classOf[ValidationException])
   @throws[Exception]
   def testAggregationOnNonExistingFieldJava() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
-    val table = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv)
-    table.select("foo.avg")
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+    t.select("foo.avg")
   }
 
   @Test(expected = classOf[ValidationException])
   @throws[Exception]
   def testNonWorkingAggregationDataTypesJava() {
-    val env= ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
-    val table = env.fromElements((1f, "Hello")).toTable(tableEnv)
+    val util = batchTestUtil()
+    val t = util.addTable[(Long, String)]("Table2",'b, 'c)
     // Must fail. Cannot compute SUM aggregate on String field.
-    table.select("f1.sum")
+    t.select("c.sum")
   }
 
   @Test(expected = classOf[ValidationException])
   @throws[Exception]
   def testNoNestedAggregationsJava() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
-    val table = env.fromElements((1f, "Hello")).toTable(tableEnv)
+    val util = batchTestUtil()
+    val t = util.addTable[(Long, String)]("Table2",'b, 'c)
     // Must fail. Aggregation on aggregation not allowed.
-    table.select("f0.sum.sum")
+    t.select("b.sum.sum")
   }
 
   @Test(expected = classOf[ValidationException])
   @throws[Exception]
   def testGroupingOnNonExistentFieldJava() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
-    val input = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
-    input
-      // must fail. Field foo is not in input
-      .groupBy("foo")
-      .select("a.avg")
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+    // must fail. Field foo is not in input
+    t.groupBy("foo")
+    .select("a.avg")
   }
 
   @Test(expected = classOf[ValidationException])
   @throws[Exception]
   def testGroupingInvalidSelectionJava() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
-    val input = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
-    input
-      .groupBy("a, b")
-      // must fail. Field c is not a grouping key or aggregation
-      .select("c")
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+    t.groupBy("a, b")
+    // must fail. Field c is not a grouping key or aggregation
+    .select("c")
   }
 
   @Test(expected = classOf[ValidationException])
   @throws[Exception]
   def testUnknownUdAggJava() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
-    val input = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
-    input
-      // must fail. unknown is not known
-      .select("unknown(c)")
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+    // must fail. unknown is not known
+    t.select("unknown(c)")
   }
 
   @Test(expected = classOf[ValidationException])
   @throws[Exception]
   def testGroupingUnknownUdAggJava() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
-    val input = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
-    input
-      .groupBy("a, b")
-      // must fail. unknown is not known
-      .select("unknown(c)")
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+    t.groupBy("a, b")
+    // must fail. unknown is not known
+    .select("unknown(c)")
   }
 
   @Test(expected = classOf[ValidationException])
   @throws[Exception]
   def testInvalidUdAggArgsJava() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
-    tableEnv.registerFunction("myWeightedAvg", myWeightedAvg)
+    util.tableEnv.registerFunction("myWeightedAvg", myWeightedAvg)
 
-    val input = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
-    input
-      // must fail. UDAGG does not accept String type
-      .select("myWeightedAvg(c, a)")
+    // must fail. UDAGG does not accept String type
+    t.select("myWeightedAvg(c, a)")
   }
 
   @Test(expected = classOf[ValidationException])
   @throws[Exception]
   def testGroupingInvalidUdAggArgsJava() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
-    tableEnv.registerFunction("myWeightedAvg", myWeightedAvg)
+    util.tableEnv.registerFunction("myWeightedAvg", myWeightedAvg)
 
-    val input = CollectionDataSets.get3TupleDataSet(env).toTable(tableEnv, 'a, 'b, 'c)
-    input
-      .groupBy("b")
-      // must fail. UDAGG does not accept String type
-      .select("myWeightedAvg(c, a)")
+    t.groupBy("b")
+    // must fail. UDAGG does not accept String type
+    .select("myWeightedAvg(c, a)")
   }
 
 }

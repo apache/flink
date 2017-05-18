@@ -19,24 +19,19 @@
 package org.apache.flink.table.api.scala.batch.table.stringexpr
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMergeAndReset
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.batch.utils.LogicalPlanFormatUtils
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
+import org.apache.flink.table.utils.TableTestBase
 import org.junit._
 
 class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testAggregationTypes(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3")
 
     val t1 = t.select('_1.sum, '_1.sum0, '_1.min, '_1.max, '_1.count, '_1.avg)
     val t2 = t.select("_1.sum, _1.sum0, _1.min, _1.max, _1.count, _1.avg")
@@ -46,13 +41,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testWorkingAggregationDataTypes(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = env.fromElements(
-      (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
-      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable(tEnv)
+    val util = batchTestUtil()
+    val t = util.addTable[(Byte, Short, Int, Long, Float, Double, String)]("Table7")
 
     val t1 = t.select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
     val t2 = t.select("_1.avg, _2.avg, _3.avg, _4.avg, _5.avg, _6.avg, _7.count")
@@ -62,13 +52,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testProjection(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = env.fromElements(
-      (1: Byte, 1: Short),
-      (2: Byte, 2: Short)).toTable(tEnv)
+    val util = batchTestUtil()
+    val t = util.addTable[(Byte, Short)]("Table2")
 
     val t1 = t.select('_1.avg, '_1.sum, '_1.count, '_2.avg, '_2.sum)
     val t2 = t.select("_1.avg, _1.sum, _1.count, _2.avg, _2.sum")
@@ -78,11 +63,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testAggregationWithArithmetic(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable(tEnv)
+    val util = batchTestUtil()
+    val t = util.addTable[(Long, String)]("Table2")
 
     val t1 = t.select(('_1 + 2).avg + 2, '_2.count + 5)
     val t2 = t.select("(_1 + 2).avg + 2, _2.count + 5")
@@ -92,11 +74,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testAggregationWithTwoCount(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable(tEnv)
+    val util = batchTestUtil()
+    val t = util.addTable[(Long, String)]("Table2")
 
     val t1 = t.select('_1.count, '_2.count)
     val t2 = t.select("_1.count, _2.count")
@@ -106,13 +85,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testAggregationAfterProjection(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = env.fromElements(
-      (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
-      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable(tEnv)
+    val util = batchTestUtil()
+    val t = util.addTable[(Byte, Short, Int, Long, Float, Double, String)]("Table7")
 
     val t1 = t.select('_1, '_2, '_3)
       .select('_1.avg, '_2.sum, '_3.count)
@@ -125,10 +99,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testDistinct(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val util = batchTestUtil()
+    val ds = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
 
     val distinct = ds.select('b).distinct()
     val distinct2 = ds.select("b").distinct()
@@ -138,10 +110,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testDistinctAfterAggregate(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val ds = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+    val util = batchTestUtil()
+    val ds = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'a, 'b, 'c, 'd, 'e)
 
     val distinct = ds.groupBy('a, 'e).select('e).distinct()
     val distinct2 = ds.groupBy("a, e").select("e").distinct()
@@ -154,11 +124,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testGroupedAggregate(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val t1 = t.groupBy('b).select('b, 'a.sum)
     val t2 = t.groupBy("b").select("b, a.sum")
@@ -168,11 +135,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testGroupingKeyForwardIfNotUsed(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val t1 = t.groupBy('b).select('a.sum)
     val t2 = t.groupBy("b").select("a.sum")
@@ -182,11 +146,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testGroupNoAggregation(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val t1 = t
       .groupBy('b)
@@ -205,11 +166,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testGroupedAggregateWithConstant1(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val t1 = t.select('a, 4 as 'four, 'b)
       .groupBy('four, 'a)
@@ -224,11 +182,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testGroupedAggregateWithConstant2(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val t1 = t.select('b, 4 as 'four, 'a)
       .groupBy('b, 'four)
@@ -242,11 +197,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testGroupedAggregateWithExpression(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'a, 'b, 'c, 'd, 'e)
 
     val t1 = t.groupBy('e, 'b % 3)
       .select('c.min, 'e, 'a.avg, 'd.count)
@@ -258,11 +210,8 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testGroupedAggregateWithFilter(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val t1 = t.groupBy('b)
       .select('b, 'a.sum)
@@ -295,16 +244,13 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testAggregateWithUDAGG(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myCnt = new CountAggFunction
-    tEnv.registerFunction("myCnt", myCnt)
+    util.tableEnv.registerFunction("myCnt", myCnt)
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
-    tEnv.registerFunction("myWeightedAvg", myWeightedAvg)
+    util.tableEnv.registerFunction("myWeightedAvg", myWeightedAvg)
 
     val t1 = t.select(myCnt('a) as 'aCnt, myWeightedAvg('b, 'a) as 'wAvg)
     val t2 = t.select("myCnt(a) as aCnt, myWeightedAvg(b, a) as wAvg")
@@ -323,16 +269,14 @@ class AggregationsStringExpressionTest extends TableTestBase {
 
   @Test
   def testGroupedAggregateWithUDAGG(): Unit = {
+    val util = batchTestUtil()
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
     val myCnt = new CountAggFunction
-    tEnv.registerFunction("myCnt", myCnt)
+    util.tableEnv.registerFunction("myCnt", myCnt)
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
-    tEnv.registerFunction("myWeightedAvg", myWeightedAvg)
+    util.tableEnv.registerFunction("myWeightedAvg", myWeightedAvg)
 
     val t1 = t.groupBy('b)
       .select('b, myCnt('a) + 9 as 'aCnt, myWeightedAvg('b, 'a) * 2 as 'wAvg, myWeightedAvg('a, 'a))

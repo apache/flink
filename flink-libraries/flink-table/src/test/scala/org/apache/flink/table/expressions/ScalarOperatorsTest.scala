@@ -18,16 +18,12 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.types.Row
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.{ExpressionTestBase, ShouldNotExecuteFunc}
-import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.expressions.utils.{ScalarOperatorsTestBase, ShouldNotExecuteFunc}
 import org.junit.Test
 
-class ScalarOperatorsTest extends ExpressionTestBase {
+class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
   @Test
   def testCasting(): Unit = {
@@ -215,67 +211,5 @@ class ScalarOperatorsTest extends ExpressionTestBase {
       "trueX")
     testTableApi(12.isNull, "12.isNull", "false")
   }
-
-  @Test(expected = classOf[ValidationException])
-  def testIfInvalidTypesScala(): Unit = {
-    testTableApi(('f6 && true).?(5, "false"), "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testIfInvalidTypesJava(): Unit = {
-    testTableApi("FAIL", "(f8 && true).?(5, 'false')", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidStringComparison1(): Unit = {
-    testTableApi("w" === 4, "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidStringComparison2(): Unit = {
-    testTableApi("w" > 4.toExpr, "FAIL", "FAIL")
-  }
-
-  // ----------------------------------------------------------------------------------------------
-
-  def testData = {
-    val testData = new Row(13)
-    testData.setField(0, 1: Byte)
-    testData.setField(1, 1: Short)
-    testData.setField(2, 1)
-    testData.setField(3, 1L)
-    testData.setField(4, 1.0f)
-    testData.setField(5, 1.0d)
-    testData.setField(6, true)
-    testData.setField(7, 0.0d)
-    testData.setField(8, 5)
-    testData.setField(9, 10)
-    testData.setField(10, "String")
-    testData.setField(11, false)
-    testData.setField(12, null)
-    testData
-  }
-
-  def typeInfo = {
-    new RowTypeInfo(
-      Types.BYTE,
-      Types.SHORT,
-      Types.INT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.BOOLEAN,
-      Types.DOUBLE,
-      Types.INT,
-      Types.INT,
-      Types.STRING,
-      Types.BOOLEAN,
-      Types.BOOLEAN
-      ).asInstanceOf[TypeInformation[Any]]
-  }
-
-  override def functions: Map[String, ScalarFunction] = Map(
-    "shouldNotExecuteFunc" -> ShouldNotExecuteFunc
-  )
 
 }

@@ -18,30 +18,21 @@
 
 package org.apache.flink.table.api.scala.batch.table.validation
 
+import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.scala.{ExecutionEnvironment, _}
+import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
-import org.apache.flink.table.api.{TableEnvironment, ValidationException}
 import org.junit._
 
-class SortValidationTest {
-
-  def getExecutionEnvironment = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(4)
-    env
-  }
+class SortValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testFetchWithoutOrder(): Unit = {
-    val env = getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val util = batchTestUtil()
+    val ds = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    val ds = CollectionDataSets.get3TupleDataSet(env)
-    val t = ds.toTable(tEnv).limit(0, 5)
-
-    t.toDataSet[Row].collect()
+    val t = ds.limit(0, 5).toDataSet[Row].collect()
   }
 
 }

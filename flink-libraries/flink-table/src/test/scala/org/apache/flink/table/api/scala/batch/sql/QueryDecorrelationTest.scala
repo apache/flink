@@ -19,22 +19,18 @@ package org.apache.flink.table.api.scala.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.{BatchTableTestUtil, TableTestBase}
-import org.junit.{Before, Test}
+import org.junit.Test
 
 class QueryDecorrelationTest extends TableTestBase {
 
-  val util: BatchTableTestUtil = batchTestUtil()
-
-  @Before
-  def setup(): Unit = {
-    util.addTable[(Int, String, String, Int, Int)]("emp", 'empno, 'ename, 'job, 'salary, 'deptno)
-    util.addTable[(Int, String)]("dept", 'deptno, 'name)
-  }
-
   @Test
   def testCorrelationScalarAggAndFilter(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, String, String, Int, Int)]("emp", 'empno, 'ename, 'job, 'salary, 'deptno)
+    util.addTable[(Int, String)]("dept", 'deptno, 'name)
+
     val sql = "SELECT e1.empno\n" +
         "FROM emp e1, dept d1 where e1.deptno = d1.deptno\n" +
         "and e1.deptno < 10 and d1.deptno < 15\n" +
@@ -89,6 +85,10 @@ class QueryDecorrelationTest extends TableTestBase {
 
   @Test
   def testDecorrelateWithMultiAggregate(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, String, String, Int, Int)]("emp", 'empno, 'ename, 'job, 'salary, 'deptno)
+    util.addTable[(Int, String)]("dept", 'deptno, 'name)
+
     val sql = "select sum(e1.empno) from emp e1, dept d1 " +
         "where e1.deptno = d1.deptno " +
         "and e1.salary > (" +
