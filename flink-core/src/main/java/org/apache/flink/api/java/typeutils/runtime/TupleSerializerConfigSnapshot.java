@@ -20,7 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
@@ -41,11 +41,8 @@ public final class TupleSerializerConfigSnapshot<T> extends CompositeTypeSeriali
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public TupleSerializerConfigSnapshot() {}
 
-	public TupleSerializerConfigSnapshot(
-			Class<T> tupleClass,
-			TypeSerializerConfigSnapshot[] fieldSerializerConfigSnapshots) {
-
-		super(fieldSerializerConfigSnapshots);
+	public TupleSerializerConfigSnapshot(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
+		super(fieldSerializers);
 
 		this.tupleClass = Preconditions.checkNotNull(tupleClass);
 	}

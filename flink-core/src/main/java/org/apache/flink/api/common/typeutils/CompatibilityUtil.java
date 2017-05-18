@@ -15,16 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.annotation.Internal;
 
 /**
- * Utilities related to state migration, commonly used in the state backends.
+ * Utilities related to serializer compatibility.
  */
-public class StateMigrationUtil {
+@Internal
+public class CompatibilityUtil {
 
 	/**
 	 * Resolves the final compatibility result of two serializers by taking into account compound information,
@@ -47,7 +46,7 @@ public class StateMigrationUtil {
 	 * @param newSerializer the new serializer to ensure compatibility with
 	 *
 	 * @param <T> Type of the data handled by the serializers
-	 *
+	 * 
 	 * @return the final resolved compatibility result
 	 */
 	public static <T> CompatibilityResult<T> resolveCompatibilityResult(
