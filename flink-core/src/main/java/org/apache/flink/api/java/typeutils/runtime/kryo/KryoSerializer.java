@@ -276,16 +276,17 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public int hashCode() {
-		return Objects.hash(
-			type,
-			registeredTypes,
-			registeredTypesWithSerializerClasses,
-			defaultSerializerClasses);
+		int result = type.hashCode();
+		result = 31 * result + (kryoRegistrations.hashCode());
+		result = 31 * result + (defaultSerializers.hashCode());
+		result = 31 * result + (defaultSerializerClasses.hashCode());
+
+		return result;
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof KryoSerializer) {
@@ -293,8 +294,9 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 			return other.canEqual(this) &&
 				type == other.type &&
-				kryoRegistrations.equals(other.kryoRegistrations) &&
-				defaultSerializerClasses.equals(other.defaultSerializerClasses);
+				Objects.equals(kryoRegistrations, other.kryoRegistrations) &&
+				Objects.equals(defaultSerializerClasses, other.defaultSerializerClasses) &&
+				Objects.equals(defaultSerializers, other.defaultSerializers);
 		} else {
 			return false;
 		}
