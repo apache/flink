@@ -81,12 +81,15 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- enable the escape string for filtering resources -->
+			<!-- use alternative delimiter for filtering resources -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-resources-plugin</artifactId>
 				<configuration>
-					<escapeString>\</escapeString>
+					<useDefaultDelimiters>false</useDefaultDelimiters>
+					<delimiters>
+						<delimiter>@</delimiter>
+					</delimiters>
 				</configuration>
 			</plugin>
 		</plugins>
