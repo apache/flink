@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -64,7 +64,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(OperatorBackendStateMetaInfoSnapshotReaderWriters.class)
+@PrepareForTest(TypeSerializerSerializationUtil.class)
 public class OperatorStateBackendTest {
 
 	private final ClassLoader classLoader = getClass().getClassLoader();
@@ -544,9 +544,10 @@ public class OperatorStateBackendTest {
 				"testOperator");
 
 			// mock failure when deserializing serializer
-			TypeSerializerSerializationProxy<?> mockProxy = mock(TypeSerializerSerializationProxy.class);
+			TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
+					mock(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class);
 			doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
-			PowerMockito.whenNew(TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
+			PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
 
 			operatorStateBackend.restore(Collections.singletonList(stateHandle));
 

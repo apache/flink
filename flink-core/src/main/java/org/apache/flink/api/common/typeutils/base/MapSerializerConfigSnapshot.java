@@ -20,25 +20,22 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
  * Configuration snapshot for serializers of maps, containing the
  * configuration snapshot of its key serializer and value serializer.
  */
 @Internal
-public final class MapSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+public final class MapSerializerConfigSnapshot<K, V> extends CompositeTypeSerializerConfigSnapshot {
 
 	private static final int VERSION = 1;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public MapSerializerConfigSnapshot() {}
 
-	public MapSerializerConfigSnapshot(
-			TypeSerializerConfigSnapshot keySerializerConfigSnapshot,
-			TypeSerializerConfigSnapshot valueSerializerConfigSnapshot) {
-
-		super(keySerializerConfigSnapshot, valueSerializerConfigSnapshot);
+	public MapSerializerConfigSnapshot(TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer) {
+		super(keySerializer, valueSerializer);
 	}
 
 	@Override

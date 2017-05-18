@@ -23,10 +23,13 @@ import static java.util.Objects.requireNonNull;
 import java.io.IOException;
 
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -216,14 +219,20 @@ public class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<Stream
 
 	@Override
 	public MultiplexingStreamRecordSerializerConfigSnapshot snapshotConfiguration() {
-		return new MultiplexingStreamRecordSerializerConfigSnapshot(typeSerializer.snapshotConfiguration());
+		return new MultiplexingStreamRecordSerializerConfigSnapshot<>(typeSerializer);
 	}
 
 	@Override
 	public CompatibilityResult<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof MultiplexingStreamRecordSerializerConfigSnapshot) {
-			CompatibilityResult<T> compatResult = typeSerializer.ensureCompatibility(
-				((MultiplexingStreamRecordSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousTypeSerializerAndConfig =
+				((MultiplexingStreamRecordSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
+
+			CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
+					previousTypeSerializerAndConfig.f0,
+					UnloadableDummyTypeSerializer.class,
+					previousTypeSerializerAndConfig.f1,
+					typeSerializer);
 
 			if (!compatResult.isRequiresMigration()) {
 				return CompatibilityResult.compatible();
@@ -240,7 +249,7 @@ public class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<Stream
 	/**
 	 * Configuration snapshot specific to the {@link MultiplexingStreamRecordSerializer}.
 	 */
-	public static final class MultiplexingStreamRecordSerializerConfigSnapshot
+	public static final class MultiplexingStreamRecordSerializerConfigSnapshot<T>
 			extends CompositeTypeSerializerConfigSnapshot {
 
 		private static final int VERSION = 1;
@@ -248,8 +257,8 @@ public class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<Stream
 		/** This empty nullary constructor is required for deserializing the configuration. */
 		public MultiplexingStreamRecordSerializerConfigSnapshot() {}
 
-		public MultiplexingStreamRecordSerializerConfigSnapshot(TypeSerializerConfigSnapshot typeSerializerConfigSnapshot) {
-			super(typeSerializerConfigSnapshot);
+		public MultiplexingStreamRecordSerializerConfigSnapshot(TypeSerializer<T> typeSerializer) {
+			super(typeSerializer);
 		}
 
 		@Override

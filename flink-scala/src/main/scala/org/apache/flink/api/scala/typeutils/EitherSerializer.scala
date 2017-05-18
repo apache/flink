@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeDeserializerAdapter, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializerConfigSnapshot
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
@@ -110,22 +110,29 @@ class EitherSerializer[A, B, T <: Either[A, B]](
   // Serializer configuration snapshotting & compatibility
   // --------------------------------------------------------------------------------------------
 
-  override def snapshotConfiguration(): EitherSerializerConfigSnapshot = {
-    new EitherSerializerConfigSnapshot(
-      leftSerializer.snapshotConfiguration(),
-      rightSerializer.snapshotConfiguration())
+  override def snapshotConfiguration(): EitherSerializerConfigSnapshot[A, B] = {
+    new EitherSerializerConfigSnapshot[A, B](leftSerializer, rightSerializer)
   }
 
   override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[T] = {
 
     configSnapshot match {
-      case eitherSerializerConfig: EitherSerializerConfigSnapshot =>
-        val leftRightConfigs =
-          eitherSerializerConfig.getNestedSerializerConfigSnapshots
+      case eitherSerializerConfig: EitherSerializerConfigSnapshot[A, B] =>
+        val previousLeftRightSerWithConfigs =
+          eitherSerializerConfig.getNestedSerializersAndConfigs
 
-        val leftCompatResult = leftSerializer.ensureCompatibility(leftRightConfigs(0))
-        val rightCompatResult = rightSerializer.ensureCompatibility(leftRightConfigs(1))
+        val leftCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+          previousLeftRightSerWithConfigs.get(0).f0,
+          classOf[UnloadableDummyTypeSerializer[_]],
+          previousLeftRightSerWithConfigs.get(0).f1,
+          leftSerializer)
+
+        val rightCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+          previousLeftRightSerWithConfigs.get(1).f0,
+          classOf[UnloadableDummyTypeSerializer[_]],
+          previousLeftRightSerWithConfigs.get(1).f1,
+          rightSerializer)
 
         if (leftCompatResult.isRequiresMigration
             || rightCompatResult.isRequiresMigration) {

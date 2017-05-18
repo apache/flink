@@ -19,21 +19,19 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
-import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 
 /**
  * Readers and writers for different versions of the {@link RegisteredOperatorBackendStateMetaInfo.Snapshot}.
@@ -91,7 +89,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		public void writeStateMetaInfo(DataOutputView out) throws IOException {
 			out.writeUTF(stateMetaInfo.getName());
 			out.writeByte(stateMetaInfo.getAssignmentMode().ordinal());
-			new TypeSerializerSerializationProxy<>(stateMetaInfo.getPartitionStateSerializer()).write(out);
+			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getPartitionStateSerializer());
 		}
 	}
 
@@ -107,22 +105,11 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			out.writeByte(stateMetaInfo.getAssignmentMode().ordinal());
 
 			// write in a way that allows us to be fault-tolerant and skip blocks in the case of java serialization failures
-			try (
-				ByteArrayOutputStreamWithPos outWithPos = new ByteArrayOutputStreamWithPos();
-				DataOutputViewStreamWrapper outViewWrapper = new DataOutputViewStreamWrapper(outWithPos)) {
-
-				new TypeSerializerSerializationProxy<>(stateMetaInfo.getPartitionStateSerializer()).write(outViewWrapper);
-
-				// write the start offset of the config snapshot
-				out.writeInt(outWithPos.getPosition());
-				TypeSerializerUtil.writeSerializerConfigSnapshot(
-					outViewWrapper,
-					stateMetaInfo.getPartitionStateSerializerConfigSnapshot());
-
-				// write the total number of bytes and flush
-				out.writeInt(outWithPos.getPosition());
-				out.write(outWithPos.getBuf(), 0, outWithPos.getPosition());
-			}
+			TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
+				out,
+				Collections.singletonList(new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
+					stateMetaInfo.getPartitionStateSerializer(),
+					stateMetaInfo.getPartitionStateSerializerConfigSnapshot())));
 		}
 	}
 
@@ -192,6 +179,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	public static class OperatorBackendStateMetaInfoReaderV2<S> extends AbstractOperatorBackendStateMetaInfoReader<S> {
 
 		public OperatorBackendStateMetaInfoReaderV2(ClassLoader userCodeClassLoader) {
@@ -206,32 +194,11 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			stateMetaInfo.setName(in.readUTF());
 			stateMetaInfo.setAssignmentMode(OperatorStateHandle.Mode.values()[in.readByte()]);
 
-			// read start offset of configuration snapshot
-			int configSnapshotStartOffset = in.readInt();
+			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> stateSerializerAndConfig =
+				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader).get(0);
 
-			int totalBytes = in.readInt();
-
-			byte[] buffer = new byte[totalBytes];
-			in.readFully(buffer);
-
-			ByteArrayInputStreamWithPos inWithPos = new ByteArrayInputStreamWithPos(buffer);
-			DataInputViewStreamWrapper inViewWrapper = new DataInputViewStreamWrapper(inWithPos);
-
-			try {
-				final TypeSerializerSerializationProxy<S> partitionStateSerializerProxy =
-					new TypeSerializerSerializationProxy<>(userCodeClassLoader);
-				partitionStateSerializerProxy.read(inViewWrapper);
-				stateMetaInfo.setPartitionStateSerializer(partitionStateSerializerProxy.getTypeSerializer());
-			} catch (IOException e) {
-				LOG.warn("Deserialization of previous serializer errored; setting serializer to null. ", e);
-
-				stateMetaInfo.setPartitionStateSerializer(null);
-			}
-
-			// make sure we start from the partition state serializer bytes position
-			inWithPos.setPosition(configSnapshotStartOffset);
-			stateMetaInfo.setPartitionStateSerializerConfigSnapshot(
-				TypeSerializerUtil.readSerializerConfigSnapshot(inViewWrapper, userCodeClassLoader));
+			stateMetaInfo.setPartitionStateSerializer((TypeSerializer<S>) stateSerializerAndConfig.f0);
+			stateMetaInfo.setPartitionStateSerializerConfigSnapshot(stateSerializerAndConfig.f1);
 
 			return stateMetaInfo;
 		}

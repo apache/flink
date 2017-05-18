@@ -20,16 +20,20 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializerConfigSnapshot;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -203,19 +207,26 @@ public final class HashMapSerializer<K, V> extends TypeSerializer<HashMap<K, V>>
 
 	@Override
 	public TypeSerializerConfigSnapshot snapshotConfiguration() {
-		return new MapSerializerConfigSnapshot(
-				keySerializer.snapshotConfiguration(),
-				valueSerializer.snapshotConfiguration());
+		return new MapSerializerConfigSnapshot<>(keySerializer, valueSerializer);
 	}
 
 	@Override
 	public CompatibilityResult<HashMap<K, V>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof MapSerializerConfigSnapshot) {
-			TypeSerializerConfigSnapshot[] keyValueSerializerConfigSnapshots =
-				((MapSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
+			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousKvSerializersAndConfigs =
+				((MapSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
-			CompatibilityResult<K> keyCompatResult = keySerializer.ensureCompatibility(keyValueSerializerConfigSnapshots[0]);
-			CompatibilityResult<V> valueCompatResult = valueSerializer.ensureCompatibility(keyValueSerializerConfigSnapshots[1]);
+			CompatibilityResult<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+					previousKvSerializersAndConfigs.get(0).f0,
+					UnloadableDummyTypeSerializer.class,
+					previousKvSerializersAndConfigs.get(0).f1,
+					keySerializer);
+
+			CompatibilityResult<V> valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+					previousKvSerializersAndConfigs.get(1).f0,
+					UnloadableDummyTypeSerializer.class,
+					previousKvSerializersAndConfigs.get(1).f1,
+					valueSerializer);
 
 			if (!keyCompatResult.isRequiresMigration() && !valueCompatResult.isRequiresMigration()) {
 				return CompatibilityResult.compatible();

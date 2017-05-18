@@ -23,10 +23,13 @@ import com.google.common.collect.ListMultimap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.NonDuplicatingTypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -809,7 +812,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	/**
 	 * The {@link TypeSerializerConfigSnapshot} serializer configuration to be stored with the managed state.
 	 */
-	public static final class SharedBufferSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+	public static final class SharedBufferSerializerConfigSnapshot<K, V> extends CompositeTypeSerializerConfigSnapshot {
 
 		private static final int VERSION = 1;
 
@@ -817,11 +820,11 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		public SharedBufferSerializerConfigSnapshot() {}
 
 		public SharedBufferSerializerConfigSnapshot(
-				TypeSerializerConfigSnapshot keySerializerConfigSnapshot,
-				TypeSerializerConfigSnapshot valueSerializerConfigSnapshot,
-				TypeSerializerConfigSnapshot versionSerializerConfigSnapshot) {
+				TypeSerializer<K> keySerializer,
+				TypeSerializer<V> valueSerializer,
+				TypeSerializer<DeweyNumber> versionSerializer) {
 
-			super(keySerializerConfigSnapshot, valueSerializerConfigSnapshot, versionSerializerConfigSnapshot);
+			super(keySerializer, valueSerializer, versionSerializer);
 		}
 
 		@Override
@@ -1115,22 +1118,35 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 		@Override
 		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			return new SharedBufferSerializerConfigSnapshot(
-					keySerializer.snapshotConfiguration(),
-					valueSerializer.snapshotConfiguration(),
-					versionSerializer.snapshotConfiguration()
-			);
+			return new SharedBufferSerializerConfigSnapshot<>(
+					keySerializer,
+					valueSerializer,
+					versionSerializer);
 		}
 
 		@Override
 		public CompatibilityResult<SharedBuffer<K, V>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			if (configSnapshot instanceof SharedBufferSerializerConfigSnapshot) {
-				TypeSerializerConfigSnapshot[] serializerConfigSnapshots =
-						((SharedBufferSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
+				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializerConfigSnapshots =
+						((SharedBufferSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
-				CompatibilityResult<K> keyCompatResult = keySerializer.ensureCompatibility(serializerConfigSnapshots[0]);
-				CompatibilityResult<V> valueCompatResult = valueSerializer.ensureCompatibility(serializerConfigSnapshots[1]);
-				CompatibilityResult<DeweyNumber> versionCompatResult = versionSerializer.ensureCompatibility(serializerConfigSnapshots[2]);
+				CompatibilityResult<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+						serializerConfigSnapshots.get(0).f0,
+						UnloadableDummyTypeSerializer.class,
+						serializerConfigSnapshots.get(0).f1,
+						keySerializer);
+
+				CompatibilityResult<V> valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+						serializerConfigSnapshots.get(1).f0,
+						UnloadableDummyTypeSerializer.class,
+						serializerConfigSnapshots.get(1).f1,
+						valueSerializer);
+
+				CompatibilityResult<DeweyNumber> versionCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+						serializerConfigSnapshots.get(2).f0,
+						UnloadableDummyTypeSerializer.class,
+						serializerConfigSnapshots.get(2).f1,
+						versionSerializer);
 
 				if (!keyCompatResult.isRequiresMigration() && !valueCompatResult.isRequiresMigration() && !versionCompatResult.isRequiresMigration()) {
 					return CompatibilityResult.compatible();
