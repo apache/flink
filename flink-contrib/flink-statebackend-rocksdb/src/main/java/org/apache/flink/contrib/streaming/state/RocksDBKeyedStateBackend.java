@@ -27,7 +27,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
@@ -53,6 +53,7 @@ import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -64,7 +65,6 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.StateHandleID;
-import org.apache.flink.runtime.state.StateMigrationUtil;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -1111,9 +1111,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			// check for key serializer compatibility; this also reconfigures the
 			// key serializer to be compatible, if it is required and is possible
-			if (StateMigrationUtil.resolveCompatibilityResult(
+			if (CompatibilityUtil.resolveCompatibilityResult(
 					serializationProxy.getKeySerializer(),
-					TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer.class,
+					UnloadableDummyTypeSerializer.class,
 					serializationProxy.getKeySerializerConfigSnapshot(),
 					rocksDBKeyedStateBackend.keySerializer)
 				.isRequiresMigration()) {
@@ -1230,9 +1230,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				// check for key serializer compatibility; this also reconfigures the
 				// key serializer to be compatible, if it is required and is possible
-				if (StateMigrationUtil.resolveCompatibilityResult(
+				if (CompatibilityUtil.resolveCompatibilityResult(
 						serializationProxy.getKeySerializer(),
-						TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer.class,
+						UnloadableDummyTypeSerializer.class,
 						serializationProxy.getKeySerializerConfigSnapshot(),
 						stateBackend.keySerializer)
 					.isRequiresMigration()) {
@@ -1532,16 +1532,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			// check compatibility results to determine if state migration is required
-
-			CompatibilityResult<?> namespaceCompatibility = StateMigrationUtil.resolveCompatibilityResult(
+			CompatibilityResult<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 					restoredMetaInfo.getNamespaceSerializer(),
 					MigrationNamespaceSerializerProxy.class,
 					restoredMetaInfo.getNamespaceSerializerConfigSnapshot(),
 					newMetaInfo.getNamespaceSerializer());
 
-			CompatibilityResult<S> stateCompatibility = StateMigrationUtil.resolveCompatibilityResult(
+			CompatibilityResult<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 					restoredMetaInfo.getStateSerializer(),
-					TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer.class,
+					UnloadableDummyTypeSerializer.class,
 					restoredMetaInfo.getStateSerializerConfigSnapshot(),
 					newMetaInfo.getStateSerializer());
 

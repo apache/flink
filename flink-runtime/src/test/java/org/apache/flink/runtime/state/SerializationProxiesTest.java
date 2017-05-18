@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -44,10 +44,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({
-	KeyedBackendSerializationProxy.class,
-	KeyedBackendStateMetaInfoSnapshotReaderWriters.class,
-	OperatorBackendStateMetaInfoSnapshotReaderWriters.class})
+@PrepareForTest(TypeSerializerSerializationUtil.class)
 public class SerializationProxiesTest {
 
 	@Test
@@ -116,9 +113,10 @@ public class SerializationProxiesTest {
 			new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader());
 
 		// mock failure when deserializing serializers
-		TypeSerializerSerializationProxy<?> mockProxy = mock(TypeSerializerSerializationProxy.class);
+		TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
+				mock(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class);
 		doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
-		PowerMockito.whenNew(TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
+		PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			serializationProxy.read(new DataInputViewStreamWrapper(in));
@@ -182,9 +180,10 @@ public class SerializationProxiesTest {
 		}
 
 		// mock failure when deserializing serializer
-		TypeSerializerSerializationProxy<?> mockProxy = mock(TypeSerializerSerializationProxy.class);
+		TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
+				mock(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class);
 		doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
-		PowerMockito.whenNew(TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
+		PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			metaInfo = KeyedBackendStateMetaInfoSnapshotReaderWriters
@@ -279,9 +278,10 @@ public class SerializationProxiesTest {
 		}
 
 		// mock failure when deserializing serializer
-		TypeSerializerSerializationProxy<?> mockProxy = mock(TypeSerializerSerializationProxy.class);
+		TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
+				mock(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class);
 		doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
-		PowerMockito.whenNew(TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
+		PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			metaInfo = OperatorBackendStateMetaInfoSnapshotReaderWriters

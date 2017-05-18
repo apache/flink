@@ -22,10 +22,12 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.ListMultimap;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.EnumSerializer;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -811,7 +813,7 @@ public class NFA<T> implements Serializable {
 	/**
 	 * The {@link TypeSerializerConfigSnapshot} serializer configuration to be stored with the managed state.
 	 */
-	public static final class NFASerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+	public static final class NFASerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
 
 		private static final int VERSION = 1;
 
@@ -819,10 +821,10 @@ public class NFA<T> implements Serializable {
 		public NFASerializerConfigSnapshot() {}
 
 		public NFASerializerConfigSnapshot(
-				TypeSerializerConfigSnapshot sharedBufferSerializerConfigSnapshot,
-				TypeSerializerConfigSnapshot eventSerializerConfigSnapshot) {
+				TypeSerializer<T> eventSerializer,
+				TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer) {
 
-			super(sharedBufferSerializerConfigSnapshot, eventSerializerConfigSnapshot);
+			super(eventSerializer, sharedBufferSerializer);
 		}
 
 		@Override
@@ -1062,29 +1064,36 @@ public class NFA<T> implements Serializable {
 
 		@Override
 		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			return new NFASerializerConfigSnapshot(
-					eventSerializer.snapshotConfiguration(),
-					sharedBufferSerializer.snapshotConfiguration()
-			);
+			return new NFASerializerConfigSnapshot<>(eventSerializer, sharedBufferSerializer);
 		}
+
+		@Override
 		public CompatibilityResult<NFA<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			if (configSnapshot instanceof NFASerializerConfigSnapshot) {
-				TypeSerializerConfigSnapshot[] serializerConfigSnapshots =
-						((NFASerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
+				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
+						((NFASerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
-				CompatibilityResult<T> elementCompatResult =
-						eventSerializer.ensureCompatibility(serializerConfigSnapshots[0]);
+				CompatibilityResult<T> eventCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+						serializersAndConfigs.get(0).f0,
+						UnloadableDummyTypeSerializer.class,
+						serializersAndConfigs.get(0).f1,
+						eventSerializer);
+
 				CompatibilityResult<SharedBuffer<String, T>> sharedBufCompatResult =
-						sharedBufferSerializer.ensureCompatibility(serializerConfigSnapshots[1]);
+						CompatibilityUtil.resolveCompatibilityResult(
+								serializersAndConfigs.get(1).f0,
+								UnloadableDummyTypeSerializer.class,
+								serializersAndConfigs.get(1).f1,
+								sharedBufferSerializer);
 
-				if (!sharedBufCompatResult.isRequiresMigration() && !elementCompatResult.isRequiresMigration()) {
+				if (!sharedBufCompatResult.isRequiresMigration() && !eventCompatResult.isRequiresMigration()) {
 					return CompatibilityResult.compatible();
 				} else {
-					if (elementCompatResult.getConvertDeserializer() != null &&
+					if (eventCompatResult.getConvertDeserializer() != null &&
 							sharedBufCompatResult.getConvertDeserializer() != null) {
 						return CompatibilityResult.requiresMigration(
 								new NFASerializer<>(
-										new TypeDeserializerAdapter<>(elementCompatResult.getConvertDeserializer()),
+										new TypeDeserializerAdapter<>(eventCompatResult.getConvertDeserializer()),
 										new TypeDeserializerAdapter<>(sharedBufCompatResult.getConvertDeserializer())));
 					}
 				}

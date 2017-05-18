@@ -22,10 +22,13 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -482,14 +485,20 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 		@Override
 		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			return new CollectionSerializerConfigSnapshot(elementSerializer.snapshotConfiguration());
+			return new CollectionSerializerConfigSnapshot<>(elementSerializer);
 		}
 
 		@Override
 		public CompatibilityResult<PriorityQueue<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
-				CompatibilityResult<T> compatResult = elementSerializer.ensureCompatibility(
-						((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousElemSerializerAndConfig =
+					((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
+
+				CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
+						previousElemSerializerAndConfig.f0,
+						UnloadableDummyTypeSerializer.class,
+						previousElemSerializerAndConfig.f1,
+						elementSerializer);
 
 				if (!compatResult.isRequiresMigration()) {
 					return CompatibilityResult.compatible();

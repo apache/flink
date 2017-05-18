@@ -21,7 +21,6 @@ import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer.KryoSerializerConfigSnapshot
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 import scala.util.{Failure, Success, Try}
@@ -105,23 +104,28 @@ class TrySerializer[A](
   // --------------------------------------------------------------------------------------------
 
   override def snapshotConfiguration(): TypeSerializerConfigSnapshot = {
-    new TrySerializer.TrySerializerConfigSnapshot(
-        elemSerializer.snapshotConfiguration(),
-        throwableSerializer.snapshotConfiguration())
+    new TrySerializer.TrySerializerConfigSnapshot[A](elemSerializer, throwableSerializer)
   }
 
   override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[Try[A]] = {
 
     configSnapshot match {
-      case trySerializerConfigSnapshot: TrySerializer.TrySerializerConfigSnapshot =>
-        val serializerConfigSnapshots =
-          trySerializerConfigSnapshot.getNestedSerializerConfigSnapshots
+      case trySerializerConfigSnapshot: TrySerializer.TrySerializerConfigSnapshot[A] =>
+        val previousSerializersAndConfigs =
+          trySerializerConfigSnapshot.getNestedSerializersAndConfigs
 
-        val elemCompatRes =
-          elemSerializer.ensureCompatibility(serializerConfigSnapshots(0))
-        val throwableCompatRes =
-          throwableSerializer.ensureCompatibility(serializerConfigSnapshots(1))
+        val elemCompatRes = CompatibilityUtil.resolveCompatibilityResult(
+          previousSerializersAndConfigs.get(0).f0,
+          classOf[UnloadableDummyTypeSerializer[_]],
+          previousSerializersAndConfigs.get(0).f1,
+          elemSerializer)
+
+        val throwableCompatRes = CompatibilityUtil.resolveCompatibilityResult(
+          previousSerializersAndConfigs.get(1).f0,
+          classOf[UnloadableDummyTypeSerializer[_]],
+          previousSerializersAndConfigs.get(1).f1,
+          throwableSerializer)
 
         if (elemCompatRes.isRequiresMigration || throwableCompatRes.isRequiresMigration) {
           CompatibilityResult.requiresMigration()
@@ -136,11 +140,11 @@ class TrySerializer[A](
 
 object TrySerializer {
 
-  class TrySerializerConfigSnapshot(
-      private var elemSerializerConfigSnapshot: TypeSerializerConfigSnapshot,
-      private var throwableSerializerConfigSnapshot: KryoSerializerConfigSnapshot[Throwable])
+  class TrySerializerConfigSnapshot[A](
+      private var elemSerializer: TypeSerializer[A],
+      private var throwableSerializer: TypeSerializer[Throwable])
     extends CompositeTypeSerializerConfigSnapshot(
-      elemSerializerConfigSnapshot, throwableSerializerConfigSnapshot) {
+      elemSerializer, throwableSerializer) {
 
     /** This empty nullary constructor is required for deserializing the configuration. */
     def this() = this(null, null)

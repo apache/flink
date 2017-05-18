@@ -20,19 +20,16 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
-import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -94,20 +91,10 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		super.write(out);
 
 		// write in a way to be fault tolerant of read failures when deserializing the key serializer
-		try (
-			ByteArrayOutputStreamWithPos buffer = new ByteArrayOutputStreamWithPos();
-			DataOutputViewStreamWrapper bufferWrapper = new DataOutputViewStreamWrapper(buffer)){
-
-			new TypeSerializerSerializationProxy<>(keySerializer).write(bufferWrapper);
-
-			// write offset of key serializer's configuration snapshot
-			out.writeInt(buffer.getPosition());
-			TypeSerializerUtil.writeSerializerConfigSnapshot(bufferWrapper, keySerializerConfigSnapshot);
-
-			// flush buffer
-			out.writeInt(buffer.getPosition());
-			out.write(buffer.getBuf(), 0, buffer.getPosition());
-		}
+		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
+				out,
+				Collections.singletonList(
+					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(keySerializer, keySerializerConfigSnapshot)));
 
 		// write individual registered keyed state metainfos
 		out.writeShort(stateMetaInfoSnapshots.size());
@@ -118,38 +105,19 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
-		final TypeSerializerSerializationProxy<K> keySerializerProxy =
-			new TypeSerializerSerializationProxy<>(userCodeClassLoader);
-
 		// only starting from version 3, we have the key serializer and its config snapshot written
 		if (getReadVersion() >= 3) {
-			int keySerializerConfigSnapshotOffset = in.readInt();
-			int numBufferedBytes = in.readInt();
-			byte[] keySerializerAndConfigBytes = new byte[numBufferedBytes];
-			in.readFully(keySerializerAndConfigBytes);
-
-			try (
-				ByteArrayInputStreamWithPos buffer = new ByteArrayInputStreamWithPos(keySerializerAndConfigBytes);
-				DataInputViewStreamWrapper bufferWrapper = new DataInputViewStreamWrapper(buffer)) {
-
-				try {
-					keySerializerProxy.read(bufferWrapper);
-					this.keySerializer = keySerializerProxy.getTypeSerializer();
-				} catch (IOException e) {
-					this.keySerializer = null;
-				}
-
-				buffer.setPosition(keySerializerConfigSnapshotOffset);
-				this.keySerializerConfigSnapshot =
-					TypeSerializerUtil.readSerializerConfigSnapshot(bufferWrapper, userCodeClassLoader);
-			}
+			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndConfig =
+					TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader).get(0);
+			this.keySerializer = (TypeSerializer<K>) keySerializerAndConfig.f0;
+			this.keySerializerConfigSnapshot = keySerializerAndConfig.f1;
 		} else {
-			keySerializerProxy.read(in);
-			this.keySerializer = keySerializerProxy.getTypeSerializer();
+			this.keySerializer = TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader);
 			this.keySerializerConfigSnapshot = null;
 		}
 

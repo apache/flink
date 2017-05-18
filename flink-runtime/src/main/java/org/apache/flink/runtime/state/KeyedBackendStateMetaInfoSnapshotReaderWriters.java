@@ -19,27 +19,23 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
-import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Readers and writers for different versions of the {@link RegisteredKeyedBackendStateMetaInfo.Snapshot}.
  * Outdated formats are also kept here for documentation of history backlog.
  */
 public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
-
-	private static final Logger LOG = LoggerFactory.getLogger(KeyedBackendStateMetaInfoSnapshotReaderWriters.class);
 
 	// -------------------------------------------------------------------------------
 	//  Writers
@@ -91,8 +87,8 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			out.writeInt(stateMetaInfo.getStateType().ordinal());
 			out.writeUTF(stateMetaInfo.getName());
 
-			new TypeSerializerSerializationProxy<>(stateMetaInfo.getNamespaceSerializer()).write(out);
-			new TypeSerializerSerializationProxy<>(stateMetaInfo.getStateSerializer()).write(out);
+			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getNamespaceSerializer());
+			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getStateSerializer());
 		}
 	}
 
@@ -108,25 +104,13 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			out.writeUTF(stateMetaInfo.getName());
 
 			// write in a way that allows us to be fault-tolerant and skip blocks in the case of java serialization failures
-			try (
-				ByteArrayOutputStreamWithPos outWithPos = new ByteArrayOutputStreamWithPos();
-				DataOutputViewStreamWrapper outViewWrapper = new DataOutputViewStreamWrapper(outWithPos)) {
-
-				new TypeSerializerSerializationProxy<>(stateMetaInfo.getNamespaceSerializer()).write(outViewWrapper);
-
-				// write current offset, which represents the start offset of the state serializer
-				out.writeInt(outWithPos.getPosition());
-				new TypeSerializerSerializationProxy<>(stateMetaInfo.getStateSerializer()).write(outViewWrapper);
-
-				// write current offset, which represents the start of the configuration snapshots
-				out.writeInt(outWithPos.getPosition());
-				TypeSerializerUtil.writeSerializerConfigSnapshot(outViewWrapper, stateMetaInfo.getNamespaceSerializerConfigSnapshot());
-				TypeSerializerUtil.writeSerializerConfigSnapshot(outViewWrapper, stateMetaInfo.getStateSerializerConfigSnapshot());
-
-				// write total number of bytes and then flush
-				out.writeInt(outWithPos.getPosition());
-				out.write(outWithPos.getBuf(), 0, outWithPos.getPosition());
-			}
+			TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
+				out,
+				Arrays.asList(
+					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
+						stateMetaInfo.getNamespaceSerializer(), stateMetaInfo.getNamespaceSerializerConfigSnapshot()),
+					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
+						stateMetaInfo.getStateSerializer(), stateMetaInfo.getStateSerializerConfigSnapshot())));
 		}
 	}
 
@@ -184,15 +168,8 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			metaInfo.setStateType(StateDescriptor.Type.values()[in.readInt()]);
 			metaInfo.setName(in.readUTF());
 
-			final TypeSerializerSerializationProxy<N> namespaceSerializerProxy =
-				new TypeSerializerSerializationProxy<>(userCodeClassLoader);
-			namespaceSerializerProxy.read(in);
-			metaInfo.setNamespaceSerializer(namespaceSerializerProxy.getTypeSerializer());
-
-			final TypeSerializerSerializationProxy<S> stateSerializerProxy =
-				new TypeSerializerSerializationProxy<>(userCodeClassLoader);
-			stateSerializerProxy.read(in);
-			metaInfo.setStateSerializer(stateSerializerProxy.getTypeSerializer());
+			metaInfo.setNamespaceSerializer(TypeSerializerSerializationUtil.<N>tryReadSerializer(in, userCodeClassLoader));
+			metaInfo.setStateSerializer(TypeSerializerSerializationUtil.<S>tryReadSerializer(in, userCodeClassLoader));
 
 			// older versions do not contain the configuration snapshot
 			metaInfo.setNamespaceSerializerConfigSnapshot(null);
@@ -202,6 +179,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	static class KeyedBackendStateMetaInfoReaderV3<N, S> extends AbstractKeyedBackendStateMetaInfoReader {
 
 		public KeyedBackendStateMetaInfoReaderV3(ClassLoader userCodeClassLoader) {
@@ -216,48 +194,14 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			metaInfo.setStateType(StateDescriptor.Type.values()[in.readInt()]);
 			metaInfo.setName(in.readUTF());
 
-			// read offsets
-			int stateSerializerStartOffset = in.readInt();
-			int configSnapshotsStartOffset = in.readInt();
+			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
+				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader);
 
-			int totalBytes = in.readInt();
+			metaInfo.setNamespaceSerializer((TypeSerializer<N>) serializersAndConfigs.get(0).f0);
+			metaInfo.setNamespaceSerializerConfigSnapshot(serializersAndConfigs.get(0).f1);
 
-			byte[] buffer = new byte[totalBytes];
-			in.readFully(buffer);
-
-			ByteArrayInputStreamWithPos inWithPos = new ByteArrayInputStreamWithPos(buffer);
-			DataInputViewStreamWrapper inViewWrapper = new DataInputViewStreamWrapper(inWithPos);
-
-			try {
-				final TypeSerializerSerializationProxy<N> namespaceSerializerProxy =
-					new TypeSerializerSerializationProxy<>(userCodeClassLoader);
-				namespaceSerializerProxy.read(inViewWrapper);
-				metaInfo.setNamespaceSerializer(namespaceSerializerProxy.getTypeSerializer());
-			} catch (IOException e) {
-				LOG.warn("Deserialization of previous namespace serializer errored; setting serializer to null. ", e);
-
-				metaInfo.setNamespaceSerializer(null);
-			}
-
-			// make sure we start from the state serializer bytes position
-			inWithPos.setPosition(stateSerializerStartOffset);
-			try {
-				final TypeSerializerSerializationProxy<S> stateSerializerProxy =
-					new TypeSerializerSerializationProxy<>(userCodeClassLoader);
-				stateSerializerProxy.read(inViewWrapper);
-				metaInfo.setStateSerializer(stateSerializerProxy.getTypeSerializer());
-			} catch (IOException e) {
-				LOG.warn("Deserialization of previous state serializer errored; setting serializer to null. ", e);
-
-				metaInfo.setStateSerializer(null);
-			}
-
-			// make sure we start from the config snapshot bytes position
-			inWithPos.setPosition(configSnapshotsStartOffset);
-			metaInfo.setNamespaceSerializerConfigSnapshot(
-				TypeSerializerUtil.readSerializerConfigSnapshot(inViewWrapper, userCodeClassLoader));
-			metaInfo.setStateSerializerConfigSnapshot(
-				TypeSerializerUtil.readSerializerConfigSnapshot(inViewWrapper, userCodeClassLoader));
+			metaInfo.setStateSerializer((TypeSerializer<S>) serializersAndConfigs.get(1).f0);
+			metaInfo.setStateSerializerConfigSnapshot(serializersAndConfigs.get(1).f1);
 
 			return metaInfo;
 		}
