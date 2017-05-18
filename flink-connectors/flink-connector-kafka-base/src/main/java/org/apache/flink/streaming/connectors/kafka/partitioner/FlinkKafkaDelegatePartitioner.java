@@ -18,8 +18,9 @@
 package org.apache.flink.streaming.connectors.kafka.partitioner;
 
 /**
- * Delegate for KafkaPartitioner
- * @param <T>
+ * Delegate for the deprecated {@link KafkaPartitioner}.
+ * This should only be used for bridging deprecated partitioning API methods.
+ *
  * @deprecated Delegate for {@link KafkaPartitioner}, use {@link FlinkKafkaPartitioner} instead
  */
 @Deprecated

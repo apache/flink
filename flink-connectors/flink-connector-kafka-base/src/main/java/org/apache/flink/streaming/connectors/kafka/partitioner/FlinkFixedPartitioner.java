@@ -17,6 +17,8 @@
  */
 package org.apache.flink.streaming.connectors.kafka.partitioner;
 
+import org.apache.flink.util.Preconditions;
+
 /**
  * A partitioner ensuring that each internal Flink partition ends up in one Kafka partition.
  *
@@ -44,9 +46,8 @@ package org.apache.flink.streaming.connectors.kafka.partitioner;
  * </pre>
  *
  *  Not all Kafka partitions contain data
- *  To avoid such an unbalanced partitioning, use a round-robin kafka partitioner. (note that this will
- *  cause a lot of network connections between all the Flink instances and all the Kafka brokers
- *
+ *  To avoid such an unbalanced partitioning, use a round-robin kafka partitioner (note that this will
+ *  cause a lot of network connections between all the Flink instances and all the Kafka brokers).
  */
 public class FlinkFixedPartitioner<T> extends FlinkKafkaPartitioner<T> {
 
@@ -54,17 +55,17 @@ public class FlinkFixedPartitioner<T> extends FlinkKafkaPartitioner<T> {
 
 	@Override
 	public void open(int parallelInstanceId, int parallelInstances) {
-		if (parallelInstanceId < 0 || parallelInstances <= 0) {
-			throw new IllegalArgumentException();
-		}
+		Preconditions.checkArgument(parallelInstanceId >= 0, "Id of this subtask cannot be negative.");
+		Preconditions.checkArgument(parallelInstances > 0, "Number of subtasks must be larger than 0.");
+
 		this.parallelInstanceId = parallelInstanceId;
 	}
 	
 	@Override
 	public int partition(T record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
-		if(null == partitions || partitions.length == 0) {
-			throw new IllegalArgumentException();
-		}
+		Preconditions.checkArgument(
+			partitions != null && partitions.length > 0,
+			"Partitions of the target topic is empty.");
 		
 		return partitions[parallelInstanceId % partitions.length];
 	}
