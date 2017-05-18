@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.slf4j.{Logger, LoggerFactory}
+import org.apache.flink.table.functions.AggregateContext
 import org.apache.flink.table.runtime.types.CRow
 
 /**
@@ -65,6 +66,7 @@ class GroupAggProcessFunction(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.setAggregateContext(new AggregateContext(getRuntimeContext))
 
     newRow = new CRow(function.createOutputRow(), true)
     prevRow = new CRow(function.createOutputRow(), false)

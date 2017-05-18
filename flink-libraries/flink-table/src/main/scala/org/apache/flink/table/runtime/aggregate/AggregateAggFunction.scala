@@ -75,5 +75,6 @@ class AggregateAggFunction(genAggregations: GeneratedAggregationsFunction)
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+
   }
 }

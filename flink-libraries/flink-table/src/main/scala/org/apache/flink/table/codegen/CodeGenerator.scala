@@ -380,6 +380,32 @@ class CodeGenerator(
       }
     }
 
+    def genSetAggregatesContext: String = {
+
+      val sig: String =
+        j"""
+           |  public final void setAggregateContext(
+           |    org.apache.flink.table.functions.AggregateContext aggregateContext)""".stripMargin
+
+      val setAggs: String = {
+        for (i <- aggs.indices) yield
+
+          j"""
+             |    if ((org.apache.flink.table.functions.AggregateFunction)${aggs(i)} instanceof
+             |        org.apache.flink.table.functions.RichAggregateFunction) {
+             |        Object obj = ${aggs(i)};
+             |        org.apache.flink.table.functions.RichAggregateFunction richAggFunction =
+             |        (org.apache.flink.table.functions.RichAggregateFunction) obj;
+             |        richAggFunction.setAggregateContext(aggregateContext);
+             |    }""".stripMargin
+      }.mkString("\n")
+
+      j"""
+         |$sig {
+         |$setAggs
+         |  }""".stripMargin
+    }
+
     def genSetAggregationResults: String = {
 
       val sig: String =
@@ -637,6 +663,7 @@ class CodeGenerator(
          |
          """.stripMargin
 
+    funcCode += genSetAggregatesContext + "\n"
     funcCode += genSetAggregationResults + "\n"
     funcCode += genAccumulate + "\n"
     funcCode += genRetract + "\n"
