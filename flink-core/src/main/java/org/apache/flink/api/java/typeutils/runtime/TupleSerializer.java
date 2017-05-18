@@ -156,4 +156,9 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 			throw new RuntimeException("Cannot instantiate tuple.", e);
 		}
 	}
+
+	@Override
+	protected TupleSerializerBase<T> createSerializerInstance(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
+		return new TupleSerializer<>(tupleClass, fieldSerializers);
+	}
 }

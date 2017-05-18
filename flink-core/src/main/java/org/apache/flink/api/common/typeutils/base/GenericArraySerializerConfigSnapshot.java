@@ -20,7 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
@@ -47,9 +47,9 @@ public final class GenericArraySerializerConfigSnapshot<C> extends CompositeType
 
 	public GenericArraySerializerConfigSnapshot(
 			Class<C> componentClass,
-			TypeSerializerConfigSnapshot componentSerializerConfigSnapshot) {
+			TypeSerializer<C> componentSerializer) {
 
-		super(componentSerializerConfigSnapshot);
+		super(componentSerializer);
 
 		this.componentClass = Preconditions.checkNotNull(componentClass);
 	}

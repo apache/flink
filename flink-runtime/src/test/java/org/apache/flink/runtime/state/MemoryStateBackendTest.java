@@ -24,7 +24,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -61,7 +61,7 @@ import static org.mockito.Mockito.when;
  * Tests for the {@link org.apache.flink.runtime.state.memory.MemoryStateBackend}.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({KeyedBackendStateMetaInfoSnapshotReaderWriters.class, OperatorBackendStateMetaInfoSnapshotReaderWriters.class})
+@PrepareForTest(TypeSerializerSerializationUtil.class)
 public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBackend> {
 
 	@Override
@@ -268,9 +268,10 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 				"testOperator");
 
 			// mock failure when deserializing serializer
-			TypeSerializerSerializationProxy<?> mockProxy = mock(TypeSerializerSerializationProxy.class);
+			TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
+					mock(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class);
 			doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
-			PowerMockito.whenNew(TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
+			PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
 
 			operatorStateBackend.restore(Collections.singletonList(stateHandle));
 
@@ -320,9 +321,10 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 		when(env.getUserClassLoader()).thenReturn(OperatorStateBackendTest.class.getClassLoader());
 
 		// mock failure when deserializing serializer
-		TypeSerializerSerializationProxy<?> mockProxy = mock(TypeSerializerSerializationProxy.class);
+		TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
+				mock(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class);
 		doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
-		PowerMockito.whenNew(TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
+		PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
 
 		try {
 			restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);

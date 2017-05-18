@@ -20,21 +20,23 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
  * Configuration snapshot of a serializer for collection types.
+ *
+ * @param <T> Type of the element.
  */
 @Internal
-public final class CollectionSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+public final class CollectionSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
 
 	private static final int VERSION = 1;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public CollectionSerializerConfigSnapshot() {}
 
-	public CollectionSerializerConfigSnapshot(TypeSerializerConfigSnapshot elementSerializerConfigSnapshot) {
-		super(elementSerializerConfigSnapshot);
+	public CollectionSerializerConfigSnapshot(TypeSerializer<T> elementSerializer) {
+		super(elementSerializer);
 	}
 
 	@Override

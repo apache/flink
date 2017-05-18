@@ -20,7 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.Either;
 
 /**
@@ -28,18 +28,15 @@ import org.apache.flink.types.Either;
  * containing configuration snapshots of the Left and Right serializers.
  */
 @Internal
-public final class EitherSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+public final class EitherSerializerConfigSnapshot<L, R> extends CompositeTypeSerializerConfigSnapshot {
 
 	private static final int VERSION = 1;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public EitherSerializerConfigSnapshot() {}
 
-	public EitherSerializerConfigSnapshot(
-			TypeSerializerConfigSnapshot leftSerializerConfigSnapshot,
-			TypeSerializerConfigSnapshot rightSerializerConfigSnapshot) {
-
-		super(leftSerializerConfigSnapshot, rightSerializerConfigSnapshot);
+	public EitherSerializerConfigSnapshot(TypeSerializer<L> leftSerializer, TypeSerializer<R> rightSerializer) {
+		super(leftSerializer, rightSerializer);
 	}
 
 	@Override
