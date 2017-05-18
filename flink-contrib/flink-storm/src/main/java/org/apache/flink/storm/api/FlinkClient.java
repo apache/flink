@@ -22,6 +22,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
@@ -269,7 +270,7 @@ public class FlinkClient {
 	JobID getTopologyJobId(final String id) {
 		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		if (this.timeout != null) {
-			configuration.setString(ConfigConstants.AKKA_ASK_TIMEOUT, this.timeout);
+			configuration.setString(AkkaOptions.AKKA_ASK_TIMEOUT, this.timeout);
 		}
 
 		try {
@@ -309,7 +310,7 @@ public class FlinkClient {
 	private FiniteDuration getTimeout() {
 		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		if (this.timeout != null) {
-			configuration.setString(ConfigConstants.AKKA_ASK_TIMEOUT, this.timeout);
+			configuration.setString(AkkaOptions.AKKA_ASK_TIMEOUT, this.timeout);
 		}
 
 		return AkkaUtils.getClientTimeout(configuration);

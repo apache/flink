@@ -22,7 +22,7 @@ import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.messages.NotifyResourceStarted;
@@ -74,7 +74,9 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -192,7 +194,7 @@ public class ResourceManagerTest extends TestLogger {
 
 			// set a short timeout for lookups
 			Configuration shortTimeoutConfig = config.clone();
-			shortTimeoutConfig.setString(ConfigConstants.AKKA_LOOKUP_TIMEOUT, "1 s");
+			shortTimeoutConfig.setString(AkkaOptions.AKKA_LOOKUP_TIMEOUT, "1 s");
 
 			fakeJobManager = TestingUtils.createForwardingActor(
 				system,
@@ -234,7 +236,7 @@ public class ResourceManagerTest extends TestLogger {
 
 			// set a long timeout for lookups such that the test fails in case of timeouts
 			Configuration shortTimeoutConfig = config.clone();
-			shortTimeoutConfig.setString(ConfigConstants.AKKA_LOOKUP_TIMEOUT, "99999 s");
+			shortTimeoutConfig.setString(AkkaOptions.AKKA_LOOKUP_TIMEOUT, "99999 s");
 
 			fakeJobManager = TestingUtils.createForwardingActor(
 				system,

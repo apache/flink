@@ -18,15 +18,13 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import static org.junit.Assert.*;
-
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Kill;
 import akka.actor.Props;
 import akka.testkit.JavaTestKit;
-
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
@@ -53,15 +51,15 @@ import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
-
 import scala.concurrent.duration.FiniteDuration;
 
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertTrue;
 
 public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 
@@ -77,9 +75,9 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 		final int BUFFER_SIZE = 32 * 1024;
 
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "200 ms");
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "1 s");
-		config.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 1);
+		config.setString(AkkaOptions.AKKA_WATCH_HEARTBEAT_INTERVAL, "200 ms");
+		config.setString(AkkaOptions.AKKA_WATCH_HEARTBEAT_PAUSE, "1 s");
+		config.setInteger(AkkaOptions.AKKA_WATCH_THRESHOLD, 1);
 
 		ActorSystem actorSystem = null;
 

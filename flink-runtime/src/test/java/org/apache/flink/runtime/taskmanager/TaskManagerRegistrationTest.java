@@ -23,6 +23,7 @@ import akka.actor.ActorSystem;
 import akka.actor.InvalidActorNameException;
 import akka.actor.Terminated;
 import akka.testkit.JavaTestKit;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -40,8 +41,8 @@ import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import org.apache.flink.runtime.messages.RegistrationMessages.AcknowledgeRegistration;
-import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager;
 import org.apache.flink.runtime.messages.RegistrationMessages.RefuseRegistration;
+import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
@@ -61,11 +62,13 @@ import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActor;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.createTaskManager;
+import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActor;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActorGatewaysGracefully;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActorGracefully;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -88,10 +91,10 @@ public class TaskManagerRegistrationTest extends TestLogger {
 	@BeforeClass
 	public static void startActorSystem() {
 		config = new Configuration();
-		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "5 s");
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "200 ms");
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
-		config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 2.0);
+		config.setString(AkkaOptions.AKKA_ASK_TIMEOUT, "5 s");
+		config.setString(AkkaOptions.AKKA_WATCH_HEARTBEAT_INTERVAL, "200 ms");
+		config.setString(AkkaOptions.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
+		config.setInteger(AkkaOptions.AKKA_WATCH_THRESHOLD, 2);
 
 		actorSystem = AkkaUtils.createLocalActorSystem(config);
 	}

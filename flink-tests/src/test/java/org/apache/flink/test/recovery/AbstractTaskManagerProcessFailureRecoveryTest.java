@@ -22,8 +22,8 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -40,12 +40,9 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.Test;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.Await;
@@ -127,11 +124,11 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			Tuple2<String, Object> localAddress = new Tuple2<String, Object>("localhost", jobManagerPort);
 
 			Configuration jmConfig = new Configuration();
-			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms");
-			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "6 s");
-			jmConfig.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 9);
+			jmConfig.setString(AkkaOptions.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms");
+			jmConfig.setString(AkkaOptions.AKKA_WATCH_HEARTBEAT_PAUSE, "6 s");
+			jmConfig.setInteger(AkkaOptions.AKKA_WATCH_THRESHOLD, 9);
 			jmConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "10 s");
-			jmConfig.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
+			jmConfig.setString(AkkaOptions.AKKA_ASK_TIMEOUT, "100 s");
 			jmConfig.setString(JobManagerOptions.ADDRESS, localAddress._1());
 			jmConfig.setInteger(JobManagerOptions.PORT, jobManagerPort);
 
@@ -409,7 +406,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 				cfg.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-				cfg.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
+				cfg.setString(AkkaOptions.AKKA_ASK_TIMEOUT, "100 s");
 
 				TaskManager.selectNetworkInterfaceAndRunTaskManager(cfg,
 					ResourceID.generate(), TaskManager.class);

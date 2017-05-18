@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rpc.akka;
 import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -29,10 +29,8 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.A
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.NetUtils;
-
 import org.apache.flink.util.Preconditions;
 import org.jboss.netty.channel.ChannelException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,9 +128,7 @@ public class AkkaRpcServiceUtils {
 
 		checkNotNull(config, "config is null");
 
-		final boolean sslEnabled = config.getBoolean(
-					ConfigConstants.AKKA_SSL_ENABLED,
-					ConfigConstants.DEFAULT_AKKA_SSL_ENABLED) &&
+		final boolean sslEnabled = config.getBoolean(AkkaOptions.AKKA_SSL_ENABLED) &&
 				SSLUtils.getSSLEnabled(config);
 
 		return getRpcUrl(
