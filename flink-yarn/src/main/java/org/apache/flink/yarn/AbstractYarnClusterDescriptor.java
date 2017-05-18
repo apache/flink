@@ -176,16 +176,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			jobManagerMemoryMb = flinkConfiguration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
 			taskManagerMemoryMb = flinkConfiguration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
 
-			String configuredUserJarInclusion = flinkConfiguration.getString(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
-			try {
-				userJarInclusion = YarnConfigOptions.UserJarInclusion.valueOf(configuredUserJarInclusion.toUpperCase());
-			} catch (IllegalArgumentException e) {
-				LOG.warn("Configuration parameter {} was configured with an invalid value {}. Falling back to default ({}).",
-					YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
-					configuredUserJarInclusion,
-					YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.defaultValue());
-				userJarInclusion = YarnConfigOptions.UserJarInclusion.valueOf(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.defaultValue());
-			}
+			userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
 		} catch (Exception e) {
 			LOG.debug("Config couldn't be loaded from environment variable.", e);
 		}
@@ -215,16 +206,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	public void setFlinkConfiguration(org.apache.flink.configuration.Configuration conf) {
 		this.flinkConfiguration = conf;
 
-		String configuredUserJarInclusion = flinkConfiguration.getString(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
-		try {
-			userJarInclusion = YarnConfigOptions.UserJarInclusion.valueOf(configuredUserJarInclusion.toUpperCase());
-		} catch (IllegalArgumentException e) {
-			LOG.warn("Configuration parameter {} was configured with an invalid value {}. Falling back to default ({}).",
-				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
-				configuredUserJarInclusion,
-				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.defaultValue());
-			userJarInclusion = YarnConfigOptions.UserJarInclusion.valueOf(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.defaultValue());
-		}
+		userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
 	}
 
 	public org.apache.flink.configuration.Configuration getFlinkConfiguration() {
@@ -683,18 +665,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				flinkConfiguration.getInteger(
 					ConfigConstants.YARN_APPLICATION_ATTEMPTS,
 					1));
-		}
-
-		String configuredUserJarInclusion = flinkConfiguration.getString(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
-		YarnConfigOptions.UserJarInclusion userJarInclusion;
-		try {
-			userJarInclusion = YarnConfigOptions.UserJarInclusion.valueOf(configuredUserJarInclusion.toUpperCase());
-		} catch (IllegalArgumentException e) {
-			LOG.warn("Configuration parameter {} was configured with an invalid value {}. Falling back to default ({}).",
-				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
-				configuredUserJarInclusion,
-				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.defaultValue());
-			userJarInclusion = YarnConfigOptions.UserJarInclusion.valueOf(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.defaultValue());
 		}
 
 		// local resource map for Yarn
@@ -1355,6 +1325,19 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		LOG.debug("Application Master start command: " + amCommand);
 
 		return amContainer;
+	}
+
+	private static YarnConfigOptions.UserJarInclusion getUserJarInclusionMode(org.apache.flink.configuration.Configuration config) {
+		String configuredUserJarInclusion = config.getString(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+		try {
+			return YarnConfigOptions.UserJarInclusion.valueOf(configuredUserJarInclusion.toUpperCase());
+		} catch (IllegalArgumentException e) {
+			LOG.warn("Configuration parameter {} was configured with an invalid value {}. Falling back to default ({}).",
+				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
+				configuredUserJarInclusion,
+				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.defaultValue());
+			return YarnConfigOptions.UserJarInclusion.valueOf(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.defaultValue());
+		}
 	}
 
 	/**
