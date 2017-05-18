@@ -66,8 +66,8 @@ public class SerializationProxiesTest {
 		stateMetaInfoList.add(new RegisteredKeyedBackendStateMetaInfo<>(
 			StateDescriptor.Type.VALUE, "c", namespaceSerializer, stateSerializer).snapshot());
 
-		KeyedBackendSerializationProxy serializationProxy =
-				new KeyedBackendSerializationProxy(keySerializer, stateMetaInfoList);
+		KeyedBackendSerializationProxy<?> serializationProxy =
+				new KeyedBackendSerializationProxy<>(keySerializer, stateMetaInfoList);
 
 		byte[] serialized;
 		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
@@ -76,7 +76,7 @@ public class SerializationProxiesTest {
 		}
 
 		serializationProxy =
-				new KeyedBackendSerializationProxy(Thread.currentThread().getContextClassLoader());
+				new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader());
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			serializationProxy.read(new DataInputViewStreamWrapper(in));
@@ -103,8 +103,8 @@ public class SerializationProxiesTest {
 		stateMetaInfoList.add(new RegisteredKeyedBackendStateMetaInfo<>(
 			StateDescriptor.Type.VALUE, "c", namespaceSerializer, stateSerializer).snapshot());
 
-		KeyedBackendSerializationProxy serializationProxy =
-			new KeyedBackendSerializationProxy(keySerializer, stateMetaInfoList);
+		KeyedBackendSerializationProxy<?> serializationProxy =
+			new KeyedBackendSerializationProxy<>(keySerializer, stateMetaInfoList);
 
 		byte[] serialized;
 		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
@@ -113,7 +113,7 @@ public class SerializationProxiesTest {
 		}
 
 		serializationProxy =
-			new KeyedBackendSerializationProxy(Thread.currentThread().getContextClassLoader());
+			new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader());
 
 		// mock failure when deserializing serializers
 		TypeSerializerSerializationProxy<?> mockProxy = mock(TypeSerializerSerializationProxy.class);
