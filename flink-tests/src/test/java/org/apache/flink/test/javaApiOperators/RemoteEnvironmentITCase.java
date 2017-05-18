@@ -24,6 +24,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
@@ -78,7 +79,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
 	@Test(expected=FlinkException.class)
 	public void testInvalidAkkaConfiguration() throws Throwable {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, INVALID_STARTUP_TIMEOUT);
+		config.setString(AkkaOptions.STARTUP_TIMEOUT, INVALID_STARTUP_TIMEOUT);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				cluster.getHostname(),
@@ -103,7 +104,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
 	@Test
 	public void testUserSpecificParallelism() throws Exception {
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
+		config.setString(AkkaOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				cluster.getHostname(),

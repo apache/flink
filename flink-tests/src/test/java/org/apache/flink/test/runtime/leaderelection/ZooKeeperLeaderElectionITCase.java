@@ -23,6 +23,7 @@ import akka.actor.Kill;
 import akka.actor.PoisonPill;
 import org.apache.curator.test.TestingServer;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -151,7 +152,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 		// we "effectively" disable the automatic RecoverAllJobs message and sent it manually to make
 		// sure that all TMs have registered to the JM prior to issueing the RecoverAllJobs message
-		configuration.setString(ConfigConstants.AKKA_ASK_TIMEOUT, AkkaUtils.INF_TIMEOUT().toString());
+		configuration.setString(AkkaOptions.ASK_TIMEOUT, AkkaUtils.INF_TIMEOUT().toString());
 
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(true);
 

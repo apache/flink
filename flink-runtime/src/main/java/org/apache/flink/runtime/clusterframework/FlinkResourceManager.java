@@ -26,7 +26,7 @@ import akka.dispatch.OnComplete;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
@@ -148,7 +148,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceIDRetrieva
 		}
 		catch (Exception e) {
 			lt = new FiniteDuration(
-				Duration.apply(ConfigConstants.DEFAULT_AKKA_LOOKUP_TIMEOUT).toMillis(),
+				Duration.apply(AkkaOptions.LOOKUP_TIMEOUT.defaultValue()).toMillis(),
 				TimeUnit.MILLISECONDS);
 		}
 		this.messageTimeout = lt;

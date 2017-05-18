@@ -27,7 +27,7 @@ import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.Config
 import org.apache.flink.api.common.{JobExecutionResult, JobID, JobSubmissionResult}
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.{JobClient, JobExecutionException}
@@ -265,9 +265,9 @@ abstract class FlinkMiniCluster(
     // https://docs.travis-ci.com/user/environment-variables#Default-Environment-Variables
     if (sys.env.contains("CI")) {
       // Only set if nothing specified in config
-      if (config.getString(ConfigConstants.AKKA_ASK_TIMEOUT, null) == null) {
-        val duration = Duration(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT) * 10
-        config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, s"${duration.toSeconds}s")
+      if (!config.contains(AkkaOptions.ASK_TIMEOUT)) {
+        val duration = Duration(AkkaOptions.ASK_TIMEOUT.defaultValue()) * 10
+        config.setString(AkkaOptions.ASK_TIMEOUT, s"${duration.toSeconds}s")
 
         LOG.info(s"Akka ask timeout set to ${duration.toSeconds}s")
       }

@@ -23,7 +23,7 @@ import akka.dispatch.OnFailure;
 import akka.dispatch.OnSuccess;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -61,7 +61,7 @@ public class MetricFetcher {
 	private final ActorSystem actorSystem;
 	private final JobManagerRetriever retriever;
 	private final ExecutionContext ctx;
-	private final FiniteDuration timeout = new FiniteDuration(Duration.create(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT).toMillis(), TimeUnit.MILLISECONDS);
+	private final FiniteDuration timeout = new FiniteDuration(Duration.create(AkkaOptions.ASK_TIMEOUT.defaultValue()).toMillis(), TimeUnit.MILLISECONDS);
 
 	private MetricStore metrics = new MetricStore();
 	private MetricDumpDeserializer deserializer = new MetricDumpDeserializer();

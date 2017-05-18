@@ -28,7 +28,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.typesafe.config.ConfigFactory
 import grizzled.slf4j.Logger
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.configuration.{ConfigConstants, Configuration, HighAvailabilityOptions, TaskManagerOptions}
+import org.apache.flink.configuration._
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
@@ -89,7 +89,7 @@ object TestingUtils {
     val config = new Configuration()
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
     config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs)
-    config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, timeout)
+    config.setString(AkkaOptions.ASK_TIMEOUT, timeout)
 
     val cluster = new TestingCluster(config)
 

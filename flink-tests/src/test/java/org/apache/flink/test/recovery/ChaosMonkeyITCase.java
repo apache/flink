@@ -22,6 +22,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -156,9 +157,9 @@ public class ChaosMonkeyITCase extends TestLogger {
 				ZooKeeper.getConnectString(), FileStateBackendBasePath.toURI().toString());
 
 		// Akka and restart timeouts
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms");
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "6 s");
-		config.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 9);
+		config.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "1000 ms");
+		config.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "6 s");
+		config.setInteger(AkkaOptions.WATCH_THRESHOLD, 9);
 
 		if (checkpointingIntervalMs >= killEvery.toMillis()) {
 			throw new IllegalArgumentException("Relax! You want to kill processes every " +

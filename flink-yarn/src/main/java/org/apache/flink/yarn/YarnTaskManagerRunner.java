@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
@@ -91,7 +92,7 @@ public class YarnTaskManagerRunner {
 		}
 
 		// tell akka to die in case of an error
-		configuration.setBoolean(ConfigConstants.AKKA_JVM_EXIT_ON_FATAL_ERROR, true);
+		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
 
 		String localKeytabPath = null;
 		if(remoteKeytabPath != null) {

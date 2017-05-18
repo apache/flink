@@ -22,7 +22,7 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.Status;
 import akka.dispatch.Futures;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -119,7 +119,7 @@ public class JobSubmissionClientActor extends JobClientActor {
 					client.tell(
 						decorateMessage(new Status.Failure(
 							new JobClientActorSubmissionTimeoutException("Job submission to the JobManager timed out. " +
-								"You may increase '" + ConfigConstants.AKKA_CLIENT_TIMEOUT + "' in case the JobManager " +
+								"You may increase '" + AkkaOptions.CLIENT_TIMEOUT.key() + "' in case the JobManager " +
 								"needs more time to configure and confirm the job submission."))),
 						getSelf());
 				}

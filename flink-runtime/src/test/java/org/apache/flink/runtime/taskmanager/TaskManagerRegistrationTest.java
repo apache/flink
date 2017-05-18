@@ -23,6 +23,7 @@ import akka.actor.ActorSystem;
 import akka.actor.InvalidActorNameException;
 import akka.actor.Terminated;
 import akka.testkit.JavaTestKit;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -90,10 +91,10 @@ public class TaskManagerRegistrationTest extends TestLogger {
 	@BeforeClass
 	public static void startActorSystem() {
 		config = new Configuration();
-		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "5 s");
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "200 ms");
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
-		config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 2.0);
+		config.setString(AkkaOptions.ASK_TIMEOUT, "5 s");
+		config.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "200 ms");
+		config.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "2 s");
+		config.setInteger(AkkaOptions.WATCH_THRESHOLD, 2);
 
 		actorSystem = AkkaUtils.createLocalActorSystem(config);
 	}

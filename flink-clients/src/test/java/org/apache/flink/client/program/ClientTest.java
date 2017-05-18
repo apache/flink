@@ -32,6 +32,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.DetachedEnvironment.DetachedJobExecutionResult;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.DataStatistics;
@@ -97,7 +98,7 @@ public class ClientTest extends TestLogger {
 		config = new Configuration();
 		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, freePort);
-		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
+		config.setString(AkkaOptions.ASK_TIMEOUT, AkkaOptions.ASK_TIMEOUT.defaultValue());
 
 		try {
 			scala.Tuple2<String, Object> address = new scala.Tuple2<String, Object>("localhost", freePort);

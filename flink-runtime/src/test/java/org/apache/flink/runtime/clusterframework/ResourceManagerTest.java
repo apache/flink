@@ -22,7 +22,7 @@ import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.messages.NotifyResourceStarted;
@@ -192,7 +192,7 @@ public class ResourceManagerTest extends TestLogger {
 
 			// set a short timeout for lookups
 			Configuration shortTimeoutConfig = config.clone();
-			shortTimeoutConfig.setString(ConfigConstants.AKKA_LOOKUP_TIMEOUT, "1 s");
+			shortTimeoutConfig.setString(AkkaOptions.LOOKUP_TIMEOUT, "1 s");
 
 			fakeJobManager = TestingUtils.createForwardingActor(
 				system,
@@ -234,7 +234,7 @@ public class ResourceManagerTest extends TestLogger {
 
 			// set a long timeout for lookups such that the test fails in case of timeouts
 			Configuration shortTimeoutConfig = config.clone();
-			shortTimeoutConfig.setString(ConfigConstants.AKKA_LOOKUP_TIMEOUT, "99999 s");
+			shortTimeoutConfig.setString(AkkaOptions.LOOKUP_TIMEOUT, "99999 s");
 
 			fakeJobManager = TestingUtils.createForwardingActor(
 				system,

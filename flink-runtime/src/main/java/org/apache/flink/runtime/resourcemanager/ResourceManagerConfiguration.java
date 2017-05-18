@@ -53,24 +53,24 @@ public class ResourceManagerConfiguration {
 	// --------------------------------------------------------------------------
 
 	public static ResourceManagerConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
-		final String strTimeout = configuration.getString(AkkaOptions.AKKA_ASK_TIMEOUT);
+		final String strTimeout = configuration.getString(AkkaOptions.ASK_TIMEOUT);
 		final Time timeout;
 
 		try {
 			timeout = Time.milliseconds(Duration.apply(strTimeout).toMillis());
 		} catch (NumberFormatException e) {
 			throw new ConfigurationException("Could not parse the resource manager's timeout " +
-				"value " + AkkaOptions.AKKA_ASK_TIMEOUT + '.', e);
+				"value " + AkkaOptions.ASK_TIMEOUT + '.', e);
 		}
 
-		final String strHeartbeatInterval = configuration.getString(AkkaOptions.AKKA_WATCH_HEARTBEAT_INTERVAL);
+		final String strHeartbeatInterval = configuration.getString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL);
 		final Time heartbeatInterval;
 
 		try {
 			heartbeatInterval = Time.milliseconds(Duration.apply(strHeartbeatInterval).toMillis());
 		} catch (NumberFormatException e) {
 			throw new ConfigurationException("Could not parse the resource manager's heartbeat interval " +
-				"value " + AkkaOptions.AKKA_WATCH_HEARTBEAT_INTERVAL + '.', e);
+				"value " + AkkaOptions.WATCH_HEARTBEAT_INTERVAL + '.', e);
 		}
 
 		return new ResourceManagerConfiguration(timeout, heartbeatInterval);

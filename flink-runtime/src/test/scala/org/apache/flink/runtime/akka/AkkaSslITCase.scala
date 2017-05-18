@@ -20,7 +20,7 @@ package org.apache.flink.runtime.akka
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration}
 import org.apache.flink.runtime.testingUtils.{TestingCluster, TestingUtils, ScalaTestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -119,7 +119,7 @@ class AkkaSslITCase(_system: ActorSystem)
         val config = new Configuration()
         config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)
         config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
-        config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "2 s")
+        config.setString(AkkaOptions.ASK_TIMEOUT, "2 s")
 
         config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true)
         config.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "invalid.keystore")
@@ -141,7 +141,7 @@ class AkkaSslITCase(_system: ActorSystem)
         val config = new Configuration()
         config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)
         config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
-        config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "2 s")
+        config.setString(AkkaOptions.ASK_TIMEOUT, "2 s")
 
         config.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true)
 
