@@ -757,7 +757,7 @@ Thus, in order to infer the metric identifier:
     <tr>
       <td>downtime</td>
       <td>
-        The time that the job has not been running in a failing/recovering situation.
+        For jobs currently in a failing/recovering situation, the time elapsed during this outage.
         <p>Returns 0 for running jobs and -1 for completed jobs.</p>
       </td>
     </tr>
