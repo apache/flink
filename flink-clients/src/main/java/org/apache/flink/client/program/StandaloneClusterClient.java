@@ -52,7 +52,7 @@ public class StandaloneClusterClient extends ClusterClient {
 
 	@Override
 	public String getWebInterfaceURL() {
-		String host = this.getJobManagerAddress().getHostString();
+		String host = getJobManagerAddress().getHostString();
 		int port = getFlinkConfiguration().getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
 			ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
 		return "http://" +  host + ":" + port;
@@ -71,7 +71,7 @@ public class StandaloneClusterClient extends ClusterClient {
 				throw new RuntimeException("Received the wrong reply " + result + " from cluster.");
 			}
 		} catch (Exception e) {
-			throw new RuntimeException("Couldn't retrieve the Cluster status.", e);
+			throw new RuntimeException("Couldn't retrieve the cluster status.", e);
 		}
 	}
 
