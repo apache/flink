@@ -18,16 +18,27 @@
 
 package org.apache.flink.client.program;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.client.JobClientActorTest;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.UUID;
 
 import static org.junit.Assert.*;
 
@@ -96,6 +107,47 @@ public class ClientConnectionTest extends TestLogger {
 			// check that we have failed with a LeaderRetrievalException which says that we could
 			// not connect to the leading JobManager
 			assertTrue(CommonTestUtils.containsCause(e, LeaderRetrievalException.class));
+		}
+	}
+
+	/**
+	 * FLINK-6629
+	 *
+	 * Tests that the {@link HighAvailabilityServices} are respected when initializing the ClusterClient's
+	 * {@link ActorSystem} and retrieving the leading JobManager.
+	 */
+	@Test
+	public void testJobManagerRetrievalWithHAServices() throws Exception {
+		final Configuration configuration = new Configuration();
+		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
+		final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
+		ActorRef actorRef = null;
+		final UUID leaderId = UUID.randomUUID();
+
+		try {
+			actorRef = actorSystem.actorOf(
+				Props.create(
+					JobClientActorTest.PlainActor.class,
+					leaderId));
+
+			final String expectedAddress = AkkaUtils.getAkkaURL(actorSystem, actorRef);
+
+			final TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(expectedAddress, leaderId);
+
+			highAvailabilityServices.setJobMasterLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID, testingLeaderRetrievalService);
+
+			ClusterClient client = new StandaloneClusterClient(configuration, highAvailabilityServices);
+
+			ActorGateway gateway = client.getJobManagerGateway();
+
+			assertEquals(expectedAddress, gateway.path());
+			assertEquals(leaderId, gateway.leaderSessionID());
+		} finally {
+			if (actorRef != null) {
+				TestingUtils.stopActorGracefully(actorRef);
+			}
+
+			actorSystem.shutdown();
 		}
 	}
 }
