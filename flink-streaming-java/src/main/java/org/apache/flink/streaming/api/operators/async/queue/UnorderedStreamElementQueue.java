@@ -148,7 +148,7 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 				hasCompletedEntries.await();
 			}
 
-			LOG.debug("Peeked head element from ordered stream element queue with filling degree " +
+			LOG.debug("Peeked head element from unordered stream element queue with filling degree " +
 				"({}/{}).", numberEntries, capacity);
 
 			return completedQueue.peek();
