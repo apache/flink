@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.util.OperatingSystem;
 import org.slf4j.Logger;
 import sun.misc.Signal;
 
@@ -67,7 +68,9 @@ public class SignalHandler {
 			}
 			registered = true;
 
-			final String[] SIGNALS = { "TERM", "HUP", "INT" };
+			final String[] SIGNALS = OperatingSystem.isWindows()
+				? new String[]{ "TERM", "INT"}
+				: new String[]{ "TERM", "HUP", "INT" };
 			
 			StringBuilder bld = new StringBuilder();
 			bld.append("Registered UNIX signal handlers for [");
