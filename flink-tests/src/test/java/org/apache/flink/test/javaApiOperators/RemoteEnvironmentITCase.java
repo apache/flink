@@ -23,11 +23,13 @@ import org.apache.flink.api.common.operators.util.TestNonRichInputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
+import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.minicluster.StandaloneMiniCluster;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -73,7 +75,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
 	/**
 	 * Ensure that that Akka configuration parameters can be set.
 	 */
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=FlinkException.class)
 	public void testInvalidAkkaConfiguration() throws Throwable {
 		Configuration config = new Configuration();
 		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, INVALID_STARTUP_TIMEOUT);
@@ -86,11 +88,11 @@ public class RemoteEnvironmentITCase extends TestLogger {
 		env.getConfig().disableSysoutLogging();
 
 		DataSet<String> result = env.createInput(new TestNonRichInputFormat());
-		result.output(new LocalCollectionOutputFormat<String>(new ArrayList<String>()));
+		result.output(new LocalCollectionOutputFormat<>(new ArrayList<String>()));
 		try {
 			env.execute();
 			Assert.fail("Program should not run successfully, cause of invalid akka settings.");
-		} catch (IOException ex) {
+		} catch (ProgramInvocationException ex) {
 			throw ex.getCause();
 		}
 	}

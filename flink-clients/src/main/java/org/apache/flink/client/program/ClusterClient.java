@@ -24,7 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.CompilerException;
@@ -54,7 +54,6 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsErroneous;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsFound;
 import org.apache.flink.runtime.messages.accumulators.RequestAccumulatorResults;
-import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.FlinkException;
@@ -62,13 +61,12 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Some;
+import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
@@ -151,7 +149,11 @@ public abstract class ClusterClient {
 		this.timeout = AkkaUtils.getClientTimeout(flinkConfig);
 		this.lookupTimeout = AkkaUtils.getLookupTimeout(flinkConfig);
 
-		this.actorSystemLoader = new LazyActorSystemLoader(flinkConfig, LOG);
+		this.actorSystemLoader = new LazyActorSystemLoader(
+			highAvailabilityServices,
+			Time.milliseconds(lookupTimeout.toMillis()),
+			flinkConfig,
+			LOG);
 
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
 	}
@@ -164,13 +166,23 @@ public abstract class ClusterClient {
 
 		private final Logger LOG;
 
-		private final Configuration flinkConfig;
+		private final HighAvailabilityServices highAvailabilityServices;
+
+		private final Time timeout;
+
+		private final Configuration configuration;
 
 		private ActorSystem actorSystem;
 
-		private LazyActorSystemLoader(Configuration flinkConfig, Logger LOG) {
-			this.flinkConfig = flinkConfig;
-			this.LOG = LOG;
+		private LazyActorSystemLoader(
+				HighAvailabilityServices highAvailabilityServices,
+				Time timeout,
+				Configuration configuration,
+				Logger LOG) {
+			this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
+			this.timeout = Preconditions.checkNotNull(timeout);
+			this.configuration = Preconditions.checkNotNull(configuration);
+			this.LOG = Preconditions.checkNotNull(LOG);
 		}
 
 		/**
@@ -192,30 +204,31 @@ public abstract class ClusterClient {
 		/**
 		 * Creates a new ActorSystem or returns an existing one.
 		 * @return ActorSystem
+		 * @throws Exception if the ActorSystem could not be created
 		 */
-		public ActorSystem get() {
+		public ActorSystem get() throws FlinkException {
 
 			if (!isLoaded()) {
 				// start actor system
 				LOG.info("Starting client actor system.");
 
-				String hostName = flinkConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-				int port = flinkConfig.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
-				if (hostName == null || port == -1) {
-					throw new RuntimeException("The initial JobManager address has not been set correctly.");
-				}
-				InetSocketAddress initialJobManagerAddress = new InetSocketAddress(hostName, port);
-
-				// find name of own public interface, able to connect to the JM
-				// try to find address for 2 seconds. log after 400 ms.
-				InetAddress ownHostname;
+				final InetAddress ownHostname;
 				try {
-					ownHostname = ConnectionUtils.findConnectingAddress(initialJobManagerAddress, 2000, 400);
-				} catch (IOException e) {
-					throw new RuntimeException("Failed to resolve JobManager address at " + initialJobManagerAddress, e);
+					ownHostname = LeaderRetrievalUtils.findConnectingAddress(
+						highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+						timeout);
+				} catch (LeaderRetrievalException lre) {
+					throw new FlinkException("Could not find out our own hostname by connecting to the " +
+						"leading JobManager. Please make sure that the Flink cluster has been started.", lre);
 				}
-				actorSystem = AkkaUtils.createActorSystem(flinkConfig,
-					new Some<>(new Tuple2<String, Object>(ownHostname.getCanonicalHostName(), 0)));
+
+				try {
+					actorSystem = AkkaUtils.createActorSystem(
+						configuration,
+						Option.apply(new Tuple2<String, Object>(ownHostname.getCanonicalHostName(), 0)));
+				} catch (Exception e) {
+					throw new FlinkException("Could not start the ActorSystem lazily.", e);
+				}
 			}
 
 			return actorSystem;
@@ -440,10 +453,19 @@ public abstract class ClusterClient {
 
 		waitForClusterToBeReady();
 
+		final ActorSystem actorSystem;
+
+		try {
+			actorSystem = actorSystemLoader.get();
+		} catch (FlinkException fe) {
+			throw new ProgramInvocationException("Could not start the ActorSystem needed to talk to the " +
+				"JobManager.", fe);
+		}
+
 		try {
 			logAndSysout("Submitting job with JobID: " + jobGraph.getJobID() + ". Waiting for job completion.");
 			this.lastJobExecutionResult = JobClient.submitJobAndWait(
-				actorSystemLoader.get(),
+				actorSystem,
 				flinkConfig,
 				highAvailabilityServices,
 				jobGraph,
@@ -451,7 +473,7 @@ public abstract class ClusterClient {
 				printStatusDuringExecution,
 				classLoader);
 
-			return this.lastJobExecutionResult;
+			return lastJobExecutionResult;
 		} catch (JobExecutionException e) {
 			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
 		}
@@ -491,6 +513,17 @@ public abstract class ClusterClient {
 	 * @throws JobExecutionException if an error occurs during monitoring the job execution
 	 */
 	public JobExecutionResult retrieveJob(JobID jobID) throws JobExecutionException {
+		final ActorSystem actorSystem;
+
+		try {
+			actorSystem = actorSystemLoader.get();
+		} catch (FlinkException fe) {
+			throw new JobExecutionException(
+				jobID,
+				"Could not start the ActorSystem needed to talk to the JobManager.",
+				fe);
+		}
+
 		ActorGateway jobManagerGateway;
 		try {
 			jobManagerGateway = getJobManagerGateway();
@@ -502,7 +535,7 @@ public abstract class ClusterClient {
 			jobID,
 			jobManagerGateway,
 			flinkConfig,
-			actorSystemLoader.get(),
+			actorSystem,
 			highAvailabilityServices,
 			timeout,
 			printStatusDuringExecution);
@@ -518,6 +551,17 @@ public abstract class ClusterClient {
 	 * @throws JobExecutionException if an error occurs during monitoring the job execution
 	 */
 	public JobListeningContext connectToJob(JobID jobID) throws JobExecutionException {
+		final ActorSystem actorSystem;
+
+		try {
+			actorSystem = actorSystemLoader.get();
+		} catch (FlinkException fe) {
+			throw new JobExecutionException(
+				jobID,
+				"Could not start the ActorSystem needed to talk to the JobManager.",
+				fe);
+		}
+
 		ActorGateway jobManagerGateway;
 		try {
 			jobManagerGateway = getJobManagerGateway();
@@ -526,13 +570,13 @@ public abstract class ClusterClient {
 		}
 
 		return JobClient.attachToRunningJob(
-				jobID,
-				jobManagerGateway,
-				flinkConfig,
-				actorSystemLoader.get(),
-				highAvailabilityServices,
-				timeout,
-				printStatusDuringExecution);
+			jobID,
+			jobManagerGateway,
+			flinkConfig,
+			actorSystem,
+			highAvailabilityServices,
+			timeout,
+			printStatusDuringExecution);
 	}
 
 	/**
