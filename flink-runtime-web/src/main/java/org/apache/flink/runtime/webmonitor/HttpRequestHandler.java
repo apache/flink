@@ -126,7 +126,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 						// IF SOMETHING EVER NEEDS POST PARAMETERS, THIS WILL BE THE PLACE TO HANDLE IT
 						// all fields values will be passed with type Attribute.
 
-						if (data.getHttpDataType() == HttpDataType.FileUpload) {
+						if (data.getHttpDataType() == HttpDataType.FileUpload && tmpDir != null) {
 							DiskFileUpload file = (DiskFileUpload) data;
 							if (file.isCompleted()) {
 								String name = file.getFilename();
