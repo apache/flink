@@ -76,7 +76,7 @@ public class LeaderRetrievalUtils {
 
 			return Await.result(actorGatewayFuture, timeout);
 		} catch (Exception e) {
-			throw new LeaderRetrievalException("Could not retrieve the leader gateway", e);
+			throw new LeaderRetrievalException("Could not retrieve the leader gateway.", e);
 		} finally {
 			try {
 				leaderRetrievalService.stop();

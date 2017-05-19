@@ -302,4 +302,26 @@ public class CommonTestUtils {
 			throw new RuntimeException("Unclassified error while trying to access the sun.misc.Unsafe handle.", t);
 		}
 	}
+
+	/**
+	 * Checks whether the given throwable contains the given cause as a cause. The cause is not checked
+	 * on equality but on type equality.
+	 *
+	 * @param throwable Throwable to check for the cause
+	 * @param cause Cause to look for
+	 * @return True if the given Throwable contains the given cause (type equality); otherwise false
+	 */
+	public static boolean containsCause(Throwable throwable, Class<? extends Throwable> cause) {
+		Throwable current = throwable;
+
+		while (current != null) {
+			if (cause.isAssignableFrom(current.getClass())) {
+				return true;
+			}
+
+			current = current.getCause();
+		}
+
+		return false;
+	}
 }
