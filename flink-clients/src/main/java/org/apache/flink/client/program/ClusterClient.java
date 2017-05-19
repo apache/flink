@@ -233,7 +233,7 @@ public abstract class ClusterClient {
 			}
 
 			if (highAvailabilityServices != null) {
-				highAvailabilityServices.closeAndCleanupAllData();
+				highAvailabilityServices.close();
 			}
 		}
 	}
