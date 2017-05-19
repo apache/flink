@@ -51,7 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * of Erlang or Akka.
  *
  * <p>The RPC endpoint provides provides {@link #runAsync(Runnable)}, {@link #callAsync(Callable, Time)}
-  * and the {@link #getMainThreadExecutor()} to execute code in the RPC endoint's main thread.
+  * and the {@link #getMainThreadExecutor()} to execute code in the RPC endpoint's main thread.
  *
  * @param <C> The RPC gateway counterpart for the implementing RPC endpoint
  */
