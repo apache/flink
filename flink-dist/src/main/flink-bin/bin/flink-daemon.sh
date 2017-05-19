@@ -97,7 +97,7 @@ case $STARTSTOP in
 
     (start)
         # Rotate log files
-        rotateLogFilesWithPrefix $FLINK_LOG_DIR $FLINK_LOG_PREFIX
+        rotateLogFilesWithPrefix "$FLINK_LOG_DIR" "$FLINK_LOG_PREFIX"
 
         # Print a warning if daemons are already running on host
         if [ -f $pid ]; then
