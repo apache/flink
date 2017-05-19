@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint.hooks;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -28,6 +27,7 @@ import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -278,25 +278,25 @@ public class MasterHooks {
 	 * @param userClassLoader the classloader to use
 	 */
 	public static <T> MasterTriggerRestoreHook<T> wrapHook(MasterTriggerRestoreHook<T> hook, ClassLoader userClassLoader) {
-		return new WrappedMasterHook<T>(hook, userClassLoader);
+		return new WrappedMasterHook<>(hook, userClassLoader);
 	}
 
-	@VisibleForTesting
-	static class WrappedMasterHook<T> implements MasterTriggerRestoreHook<T> {
+	private static class WrappedMasterHook<T> implements MasterTriggerRestoreHook<T> {
 
 		private final MasterTriggerRestoreHook<T> hook;
 		private final ClassLoader userClassLoader;
 
 		WrappedMasterHook(MasterTriggerRestoreHook<T> hook, ClassLoader userClassLoader) {
-			this.hook = hook;
-			this.userClassLoader = userClassLoader;
+			this.hook = Preconditions.checkNotNull(hook);
+			this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
 		}
 
 		@Override
 		public String getIdentifier() {
-			Thread thread = Thread.currentThread();
-			ClassLoader originalClassLoader = thread.getContextClassLoader();
+			final Thread thread = Thread.currentThread();
+			final ClassLoader originalClassLoader = thread.getContextClassLoader();
 			thread.setContextClassLoader(userClassLoader);
+
 			try {
 				return hook.getIdentifier();
 			}
@@ -315,9 +315,10 @@ public class MasterHooks {
 				}
 			};
 
-			Thread thread = Thread.currentThread();
-			ClassLoader originalClassLoader = thread.getContextClassLoader();
+			final Thread thread = Thread.currentThread();
+			final ClassLoader originalClassLoader = thread.getContextClassLoader();
 			thread.setContextClassLoader(userClassLoader);
+
 			try {
 				return hook.triggerCheckpoint(checkpointId, timestamp, wrappedExecutor);
 			}
@@ -328,9 +329,10 @@ public class MasterHooks {
 
 		@Override
 		public void restoreCheckpoint(long checkpointId, @Nullable T checkpointData) throws Exception {
-			Thread thread = Thread.currentThread();
-			ClassLoader originalClassLoader = thread.getContextClassLoader();
+			final Thread thread = Thread.currentThread();
+			final ClassLoader originalClassLoader = thread.getContextClassLoader();
 			thread.setContextClassLoader(userClassLoader);
+
 			try {
 				hook.restoreCheckpoint(checkpointId, checkpointData);
 			}
@@ -342,9 +344,10 @@ public class MasterHooks {
 		@Nullable
 		@Override
 		public SimpleVersionedSerializer<T> createCheckpointDataSerializer() {
-			Thread thread = Thread.currentThread();
-			ClassLoader originalClassLoader = thread.getContextClassLoader();
+			final Thread thread = Thread.currentThread();
+			final ClassLoader originalClassLoader = thread.getContextClassLoader();
 			thread.setContextClassLoader(userClassLoader);
+
 			try {
 				return hook.createCheckpointDataSerializer();
 			}
@@ -353,17 +356,19 @@ public class MasterHooks {
 			}
 		}
 
-		class WrappedCommand implements Runnable {
+		private class WrappedCommand implements Runnable {
 			private final Runnable command;
+
 			WrappedCommand(Runnable command) {
-				this.command = command;
+				this.command = Preconditions.checkNotNull(command);
 			}
 
 			@Override
 			public void run() {
-				Thread thread = Thread.currentThread();
-				ClassLoader originalClassLoader = thread.getContextClassLoader();
+				final Thread thread = Thread.currentThread();
+				final ClassLoader originalClassLoader = thread.getContextClassLoader();
 				thread.setContextClassLoader(userClassLoader);
+
 				try {
 					command.run();
 				}
