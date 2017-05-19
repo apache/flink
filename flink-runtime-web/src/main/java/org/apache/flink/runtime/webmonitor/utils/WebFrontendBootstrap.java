@@ -62,7 +62,7 @@ public class WebFrontendBootstrap {
 			final Configuration config) throws InterruptedException {
 		this.router = Preconditions.checkNotNull(router);
 		this.log = Preconditions.checkNotNull(log);
-		this.uploadDir = Preconditions.checkNotNull(directory);
+		this.uploadDir = directory;
 		this.serverSSLContext = sslContext;
 
 		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
