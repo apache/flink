@@ -173,7 +173,7 @@ class JobManager(
    * to run in the actor system of the associated job manager.
    */
   val webMonitorPort : Int = flinkConfiguration.getInteger(
-    ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
+    JobManagerOptions.WEB_PORT.key(), -1)
 
   /** The default directory for savepoints. */
   val defaultSavepointDir: String = ConfigurationUtil.getStringWithDeprecatedKeys(
@@ -2272,7 +2272,7 @@ object JobManager {
     : (ActorRef, ActorRef, Option[WebMonitor], Option[ActorRef]) = {
 
     val webMonitor: Option[WebMonitor] =
-      if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
+      if (configuration.getInteger(JobManagerOptions.WEB_PORT.key(), 0) >= 0) {
         LOG.info("Starting JobManager web frontend")
 
         // start the web frontend. we need to load this dynamically
@@ -2290,7 +2290,7 @@ object JobManager {
 
     // Reset the port (necessary in case of automatic port selection)
     webMonitor.foreach{ monitor => configuration.setInteger(
-      ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, monitor.getServerPort) }
+      JobManagerOptions.WEB_PORT, monitor.getServerPort) }
 
     try {
       // bring up the job manager actor
@@ -2451,7 +2451,7 @@ object JobManager {
     }
 
     if (cliOptions.getWebUIPort() >= 0) {
-      configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, cliOptions.getWebUIPort())
+      configuration.setInteger(JobManagerOptions.WEB_PORT, cliOptions.getWebUIPort())
     }
 
     if (cliOptions.getHost() != null) {
