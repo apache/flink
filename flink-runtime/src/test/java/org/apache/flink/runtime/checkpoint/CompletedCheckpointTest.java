@@ -67,7 +67,7 @@ public class CompletedCheckpointTest {
 				new FileStateHandle(new Path(file.toURI()), file.length()),
 				file.getAbsolutePath());
 
-		checkpoint.discardOnShutdown(JobStatus.FAILED, new SharedStateRegistry());
+		checkpoint.discardOnShutdown(JobStatus.FAILED);
 
 		assertEquals(false, file.exists());
 	}
@@ -93,11 +93,11 @@ public class CompletedCheckpointTest {
 				null);
 
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-		checkpoint.registerSharedStates(sharedStateRegistry);
+		checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
 		verify(state, times(1)).registerSharedStates(sharedStateRegistry);
 
 		// Subsume
-		checkpoint.discardOnSubsume(sharedStateRegistry);
+		checkpoint.discardOnSubsume();
 
 		verify(state, times(1)).discardState();
 	}
@@ -132,9 +132,9 @@ public class CompletedCheckpointTest {
 					externalPath);
 
 			SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-			checkpoint.registerSharedStates(sharedStateRegistry);
+			checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
 
-			checkpoint.discardOnShutdown(status, sharedStateRegistry);
+			checkpoint.discardOnShutdown(status);
 			verify(state, times(0)).discardState();
 			assertEquals(true, file.exists());
 
@@ -148,7 +148,7 @@ public class CompletedCheckpointTest {
 					null,
 					null);
 
-			checkpoint.discardOnShutdown(status, sharedStateRegistry);
+			checkpoint.discardOnShutdown(status);
 			verify(state, times(1)).discardState();
 		}
 	}
@@ -176,7 +176,7 @@ public class CompletedCheckpointTest {
 		CompletedCheckpointStats.DiscardCallback callback = mock(CompletedCheckpointStats.DiscardCallback.class);
 		completed.setDiscardCallback(callback);
 
-		completed.discardOnShutdown(JobStatus.FINISHED, new SharedStateRegistry());
+		completed.discardOnShutdown(JobStatus.FINISHED);
 		verify(callback, times(1)).notifyDiscardedCheckpoint();
 	}
 

@@ -178,7 +178,7 @@ public class CompletedCheckpoint implements Serializable {
 		doDiscard();
 	}
 
-	public boolean discardOnSubsume(SharedStateRegistry sharedStateRegistry) throws Exception {
+	public boolean discardOnSubsume() throws Exception {
 
 		if (props.discardOnSubsumed()) {
 			doDiscard();
@@ -188,7 +188,7 @@ public class CompletedCheckpoint implements Serializable {
 		return false;
 	}
 
-	public boolean discardOnShutdown(JobStatus jobStatus, SharedStateRegistry sharedStateRegistry) throws Exception {
+	public boolean discardOnShutdown(JobStatus jobStatus) throws Exception {
 
 		if (jobStatus == JobStatus.FINISHED && props.discardOnJobFinished() ||
 				jobStatus == JobStatus.CANCELED && props.discardOnJobCancelled() ||
@@ -290,7 +290,7 @@ public class CompletedCheckpoint implements Serializable {
 	 *
 	 * @param sharedStateRegistry The registry where shared states are registered
 	 */
-	public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
+	public void registerSharedStatesAfterRestored(SharedStateRegistry sharedStateRegistry) {
 		sharedStateRegistry.registerAll(operatorStates.values());
 	}
 

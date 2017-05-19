@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * {@link CompletedCheckpointStore} for JobManagers running in {@link HighAvailabilityMode#NONE}.
  */
-public class StandaloneCompletedCheckpointStore extends AbstractCompletedCheckpointStore {
+public class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StandaloneCompletedCheckpointStore.class);
 
@@ -56,21 +57,19 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompletedCheckpo
 	}
 
 	@Override
-	public void recover() throws Exception {
+	public void recover(SharedStateRegistry sharedStateRegistry) throws Exception {
 		// Nothing to do
 	}
 
 	@Override
 	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
-		
-		checkpoint.registerSharedStates(sharedStateRegistry);
 
 		checkpoints.addLast(checkpoint);
 
 		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
 			try {
 				CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
-				checkpointToSubsume.discardOnSubsume(sharedStateRegistry);
+				checkpointToSubsume.discardOnSubsume();
 			} catch (Exception e) {
 				LOG.warn("Fail to subsume the old checkpoint.", e);
 			}
@@ -103,7 +102,7 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompletedCheckpo
 			LOG.info("Shutting down");
 
 			for (CompletedCheckpoint checkpoint : checkpoints) {
-				checkpoint.discardOnShutdown(jobStatus, sharedStateRegistry);
+				checkpoint.discardOnShutdown(jobStatus);
 			}
 		} finally {
 			checkpoints.clear();

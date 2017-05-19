@@ -29,10 +29,13 @@ import java.util.Objects;
 import java.util.concurrent.Executor;
 
 /**
+ * This registry manages state that is shared across (incremental) checkpoints, and is responsible
+ * for deleting shared state that is no longer used in any valid checkpoint.
+ *
  * A {@code SharedStateRegistry} will be deployed in the 
- * {@link org.apache.flink.runtime.checkpoint.CompletedCheckpointStore} to
- * maintain the reference count of {@link StreamStateHandle}s which are shared
- * among different incremental checkpoints.
+ * {@link org.apache.flink.runtime.checkpoint.CheckpointCoordinator} to
+ * maintain the reference count of {@link StreamStateHandle}s by a key that (logically) identifies
+ * them.
  */
 public class SharedStateRegistry {
 
@@ -246,5 +249,12 @@ public class SharedStateRegistry {
 				LOG.warn("A problem occurred during asynchronous disposal of a shared state object: {}", toDispose, e);
 			}
 		}
+	}
+
+	/**
+	 * Clears the registry.
+	 */
+	public void clear() {
+		registeredStates.clear();
 	}
 }

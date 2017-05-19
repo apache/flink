@@ -64,6 +64,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	 */
 	@Test
 	public void testAddAndGetLatestCheckpoint() throws Exception {
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		CompletedCheckpointStore checkpoints = createCompletedCheckpoints(4);
 		
 		// Empty state
@@ -71,7 +72,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		assertEquals(0, checkpoints.getAllCheckpoints().size());
 
 		TestCompletedCheckpoint[] expected = new TestCompletedCheckpoint[] {
-				createCheckpoint(0), createCheckpoint(1) };
+				createCheckpoint(0, sharedStateRegistry), createCheckpoint(1, sharedStateRegistry) };
 
 		// Add and get latest
 		checkpoints.addCheckpoint(expected[0]);
@@ -89,11 +90,12 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	 */
 	@Test
 	public void testAddCheckpointMoreThanMaxRetained() throws Exception {
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		CompletedCheckpointStore checkpoints = createCompletedCheckpoints(1);
 
 		TestCompletedCheckpoint[] expected = new TestCompletedCheckpoint[] {
-				createCheckpoint(0), createCheckpoint(1),
-				createCheckpoint(2), createCheckpoint(3)
+				createCheckpoint(0, sharedStateRegistry), createCheckpoint(1, sharedStateRegistry),
+				createCheckpoint(2, sharedStateRegistry), createCheckpoint(3, sharedStateRegistry)
 		};
 
 		// Add checkpoints
@@ -134,11 +136,12 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	 */
 	@Test
 	public void testGetAllCheckpoints() throws Exception {
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		CompletedCheckpointStore checkpoints = createCompletedCheckpoints(4);
 
 		TestCompletedCheckpoint[] expected = new TestCompletedCheckpoint[] {
-				createCheckpoint(0), createCheckpoint(1),
-				createCheckpoint(2), createCheckpoint(3)
+				createCheckpoint(0, sharedStateRegistry), createCheckpoint(1, sharedStateRegistry),
+				createCheckpoint(2, sharedStateRegistry), createCheckpoint(3, sharedStateRegistry)
 		};
 
 		for (TestCompletedCheckpoint checkpoint : expected) {
@@ -159,11 +162,12 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 	 */
 	@Test
 	public void testDiscardAllCheckpoints() throws Exception {
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		CompletedCheckpointStore checkpoints = createCompletedCheckpoints(4);
 
 		TestCompletedCheckpoint[] expected = new TestCompletedCheckpoint[] {
-				createCheckpoint(0), createCheckpoint(1),
-				createCheckpoint(2), createCheckpoint(3)
+				createCheckpoint(0, sharedStateRegistry), createCheckpoint(1, sharedStateRegistry),
+				createCheckpoint(2, sharedStateRegistry), createCheckpoint(3, sharedStateRegistry)
 		};
 
 		for (TestCompletedCheckpoint checkpoint : expected) {
@@ -187,7 +191,10 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 
 	// ---------------------------------------------------------------------------------------------
 
-	protected TestCompletedCheckpoint createCheckpoint(int id) throws IOException {
+	protected TestCompletedCheckpoint createCheckpoint(
+		int id,
+		SharedStateRegistry sharedStateRegistry) throws IOException {
+
 		int numberOfStates = 4;
 		CheckpointProperties props = CheckpointProperties.forStandardCheckpoint();
 
@@ -203,6 +210,8 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 
 			operatorState.putState(i, subtaskState);
 		}
+
+		operatorState.registerSharedStates(sharedStateRegistry);
 
 		return new TestCompletedCheckpoint(new JobID(), id, 0, operatorGroupState, props);
 	}
@@ -251,8 +260,8 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		}
 
 		@Override
-		public boolean discardOnSubsume(SharedStateRegistry sharedStateRegistry) throws Exception {
-			if (super.discardOnSubsume(sharedStateRegistry)) {
+		public boolean discardOnSubsume() throws Exception {
+			if (super.discardOnSubsume()) {
 				discard();
 				return true;
 			} else {
@@ -261,8 +270,8 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		}
 
 		@Override
-		public boolean discardOnShutdown(JobStatus jobStatus, SharedStateRegistry sharedStateRegistry) throws Exception {
-			if (super.discardOnShutdown(jobStatus, sharedStateRegistry)) {
+		public boolean discardOnShutdown(JobStatus jobStatus) throws Exception {
+			if (super.discardOnShutdown(jobStatus)) {
 				discard();
 				return true;
 			} else {
