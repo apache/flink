@@ -27,7 +27,6 @@ import java.util.Properties;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
@@ -129,8 +128,6 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 
 	/** Number of unacknowledged records. */
 	protected long pendingRecords;
-
-	protected OperatorStateStore stateStore;
 
 	/**
 	 * The main constructor for creating a FlinkKafkaProducer.
@@ -344,7 +341,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
-		this.stateStore = context.getOperatorStateStore();
+		// nothing to do
 	}
 
 	@Override
