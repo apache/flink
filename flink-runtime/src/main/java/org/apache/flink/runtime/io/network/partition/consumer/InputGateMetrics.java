@@ -83,11 +83,12 @@ public class InputGateMetrics {
 
 				int size = rc.unsynchronizedGetNumberOfQueuedBuffers();
 				min = Math.min(min, size);
-			} else {
-				min = 0;
 			}
 		}
 
+		if (min == Integer.MAX_VALUE) { // in case all channels are local
+			return 0;
+		}
 		return min;
 	}
 
