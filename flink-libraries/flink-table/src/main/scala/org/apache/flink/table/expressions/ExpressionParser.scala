@@ -82,6 +82,24 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val UNBOUNDED_RANGE: Keyword = Keyword("unbounded_range")
   lazy val ROWTIME: Keyword = Keyword("rowtime")
   lazy val PROCTIME: Keyword = Keyword("proctime")
+  lazy val TRUE: Keyword = Keyword("true")
+  lazy val FALSE: Keyword = Keyword("false")
+  lazy val PRIMITIVE_ARRAY: Keyword = Keyword("PRIMITIVE_ARRAY")
+  lazy val OBJECT_ARRAY: Keyword = Keyword("OBJECT_ARRAY")
+  lazy val BYTE: Keyword = Keyword("BYTE")
+  lazy val SHORT: Keyword = Keyword("SHORT")
+  lazy val INTERVAL_MONTHS: Keyword = Keyword("INTERVAL_MONTHS")
+  lazy val INTERVAL_MILLIS: Keyword = Keyword("INTERVAL_MILLIS")
+  lazy val INT: Keyword = Keyword("INT")
+  lazy val LONG: Keyword = Keyword("LONG")
+  lazy val FLOAT: Keyword = Keyword("FLOAT")
+  lazy val DOUBLE: Keyword = Keyword("DOUBLE")
+  lazy val BOOLEAN: Keyword = Keyword("BOOLEAN")
+  lazy val STRING: Keyword = Keyword("STRING")
+  lazy val SQL_DATE: Keyword = Keyword("SQL_DATE")
+  lazy val SQL_TIMESTAMP: Keyword = Keyword("SQL_TIMESTAMP")
+  lazy val SQL_TIME: Keyword = Keyword("SQL_TIME")
+  lazy val DECIMAL: Keyword = Keyword("DECIMAL")
 
   def functionIdent: ExpressionParser.Parser[String] = super.ident
 
@@ -121,22 +139,22 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   // data types
 
   lazy val dataType: PackratParser[TypeInformation[_]] =
-    "PRIMITIVE_ARRAY" ~ "(" ~> dataType <~ ")" ^^ { ct => Types.PRIMITIVE_ARRAY(ct) } |
-    "OBJECT_ARRAY" ~ "(" ~> dataType <~ ")" ^^ { ct => Types.OBJECT_ARRAY(ct) } |
-    "BYTE" ^^ { e => Types.BYTE } |
-    "SHORT" ^^ { e => Types.SHORT } |
-    "INTERVAL_MONTHS" ^^ { e => Types.INTERVAL_MONTHS } |
-    "INTERVAL_MILLIS" ^^ { e => Types.INTERVAL_MILLIS } |
-    "INT" ^^ { e => Types.INT } |
-    "LONG" ^^ { e => Types.LONG } |
-    "FLOAT" ^^ { e => Types.FLOAT } |
-    "DOUBLE" ^^ { e => Types.DOUBLE } |
-    "BOOLEAN" ^^ { { e => Types.BOOLEAN } } |
-    "STRING" ^^ { e => Types.STRING } |
-    "SQL_DATE" ^^ { e => Types.SQL_DATE } |
-    "SQL_TIMESTAMP" ^^ { e => Types.SQL_TIMESTAMP } |
-    "SQL_TIME" ^^ { e => Types.SQL_TIME } |
-    "DECIMAL" ^^ { e => Types.DECIMAL }
+    PRIMITIVE_ARRAY ~ "(" ~> dataType <~ ")" ^^ { ct => Types.PRIMITIVE_ARRAY(ct) } |
+    OBJECT_ARRAY ~ "(" ~> dataType <~ ")" ^^ { ct => Types.OBJECT_ARRAY(ct) } |
+    BYTE ^^ { e => Types.BYTE } |
+    SHORT ^^ { e => Types.SHORT } |
+    INTERVAL_MONTHS ^^ { e => Types.INTERVAL_MONTHS } |
+    INTERVAL_MILLIS ^^ { e => Types.INTERVAL_MILLIS } |
+    INT ^^ { e => Types.INT } |
+    LONG ^^ { e => Types.LONG } |
+    FLOAT ^^ { e => Types.FLOAT } |
+    DOUBLE ^^ { e => Types.DOUBLE } |
+    BOOLEAN ^^ { { e => Types.BOOLEAN } } |
+    STRING ^^ { e => Types.STRING } |
+    SQL_DATE ^^ { e => Types.SQL_DATE } |
+    SQL_TIMESTAMP ^^ { e => Types.SQL_TIMESTAMP } |
+    SQL_TIME ^^ { e => Types.SQL_TIME } |
+    DECIMAL ^^ { e => Types.DECIMAL }
 
   // literals
 
@@ -167,7 +185,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     str => Literal(str.substring(1, str.length - 1))
   }
 
-  lazy val boolLiteral: PackratParser[Expression] = ("true" | "false") ^^ {
+  lazy val boolLiteral: PackratParser[Expression] = (TRUE | FALSE) ^^ {
     str => Literal(str.toBoolean)
   }
 
