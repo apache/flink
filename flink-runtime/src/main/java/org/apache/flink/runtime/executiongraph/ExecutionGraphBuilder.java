@@ -258,9 +258,10 @@ public class ExecutionGraphBuilder {
 					throw new JobExecutionException(jobId, "Could not instantiate user-defined checkpoint hooks", e);
 				}
 
-				Thread thread = Thread.currentThread();
-				ClassLoader originalClassLoader = thread.getContextClassLoader();
+				final Thread thread = Thread.currentThread();
+				final ClassLoader originalClassLoader = thread.getContextClassLoader();
 				thread.setContextClassLoader(classLoader);
+
 				try {
 					hooks = new ArrayList<>(hookFactories.length);
 					for (MasterTriggerRestoreHook.Factory factory : hookFactories) {

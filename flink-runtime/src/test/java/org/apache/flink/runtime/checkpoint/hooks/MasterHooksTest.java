@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint.hooks;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -31,7 +32,6 @@ import java.util.concurrent.Executor;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -39,7 +39,7 @@ import static org.mockito.Mockito.verify;
 /**
  * Tests for the MasterHooks utility class.
  */
-public class MasterHooksTest {
+public class MasterHooksTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
 	//  hook management
@@ -117,15 +117,10 @@ public class MasterHooksTest {
 
 	private static class TestExecutor implements Executor {
 		Runnable command;
+
 		@Override
 		public void execute(Runnable command) {
 			this.command = command;
 		}
-	}
-
-	private static <T> T mockGeneric(Class<?> clazz) {
-		@SuppressWarnings("unchecked")
-		Class<T> typedClass = (Class<T>) clazz;
-		return mock(typedClass);
 	}
 }
