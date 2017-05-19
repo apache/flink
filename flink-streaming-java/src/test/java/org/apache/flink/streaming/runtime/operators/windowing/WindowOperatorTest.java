@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -1240,7 +1241,7 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testlateness() throws Exception {
+	public void testLateness() throws Exception {
 		final int windowSize = 2;
 		final long lateness = 500;
 
@@ -1281,7 +1282,7 @@ public class WindowOperatorTest extends TestLogger {
 		expected.add(new StreamRecord<>(new Tuple2<>("key2", 2), 1999));
 		expected.add(new Watermark(2300));
 
-		// this will not be sideoutput because window.maxTimestamp() + allowedlateness > currentWatermark
+		// this will not be sideoutput because window.maxTimestamp() + allowedLateness > currentWatermark
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1997));
 		testHarness.processWatermark(new Watermark(6000));
 
@@ -1289,7 +1290,7 @@ public class WindowOperatorTest extends TestLogger {
 		expected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
 		expected.add(new Watermark(6000));
 
-		// this will be side output because window.maxTimestamp() + allowedlateness < currentWatermark
+		// this will be side output because window.maxTimestamp() + allowedLateness < currentWatermark
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1998));
 		testHarness.processWatermark(new Watermark(7000));
 
@@ -1377,7 +1378,7 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testSideOutputDueTolatenessTumbling() throws Exception {
+	public void testSideOutputDueToLatenessTumbling() throws Exception {
 		final int windowSize = 2;
 		final long lateness = 0;
 
@@ -1413,7 +1414,7 @@ public class WindowOperatorTest extends TestLogger {
 
 		expected.add(new Watermark(1985));
 
-		// this will not be dropped because window.maxTimestamp() + allowedlateness > currentWatermark
+		// this will not be dropped because window.maxTimestamp() + allowedLateness > currentWatermark
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1980));
 		testHarness.processWatermark(new Watermark(1999));
 
@@ -1441,7 +1442,7 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testSideOutputDueTolatenessSliding() throws Exception {
+	public void testSideOutputDueToLatenessSliding() throws Exception {
 		final int windowSize = 3;
 		final int windowSlide = 1;
 		final long lateness = 0;
@@ -1486,7 +1487,7 @@ public class WindowOperatorTest extends TestLogger {
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 3001));
 
-		// lateness is set to 0 and windowSize = 3 sec and slide 1, the following 2 elements (2400)
+		// lateness is set to 0 and window size = 3 sec and slide 1, the following 2 elements (2400)
 		// are assigned to windows ending at 2999, 3999, 4999.
 		// The 2999 is dropped because it is already late (WM = 2999) but the rest are kept.
 
@@ -1521,7 +1522,7 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testSideOutputDueTolatenessSessionZerolatenessPurgingTrigger() throws Exception {
+	public void testSideOutputDueToLatenessSessionZeroLatenessPurgingTrigger() throws Exception {
 		final int gapSize = 3;
 		final long lateness = 0;
 
@@ -1613,7 +1614,7 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testSideOutputDueTolatenessSessionZerolateness() throws Exception {
+	public void testSideOutputDueToLatenessSessionZeroLateness() throws Exception {
 		final int gapSize = 3;
 		final long lateness = 0;
 
@@ -1699,9 +1700,9 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testDropDueTolatenessSessionWithlatenessPurgingTrigger() throws Exception {
+	public void testDropDueToLatenessSessionWithLatenessPurgingTrigger() throws Exception {
 
-		// this has the same output as testSideOutputDueTolatenessSessionZerolateness() because
+		// this has the same output as testSideOutputDueToLatenessSessionZeroLateness() because
 		// the allowed lateness is too small to make a difference
 
 		final int gapSize = 3;
@@ -1786,8 +1787,8 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testNotSideOutputDueTolatenessSessionWithlateness() throws Exception {
-		// same as testSideOutputDueTolatenessSessionWithlateness() but with an accumulating trigger, i.e.
+	public void testNotSideOutputDueToLatenessSessionWithLateness() throws Exception {
+		// same as testSideOutputDueToLatenessSessionWithLateness() but with an accumulating trigger, i.e.
 		// one that does not return FIRE_AND_PURGE when firing but just FIRE. The expected
 		// results are therefore slightly different.
 
@@ -1890,7 +1891,7 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testNotSideOutputDueTolatenessSessionWithHugelatenessPurgingTrigger() throws Exception {
+	public void testNotSideOutputDueToLatenessSessionWithHugeLatenessPurgingTrigger() throws Exception {
 
 		final int gapSize = 3;
 		final long lateness = 10000;
@@ -1982,7 +1983,7 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testNotSideOutputDueTolatenessSessionWithHugelateness() throws Exception {
+	public void testNotSideOutputDueToLatenessSessionWithHugeLateness() throws Exception {
 		final int gapSize = 3;
 		final long lateness = 10000;
 
@@ -2676,8 +2677,7 @@ public class WindowOperatorTest extends TestLogger {
 		}
 
 		@Override
-		public void onMerge(TimeWindow window,
-									OnMergeContext ctx) {
+		public void onMerge(TimeWindow window, OnMergeContext ctx) {
 			ctx.registerEventTimeTimer(window.maxTimestamp());
 		}
 
