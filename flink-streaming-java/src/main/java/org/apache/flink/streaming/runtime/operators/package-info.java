@@ -19,4 +19,5 @@
  * This package contains the operators that perform the stream transformations.
  * One or more operators are bundled into a "chain" and executed in a stream task.
  */
+
 package org.apache.flink.streaming.runtime.operators;

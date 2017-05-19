@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.api.operators;
 
+package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
