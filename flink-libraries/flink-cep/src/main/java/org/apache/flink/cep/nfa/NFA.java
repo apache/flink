@@ -930,6 +930,7 @@ public class NFA<T> implements Serializable {
 				timestampSerializer.serialize(computationState.getTimestamp(), target);
 				versionSerializer.serialize(computationState.getVersion(), target);
 				timestampSerializer.serialize(computationState.getStartTimestamp(), target);
+				target.writeInt(computationState.getCounter());
 
 				if (computationState.getEvent() == null) {
 					target.writeBoolean(false);
@@ -963,6 +964,7 @@ public class NFA<T> implements Serializable {
 				long timestamp = timestampSerializer.deserialize(source);
 				DeweyNumber version = versionSerializer.deserialize(source);
 				long startTimestamp = timestampSerializer.deserialize(source);
+				int counter = source.readInt();
 
 				T event = null;
 				if (source.readBoolean()) {
@@ -970,7 +972,7 @@ public class NFA<T> implements Serializable {
 				}
 
 				computationStates.add(ComputationState.createState(
-						nfa, state, prevState, event, 0, timestamp, version, startTimestamp));
+						nfa, state, prevState, event, counter, timestamp, version, startTimestamp));
 			}
 
 			nfa.computationStates = computationStates;
@@ -1027,6 +1029,9 @@ public class NFA<T> implements Serializable {
 
 				long startTimestamp = timestampSerializer.deserialize(source);
 				timestampSerializer.serialize(startTimestamp, target);
+
+				int counter = source.readInt();
+				target.writeInt(counter);
 
 				boolean hasEvent = source.readBoolean();
 				target.writeBoolean(hasEvent);
