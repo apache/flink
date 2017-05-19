@@ -112,7 +112,7 @@ class CalcStringExpressionTest {
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
     val t1 = ds.filter( Literal(false) )
-    val t2 = ds.filter("false")
+    val t2 = ds.filter("faLsE")
 
     val lPlan1 = t1.logicalPlan
     val lPlan2 = t2.logicalPlan
@@ -128,7 +128,7 @@ class CalcStringExpressionTest {
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
 
     val t1 = ds.filter( Literal(true) )
-    val t2 = ds.filter("true")
+    val t2 = ds.filter("trUe")
 
     val lPlan1 = t1.logicalPlan
     val lPlan2 = t2.logicalPlan
