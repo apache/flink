@@ -62,6 +62,7 @@ import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -147,6 +148,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 	private static final int Parallelism = 8;
 
 	private static CountDownLatch CompletedCheckpointsLatch = new CountDownLatch(4);
+	private static CountDownLatch CompletedCheckpointsLatch2 = new CountDownLatch(6);
 
 	private static AtomicLongArray RecoveredStates = new AtomicLongArray(Parallelism);
 
@@ -171,8 +173,8 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 		final String fileStateBackendPath = FileStateBackendBasePath.getAbsoluteFile().toString();
 
 		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
-				zooKeeperQuorum,
-				fileStateBackendPath);
+			zooKeeperQuorum,
+			fileStateBackendPath);
 
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 2);
 
@@ -188,7 +190,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 		try {
 			// Test actor system
 			testActorSystem = AkkaUtils.createActorSystem(new Configuration(),
-					new Some<>(new Tuple2<String, Object>("localhost", 0)));
+				new Some<>(new Tuple2<String, Object>("localhost", 0)));
 
 			// The job managers
 			jobManagerProcess[0] = new JobManagerProcess(0, config);
@@ -204,7 +206,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 			// The task manager
 			taskManagerSystem = AkkaUtils.createActorSystem(
-					config, Option.apply(new Tuple2<String, Object>("localhost", 0)));
+				config, Option.apply(new Tuple2<String, Object>("localhost", 0)));
 			TaskManager.startTaskManagerComponentsAndActor(
 				config,
 				ResourceID.generate(),
@@ -223,7 +225,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 			// Get the leader ref
 			ActorRef leaderRef = AkkaUtils.getActorRef(
-					leaderAddress, testActorSystem, testDeadline.timeLeft());
+				leaderAddress, testActorSystem, testDeadline.timeLeft());
 			ActorGateway leader = new AkkaActorGateway(leaderRef, leaderId);
 
 			// Who's the boss?
@@ -248,10 +250,10 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 			// Wait for the job to be running
 			JobManagerActorTestUtils.waitForJobStatus(
-					jobGraph.getJobID(),
-					JobStatus.RUNNING,
-					leader,
-					testDeadline.timeLeft());
+				jobGraph.getJobID(),
+				JobStatus.RUNNING,
+				leader,
+				testDeadline.timeLeft());
 
 			// Remove all files
 			FileUtils.deleteDirectory(FileStateBackendBasePath);
@@ -268,7 +270,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 				if (output != null) {
 					if (output.contains("Failed to recover job") &&
-							output.contains("java.io.FileNotFoundException")) {
+						output.contains("java.io.FileNotFoundException")) {
 
 						success = true;
 						break;
@@ -352,10 +354,12 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 		try {
 			Configuration config = new Configuration();
+
 			config.setInteger(CoreOptions.MAX_RETAINED_CHECKPOINTS, retainedCheckpoints);
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, numJMs);
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots);
+			config.setString(ConfigConstants.CHECKPOINTS_DIRECTORY_KEY, temporaryFolder.newFolder().toString());
 
 
 			String tmpFolderString = temporaryFolder.newFolder().toString();
@@ -372,6 +376,8 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(Parallelism);
 			env.enableCheckpointing(checkpointingInterval);
+			env.getCheckpointConfig()
+				.enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
 			//TODO parameterize
 			env.setStateBackend(stateBackend);
@@ -427,7 +433,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 	 * A checkpointed source, which emits elements from 0 to a configured number.
 	 */
 	public static class CheckpointedSequenceSource extends RichParallelSourceFunction<Long>
-			implements ListCheckpointed<Tuple2<Long, Integer>> {
+		implements ListCheckpointed<Tuple2<Long, Integer>> {
 
 		private static final Logger LOG = LoggerFactory.getLogger(CheckpointedSequenceSource.class);
 
@@ -465,8 +471,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 						--repeat;
 						current = 0;
 					} else {
-						ctx.collect(LastElement);
-						return;
+						isRunning = false;
 					}
 				}
 
@@ -474,6 +479,11 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 				if (sync.getCount() != 0) {
 					Thread.sleep(50);
 				}
+			}
+
+			CompletedCheckpointsLatch2.await();
+			synchronized (ctx.getCheckpointLock()) {
+				ctx.collect(LastElement);
 			}
 		}
 
@@ -563,6 +573,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 		public void notifyCheckpointComplete(long checkpointId) throws Exception {
 			LOG.debug("Checkpoint {} completed.", checkpointId);
 			CompletedCheckpointsLatch.countDown();
+			CompletedCheckpointsLatch2.countDown();
 		}
 	}
 

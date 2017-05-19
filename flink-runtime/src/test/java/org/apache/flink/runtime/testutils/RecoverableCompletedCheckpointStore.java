@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.testutils;
 
-import org.apache.flink.runtime.checkpoint.AbstractCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +33,7 @@ import java.util.List;
  * A checkpoint store, which supports shutdown and suspend. You can use this to test HA
  * as long as the factory always returns the same store instance.
  */
-public class RecoverableCompletedCheckpointStore extends AbstractCompletedCheckpointStore {
+public class RecoverableCompletedCheckpointStore implements CompletedCheckpointStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RecoverableCompletedCheckpointStore.class);
 
@@ -41,26 +42,24 @@ public class RecoverableCompletedCheckpointStore extends AbstractCompletedCheckp
 	private final ArrayDeque<CompletedCheckpoint> suspended = new ArrayDeque<>(2);
 
 	@Override
-	public void recover() throws Exception {
+	public void recover(SharedStateRegistry sharedStateRegistry) throws Exception {
 		checkpoints.addAll(suspended);
 		suspended.clear();
 
 		for (CompletedCheckpoint checkpoint : checkpoints) {
-			checkpoint.registerSharedStates(sharedStateRegistry);
+			checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
 		}
 	}
 
 	@Override
 	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
 
-		checkpoint.registerSharedStates(sharedStateRegistry);
-
 		checkpoints.addLast(checkpoint);
 
 
 		if (checkpoints.size() > 1) {
 			CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
-			checkpointToSubsume.discardOnSubsume(sharedStateRegistry);
+			checkpointToSubsume.discardOnSubsume();
 		}
 	}
 

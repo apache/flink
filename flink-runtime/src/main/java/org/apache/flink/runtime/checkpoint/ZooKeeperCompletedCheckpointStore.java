@@ -64,7 +64,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * checkpoints is consistent. Currently, after recovery we start out with only a single
  * checkpoint to circumvent those situations.
  */
-public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpointStore {
+public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperCompletedCheckpointStore.class);
 
@@ -102,8 +102,6 @@ public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpoi
 			RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage,
 			Executor executor) throws Exception {
 
-		super(executor);
-
 		checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
 		checkNotNull(stateStorage, "State storage");
 
@@ -139,13 +137,14 @@ public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpoi
 	 * that the history of checkpoints is consistent.
 	 */
 	@Override
-	public void recover() throws Exception {
+	public void recover(SharedStateRegistry sharedStateRegistry) throws Exception {
 		LOG.info("Recovering checkpoints from ZooKeeper.");
 
 		// Clear local handles in order to prevent duplicates on
 		// recovery. The local handles should reflect the state
 		// of ZooKeeper.
 		completedCheckpoints.clear();
+		sharedStateRegistry.clear();
 
 		// Get all there is first
 		List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> initialCheckpoints;
@@ -171,7 +170,7 @@ public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpoi
 				completedCheckpoint = retrieveCompletedCheckpoint(checkpointStateHandle);
 				if (completedCheckpoint != null) {
 					// Re-register all shared states in the checkpoint.
-					completedCheckpoint.registerSharedStates(sharedStateRegistry);
+					completedCheckpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
 					completedCheckpoints.add(completedCheckpoint);
 				}
 			} catch (Exception e) {
@@ -195,9 +194,6 @@ public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpoi
 		
 		final String path = checkpointIdToPath(checkpoint.getCheckpointID());
 
-		// First, register all shared states in the checkpoint to consolidates placeholder.
-		checkpoint.registerSharedStates(sharedStateRegistry);
-
 		// Now add the new one. If it fails, we don't want to loose existing data.
 		checkpointsInZooKeeper.addAndLock(path, checkpoint);
 
@@ -206,7 +202,7 @@ public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpoi
 		// Everything worked, let's remove a previous checkpoint if necessary.
 		while (completedCheckpoints.size() > maxNumberOfCheckpointsToRetain) {
 			try {
-				removeSubsumed(completedCheckpoints.removeFirst(), sharedStateRegistry);
+				removeSubsumed(completedCheckpoints.removeFirst());
 			} catch (Exception e) {
 				LOG.warn("Failed to subsume the old checkpoint", e);
 			}
@@ -248,7 +244,7 @@ public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpoi
 
 			for (CompletedCheckpoint checkpoint : completedCheckpoints) {
 				try {
-					removeShutdown(checkpoint, jobStatus, sharedStateRegistry);
+					removeShutdown(checkpoint, jobStatus);
 				} catch (Exception e) {
 					LOG.error("Failed to discard checkpoint.", e);
 				}
@@ -274,8 +270,7 @@ public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpoi
 	// ------------------------------------------------------------------------
 
 	private void removeSubsumed(
-		final CompletedCheckpoint completedCheckpoint,
-		final SharedStateRegistry sharedStateRegistry) throws Exception {
+		final CompletedCheckpoint completedCheckpoint) throws Exception {
 
 		if(completedCheckpoint == null) {
 			return;
@@ -287,7 +282,7 @@ public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpoi
 				public void apply(@Nullable RetrievableStateHandle<CompletedCheckpoint> value) throws FlinkException {
 					if (value != null) {
 						try {
-							completedCheckpoint.discardOnSubsume(sharedStateRegistry);
+							completedCheckpoint.discardOnSubsume();
 						} catch (Exception e) {
 							throw new FlinkException("Could not discard the completed checkpoint on subsume.", e);
 						}
@@ -302,8 +297,7 @@ public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpoi
 
 	private void removeShutdown(
 			final CompletedCheckpoint completedCheckpoint,
-			final JobStatus jobStatus,
-			final SharedStateRegistry sharedStateRegistry) throws Exception {
+			final JobStatus jobStatus) throws Exception {
 
 		if(completedCheckpoint == null) {
 			return;
@@ -313,7 +307,7 @@ public class ZooKeeperCompletedCheckpointStore extends AbstractCompletedCheckpoi
 			@Override
 			public void apply(@Nullable RetrievableStateHandle<CompletedCheckpoint> value) throws FlinkException {
 				try {
-					completedCheckpoint.discardOnShutdown(jobStatus, sharedStateRegistry);
+					completedCheckpoint.discardOnShutdown(jobStatus);
 				} catch (Exception e) {
 					throw new FlinkException("Could not discard the completed checkpoint on subsume.", e);
 				}
