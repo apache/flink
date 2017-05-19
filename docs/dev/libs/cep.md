@@ -282,6 +282,7 @@ Pattern<Event, ?> nonStrictNext = start.followedBy("middle");
 val nonStrictNext : Pattern[Event, _] = start.followedBy("middle")
 {% endhighlight %}
 </div>
+</div>
 
 For non-strict contiguity one can specify if only the first succeeding matching event will be matched, or
 all. In the latter case multiple matches will be emitted for the same beginning.
