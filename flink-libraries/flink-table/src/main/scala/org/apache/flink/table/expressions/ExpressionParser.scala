@@ -167,9 +167,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     str => Literal(str.substring(1, str.length - 1))
   }
 
-  lazy val boolLiteral: PackratParser[Expression] = ("true" | "false") ^^ {
-    str => Literal(str.toBoolean)
-  }
+  lazy val boolLiteral: PackratParser[Expression] =
+    ("(t|T)(r|R)(u|U)(e|E)".r | "(f|F)(a|A)(l|L)(s|S)(e|E)".r) ^^ { str => Literal(str.toBoolean)}
 
   lazy val nullLiteral: PackratParser[Expression] = NULL ~ "(" ~> dataType <~ ")" ^^ {
     dt => Null(dt)
