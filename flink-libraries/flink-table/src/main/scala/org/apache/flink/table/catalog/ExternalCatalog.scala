@@ -34,41 +34,33 @@ trait ExternalCatalog {
   /**
     * Get a table from the catalog
     *
-    * @param dbName    The name of the table's database.
     * @param tableName The name of the table.
-    * @throws DatabaseNotExistException thrown if the database does not exist in the catalog.
     * @throws TableNotExistException    thrown if the table does not exist in the catalog.
     * @return the requested table
     */
-  @throws[DatabaseNotExistException]
   @throws[TableNotExistException]
-  def getTable(dbName: String, tableName: String): ExternalCatalogTable
+  def getTable(tableName: String): ExternalCatalogTable
 
   /**
     * Get a list of all table names of a database in the catalog.
     *
-    * @param dbName The name of the database.
-    * @throws DatabaseNotExistException thrown if the database does not exist in the catalog
     * @return The list of table names
     */
-  @throws[DatabaseNotExistException]
-  def listTables(dbName: String): JList[String]
+  def listTables(): JList[String]
 
   /**
     * Gets a database from the catalog.
     *
-    * @param dbName The name of the database.
-    * @throws DatabaseNotExistException thrown if the database does not exist in the catalog
     * @return The requested database
     */
-  @throws[DatabaseNotExistException]
-  def getDatabase(dbName: String): ExternalCatalogDatabase
+  @throws[CatalogNotExistException]
+  def getSubCatalog(dbName: String): ExternalCatalog
 
   /**
     * Gets a list of all databases in the catalog.
     *
     * @return The list of database names
     */
-  def listDatabases(): JList[String]
+  def listSubCatalogs(): JList[String]
 
 }

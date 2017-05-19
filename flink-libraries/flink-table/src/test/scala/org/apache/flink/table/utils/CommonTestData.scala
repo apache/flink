@@ -73,7 +73,6 @@ object CommonTestData {
     properties1.put("fieldDelim", "#")
     properties1.put("rowDelim", "$")
     val externalCatalogTable1 = ExternalCatalogTable(
-      TableIdentifier("db1", "tb1"),
       "csv",
       new TableSchema(
         Array("a", "b", "c"),
@@ -107,7 +106,6 @@ object CommonTestData {
     properties2.put("fieldDelim", "#")
     properties2.put("rowDelim", "$")
     val externalCatalogTable2 = ExternalCatalogTable(
-      TableIdentifier("db2", "tb2"),
       "csv",
       new TableSchema(
         Array("d", "e", "f", "g", "h"),
@@ -120,11 +118,16 @@ object CommonTestData {
       ),
       properties2
     )
-    val catalog = new InMemoryExternalCatalog
-    catalog.createDatabase(ExternalCatalogDatabase("db1"), false)
-    catalog.createDatabase(ExternalCatalogDatabase("db2"), false)
-    catalog.createTable(externalCatalogTable1, false)
-    catalog.createTable(externalCatalogTable2, false)
+    val catalog = new InMemoryExternalCatalog("test")
+    val db1 = new InMemoryExternalCatalog("db1")
+    val db2 = new InMemoryExternalCatalog("db2")
+    catalog.createSubCatalog("db1", db1, ignoreIfExists = false)
+    catalog.createSubCatalog("db2", db2, ignoreIfExists = false)
+
+    // Register the table with both catalogs
+    catalog.createTable("tb1", externalCatalogTable1, ignoreIfExists = false)
+    db1.createTable("tb1", externalCatalogTable1, ignoreIfExists = false)
+    db2.createTable("tb2", externalCatalogTable2, ignoreIfExists = false)
     catalog
   }
 

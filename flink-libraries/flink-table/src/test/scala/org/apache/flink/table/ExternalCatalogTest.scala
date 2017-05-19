@@ -28,6 +28,7 @@ import org.junit.Test
   */
 class ExternalCatalogTest extends TableTestBase {
   private val table1Path: Array[String] = Array("test", "db1", "tb1")
+  private val table1TopLevelPath: Array[String] = Array("test", "tb1")
   private val table1ProjectedFields: Array[String] = Array("a", "b", "c")
   private val table2Path: Array[String] = Array("test", "db2", "tb2")
   private val table2ProjectedFields: Array[String] = Array("d", "e", "g")
@@ -146,6 +147,38 @@ class ExternalCatalogTest extends TableTestBase {
       term("union all", "EXPR$0", "e", "g"))
 
     util.verifySql(sqlQuery, expected)
+  }
+
+
+  @Test
+  def testTopLevelTable(): Unit = {
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
+
+    tEnv.registerExternalCatalog("test", CommonTestData.getInMemoryTestCatalog)
+
+    val table1 = tEnv.scan("test", "tb1")
+    val table2 = tEnv.scan("test", "db2", "tb2")
+    val result = table2
+      .select('d * 2, 'e, 'g.upperCase())
+      .unionAll(table1.select('a * 2, 'b, 'c.upperCase()))
+
+    val expected = binaryNode(
+      "DataSetUnion",
+      unaryNode(
+        "DataSetCalc",
+        sourceBatchTableNode(table2Path, table2ProjectedFields),
+        term("select", "*(d, 2) AS _c0", "e", "UPPER(g) AS _c2")
+      ),
+      unaryNode(
+        "DataSetCalc",
+        sourceBatchTableNode(table1TopLevelPath, table1ProjectedFields),
+        term("select", "*(a, 2) AS _c0", "b", "UPPER(c) AS _c2")
+      ),
+      term("union", "_c0", "e", "_c2")
+    )
+
+    util.verifyTable(result, expected)
   }
 
   def sourceBatchTableNode(sourceTablePath: Array[String], fields: Array[String]): String = {
