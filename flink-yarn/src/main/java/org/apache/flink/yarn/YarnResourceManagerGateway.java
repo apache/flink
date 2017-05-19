@@ -16,18 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mesos.runtime.clusterframework
+package org.apache.flink.yarn;
 
-import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore
-import org.apache.flink.runtime.clusterframework.types.{ResourceID, ResourceIDRetrievable}
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 
 /**
-  * A representation of a registered Mesos task managed by the [[MesosFlinkResourceManager]].
-  */
-case class RegisteredMesosWorkerNode(task: MesosWorkerStore.Worker) extends ResourceIDRetrievable {
-
-  require(task.slaveID().isDefined)
-  require(task.hostname().isDefined)
-
-  override val getResourceID: ResourceID = MesosFlinkResourceManager.extractResourceID(task.taskID())
+ * The {@link YarnResourceManager}'s RPC gateway interface.
+ */
+public interface YarnResourceManagerGateway extends ResourceManagerGateway {
 }
