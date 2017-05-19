@@ -97,9 +97,9 @@ under the License.
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3-custom</akka.version>
 		<java.version>1.7</java.version>
-		<scala.macros.version>2.0.1</scala.macros.version>
+		<scala.macros.version>2.1.0</scala.macros.version>
 		<!-- Default scala versions, may be overwritten by build profiles -->
-		<scala.version>2.10.4</scala.version>
+		<scala.version>2.10.6</scala.version>
 		<scala.binary.version>2.10</scala.binary.version>
 		<chill.version>0.7.4</chill.version>
 		<asm.version>5.0.4</asm.version>
@@ -488,7 +488,7 @@ under the License.
 				</property>
 			</activation>
 			<properties>
-				<scala.version>2.11.7</scala.version>
+				<scala.version>2.11.11</scala.version>
 				<scala.binary.version>2.11</scala.binary.version>
 			</properties>
 		</profile>
