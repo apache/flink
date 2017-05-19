@@ -273,19 +273,22 @@ object AkkaUtils {
       AkkaOptions.AKKA_STARTUP_TIMEOUT,
       (akkaAskTimeout * 10).toString)
 
-    val transportHeartbeatInterval = configuration.getString(AkkaOptions.AKKA_TRANSPORT_HEARTBEAT_INTERVAL)
+    val transportHeartbeatInterval = configuration.getString(
+      AkkaOptions.AKKA_TRANSPORT_HEARTBEAT_INTERVAL)
 
-    val transportHeartbeatPause = configuration.getString(AkkaOptions.AKKA_TRANSPORT_HEARTBEAT_PAUSE)
+    val transportHeartbeatPause = configuration.getString(
+      AkkaOptions.AKKA_TRANSPORT_HEARTBEAT_PAUSE)
 
     val transportThreshold = configuration.getDouble(AkkaOptions.AKKA_TRANSPORT_THRESHOLD)
 
-    val watchHeartbeatInterval = configuration.getString(AkkaOptions.AKKA_WATCH_HEARTBEAT_INTERVAL);
+    val watchHeartbeatInterval = configuration.getString(
+      AkkaOptions.AKKA_WATCH_HEARTBEAT_INTERVAL)
 
-    val watchHeartbeatPause = configuration.getString(AkkaOptions.AKKA_WATCH_HEARTBEAT_PAUSE);
+    val watchHeartbeatPause = configuration.getString(AkkaOptions.AKKA_WATCH_HEARTBEAT_PAUSE)
 
     val watchThreshold = configuration.getInteger(AkkaOptions.AKKA_WATCH_THRESHOLD)
 
-    val akkaTCPTimeout = configuration.getString(AkkaOptions.AKKA_TCP_TIMEOUT);
+    val akkaTCPTimeout = configuration.getString(AkkaOptions.AKKA_TCP_TIMEOUT)
 
     val akkaFramesize = configuration.getString(AkkaOptions.AKKA_FRAMESIZE)
 
