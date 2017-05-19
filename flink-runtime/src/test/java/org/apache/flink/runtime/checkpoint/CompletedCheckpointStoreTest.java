@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -304,6 +305,14 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		public void awaitDiscard() throws InterruptedException {
 			if (discardLatch != null) {
 				discardLatch.await();
+			}
+		}
+
+		public boolean awaitDiscard(long timeout) throws InterruptedException {
+			if (discardLatch != null) {
+				return discardLatch.await(timeout, TimeUnit.MILLISECONDS);
+			} else {
+				return false;
 			}
 		}
 
