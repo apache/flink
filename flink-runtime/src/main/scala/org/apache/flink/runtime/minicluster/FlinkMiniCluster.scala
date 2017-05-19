@@ -266,7 +266,7 @@ abstract class FlinkMiniCluster(
     if (sys.env.contains("CI")) {
       // Only set if nothing specified in config
       if (config.getString(AkkaOptions.AKKA_ASK_TIMEOUT, null) == null) {
-        val duration = Duration(AkkaOptions.DEFAULT_AKKA_ASK_TIMEOUT) * 10
+        val duration = Duration(AkkaOptions.AKKA_ASK_TIMEOUT.defaultValue()) * 10
         config.setString(AkkaOptions.AKKA_ASK_TIMEOUT, s"${duration.toSeconds}s")
 
         LOG.info(s"Akka ask timeout set to ${duration.toSeconds}s")

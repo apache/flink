@@ -21,8 +21,8 @@ package org.apache.flink.client.program;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.actor.Status;
+
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.ProgramDescription;
@@ -42,15 +42,18 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.NetUtils;
+
 import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -58,9 +61,8 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
+
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -96,7 +98,7 @@ public class ClientTest extends TestLogger {
 		config = new Configuration();
 		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, freePort);
-		config.setString(AkkaOptions.AKKA_ASK_TIMEOUT, AkkaOptions.DEFAULT_AKKA_ASK_TIMEOUT);
+		config.setString(AkkaOptions.AKKA_ASK_TIMEOUT, AkkaOptions.AKKA_ASK_TIMEOUT.defaultValue());
 
 		try {
 			scala.Tuple2<String, Object> address = new scala.Tuple2<String, Object>("localhost", freePort);

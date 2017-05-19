@@ -577,7 +577,7 @@ object AkkaUtils {
   }
 
   def getDefaultTimeout: Time = {
-    val duration = Duration(AkkaOptions.DEFAULT_AKKA_ASK_TIMEOUT)
+    val duration = Duration(AkkaOptions.AKKA_ASK_TIMEOUT.defaultValue())
 
     Time.milliseconds(duration.toMillis)
   }
@@ -595,7 +595,7 @@ object AkkaUtils {
   }
 
   def getDefaultLookupTimeout: FiniteDuration = {
-    val duration = Duration(AkkaOptions.DEFAULT_AKKA_LOOKUP_TIMEOUT)
+    val duration = Duration(AkkaOptions.AKKA_LOOKUP_TIMEOUT.defaultValue())
     new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
   }
 
@@ -606,7 +606,7 @@ object AkkaUtils {
   }
 
   def getDefaultClientTimeout: FiniteDuration = {
-    val duration = Duration(AkkaOptions.DEFAULT_AKKA_CLIENT_TIMEOUT)
+    val duration = Duration(AkkaOptions.AKKA_CLIENT_TIMEOUT.defaultValue())
 
     new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
   }

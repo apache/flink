@@ -1474,67 +1474,67 @@ public final class ConfigConstants {
 	// ------------------------------ Akka Values ------------------------------
 
 	/**
-	 * @deprecated Use {@link AkkaOptions#DEFAULT_AKKA_TRANSPORT_HEARTBEAT_INTERVAL} instead.
+	 * @deprecated Use {@link AkkaOptions#AKKA_TRANSPORT_HEARTBEAT_INTERVAL} instead.
 	 */
 	@Deprecated
 	public static String DEFAULT_AKKA_TRANSPORT_HEARTBEAT_INTERVAL = "1000 s";
 
 	/**
-	 * @deprecated Use {@link AkkaOptions#DEFAULT_AKKA_TRANSPORT_HEARTBEAT_PAUSE} instead.
+	 * @deprecated Use {@link AkkaOptions#AKKA_TRANSPORT_HEARTBEAT_PAUSE} instead.
 	 */
 	@Deprecated
 	public static String DEFAULT_AKKA_TRANSPORT_HEARTBEAT_PAUSE = "6000 s";
 
 	/**
-	 * @deprecated Use {@link AkkaOptions#DEFAULT_AKKA_TRANSPORT_THRESHOLD} instead
+	 * @deprecated Use {@link AkkaOptions#AKKA_TRANSPORT_THRESHOLD} instead
 	 */
 	@Deprecated
 	public static double DEFAULT_AKKA_TRANSPORT_THRESHOLD = 300.0;
 
 	/**
-	 * @deprecated Use {@link AkkaOptions#DEFAULT_AKKA_WATCH_THRESHOLD} instead
+	 * @deprecated Use {@link AkkaOptions#AKKA_WATCH_THRESHOLD} instead
 	 */
 	@Deprecated
 	public static double DEFAULT_AKKA_WATCH_THRESHOLD = 12;
 
 	/**
-	 * @deprecated Use {@link AkkaOptions#DEFAULT_AKKA_DISPATCHER_THROUGHPUT} instead
+	 * @deprecated Use {@link AkkaOptions#AKKA_DISPATCHER_THROUGHPUT} instead
 	 */
 	@Deprecated
 	public static int DEFAULT_AKKA_DISPATCHER_THROUGHPUT = 15;
 
 	/**
-	 * @deprecated Use {@link AkkaOptions#DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS} instead
+	 * @deprecated Use {@link AkkaOptions#AKKA_LOG_LIFECYCLE_EVENTS} instead
 	 */
 	@Deprecated
 	public static boolean DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS = false;
 
 	/**
-	 * @deprecated Use {@link AkkaOptions#DEFAULT_AKKA_FRAMESIZE} instead
+	 * @deprecated Use {@link AkkaOptions#AKKA_FRAMESIZE} instead
 	 */
 	@Deprecated
 	public static String DEFAULT_AKKA_FRAMESIZE = "10485760b";
 
 	/**
-	 * @deprecated Use {@link AkkaOptions#DEFAULT_AKKA_ASK_TIMEOUT} instead
+	 * @deprecated Use {@link AkkaOptions#AKKA_ASK_TIMEOUT} instead
 	 */
 	@Deprecated
 	public static String DEFAULT_AKKA_ASK_TIMEOUT = "10 s";
 
 	/**
-	 * @deprecated Use {@link AkkaOptions#DEFAULT_AKKA_LOOKUP_TIMEOUT} instead
+	 * @deprecated Use {@link AkkaOptions#AKKA_LOOKUP_TIMEOUT} instead
 	 */
 	@Deprecated
 	public static String DEFAULT_AKKA_LOOKUP_TIMEOUT = "10 s";
 
 	/**
-	 * @deprecated Use {@link AkkaOptions#DEFAULT_AKKA_CLIENT_TIMEOUT} instead
+	 * @deprecated Use {@link AkkaOptions#AKKA_CLIENT_TIMEOUT} instead
 	 */
 	@Deprecated
 	public static String DEFAULT_AKKA_CLIENT_TIMEOUT = "60 s";
 
 	/**
-	 * @deprecated Use {@link AkkaOptions#DEFAULT_AKKA_SSL_ENABLED} instead
+	 * @deprecated Use {@link AkkaOptions#AKKA_SSL_ENABLED} instead
 	 */
 	@Deprecated
 	public static boolean DEFAULT_AKKA_SSL_ENABLED = true;

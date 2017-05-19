@@ -41,8 +41,8 @@ import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import org.apache.flink.runtime.messages.RegistrationMessages.AcknowledgeRegistration;
-import org.apache.flink.runtime.messages.RegistrationMessages.RefuseRegistration;
 import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager;
+import org.apache.flink.runtime.messages.RegistrationMessages.RefuseRegistration;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
@@ -62,13 +62,11 @@ import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.testingUtils.TestingUtils.createTaskManager;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActor;
+import static org.apache.flink.runtime.testingUtils.TestingUtils.createTaskManager;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActorGatewaysGracefully;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActorGracefully;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 

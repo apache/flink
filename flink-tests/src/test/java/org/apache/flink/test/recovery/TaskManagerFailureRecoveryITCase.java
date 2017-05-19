@@ -48,7 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 /**
  * This test verifies the behavior of the recovery in the case when a TaskManager
