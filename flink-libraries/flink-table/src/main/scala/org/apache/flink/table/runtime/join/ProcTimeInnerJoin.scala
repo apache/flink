@@ -260,12 +260,12 @@ class ProcTimeInnerJoin(
     }
 
     // expire records out-of-time
-    var i = listToRemove.size() - 1
+    var i = listToRemove.size - 1
     while (i >= 0) {
       oppoRowMapState.remove(listToRemove.get(i))
-      listToRemove.remove(i)
       i -= 1
     }
+    listToRemove.clear()
   }
 
   /**
@@ -297,12 +297,12 @@ class ProcTimeInnerJoin(
       }
     }
 
-    var i = listToRemove.size() - 1
+    var i = listToRemove.size - 1
     while (i >= 0) {
       rowMapState.remove(listToRemove.get(i))
-      listToRemove.remove(i)
       i -= 1
     }
+    listToRemove.clear()
 
     // if exist records which later than the expire time,
     // register a timer for it, otherwise update the timerState to 0

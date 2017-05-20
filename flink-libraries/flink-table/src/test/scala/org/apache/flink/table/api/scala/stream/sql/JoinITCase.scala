@@ -170,7 +170,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val sqlQuery = "SELECT t2.a, t2.c, t1.c from T1 as t1 join T2 as t2 on t1.a = t2.a and " +
       "t1.proctime between t2.proctime - interval '5' second " +
       "and t2.proctime + interval '5' second " +
-      "and t1.b > t2.b"
+      "and t1.b > t2.b and t1.b + t2.b < 14"
 
     val data1 = new mutable.MutableList[(Int, Long, String)]
     data1.+=((1, 1L, "Hi1"))
@@ -195,10 +195,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = mutable.MutableList(
-      "1,HiHi,Hi6",
       "1,HiHi,Hi8",
       "2,HeHe,Hi5")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
 }
 

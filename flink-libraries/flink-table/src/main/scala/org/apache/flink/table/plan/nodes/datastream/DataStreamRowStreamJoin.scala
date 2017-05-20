@@ -22,6 +22,7 @@ import org.apache.calcite.plan._
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -33,7 +34,7 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 /**
   * Flink RelNode which matches along with JoinOperator and its related operations.
   */
-class DataStreamJoin(
+class DataStreamRowStreamJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     leftNode: RelNode,
@@ -51,7 +52,7 @@ class DataStreamJoin(
   override def deriveRowType() = schema.logicalType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataStreamJoin(
+    new DataStreamRowStreamJoin(
       cluster,
       traitSet,
       inputs.get(0),
@@ -90,13 +91,8 @@ class DataStreamJoin(
     val rightKeys = joinInfo.rightKeys.toIntArray
     val otherCondition = joinInfo.getRemaining(cluster.getRexBuilder)
 
-    if (left.isInstanceOf[StreamTableSourceScan]
-        || right.isInstanceOf[StreamTableSourceScan]) {
-      throw new TableException(
-        "Join between stream and table is not supported yet.")
-    }
     // analyze time boundary and time predicate type(proctime/rowtime)
-    val (timeType, leftStreamWindowSize, rightStreamWindowSize, conditionWithoutTime) =
+    val (timeType, leftStreamWindowSize, rightStreamWindowSize, remainCondition) =
       JoinUtil.analyzeTimeBoundary(
         otherCondition,
         leftSchema.logicalType.getFieldCount,
@@ -116,7 +112,7 @@ class DataStreamJoin(
         leftSchema.physicalTypeInfo,
         rightSchema.physicalTypeInfo,
         schema,
-        conditionWithoutTime,
+        remainCondition,
         ruleDescription)
 
     joinType match {
@@ -171,9 +167,18 @@ class DataStreamJoin(
       joinFunctionName,
       joinFunctionCode)
 
-    leftDataStream.connect(rightDataStream)
-      .keyBy(leftKeys, rightKeys)
-      .process(procInnerJoinFunc)
-      .returns(returnTypeInfo)
+    if (!leftKeys.isEmpty) {
+      leftDataStream.connect(rightDataStream)
+        .keyBy(leftKeys, rightKeys)
+        .process(procInnerJoinFunc)
+        .returns(returnTypeInfo)
+    } else {
+      leftDataStream.connect(rightDataStream)
+        .keyBy(new NullByteKeySelector[CRow](), new NullByteKeySelector[CRow]())
+        .process(procInnerJoinFunc)
+        .setParallelism(1)
+        .setMaxParallelism(1)
+        .returns(returnTypeInfo)
+    }
   }
 }

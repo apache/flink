@@ -19,36 +19,68 @@ package org.apache.flink.table.runtime.join
 
 import java.math.{BigDecimal => JBigDecimal}
 import java.util
-import java.util.EnumSet
 
 import org.apache.calcite.avatica.util.TimeUnit
+import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.fun.{SqlFloorFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.{SqlIntervalQualifier, SqlKind}
-import org.apache.flink.api.common.functions.{FilterFunction, FlatJoinFunction}
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.functions.FlatJoinFunction
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, ExpressionReducer}
-import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
-import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer}
+import org.apache.flink.table.plan.schema.{RowSchema, TimeIndicatorRelDataType}
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable.ArrayBuffer
 
-
+/**
+  * An util class to help analyze and build join code .
+  */
 object JoinUtil {
 
   /**
-    * Analyze time-condtion to get time boundary for each stream and get the time type
-    * and return condition without time-condition.
+    * check if the join case is stream join stream
     *
     * @param  condition   other condtion include time-condition
-    * @param  leftFieldCount left stream fields count
+    * @param  inputType   left and right connect stream type
+    */
+  private[flink] def isStreamStreamJoin(
+    condition: RexNode,
+    inputType: RelDataType) = {
+
+    def isExistTumble(expr: RexNode): Boolean = {
+      expr match {
+        case c: RexCall =>
+          c.getOperator match {
+            case _: SqlFloorFunction =>
+              c.getOperands.map(analyzeSingleConditionTerm(_, 0, inputType)).exists(_.size > 0)
+            case SqlStdOperatorTable.TUMBLE =>
+              c.getOperands.map(analyzeSingleConditionTerm(_, 0, inputType)).exists(_.size > 0)
+            case _ =>
+              c.getOperands.map(isExistTumble(_)).exists(_ == true)
+          }
+        case _ => false
+      }
+    }
+
+    val isExistTimeIndicator = analyzeSingleConditionTerm(condition, 0, inputType).size > 0
+    val isExistTumbleExpr = isExistTumble(condition)
+
+    !isExistTumbleExpr && isExistTimeIndicator
+  }
+
+  /**
+    * Analyze time-condtion to get time boundary for each stream and get the time type
+    * and return remain condition.
+    *
+    * @param  condition   other condtion include time-condition
+    * @param  leftLogicalFieldCnt left stream logical field num
+    * @param  leftPhysicalFieldCnt left stream physical field num
     * @param  inputType   left and right connect stream type
     * @param  rexBuilder   util to build rexNode
     * @param  config      table environment config
@@ -59,87 +91,244 @@ object JoinUtil {
       leftPhysicalFieldCnt: Int,
       inputType: RelDataType,
       rexBuilder: RexBuilder,
-      config: TableConfig): (RelDataType, Long, Long, RexNode) = {
-    // analyze the time-conditon to get greate and less condition,
-    // make sure left stream field in the left of the condition
-    // e.g b.proctime > a.proctime - 1 will be translate to a.proctime - 1 < b.proctime
-    val greateConditions = new util.ArrayList[TimeSingleCondition]()
-    val lessConditions = new util.ArrayList[TimeSingleCondition]()
-    analyzeTimeCondition(condition, greateConditions,
-      lessConditions, leftLogicalFieldCnt, inputType)
-    if (greateConditions.size != lessConditions.size
-        || greateConditions.size > 1
-        || greateConditions.size == 0) {
-      throw TableException(
-        "Equality join time conditon should have proctime or rowtime indicator."
+      config: TableConfig): (RelDataType, Long, Long, Option[RexNode]) = {
+
+    // Converts the condition to conjunctive normal form (CNF)
+    val cnfCondition = RexUtil.toCnf(rexBuilder, condition)
+
+    // split the condition into time indicator condition and other condition
+    val (timeTerms, remainTerms) =
+      splitJoinCondition(
+        cnfCondition,
+        leftLogicalFieldCnt,
+        inputType
       )
+
+    if (timeTerms.size != 2) {
+      throw new TableException("There only can and must have 2 time conditions.")
     }
 
-    val greatCond = greateConditions.get(0)
-    val lessCond = lessConditions.get(0)
-    if (greatCond.timeType != lessCond.timeType) {
-      throw TableException(
-        "Equality join time conditon should all use proctime or all use rowtime."
-      )
-    }
+    // extract time offset from the time indicator conditon
+    val streamTimeOffsets =
+      timeTerms.map(x => extractTimeOffsetFromCondition(x._3, x._2, rexBuilder, config))
 
-    var leftStreamWindowSize: Long = 0
-    var rightStreamWindowSize: Long = 0
-
-    // only a.proctime > b.proctime - interval '1' hour need to store a stream
-    val timeLiteral: RexLiteral =
-        reduceTimeExpression(greatCond.rightExpr, greatCond.leftExpr, rexBuilder, config)
-    leftStreamWindowSize = timeLiteral.getValue2.asInstanceOf[Long]
-    // only need to store past records
-    if (leftStreamWindowSize < 0) {
-      leftStreamWindowSize = -leftStreamWindowSize
-      if (!greatCond.isEqual) {
-        leftStreamWindowSize -= 1
+    val (leftTableOffset, rightTableOffset) =
+      streamTimeOffsets match {
+        case Seq((x, true), (y, false)) => (x, y)
+        case Seq((x, false), (y, true)) => (y, x)
+        case _ =>
+          throw new TableException("Both input need time boundary.")
       }
-    } else {
-      leftStreamWindowSize = 0
-    }
 
-    // only a.proctime < b.proctime + interval '1' hour need to store b stream
-    val timeLiteral2: RexLiteral =
-        reduceTimeExpression(lessCond.leftExpr, lessCond.rightExpr, rexBuilder, config)
-    rightStreamWindowSize = timeLiteral2.getValue2.asInstanceOf[Long]
-    // only need to store past records
-    if (rightStreamWindowSize < 0) {
-      rightStreamWindowSize = -rightStreamWindowSize
-      if (!lessCond.isEqual) {
-        rightStreamWindowSize -= 1
+    // compose the remain condition list into one condition
+    val remainCondition =
+      remainTerms match {
+        case Seq() => None
+        case _ =>
+          // turn the logical field index to physical field index
+          def transInputRef(expr: RexNode): RexNode = {
+            expr match {
+              case c: RexCall =>
+                val newOps = c.operands.map(transInputRef(_))
+                rexBuilder.makeCall(c.getType, c.getOperator, newOps)
+              case i: RexInputRef if i.getIndex >= leftLogicalFieldCnt =>
+                rexBuilder.makeInputRef(
+                  i.getType,
+                  i.getIndex - leftLogicalFieldCnt + leftPhysicalFieldCnt)
+              case _ => expr
+            }
+          }
+
+          Some(remainTerms.map(transInputRef(_)).reduceLeft( (l, r) => {
+            RelOptUtil.andJoinFilters(rexBuilder, l, r)
+          }))
       }
-    } else {
-      rightStreamWindowSize = 0
-    }
 
-    // get condition without time-condition
-    // e.g a.price > b.price and a.proctime between b.proctime and b.proctime + interval '1' hour
-    // will return a.price > b.price and true and true
-    var conditionWithoutTime = removeTimeCondition(
-      condition,
-      greatCond.originCall,
-      lessCond.originCall,
-      rexBuilder,
-      leftLogicalFieldCnt,
-      leftPhysicalFieldCnt)
-
-    // reduce the expression
-    // true and ture => true, otherwise keep the origin expression
-    try {
-      val exprReducer = new ExpressionReducer(config)
-      val originList = new util.ArrayList[RexNode]()
-      originList.add(conditionWithoutTime)
-      val reduceList = new util.ArrayList[RexNode]()
-      exprReducer.reduce(rexBuilder, originList, reduceList)
-      conditionWithoutTime = reduceList.get(0)
-    } catch {
-      case _ : CodeGenException => // ignore
-    }
-
-    (greatCond.timeType, leftStreamWindowSize, rightStreamWindowSize, conditionWithoutTime)
+    (timeTerms.get(0)._1, leftTableOffset, rightTableOffset, remainCondition)
   }
+
+  /**
+   * Split the join conditions into time condition and non-time condition
+   */
+  private def splitJoinCondition(
+      cnfCondition: RexNode,
+      leftFieldCount: Int,
+      inputType: RelDataType): (Seq[(RelDataType, Boolean, RexNode)], Seq[RexNode]) = {
+
+    cnfCondition match {
+      case c: RexCall if c.getKind == SqlKind.AND =>
+        val timeIndicators =
+          c.operands.map(splitJoinCondition(_, leftFieldCount, inputType))
+        timeIndicators.reduceLeft { (l, r) =>
+          (l._1 ++ r._1, l._2 ++ r._2)
+        }
+      case c: RexCall =>
+        val timeIndicators = analyzeSingleConditionTerm(c, leftFieldCount, inputType)
+        timeIndicators match {
+          case Seq() =>
+            (Seq(), Seq(c))
+          case Seq(v1, v2) =>
+            if (v1._1 != v2._1) {
+              throw new TableException("The time indicators for each input should be the same.")
+            }
+            if (v1._2 == v2._2) {
+              throw new TableException("Both input's time indicators is needed.")
+            }
+            (Seq((v1._1, v1._2, c)), Seq())
+          case _ =>
+            throw new TableException(
+              "There only can and must have one time indicators for each input.")
+        }
+      case other =>
+        val timeIndicators = analyzeSingleConditionTerm(other, leftFieldCount, inputType)
+        timeIndicators match {
+          case Seq() =>
+            (Seq(), Seq(other))
+          case _ =>
+            throw new TableException("Time indicators can not be used in non time-condition.")
+        }
+    }
+  }
+
+  /**
+   * analysis if condition term has time indicator
+   */
+  def analyzeSingleConditionTerm(
+    expression: RexNode,
+    leftFieldCount: Int,
+    inputType: RelDataType): Seq[(RelDataType, Boolean)] = {
+
+    expression match {
+      case i: RexInputRef =>
+        val idx = i.getIndex
+        inputType.getFieldList.get(idx).getType match {
+          case t: TimeIndicatorRelDataType if idx < leftFieldCount =>
+            // left table time indicator
+            Seq((t, true))
+          case t: TimeIndicatorRelDataType =>
+            // right table time indicator
+            Seq((t, false))
+          case _ => Seq()
+        }
+      case c: RexCall =>
+        c.operands.map(analyzeSingleConditionTerm(_, leftFieldCount, inputType)).reduce(_++_)
+      case _ => Seq()
+    }
+  }
+
+  /**
+    * Extract time offset and determain which table the offset belong to
+    */
+  def extractTimeOffsetFromCondition(
+      timeTerm: RexNode,
+      isLeftExprBelongLeftTable: Boolean,
+      rexBuilder: RexBuilder,
+      config: TableConfig) = {
+
+    val timeCall: RexCall = timeTerm.asInstanceOf[RexCall]
+
+    val (tmpTimeOffset: Long, isLeftTableTimeOffset: Boolean) =
+      timeTerm.getKind match {
+        // e.g a.proctime > b.proctime - 5 sec, we need to store stream a.
+        // the left expr(a) belong to left table, so the offset belong to left table
+        case kind @ (SqlKind.GREATER_THAN | SqlKind.GREATER_THAN_OR_EQUAL) =>
+          (reduceTimeExpression(
+            timeCall.operands.get(1),
+            timeCall.operands.get(0),
+            rexBuilder,
+            config), isLeftExprBelongLeftTable)
+        // e.g a.proctime < b.proctime + 5 sec, we need to store stream b.
+        case kind @ (SqlKind.LESS_THAN | SqlKind.LESS_THAN_OR_EQUAL) =>
+          (reduceTimeExpression(
+            timeCall.operands.get(0),
+            timeCall.operands.get(1),
+            rexBuilder,
+            config), !isLeftExprBelongLeftTable)
+        case _ => 0
+      }
+
+    val timeOffset =
+      // only preceding offset need to store records
+      if (tmpTimeOffset < 0)
+        // determain the boudary value
+        if (timeTerm.getKind == SqlKind.LESS_THAN || timeTerm.getKind == SqlKind.GREATER_THAN) {
+          -tmpTimeOffset - 1
+        } else {
+          -tmpTimeOffset
+        }
+      else 0
+
+    (timeOffset, isLeftTableTimeOffset)
+  }
+
+  /**
+    * Calcute the time boundary. Replace the rowtime/proctime with zero literal.
+    * For example:
+    *  a.proctime - inteval '1' second > b.proctime - interval '1' second - interval '2' second
+    *  |-----------left--------------|   |-------------------right---------------------------\
+    * then the boundary of a is right - left:
+    *  ((0 - 1000) - 2000) - (0 - 1000) = -2000(-preceding, +following)
+    */
+  private def reduceTimeExpression(
+    leftNode: RexNode,
+    rightNode: RexNode,
+    rexBuilder: RexBuilder,
+    config: TableConfig): Long = {
+
+    /**
+      * replace the rowtime/proctime with zero literal.
+      * Because calculation between timestamp can only be TIMESTAMP +/- INTERVAL
+      * so such as b.proctime + interval '1' hour - a.proctime
+      * will be translate into TIMESTAMP(0) + interval '1' hour - interval '0' second
+      */
+    def replaceTimeFieldWithLiteral(
+      expr: RexNode,
+      isTimeStamp: Boolean): RexNode = {
+
+      expr match {
+        case c: RexCall =>
+          // replace in call operands
+          val newOps = c.operands.map(o => replaceTimeFieldWithLiteral(o, isTimeStamp))
+          rexBuilder.makeCall(c.getType, c.getOperator, newOps)
+        case i: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(i.getType) && isTimeStamp =>
+          // replace with timestamp
+          rexBuilder.makeZeroLiteral(expr.getType)
+        case i: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(i.getType) && !isTimeStamp =>
+          // replace with time interval
+          val sqlQualifier =
+            new SqlIntervalQualifier(
+              TimeUnit.SECOND,
+              0,
+              null,
+              0,
+              SqlParserPos.ZERO)
+          rexBuilder.makeIntervalLiteral(JBigDecimal.ZERO, sqlQualifier)
+        case _: RexInputRef =>
+          throw new TableException("Time join condition may only reference time indicator fields.")
+        case _ => expr
+      }
+    }
+
+    val replLeft = replaceTimeFieldWithLiteral(leftNode, true)
+    val replRight = replaceTimeFieldWithLiteral(rightNode, false)
+    val literalRex = rexBuilder.makeCall(SqlStdOperatorTable.MINUS, replLeft, replRight)
+
+    val exprReducer = new ExpressionReducer(config)
+    val originList = new util.ArrayList[RexNode]()
+    originList.add(literalRex)
+    val reduceList = new util.ArrayList[RexNode]()
+    exprReducer.reduce(rexBuilder, originList, reduceList)
+
+    reduceList.get(0) match {
+      case call: RexCall =>
+        call.getOperands.get(0).asInstanceOf[RexLiteral].getValue2.asInstanceOf[Long]
+      case literal: RexLiteral =>
+        literal.getValue2.asInstanceOf[Long]
+      case _ =>
+        throw TableException("Equality join time condition only support constant.")
+    }
+  }
+
 
   /**
     * Generate other non-equi condition function
@@ -152,13 +341,13 @@ object JoinUtil {
     * @param  ruleDescription  rule description
     */
   private[flink] def generateJoinFunction(
-    config: TableConfig,
-    joinType: JoinRelType,
-    leftType: TypeInformation[Row],
-    rightType: TypeInformation[Row],
-    returnType: RowSchema,
-    otherCondition: RexNode,
-    ruleDescription: String) = {
+      config: TableConfig,
+      joinType: JoinRelType,
+      leftType: TypeInformation[Row],
+      rightType: TypeInformation[Row],
+      returnType: RowSchema,
+      otherCondition: Option[RexNode],
+      ruleDescription: String) = {
 
     // whether input can be null
     val nullCheck = joinType match {
@@ -179,290 +368,29 @@ object JoinUtil {
       returnType.physicalTypeInfo,
       returnType.physicalType.getFieldNames)
 
-    // if other condition is literal(true), then output the result directly
-    val body = if (otherCondition.isAlwaysTrue) {
-      s"""
-         |${conversion.code}
-         |${generator.collectorTerm}.collect(${conversion.resultTerm});
-         |""".stripMargin
-    }
-    else {
-      val condition = generator.generateExpression(otherCondition)
-      s"""
-         |${condition.code}
-         |if (${condition.resultTerm}) {
-         |  ${conversion.code}
-         |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
-         |}
-         |""".stripMargin
+    // if other condition is none, then output the result directly
+    val body = otherCondition match {
+      case None =>
+        s"""
+           |${conversion.code}
+           |${generator.collectorTerm}.collect(${conversion.resultTerm});
+           |""".stripMargin
+      case Some(remainCondition) =>
+        val genCond = generator.generateExpression(remainCondition)
+        s"""
+           |${genCond.code}
+           |if (${genCond.resultTerm}) {
+           |  ${conversion.code}
+           |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
+           |}
+           |""".stripMargin
     }
 
-    val genFunction = generator.generateFunction(
+    generator.generateFunction(
       ruleDescription,
       classOf[FlatJoinFunction[Row, Row, Row]],
       body,
       returnType.physicalTypeInfo)
-
-    genFunction
-  }
-
-  private case class TimeSingleCondition(
-      timeType: RelDataType,
-      leftExpr: RexNode,
-      rightExpr: RexNode,
-      isEqual: Boolean,
-      originCall: RexNode)
-
-  val COMPARISON: util.Set[SqlKind] = EnumSet.of(
-    SqlKind.LESS_THAN,
-    SqlKind.GREATER_THAN,
-    SqlKind.GREATER_THAN_OR_EQUAL,
-    SqlKind.LESS_THAN_OR_EQUAL)
-
-  val EQUI_COMPARISON: util.Set[SqlKind] = EnumSet.of(
-    SqlKind.GREATER_THAN_OR_EQUAL,
-    SqlKind.LESS_THAN_OR_EQUAL)
-
-  val LESS_COMPARISON: util.Set[SqlKind] = EnumSet.of(
-    SqlKind.LESS_THAN,
-    SqlKind.LESS_THAN_OR_EQUAL)
-
-  val GREAT_COMPARISON: util.Set[SqlKind] = EnumSet.of(
-    SqlKind.GREATER_THAN,
-    SqlKind.GREATER_THAN_OR_EQUAL)
-
-  /**
-    * Analyze time-conditon to divide all time-condition into great and less condition
-    */
-  private def analyzeTimeCondition(
-    condition: RexNode,
-    greatCondition: util.List[TimeSingleCondition],
-    lessCondition: util.List[TimeSingleCondition],
-    leftFieldCount: Int,
-    inputType: RelDataType): Unit = {
-    if (condition.isInstanceOf[RexCall]) {
-      val call: RexCall = condition.asInstanceOf[RexCall]
-      call.getKind match {
-        case SqlKind.AND =>
-          var i = 0
-          while (i < call.getOperands.size) {
-            analyzeTimeCondition(
-              call.getOperands.get(i),
-              greatCondition,
-              lessCondition,
-              leftFieldCount,
-              inputType)
-            i += 1
-          }
-        case kind if kind.belongsTo(COMPARISON) =>
-          // analyze left expression
-          val (isExistTimeIndicator1, timeType1, isLeftStreamAttr1) =
-            analyzeTimeExpression(call.getOperands.get(0), leftFieldCount, inputType)
-
-          // make sure proctime/rowtime exist
-          if (isExistTimeIndicator1) {
-            // analyze right expression
-            val (isExistTimeIndicator2, timeType2, isLeftStreamAttr2) =
-            analyzeTimeExpression(call.getOperands.get(1), leftFieldCount, inputType)
-            if (!isExistTimeIndicator2) {
-              throw TableException(
-                "Equality join time conditon should include time indicator both side."
-              )
-            } else if (timeType1 != timeType2) {
-              throw TableException(
-                "Equality join time conditon should include same time indicator each side."
-              )
-            } else if (isLeftStreamAttr1 == isLeftStreamAttr2) {
-              throw TableException(
-                "Equality join time conditon should include both two streams's time indicator."
-              )
-            } else {
-              val isGreate: Boolean = kind.belongsTo(GREAT_COMPARISON)
-              val isEqual: Boolean = kind.belongsTo(EQUI_COMPARISON)
-              (isGreate, isLeftStreamAttr1) match {
-                case (true, true) =>
-                  val newCond: TimeSingleCondition = new TimeSingleCondition(timeType1,
-                    call.getOperands.get(0), call.getOperands.get(1), isEqual, call)
-                  greatCondition.add(newCond)
-                case (true, false) =>
-                  val newCond: TimeSingleCondition = new TimeSingleCondition(timeType1,
-                    call.getOperands.get(1), call.getOperands.get(0), isEqual, call)
-                  lessCondition.add(newCond)
-                case (false, true) =>
-                  val newCond: TimeSingleCondition = new TimeSingleCondition(timeType1,
-                    call.getOperands.get(0), call.getOperands.get(1), isEqual, call)
-                  lessCondition.add(newCond)
-                case (false, false) =>
-                  val newCond: TimeSingleCondition = new TimeSingleCondition(timeType1,
-                    call.getOperands.get(1), call.getOperands.get(0), isEqual, call)
-                  greatCondition.add(newCond)
-
-              }
-            }
-          }
-        case _ =>
-      }
-    }
-  }
-
-  /**
-    * Analyze time-expression(b.proctime + interval '1' hour) to check whether is valid
-    * and get the time predicate type(proctime or rowtime)
-    */
-  private def analyzeTimeExpression(
-     expression: RexNode,
-     leftFieldCount: Int,
-     inputType: RelDataType): (Boolean, RelDataType, Boolean) = {
-
-    var timeType: RelDataType = null
-    var isExistTimeIndicator = false
-    var isLeftStreamAttr = false
-    if (expression.isInstanceOf[RexInputRef]) {
-      val idx = expression.asInstanceOf[RexInputRef].getIndex
-      timeType = inputType.getFieldList.get(idx).getType
-      timeType match {
-        case _ if FlinkTypeFactory.isProctimeIndicatorType(timeType) =>
-          isExistTimeIndicator = true
-        case _ if FlinkTypeFactory.isRowtimeIndicatorType(timeType) =>
-          isExistTimeIndicator = true
-        case _ =>
-          isExistTimeIndicator = false
-      }
-
-      if (idx < leftFieldCount) {
-        isLeftStreamAttr = true
-      }
-    } else if (expression.isInstanceOf[RexCall]) {
-      val call: RexCall = expression.asInstanceOf[RexCall]
-      var i = 0
-      while (i < call.getOperands.size) {
-        val (curIsExistSysTimeAttr, curTimeType, curIsLeftStreamAttr) =
-          analyzeTimeExpression(call.getOperands.get(i), leftFieldCount, inputType)
-        if (isExistTimeIndicator && curIsExistSysTimeAttr) {
-          throw TableException(
-            s"Equality join time conditon can not include duplicate {$timeType} attribute."
-          )
-        }
-        if (curIsExistSysTimeAttr) {
-          isExistTimeIndicator = curIsExistSysTimeAttr
-          timeType = curTimeType
-          isLeftStreamAttr = curIsLeftStreamAttr
-        }
-
-        i += 1
-      }
-
-    }
-    (isExistTimeIndicator, timeType, isLeftStreamAttr)
-  }
-
-  /**
-    * Calcute the time boundary. Replace the rowtime/proctime with zero literal.
-    * such as:
-    *  a.proctime - inteval '1' second > b.proctime - interval '1' second - interval '2' second
-    *  |-----------left--------------|   |-------------------right---------------------------\
-    * then the boundary of a is right - left:
-    *  ((0 - 1000) - 2000) - (0 - 1000) = -2000
-    */
-  private def reduceTimeExpression(
-    leftNode: RexNode,
-    rightNode: RexNode,
-    rexBuilder: RexBuilder,
-    config: TableConfig): RexLiteral = {
-
-    val replLeft = replaceTimeIndicatorWithLiteral(leftNode, rexBuilder, true)
-    val replRight = replaceTimeIndicatorWithLiteral(rightNode, rexBuilder,false)
-    val literalRex = rexBuilder.makeCall(SqlStdOperatorTable.MINUS, replLeft, replRight)
-
-    val exprReducer = new ExpressionReducer(config)
-    val originList = new util.ArrayList[RexNode]()
-    originList.add(literalRex)
-    val reduceList = new util.ArrayList[RexNode]()
-    exprReducer.reduce(rexBuilder, originList, reduceList)
-
-    reduceList.get(0) match {
-      case call: RexCall => call.getOperands.get(0).asInstanceOf[RexLiteral]
-      case literal: RexLiteral => literal
-      case _ =>
-        throw TableException(
-          s"Equality join time condition only support constant."
-        )
-
-    }
-  }
-
-  /**
-    * replace the rowtime/proctime with zero literal.
-    * Because calculation between timestamp can only be TIMESTAMP +/- INTERVAL
-    * so such as b.proctime + interval '1' hour - a.proctime
-    * will be translate into TIMESTAMP(0) + interval '1' hour - interval '0' second
-    */
-  private def replaceTimeIndicatorWithLiteral(
-    expr: RexNode,
-    rexBuilder: RexBuilder,
-    isTimeStamp: Boolean): RexNode = {
-    if (expr.isInstanceOf[RexCall]) {
-      val call: RexCall = expr.asInstanceOf[RexCall]
-      var i = 0
-      val operands = new util.ArrayList[RexNode]
-      while (i < call.getOperands.size) {
-        val newRex =
-          replaceTimeIndicatorWithLiteral(call.getOperands.get(i), rexBuilder, isTimeStamp)
-        operands.add(newRex)
-        i += 1
-      }
-      rexBuilder.makeCall(call.getType, call.getOperator, operands)
-    } else if (expr.isInstanceOf[RexInputRef]) {
-      if (isTimeStamp) {
-        // replace with timestamp
-        rexBuilder.makeZeroLiteral(expr.getType)
-      } else {
-        // replace with time interval
-        val sqlQualifier = new SqlIntervalQualifier(TimeUnit.SECOND, 0, null, 0, SqlParserPos.ZERO)
-        rexBuilder.makeIntervalLiteral(JBigDecimal.ZERO, sqlQualifier)
-      }
-    } else {
-      expr
-    }
-  }
-
-  /**
-   * replace the time-condition with true literal.
-   */
-  private def removeTimeCondition(
-    expr: RexNode,
-    timeExpr1: RexNode,
-    timeExpr2: RexNode,
-    rexBuilder: RexBuilder,
-    leftLogicalFieldsCnt: Int,
-    leftPhysicFieldsCnt: Int
-  ): RexNode = {
-    if (expr == timeExpr1 || expr == timeExpr2) {
-      rexBuilder.makeLiteral(true)
-    } else if (expr.isInstanceOf[RexCall]) {
-      val call: RexCall = expr.asInstanceOf[RexCall]
-      var i = 0
-      val operands = new util.ArrayList[RexNode]
-      while (i < call.getOperands.size) {
-        val newRex = removeTimeCondition(call.getOperands.get(i),
-          timeExpr1, timeExpr2, rexBuilder, leftLogicalFieldsCnt, leftPhysicFieldsCnt)
-        operands.add(newRex)
-        i += 1
-      }
-      rexBuilder.makeCall(call.getType, call.getOperator, operands)
-    } else if (expr.isInstanceOf[RexInputRef]) {
-      // get the physical index
-      val inputRef = expr.asInstanceOf[RexInputRef]
-      if (inputRef.getIndex >= leftLogicalFieldsCnt) {
-        rexBuilder.makeInputRef(inputRef.getType,
-          inputRef.getIndex - leftLogicalFieldsCnt + leftPhysicFieldsCnt)
-          .asInstanceOf[RexNode]
-      } else {
-        expr
-      }
-    } else {
-      expr
-    }
   }
 
 }

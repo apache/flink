@@ -21,12 +21,13 @@ package org.apache.flink.table.plan.rules.datastream
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.table.plan.nodes.datastream.DataStreamJoin
+import org.apache.flink.table.plan.nodes.datastream.DataStreamRowStreamJoin
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.join.JoinUtil
 
-class DataStreamJoinRule
+class DataStreamRowStreamJoinRule
   extends ConverterRule(
       classOf[FlinkLogicalJoin],
       FlinkConventions.LOGICAL,
@@ -38,8 +39,9 @@ class DataStreamJoinRule
 
     val joinInfo = join.analyzeCondition
 
-    // joins require at least one equi-condition
-    !joinInfo.pairs().isEmpty
+    JoinUtil.isStreamStreamJoin(
+      joinInfo.getRemaining(join.getCluster.getRexBuilder),
+      join.getRowType)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -48,9 +50,8 @@ class DataStreamJoinRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASTREAM)
     val convLeft: RelNode = RelOptRule.convert(join.getInput(0), FlinkConventions.DATASTREAM)
     val convRight: RelNode = RelOptRule.convert(join.getInput(1), FlinkConventions.DATASTREAM)
-    val joinInfo = join.analyzeCondition
 
-    new DataStreamJoin(
+    new DataStreamRowStreamJoin(
       rel.getCluster,
       traitSet,
       convLeft,
@@ -64,6 +65,6 @@ class DataStreamJoinRule
   }
 }
 
-object DataStreamJoinRule {
-  val INSTANCE: RelOptRule = new DataStreamJoinRule
+object DataStreamRowStreamJoinRule {
+  val INSTANCE: RelOptRule = new DataStreamRowStreamJoinRule
 }
