@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -33,7 +34,7 @@ import java.util.Random;
 public class ListSerializerTest extends SerializerTestBase<List<Long>> {
 
 	@Override
-	protected TypeSerializer<List<Long>> createSerializer() {
+	protected TypeSerializer<List<Long>> createSerializer(ExecutionConfig executionConfig) {
 		return new ListSerializer<>(LongSerializer.INSTANCE);
 	}
 

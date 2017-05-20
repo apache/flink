@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -33,7 +34,7 @@ import java.util.TreeMap;
 public class MapSerializerTest extends SerializerTestBase<Map<Long, String>> {
 
 	@Override
-	protected TypeSerializer<Map<Long, String>> createSerializer() {
+	protected TypeSerializer<Map<Long, String>> createSerializer(ExecutionConfig executionConfig) {
 		return new MapSerializer<>(LongSerializer.INSTANCE, StringSerializer.INSTANCE);
 	}
 

@@ -100,34 +100,37 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 
 	@Test
 	public void testConfigSnapshotInstantiation() {
-		TypeSerializerConfigSnapshot configSnapshot = getSerializer().snapshotConfiguration();
+		for (TypeSerializer<T> serializer : getSerializers()) {
+			TypeSerializerConfigSnapshot configSnapshot = serializer.snapshotConfiguration();
 
-		InstantiationUtil.instantiate(configSnapshot.getClass());
+			InstantiationUtil.instantiate(configSnapshot.getClass());
+		}
 	}
 
 	@Test
 	public void testSnapshotConfigurationAndReconfigure() throws Exception {
-		final TypeSerializerConfigSnapshot configSnapshot = getSerializer().snapshotConfiguration();
+		for (TypeSerializer<T> serializer : getSerializers()) {
+			final TypeSerializerConfigSnapshot configSnapshot = serializer.snapshotConfiguration();
 
-		byte[] serializedConfig;
-		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerUtil.writeSerializerConfigSnapshot(
-				new DataOutputViewStreamWrapper(out), configSnapshot);
-			serializedConfig = out.toByteArray();
+			byte[] serializedConfig;
+			try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+				TypeSerializerUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), configSnapshot);
+				serializedConfig = out.toByteArray();
+			}
+
+			TypeSerializerConfigSnapshot restoredConfig;
+			try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
+				restoredConfig = TypeSerializerUtil.readSerializerConfigSnapshot(new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+
+			}
+
+			CompatibilityResult strategy = serializer.ensureCompatibility(restoredConfig);
+			assertFalse(strategy.isRequiresMigration());
+
+			// also verify that the serializer's reconfigure implementation detects incompatibility
+			strategy = serializer.ensureCompatibility(new TestIncompatibleSerializerConfigSnapshot());
+			assertTrue(strategy.isRequiresMigration());
 		}
-
-		TypeSerializerConfigSnapshot restoredConfig;
-		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			restoredConfig = TypeSerializerUtil.readSerializerConfigSnapshot(
-				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
-		}
-
-		CompatibilityResult strategy = getSerializer().ensureCompatibility(restoredConfig);
-		assertFalse(strategy.isRequiresMigration());
-
-		// also verify that the serializer's reconfigure implementation detects incompatibility
-		strategy = getSerializer().ensureCompatibility(new TestIncompatibleSerializerConfigSnapshot());
-		assertTrue(strategy.isRequiresMigration());
 	}
 	
 	@Test

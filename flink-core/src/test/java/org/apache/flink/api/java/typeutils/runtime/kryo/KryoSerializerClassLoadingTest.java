@@ -78,8 +78,8 @@ public class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected TypeSerializer<Object> createSerializer() {
-		return new KryoSerializer<>(Object.class, new ExecutionConfig());
+	protected TypeSerializer<Object> createSerializer(ExecutionConfig executionConfig) {
+		return new KryoSerializer<>(Object.class, executionConfig);
 	}
 
 	@Override

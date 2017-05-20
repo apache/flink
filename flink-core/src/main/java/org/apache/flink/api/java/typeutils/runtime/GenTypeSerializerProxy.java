@@ -20,7 +20,9 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
@@ -142,6 +144,11 @@ public class GenTypeSerializerProxy<T> extends TypeSerializer<T> {
 	}
 
 	@Override
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		return null;
+	}
+
+	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof GenTypeSerializerProxy) {
 			return impl.equals(((GenTypeSerializerProxy) obj).impl);
@@ -152,5 +159,10 @@ public class GenTypeSerializerProxy<T> extends TypeSerializer<T> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof GenTypeSerializerProxy;
+	}
+
+	@Override
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		return CompatibilityResult.compatible();
 	}
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -78,7 +79,7 @@ public class JavaSerializerTest extends SerializerTestBase<Serializable> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected TypeSerializer<Serializable> createSerializer() {
+	protected TypeSerializer<Serializable> createSerializer(ExecutionConfig executionConfig) {
 		Thread.currentThread().setContextClassLoader(CLASS_LOADER);
 		return new JavaSerializer<>();
 	}

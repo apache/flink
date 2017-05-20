@@ -35,6 +35,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.ParameterlessTypeSerializerConfig;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 
 public final class ${className} extends TypeSerializer {
 	private static byte IS_NULL = 1;
@@ -441,5 +444,15 @@ public final class ${className} extends TypeSerializer {
 	public int hashCode() {
 		return 31 * (31 * Arrays.hashCode(new TypeSerializer[]{${memberHash}}) +
 		Arrays.hashCode(registeredSerializers)) + Objects.hash(clazz, numFields, registeredClasses);
+	}
+
+	@Override
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		return CompatibilityResult.compatible();
+	}
+
+	@Override
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		return new ParameterlessTypeSerializerConfig("${className}");
 	}
 }
