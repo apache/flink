@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The Twitter Streaming API provides access to the stream of tweets made available by Twitter.
+The [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis) provides access to the stream of tweets made available by Twitter.
 Flink Streaming comes with a built-in `TwitterSource` class for establishing a connection to this stream.
 To use this connector, add the following dependency to your project:
 
