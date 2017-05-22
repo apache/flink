@@ -152,6 +152,9 @@ object AggregateUtil {
     * @param inputRowType    Input row type
     * @param inputFieldTypes Types of the physical input fields
     * @param groupings       the position (in the input Row) of the grouping keys
+    * @param queryConfig     The configuration of the query to generate.
+    * @param generateRetraction It is a tag that indicates whether generate retract record.
+    * @param consumeRetraction It is a tag that indicates whether consume the retract record.
     * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
     */
   private[flink] def createGroupAggregateFunction(

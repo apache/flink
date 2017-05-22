@@ -630,7 +630,7 @@ abstract class StreamTableEnvironment(
     if (!withChangeFlag && !isAppendOnly(logicalPlan)) {
       throw new TableException(
         "Table is not an append-only table. " +
-          "Output needs to handle update and delete changes.")
+        "Use the toRetractStream() in order to handle add and retract messages.")
     }
 
     // get CRow plan
