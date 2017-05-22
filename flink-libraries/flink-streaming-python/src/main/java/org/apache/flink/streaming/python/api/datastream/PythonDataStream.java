@@ -17,7 +17,6 @@
  */
 package org.apache.flink.streaming.python.api.datastream;
 
-import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -57,7 +56,7 @@ import java.util.ArrayList;
  * this layer handles Python wrappers (e.g. {@code PythonDataStream}) to comply with the
  * Python standard coding styles.</p>
  */
-@Public
+@PublicEvolving
 public class PythonDataStream<D extends DataStream<PyObject>> {
 	protected final D stream;
 
@@ -147,7 +146,9 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	 * A thin wrapper layer over {@link DataStream#print()}.
 	 */
 	@PublicEvolving
-	public void print() { stream.print(); }
+	public void print() {
+		stream.print();
+	}
 
 	/**
 	 * A thin wrapper layer over {@link DataStream#writeAsText(java.lang.String)}.
@@ -156,7 +157,9 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	 *            The path pointing to the location the text file is written to.
 	 */
 	@PublicEvolving
-	public void write_as_text(String path) { stream.writeAsText(path); }
+	public void write_as_text(String path) {
+		stream.writeAsText(path);
+	}
 
 	/**
 	 * A thin wrapper layer over {@link DataStream#writeAsText(java.lang.String, WriteMode)}.
@@ -168,7 +171,9 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	 *            NO_OVERWRITE and OVERWRITE.
 	 */
 	@PublicEvolving
-	public void write_as_text(String path, WriteMode mode) { stream.writeAsText(path, mode); }
+	public void write_as_text(String path, WriteMode mode) {
+		stream.writeAsText(path, mode);
+	}
 
 	/**
 	 * A thin wrapper layer over {@link DataStream#writeToSocket(java.lang.String, int, SerializationSchema)}
@@ -223,7 +228,9 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	 * @return The iterative data stream created.
 	 */
 	@PublicEvolving
-	public PythonIterativeStream iterate() { return new PythonIterativeStream(this.stream.iterate()); }
+	public PythonIterativeStream iterate() {
+		return new PythonIterativeStream(this.stream.iterate());
+	}
 
 	/**
 	 * A thin wrapper layer over {@link DataStream#iterate(long)}.

@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -232,20 +231,6 @@ public class FileCache {
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Remove a given path recursively if exists. The path can be a filepath or directory.
-	 *
-	 * @param path  The root path to remove.
-	 * @throws IOException
-	 * @throws URISyntaxException
-	 */
-	public static void clearPath(String path) throws IOException, URISyntaxException {
-		FileSystem fs = FileSystem.get(new Path(path).toUri());
-		if (fs.exists(new Path(path))) {
-			fs.delete(new Path(path), true);
-		}
-	}
 
 	public static void copy(Path sourcePath, Path targetPath, boolean executable) throws IOException {
 		// TODO rewrite this to make it participate in the closable registry and the lifecycle of a task.

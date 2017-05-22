@@ -17,7 +17,7 @@
  */
 package org.apache.flink.streaming.python.api.environment;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -65,10 +65,10 @@ import java.util.Random;
  * or the fault tolerance/checkpointing parameters) and to interact with the outside world
  * (data access).</p>
  */
-@Public
+@PublicEvolving
 public class PythonStreamExecutionEnvironment {
-	private final StreamExecutionEnvironment env;
 	private static final Logger LOG = LoggerFactory.getLogger(PythonStreamExecutionEnvironment.class);
+	private final StreamExecutionEnvironment env;
 
 	/**
 	 * A thin wrapper layer over {@link StreamExecutionEnvironment#getExecutionEnvironment()}. In addition it takes
@@ -78,7 +78,7 @@ public class PythonStreamExecutionEnvironment {
 	 * executed.
 	 */
 	public static PythonStreamExecutionEnvironment get_execution_environment() {
-		return new PythonStreamExecutionEnvironment();
+		return new PythonStreamExecutionEnvironment(StreamExecutionEnvironment.getExecutionEnvironment());
 	}
 
 	/**
@@ -93,7 +93,7 @@ public class PythonStreamExecutionEnvironment {
 	 * @return A local execution environment with the specified parallelism.
 	 */
 	public static PythonStreamExecutionEnvironment create_local_execution_environment(Configuration config) {
-		return new PythonStreamExecutionEnvironment(config);
+		return new PythonStreamExecutionEnvironment(new LocalStreamEnvironment(config));
 	}
 
 	/**
@@ -106,7 +106,8 @@ public class PythonStreamExecutionEnvironment {
 	 * @return A local python execution environment with the specified parallelism.
 	 */
 	public static PythonStreamExecutionEnvironment create_local_execution_environment(int parallelism, Configuration config) {
-		return new PythonStreamExecutionEnvironment(parallelism, config);
+		return new PythonStreamExecutionEnvironment(
+						StreamExecutionEnvironment.createLocalEnvironment(parallelism, config));
 	}
 
 	/**
@@ -127,7 +128,8 @@ public class PythonStreamExecutionEnvironment {
 	 */
 	public static PythonStreamExecutionEnvironment create_remote_execution_environment(
 		String host, int port, String... jar_files) {
-		return new PythonStreamExecutionEnvironment(host, port, jar_files);
+		return new PythonStreamExecutionEnvironment(
+						StreamExecutionEnvironment.createRemoteEnvironment(host, port, jar_files));
 	}
 
 	/**
@@ -152,7 +154,8 @@ public class PythonStreamExecutionEnvironment {
 	 */
 	public static PythonStreamExecutionEnvironment create_remote_execution_environment(
 		String host, int port, Configuration config, String... jar_files) {
-		return new PythonStreamExecutionEnvironment(host, port, config, jar_files);
+		return new PythonStreamExecutionEnvironment(
+						StreamExecutionEnvironment.createRemoteEnvironment(host, port, config, jar_files));
 	}
 
 	/**
@@ -176,36 +179,12 @@ public class PythonStreamExecutionEnvironment {
 	 */
 	public static PythonStreamExecutionEnvironment create_remote_execution_environment(
 		String host, int port, int parallelism, String... jar_files) {
-		return new PythonStreamExecutionEnvironment(host, port, parallelism, jar_files);
+		return new PythonStreamExecutionEnvironment(
+						StreamExecutionEnvironment.createRemoteEnvironment(host, port, parallelism, jar_files));
 	}
 
-	private PythonStreamExecutionEnvironment() {
-		this.env = StreamExecutionEnvironment.getExecutionEnvironment();
-		this.registerJythonSerializers();
-	}
-
-	private PythonStreamExecutionEnvironment(Configuration config) {
-		this.env = new LocalStreamEnvironment(config);
-		this.registerJythonSerializers();
-	}
-
-	private PythonStreamExecutionEnvironment(int parallelism, Configuration config) {
-		this.env = StreamExecutionEnvironment.createLocalEnvironment(parallelism, config);
-		this.registerJythonSerializers();
-	}
-
-	private PythonStreamExecutionEnvironment(String host, int port, String... jar_files) {
-		this.env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, jar_files);
-		this.registerJythonSerializers();
-	}
-
-	private PythonStreamExecutionEnvironment(String host, int port, Configuration config, String... jar_files) {
-		this.env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, config, jar_files);
-		this.registerJythonSerializers();
-	}
-
-	private PythonStreamExecutionEnvironment(String host, int port, int parallelism, String... jar_files) {
-		this.env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, parallelism, jar_files);
+	private PythonStreamExecutionEnvironment(StreamExecutionEnvironment env) {
+		this.env = env;
 		this.registerJythonSerializers();
 	}
 

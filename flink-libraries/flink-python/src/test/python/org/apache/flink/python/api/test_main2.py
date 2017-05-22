@@ -16,12 +16,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ################################################################################
-from flink.functions.Aggregation import Max, Min, Sum
-from flink.functions.CoGroupFunction import CoGroupFunction
+from flink.plan.Environment import get_environment
+from flink.functions.MapFunction import MapFunction
 from flink.functions.CrossFunction import CrossFunction
 from flink.functions.JoinFunction import JoinFunction
-from flink.functions.MapFunction import MapFunction
-from flink.plan.Environment import get_environment
+from flink.functions.CoGroupFunction import CoGroupFunction
+from flink.functions.Aggregation import Max, Min, Sum
 from utils import Verify, Verify2, Id
 
 if __name__ == "__main__":

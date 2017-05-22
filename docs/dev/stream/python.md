@@ -120,7 +120,7 @@ if __name__ == '__main__':
 - Execution on a multi-node cluster requires a shared medium storage, which needs to be configured (.e.g HDFS)
   upfront.
 - The output from of the given script is directed to the standard output. Consequently, the output
-  is written to the corresponding worker `.out` filed. If the script is executed inside the IntelliJ IDE,
+  is written to the corresponding worker `.out` file. If the script is executed inside the IntelliJ IDE,
   then the output will be displayed in the console tab.
 
 {% top %}
@@ -467,7 +467,7 @@ class Filter(FilterFunction):
 data_stream.filter(Filter())
 {% endhighlight %}
 
-Rich functions (.e.g `RichFileterFunction`) enable to define (override) the optional operations: `open` & `close`.
+Rich functions (.e.g `RichFilterFunction`) enable to define (override) the optional operations: `open` & `close`.
 The user may use these functions for initialization and cleanups.
 
 {% highlight python %}
