@@ -38,6 +38,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -538,7 +539,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		snapshot2.registerSharedStates(sharedStateRegistry);
 
-		snapshot.unregisterSharedStates(sharedStateRegistry);
 		snapshot.discardState();
 
 		backend.dispose();
@@ -630,7 +630,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		snapshot2.registerSharedStates(sharedStateRegistry);
 
-		snapshot.unregisterSharedStates(sharedStateRegistry);
 		snapshot.discardState();
 
 		backend.dispose();
@@ -1802,6 +1801,47 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		firstHalfBackend.dispose();
 		secondHalfBackend.dispose();
+	}
+
+	@Test
+	public void testRestoreWithWrongKeySerializer() {
+		try {
+			CheckpointStreamFactory streamFactory = createStreamFactory();
+
+			// use an IntSerializer at first
+			AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
+
+			ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+			// write some state
+			backend.setCurrentKey(1);
+			state.update("1");
+			backend.setCurrentKey(2);
+			state.update("2");
+
+			// draw a snapshot
+			KeyedStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
+
+			backend.dispose();
+
+			// restore with the wrong key serializer
+			try {
+				restoreKeyedBackend(DoubleSerializer.INSTANCE, snapshot1);
+
+				fail("should recognize wrong key serializer");
+			} catch (RuntimeException e) {
+				if (!e.getMessage().contains("The new key serializer is not compatible")) {
+					fail("wrong exception " + e);
+				}
+				// expected
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 
 	@Test

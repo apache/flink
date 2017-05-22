@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.scala.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{OverAgg0, WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.WindowReference
@@ -29,6 +29,21 @@ import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryN
 import org.junit.{Ignore, Test}
 
 class GroupWindowTest extends TableTestBase {
+
+  /**
+    * OVER clause is necessary for [[OverAgg0]] window function.
+    */
+  @Test(expected = classOf[ValidationException])
+  def testOverAggregation(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
+
+    val overAgg = new OverAgg0
+    table
+      .window(Tumble over 2.rows on 'proctime as 'w)
+      .groupBy('w, 'string)
+      .select(overAgg('long, 'int))
+  }
 
   @Test(expected = classOf[ValidationException])
   def testInvalidWindowProperty(): Unit = {
@@ -170,7 +185,6 @@ class GroupWindowTest extends TableTestBase {
       .select('string, weightedAvg('string, 'int)) // invalid UDAGG args
   }
 
-  @Ignore // TODO
   @Test
   def testMultiWindow(): Unit = {
     val util = streamTestUtil()
@@ -179,7 +193,7 @@ class GroupWindowTest extends TableTestBase {
     val windowedTable = table
       .window(Tumble over 50.milli on 'proctime as 'w1)
       .groupBy('w1, 'string)
-      .select('w.end as 'proctime, 'string, 'int.count)
+      .select('w1.proctime as 'proctime, 'string, 'int.count)
       .window(Slide over 20.milli every 10.milli on 'proctime as 'w2)
       .groupBy('w2)
       .select('string.count)
@@ -193,7 +207,7 @@ class GroupWindowTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "string", "int")
+            term("select", "string", "int", "proctime")
           ),
           term("groupBy", "string"),
           term(
@@ -202,9 +216,9 @@ class GroupWindowTest extends TableTestBase {
               WindowReference("w1"),
               'proctime,
               50.milli)),
-          term("select", "string", "COUNT(int) AS TMP_0")
+          term("select", "string", "COUNT(int) AS TMP_1", "proctime('w1) AS TMP_0")
         ),
-        term("select", "string")
+        term("select", "string", "TMP_0 AS proctime")
       ),
       term(
         "window",
@@ -213,7 +227,7 @@ class GroupWindowTest extends TableTestBase {
           'proctime,
           20.milli,
           10.milli)),
-      term("select", "COUNT(string) AS TMP_1")
+      term("select", "COUNT(string) AS TMP_2")
     )
     util.verifyTable(windowedTable, expected)
   }
@@ -784,8 +798,8 @@ class GroupWindowTest extends TableTestBase {
       term("select",
         "string",
         "COUNT(int) AS TMP_0",
-        "start(WindowReference(w)) AS TMP_1",
-        "end(WindowReference(w)) AS TMP_2")
+        "start('w) AS TMP_1",
+        "end('w) AS TMP_2")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -852,8 +866,8 @@ class GroupWindowTest extends TableTestBase {
       term("select",
         "string",
         "COUNT(int) AS TMP_0",
-        "start(WindowReference(w)) AS TMP_1",
-        "end(WindowReference(w)) AS TMP_2")
+        "start('w) AS TMP_1",
+        "end('w) AS TMP_2")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -879,8 +893,8 @@ class GroupWindowTest extends TableTestBase {
         term("select",
           "string",
           "COUNT(int) AS TMP_1",
-          "end(WindowReference(w)) AS TMP_0",
-          "start(WindowReference(w)) AS TMP_2")
+          "end('w) AS TMP_0",
+          "start('w) AS TMP_2")
       ),
       term("select", "TMP_0 AS we1", "string", "TMP_1 AS cnt", "TMP_2 AS ws", "TMP_0 AS we2")
     )
@@ -909,8 +923,8 @@ class GroupWindowTest extends TableTestBase {
         term("select",
           "string",
           "SUM(int) AS TMP_0",
-          "start(WindowReference(w)) AS TMP_1",
-          "end(WindowReference(w)) AS TMP_2")
+          "start('w) AS TMP_1",
+          "end('w) AS TMP_2")
       ),
       term("select",
         "string",

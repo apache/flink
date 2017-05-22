@@ -68,7 +68,7 @@ import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapp
 import org.apache.flink.streaming.connectors.kafka.testutils.JobManagerCommunicationUtils;
 import org.apache.flink.streaming.connectors.kafka.testutils.PartitionValidatingMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.ThrottledMapper;
-import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2Partitioner;
+import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2FlinkPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -1199,9 +1199,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 	/**
 	 * Test producing and consuming into multiple topics
-	 * @throws java.lang.Exception
+	 * @throws Exception
 	 */
-	public void runProduceConsumeMultipleTopics() throws java.lang.Exception {
+	public void runProduceConsumeMultipleTopics() throws Exception {
 		final int NUM_TOPICS = 5;
 		final int NUM_ELEMENTS = 20;
 
@@ -1975,7 +1975,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			producerProperties.setProperty("retries", "0");
 			producerProperties.putAll(secureProps);
 			
-			kafkaServer.produceIntoKafka(stream, topicName, serSchema, producerProperties, new Tuple2Partitioner(parallelism))
+			kafkaServer.produceIntoKafka(stream, topicName, serSchema, producerProperties, new Tuple2FlinkPartitioner(parallelism))
 					.setParallelism(parallelism);
 
 			try {

@@ -234,12 +234,14 @@ trait ImplicitExpressionOperations {
   def desc = Desc(expr)
 
   /**
-    * Returns the start time of a window when applied on a window reference.
+    * Returns the start time (inclusive) of a window when applied on a window reference.
     */
   def start = WindowStart(expr)
 
   /**
-    * Returns the end time of a window when applied on a window reference.
+    * Returns the end time (exclusive) of a window when applied on a window reference.
+    *
+    * e.g. if a window ends at 10:59:59.999 this property will return 11:00:00.000.
     */
   def end = WindowEnd(expr)
 
@@ -683,7 +685,7 @@ trait ImplicitExpressionOperations {
     */
   def element() = ArrayElement(expr)
 
-  // Schema definition
+  // Time definition
 
   /**
     * Declares a field as the rowtime attribute for indicating, accessing, and working in

@@ -24,15 +24,15 @@ under the License.
 -->
 
 [Docker](https://www.docker.com) is a popular container runtime. There are
-official Flink Docker images available on Docker Hub which can be used directly
-or extended to better integrate into a production environment.
+official Docker images for Apache Flink available on Docker Hub which can be
+used directly or extended to better integrate into a production environment.
 
 * This will be replaced by the TOC
 {:toc}
 
-## Official Flink Docker Images
+## Official Docker Images
 
-The [official Flink Docker repository](https://hub.docker.com/_/flink/) is
+The [official Docker repository](https://hub.docker.com/_/flink/) is
 hosted on Docker Hub and serves images of Flink version 1.2.1 and later.
 
 Images for each supported combination of Hadoop and Scala are available, and
@@ -60,13 +60,16 @@ For example:
 * `flink:1.2-scala_2.10-alpine`
 -->
 
+**Note:** The docker images are provided as a community project by individuals
+on a best-effort basis. They are not official releases by the Apache Flink PMC.
+
 ## Flink with Docker Compose
 
 [Docker Compose](https://docs.docker.com/compose/) is a convenient way to run a
 group of Docker containers locally.
 
-An [example config file](https://github.com/docker-flink/examples) is available
-on GitHub.
+An [example config file](https://github.com/docker-flink/examples/blob/master/docker-compose.yml)
+is available on GitHub.
 
 ### Usage
 

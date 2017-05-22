@@ -22,7 +22,11 @@ import java.io.Serializable;
 /**
  * It contains a open() method which is called on each parallel instance.
  * Partitioners must be serializable!
+ *
+ * @deprecated This partitioner does not handle partitioning properly in the case of
+ *             multiple topics, and has been deprecated. Please use {@link FlinkKafkaPartitioner} instead.
  */
+@Deprecated
 public abstract class KafkaPartitioner<T> implements Serializable {
 
 	private static final long serialVersionUID = -1974260817778593473L;

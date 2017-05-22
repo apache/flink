@@ -56,7 +56,9 @@ public class OutputTag<T> implements Serializable {
 	 * @param id The id of the created {@code OutputTag}.
      */
 	public OutputTag(String id) {
-		this.id = Preconditions.checkNotNull(id, "OutputTag id cannot be null.");
+		Preconditions.checkNotNull(id, "OutputTag id cannot be null.");
+		Preconditions.checkArgument(!id.isEmpty(), "OutputTag id must not be empty.");
+		this.id = id;
 
 		try {
 			TypeHint<T> typeHint = new TypeHint<T>(OutputTag.class, this, 0) {};
@@ -74,7 +76,9 @@ public class OutputTag<T> implements Serializable {
 	 * @param typeInfo The {@code TypeInformation} for the side output.
 	 */
 	public OutputTag(String id, TypeInformation<T> typeInfo) {
-		this.id = Preconditions.checkNotNull(id, "OutputTag id cannot be null.");
+		Preconditions.checkNotNull(id, "OutputTag id cannot be null.");
+		Preconditions.checkArgument(!id.isEmpty(), "OutputTag id must not be empty.");
+		this.id = id;
 		this.typeInfo = Preconditions.checkNotNull(typeInfo, "TypeInformation cannot be null.");
 	}
 

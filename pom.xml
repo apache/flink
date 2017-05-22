@@ -114,6 +114,7 @@ under the License.
 			to revisit the impact at that time.
 		-->
 		<minikdc.version>2.7.2</minikdc.version>
+		<generated.docs.dir>./docs/_includes/generated</generated.docs.dir>
 	</properties>
 
 	<dependencies>
@@ -951,23 +952,8 @@ under the License.
 						<exclude>flink-libraries/flink-table/src/test/scala/resources/*.out</exclude>
 
 						<!-- snapshots -->
-						<exclude>flink-connectors/flink-connector-filesystem/src/test/resources/rolling-sink-migration-test-flink1.1-snapshot</exclude>
-						<exclude>flink-connectors/flink-connector-kafka-base/src/test/resources/kafka-consumer-migration-test-flink1.1-snapshot</exclude>
-						<exclude>flink-connectors/flink-connector-kafka-base/src/test/resources/kafka-consumer-migration-test-flink1.1-snapshot-empty-state</exclude>
-						<exclude>flink-fs-tests/src/test/resources/monitoring-function-migration-test-1482144479339-flink1.1-snapshot</exclude>
-						<exclude>flink-fs-tests/src/test/resources/reader-migration-test-flink1.1-snapshot</exclude>
-						<exclude>flink-streaming-java/src/test/resources/win-op-migration-test-accum-aligned-flink1.1-snapshot</exclude>
-						<exclude>flink-streaming-java/src/test/resources/win-op-migration-test-aggr-aligned-flink1.1-snapshot</exclude>
-						<exclude>flink-streaming-java/src/test/resources/win-op-migration-test-apply-event-time-flink1.1-snapshot</exclude>
-						<exclude>flink-streaming-java/src/test/resources/win-op-migration-test-apply-processing-time-flink1.1-snapshot</exclude>
-						<exclude>flink-streaming-java/src/test/resources/win-op-migration-test-reduce-event-time-flink1.1-snapshot</exclude>
-						<exclude>flink-streaming-java/src/test/resources/win-op-migration-test-reduce-processing-time-flink1.1-snapshot</exclude>
-						<exclude>flink-streaming-java/src/test/resources/win-op-migration-test-session-with-stateful-trigger-flink1.1-snapshot</exclude>
-						<exclude>flink-streaming-java/src/test/resources/win-op-migration-test-session-with-stateful-trigger-mint-flink1.1-snapshot</exclude>
-						<exclude>flink-tests/src/test/resources/stateful-udf-migration-itcase-flink1.1-savepoint</exclude>
-						<exclude>flink-tests/src/test/resources/stateful-udf-migration-itcase-flink1.1-savepoint-rocksdb</exclude>
-						<exclude>flink-libraries/flink-cep/src/test/resources/cep-keyed-snapshot-1.1</exclude>
-						<exclude>flink-libraries/flink-cep/src/test/resources/cep-non-keyed-snapshot-1.1</exclude>
+						<exclude>**/src/test/resources/*-snapshot</exclude>
+						<exclude>**/src/test/resources/*-savepoint</exclude>
 
 						<!-- TweetInputFormat Test Data-->
 						<exclude>flink-contrib/flink-tweet-inputformat/src/main/resources/HashTagTweetSample.json</exclude>
@@ -991,6 +977,7 @@ under the License.
 						<exclude>docs/content/**</exclude>
 						<exclude>**/scalastyle-output.xml</exclude>
 						<exclude>build-target/**</exclude>
+						<exclude>docs/_includes/generated/**</exclude>
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
 						<exclude>tools/flink*/**</exclude>
@@ -1221,6 +1208,35 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+
+			<!-- generate configuration docs -->
+			<plugin>
+				<groupId>org.commonjava.maven.plugins</groupId>
+				<artifactId>directory-maven-plugin</artifactId>
+				<version>0.1</version>
+				<executions>
+					<execution>
+						<id>directories</id>
+						<goals>
+							<goal>highest-basedir</goal>
+						</goals>
+						<phase>initialize</phase>
+						<configuration>
+							<property>rootDir</property>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<artifactId>maven-clean-plugin</artifactId>
+				<configuration>
+					<filesets>
+						<fileset>
+							<directory>${generated.docs.dir}</directory>
+						</fileset>
+					</filesets>
+				</configuration>
 			</plugin>
 		</plugins>
 

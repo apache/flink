@@ -66,7 +66,7 @@ public class FlinkKinesisConsumerMigrationTest {
 		testHarness.setup();
 		// restore state from binary snapshot file using legacy method
 		testHarness.initializeStateFromLegacyCheckpoint(
-			getResourceFilename("kinesis-consumer-migration-test-flink1.1-snapshot-empty"));
+			getResourceFilename("kinesis-consumer-migration-test-flink1.1-empty-snapshot"));
 		testHarness.open();
 
 		// assert that no state was restored

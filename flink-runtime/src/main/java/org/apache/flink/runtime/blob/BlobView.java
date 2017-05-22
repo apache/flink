@@ -16,16 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog
+package org.apache.flink.runtime.blob;
 
-import java.util.{HashMap => JHashMap, Map => JMap}
+import org.apache.flink.api.common.JobID;
+
+import java.io.File;
+import java.io.IOException;
 
 /**
-  * Defines a database in an [[ExternalCatalog]].
-  *
-  * @param dbName     The name of the database
-  * @param properties The properties of the database
-  */
-case class ExternalCatalogDatabase(
-    dbName: String,
-    properties: JMap[String, String] = new JHashMap())
+ * View on blobs stored in a {@link BlobStore}.
+ */
+public interface BlobView {
+
+	/**
+	 * Copies a blob to a local file.
+	 *
+	 * @param blobKey   The blob ID
+	 * @param localFile The local file to copy to
+	 * @throws IOException If the copy fails
+	 */
+	void get(BlobKey blobKey, File localFile) throws IOException;
+
+	/**
+	 * Copies a blob to a local file.
+	 *
+	 * @param jobId     The JobID part of ID for the blob
+	 * @param key       The String part of ID for the blob
+	 * @param localFile The local file to copy to
+	 * @throws IOException If the copy fails
+	 */
+	void get(JobID jobId, String key, File localFile) throws IOException;
+}

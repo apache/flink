@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.testingUtils
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.metrics.MetricRegistry
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration
@@ -32,15 +32,15 @@ import scala.language.postfixOps
 /** Subclass of the [[TaskManager]] to support testing messages
  */
 class TestingTaskManager(
-                          config: TaskManagerConfiguration,
-                          resourceID: ResourceID,
-                          connectionInfo: TaskManagerLocation,
-                          memoryManager: MemoryManager,
-                          ioManager: IOManager,
-                          network: NetworkEnvironment,
-                          numberOfSlots: Int,
-                          leaderRetrievalService: LeaderRetrievalService,
-                          metricRegistry : MetricRegistry)
+    config: TaskManagerConfiguration,
+    resourceID: ResourceID,
+    connectionInfo: TaskManagerLocation,
+    memoryManager: MemoryManager,
+    ioManager: IOManager,
+    network: NetworkEnvironment,
+    numberOfSlots: Int,
+    highAvailabilityServices: HighAvailabilityServices,
+    metricRegistry : MetricRegistry)
   extends TaskManager(
     config,
     resourceID,
@@ -49,19 +49,19 @@ class TestingTaskManager(
     ioManager,
     network,
     numberOfSlots,
-    leaderRetrievalService,
+    highAvailabilityServices,
     metricRegistry)
   with TestingTaskManagerLike {
 
   def this(
-            config: TaskManagerConfiguration,
-            connectionInfo: TaskManagerLocation,
-            memoryManager: MemoryManager,
-            ioManager: IOManager,
-            network: NetworkEnvironment,
-            numberOfSlots: Int,
-            leaderRetrievalService: LeaderRetrievalService,
-            metricRegistry : MetricRegistry) {
+    config: TaskManagerConfiguration,
+    connectionInfo: TaskManagerLocation,
+    memoryManager: MemoryManager,
+    ioManager: IOManager,
+    network: NetworkEnvironment,
+    numberOfSlots: Int,
+    highAvailabilityServices: HighAvailabilityServices,
+    metricRegistry : MetricRegistry) {
     this(
       config,
       ResourceID.generate(),
@@ -70,7 +70,7 @@ class TestingTaskManager(
       ioManager,
       network,
       numberOfSlots,
-      leaderRetrievalService,
+      highAvailabilityServices,
       metricRegistry)
   }
 }

@@ -249,7 +249,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with Befor
     val components = JobManager.createJobManagerComponents(
       config,
       executor,
-      executor)
+      executor,
+      highAvailabilityServices.createBlobStore())
 
     // Start the JobManager without a MetricRegistry so that we don't start the MetricQueryService.
     // The problem of the MetricQueryService is that it starts an actor with a fixed name. Thus,

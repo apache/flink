@@ -125,7 +125,7 @@ class TaskManager(
     protected val ioManager: IOManager,
     protected val network: NetworkEnvironment,
     protected val numberOfSlots: Int,
-    protected val leaderRetrievalService: LeaderRetrievalService,
+    protected val highAvailabilityServices: HighAvailabilityServices,
     protected val metricsRegistry: FlinkMetricRegistry)
   extends FlinkActor
   with LeaderSessionMessageFilter // Mixin order is important: We want to filter after logging
@@ -148,6 +148,10 @@ class TaskManager(
 
   /** Handler for distributed files cached by this TaskManager */
   protected val fileCache = new FileCache(config.getTmpDirectories())
+
+  protected val leaderRetrievalService: LeaderRetrievalService = highAvailabilityServices.
+    getJobManagerLeaderRetriever(
+      HighAvailabilityServices.DEFAULT_JOB_ID)
 
   private var taskManagerMetricGroup : TaskManagerMetricGroup = _
 
@@ -959,7 +963,10 @@ class TaskManager(
       log.info(s"Determined BLOB server address to be $address. Starting BLOB cache.")
 
       try {
-        val blobcache = new BlobCache(address, config.getConfiguration())
+        val blobcache = new BlobCache(
+          address,
+          config.getConfiguration(),
+          highAvailabilityServices.createBlobStore())
         blobService = Option(blobcache)
         libraryCacheManager = Some(
           new BlobLibraryCacheManager(blobcache, config.getCleanupInterval()))
@@ -1039,12 +1046,24 @@ class TaskManager(
 
     // shut down BLOB and library cache
     libraryCacheManager foreach {
-      manager => manager.shutdown()
+      manager =>
+        try {
+          manager.shutdown()
+        } catch {
+          case ioe: IOException => log.error(
+            "Could not properly shutdown library cache manager.",
+            ioe)
+        }
     }
     libraryCacheManager = None
 
     blobService foreach {
-      service => service.shutdown()
+      service =>
+        try {
+          service.close()
+        } catch {
+          case ioe: IOException => log.error("Could not properly shutdown blob service.", ioe)
+        }
     }
     blobService = None
 
@@ -1905,9 +1924,6 @@ object TaskManager {
 
     val metricRegistry = taskManagerServices.getMetricRegistry()
 
-    val leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(
-      HighAvailabilityServices.DEFAULT_JOB_ID)
-
     // create the actor properties (which define the actor constructor parameters)
     val tmProps = getTaskManagerProps(
       taskManagerClass,
@@ -1917,7 +1933,7 @@ object TaskManager {
       taskManagerServices.getMemoryManager(),
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment(),
-      leaderRetrievalService,
+      highAvailabilityServices,
       metricRegistry)
 
     metricRegistry.startQueryService(actorSystem, resourceID)
@@ -1936,7 +1952,7 @@ object TaskManager {
     memoryManager: MemoryManager,
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
-    leaderRetrievalService: LeaderRetrievalService,
+    highAvailabilityServices: HighAvailabilityServices,
     metricsRegistry: FlinkMetricRegistry
   ): Props = {
     Props(
@@ -1948,7 +1964,7 @@ object TaskManager {
       ioManager,
       networkEnvironment,
       taskManagerConfig.getNumberSlots(),
-      leaderRetrievalService,
+      highAvailabilityServices,
       metricsRegistry)
   }
 

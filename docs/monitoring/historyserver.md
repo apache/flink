@@ -33,7 +33,7 @@ Furthermore, it exposes a REST API that accepts HTTP requests and responds with 
 
 The HistoryServer allows you to query the status and statistics of completed jobs that have been archived by a JobManager.
 
-You start and stop the HistoryServer via its corresponding startup script:
+After you have configured the HistoryServer *and* JobManager, you start and stop the HistoryServer via its corresponding startup script:
 
 ```sh
 # Start or stop the HistoryServer

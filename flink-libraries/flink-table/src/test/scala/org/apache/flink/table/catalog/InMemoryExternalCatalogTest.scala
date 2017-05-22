@@ -31,15 +31,14 @@ class InMemoryExternalCatalogTest {
 
   @Before
   def setUp(): Unit = {
-    catalog = new InMemoryExternalCatalog()
-    catalog.createDatabase(ExternalCatalogDatabase(databaseName), ignoreIfExists = false)
+    catalog = new InMemoryExternalCatalog(databaseName)
   }
 
   @Test
   def testCreateTable(): Unit = {
-    assertTrue(catalog.listTables(databaseName).isEmpty)
-    catalog.createTable(createTableInstance(databaseName, "t1"), ignoreIfExists = false)
-    val tables = catalog.listTables(databaseName)
+    assertTrue(catalog.listTables().isEmpty)
+    catalog.createTable("t1", createTableInstance(), ignoreIfExists = false)
+    val tables = catalog.listTables()
     assertEquals(1, tables.size())
     assertEquals("t1", tables.get(0))
   }
@@ -47,36 +46,31 @@ class InMemoryExternalCatalogTest {
   @Test(expected = classOf[TableAlreadyExistException])
   def testCreateExistedTable(): Unit = {
     val tableName = "t1"
-    catalog.createTable(createTableInstance(databaseName, tableName), false)
-    catalog.createTable(createTableInstance(databaseName, tableName), false)
+    catalog.createTable(tableName, createTableInstance(), ignoreIfExists = false)
+    catalog.createTable(tableName, createTableInstance(), ignoreIfExists = false)
   }
 
   @Test
   def testGetTable(): Unit = {
-    val originTable = createTableInstance(databaseName, "t1")
-    catalog.createTable(originTable, false)
-    assertEquals(catalog.getTable(databaseName, "t1"), originTable)
-  }
-
-  @Test(expected = classOf[DatabaseNotExistException])
-  def testGetTableUnderNotExistDatabaseName(): Unit = {
-    catalog.getTable("notexistedDb", "t1")
+    val originTable = createTableInstance()
+    catalog.createTable("t1", originTable, ignoreIfExists = false)
+    assertEquals(catalog.getTable("t1"), originTable)
   }
 
   @Test(expected = classOf[TableNotExistException])
   def testGetNotExistTable(): Unit = {
-    catalog.getTable(databaseName, "t1")
+    catalog.getTable("nonexisted")
   }
 
   @Test
   def testAlterTable(): Unit = {
     val tableName = "t1"
-    val table = createTableInstance(databaseName, tableName)
-    catalog.createTable(table, false)
-    assertEquals(catalog.getTable(databaseName, tableName), table)
-    val newTable = createTableInstance(databaseName, tableName)
-    catalog.alterTable(newTable, false)
-    val currentTable = catalog.getTable(databaseName, tableName)
+    val table = createTableInstance()
+    catalog.createTable(tableName, table, ignoreIfExists = false)
+    assertEquals(catalog.getTable(tableName), table)
+    val newTable = createTableInstance()
+    catalog.alterTable(tableName, newTable, ignoreIfNotExists = false)
+    val currentTable = catalog.getTable(tableName)
     // validate the table is really replaced after alter table
     assertNotEquals(table, currentTable)
     assertEquals(newTable, currentTable)
@@ -84,53 +78,61 @@ class InMemoryExternalCatalogTest {
 
   @Test(expected = classOf[TableNotExistException])
   def testAlterNotExistTable(): Unit = {
-    catalog.alterTable(createTableInstance(databaseName, "t1"), false)
+    catalog.alterTable("nonexisted", createTableInstance(), ignoreIfNotExists = false)
   }
 
   @Test
   def testDropTable(): Unit = {
     val tableName = "t1"
-    catalog.createTable(createTableInstance(databaseName, tableName), false)
-    assertTrue(catalog.listTables(databaseName).contains(tableName))
-    catalog.dropTable(databaseName, tableName, false)
-    assertFalse(catalog.listTables(databaseName).contains(tableName))
+    catalog.createTable(tableName, createTableInstance(), ignoreIfExists = false)
+    assertTrue(catalog.listTables().contains(tableName))
+    catalog.dropTable(tableName, ignoreIfNotExists = false)
+    assertFalse(catalog.listTables().contains(tableName))
   }
 
   @Test(expected = classOf[TableNotExistException])
   def testDropNotExistTable(): Unit = {
-    catalog.dropTable(databaseName, "t1", false)
+    catalog.dropTable("nonexisted", ignoreIfNotExists = false)
   }
 
-  @Test
-  def testListDatabases(): Unit = {
-    val databases = catalog.listDatabases()
-    assertEquals(1, databases.size())
-    assertEquals(databaseName, databases.get(0))
-  }
-
-  @Test
-  def testGetDatabase(): Unit = {
-    assertNotNull(catalog.getDatabase(databaseName))
-  }
-
-  @Test(expected = classOf[DatabaseNotExistException])
+  @Test(expected = classOf[CatalogNotExistException])
   def testGetNotExistDatabase(): Unit = {
-    catalog.getDatabase("notexistedDb")
+    catalog.getSubCatalog("notexistedDb")
   }
 
   @Test
   def testCreateDatabase(): Unit = {
-    val originDatabasesNum = catalog.listDatabases().size
-    catalog.createDatabase(ExternalCatalogDatabase("db2"), false)
-    assertEquals(catalog.listDatabases().size, originDatabasesNum + 1)
+    catalog.createSubCatalog("db2", new InMemoryExternalCatalog("db2"), ignoreIfExists = false)
+    assertEquals(1, catalog.listSubCatalogs().size)
   }
 
-  @Test(expected = classOf[DatabaseAlreadyExistException])
+  @Test(expected = classOf[CatalogAlreadyExistException])
   def testCreateExistedDatabase(): Unit = {
-    catalog.createDatabase(ExternalCatalogDatabase(databaseName), false)
+    catalog.createSubCatalog("existed", new InMemoryExternalCatalog("existed"),
+      ignoreIfExists = false)
+
+    assertNotNull(catalog.getSubCatalog("existed"))
+    val databases = catalog.listSubCatalogs()
+    assertEquals(1, databases.size())
+    assertEquals("existed", databases.get(0))
+
+    catalog.createSubCatalog("existed", new InMemoryExternalCatalog("existed"),
+      ignoreIfExists = false)
   }
 
-  private def createTableInstance(dbName: String, tableName: String): ExternalCatalogTable = {
+  @Test
+  def testNestedCatalog(): Unit = {
+    val sub = new InMemoryExternalCatalog("sub")
+    val sub1 = new InMemoryExternalCatalog("sub1")
+    catalog.createSubCatalog("sub", sub, ignoreIfExists = false)
+    sub.createSubCatalog("sub1", sub1, ignoreIfExists = false)
+    sub1.createTable("table", createTableInstance(), ignoreIfExists = false)
+    val tables = catalog.getSubCatalog("sub").getSubCatalog("sub1").listTables()
+    assertEquals(1, tables.size())
+    assertEquals("table", tables.get(0))
+  }
+
+  private def createTableInstance(): ExternalCatalogTable = {
     val schema = new TableSchema(
       Array("first", "second"),
       Array(
@@ -138,9 +140,6 @@ class InMemoryExternalCatalogTest {
         BasicTypeInfo.INT_TYPE_INFO
       )
     )
-    ExternalCatalogTable(
-      TableIdentifier(dbName, tableName),
-      "csv",
-      schema)
+    ExternalCatalogTable("csv", schema)
   }
 }

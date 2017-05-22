@@ -40,11 +40,11 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -173,6 +173,9 @@ public class CheckpointCoordinator {
 	@Nullable
 	private CheckpointStatsTracker statsTracker;
 
+	/** Registry that tracks state which is shared across (incremental) checkpoints */
+	private final SharedStateRegistry sharedStateRegistry;
+
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
@@ -226,6 +229,7 @@ public class CheckpointCoordinator {
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
 		this.checkpointDirectory = checkpointDirectory;
 		this.executor = checkNotNull(executor);
+		this.sharedStateRegistry = new SharedStateRegistry(executor);
 
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 		this.masterHooks = new HashMap<>();
@@ -836,6 +840,10 @@ public class CheckpointCoordinator {
 		final long checkpointId = pendingCheckpoint.getCheckpointId();
 		final CompletedCheckpoint completedCheckpoint;
 
+		// As a first step to complete the checkpoint, we register its state with the registry
+		Map<OperatorID, OperatorState> operatorStates = pendingCheckpoint.getOperatorStates();
+		sharedStateRegistry.registerAll(operatorStates.values());
+
 		try {
 			try {
 				// externalize the checkpoint if required
@@ -1003,7 +1011,7 @@ public class CheckpointCoordinator {
 			}
 
 			// Recover the checkpoints
-			completedCheckpointStore.recover();
+			completedCheckpointStore.recover(sharedStateRegistry);
 
 			// restore from the latest checkpoint
 			CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint();
@@ -1119,11 +1127,6 @@ public class CheckpointCoordinator {
 	public CompletedCheckpointStore getCheckpointStore() {
 		return completedCheckpointStore;
 	}
-
-//	@VisibleForTesting
-//	SharedStateRegistry getSharedStateRegistry() {
-//		return sharedStateRegistry;
-//	}
 
 	public CheckpointIDCounter getCheckpointIdCounter() {
 		return checkpointIdCounter;

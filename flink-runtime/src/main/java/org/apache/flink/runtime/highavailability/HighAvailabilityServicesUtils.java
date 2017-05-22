@@ -21,6 +21,8 @@ package org.apache.flink.runtime.highavailability;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.blob.BlobStoreService;
+import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
@@ -49,10 +51,13 @@ public class HighAvailabilityServicesUtils {
 				return new EmbeddedHaServices(executor);
 
 			case ZOOKEEPER:
+				BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
+
 				return new ZooKeeperHaServices(
 					ZooKeeperUtils.startCuratorFramework(config),
 					executor,
-					config);
+					config,
+					blobStoreService);
 
 			default:
 				throw new Exception("High availability mode " + highAvailabilityMode + " is not supported.");
@@ -85,10 +90,13 @@ public class HighAvailabilityServicesUtils {
 
 				return new StandaloneHaServices(resourceManagerRpcUrl, jobManagerRpcUrl);
 			case ZOOKEEPER:
+				BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(configuration);
+
 				return new ZooKeeperHaServices(
 					ZooKeeperUtils.startCuratorFramework(configuration),
 					executor,
-					configuration);
+					configuration,
+					blobStoreService);
 			default:
 				throw new Exception("Recovery mode " + highAvailabilityMode + " is not supported.");
 		}

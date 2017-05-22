@@ -44,7 +44,10 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({KeyedBackendStateMetaInfoSnapshotReaderWriters.class, OperatorBackendStateMetaInfoSnapshotReaderWriters.class})
+@PrepareForTest({
+	KeyedBackendSerializationProxy.class,
+	KeyedBackendStateMetaInfoSnapshotReaderWriters.class,
+	OperatorBackendStateMetaInfoSnapshotReaderWriters.class})
 public class SerializationProxiesTest {
 
 	@Test
@@ -63,8 +66,8 @@ public class SerializationProxiesTest {
 		stateMetaInfoList.add(new RegisteredKeyedBackendStateMetaInfo<>(
 			StateDescriptor.Type.VALUE, "c", namespaceSerializer, stateSerializer).snapshot());
 
-		KeyedBackendSerializationProxy serializationProxy =
-				new KeyedBackendSerializationProxy(keySerializer, stateMetaInfoList);
+		KeyedBackendSerializationProxy<?> serializationProxy =
+				new KeyedBackendSerializationProxy<>(keySerializer, stateMetaInfoList);
 
 		byte[] serialized;
 		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
@@ -73,14 +76,63 @@ public class SerializationProxiesTest {
 		}
 
 		serializationProxy =
-				new KeyedBackendSerializationProxy(Thread.currentThread().getContextClassLoader());
+				new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader());
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			serializationProxy.read(new DataInputViewStreamWrapper(in));
 		}
 
 		Assert.assertEquals(keySerializer, serializationProxy.getKeySerializer());
+		Assert.assertEquals(keySerializer.snapshotConfiguration(), serializationProxy.getKeySerializerConfigSnapshot());
 		Assert.assertEquals(stateMetaInfoList, serializationProxy.getStateMetaInfoSnapshots());
+	}
+
+	@Test
+	public void testKeyedBackendSerializationProxyRoundtripWithSerializerSerializationFailures() throws Exception {
+
+		TypeSerializer<?> keySerializer = IntSerializer.INSTANCE;
+		TypeSerializer<?> namespaceSerializer = LongSerializer.INSTANCE;
+		TypeSerializer<?> stateSerializer = DoubleSerializer.INSTANCE;
+
+		List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoList = new ArrayList<>();
+
+		stateMetaInfoList.add(new RegisteredKeyedBackendStateMetaInfo<>(
+			StateDescriptor.Type.VALUE, "a", namespaceSerializer, stateSerializer).snapshot());
+		stateMetaInfoList.add(new RegisteredKeyedBackendStateMetaInfo<>(
+			StateDescriptor.Type.VALUE, "b", namespaceSerializer, stateSerializer).snapshot());
+		stateMetaInfoList.add(new RegisteredKeyedBackendStateMetaInfo<>(
+			StateDescriptor.Type.VALUE, "c", namespaceSerializer, stateSerializer).snapshot());
+
+		KeyedBackendSerializationProxy<?> serializationProxy =
+			new KeyedBackendSerializationProxy<>(keySerializer, stateMetaInfoList);
+
+		byte[] serialized;
+		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
+			serializationProxy.write(new DataOutputViewStreamWrapper(out));
+			serialized = out.toByteArray();
+		}
+
+		serializationProxy =
+			new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader());
+
+		// mock failure when deserializing serializers
+		TypeSerializerSerializationProxy<?> mockProxy = mock(TypeSerializerSerializationProxy.class);
+		doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
+		PowerMockito.whenNew(TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
+
+		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
+			serializationProxy.read(new DataInputViewStreamWrapper(in));
+		}
+
+		Assert.assertEquals(null, serializationProxy.getKeySerializer());
+		Assert.assertEquals(keySerializer.snapshotConfiguration(), serializationProxy.getKeySerializerConfigSnapshot());
+
+		for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> meta : serializationProxy.getStateMetaInfoSnapshots()) {
+			Assert.assertEquals(null, meta.getNamespaceSerializer());
+			Assert.assertEquals(null, meta.getStateSerializer());
+			Assert.assertEquals(namespaceSerializer.snapshotConfiguration(), meta.getNamespaceSerializerConfigSnapshot());
+			Assert.assertEquals(stateSerializer.snapshotConfiguration(), meta.getStateSerializerConfigSnapshot());
+		}
 	}
 
 	@Test

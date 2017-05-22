@@ -23,9 +23,9 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.factories.ReflectionSerializerFactory;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
 import java.io.Serializable;
 
 /**
@@ -56,6 +56,7 @@ public class KryoRegistration implements Serializable {
 	 * <p>This can be a dummy serializer {@link KryoRegistrationSerializerConfigSnapshot.DummyKryoSerializerClass} if
 	 * the serializer class no longer exists when this registration instance was restored.
 	 */
+	@Nullable
 	private final Class<? extends Serializer<?>> serializerClass;
 
 	/**
@@ -65,9 +66,10 @@ public class KryoRegistration implements Serializable {
 	 * <p>This can be a dummy serializer {@link KryoRegistrationSerializerConfigSnapshot.DummyKryoSerializerClass} if
 	 * the serializer class no longer exists or is no longer valid when this registration instance was restored.
 	 */
+	@Nullable
 	private final ExecutionConfig.SerializableSerializer<? extends Serializer<?>> serializableSerializerInstance;
 
-	private SerializerDefinitionType serializerDefinitionType;
+	private final SerializerDefinitionType serializerDefinitionType;
 
 	public KryoRegistration(Class<?> registeredClass) {
 		this.registeredClass = Preconditions.checkNotNull(registeredClass);
@@ -106,10 +108,12 @@ public class KryoRegistration implements Serializable {
 		return serializerDefinitionType;
 	}
 
+	@Nullable
 	public Class<? extends Serializer<?>> getSerializerClass() {
 		return serializerClass;
 	}
 
+	@Nullable
 	public ExecutionConfig.SerializableSerializer<? extends Serializer<?>> getSerializableSerializerInstance() {
 		return serializableSerializerInstance;
 	}

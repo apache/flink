@@ -17,7 +17,7 @@
  */
 package org.apache.flink.streaming.connectors.kafka.partitioner;
 
-import java.io.Serializable;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A partitioner ensuring that each internal Flink partition ends up in one Kafka partition.
@@ -46,31 +46,27 @@ import java.io.Serializable;
  * </pre>
  *
  *  Not all Kafka partitions contain data
- *  To avoid such an unbalanced partitioning, use a round-robin kafka partitioner. (note that this will
- *  cause a lot of network connections between all the Flink instances and all the Kafka brokers
- *
- *
+ *  To avoid such an unbalanced partitioning, use a round-robin kafka partitioner (note that this will
+ *  cause a lot of network connections between all the Flink instances and all the Kafka brokers).
  */
-public class FixedPartitioner<T> extends KafkaPartitioner<T> implements Serializable {
-	private static final long serialVersionUID = 1627268846962918126L;
+public class FlinkFixedPartitioner<T> extends FlinkKafkaPartitioner<T> {
 
-	private int targetPartition = -1;
+	private int parallelInstanceId;
 
 	@Override
-	public void open(int parallelInstanceId, int parallelInstances, int[] partitions) {
-		if (parallelInstanceId < 0 || parallelInstances <= 0 || partitions.length == 0) {
-			throw new IllegalArgumentException();
-		}
-		
-		this.targetPartition = partitions[parallelInstanceId % partitions.length];
+	public void open(int parallelInstanceId, int parallelInstances) {
+		Preconditions.checkArgument(parallelInstanceId >= 0, "Id of this subtask cannot be negative.");
+		Preconditions.checkArgument(parallelInstances > 0, "Number of subtasks must be larger than 0.");
+
+		this.parallelInstanceId = parallelInstanceId;
 	}
-
+	
 	@Override
-	public int partition(T next, byte[] serializedKey, byte[] serializedValue, int numPartitions) {
-		if (targetPartition >= 0) {
-			return targetPartition;
-		} else {
-			throw new RuntimeException("The partitioner has not been initialized properly");
-		}
+	public int partition(T record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
+		Preconditions.checkArgument(
+			partitions != null && partitions.length > 0,
+			"Partitions of the target topic is empty.");
+		
+		return partitions[parallelInstanceId % partitions.length];
 	}
 }

@@ -230,10 +230,14 @@ public class SecurityUtils {
 		}
 
 		private static List<String> parseList(String value) {
-			if(value == null) {
+			if(value == null || value.isEmpty()) {
 				return Collections.emptyList();
 			}
-			return Arrays.asList(value.split(","));
+
+			return Arrays.asList(value
+				.trim()
+				.replaceAll("(\\s*,+\\s*)+", ",")
+				.split(","));
 		}
 	}
 

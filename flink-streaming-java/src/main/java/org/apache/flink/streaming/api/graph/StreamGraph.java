@@ -318,9 +318,11 @@ public class StreamGraph extends StreamingPlan {
 				continue;
 			}
 
-			if (!tag.f1.getTypeInfo().equals(outputTag.getTypeInfo())) {
-				throw new IllegalArgumentException("Trying to add a side input for the same id " +
-						"with a different type. This is not allowed.");
+			if (tag.f1.getId().equals(outputTag.getId()) &&
+					!tag.f1.getTypeInfo().equals(outputTag.getTypeInfo())) {
+				throw new IllegalArgumentException("Trying to add a side output for the same " +
+						"side-output id with a different type. This is not allowed. Side-output ID: " +
+						tag.f1.getId());
 			}
 		}
 

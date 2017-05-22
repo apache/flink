@@ -135,4 +135,9 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
     * @return the aggregation result
     */
   def getValue(accumulator: ACC): T
+
+  /**
+    * whether this aggregate only used in OVER clause
+    */
+  def requiresOver: Boolean = false
 }

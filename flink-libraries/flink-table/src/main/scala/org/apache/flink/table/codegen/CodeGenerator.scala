@@ -29,7 +29,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.GenericInputFormat
-import org.apache.flink.api.common.typeinfo.{AtomicType, PrimitiveArrayTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
@@ -1522,13 +1522,15 @@ class CodeGenerator(
 
       case ITEM =>
         operands.head.resultType match {
-          case _: ObjectArrayTypeInfo[_, _] | _: PrimitiveArrayTypeInfo[_] =>
+          case _: ObjectArrayTypeInfo[_, _] |
+               _: BasicArrayTypeInfo[_, _] |
+               _: PrimitiveArrayTypeInfo[_] =>
             val array = operands.head
             val index = operands(1)
             requireInteger(index)
             generateArrayElementAt(this, array, index)
 
-          case map: MapTypeInfo[_, _] =>
+          case _: MapTypeInfo[_, _] =>
             val key = operands(1)
             generateMapGet(this, operands.head, key)
 

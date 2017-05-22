@@ -169,7 +169,7 @@ public class MetricFetcher {
 		future.onFailure(new OnFailure() {
 			@Override
 			public void onFailure(Throwable failure) throws Throwable {
-				LOG.warn(message, failure);
+				LOG.debug(message, failure);
 			}
 		}, ctx);
 	}

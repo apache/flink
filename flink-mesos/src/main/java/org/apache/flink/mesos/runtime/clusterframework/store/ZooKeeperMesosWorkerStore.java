@@ -88,7 +88,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 				totalTaskCountInZooKeeper.close();
 
 				if(cleanup) {
-					workersInZooKeeper.removeAndDiscardAllState();
+					workersInZooKeeper.releaseAndTryRemoveAll();
 				}
 
 				isRunning = false;
@@ -169,7 +169,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 		synchronized (startStopLock) {
 			verifyIsRunning();
 
-			List<Tuple2<RetrievableStateHandle<Worker>, String>> handles = workersInZooKeeper.getAll();
+			List<Tuple2<RetrievableStateHandle<Worker>, String>> handles = workersInZooKeeper.getAllAndLock();
 
 			if(handles.size() != 0) {
 				List<MesosWorkerStore.Worker> workers = new ArrayList<>(handles.size());
@@ -199,7 +199,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 			int currentVersion = workersInZooKeeper.exists(path);
 			if (currentVersion == -1) {
 				try {
-					workersInZooKeeper.add(path, worker);
+					workersInZooKeeper.addAndLock(path, worker);
 					LOG.debug("Added {} in ZooKeeper.", worker);
 				} catch (KeeperException.NodeExistsException ex) {
 					throw new ConcurrentModificationException("ZooKeeper unexpectedly modified", ex);
@@ -227,7 +227,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 				return false;
 			}
 
-			workersInZooKeeper.removeAndDiscardState(path);
+			workersInZooKeeper.releaseAndTryRemove(path);
 			LOG.debug("Removed worker {} from ZooKeeper.", taskID);
 			return true;
 		}

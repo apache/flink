@@ -18,29 +18,20 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 /**
  * A placeholder state handle for shared state that will replaced by an original that was
- * created in a previous checkpoint. So we don't have to send the handle twice, e.g. in
- * case of {@link ByteStreamStateHandle}. To be used in the referenced states of
+ * created in a previous checkpoint. So we don't have to send a state handle twice, e.g. in
+ * case of {@link ByteStreamStateHandle}. This class is used in the referenced states of
  * {@link IncrementalKeyedStateHandle}.
- * <p>
- * IMPORTANT: This class currently overrides equals and hash code only for testing purposes. They
- * should not be called from production code. This means this class is also not suited to serve as
- * a key, e.g. in hash maps.
  */
 public class PlaceholderStreamStateHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = 1L;
 
-	/** We remember the size of the original file for which this is a placeholder */
-	private final long originalSize;
-
-	public PlaceholderStreamStateHandle(long originalSize) {
-		this.originalSize = originalSize;
+	public PlaceholderStreamStateHandle() {
 	}
 
 	@Override
@@ -56,33 +47,6 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
 
 	@Override
 	public long getStateSize() {
-		return originalSize;
-	}
-
-	/**
-	 * This method is should only be called in tests! This should never serve as key in a hash map.
-	 */
-	@VisibleForTesting
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-
-		PlaceholderStreamStateHandle that = (PlaceholderStreamStateHandle) o;
-
-		return originalSize == that.originalSize;
-	}
-
-	/**
-	 * This method is should only be called in tests! This should never serve as key in a hash map.
-	 */
-	@VisibleForTesting
-	@Override
-	public int hashCode() {
-		return (int) (originalSize ^ (originalSize >>> 32));
+		return 0L;
 	}
 }

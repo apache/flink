@@ -76,7 +76,7 @@ public class LeaderRetrievalUtils {
 
 			return Await.result(actorGatewayFuture, timeout);
 		} catch (Exception e) {
-			throw new LeaderRetrievalException("Could not retrieve the leader gateway", e);
+			throw new LeaderRetrievalException("Could not retrieve the leader gateway.", e);
 		} finally {
 			try {
 				leaderRetrievalService.stop();
@@ -137,8 +137,8 @@ public class LeaderRetrievalUtils {
 	}
 
 	public static InetAddress findConnectingAddress(
-		LeaderRetrievalService leaderRetrievalService,
-		Time timeout) throws LeaderRetrievalException {
+			LeaderRetrievalService leaderRetrievalService,
+			Time timeout) throws LeaderRetrievalException {
 		return findConnectingAddress(leaderRetrievalService, new FiniteDuration(timeout.getSize(), timeout.getUnit()));
 	}
 

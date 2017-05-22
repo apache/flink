@@ -75,11 +75,9 @@ fi
 if [[ $STARTSTOP == "start-foreground" ]]; then
     exec "${FLINK_BIN_DIR}"/flink-console.sh taskmanager "${args[@]}"
 else
-    TM_COMMAND="${FLINK_BIN_DIR}/flink-daemon.sh $STARTSTOP taskmanager ${args[@]}"
-    
     if [[ $FLINK_TM_COMPUTE_NUMA == "false" ]]; then
         # Start a single TaskManager
-        $TM_COMMAND
+        "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP taskmanager "${args[@]}"
     else
         # Example output from `numactl --show` on an AWS c4.8xlarge:
         # policy: default
@@ -91,7 +89,7 @@ else
         read -ra NODE_LIST <<< $(numactl --show | grep "^nodebind: ")
         for NODE_ID in "${NODE_LIST[@]:1}"; do
             # Start a TaskManager for each NUMA node
-            numactl --membind=$NODE_ID --cpunodebind=$NODE_ID -- $TM_COMMAND
+            numactl --membind=$NODE_ID --cpunodebind=$NODE_ID -- "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP taskmanager "${args[@]}"
         done
     fi
 fi

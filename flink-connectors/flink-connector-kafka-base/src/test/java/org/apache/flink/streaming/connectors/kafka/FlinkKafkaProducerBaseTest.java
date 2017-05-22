@@ -22,12 +22,14 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.FakeStandardProducerConfig;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
+import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -61,7 +63,7 @@ public class FlinkKafkaProducerBaseTest {
 		// no bootstrap servers set in props
 		Properties props = new Properties();
 		// should throw IllegalArgumentException
-		new DummyFlinkKafkaProducer<>(props, null);
+		new DummyFlinkKafkaProducer<>(props, new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
 	}
 
 	/**
@@ -72,7 +74,7 @@ public class FlinkKafkaProducerBaseTest {
 		Properties props = new Properties();
 		props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:12345");
 		// should set missing key value deserializers
-		new DummyFlinkKafkaProducer<>(props, null);
+		new DummyFlinkKafkaProducer<>(props, new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
 
 		assertTrue(props.containsKey(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG));
 		assertTrue(props.containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG));
@@ -83,9 +85,10 @@ public class FlinkKafkaProducerBaseTest {
 	/**
 	 * Tests that partitions list is determinate and correctly provided to custom partitioner
 	 */
+	@SuppressWarnings("unchecked")
 	@Test
-	public void testPartitionerOpenedWithDeterminatePartitionList() throws Exception {
-		KafkaPartitioner mockPartitioner = mock(KafkaPartitioner.class);
+	public void testPartitionerInvokedWithDeterminatePartitionList() throws Exception {
+		FlinkKafkaPartitioner<String> mockPartitioner = mock(FlinkKafkaPartitioner.class);
 
 		RuntimeContext mockRuntimeContext = mock(RuntimeContext.class);
 		when(mockRuntimeContext.getIndexOfThisSubtask()).thenReturn(0);
@@ -98,8 +101,8 @@ public class FlinkKafkaProducerBaseTest {
 		mockPartitionsList.add(new PartitionInfo(DummyFlinkKafkaProducer.DUMMY_TOPIC, 0, null, null, null));
 		mockPartitionsList.add(new PartitionInfo(DummyFlinkKafkaProducer.DUMMY_TOPIC, 2, null, null, null));
 
-		final DummyFlinkKafkaProducer producer = new DummyFlinkKafkaProducer(
-			FakeStandardProducerConfig.get(), mockPartitioner);
+		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
+			FakeStandardProducerConfig.get(), new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), mockPartitioner);
 		producer.setRuntimeContext(mockRuntimeContext);
 
 		final KafkaProducer mockProducer = producer.getMockKafkaProducer();
@@ -107,10 +110,11 @@ public class FlinkKafkaProducerBaseTest {
 		when(mockProducer.metrics()).thenReturn(null);
 
 		producer.open(new Configuration());
+		verify(mockPartitioner, times(1)).open(0, 1);
 
-		// the out-of-order partitions list should be sorted before provided to the custom partitioner's open() method
-		int[] correctPartitionList = {0, 1, 2, 3};
-		verify(mockPartitioner).open(0, 1, correctPartitionList);
+		producer.invoke("foobar");
+		verify(mockPartitioner, times(1)).partition(
+			"foobar", null, "foobar".getBytes(), DummyFlinkKafkaProducer.DUMMY_TOPIC, new int[] {0, 1, 2, 3});
 	}
 
 	/**
@@ -119,7 +123,7 @@ public class FlinkKafkaProducerBaseTest {
 	@Test
 	public void testAsyncErrorRethrownOnInvoke() throws Throwable {
 		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
-			FakeStandardProducerConfig.get(), null);
+			FakeStandardProducerConfig.get(), new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
 			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
@@ -150,7 +154,7 @@ public class FlinkKafkaProducerBaseTest {
 	@Test
 	public void testAsyncErrorRethrownOnCheckpoint() throws Throwable {
 		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
-			FakeStandardProducerConfig.get(), null);
+			FakeStandardProducerConfig.get(), new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
 			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
@@ -186,7 +190,7 @@ public class FlinkKafkaProducerBaseTest {
 	@Test(timeout=5000)
 	public void testAsyncErrorRethrownOnCheckpointAfterFlush() throws Throwable {
 		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
-			FakeStandardProducerConfig.get(), null);
+			FakeStandardProducerConfig.get(), new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
 		producer.setFlushOnCheckpoint(true);
 
 		final KafkaProducer<?, ?> mockProducer = producer.getMockKafkaProducer();
@@ -239,7 +243,7 @@ public class FlinkKafkaProducerBaseTest {
 	@Test(timeout=10000)
 	public void testAtLeastOnceProducer() throws Throwable {
 		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
-			FakeStandardProducerConfig.get(), null);
+			FakeStandardProducerConfig.get(), new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
 		producer.setFlushOnCheckpoint(true);
 
 		final KafkaProducer<?, ?> mockProducer = producer.getMockKafkaProducer();
@@ -299,7 +303,7 @@ public class FlinkKafkaProducerBaseTest {
 	@Test(timeout=5000)
 	public void testDoesNotWaitForPendingRecordsIfFlushingDisabled() throws Throwable {
 		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
-			FakeStandardProducerConfig.get(), null);
+			FakeStandardProducerConfig.get(), new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
 		producer.setFlushOnCheckpoint(false);
 
 		final KafkaProducer<?, ?> mockProducer = producer.getMockKafkaProducer();
@@ -333,9 +337,9 @@ public class FlinkKafkaProducerBaseTest {
 		private boolean isFlushed;
 
 		@SuppressWarnings("unchecked")
-		DummyFlinkKafkaProducer(Properties producerConfig, KafkaPartitioner partitioner) {
+		DummyFlinkKafkaProducer(Properties producerConfig, KeyedSerializationSchema<T> schema, FlinkKafkaPartitioner partitioner) {
 
-			super(DUMMY_TOPIC, (KeyedSerializationSchema<T>) mock(KeyedSerializationSchema.class), producerConfig, partitioner);
+			super(DUMMY_TOPIC, schema, producerConfig, partitioner);
 
 			this.mockProducer = mock(KafkaProducer.class);
 			when(mockProducer.send(any(ProducerRecord.class), any(Callback.class))).thenAnswer(new Answer<Object>() {

@@ -22,7 +22,7 @@ import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMerge
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{OverAgg0, WeightedAvgWithMerge}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.utils.TableTestBase
@@ -30,6 +30,20 @@ import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
 
 class WindowAggregateTest extends TableTestBase {
+
+  /**
+    * OVER clause is necessary for [[OverAgg0]] window function.
+    */
+  @Test(expected = classOf[ValidationException])
+  def testOverAggregation(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+    util.addFunction("overAgg", new OverAgg0)
+
+    val sqlQuery = "SELECT overAgg(b, a) FROM T GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)"
+
+    util.tEnv.sql(sqlQuery)
+  }
 
   @Test
   def testNonPartitionedTumbleWindow(): Unit = {

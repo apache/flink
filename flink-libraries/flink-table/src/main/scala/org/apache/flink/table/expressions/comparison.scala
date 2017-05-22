@@ -22,7 +22,8 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.table.typeutils.TypeCheckUtils.{isComparable, isNumeric}
+import org.apache.flink.table.typeutils.TypeCheckUtils
+import org.apache.flink.table.typeutils.TypeCheckUtils.{isArray, isComparable, isNumeric}
 import org.apache.flink.table.validate._
 
 import scala.collection.JavaConversions._
@@ -56,6 +57,8 @@ case class EqualTo(left: Expression, right: Expression) extends BinaryComparison
     (left.resultType, right.resultType) match {
       case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
       case (lType, rType) if lType == rType => ValidationSuccess
+      case (lType, rType) if isArray(lType) && lType.getTypeClass == rType.getTypeClass =>
+        ValidationSuccess
       case (lType, rType) =>
         ValidationFailure(s"Equality predicate on incompatible types: $lType and $rType")
     }
@@ -70,6 +73,8 @@ case class NotEqualTo(left: Expression, right: Expression) extends BinaryCompari
     (left.resultType, right.resultType) match {
       case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
       case (lType, rType) if lType == rType => ValidationSuccess
+      case (lType, rType) if isArray(lType) && lType.getTypeClass == rType.getTypeClass =>
+        ValidationSuccess
       case (lType, rType) =>
         ValidationFailure(s"Inequality predicate on incompatible types: $lType and $rType")
     }

@@ -17,6 +17,8 @@
  */
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.types.Row;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
@@ -27,7 +29,7 @@ import java.util.Properties;
  * Kafka 0.8 {@link KafkaTableSink} that serializes data in JSON format.
  */
 public class Kafka08JsonTableSink extends KafkaJsonTableSink {
-
+	
 	/**
 	 * Creates {@link KafkaTableSink} for Kafka 0.8
 	 *
@@ -35,12 +37,28 @@ public class Kafka08JsonTableSink extends KafkaJsonTableSink {
 	 * @param properties properties to connect to Kafka
 	 * @param partitioner Kafka partitioner
 	 */
-	public Kafka08JsonTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner) {
+	public Kafka08JsonTableSink(String topic, Properties properties, FlinkKafkaPartitioner<Row> partitioner) {
 		super(topic, properties, partitioner);
 	}
 
+	/**
+	 * Creates {@link KafkaTableSink} for Kafka 0.8
+	 *
+	 * @param topic topic in Kafka to which table is written
+	 * @param properties properties to connect to Kafka
+	 * @param partitioner Kafka partitioner
+	 *
+	 * @deprecated This is a deprecated constructor that does not correctly handle partitioning when
+	 *             producing to multiple topics. Use
+	 *             {@link #Kafka08JsonTableSink(String, Properties, FlinkKafkaPartitioner)} instead.
+	 */
+	@Deprecated
+	public Kafka08JsonTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner) {
+		super(topic, properties, new FlinkKafkaDelegatePartitioner<>(partitioner));
+	}
+
 	@Override
-	protected FlinkKafkaProducerBase<Row> createKafkaProducer(String topic, Properties properties, SerializationSchema<Row> serializationSchema, KafkaPartitioner<Row> partitioner) {
+	protected FlinkKafkaProducerBase<Row> createKafkaProducer(String topic, Properties properties, SerializationSchema<Row> serializationSchema, FlinkKafkaPartitioner<Row> partitioner) {
 		return new FlinkKafkaProducer08<>(topic, serializationSchema, properties, partitioner);
 	}
 

@@ -30,18 +30,18 @@ matrix:
       env: PROFILE="-Dhadoop.version=2.6.3 -Pinclude-yarn-tests,flink-fast-tests-c,include-kinesis -Dmaven.javadoc.skip=true"
 
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-a,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-a,include-kinesis -Dmaven.javadoc.skip=true"
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-b,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-b,include-kinesis -Dmaven.javadoc.skip=true"
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-c,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-c,include-kinesis -Dmaven.javadoc.skip=true"
 
     - jdk: "oraclejdk7"
-      env: PROFILE="-Dhadoop.version=2.3.0 -Pflink-fast-tests-a,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.3.0 -Pflink-fast-tests-a,include-kinesis -Dmaven.javadoc.skip=true"
     - jdk: "oraclejdk7"
-      env: PROFILE="-Dhadoop.version=2.3.0 -Pflink-fast-tests-b,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.3.0 -Pflink-fast-tests-b,include-kinesis -Dmaven.javadoc.skip=true"
     - jdk: "oraclejdk7"
-      env: PROFILE="-Dhadoop.version=2.3.0 -Pflink-fast-tests-c,include-kinesis"
+      env: PROFILE="-Dhadoop.version=2.3.0 -Pflink-fast-tests-c,include-kinesis -Dmaven.javadoc.skip=true"
 
 
 git:

@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.stream.utils.StreamITCase
-import org.apache.flink.table.api.{TableEnvironment, TableException, Types}
+import org.apache.flink.table.api.{TableEnvironment, TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.RelTimeIndicatorConverterTest.TableFunc
 import org.apache.flink.table.expressions.TimeIntervalUnit
 import org.apache.flink.table.runtime.datastream.TimeAttributesITCase.TimestampWithEqualWatermark
@@ -62,6 +62,33 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testInvalidUseOfRowtime(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+    stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+      .select('rowtime.rowtime)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidUseOfRowtime2(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+    stream
+      .toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+      .window(Tumble over 2.millis on 'rowtime as 'w)
+      .groupBy('w)
+      .select('w.end.rowtime, 'int.count as 'int) // no rowtime on non-window reference
+  }
+
   @Test
   def testCalcMaterialization(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -76,7 +103,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 
     val t = table.select('rowtime.cast(Types.STRING))
 
-    val results = t.toDataStream[Row]
+    val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -107,7 +134,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       .filter('rowtime.cast(Types.LONG) > 4)
       .select('rowtime, 'rowtime.floor(TimeIntervalUnit.DAY), 'rowtime.ceil(TimeIntervalUnit.DAY))
 
-    val results = t.toDataStream[Row]
+    val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -134,7 +161,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 
     val t = table.join(func('rowtime, 'proctime) as 's).select('rowtime, 's)
 
-    val results = t.toDataStream[Row]
+    val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -164,7 +191,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 
     val t = table.unionAll(table).select('rowtime)
 
-    val results = t.toDataStream[Row]
+    val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -202,7 +229,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val t = tEnv.sql("SELECT COUNT(`rowtime`) FROM MyTable " +
       "GROUP BY TUMBLE(rowtime, INTERVAL '0.003' SECOND)")
 
-    val results = t.toDataStream[Row]
+    val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -211,6 +238,39 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       "2",
       "2",
       "2"
+    )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testMultiWindow(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val t = table
+      .window(Tumble over 2.millis on 'rowtime as 'w)
+      .groupBy('w)
+      .select('w.rowtime as 'rowtime, 'int.count as 'int)
+      .window(Tumble over 4.millis on 'rowtime as 'w2)
+      .groupBy('w2)
+      .select('w2.rowtime, 'w2.end, 'int.count)
+
+    val results = t.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = Seq(
+      "1970-01-01 00:00:00.003,1970-01-01 00:00:00.004,2",
+      "1970-01-01 00:00:00.007,1970-01-01 00:00:00.008,2",
+      "1970-01-01 00:00:00.011,1970-01-01 00:00:00.012,1",
+      "1970-01-01 00:00:00.019,1970-01-01 00:00:00.02,1"
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }

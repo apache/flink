@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.blob;
 
-import com.google.common.io.Files;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
@@ -33,7 +32,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
 import java.security.MessageDigest;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
 
 import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_ADDRESSABLE;
@@ -67,6 +70,12 @@ class BlobServerConnection extends Thread {
 	/** The HA blob store. */
 	private final BlobStore blobStore;
 
+	/** Write lock to synchronize file accesses */
+	private final Lock writeLock;
+
+	/** Read lock to synchronize file accesses */
+	private final Lock readLock;
+
 	/**
 	 * Creates a new BLOB connection for a client request
 	 * 
@@ -74,7 +83,7 @@ class BlobServerConnection extends Thread {
 	 * @param blobServer The BLOB server.
 	 */
 	BlobServerConnection(Socket clientSocket, BlobServer blobServer) {
-		super("BLOB connection for " + clientSocket.getRemoteSocketAddress().toString());
+		super("BLOB connection for " + clientSocket.getRemoteSocketAddress());
 		setDaemon(true);
 
 		if (blobServer == null) {
@@ -84,6 +93,11 @@ class BlobServerConnection extends Thread {
 		this.clientSocket = clientSocket;
 		this.blobServer = blobServer;
 		this.blobStore = blobServer.getBlobStore();
+
+		ReadWriteLock readWriteLock = blobServer.getReadWriteLock();
+
+		this.writeLock = readWriteLock.writeLock();
+		this.readLock = readWriteLock.readLock();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -178,8 +192,13 @@ class BlobServerConnection extends Thread {
 		 */
 
 		File blobFile;
+		int contentAddressable = -1;
+		JobID jobId = null;
+		String key = null;
+		BlobKey blobKey = null;
+
 		try {
-			final int contentAddressable = inputStream.read();
+			contentAddressable = inputStream.read();
 
 			if (contentAddressable < 0) {
 				throw new EOFException("Premature end of GET request");
@@ -189,36 +208,17 @@ class BlobServerConnection extends Thread {
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
 
-				JobID jobID = JobID.fromByteArray(jidBytes);
-				String key = readKey(buf, inputStream);
-				blobFile = this.blobServer.getStorageLocation(jobID, key);
-
-				if (!blobFile.exists()) {
-					blobStore.get(jobID, key, blobFile);
-				}
+				jobId = JobID.fromByteArray(jidBytes);
+				key = readKey(buf, inputStream);
+				blobFile = blobServer.getStorageLocation(jobId, key);
 			}
 			else if (contentAddressable == CONTENT_ADDRESSABLE) {
-				final BlobKey key = BlobKey.readFromInputStream(inputStream);
-				blobFile = blobServer.getStorageLocation(key);
-
-				if (!blobFile.exists()) {
-					blobStore.get(key, blobFile);
-				}
+				blobKey = BlobKey.readFromInputStream(inputStream);
+				blobFile = blobServer.getStorageLocation(blobKey);
 			}
 			else {
-				throw new IOException("Unknown type of BLOB addressing.");
+				throw new IOException("Unknown type of BLOB addressing: " + contentAddressable + '.');
 			}
-
-			// Check if BLOB exists
-			if (!blobFile.exists()) {
-				throw new IOException("Cannot find required BLOB at " + blobFile.getAbsolutePath());
-			}
-
-			if (blobFile.length() > Integer.MAX_VALUE) {
-				throw new IOException("BLOB size exceeds the maximum size (2 GB).");
-			}
-
-			outputStream.write(RETURN_OKAY);
 
 			// up to here, an error can give a good message
 		}
@@ -235,8 +235,58 @@ class BlobServerConnection extends Thread {
 			return;
 		}
 
-		// from here on, we started sending data, so all we can do is close the connection when something happens
+		readLock.lock();
+
 		try {
+			try {
+				if (!blobFile.exists()) {
+					// first we have to release the read lock in order to acquire the write lock
+					readLock.unlock();
+					writeLock.lock();
+
+					try {
+						if (blobFile.exists()) {
+							LOG.debug("Blob file {} has downloaded from the BlobStore by a different connection.", blobFile);
+						} else {
+							if (contentAddressable == NAME_ADDRESSABLE) {
+								blobStore.get(jobId, key, blobFile);
+							} else if (contentAddressable == CONTENT_ADDRESSABLE) {
+								blobStore.get(blobKey, blobFile);
+							} else {
+								throw new IOException("Unknown type of BLOB addressing: " + contentAddressable + '.');
+							}
+						}
+					} finally {
+						writeLock.unlock();
+					}
+
+					readLock.lock();
+
+					// Check if BLOB exists
+					if (!blobFile.exists()) {
+						throw new IOException("Cannot find required BLOB at " + blobFile.getAbsolutePath());
+					}
+				}
+
+				if (blobFile.length() > Integer.MAX_VALUE) {
+					throw new IOException("BLOB size exceeds the maximum size (2 GB).");
+				}
+
+				outputStream.write(RETURN_OKAY);
+			} catch (Throwable t) {
+				LOG.error("GET operation failed", t);
+				try {
+					writeErrorToStream(outputStream, t);
+				}
+				catch (IOException e) {
+					// since we are in an exception case, it means not much that we could not send the error
+					// ignore this
+				}
+				clientSocket.close();
+				return;
+			}
+
+			// from here on, we started sending data, so all we can do is close the connection when something happens
 			int blobLen = (int) blobFile.length();
 			writeLength(blobLen, outputStream);
 
@@ -251,14 +301,14 @@ class BlobServerConnection extends Thread {
 					bytesRemaining -= read;
 				}
 			}
-		}
-		catch (SocketException e) {
+		} catch (SocketException e) {
 			// happens when the other side disconnects
 			LOG.debug("Socket connection closed", e);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			LOG.error("GET operation failed", t);
 			clientSocket.close();
+		} finally {
+			readLock.unlock();
 		}
 	}
 
@@ -328,21 +378,83 @@ class BlobServerConnection extends Thread {
 			fos.close();
 
 			if (contentAddressable == NAME_ADDRESSABLE) {
-				File storageFile = this.blobServer.getStorageLocation(jobID, key);
-				Files.move(incomingFile, storageFile);
-				incomingFile = null;
+				File storageFile = blobServer.getStorageLocation(jobID, key);
 
-				blobStore.put(storageFile, jobID, key);
+				writeLock.lock();
+
+				try {
+					// first check whether the file already exists
+					if (!storageFile.exists()) {
+						try {
+							// only move the file if it does not yet exist
+							Files.move(incomingFile.toPath(), storageFile.toPath());
+
+							incomingFile = null;
+
+						} catch (FileAlreadyExistsException ignored) {
+							LOG.warn("Detected concurrent file modifications. This should only happen if multiple" +
+								"BlobServer use the same storage directory.");
+							// we cannot be sure at this point whether the file has already been uploaded to the blob
+							// store or not. Even if the blobStore might shortly be in an inconsistent state, we have
+							// persist the blob. Otherwise we might not be able to recover the job.
+						}
+
+						// only the one moving the incoming file to its final destination is allowed to upload the
+						// file to the blob store
+						blobStore.put(storageFile, jobID, key);
+					}
+				} catch(IOException ioe) {
+					// we failed to either create the local storage file or to upload it --> try to delete the local file
+					// while still having the write lock
+					if (storageFile.exists() && !storageFile.delete()) {
+						LOG.warn("Could not delete the storage file.");
+					}
+
+					throw ioe;
+				} finally {
+					writeLock.unlock();
+				}
 
 				outputStream.write(RETURN_OKAY);
 			}
 			else {
 				BlobKey blobKey = new BlobKey(md.digest());
 				File storageFile = blobServer.getStorageLocation(blobKey);
-				Files.move(incomingFile, storageFile);
-				incomingFile = null;
 
-				blobStore.put(storageFile, blobKey);
+				writeLock.lock();
+
+				try {
+					// first check whether the file already exists
+					if (!storageFile.exists()) {
+						try {
+							// only move the file if it does not yet exist
+							Files.move(incomingFile.toPath(), storageFile.toPath());
+
+							incomingFile = null;
+
+						} catch (FileAlreadyExistsException ignored) {
+							LOG.warn("Detected concurrent file modifications. This should only happen if multiple" +
+								"BlobServer use the same storage directory.");
+							// we cannot be sure at this point whether the file has already been uploaded to the blob
+							// store or not. Even if the blobStore might shortly be in an inconsistent state, we have
+							// persist the blob. Otherwise we might not be able to recover the job.
+						}
+
+						// only the one moving the incoming file to its final destination is allowed to upload the
+						// file to the blob store
+						blobStore.put(storageFile, blobKey);
+					}
+				} catch(IOException ioe) {
+					// we failed to either create the local storage file or to upload it --> try to delete the local file
+					// while still having the write lock
+					if (storageFile.exists() && !storageFile.delete()) {
+						LOG.warn("Could not delete the storage file.");
+					}
+
+					throw ioe;
+				} finally {
+					writeLock.unlock();
+				}
 
 				// Return computed key to client for validation
 				outputStream.write(RETURN_OKAY);
@@ -397,12 +509,21 @@ class BlobServerConnection extends Thread {
 
 			if (type == CONTENT_ADDRESSABLE) {
 				BlobKey key = BlobKey.readFromInputStream(inputStream);
-				File blobFile = this.blobServer.getStorageLocation(key);
-				if (blobFile.exists() && !blobFile.delete()) {
-					throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
-				}
+				File blobFile = blobServer.getStorageLocation(key);
 
-				blobStore.delete(key);
+				writeLock.lock();
+
+				try {
+					// we should make the local and remote file deletion atomic, otherwise we might risk not
+					// removing the remote file in case of a concurrent put operation
+					if (blobFile.exists() && !blobFile.delete()) {
+						throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
+					}
+
+					blobStore.delete(key);
+				} finally {
+					writeLock.unlock();
+				}
 			}
 			else if (type == NAME_ADDRESSABLE) {
 				byte[] jidBytes = new byte[JobID.SIZE];
@@ -412,20 +533,37 @@ class BlobServerConnection extends Thread {
 				String key = readKey(buf, inputStream);
 
 				File blobFile = this.blobServer.getStorageLocation(jobID, key);
-				if (blobFile.exists() && !blobFile.delete()) {
-					throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
-				}
 
-				blobStore.delete(jobID, key);
+				writeLock.lock();
+
+				try {
+					// we should make the local and remote file deletion atomic, otherwise we might risk not
+					// removing the remote file in case of a concurrent put operation
+					if (blobFile.exists() && !blobFile.delete()) {
+						throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
+					}
+
+					blobStore.delete(jobID, key);
+				} finally {
+					writeLock.unlock();
+				}
 			}
 			else if (type == JOB_ID_SCOPE) {
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
 				JobID jobID = JobID.fromByteArray(jidBytes);
 
-				blobServer.deleteJobDirectory(jobID);
+				writeLock.lock();
 
-				blobStore.deleteAll(jobID);
+				try {
+					// we should make the local and remote file deletion atomic, otherwise we might risk not
+					// removing the remote file in case of a concurrent put operation
+					blobServer.deleteJobDirectory(jobID);
+
+					blobStore.deleteAll(jobID);
+				} finally {
+					writeLock.unlock();
+				}
 			}
 			else {
 				throw new IOException("Unrecognized addressing type: " + type);

@@ -48,10 +48,11 @@ under the License.
 		<flink.version>1.4-SNAPSHOT</flink.version>
 		<slf4j.version>1.7.7</slf4j.version>
 		<log4j.version>1.2.17</log4j.version>
+		<scala.binary.version>@scala.binary.version@</scala.binary.version>
 	</properties>
 
 	<!-- 
-		
+
 		Execute "mvn clean package -Pbuild-jar"
 		to build a jar file out of this project!
 
@@ -91,7 +92,7 @@ under the License.
 			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
-		
+
 		<!-- explicitly add a standard loggin framework, as Flink does not have
 			a hard dependency on one specific framework by default -->
 		<dependency>

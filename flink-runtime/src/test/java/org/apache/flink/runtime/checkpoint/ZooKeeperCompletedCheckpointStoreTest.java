@@ -27,6 +27,7 @@ import org.apache.curator.utils.EnsurePath;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.TestLogger;
@@ -110,7 +111,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 
 		ZooKeeperStateHandleStore<CompletedCheckpoint> zooKeeperStateHandleStoreMock = spy(new ZooKeeperStateHandleStore<>(client, storageHelperMock, Executors.directExecutor()));
 		whenNew(ZooKeeperStateHandleStore.class).withAnyArguments().thenReturn(zooKeeperStateHandleStoreMock);
-		doReturn(checkpointsInZooKeeper).when(zooKeeperStateHandleStoreMock).getAllSortedByName();
+		doReturn(checkpointsInZooKeeper).when(zooKeeperStateHandleStoreMock).getAllSortedByNameAndLock();
 
 		final int numCheckpointsToRetain = 1;
 
@@ -126,7 +127,6 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 		when(
 			client
 				.delete()
-				.deletingChildrenIfNeeded()
 				.inBackground(any(BackgroundCallback.class), any(Executor.class))
 		).thenAnswer(new Answer<ErrorListenerPathable<Void>>() {
 			@Override
@@ -150,16 +150,17 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 		});
 
 		final String checkpointsPath = "foobar";
-		final RetrievableStateStorageHelper<CompletedCheckpoint> stateSotrage = mock(RetrievableStateStorageHelper.class);
+		final RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage = mock(RetrievableStateStorageHelper.class);
 
 		ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
 			numCheckpointsToRetain,
 			client,
 			checkpointsPath,
-			stateSotrage,
+			stateStorage,
 			Executors.directExecutor());
 
-		zooKeeperCompletedCheckpointStore.recover();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+		zooKeeperCompletedCheckpointStore.recover(sharedStateRegistry);
 
 		CompletedCheckpoint latestCompletedCheckpoint = zooKeeperCompletedCheckpointStore.getLatestCheckpoint();
 
@@ -209,9 +210,9 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 				
 				return retrievableStateHandle;
 			}
-		}).when(zookeeperStateHandleStoreMock).add(anyString(), any(CompletedCheckpoint.class));
+		}).when(zookeeperStateHandleStoreMock).addAndLock(anyString(), any(CompletedCheckpoint.class));
 		
-		doThrow(new Exception()).when(zookeeperStateHandleStoreMock).remove(anyString(), any(BackgroundCallback.class));
+		doThrow(new Exception()).when(zookeeperStateHandleStoreMock).releaseAndTryRemove(anyString(), any(ZooKeeperStateHandleStore.RemoveCallback.class));
 		
 		final int numCheckpointsToRetain = 1;
 		final String checkpointsPath = "foobar";

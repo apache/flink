@@ -54,6 +54,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.StateMigrationUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
@@ -271,8 +272,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 		}
 
-		final KeyedBackendSerializationProxy serializationProxy =
-				new KeyedBackendSerializationProxy(keySerializer, metaInfoSnapshots);
+		final KeyedBackendSerializationProxy<K> serializationProxy =
+				new KeyedBackendSerializationProxy<>(keySerializer, metaInfoSnapshots);
 
 		//--------------------------------------------------- this becomes the end of sync part
 
@@ -361,6 +362,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		int numRegisteredKvStates = 0;
 		stateTables.clear();
 
+		boolean keySerializerRestored = false;
+
 		for (KeyedStateHandle keyedStateHandle : state) {
 
 			if (keyedStateHandle == null) {
@@ -380,10 +383,28 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			try {
 				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(fsDataInputStream);
 
-				KeyedBackendSerializationProxy serializationProxy =
-						new KeyedBackendSerializationProxy(userCodeClassLoader);
+				KeyedBackendSerializationProxy<K> serializationProxy =
+						new KeyedBackendSerializationProxy<>(userCodeClassLoader);
 
 				serializationProxy.read(inView);
+
+				if (!keySerializerRestored) {
+					// check for key serializer compatibility; this also reconfigures the
+					// key serializer to be compatible, if it is required and is possible
+					if (StateMigrationUtil.resolveCompatibilityResult(
+						serializationProxy.getKeySerializer(),
+						TypeSerializerSerializationProxy.ClassNotFoundDummyTypeSerializer.class,
+						serializationProxy.getKeySerializerConfigSnapshot(),
+						keySerializer)
+						.isRequiresMigration()) {
+
+						// TODO replace with state migration; note that key hash codes need to remain the same after migration
+						throw new RuntimeException("The new key serializer is not compatible to read previous keys. " +
+							"Aborting now since state migration is currently not available");
+					}
+
+					keySerializerRestored = true;
+				}
 
 				List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> restoredMetaInfos =
 						serializationProxy.getStateMetaInfoSnapshots();

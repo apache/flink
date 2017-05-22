@@ -23,6 +23,30 @@ import org.apache.flink.table.functions.AggregateFunction;
 import java.util.Iterator;
 
 public class UserDefinedAggFunctions {
+    // Accumulator for test requiresOver
+    public static class Accumulator0 extends Tuple2<Long, Integer>{}
+
+    // Test for requiresOver
+    public static class OverAgg0 extends AggregateFunction<Long, Accumulator0> {
+        @Override
+        public Accumulator0 createAccumulator() {
+            return new Accumulator0();
+        }
+
+        @Override
+        public Long getValue(Accumulator0 accumulator) {
+            return 1L;
+        }
+
+        //Overloaded accumulate method
+        public void accumulate(Accumulator0 accumulator, long iValue, int iWeight) {
+        }
+
+        @Override
+        public boolean requiresOver() {
+            return true;
+        }
+    }
 
     // Accumulator for WeightedAvg
     public static class WeightedAvgAccum extends Tuple2<Long, Integer> {

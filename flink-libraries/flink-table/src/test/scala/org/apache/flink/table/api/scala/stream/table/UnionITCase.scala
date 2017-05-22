@@ -43,7 +43,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
 
     val unionDs = ds1.unionAll(ds2).select('c)
 
-    val results = unionDs.toDataStream[Row]
+    val results = unionDs.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -63,7 +63,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
 
     val unionDs = ds1.unionAll(ds2.select('a, 'b, 'c)).filter('b < 2).select('c)
 
-    val results = unionDs.toDataStream[Row]
+    val results = unionDs.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -82,7 +82,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
 
     val unionDs = ds1.unionAll(ds2)
 
-    val results = unionDs.toDataStream[Row]
+    val results = unionDs.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
@@ -101,7 +101,7 @@ class UnionITCase extends StreamingMultipleProgramsTestBase {
 
     val unionDs = ds1.unionAll(ds2)
 
-    val results = unionDs.toDataStream[Row]
+    val results = unionDs.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
