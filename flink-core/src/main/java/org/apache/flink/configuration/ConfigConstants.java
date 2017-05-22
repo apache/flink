@@ -1442,7 +1442,7 @@ public final class ConfigConstants {
 	/**
 	 * Time after which cached stats are cleaned up.
 	 *
-	 * @@deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_CLEANUP_INTERVAL} instead
+	 * @deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_CLEANUP_INTERVAL} instead
 	 */
 	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL = 10 * 60 * 1000;
