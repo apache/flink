@@ -18,9 +18,10 @@
 package org.apache.flink.cep.scala.pattern
 
 import org.apache.flink.cep
-import org.apache.flink.cep.pattern.conditions.IterativeCondition
-import org.apache.flink.cep.pattern.conditions.IterativeCondition.Context
+import org.apache.flink.cep.pattern.conditions.IterativeCondition.{Context => JContext}
+import org.apache.flink.cep.pattern.conditions.{IterativeCondition, SimpleCondition}
 import org.apache.flink.cep.pattern.{MalformedPatternException, Quantifier, Pattern => JPattern}
+import org.apache.flink.cep.scala.conditions.Context
 import org.apache.flink.streaming.api.windowing.time.Time
 
 /**
@@ -103,7 +104,9 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     val condFun = new IterativeCondition[F] {
       val cleanCond = cep.scala.cleanClosure(condition)
 
-      override def filter(value: F, ctx: Context[F]): Boolean = cleanCond(value, ctx)
+      override def filter(value: F, ctx: JContext[F]): Boolean = {
+        cleanCond(value, new JContextWrapper(ctx))
+      }
     }
     where(condFun)
   }
@@ -122,7 +125,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     val condFun = new IterativeCondition[F] {
       val cleanCond = cep.scala.cleanClosure(condition)
 
-      override def filter(value: F, ctx: Context[F]): Boolean = cleanCond(value)
+      override def filter(value: F, ctx: JContext[F]): Boolean = cleanCond(value)
     }
     where(condFun)
   }
@@ -152,11 +155,32 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * @param condition The {{{OR}}} condition.
     * @return The pattern with the new condition is set.
     */
+  def or(condition: F => Boolean): Pattern[T, F] = {
+    val condFun = new SimpleCondition[F] {
+      val cleanCond = cep.scala.cleanClosure(condition)
+
+      override def filter(value: F): Boolean =
+        cleanCond(value)
+    }
+    or(condFun)
+  }
+
+  /**
+    * Adds a condition that has to be satisfied by an event
+    * in order to be considered a match. If another condition has already been
+    * set, the new one is going to be combined with the previous with a
+    * logical {{{OR}}}. In other case, this is going to be the only
+    * condition.
+    *
+    * @param condition The {{{OR}}} condition.
+    * @return The pattern with the new condition is set.
+    */
   def or(condition: (F, Context[F]) => Boolean): Pattern[T, F] = {
     val condFun = new IterativeCondition[F] {
       val cleanCond = cep.scala.cleanClosure(condition)
 
-      override def filter(value: F, ctx: Context[F]): Boolean = cleanCond(value, ctx)
+      override def filter(value: F, ctx: JContext[F]): Boolean =
+        cleanCond(value, new JContextWrapper(ctx))
     }
     or(condFun)
   }
