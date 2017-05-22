@@ -87,7 +87,7 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 		} catch (NumberFormatException nfe) {
 			if (delayString.equals(timeoutString)) {
 				throw new Exception("Invalid config value for " +
-						AkkaOptions.AKKA_WATCH_HEARTBEAT_PAUSE + ": " + timeoutString +
+						AkkaOptions.AKKA_WATCH_HEARTBEAT_PAUSE.key() + ": " + timeoutString +
 						". Value must be a valid duration (such as '10 s' or '1 min')");
 			} else {
 				throw new Exception("Invalid config value for " +

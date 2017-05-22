@@ -118,7 +118,7 @@ public class QueryableStateClient {
 
 		Duration timeout = FiniteDuration.apply(askTimeoutString);
 		if (!timeout.isFinite()) {
-			throw new IllegalConfigurationException(AkkaOptions.AKKA_ASK_TIMEOUT
+			throw new IllegalConfigurationException(AkkaOptions.AKKA_ASK_TIMEOUT.key()
 					+ " is not a finite timeout ('" + askTimeoutString + "')");
 		}
 

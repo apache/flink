@@ -147,7 +147,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			timeout = Time.milliseconds(AkkaUtils.getTimeout(configuration).toMillis());
 		} catch (Exception e) {
 			throw new IllegalArgumentException(
-				"Invalid format for '" + AkkaOptions.AKKA_ASK_TIMEOUT +
+				"Invalid format for '" + AkkaOptions.AKKA_ASK_TIMEOUT.key() +
 					"'.Use formats like '50 s' or '1 min' to specify the timeout.");
 		}
 

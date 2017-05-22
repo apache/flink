@@ -100,7 +100,7 @@ public abstract class RestartStrategyFactory implements Serializable {
 				} catch (NumberFormatException nfe) {
 					if (delayString.equals(pauseString)) {
 						throw new Exception("Invalid config value for " +
-							AkkaOptions.AKKA_WATCH_HEARTBEAT_PAUSE + ": " + pauseString +
+							AkkaOptions.AKKA_WATCH_HEARTBEAT_PAUSE.key() + ": " + pauseString +
 							". Value must be a valid duration (such as '10 s' or '1 min')");
 					} else {
 						throw new Exception("Invalid config value for " +

@@ -119,7 +119,7 @@ public class JobSubmissionClientActor extends JobClientActor {
 					client.tell(
 						decorateMessage(new Status.Failure(
 							new JobClientActorSubmissionTimeoutException("Job submission to the JobManager timed out. " +
-								"You may increase '" + AkkaOptions.AKKA_CLIENT_TIMEOUT + "' in case the JobManager " +
+								"You may increase '" + AkkaOptions.AKKA_CLIENT_TIMEOUT.key() + "' in case the JobManager " +
 								"needs more time to configure and confirm the job submission."))),
 						getSelf());
 				}

@@ -114,7 +114,7 @@ public class JobAttachmentClientActor extends JobClientActor {
 					client.tell(
 						decorateMessage(new Status.Failure(
 							new JobClientActorRegistrationTimeoutException("Registration for Job at the JobManager " +
-								"timed out. " +	"You may increase '" + AkkaOptions.AKKA_CLIENT_TIMEOUT +
+								"timed out. " +	"You may increase '" + AkkaOptions.AKKA_CLIENT_TIMEOUT.key() +
 								"' in case the JobManager needs more time to confirm the job client registration."))),
 						getSelf());
 				}
