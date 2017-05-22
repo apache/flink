@@ -255,6 +255,8 @@ public class SharedStateRegistry {
 	 * Clears the registry.
 	 */
 	public void clear() {
-		registeredStates.clear();
+		synchronized (registeredStates) {
+			registeredStates.clear();
+		}
 	}
 }
