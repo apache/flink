@@ -38,6 +38,7 @@ import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -739,44 +740,54 @@ public class CheckpointCoordinator {
 	 */
 	private void completePendingCheckpoint(PendingCheckpoint pendingCheckpoint) throws CheckpointException {
 		final long checkpointId = pendingCheckpoint.getCheckpointId();
-		CompletedCheckpoint completedCheckpoint = null;
-
+		final CompletedCheckpoint completedCheckpoint;
+		
 		try {
-			completedCheckpoint = pendingCheckpoint.finalizeCheckpoint();
-
-			completedCheckpointStore.addCheckpoint(completedCheckpoint);
-
-			rememberRecentCheckpointId(checkpointId);
-			dropSubsumedCheckpoints(checkpointId);
-		} catch (Exception exception) {
-			// abort the current pending checkpoint if it has not been discarded yet
-			if (!pendingCheckpoint.isDiscarded()) {
-				pendingCheckpoint.abortError(exception);
+			try {
+				completedCheckpoint = pendingCheckpoint.finalizeCheckpoint();
+			} catch (Exception e1) {
+				// abort the current pending checkpoint if we fails to finalize the pending checkpoint.
+				if (!pendingCheckpoint.isDiscarded()) {
+					pendingCheckpoint.abortError(e1);
+				}
+	
+				throw new CheckpointException("Could not finalize the pending checkpoint " + checkpointId + '.', e1);
 			}
+		
+			// the pending checkpoint must be discarded after the finalization
+			Preconditions.checkState(pendingCheckpoint.isDiscarded() && completedCheckpoint != null);
 
-			if (completedCheckpoint != null) {
-				// we failed to store the completed checkpoint. Let's clean up
-				final CompletedCheckpoint cc = completedCheckpoint;
-
-				executor.execute(new Runnable() {
-					@Override
-					public void run() {
-						try {
-							cc.discard();
-						} catch (Exception nestedException) {
-							LOG.warn("Could not properly discard completed checkpoint {}.", cc.getCheckpointID(), nestedException);
+			// TODO: add savepoints to completed checkpoint store once FLINK-4815 has been completed
+			if (!CheckpointProperties.isSavepoint(completedCheckpoint.getProperties())) {
+				try {
+					completedCheckpointStore.addCheckpoint(completedCheckpoint);
+				} catch (Exception exception) {
+					// we failed to store the completed checkpoint. Let's clean up
+					executor.execute(new Runnable() {
+						@Override
+						public void run() {
+							try {
+								completedCheckpoint.discard();
+							} catch (Exception nestedException) {
+								LOG.warn("Could not properly discard completed checkpoint {}.", completedCheckpoint.getCheckpointID(), nestedException);
+							}
 						}
-					}
-				});
-			}
+					});
 
-			throw new CheckpointException("Could not complete the pending checkpoint " + checkpointId + '.', exception);
+					throw new CheckpointException("Could not complete the pending checkpoint " + checkpointId + '.', exception);
+				}
+
+				// drop those pending checkpoints that are at prior to the completed one
+				dropSubsumedCheckpoints(checkpointId);
+			}
 		} finally {
 			pendingCheckpoints.remove(checkpointId);
 
 			triggerQueuedRequests();
 		}
-		
+
+		rememberRecentCheckpointId(checkpointId);
+
 		// record the time when this was completed, to calculate
 		// the 'min delay between checkpoints'
 		lastCheckpointCompletionNanos = System.nanoTime();
