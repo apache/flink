@@ -19,6 +19,8 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
@@ -29,6 +31,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -54,6 +58,10 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
 
@@ -86,12 +94,11 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	///////////////			State			//////////////
 
 	private static final String NFA_OPERATOR_STATE_NAME = "nfaOperatorStateName";
-	private static final String PRIORITY_QUEUE_STATE_NAME = "priorityQueueStateName";
+	private static final String EVENT_QUEUE_STATE_NAME = "eventQueuesStateName";
 
 	private transient ValueState<NFA<IN>> nfaOperatorState;
-	private transient ValueState<PriorityQueue<StreamRecord<IN>>> priorityQueueOperatorState;
+	private transient MapState<Long, List<IN>> elementQueueState;
 
-	private final PriorityQueueFactory<StreamRecord<IN>> priorityQueueFactory = new PriorityQueueStreamRecordFactory<>();
 	private final NFACompiler.NFAFactory<IN> nfaFactory;
 
 	private transient InternalTimerService<VoidNamespace> timerService;
@@ -134,19 +141,13 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 						new NFA.NFASerializer<>(inputSerializer)));
 		}
 
-		@SuppressWarnings("unchecked,rawtypes")
-		TypeSerializer<StreamRecord<IN>> streamRecordSerializer =
-			(TypeSerializer) new StreamElementSerializer<>(inputSerializer);
-
-		if (priorityQueueOperatorState == null) {
-			priorityQueueOperatorState = getRuntimeContext().getState(
-				new ValueStateDescriptor<>(
-					PRIORITY_QUEUE_STATE_NAME,
-					new PriorityQueueSerializer<>(
-						streamRecordSerializer,
-						new PriorityQueueStreamRecordFactory<IN>()
+		if (elementQueueState == null) {
+			elementQueueState = getRuntimeContext().getMapState(
+					new MapStateDescriptor<>(
+							EVENT_QUEUE_STATE_NAME,
+							LongSerializer.INSTANCE,
+							new ListSerializer<>(inputSerializer)
 					)
-				)
 			);
 		}
 	}
@@ -171,25 +172,32 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 		} else {
 
+			long timestamp = element.getTimestamp();
+			IN value = element.getValue();
+
 			// In event-time processing we assume correctness of the watermark.
 			// Events with timestamp smaller than the last seen watermark are considered late.
 			// Late events are put in a dedicated side output, if the user has specified one.
 
-			if (element.getTimestamp() >= lastWatermark) {
+			if (timestamp >= lastWatermark) {
 
 				// we have an event with a valid timestamp, so
 				// we buffer it until we receive the proper watermark.
 
 				saveRegisterWatermarkTimer();
 
-				PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
+				List<IN> elementsForTimestamp =  elementQueueState.get(timestamp);
+				if (elementsForTimestamp == null) {
+					elementsForTimestamp = new ArrayList<>();
+				}
+
 				if (getExecutionConfig().isObjectReuseEnabled()) {
 					// copy the StreamRecord so that it cannot be changed
-					priorityQueue.offer(new StreamRecord<>(inputSerializer.copy(element.getValue()), element.getTimestamp()));
+					elementsForTimestamp.add(inputSerializer.copy(value));
 				} else {
-					priorityQueue.offer(element);
+					elementsForTimestamp.add(element.getValue());
 				}
-				updatePriorityQueue(priorityQueue);
+				elementQueueState.put(timestamp, elementsForTimestamp);
 			}
 		}
 	}
@@ -218,23 +226,28 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		// 5) update the last seen watermark.
 
 		// STEP 1
-		PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
+		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
 		NFA<IN> nfa = getNFA();
 
 		// STEP 2
-		while (!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= timerService.currentWatermark()) {
-			StreamRecord<IN> streamRecord = priorityQueue.poll();
-			processEvent(nfa, streamRecord.getValue(), streamRecord.getTimestamp());
+		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
+			long timestamp = sortedTimestamps.poll();
+			for (IN element: elementQueueState.get(timestamp)) {
+				processEvent(nfa, element, timestamp);
+			}
+			elementQueueState.remove(timestamp);
 		}
 
 		// STEP 3
 		advanceTime(nfa, timerService.currentWatermark());
 
 		// STEP 4
-		updatePriorityQueue(priorityQueue);
+		if (sortedTimestamps.isEmpty()) {
+			elementQueueState.clear();
+		}
 		updateNFA(nfa);
 
-		if (!priorityQueue.isEmpty() || !nfa.isEmpty()) {
+		if (!sortedTimestamps.isEmpty() || !nfa.isEmpty()) {
 			saveRegisterWatermarkTimer();
 		}
 
@@ -264,17 +277,12 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		}
 	}
 
-	private PriorityQueue<StreamRecord<IN>> getPriorityQueue() throws IOException {
-		PriorityQueue<StreamRecord<IN>> priorityQueue = priorityQueueOperatorState.value();
-		return priorityQueue != null ? priorityQueue : priorityQueueFactory.createPriorityQueue();
-	}
-
-	private void updatePriorityQueue(PriorityQueue<StreamRecord<IN>> queue) throws IOException {
-		if (queue.isEmpty()) {
-			priorityQueueOperatorState.clear();
-		} else {
-			priorityQueueOperatorState.update(queue);
+	private PriorityQueue<Long> getSortedTimestamps() throws Exception {
+		PriorityQueue<Long> sortedTimestamps = new PriorityQueue<>();
+		for (Long timestamp: elementQueueState.keys()) {
+			sortedTimestamps.offer(timestamp);
 		}
+		return sortedTimestamps;
 	}
 
 	/**
@@ -318,6 +326,18 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		ValueState<NFA<IN>> oldNfaOperatorState = getRuntimeContext().getState(
 				new ValueStateDescriptor<>("nfaOperatorState", new NFA.Serializer<IN>()));
 
+		ValueState<PriorityQueue<StreamRecord<IN>>> oldPriorityQueueOperatorState =
+				getRuntimeContext().getState(
+					new ValueStateDescriptor<>(
+							"priorityQueueStateName",
+							new PriorityQueueSerializer<>(
+									((TypeSerializer) new StreamElementSerializer<>(inputSerializer)),
+									new PriorityQueueStreamRecordFactory<IN>()
+							)
+					)
+			);
+
+
 		if (migratingFromOldKeyedOperator) {
 			int numberEntries = inputView.readInt();
 			for (int i = 0; i < numberEntries; i++) {
@@ -328,6 +348,30 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 				NFA<IN> nfa = oldNfaOperatorState.value();
 				oldNfaOperatorState.clear();
 				nfaOperatorState.update(nfa);
+
+				PriorityQueue<StreamRecord<IN>> priorityQueue = oldPriorityQueueOperatorState.value();
+				if (priorityQueue != null && !priorityQueue.isEmpty()) {
+					Map<Long, List<IN>> elementMap = new HashMap<>();
+					for (StreamRecord<IN> record: priorityQueue) {
+						long timestamp = record.getTimestamp();
+						IN element = record.getValue();
+
+						List<IN> elements = elementMap.get(timestamp);
+						if (elements == null) {
+							elements = new ArrayList<>();
+							elementMap.put(timestamp, elements);
+						}
+						elements.add(element);
+					}
+
+					// write the old state into the new one.
+					for (Map.Entry<Long, List<IN>> entry: elementMap.entrySet()) {
+						elementQueueState.put(entry.getKey(), entry.getValue());
+					}
+
+					// clear the old state
+					oldPriorityQueueOperatorState.clear();
+				}
 			}
 		} else {
 
@@ -339,22 +383,35 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 			// retrieve the elements that were pending in the priority queue
 			MultiplexingStreamRecordSerializer<IN> recordSerializer = new MultiplexingStreamRecordSerializer<>(inputSerializer);
-			PriorityQueue<StreamRecord<IN>> priorityQueue = priorityQueueFactory.createPriorityQueue();
+
+			Map<Long, List<IN>> elementMap = new HashMap<>();
 			int entries = ois.readInt();
 			for (int i = 0; i < entries; i++) {
 				StreamElement streamElement = recordSerializer.deserialize(inputView);
-				priorityQueue.offer(streamElement.<IN>asRecord());
+				StreamRecord<IN> record = streamElement.<IN>asRecord();
+
+				long timestamp = record.getTimestamp();
+				IN element = record.getValue();
+
+				List<IN> elements = elementMap.get(timestamp);
+				if (elements == null) {
+					elements = new ArrayList<>();
+					elementMap.put(timestamp, elements);
+				}
+				elements.add(element);
 			}
 
 			// finally register the retrieved state with the new keyed state.
 			setCurrentKey((byte) 0);
 			nfaOperatorState.update(nfa);
-			priorityQueueOperatorState.update(priorityQueue);
+
+			// write the priority queue to the new map state.
+			for (Map.Entry<Long, List<IN>> entry: elementMap.entrySet()) {
+				elementQueueState.put(entry.getKey(), entry.getValue());
+			}
 
 			if (!isProcessingTime) {
 				// this is relevant only for event/ingestion time
-
-				// need to work around type restrictions
 				setCurrentKey((byte) 0);
 				saveRegisterWatermarkTimer();
 			}
@@ -546,15 +603,18 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	}
 
 	@VisibleForTesting
-	public boolean hasNonEmptyPQ(KEY key) throws IOException {
+	public boolean hasNonEmptyPQ(KEY key) throws Exception {
 		setCurrentKey(key);
-		return priorityQueueOperatorState.value() != null;
+		return elementQueueState.keys().iterator().hasNext();
 	}
 
 	@VisibleForTesting
-	public int getPQSize(KEY key) throws IOException {
+	public int getPQSize(KEY key) throws Exception {
 		setCurrentKey(key);
-		PriorityQueue<StreamRecord<IN>> pq = getPriorityQueue();
-		return pq == null ? -1 : pq.size();
+		int counter = 0;
+		for (List<IN> elements: elementQueueState.values()) {
+			counter += elements.size();
+		}
+		return counter;
 	}
 }

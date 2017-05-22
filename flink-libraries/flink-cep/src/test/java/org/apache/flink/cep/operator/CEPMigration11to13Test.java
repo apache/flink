@@ -87,6 +87,9 @@ public class CEPMigration11to13Test {
 		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
 		harness.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3));
 		harness.processWatermark(new Watermark(2));
+
+		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
+
 		// simulate snapshot/restore with empty element queue but NFA state
 		StreamTaskState snapshot = harness.snapshot(1, 1);
 		FileOutputStream out = new FileOutputStream(
@@ -112,7 +115,6 @@ public class CEPMigration11to13Test {
 		harness.initializeStateFromLegacyCheckpoint(getResourceFilename("cep-keyed-1_1-snapshot"));
 		harness.open();
 
-		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
 		harness.processElement(new StreamRecord<>(new Event(42, "start", 1.0), 4));
 		harness.processElement(new StreamRecord<>(endEvent, 5));
 
@@ -206,6 +208,8 @@ public class CEPMigration11to13Test {
 		harness.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3));
 		harness.processWatermark(new Watermark(2));
 
+		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
+
 		// simulate snapshot/restore with empty element queue but NFA state
 		StreamTaskState snapshot = harness.snapshot(1, 1);
 		FileOutputStream out = new FileOutputStream(
@@ -233,7 +237,6 @@ public class CEPMigration11to13Test {
 		harness.initializeStateFromLegacyCheckpoint(getResourceFilename("cep-non-keyed-1.1-snapshot"));
 		harness.open();
 
-		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
 		harness.processElement(new StreamRecord<>(new Event(42, "start", 1.0), 4));
 		harness.processElement(new StreamRecord<>(endEvent, 5));
 

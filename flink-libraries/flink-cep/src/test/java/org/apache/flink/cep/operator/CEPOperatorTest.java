@@ -43,7 +43,6 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -140,8 +139,6 @@ public class CEPOperatorTest extends TestLogger {
 	}
 
 	@Test
-	@Ignore
-	// TODO: 5/19/17 Re-instate when checkpoints are fixed
 	public void testKeyedCEPOperatorCheckpointingWithRocksDB() throws Exception {
 
 		String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
@@ -306,11 +303,11 @@ public class CEPOperatorTest extends TestLogger {
 
 		harness.processWatermark(new Watermark(Long.MIN_VALUE));
 
-		harness.processElement(new StreamRecord<>(startEvent1, 1L));
-		harness.processElement(new StreamRecord<>(startEventK2, 1L));
 		harness.processElement(new StreamRecord<>(new Event(42, "foobar", 1.0), 2L));
 		harness.processElement(new StreamRecord<Event>(middleEvent1, 2L));
 		harness.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3L));
+		harness.processElement(new StreamRecord<>(startEvent1, 1L));
+		harness.processElement(new StreamRecord<>(startEventK2, 1L));
 
 		// there must be 2 keys 42, 43 registered for the watermark callback
 		// all the seen elements must be in the priority queues but no NFA yet.
@@ -404,13 +401,13 @@ public class CEPOperatorTest extends TestLogger {
 
 		harness.processWatermark(new Watermark(Long.MIN_VALUE));
 
-		harness.processElement(new StreamRecord<>(startEvent, 1));
-		harness.processElement(new StreamRecord<>(middle1Event1, 3));
-		harness.processElement(new StreamRecord<>(middle1Event1, 3)); // this and the following get reordered
-		harness.processElement(new StreamRecord<>(middle1Event2, 3));
-		harness.processElement(new StreamRecord<>(new Event(41, "d", 6.0), 5));
 		harness.processElement(new StreamRecord<>(middle2Event1, 6));
 		harness.processElement(new StreamRecord<>(middle1Event3, 7));
+		harness.processElement(new StreamRecord<>(startEvent, 1));
+		harness.processElement(new StreamRecord<>(middle1Event1, 3));
+		harness.processElement(new StreamRecord<>(middle1Event2, 3));
+		harness.processElement(new StreamRecord<>(middle1Event1, 3));
+		harness.processElement(new StreamRecord<>(new Event(41, "d", 6.0), 5));
 
 		assertEquals(1L, harness.numEventTimeTimers());
 		assertEquals(7L, operator.getPQSize(41));
@@ -554,8 +551,6 @@ public class CEPOperatorTest extends TestLogger {
 	}
 
 	@Test
-	@Ignore
-	// TODO: 5/19/17 Re-instate when checkpoints are fixed
 	public void testCEPOperatorSerializationWRocksDB() throws Exception {
 		String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
 		RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
@@ -626,13 +621,13 @@ public class CEPOperatorTest extends TestLogger {
 		harness.processElement(new StreamRecord<>(startEvent1, 1));
 		harness.processElement(new StreamRecord<Event>(middleEvent1, 2));
 		harness.processWatermark(2L);
+		harness.processElement(new StreamRecord<Event>(middleEvent3, 5));
 		harness.processElement(new StreamRecord<Event>(middleEvent2, 3));
 		harness.processElement(new StreamRecord<>(startEvent2, 4));
-		harness.processElement(new StreamRecord<Event>(middleEvent3, 5));
 		harness.processWatermark(5L);
-		harness.processElement(new StreamRecord<Event>(middleEvent4, 5));
 		harness.processElement(new StreamRecord<>(nextOne, 6));
 		harness.processElement(new StreamRecord<>(endEvent, 8));
+		harness.processElement(new StreamRecord<Event>(middleEvent4, 5));
 		harness.processWatermark(100L);
 
 		List<List<Event>> resultingPatterns = new ArrayList<>();
