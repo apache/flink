@@ -116,9 +116,9 @@ class DataStreamOverAggregate(
 
     val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
-    val consumeRetraction = DataStreamRetractionRules.isAccRetract(input)
+    val inputIsAccRetract = DataStreamRetractionRules.isAccRetract(input)
 
-    if (consumeRetraction) {
+    if (inputIsAccRetract) {
       throw new TableException(
         "Retraction on Over window aggregation is not supported yet. " +
         "Note: Over window aggregation should not follow a non-windowed GroupBy aggregation.")
