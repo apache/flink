@@ -29,11 +29,9 @@ import org.apache.flink.types.{Either => FEither}
 import org.apache.flink.api.java.tuple.{Tuple2 => FTuple2}
 import java.lang.{Long => JLong}
 
+
 import org.apache.flink.cep.operator.CEPOperatorUtils
 import org.apache.flink.cep.scala.pattern.Pattern
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 /**
   * Stream abstraction for CEP pattern detection. A pattern stream is a stream which emits detected
@@ -199,14 +197,12 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
     * @tparam R Type of the resulting elements
     * @return [[DataStream]] which contains the resulting elements from the pattern select function.
     */
-  def select[R: TypeInformation](
-    patternSelectFun: mutable.Map[String, JList[T]] => R)
-  : DataStream[R] = {
+  def select[R: TypeInformation](patternSelectFun: Map[String, Iterable[T]] => R): DataStream[R] = {
     val cleanFun = cleanClosure(patternSelectFun)
 
     val patternSelectFunction: PatternSelectFunction[T, R] = new PatternSelectFunction[T, R] {
 
-      def select(in: JMap[String, JList[T]]): R = cleanFun(in.asScala)
+      def select(in: JMap[String, JList[T]]): R = cleanFun(mapToScala(in))
     }
     select(patternSelectFunction)
   }
@@ -232,20 +228,20 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
     *         events.
     */
   def select[L: TypeInformation, R: TypeInformation](
-      patternTimeoutFunction: (mutable.Map[String, JList[T]], Long) => L) (
-      patternSelectFunction: mutable.Map[String, JList[T]] => R)
+      patternTimeoutFunction: (Map[String, Iterable[T]], Long) => L) (
+      patternSelectFunction: Map[String, Iterable[T]] => R)
     : DataStream[Either[L, R]] = {
 
     val cleanSelectFun = cleanClosure(patternSelectFunction)
     val cleanTimeoutFun = cleanClosure(patternTimeoutFunction)
 
     val patternSelectFun = new PatternSelectFunction[T, R] {
-      override def select(pattern: JMap[String, JList[T]]): R = cleanSelectFun(pattern.asScala)
+      override def select(pattern: JMap[String, JList[T]]): R =
+        cleanSelectFun(mapToScala(pattern))
     }
     val patternTimeoutFun = new PatternTimeoutFunction[T, L] {
-      override def timeout(pattern: JMap[String, JList[T]], timeoutTimestamp: Long): L = {
-        cleanTimeoutFun(pattern.asScala, timeoutTimestamp)
-      }
+      override def timeout(pattern: JMap[String, JList[T]], timeoutTimestamp: Long): L =
+        cleanTimeoutFun(mapToScala(pattern), timeoutTimestamp)
     }
 
     select(patternTimeoutFun, patternSelectFun)
@@ -262,7 +258,7 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
     * @return [[DataStream]] which contains the resulting elements from the pattern flat select
     *         function.
     */
-  def flatSelect[R: TypeInformation](patternFlatSelectFun: (mutable.Map[String, JList[T]],
+  def flatSelect[R: TypeInformation](patternFlatSelectFun: (Map[String, Iterable[T]],
     Collector[R]) => Unit): DataStream[R] = {
     val cleanFun = cleanClosure(patternFlatSelectFun)
 
@@ -270,7 +266,8 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
       new PatternFlatSelectFunction[T, R] {
 
         def flatSelect(pattern: JMap[String, JList[T]], out: Collector[R]): Unit =
-          cleanFun(pattern.asScala, out)
+          cleanFun(mapToScala(pattern), out)
+
       }
     flatSelect(patternFlatSelectFunction)
   }
@@ -296,17 +293,16 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
     *         timeout events wrapped in a [[Either]] type.
     */
   def flatSelect[L: TypeInformation, R: TypeInformation](
-      patternFlatTimeoutFunction: (mutable.Map[String, JList[T]], Long, Collector[L]) => Unit) (
-      patternFlatSelectFunction: (mutable.Map[String, JList[T]], Collector[R]) => Unit)
+      patternFlatTimeoutFunction: (Map[String, Iterable[T]], Long, Collector[L]) => Unit) (
+      patternFlatSelectFunction: (Map[String, Iterable[T]], Collector[R]) => Unit)
     : DataStream[Either[L, R]] = {
 
     val cleanSelectFun = cleanClosure(patternFlatSelectFunction)
     val cleanTimeoutFun = cleanClosure(patternFlatTimeoutFunction)
 
     val patternFlatSelectFun = new PatternFlatSelectFunction[T, R] {
-      override def flatSelect(pattern: JMap[String, JList[T]], out: Collector[R]): Unit = {
-        cleanSelectFun(pattern.asScala, out)
-      }
+      override def flatSelect(pattern: JMap[String, JList[T]], out: Collector[R]): Unit =
+        cleanSelectFun(mapToScala(pattern), out)
     }
 
     val patternFlatTimeoutFun = new PatternFlatTimeoutFunction[T, L] {
@@ -314,7 +310,77 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
         pattern: JMap[String, JList[T]],
         timeoutTimestamp: Long, out: Collector[L])
       : Unit = {
-        cleanTimeoutFun(pattern.asScala, timeoutTimestamp, out)
+        cleanTimeoutFun(mapToScala(pattern), timeoutTimestamp, out)
+      }
+    }
+
+    flatSelect(patternFlatTimeoutFun, patternFlatSelectFun)
+  }
+
+  /**
+    * Applies a flat select function to the detected pattern sequence. For each pattern sequence
+    * the provided [[PatternFlatSelectFunction]] is called. The pattern flat select function
+    * can produce an arbitrary number of resulting elements.
+    *
+    * @param patternFlatSelectFun The pattern flat select function which is called for each
+    *                             detected pattern sequence.
+    * @tparam R Type of the resulting elements
+    * @return [[DataStream]] which contains the resulting elements from the pattern flat select
+    *         function.
+    */
+  def flatSelect[R: TypeInformation](patternFlatSelectFun: (Map[String, Iterable[T]]) =>
+      TraversableOnce[R]): DataStream[R] = {
+    val cleanFun = cleanClosure(patternFlatSelectFun)
+
+    val patternFlatSelectFunction: PatternFlatSelectFunction[T, R] =
+      new PatternFlatSelectFunction[T, R] {
+
+        def flatSelect(pattern: JMap[String, JList[T]], out: Collector[R]): Unit =
+          cleanFun(mapToScala(pattern)).foreach(out.collect)
+
+      }
+    flatSelect(patternFlatSelectFunction)
+  }
+
+  /**
+    * Applies a flat select function to the detected pattern sequence. For each pattern sequence
+    * the provided [[PatternFlatSelectFunction]] is called. The pattern flat select function can
+    * produce an arbitrary number of resulting elements.
+    *
+    * Additionally a timeout function is applied to partial event patterns which have timed out. For
+    * each partial pattern sequence the provided [[PatternFlatTimeoutFunction]] is called. The
+    * pattern timeout function can produce an arbitrary number of resulting timeout events.
+    *
+    * The resulting event and the resulting timeout event are wrapped in an [[Either]] instance.
+    *
+    * @param patternFlatTimeoutFunction The pattern flat timeout function which is called for each
+    *                                   partially matched pattern sequence which has timed out.
+    * @param patternFlatSelectFunction  The pattern flat select function which is called for each
+    *                                   detected pattern sequence.
+    * @tparam L Type of the resulting timeout event
+    * @tparam R Type of the resulting event
+    * @return Data stream of either type which contains the resulting events and the resulting
+    *         timeout events wrapped in a [[Either]] type.
+    */
+  def flatSelect[L: TypeInformation, R: TypeInformation](
+    patternFlatTimeoutFunction: (Map[String, Iterable[T]], Long) => TraversableOnce[L]) (
+    patternFlatSelectFunction: (Map[String, Iterable[T]]) => TraversableOnce[R])
+  : DataStream[Either[L, R]] = {
+
+    val cleanSelectFun = cleanClosure(patternFlatSelectFunction)
+    val cleanTimeoutFun = cleanClosure(patternFlatTimeoutFunction)
+
+    val patternFlatSelectFun = new PatternFlatSelectFunction[T, R] {
+      override def flatSelect(pattern: JMap[String, JList[T]], out: Collector[R]): Unit =
+        cleanSelectFun(mapToScala(pattern)).foreach(out.collect)
+    }
+
+    val patternFlatTimeoutFun = new PatternFlatTimeoutFunction[T, L] {
+      override def timeout(
+        pattern: JMap[String, JList[T]],
+        timeoutTimestamp: Long, out: Collector[L])
+      : Unit = {
+        cleanTimeoutFun(mapToScala(pattern), timeoutTimestamp).foreach(out.collect)
       }
     }
 
@@ -332,4 +398,5 @@ object PatternStream {
   def apply[T](jPatternStream: JPatternStream[T]) = {
     new PatternStream[T](jPatternStream)
   }
+
 }
