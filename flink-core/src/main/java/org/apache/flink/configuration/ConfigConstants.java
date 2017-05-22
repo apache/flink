@@ -708,82 +708,130 @@ public final class ConfigConstants {
 
 	/**
 	 * Timeout for the startup of the actor system
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_STARTUP_TIMEOUT} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_STARTUP_TIMEOUT = "akka.startup-timeout";
 
 	/**
 	 * Heartbeat interval of the transport failure detector
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_TRANSPORT_HEARTBEAT_INTERVAL} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_TRANSPORT_HEARTBEAT_INTERVAL = "akka.transport.heartbeat.interval";
 
 	/**
 	 * Allowed heartbeat pause for the transport failure detector
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_TRANSPORT_HEARTBEAT_PAUSE} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_TRANSPORT_HEARTBEAT_PAUSE = "akka.transport.heartbeat.pause";
 
 	/**
 	 * Detection threshold of transport failure detector
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_TRANSPORT_THRESHOLD} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_TRANSPORT_THRESHOLD = "akka.transport.threshold";
 
 	/**
 	 * Heartbeat interval of watch failure detector
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_WATCH_HEARTBEAT_INTERVAL} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_WATCH_HEARTBEAT_INTERVAL = "akka.watch.heartbeat.interval";
 
 	/**
 	 * Allowed heartbeat pause for the watch failure detector
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_WATCH_HEARTBEAT_PAUSE} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_WATCH_HEARTBEAT_PAUSE = "akka.watch.heartbeat.pause";
 
 	/**
 	 * Detection threshold for the phi accrual watch failure detector
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_WATCH_THRESHOLD} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_WATCH_THRESHOLD = "akka.watch.threshold";
 
 	/**
 	 * Akka TCP timeout
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_TCP_TIMEOUT} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_TCP_TIMEOUT = "akka.tcp.timeout";
 
 	/**
 	 * Override SSL support for the Akka transport
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_SSL_ENABLED} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_SSL_ENABLED = "akka.ssl.enabled";
 
 	/**
 	 * Maximum framesize of akka messages
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_FRAMESIZE} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_FRAMESIZE = "akka.framesize";
 
 	/**
 	 * Maximum number of messages until another actor is executed by the same thread
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_DISPATCHER_THROUGHPUT} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_DISPATCHER_THROUGHPUT = "akka.throughput";
 
 	/**
 	 * Log lifecycle events
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_LOG_LIFECYCLE_EVENTS} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_LOG_LIFECYCLE_EVENTS = "akka.log.lifecycle.events";
 
 	/**
 	 * Timeout for all blocking calls on the cluster side
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_ASK_TIMEOUT} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_ASK_TIMEOUT = "akka.ask.timeout";
 
 	/**
 	 * Timeout for all blocking calls that look up remote actors
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_LOOKUP_TIMEOUT} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_LOOKUP_TIMEOUT = "akka.lookup.timeout";
 
 	/**
 	 * Timeout for all blocking calls on the client side
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_CLIENT_TIMEOUT} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_CLIENT_TIMEOUT = "akka.client.timeout";
 
 	/**
 	 * Exit JVM on fatal Akka errors
+	 *
+	 * @deprecated Use {@link AkkaOptions#AKKA_JVM_EXIT_ON_FATAL_ERROR} instead.
 	 */
+	@Deprecated
 	public static final String AKKA_JVM_EXIT_ON_FATAL_ERROR = "akka.jvm-exit-on-fatal-error";
 	
 	// ----------------------------- Transport SSL Settings--------------------
@@ -1425,26 +1473,70 @@ public final class ConfigConstants {
 
 	// ------------------------------ Akka Values ------------------------------
 
+	/**
+	 * @deprecated Use {@link AkkaOptions#AKKA_TRANSPORT_HEARTBEAT_INTERVAL} instead.
+	 */
+	@Deprecated
 	public static String DEFAULT_AKKA_TRANSPORT_HEARTBEAT_INTERVAL = "1000 s";
 
+	/**
+	 * @deprecated Use {@link AkkaOptions#AKKA_TRANSPORT_HEARTBEAT_PAUSE} instead.
+	 */
+	@Deprecated
 	public static String DEFAULT_AKKA_TRANSPORT_HEARTBEAT_PAUSE = "6000 s";
 
+	/**
+	 * @deprecated Use {@link AkkaOptions#AKKA_TRANSPORT_THRESHOLD} instead.
+	 */
+	@Deprecated
 	public static double DEFAULT_AKKA_TRANSPORT_THRESHOLD = 300.0;
 
+	/**
+	 * @deprecated Use {@link AkkaOptions#AKKA_WATCH_THRESHOLD} instead.
+	 */
+	@Deprecated
 	public static double DEFAULT_AKKA_WATCH_THRESHOLD = 12;
 
+	/**
+	 * @deprecated Use {@link AkkaOptions#AKKA_DISPATCHER_THROUGHPUT} instead.
+	 */
+	@Deprecated
 	public static int DEFAULT_AKKA_DISPATCHER_THROUGHPUT = 15;
 
+	/**
+	 * @deprecated Use {@link AkkaOptions#AKKA_LOG_LIFECYCLE_EVENTS} instead.
+	 */
+	@Deprecated
 	public static boolean DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS = false;
 
+	/**
+	 * @deprecated Use {@link AkkaOptions#AKKA_FRAMESIZE} instead.
+	 */
+	@Deprecated
 	public static String DEFAULT_AKKA_FRAMESIZE = "10485760b";
 
+	/**
+	 * @deprecated Use {@link AkkaOptions#AKKA_ASK_TIMEOUT} instead.
+	 */
+	@Deprecated
 	public static String DEFAULT_AKKA_ASK_TIMEOUT = "10 s";
 
+	/**
+	 * @deprecated Use {@link AkkaOptions#AKKA_LOOKUP_TIMEOUT} instead.
+	 */
+	@Deprecated
 	public static String DEFAULT_AKKA_LOOKUP_TIMEOUT = "10 s";
 
+	/**
+	 * @deprecated Use {@link AkkaOptions#AKKA_CLIENT_TIMEOUT} instead.
+	 */
+	@Deprecated
 	public static String DEFAULT_AKKA_CLIENT_TIMEOUT = "60 s";
 
+	/**
+	 * @deprecated Use {@link AkkaOptions#AKKA_SSL_ENABLED} instead.
+	 */
+	@Deprecated
 	public static boolean DEFAULT_AKKA_SSL_ENABLED = true;
 
 	// ----------------------------- SSL Values --------------------------------
