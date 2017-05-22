@@ -24,7 +24,7 @@ under the License.
 -->
 
 This connector provides a Sink that writes partitioned files to any filesystem supported by
-Hadoop FileSystem. To use this connector, add the
+[Hadoop FileSystem](http://hadoop.apache.org). To use this connector, add the
 following dependency to your project:
 
 {% highlight xml %}
