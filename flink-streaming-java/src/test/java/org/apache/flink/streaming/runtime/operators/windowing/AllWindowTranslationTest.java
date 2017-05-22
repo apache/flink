@@ -1245,7 +1245,6 @@ public class AllWindowTranslationTest {
 
 	}
 
-
 	@Test
 	@SuppressWarnings("rawtypes")
 	public void testReduceWithCustomTrigger() throws Exception {

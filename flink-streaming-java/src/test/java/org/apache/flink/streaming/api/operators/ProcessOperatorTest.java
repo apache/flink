@@ -93,6 +93,7 @@ public class ProcessOperatorTest extends TestLogger {
 
 		testHarness.close();
 	}
+
 	private static class QueryingProcessFunction extends ProcessFunction<Integer, String> {
 
 		private static final long serialVersionUID = 1L;

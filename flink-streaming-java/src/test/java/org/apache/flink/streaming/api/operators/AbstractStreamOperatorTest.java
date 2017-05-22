@@ -422,7 +422,6 @@ public class AbstractStreamOperatorTest {
 				2, /* num subtasks */
 				1 /* subtask index */);
 
-
 		testHarness2.setup();
 		testHarness2.open();
 

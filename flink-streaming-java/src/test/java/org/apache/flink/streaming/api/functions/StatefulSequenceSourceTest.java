@@ -229,7 +229,6 @@ public class StatefulSequenceSourceTest {
 			}
 		}
 
-
 		@Override
 		public void emitWatermark(Watermark mark) {
 			throw new UnsupportedOperationException();

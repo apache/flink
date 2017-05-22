@@ -223,7 +223,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
 			testHarness.close();
 
-
 			op = new AccumulatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
 					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1500, 1000);
 
@@ -281,7 +280,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				testHarness.setProcessingTime(currentTime);
 			}
 
-
 			List<Integer> result = extractFromStreamRecords(testHarness.extractOutputStreamRecords());
 			assertEquals(numElements, result.size());
 
@@ -324,7 +322,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				currentTime = currentTime + 10;
 				testHarness.setProcessingTime(currentTime);
 			}
-
 
 			List<Integer> result = extractFromStreamRecords(testHarness.extractOutputStreamRecords());
 			assertEquals(numElements, result.size());
@@ -479,7 +476,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 			testHarness.setProcessingTime(200);
 
-
 			List<Integer> result = extractFromStreamRecords(testHarness.extractOutputStreamRecords());
 			assertEquals(6, result.size());
 
@@ -526,7 +522,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			testHarness.processElement(new StreamRecord<>(6));
 
 			testHarness.setProcessingTime(200);
-
 
 			List<Integer> result = extractFromStreamRecords(testHarness.extractOutputStreamRecords());
 			assertEquals(6, result.size());
@@ -840,7 +835,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			testHarness.restore(state);
 			testHarness.open();
 
-
 			// inject again the remaining elements
 			for (int i = numElementsFirst; i < numElements; i++) {
 				testHarness.processElement(new StreamRecord<>(i));
@@ -931,7 +925,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			testHarness.setup();
 			testHarness.restore(state);
 			testHarness.open();
-
 
 			// inject again the remaining elements
 			for (int i = numElementsFirst; i < numElements; i++) {

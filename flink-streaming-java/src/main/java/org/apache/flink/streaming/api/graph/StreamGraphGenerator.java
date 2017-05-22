@@ -267,7 +267,6 @@ public class StreamGraphGenerator {
 			streamGraph.addOutputSelector(inputId, split.getOutputSelector());
 		}
 
-
 		return resultIds;
 	}
 
@@ -281,7 +280,6 @@ public class StreamGraphGenerator {
 	private <T> Collection<Integer> transformSelect(SelectTransformation<T> select) {
 		StreamTransformation<T> input = select.getInput();
 		Collection<Integer> resultIds = transform(input);
-
 
 		// the recursive transform might have already transformed this
 		if (alreadyTransformed.containsKey(select)) {
@@ -309,7 +307,6 @@ public class StreamGraphGenerator {
 	private <T> Collection<Integer> transformSideOutput(SideOutputTransformation<T> sideOutput) {
 		StreamTransformation<?> input = sideOutput.getInput();
 		Collection<Integer> resultIds = transform(input);
-
 
 		// the recursive transform might have already transformed this
 		if (alreadyTransformed.containsKey(sideOutput)) {
@@ -511,7 +508,6 @@ public class StreamGraphGenerator {
 			);
 		}
 
-
 		if (sink.getStateKeySelector() != null) {
 			TypeSerializer<?> keySerializer = sink.getStateKeyType().createSerializer(env.getConfig());
 			streamGraph.setOneInputStateKey(sink.getId(), sink.getStateKeySelector(), keySerializer);
@@ -594,7 +590,6 @@ public class StreamGraphGenerator {
 			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
 			streamGraph.setTwoInputStateKey(transform.getId(), transform.getStateKeySelector1(), transform.getStateKeySelector2(), keySerializer);
 		}
-
 
 		streamGraph.setParallelism(transform.getId(), transform.getParallelism());
 		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());

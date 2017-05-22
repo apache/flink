@@ -225,7 +225,6 @@ public class KeyMapTest {
 				nextKeyValue += keyRnd.nextInt(maxStride) + 1;
 			}
 
-
 			// check that all maps contain the total number of elements
 			int numContained = 0;
 			for (KeyMap<?, ?> map : maps) {

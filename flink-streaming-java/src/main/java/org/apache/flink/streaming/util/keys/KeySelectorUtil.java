@@ -90,7 +90,6 @@ public final class KeySelectorUtil {
 		return new ArrayKeySelector<>(positions, new TupleTypeInfo<>(primitiveInfos));
 	}
 
-
 	public static <X, K> KeySelector<X, K> getSelectorForOneKey(
 			Keys<X> keys, Partitioner<K> partitioner, TypeInformation<X> typeInfo, ExecutionConfig executionConfig) {
 		if (!(typeInfo instanceof CompositeType)) {

@@ -55,7 +55,6 @@ public class SpilledBufferOrEventSequenceTest {
 	private File tempFile;
 	private FileChannel fileChannel;
 
-
 	@Before
 	public void initTempChannel() {
 		try {

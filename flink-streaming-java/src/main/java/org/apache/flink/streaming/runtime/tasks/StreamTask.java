@@ -835,7 +835,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-
 	@Override
 	public String toString() {
 		return getName();

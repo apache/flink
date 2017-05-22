@@ -434,7 +434,6 @@ public class StreamingJobGraphGenerator {
 			}
 		}
 
-
 		config.setStreamOperator(vertex.getOperator());
 		config.setOutputSelectors(vertex.getOutputSelectors());
 

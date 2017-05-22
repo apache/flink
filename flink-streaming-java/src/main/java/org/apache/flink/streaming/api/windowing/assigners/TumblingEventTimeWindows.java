@@ -58,6 +58,7 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 		this.size = size;
 		this.offset = offset;
 	}
+
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		if (timestamp > Long.MIN_VALUE) {

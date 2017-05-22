@@ -83,7 +83,6 @@ public class StreamRecordMatchers {
 		return isWindowedValue(Matchers.equalTo(value), Matchers.equalTo(timestamp), Matchers.equalTo(window));
 	}
 
-
 	public static <T, W extends Window> Matcher<StreamRecord<? extends WindowedValue<? extends T, ? extends W>>> isWindowedValue(
 		Matcher<? super T> valueMatcher, long timestamp) {
 		return new WindowedValueMatcher<>(valueMatcher, Matchers.equalTo(timestamp), Matchers.anything());
@@ -94,12 +93,10 @@ public class StreamRecordMatchers {
 		return new WindowedValueMatcher<>(valueMatcher, Matchers.equalTo(timestamp), Matchers.equalTo(window));
 	}
 
-
 	public static <T, W extends Window> Matcher<StreamRecord<? extends WindowedValue<? extends T, ? extends W>>> isWindowedValue(
 		Matcher<? super T> valueMatcher) {
 		return new WindowedValueMatcher<>(valueMatcher, Matchers.anything(), Matchers.anything());
 	}
-
 
 	public static <T, W extends Window> Matcher<StreamRecord<? extends WindowedValue<? extends T, ? extends W>>> isWindowedValue(
 		Matcher<? super T> valueMatcher, Matcher<? super Long> timestampMatcher) {
@@ -115,7 +112,6 @@ public class StreamRecordMatchers {
 		Matcher<? super T> valueMatcher, Matcher<? super Long> timestampMatcher, Matcher<? super W> windowMatcher) {
 		return new WindowedValueMatcher<>(valueMatcher, timestampMatcher, windowMatcher);
 	}
-
 
 	private StreamRecordMatchers() {
 	}
@@ -152,7 +148,6 @@ public class StreamRecordMatchers {
 		private Matcher<? super T> valueMatcher;
 		private Matcher<? super Long> timestampMatcher;
 		private Matcher<? super W> windowMatcher;
-
 
 		private WindowedValueMatcher(
 			Matcher<? super T> valueMatcher,

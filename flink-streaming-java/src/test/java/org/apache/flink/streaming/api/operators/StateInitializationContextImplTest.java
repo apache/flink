@@ -71,7 +71,6 @@ public class StateInitializationContextImplTest {
 	@Before
 	public void setUp() throws Exception {
 
-
 		this.writtenKeyGroups = 0;
 		this.writtenOperatorStates = new HashSet<>();
 
@@ -207,7 +206,6 @@ public class StateInitializationContextImplTest {
 		int count = 0;
 		int stopCount = NUM_HANDLES / 2;
 		boolean isClosed = false;
-
 
 		try {
 			for (KeyGroupStatePartitionStreamProvider stateStreamProvider

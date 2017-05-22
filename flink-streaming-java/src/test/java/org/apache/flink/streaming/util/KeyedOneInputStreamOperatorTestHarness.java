@@ -85,7 +85,6 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 		setupMockTaskCreateKeyedBackend();
 	}
 
-
 	public KeyedOneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			final KeySelector<IN, K> keySelector,
@@ -181,7 +180,6 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 			}
 		}
 	}
-
 
 	private static boolean hasMigrationHandles(Collection<KeyedStateHandle> allKeyGroupsHandles) {
 		for (KeyedStateHandle handle : allKeyGroupsHandles) {

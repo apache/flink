@@ -151,7 +151,6 @@ public class SlotAllocationTest extends TestLogger {
 		assertNotEquals(vertices.get(1).getSlotSharingGroup(), vertices.get(2).getSlotSharingGroup());
 	}
 
-
 	@Test
 	public void testCoOperation() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

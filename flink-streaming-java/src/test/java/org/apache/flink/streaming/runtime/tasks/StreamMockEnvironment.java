@@ -185,7 +185,6 @@ public class StreamMockEnvironment implements Environment {
 				}
 			}).when(mockWriter).writeBufferToAllChannels(any(Buffer.class));
 
-
 			outputs.add(mockWriter);
 		}
 		catch (Throwable t) {

@@ -122,7 +122,6 @@ public class TwoInputStreamTaskTest {
 
 		testHarness.processElement(new Watermark(initialTime), 1, 0);
 
-
 		// now the output should still be empty
 		testHarness.waitForInputProcessing();
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -153,7 +152,6 @@ public class TwoInputStreamTaskTest {
 		expectedOutput.add(new Watermark(initialTime + 2));
 		testHarness.waitForInputProcessing();
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-
 
 		// advance watermark from one of the inputs, now we should get a new one since the
 		// minimum increases
@@ -278,7 +276,6 @@ public class TwoInputStreamTaskTest {
 				expectedOutput,
 				testHarness.getOutput());
 
-
 		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 		Assert.assertEquals(4, resultElements.size());
 	}
@@ -345,14 +342,12 @@ public class TwoInputStreamTaskTest {
 				expectedOutput,
 				testHarness.getOutput());
 
-
 		// Then give the earlier barrier, these should be ignored
 		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 0, 1);
 		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 1, 0);
 		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 1, 1);
 
 		testHarness.waitForInputProcessing();
-
 
 		testHarness.endInput();
 

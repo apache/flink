@@ -132,7 +132,6 @@ public class WindowOperatorFrom11MigrationTest {
 		testHarness.close();
         */
 
-
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -146,7 +145,6 @@ public class WindowOperatorFrom11MigrationTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 6000));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), 6500));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 3), 7000));
-
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
 
@@ -774,7 +772,6 @@ public class WindowOperatorFrom11MigrationTest {
 
 		testHarness.close();
 	}
-
 
 	private static class TupleKeySelector implements KeySelector<Tuple2<String, Integer>, String> {
 		private static final long serialVersionUID = 1L;

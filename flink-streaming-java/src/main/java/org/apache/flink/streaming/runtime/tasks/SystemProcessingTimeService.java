@@ -58,7 +58,6 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 
 	private final AtomicInteger status;
 
-
 	public SystemProcessingTimeService(AsyncExceptionHandler failureHandler, Object checkpointLock) {
 		this(failureHandler, checkpointLock, null);
 	}
@@ -274,7 +273,6 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		private final long delayMillis;
 
 		private volatile boolean canceled;
-
 
 		private NeverCompleteFuture(long delayMillis) {
 			this.delayMillis = delayMillis;

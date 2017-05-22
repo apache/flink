@@ -353,7 +353,6 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		userFunction.process(triggerContext.key, triggerContext.window, processContext, projectedContents, timestampedCollector);
 		evictorContext.evictAfter(recordsWithTimestamp, Iterables.size(recordsWithTimestamp));
 
-
 		//work around to fix FLINK-4369, remove the evicted elements from the windowState.
 		//this is inefficient, but there is no other way to remove elements from ListState, which is an AppendingState.
 		windowState.clear();
@@ -406,7 +405,6 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		public MetricGroup getMetricGroup() {
 			return EvictingWindowOperator.this.getMetricGroup();
 		}
-
 
 		public K getKey() {
 			return key;

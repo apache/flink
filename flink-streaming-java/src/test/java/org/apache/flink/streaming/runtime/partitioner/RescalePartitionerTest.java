@@ -166,7 +166,6 @@ public class RescalePartitionerTest extends TestLogger {
 			fail("Building ExecutionGraph failed: " + e.getMessage());
 		}
 
-
 		ExecutionJobVertex execSourceVertex = eg.getJobVertex(sourceVertex.getID());
 		ExecutionJobVertex execMapVertex = eg.getJobVertex(mapVertex.getID());
 		ExecutionJobVertex execSinkVertex = eg.getJobVertex(sinkVertex.getID());

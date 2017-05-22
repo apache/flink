@@ -130,7 +130,6 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 			this.context = context;
 		}
 
-
 		@Override
 		public void startNewKey(Key key) {
 			unionIterator.clear();

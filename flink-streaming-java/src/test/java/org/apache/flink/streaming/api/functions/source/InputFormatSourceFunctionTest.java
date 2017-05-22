@@ -85,7 +85,6 @@ public class InputFormatSourceFunctionTest {
 		Assert.assertTrue(!format.isInputFormatOpen);
 	}
 
-
 	private static class LifeCycleTestInputFormat extends RichInputFormat<Integer, InputSplit> {
 
 		private static final long serialVersionUID = 7408902249499583273L;

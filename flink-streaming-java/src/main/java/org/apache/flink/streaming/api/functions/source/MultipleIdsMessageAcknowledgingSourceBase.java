@@ -134,7 +134,6 @@ public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, Sessi
 	//  Checkpointing the data
 	// ------------------------------------------------------------------------
 
-
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		sessionIdsPerSnapshot.add(new Tuple2<>(context.getCheckpointId(), sessionIds));

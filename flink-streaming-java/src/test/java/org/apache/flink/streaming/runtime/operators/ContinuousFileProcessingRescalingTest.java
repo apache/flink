@@ -87,7 +87,6 @@ public class ContinuousFileProcessingRescalingTest {
 		testHarness1.getOutput().clear();
 		testHarness2.getOutput().clear();
 
-
 		// 2) and take the snapshots from the previous instances and merge them
 		// into a new one which will be then used to initialize a third instance
 		OperatorStateHandles mergedState = AbstractStreamOperatorTestHarness.

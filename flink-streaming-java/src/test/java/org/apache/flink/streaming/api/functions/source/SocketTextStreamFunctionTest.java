@@ -38,7 +38,6 @@ public class SocketTextStreamFunctionTest {
 
 	private static final String LOCALHOST = "127.0.0.1";
 
-
 	@Test
 	public void testSocketSourceSimpleOutput() throws Exception {
 		ServerSocket server = new ServerSocket(0);

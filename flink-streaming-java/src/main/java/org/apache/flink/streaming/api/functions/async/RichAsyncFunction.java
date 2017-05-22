@@ -182,7 +182,6 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 			throw new UnsupportedOperationException("State is not supported in rich async functions.");
 		}
 
-
 		@Override
 		public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator) {
 			throw new UnsupportedOperationException("Accumulators are not supported in rich async functions.");

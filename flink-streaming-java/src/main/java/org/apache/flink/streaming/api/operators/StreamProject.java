@@ -46,7 +46,6 @@ public class StreamProject<IN, OUT extends Tuple>
 		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
-
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		for (int i = 0; i < this.numFields; i++) {

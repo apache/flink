@@ -48,7 +48,7 @@ public class OperatorSnapshotUtil {
 
 	public static void writeStateHandle(OperatorStateHandles state, String path) throws IOException {
 		FileOutputStream out = new FileOutputStream(path);
-		
+
 		try (DataOutputStream dos = new DataOutputStream(out)) {
 
 			dos.writeInt(state.getOperatorChainIndex());

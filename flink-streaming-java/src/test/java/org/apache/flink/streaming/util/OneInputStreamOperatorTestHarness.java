@@ -87,7 +87,6 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 		processElement(new StreamRecord<>(value, timestamp));
 	}
 
-
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		operator.setKeyContextElement1(element);
 		oneInputOperator.processElement(element);

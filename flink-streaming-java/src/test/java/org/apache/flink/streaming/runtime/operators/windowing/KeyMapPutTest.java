@@ -75,7 +75,6 @@ public class KeyMapPutTest {
 			assertEquals(numElements, numContained);
 			assertEquals(numElements, bitset.cardinality());
 
-
 			assertEquals(numElements, map.size());
 			assertEquals(numElements, map.traverseAndCountElements());
 			assertEquals(1 << 21, map.getCurrentTableCapacity());
@@ -113,7 +112,6 @@ public class KeyMapPutTest {
 			assertEquals(numElements, map.traverseAndCountElements());
 			assertEquals(1 << 21, map.getCurrentTableCapacity());
 			assertTrue(map.getLongestChainLength() <= 7);
-
 
 			BitSet bitset = new BitSet();
 			int numContained = 0;

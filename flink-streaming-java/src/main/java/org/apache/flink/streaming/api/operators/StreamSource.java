@@ -45,7 +45,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 	private transient volatile boolean canceledOrStopped = false;
 
-
 	public StreamSource(SRC sourceFunction) {
 		super(sourceFunction);
 
@@ -55,7 +54,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 	public void run(final Object lockingObject, final StreamStatusMaintainer streamStatusMaintainer) throws Exception {
 		run(lockingObject, streamStatusMaintainer, output);
 	}
-
 
 	public void run(final Object lockingObject,
 			final StreamStatusMaintainer streamStatusMaintainer,

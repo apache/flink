@@ -43,7 +43,6 @@ public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
 
 	private static final long serialVersionUID = 7305948082830843475L;
 
-
 	public AccumulatingProcessingTimeWindowOperator(
 			InternalWindowFunction<Iterable<IN>, OUT, KEY, TimeWindow> function,
 			KeySelector<IN, KEY> keySelector,

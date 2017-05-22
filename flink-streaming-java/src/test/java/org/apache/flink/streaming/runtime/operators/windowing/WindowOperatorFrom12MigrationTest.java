@@ -160,7 +160,6 @@ public class WindowOperatorFrom12MigrationTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), 6500));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 3), 7000));
 
-
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
 
 		// add an element that merges the two "key1" sessions, they should now have count 6, and therfore fire
@@ -894,7 +893,6 @@ public class WindowOperatorFrom12MigrationTest {
 
 		testHarness.close();
 	}
-
 
 	private static class TupleKeySelector implements KeySelector<Tuple2<String, Integer>, String> {
 		private static final long serialVersionUID = 1L;

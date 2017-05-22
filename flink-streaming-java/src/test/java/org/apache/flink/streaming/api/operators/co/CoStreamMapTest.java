@@ -57,7 +57,6 @@ public class CoStreamMapTest implements Serializable {
 		}
 	}
 
-
 	@Test
 	public void testCoMap() throws Exception {
 		CoStreamMap<Double, Integer, String> operator = new CoStreamMap<Double, Integer, String>(new MyCoMap());

@@ -512,7 +512,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-
 		// Then give the earlier barrier, these should be ignored
 		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 0, 1);
 		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 1, 0);
@@ -687,7 +686,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 				MockInputSplitProvider inputSplitProvider, int bufferSize) {
 			super(jobConfig, taskConfig, executionConfig, memorySize, inputSplitProvider, bufferSize);
 		}
-
 
 		@Override
 		public void acknowledgeCheckpoint(

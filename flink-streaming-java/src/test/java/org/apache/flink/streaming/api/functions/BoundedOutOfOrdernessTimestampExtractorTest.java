@@ -31,7 +31,6 @@ import static org.junit.Assert.assertEquals;
  */
 public class BoundedOutOfOrdernessTimestampExtractorTest {
 
-
 	@Test
 	public void testInitializationAndRuntime() {
 		Time maxAllowedLateness = Time.milliseconds(10L);

@@ -1709,7 +1709,6 @@ public class WindowedStream<T, K, W extends Window> {
 			InternalWindowFunction<Iterable<T>, R, K, TimeWindow> timeWindowFunction =
 					(InternalWindowFunction<Iterable<T>, R, K, TimeWindow>) function;
 
-
 			OneInputStreamOperator<T, R> op = new AccumulatingProcessingTimeWindowOperator<>(
 					timeWindowFunction, input.getKeySelector(),
 					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
@@ -1720,7 +1719,6 @@ public class WindowedStream<T, K, W extends Window> {
 
 		return null;
 	}
-
 
 	public StreamExecutionEnvironment getExecutionEnvironment() {
 		return input.getExecutionEnvironment();

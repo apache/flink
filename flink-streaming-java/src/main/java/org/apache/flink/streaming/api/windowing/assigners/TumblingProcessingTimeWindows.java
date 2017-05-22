@@ -48,7 +48,6 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 
 	private final long offset;
 
-
 	private TumblingProcessingTimeWindows(long size, long offset) {
 		if (offset < 0 || offset >= size) {
 			throw new IllegalArgumentException("TumblingProcessingTimeWindows parameters must satisfy  0 <= offset < size");

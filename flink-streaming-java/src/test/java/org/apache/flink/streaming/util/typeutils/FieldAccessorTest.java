@@ -63,7 +63,6 @@ public class FieldAccessorTest {
 		assertEquals("b", f0.get(t));
 		assertEquals("b", t.f0);
 
-
 		FieldAccessor<Tuple2<String, Integer>, Integer> f1n = FieldAccessorFactory.getAccessor(tpeInfo, 1, null);
 		assertEquals(7, (int) f1n.get(t));
 		assertEquals(7, (int) t.f1);
@@ -292,8 +291,6 @@ public class FieldAccessorTest {
 
 		a = fieldAccessor.set(a, 6);
 		assertEquals((Integer) a[1], fieldAccessor.get(a));
-
-
 
 		Integer[] b = new Integer[]{3, 5};
 		FieldAccessor<Integer[], Integer> fieldAccessor2 =

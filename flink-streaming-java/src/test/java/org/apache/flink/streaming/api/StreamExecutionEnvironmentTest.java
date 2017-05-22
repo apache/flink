@@ -147,7 +147,6 @@ public class StreamExecutionEnvironmentTest {
 			}
 		};
 
-
 		SingleOutputStreamOperator<Object> operator =
 				env.addSource(srcFun).flatMap(new FlatMapFunction<Integer, Object>() {
 
@@ -230,7 +229,6 @@ public class StreamExecutionEnvironmentTest {
 	/////////////////////////////////////////////////////////////
 	// Utilities
 	/////////////////////////////////////////////////////////////
-
 
 	private static StreamOperator<?> getOperatorFromDataStream(DataStream<?> dataStream) {
 		StreamExecutionEnvironment env = dataStream.getExecutionEnvironment();

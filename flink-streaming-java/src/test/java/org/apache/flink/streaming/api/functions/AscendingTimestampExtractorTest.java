@@ -91,8 +91,6 @@ public class AscendingTimestampExtractorTest {
 		assertEquals(500L, extractor.extractTimestamp(500L, 0L));
 
 		assertEquals(Long.MAX_VALUE - 1, extractor.extractTimestamp(Long.MAX_VALUE - 1, 99999L));
-
-
 	}
 
 	private void runInvalidTest(AscendingTimestampExtractor<Long> extractor) {

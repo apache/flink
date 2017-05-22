@@ -95,7 +95,6 @@ public class CoProcessOperatorTest extends TestLogger {
 		testHarness.close();
 	}
 
-
 	private static class WatermarkQueryingProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;

@@ -89,7 +89,6 @@ public class StreamSourceOperatorTest {
 		final StreamSource<String, InfiniteSource<String>> operator =
 				new StreamSource<>(new InfiniteSource<String>());
 
-
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 		operator.cancel();
 
@@ -108,7 +107,6 @@ public class StreamSourceOperatorTest {
 		// regular stream source operator
 		final StreamSource<String, InfiniteSource<String>> operator =
 				new StreamSource<>(new InfiniteSource<String>());
-
 
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 
@@ -142,7 +140,6 @@ public class StreamSourceOperatorTest {
 		final StoppableStreamSource<String, InfiniteSource<String>> operator =
 				new StoppableStreamSource<>(new InfiniteSource<String>());
 
-
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 		operator.stop();
 
@@ -160,7 +157,6 @@ public class StreamSourceOperatorTest {
 		// regular stream source operator
 		final StoppableStreamSource<String, InfiniteSource<String>> operator =
 				new StoppableStreamSource<>(new InfiniteSource<String>());
-
 
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 

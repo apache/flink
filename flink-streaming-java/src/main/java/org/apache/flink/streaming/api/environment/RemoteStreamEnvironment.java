@@ -253,7 +253,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		return port;
 	}
 
-
 	public Configuration getClientConfiguration() {
 		return clientConfiguration;
 	}

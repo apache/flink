@@ -161,7 +161,6 @@ public class SlidingProcessingTimeWindowsTest extends TestLogger {
 			assertThat(e.toString(), containsString("0 <= offset < slide and size > 0"));
 		}
 
-
 		try {
 			SlidingProcessingTimeWindows.of(Time.seconds(20), Time.seconds(10), Time.seconds(-1));
 			fail("should fail");

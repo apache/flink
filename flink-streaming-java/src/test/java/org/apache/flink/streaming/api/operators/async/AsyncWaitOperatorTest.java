@@ -610,7 +610,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 				super(jobConfig, taskConfig, executionConfig, memorySize, inputSplitProvider, bufferSize);
 		}
 
-
 		@Override
 		public void acknowledgeCheckpoint(
 				long checkpointId,

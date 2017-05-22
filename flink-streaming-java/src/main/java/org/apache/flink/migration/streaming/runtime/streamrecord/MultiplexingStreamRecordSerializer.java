@@ -49,7 +49,6 @@ public class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<Stream
 
 	private final TypeSerializer<T> typeSerializer;
 
-
 	public MultiplexingStreamRecordSerializer(TypeSerializer<T> serializer) {
 		if (serializer instanceof MultiplexingStreamRecordSerializer || serializer instanceof StreamRecordSerializer) {
 			throw new RuntimeException("StreamRecordSerializer given to StreamRecordSerializer as value TypeSerializer: " + serializer);

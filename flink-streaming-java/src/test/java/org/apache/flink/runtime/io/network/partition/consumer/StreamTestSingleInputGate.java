@@ -94,7 +94,6 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			inputQueues[channelIndex] = new ConcurrentLinkedQueue<InputValue<Object>>();
 			inputChannels[channelIndex] = new TestInputChannel(inputGate, i);
 
-
 			final Answer<BufferAndAvailability> answer = new Answer<BufferAndAvailability>() {
 				@Override
 				public BufferAndAvailability answer(InvocationOnMock invocationOnMock) throws Throwable {

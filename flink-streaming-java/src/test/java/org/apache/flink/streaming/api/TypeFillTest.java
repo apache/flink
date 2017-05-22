@@ -49,7 +49,6 @@ public class TypeFillTest {
 			fail();
 		} catch (Exception ignored) {}
 
-
 		DataStream<Long> source = env.generateSequence(1, 10);
 
 		try {

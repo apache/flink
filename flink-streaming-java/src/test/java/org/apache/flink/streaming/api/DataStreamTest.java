@@ -585,6 +585,7 @@ public class DataStreamTest {
 					@Override
 					public void flatMap1(Long value, Collector<Long> out) throws Exception {
 					}
+
 					@Override
 					public void flatMap2(Long value, Collector<Long> out) throws Exception {
 					}
@@ -751,7 +752,6 @@ public class DataStreamTest {
 		assertTrue(getOperatorForDataStream(processed) instanceof ProcessOperator);
 	}
 
-
 	@Test
 	public void operatorTest() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -767,7 +767,6 @@ public class DataStreamTest {
 		DataStream<Integer> map = src.map(mapFunction);
 		map.addSink(new DiscardingSink<Integer>());
 		assertEquals(mapFunction, getFunctionForDataStream(map));
-
 
 		FlatMapFunction<Long, Integer> flatMapFunction = new FlatMapFunction<Long, Integer>() {
 			private static final long serialVersionUID = 1L;

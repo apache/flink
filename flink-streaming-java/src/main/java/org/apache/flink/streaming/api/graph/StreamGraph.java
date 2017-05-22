@@ -95,7 +95,6 @@ public class StreamGraph extends StreamingPlan {
 	private AbstractStateBackend stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
 
-
 	public StreamGraph(StreamExecutionEnvironment environment) {
 		this.environment = environment;
 		this.executionConfig = environment.getConfig();
@@ -119,7 +118,6 @@ public class StreamGraph extends StreamingPlan {
 		sources = new HashSet<>();
 		sinks = new HashSet<>();
 	}
-
 
 	public StreamExecutionEnvironment getEnvironment() {
 		return environment;
@@ -158,7 +156,6 @@ public class StreamGraph extends StreamingPlan {
 	public boolean isChainingEnabled() {
 		return chaining;
 	}
-
 
 	public boolean isIterative() {
 		return !vertexIDtoLoopTimeout.isEmpty();
@@ -559,7 +556,6 @@ public class StreamGraph extends StreamingPlan {
 	public Collection<Integer> getSourceIDs() {
 		return sources;
 	}
-
 
 	public Collection<Integer> getSinkIDs() {
 		return sinks;

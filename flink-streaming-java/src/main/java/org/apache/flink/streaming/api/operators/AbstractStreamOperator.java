@@ -611,7 +611,6 @@ public abstract class AbstractStreamOperator<OUT>
 		return getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
 	}
 
-
 	protected <N, S extends State, T> S getOrCreateKeyedState(
 			TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, T> stateDescriptor) throws Exception {
@@ -636,7 +635,6 @@ public abstract class AbstractStreamOperator<OUT>
 			N namespace,
 			TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, ?> stateDescriptor) throws Exception {
-
 
 		/*
 	    TODO: NOTE: This method does a lot of work caching / retrieving states just to update the namespace.
@@ -732,7 +730,6 @@ public abstract class AbstractStreamOperator<OUT>
 	public void processLatencyMarker2(LatencyMarker latencyMarker) throws Exception {
 		reportOrForwardLatencyMarker(latencyMarker);
 	}
-
 
 	protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
 		// all operators are tracking latencies

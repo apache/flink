@@ -51,7 +51,6 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 
 	private final Random random = new XORShiftRandom();
 
-
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public DirectedOutput(
 			List<OutputSelector<OUT>> outputSelectors,
@@ -62,7 +61,6 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 		for (int i = 0; i < outputs.size(); i++) {
 			allOutputs[i] = outputs.get(i).f0;
 		}
-
 
 		HashSet<Output<StreamRecord<OUT>>> selectAllOutputs = new HashSet<Output<StreamRecord<OUT>>>();
 		HashMap<String, ArrayList<Output<StreamRecord<OUT>>>> outputMap = new HashMap<String, ArrayList<Output<StreamRecord<OUT>>>>();
@@ -99,7 +97,6 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 			this.outputMap.put(entry.getKey(), arr);
 		}
 	}
-
 
 	@Override
 	public void emitWatermark(Watermark mark) {

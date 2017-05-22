@@ -40,6 +40,7 @@ public class StatusWatermarkValve {
 	 */
 	public interface ValveOutputHandler {
 		void handleWatermark(Watermark watermark);
+
 		void handleStreamStatus(StreamStatus streamStatus);
 	}
 

@@ -160,7 +160,6 @@ public class MergingWindowSetTest {
 		assertEquals(new TimeWindow(11, 14), windowSet.addWindow(new TimeWindow(11, 14), mergeFunction));
 		assertFalse(mergeFunction.hasMerged());
 
-
 		assertEquals(new TimeWindow(0, 4), windowSet.getStateWindow(new TimeWindow(0, 6)));
 
 		assertEquals(new TimeWindow(11, 14), windowSet.getStateWindow(new TimeWindow(11, 14)));
@@ -186,7 +185,6 @@ public class MergingWindowSetTest {
 		mergeFunction.reset();
 		assertEquals(new TimeWindow(10, 15), windowSet.addWindow(new TimeWindow(11, 14), mergeFunction));
 		assertFalse(mergeFunction.hasMerged());
-
 
 		assertEquals(new TimeWindow(0, 4), windowSet.getStateWindow(new TimeWindow(0, 6)));
 

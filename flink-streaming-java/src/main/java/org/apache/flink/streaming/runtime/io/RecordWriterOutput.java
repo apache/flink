@@ -146,7 +146,6 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 		recordWriter.broadcastEvent(event);
 	}
 
-
 	public void flush() throws IOException {
 		recordWriter.flush();
 	}

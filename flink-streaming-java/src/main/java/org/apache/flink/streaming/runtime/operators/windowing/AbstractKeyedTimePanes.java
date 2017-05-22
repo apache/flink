@@ -52,7 +52,6 @@ public abstract class AbstractKeyedTimePanes<Type, Key, Aggregate, Result> {
 
 	public abstract void evaluateWindow(Collector<Result> out, TimeWindow window, AbstractStreamOperator<Result> operator) throws Exception;
 
-
 	public void dispose() {
 		// since all is heap data, there is no need to clean up anything
 		latestPane = null;
@@ -62,7 +61,6 @@ public abstract class AbstractKeyedTimePanes<Type, Key, Aggregate, Result> {
 	public int getNumPanes() {
 		return previousPanes.size() + 1;
 	}
-
 
 	public void slidePanes(int panesToKeep) {
 		if (panesToKeep > 1) {

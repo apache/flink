@@ -85,7 +85,6 @@ public class EvictingWindowOperatorTest {
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-
 		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
 			GlobalWindows.create(),
 			new GlobalWindow.Serializer(),
@@ -98,10 +97,8 @@ public class EvictingWindowOperatorTest {
 			0,
 			null /* late data output tag */);
 
-
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -118,8 +115,6 @@ public class EvictingWindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1998));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1999));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
-
-
 
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), Long.MAX_VALUE));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 4), Long.MAX_VALUE));
@@ -144,7 +139,6 @@ public class EvictingWindowOperatorTest {
 		testHarness.close();
 
 		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
-
 	}
 
 	/**
@@ -166,7 +160,6 @@ public class EvictingWindowOperatorTest {
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-
 		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
 			GlobalWindows.create(),
 			new GlobalWindow.Serializer(),
@@ -178,7 +171,6 @@ public class EvictingWindowOperatorTest {
 			TimeEvictor.of(Time.seconds(2), evictAfter),
 			0,
 			null /* late data output tag */);
-
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
@@ -199,12 +191,9 @@ public class EvictingWindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2001));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1001));
 
-
-
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), Long.MAX_VALUE));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), Long.MAX_VALUE));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), Long.MAX_VALUE));
-
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
 
@@ -241,7 +230,6 @@ public class EvictingWindowOperatorTest {
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-
 		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new EvictingWindowOperator<>(
 			TumblingEventTimeWindows.of(Time.of(windowSize, TimeUnit.SECONDS)),
 			new TimeWindow.Serializer(),
@@ -253,7 +241,6 @@ public class EvictingWindowOperatorTest {
 			TimeEvictor.of(Time.seconds(2)),
 			0,
 			null /* late data output tag */);
-
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
@@ -275,12 +262,9 @@ public class EvictingWindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 2001));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1001));
 
-
-
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 1), 3999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), 3999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 3), 3999));
-
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
 
@@ -295,7 +279,6 @@ public class EvictingWindowOperatorTest {
 		testHarness.close();
 
 		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
-
 	}
 
 	/**
@@ -318,7 +301,6 @@ public class EvictingWindowOperatorTest {
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-
 		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
 			GlobalWindows.create(),
 			new GlobalWindow.Serializer(),
@@ -330,7 +312,6 @@ public class EvictingWindowOperatorTest {
 			TimeEvictor.of(Time.seconds(2), evictAfter),
 			0,
 			null /* late data output tag */);
-
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
@@ -350,12 +331,9 @@ public class EvictingWindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1)));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1)));
 
-
-
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), Long.MAX_VALUE));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 2), Long.MAX_VALUE));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 4), Long.MAX_VALUE));
-
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
 
@@ -370,7 +348,6 @@ public class EvictingWindowOperatorTest {
 		testHarness.close();
 
 		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
-
 	}
 
 	/**
@@ -393,7 +370,6 @@ public class EvictingWindowOperatorTest {
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-
 		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
 			GlobalWindows.create(),
 			new GlobalWindow.Serializer(),
@@ -410,8 +386,6 @@ public class EvictingWindowOperatorTest {
 			}, evictAfter),
 			0,
 			null /* late data output tag */);
-
-
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
@@ -471,7 +445,6 @@ public class EvictingWindowOperatorTest {
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 			new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-
 		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
 			GlobalWindows.create(),
 			new GlobalWindow.Serializer(),
@@ -488,8 +461,6 @@ public class EvictingWindowOperatorTest {
 			}, evictAfter),
 			0,
 			null /* late data output tag */);
-
-
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
@@ -545,7 +516,6 @@ public class EvictingWindowOperatorTest {
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 				new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-
 		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
 				GlobalWindows.create(),
 				new GlobalWindow.Serializer(),
@@ -561,7 +531,6 @@ public class EvictingWindowOperatorTest {
 				CountEvictor.of(windowSize),
 				0,
 				null /* late data output tag */);
-
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
@@ -584,8 +553,6 @@ public class EvictingWindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1998));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1999));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
-
-
 
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), Long.MAX_VALUE));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 4), Long.MAX_VALUE));
@@ -614,14 +581,12 @@ public class EvictingWindowOperatorTest {
 
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
-
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		TypeSerializer<StreamRecord<Tuple2<String, Integer>>> streamRecordSerializer =
 				(TypeSerializer<StreamRecord<Tuple2<String, Integer>>>) new StreamElementSerializer(inputType.createSerializer(new ExecutionConfig()));
 
 		ListStateDescriptor<StreamRecord<Tuple2<String, Integer>>> stateDesc =
 				new ListStateDescriptor<>("window-contents", streamRecordSerializer);
-
 
 		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
 			GlobalWindows.create(),
@@ -634,7 +599,6 @@ public class EvictingWindowOperatorTest {
 			CountEvictor.of(windowSize),
 			0,
 			null /* late data output tag */);
-
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
@@ -657,8 +621,6 @@ public class EvictingWindowOperatorTest {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1998));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1999));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 1000));
-
-
 
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), Long.MAX_VALUE));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 4), Long.MAX_VALUE));
@@ -736,7 +698,6 @@ public class EvictingWindowOperatorTest {
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 3999));
 		expectedOutput.add(new Watermark(3999));
 
-
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(),
 			new EvictingWindowOperatorTest.ResultSortComparator());
 		testHarness.close();
@@ -748,7 +709,6 @@ public class EvictingWindowOperatorTest {
 
 	private static class SumReducer implements ReduceFunction<Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
-
 
 		@Override
 		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,

@@ -86,6 +86,4 @@ public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	public static EventTimeTrigger create() {
 		return new EventTimeTrigger();
 	}
-
-
 }

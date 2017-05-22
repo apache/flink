@@ -186,7 +186,6 @@ public class InterruptSensitiveRestoreTest {
 		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
 				.thenReturn(mock(TaskKvStateRegistry.class));
 
-
 		ChainedStateHandle<StreamStateHandle> operatorState = null;
 		List<KeyedStateHandle> keyedStateFromBackend = Collections.emptyList();
 		List<KeyedStateHandle> keyedStateFromStream = Collections.emptyList();
@@ -381,7 +380,6 @@ public class InterruptSensitiveRestoreTest {
 
 		@Override
 		public void cancel() {}
-
 
 		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {

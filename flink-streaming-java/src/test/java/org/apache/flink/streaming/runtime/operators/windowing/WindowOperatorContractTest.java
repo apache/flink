@@ -128,7 +128,6 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		return mockAssigner;
 	}
 
-
 	static <T> MergingWindowAssigner<T, TimeWindow> mockMergingAssigner() throws Exception {
 		@SuppressWarnings("unchecked")
 		MergingWindowAssigner<T, TimeWindow> mockAssigner = mock(MergingWindowAssigner.class);
@@ -138,7 +137,6 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
 		return mockAssigner;
 	}
-
 
 	static WindowAssigner.WindowAssignerContext anyAssignerContext() {
 		return Mockito.any();
@@ -176,7 +174,6 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 	static MergingWindowAssigner.MergeCallback anyMergeCallback() {
 		return Mockito.any();
 	}
-
 
 	static <T> void shouldRegisterEventTimeTimerOnElement(Trigger<T, TimeWindow> mockTrigger, final long timestamp) throws Exception {
 		doAnswer(new Answer<TriggerResult>() {
@@ -369,7 +366,6 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
 	}
 
-
 	@Test
 	public void testAssignerIsInvokedOncePerElement() throws Exception {
 
@@ -539,7 +535,6 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 	public void testEmittingFromWindowFunctionOnProcessingTime() throws Exception {
 		testEmittingFromWindowFunction(new ProcessingTimeAdaptor());
 	}
-
 
 	private void testEmittingFromWindowFunction(TimeDomainAdaptor timeAdaptor) throws Exception {
 
@@ -1258,7 +1253,6 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		testTimerFiring(new ProcessingTimeAdaptor());
 	}
 
-
 	private void testTimerFiring(TimeDomainAdaptor timeAdaptor) throws Exception {
 
 		WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
@@ -1382,8 +1376,6 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		verify(mockAssigner).mergeWindows(eq(Collections.singletonList(new TimeWindow(2, 4))), anyMergeCallback());
 
 		verify(mockAssigner, times(2)).mergeWindows(anyCollection(), anyMergeCallback());
-
-
 	}
 
 	@Test
@@ -2519,7 +2511,6 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 			Trigger<Integer, W> trigger,
 			long allowedLatenss,
 			InternalWindowFunction<Iterable<Integer>, OUT, Integer, W> windowFunction) throws Exception;
-
 
 	private interface TimeDomainAdaptor {
 

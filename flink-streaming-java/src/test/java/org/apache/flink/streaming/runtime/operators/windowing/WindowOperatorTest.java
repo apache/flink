@@ -113,12 +113,10 @@ public class WindowOperatorTest extends TestLogger {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 
-
 		testHarness.processWatermark(new Watermark(999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 999));
 		expectedOutput.add(new Watermark(999));
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
-
 
 		testHarness.processWatermark(new Watermark(1999));
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key1", 3), 1999));
@@ -153,7 +151,6 @@ public class WindowOperatorTest extends TestLogger {
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 5999));
 		expectedOutput.add(new Watermark(5999));
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
-
 
 		// those don't have any effect...
 		testHarness.processWatermark(new Watermark(6999));
@@ -254,11 +251,9 @@ public class WindowOperatorTest extends TestLogger {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 
-
 		testHarness.processWatermark(new Watermark(999));
 		expectedOutput.add(new Watermark(999));
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
-
 
 		testHarness.processWatermark(new Watermark(1999));
 		expectedOutput.add(new Watermark(1999));
@@ -289,7 +284,6 @@ public class WindowOperatorTest extends TestLogger {
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 2), 5999));
 		expectedOutput.add(new Watermark(5999));
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
-
 
 		// those don't have any effect...
 		testHarness.processWatermark(new Watermark(6999));
@@ -714,7 +708,6 @@ public class WindowOperatorTest extends TestLogger {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), 6500));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 3), 7000));
 
-
 		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-10", 0L, 6500L), 6499));
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
@@ -910,11 +903,9 @@ public class WindowOperatorTest extends TestLogger {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1999));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 
-
 		testHarness.processWatermark(new Watermark(1000));
 		expectedOutput.add(new Watermark(1000));
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
-
 
 		testHarness.processWatermark(new Watermark(2000));
 		expectedOutput.add(new Watermark(2000));
@@ -940,7 +931,6 @@ public class WindowOperatorTest extends TestLogger {
 		expectedOutput.add(new StreamRecord<>(new Tuple2<>("key2", 5), Long.MAX_VALUE));
 		expectedOutput.add(new Watermark(6000));
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
-
 
 		// those don't have any effect...
 		testHarness.processWatermark(new Watermark(7000));
@@ -2449,7 +2439,6 @@ public class WindowOperatorTest extends TestLogger {
 		}
 	}
 
-
 	private static class RichSumReducer<W extends Window> extends RichWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String, W> {
 		private static final long serialVersionUID = 1L;
 
@@ -2610,7 +2599,6 @@ public class WindowOperatorTest extends TestLogger {
 
 	private static class PointSessionWindows extends EventTimeSessionWindows {
 		private static final long serialVersionUID = 1L;
-
 
 		private PointSessionWindows(long sessionTimeout) {
 			super(sessionTimeout);

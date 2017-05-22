@@ -86,7 +86,6 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	//  operator life cycle
 	// ------------------------------------------------------------------------
 
-
 	@Override
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		super.setup(containingTask, config, output);

@@ -198,7 +198,6 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 		}
 	}
 
-
 	private void processCheckpointAbortBarrier(CancelCheckpointMarker barrier, int channelIndex) throws Exception {
 		final long checkpointId = barrier.getCheckpointId();
 

@@ -44,7 +44,6 @@ import java.util.List;
  */
 public class WrappingFunctionSnapshotRestoreTest {
 
-
 	@Test
 	public void testSnapshotAndRestoreWrappedCheckpointedFunction() throws Exception {
 

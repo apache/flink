@@ -39,7 +39,6 @@ public class CountTrigger<W extends Window> extends Trigger<Object, W> {
 	private final ReducingStateDescriptor<Long> stateDesc =
 			new ReducingStateDescriptor<>("count", new Sum(), LongSerializer.INSTANCE);
 
-
 	private CountTrigger(long maxCount) {
 		this.maxCount = maxCount;
 	}

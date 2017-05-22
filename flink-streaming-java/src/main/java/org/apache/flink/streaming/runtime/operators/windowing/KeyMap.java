@@ -584,7 +584,6 @@ public class KeyMap<K, V> implements Iterable<KeyMap.Entry<K, V>> {
 
 		private CapacityDescendingComparator() {}
 
-
 		@Override
 		public int compare(KeyMap<?, ?> o1, KeyMap<?, ?> o2) {
 			// this sorts descending

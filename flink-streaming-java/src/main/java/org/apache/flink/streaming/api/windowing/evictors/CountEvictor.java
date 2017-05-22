@@ -53,7 +53,6 @@ public class CountEvictor<W extends Window> implements Evictor<Object, W> {
 		}
 	}
 
-
 	@Override
 	public void evictAfter(Iterable<TimestampedValue<Object>> elements, int size, W window, EvictorContext ctx) {
 		if (doEvictAfter) {

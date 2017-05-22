@@ -53,7 +53,6 @@ public class GenericWriteAheadSinkTest extends WriteAheadSinkTestBase<Tuple1<Int
 		return new Tuple1<>(counter);
 	}
 
-
 	@Override
 	protected void verifyResultsIdealCircumstances(ListSink sink) {
 

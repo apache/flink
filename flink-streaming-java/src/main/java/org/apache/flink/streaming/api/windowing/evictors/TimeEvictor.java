@@ -50,7 +50,6 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 		this.doEvictAfter = doEvictAfter;
 	}
 
-
 	@Override
 	public void evictBefore(Iterable<TimestampedValue<Object>> elements, int size, W window, EvictorContext ctx) {
 		if (!doEvictAfter) {

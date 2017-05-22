@@ -41,7 +41,6 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 
 	private transient long currentWatermark;
 
-
 	public TimestampsAndPeriodicWatermarksOperator(AssignerWithPeriodicWatermarks<T> assigner) {
 		super(assigner);
 		this.chainingStrategy = ChainingStrategy.ALWAYS;

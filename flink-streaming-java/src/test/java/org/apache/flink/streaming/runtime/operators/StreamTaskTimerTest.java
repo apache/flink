@@ -66,7 +66,6 @@ public class StreamTaskTimerTest {
 
 		assertEquals(1, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
 
-
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();
 

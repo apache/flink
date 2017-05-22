@@ -66,7 +66,6 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 
 	private volatile boolean isRunning = true;
 
-
 	public SocketTextStreamFunction(String hostname, int port, String delimiter, long maxNumRetries) {
 		this(hostname, port, delimiter, maxNumRetries, DEFAULT_CONNECTION_RETRY_SLEEP);
 	}

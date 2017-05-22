@@ -335,7 +335,6 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 		}
 	}
 
-
 	static final class RecursiveProductFieldAccessor<T, R, F> extends FieldAccessor<T, F> {
 
 		private static final long serialVersionUID = 1L;

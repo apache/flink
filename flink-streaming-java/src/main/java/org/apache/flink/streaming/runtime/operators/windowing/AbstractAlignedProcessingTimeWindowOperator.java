@@ -115,7 +115,6 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		this.numPanesPerWindow = MathUtils.checkedDownCast(windowLength / paneSlide);
 	}
 
-
 	protected abstract AbstractKeyedTimePanes<IN, KEY, STATE, OUT> createPanes(
 			KeySelector<IN, KEY> keySelector, Function function);
 

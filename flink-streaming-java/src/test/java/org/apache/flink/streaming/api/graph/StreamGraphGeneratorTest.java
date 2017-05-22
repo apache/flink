@@ -111,7 +111,6 @@ public class StreamGraphGeneratorTest {
 				.select("even")
 				.shuffle();
 
-
 		SingleOutputStreamOperator<Integer> unionedMap = map1.union(map2).union(map3)
 				.map(new NoOpIntMap());
 
@@ -501,6 +500,5 @@ public class StreamGraphGeneratorTest {
 			return value;
 		}
 
-	};
-
+	}
 }

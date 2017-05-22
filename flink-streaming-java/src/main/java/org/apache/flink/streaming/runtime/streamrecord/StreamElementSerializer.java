@@ -56,7 +56,6 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 
 	private final TypeSerializer<T> typeSerializer;
 
-
 	public StreamElementSerializer(TypeSerializer<T> serializer) {
 		if (serializer instanceof StreamElementSerializer) {
 			throw new RuntimeException("StreamRecordSerializer given to StreamRecordSerializer as value TypeSerializer: " + serializer);

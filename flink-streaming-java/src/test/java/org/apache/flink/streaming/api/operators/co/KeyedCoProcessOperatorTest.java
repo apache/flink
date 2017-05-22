@@ -325,7 +325,6 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		testHarness.close();
 	}
 
-
 	private static class IntToStringKeySelector<T> implements KeySelector<Integer, String> {
 		private static final long serialVersionUID = 1L;
 
@@ -414,7 +413,6 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 			ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
 		}
 
-
 		@Override
 		public void onTimer(
 				long timestamp,
@@ -495,7 +493,6 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 			ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
 		}
 
-
 		@Override
 		public void onTimer(
 				long timestamp,
@@ -519,7 +516,6 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			ctx.timerService().registerProcessingTimeTimer(5);
 		}
-
 
 		@Override
 		public void onTimer(

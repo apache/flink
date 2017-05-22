@@ -151,7 +151,6 @@ public class SlidingEventTimeWindowsTest extends TestLogger {
 			assertThat(e.toString(), containsString("0 <= offset < slide and size > 0"));
 		}
 
-
 		try {
 			SlidingEventTimeWindows.of(Time.seconds(20), Time.seconds(10), Time.seconds(-1));
 			fail("should fail");

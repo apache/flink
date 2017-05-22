@@ -348,7 +348,6 @@ public class BufferSpiller {
 			final int length = buffer.getInt();
 			final boolean isBuffer = buffer.get() == 0;
 
-
 			if (isBuffer) {
 				// deserialize buffer
 				if (length > pageSize) {
@@ -380,7 +379,6 @@ public class BufferSpiller {
 						buffer.flip();
 					}
 				}
-
 
 				Buffer buf = new Buffer(seg, FreeingBufferRecycler.INSTANCE);
 				buf.setSize(length);

@@ -114,7 +114,6 @@ public class AsyncWaitOperator<IN, OUT>
 	/** Thread running the emitter. */
 	private transient Thread emitterThread;
 
-
 	public AsyncWaitOperator(
 			AsyncFunction<IN, OUT> asyncFunction,
 			long timeout,

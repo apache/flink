@@ -36,7 +36,6 @@ public class ListSourceContext<T> implements SourceFunction.SourceContext<T> {
 
 	private final long delay;
 
-
 	public ListSourceContext(List<T> target) {
 		this(target, 0L);
 	}

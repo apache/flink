@@ -306,7 +306,6 @@ public class HeapInternalTimerServiceTest {
 		assertThat(processingTimeService.getActiveTimerTimestamps(), containsInAnyOrder(30L));
 	}
 
-
 	@Test
 	public void testCurrentProcessingTime() throws Exception {
 
@@ -681,7 +680,6 @@ public class HeapInternalTimerServiceTest {
 		@SuppressWarnings("unchecked")
 		Triggerable<Integer, String> mockTriggerable2 = mock(Triggerable.class);
 
-
 		TestKeyContext keyContext1 = new TestKeyContext();
 		TestKeyContext keyContext2 = new TestKeyContext();
 
@@ -703,7 +701,6 @@ public class HeapInternalTimerServiceTest {
 				processingTimeService2,
 				subKeyGroupRange2,
 				maxParallelism);
-
 
 		processingTimeService1.setCurrentTime(10);
 		timerService1.advanceWatermark(10);

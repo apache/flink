@@ -1474,7 +1474,6 @@ public class WindowTranslationTest {
 				winOperator, winOperator.getKeySelector(), BasicTypeInfo.STRING_TYPE_INFO, new Tuple2<>("hello", 1));
 	}
 
-
 	@Test
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	public void testFoldWithEvictor() throws Exception {
@@ -1758,7 +1757,6 @@ public class WindowTranslationTest {
 			}
 		}
 	}
-
 
 	private static class TupleKeySelector implements KeySelector<Tuple2<String, Integer>, String> {
 

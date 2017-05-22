@@ -101,7 +101,6 @@ public class StreamRecordWriterTest {
 		when(mockWriter.getBufferProvider()).thenReturn(mockProvider);
 		when(mockWriter.getNumberOfOutputChannels()).thenReturn(numPartitions);
 
-
 		return mockWriter;
 	}
 

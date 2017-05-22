@@ -75,7 +75,6 @@ public class RegularWindowOperatorContractTest extends WindowOperatorContractTes
 		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
 		InternalWindowFunction<Integer, Void, Integer, TimeWindow> mockWindowFunction = mockWindowFunction();
 
-
 		ReducingStateDescriptor<Integer> intReduceSumDescriptor =
 				new ReducingStateDescriptor<>(
 						"int-reduce",
@@ -91,7 +90,6 @@ public class RegularWindowOperatorContractTest extends WindowOperatorContractTes
 
 		final ValueStateDescriptor<String> valueStateDescriptor =
 				new ValueStateDescriptor<>("string-state", StringSerializer.INSTANCE);
-
 
 		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Void> testHarness =
 				createWindowOperator(mockAssigner, mockTrigger, 0L, intReduceSumDescriptor, mockWindowFunction);
@@ -254,7 +252,6 @@ public class RegularWindowOperatorContractTest extends WindowOperatorContractTes
 
 		ListStateDescriptor<Integer> intListDescriptor =
 				new ListStateDescriptor<>("int-list", IntSerializer.INSTANCE);
-
 
 		@SuppressWarnings("unchecked")
 		WindowOperator<Integer, Integer, Iterable<Integer>, OUT, W> operator = new WindowOperator<>(
