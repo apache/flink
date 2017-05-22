@@ -126,9 +126,9 @@ class DataStreamGroupWindowAggregate(
     val physicalNamedProperties = namedProperties
       .filter(np => !FlinkTypeFactory.isTimeIndicatorType(np.property.resultType))
 
-    val consumeRetraction = DataStreamRetractionRules.isAccRetract(input)
+    val inputIsAccRetract = DataStreamRetractionRules.isAccRetract(input)
 
-    if (consumeRetraction) {
+    if (inputIsAccRetract) {
       throw new TableException(
         "Retraction on windowed GroupBy aggregation is not supported yet. " +
           "Note: Windowed GroupBy aggregation should not follow a " +
