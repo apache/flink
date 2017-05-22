@@ -314,5 +314,4 @@ public class CheckpointProperties implements Serializable {
 			return EXTERNALIZED_CHECKPOINT_RETAINED;
 		}
 	}
-
 }
