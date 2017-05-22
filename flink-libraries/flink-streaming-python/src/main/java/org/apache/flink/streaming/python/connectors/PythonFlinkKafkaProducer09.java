@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.connectors;
 
-import org.apache.flink.streaming.python.util.serialization.PythonSerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer09;
+import org.apache.flink.streaming.python.util.serialization.PythonSerializationSchema;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
+
 import org.python.core.PyObject;
 
 import java.io.IOException;

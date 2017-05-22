@@ -27,7 +27,7 @@ import java.io.ObjectStreamClass;
 /**
  * A helper class to overcome the inability to set the serialVersionUID in a python user-defined
  * function (UDF).
- * <p>The fact the this field is not set, results in a dynamic calculation of this serialVersionUID,
+ * <p>The fact that this field is not set, results in a dynamic calculation of this serialVersionUID,
  * using SHA, to make sure it is a unique number. This unique number is a 64-bit hash of the
  * class name, interface class names, methods, and fields. If a Python class inherits from a
  * Java class, as in the case of Python UDFs, then a proxy wrapper class is created. Its name is
@@ -45,15 +45,7 @@ public class PythonObjectInputStream2 extends PythonObjectInputStream {
 
 	protected ObjectStreamClass readClassDescriptor() throws IOException, ClassNotFoundException {
 		ObjectStreamClass resultClassDescriptor = super.readClassDescriptor(); // initially streams descriptor
-
-		Class<?> localClass;
-		try {
-			localClass = resolveClass(resultClassDescriptor);
-		} catch (ClassNotFoundException e) {
-			System.out.println("No local class for " + resultClassDescriptor.getName());
-			return resultClassDescriptor;
-		}
-
+		Class<?> localClass = resolveClass(resultClassDescriptor);
 		ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
 		if (localClassDescriptor != null) { // only if class implements serializable
 			final long localSUID = localClassDescriptor.getSerialVersionUID();

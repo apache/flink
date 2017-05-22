@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.environment;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -35,14 +36,16 @@ import org.apache.flink.streaming.python.api.functions.PythonGeneratorFunction;
 import org.apache.flink.streaming.python.api.functions.PythonIteratorFunction;
 import org.apache.flink.streaming.python.api.functions.UtilityFunctions;
 import org.apache.flink.streaming.python.util.serialization.PyObjectSerializer;
-import org.python.core.PyObject;
-import org.python.core.PyString;
+
+import org.python.core.PyInstance;
 import org.python.core.PyInteger;
 import org.python.core.PyLong;
-import org.python.core.PyUnicode;
-import org.python.core.PyTuple;
+import org.python.core.PyObject;
 import org.python.core.PyObjectDerived;
-import org.python.core.PyInstance;
+import org.python.core.PyString;
+import org.python.core.PyTuple;
+import org.python.core.PyUnicode;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +57,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Random;
 
-
 /**
  * A thin wrapper layer over {@link StreamExecutionEnvironment}.
  *
@@ -65,10 +67,10 @@ import java.util.Random;
  * or the fault tolerance/checkpointing parameters) and to interact with the outside world
  * (data access).</p>
  */
-@Public
+@PublicEvolving
 public class PythonStreamExecutionEnvironment {
-	private final StreamExecutionEnvironment env;
 	private static final Logger LOG = LoggerFactory.getLogger(PythonStreamExecutionEnvironment.class);
+	private final StreamExecutionEnvironment env;
 
 	/**
 	 * A thin wrapper layer over {@link StreamExecutionEnvironment#getExecutionEnvironment()}. In addition it takes
@@ -78,7 +80,7 @@ public class PythonStreamExecutionEnvironment {
 	 * executed.
 	 */
 	public static PythonStreamExecutionEnvironment get_execution_environment() {
-		return new PythonStreamExecutionEnvironment();
+		return new PythonStreamExecutionEnvironment(StreamExecutionEnvironment.getExecutionEnvironment());
 	}
 
 	/**
@@ -86,31 +88,32 @@ public class PythonStreamExecutionEnvironment {
 	 * will run the program in a multi-threaded fashion in the same JVM as the
 	 * environment was created in. The default parallelism of the local
 	 * environment is the number of hardware contexts (CPU cores / threads),
-	 * unless it was specified differently by {@link #setParallelism(int)}.
+	 * unless it was specified differently by {@link #set_parallelism(int)}.
 	 *
-	 * @param configuration
-	 * 		Pass a custom configuration into the cluster
+	 * @param config
+	 * 		Pass a custom configuration into the cluster.
 	 * @return A local execution environment with the specified parallelism.
 	 */
 	public static PythonStreamExecutionEnvironment create_local_execution_environment(Configuration config) {
-		return new PythonStreamExecutionEnvironment(config);
+		return new PythonStreamExecutionEnvironment(new LocalStreamEnvironment(config));
 	}
 
 	/**
-	 * A thin wrapper layer over {@link StreamExecutionEnvironment#createLocalEnvironment(int, Configuration)}
+	 * A thin wrapper layer over {@link StreamExecutionEnvironment#createLocalEnvironment(int, Configuration)}.
 	 *
 	 * @param parallelism
 	 * 		The parallelism for the local environment.
 	 * @param config
-	 * 		Pass a custom configuration into the cluster
+	 * 		Pass a custom configuration into the cluster.
 	 * @return A local python execution environment with the specified parallelism.
 	 */
 	public static PythonStreamExecutionEnvironment create_local_execution_environment(int parallelism, Configuration config) {
-		return new PythonStreamExecutionEnvironment(parallelism, config);
+		return new PythonStreamExecutionEnvironment(
+						StreamExecutionEnvironment.createLocalEnvironment(parallelism, config));
 	}
 
 	/**
-	 * A thin wrapper layer over {@link StreamExecutionEnvironment#createRemoteEnvironment(java.lang.String, int, java.lang.String...)}
+	 * A thin wrapper layer over {@link StreamExecutionEnvironment#createRemoteEnvironment(java.lang.String, int, java.lang.String...)}.
 	 *
 	 * @param host
 	 * 		The host name or address of the master (JobManager), where the
@@ -127,12 +130,13 @@ public class PythonStreamExecutionEnvironment {
 	 */
 	public static PythonStreamExecutionEnvironment create_remote_execution_environment(
 		String host, int port, String... jar_files) {
-		return new PythonStreamExecutionEnvironment(host, port, jar_files);
+		return new PythonStreamExecutionEnvironment(
+						StreamExecutionEnvironment.createRemoteEnvironment(host, port, jar_files));
 	}
 
 	/**
 	 * A thin wrapper layer over {@link StreamExecutionEnvironment#createRemoteEnvironment(
-	 * java.lang.String, int, Configuration, java.lang.String...)}
+	 * java.lang.String, int, Configuration, java.lang.String...)}.
 	 *
 	 * @param host
 	 * 		The host name or address of the master (JobManager), where the
@@ -152,12 +156,13 @@ public class PythonStreamExecutionEnvironment {
 	 */
 	public static PythonStreamExecutionEnvironment create_remote_execution_environment(
 		String host, int port, Configuration config, String... jar_files) {
-		return new PythonStreamExecutionEnvironment(host, port, config, jar_files);
+		return new PythonStreamExecutionEnvironment(
+						StreamExecutionEnvironment.createRemoteEnvironment(host, port, config, jar_files));
 	}
 
 	/**
 	 * A thin wrapper layer over {@link StreamExecutionEnvironment#createRemoteEnvironment(
-	 * java.lang.String, int, int, java.lang.String...)}
+	 * java.lang.String, int, int, java.lang.String...)}.
 	 *
 	 * @param host
 	 * 		The host name or address of the master (JobManager), where the
@@ -176,36 +181,12 @@ public class PythonStreamExecutionEnvironment {
 	 */
 	public static PythonStreamExecutionEnvironment create_remote_execution_environment(
 		String host, int port, int parallelism, String... jar_files) {
-		return new PythonStreamExecutionEnvironment(host, port, parallelism, jar_files);
+		return new PythonStreamExecutionEnvironment(
+						StreamExecutionEnvironment.createRemoteEnvironment(host, port, parallelism, jar_files));
 	}
 
-	private PythonStreamExecutionEnvironment() {
-		this.env = StreamExecutionEnvironment.getExecutionEnvironment();
-		this.registerJythonSerializers();
-	}
-
-	private PythonStreamExecutionEnvironment(Configuration config) {
-		this.env = new LocalStreamEnvironment(config);
-		this.registerJythonSerializers();
-	}
-
-	private PythonStreamExecutionEnvironment(int parallelism, Configuration config) {
-		this.env = StreamExecutionEnvironment.createLocalEnvironment(parallelism, config);
-		this.registerJythonSerializers();
-	}
-
-	private PythonStreamExecutionEnvironment(String host, int port, String... jar_files) {
-		this.env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, jar_files);
-		this.registerJythonSerializers();
-	}
-
-	private PythonStreamExecutionEnvironment(String host, int port, Configuration config, String... jar_files) {
-		this.env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, config, jar_files);
-		this.registerJythonSerializers();
-	}
-
-	private PythonStreamExecutionEnvironment(String host, int port, int parallelism, String... jar_files) {
-		this.env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, parallelism, jar_files);
+	private PythonStreamExecutionEnvironment(StreamExecutionEnvironment env) {
+		this.env = env;
 		this.registerJythonSerializers();
 	}
 
@@ -219,34 +200,41 @@ public class PythonStreamExecutionEnvironment {
 		this.env.registerTypeWithKryoSerializer(PyInstance.class, PyObjectSerializer.class);
 	}
 
-	public PythonDataStream create_python_source(SourceFunction<Object> src) throws Exception {
-		return new PythonDataStream<>(env.addSource(new PythonGeneratorFunction(src)).map(new UtilityFunctions.SerializerMap<>()));
-	}
-
 	/**
-	 * Add a java source to the streaming topology. The source expected to be an java based
-	 * implementation (.e.g. Kafka connector).
+	 * Adds a Data Source to the streaming topology.
 	 *
-	 * @param src  A native java source (e.g. PythonFlinkKafkaConsumer09)
-	 * @return Python data stream
+	 * <p>By default sources have a parallelism of 1. To enable parallel execution, the user
+	 * defined source should implement {@link org.apache.flink.streaming.api.functions.source.ParallelSourceFunction}
+	 * or extend {@link org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction}.
+	 * In these cases the resulting source will have the parallelism of the environment.
+	 *
+	 * @param src A user-defined source function.
+	 * @return Python data stream.
+	 * @throws Exception
 	 */
-	public PythonDataStream add_java_source(SourceFunction<Object> src) {
-		return new PythonDataStream<>(env.addSource(src).map(new UtilityFunctions.SerializerMap<>()));
+	public PythonDataStream add_source(SourceFunction<Object> src) throws Exception {
+		if (src.getClass().getName().startsWith("org.python.proxies")) {
+			// The source function was written in Python.
+			return new PythonDataStream<>(env.addSource(new PythonGeneratorFunction(src)).map(new UtilityFunctions.SerializerMap<>()));
+		} else {
+			// The source function is a java based function.
+			return new PythonDataStream<>(env.addSource(src).map(new UtilityFunctions.SerializerMap<>()));
+		}
 	}
 
 	/**
-	 * A thin wrapper layer over {@link StreamExecutionEnvironment#fromElements(java.lang.Object[])}
+	 * A thin wrapper layer over {@link StreamExecutionEnvironment#fromElements(java.lang.Object[])}.
 	 *
 	 * @param elements
 	 * 		The array of PyObject elements to create the data stream from.
-	 * @return The data stream representing the given array of elements
+	 * @return The data stream representing the given array of elements.
 	 */
 	public PythonDataStream from_elements(PyObject... elements) {
 		return new PythonDataStream<>(env.fromElements(elements));
 	}
 
 	/**
-	 * A thin wrapper layer over {@link StreamExecutionEnvironment#fromCollection(java.util.Collection)}
+	 * A thin wrapper layer over {@link StreamExecutionEnvironment#fromCollection(java.util.Collection)}.
 	 *
 	 * <p>The input {@code Collection} is of type {@code Object}, because it is a collection
 	 * of Python elements. * There type is determined in runtime, by the Jython framework.</p>
@@ -254,7 +242,7 @@ public class PythonStreamExecutionEnvironment {
 	 * @param collection
 	 * 		The collection of python elements to create the data stream from.
 	 * @return
-	 *     The data stream representing the given collection
+	 *     The data stream representing the given collection.
 	 */
 	public PythonDataStream from_collection(Collection<Object> collection) {
 		return new PythonDataStream<>(env.fromCollection(collection).map(new UtilityFunctions.SerializerMap<>()));
@@ -267,8 +255,8 @@ public class PythonStreamExecutionEnvironment {
 	 * a data stream source with a parallelism of one.</p>
 	 *
 	 * @param iter
-	 * 		The iterator of elements to create the data stream from
-	 * @return The data stream representing the elements in the iterator
+	 * 		The iterator of elements to create the data stream from.
+	 * @return The data stream representing the elements in the iterator.
 	 * @see StreamExecutionEnvironment#fromCollection(java.util.Iterator, org.apache.flink.api.common.typeinfo.TypeInformation)
 	 */
 	public PythonDataStream from_collection(Iterator<Object> iter) throws Exception  {
@@ -280,10 +268,10 @@ public class PythonStreamExecutionEnvironment {
 	 * A thin wrapper layer over {@link StreamExecutionEnvironment#generateSequence(long, long)}.
 	 *
 	 * @param from
-	 * 		The number to start at (inclusive)
+	 * 		The number to start at (inclusive).
 	 * @param to
-	 * 		The number to stop at (inclusive)
-	 * @return A python data stream, containing all number in the [from, to] interval
+	 * 		The number to stop at (inclusive).
+	 * @return A python data stream, containing all number in the [from, to] interval.
 	 */
 	public PythonDataStream generate_sequence(long from, long to) {
 		return new PythonDataStream<>(env.generateSequence(from, to).map(new UtilityFunctions.SerializerMap<Long>()));
@@ -294,7 +282,7 @@ public class PythonStreamExecutionEnvironment {
 	 *
 	 * @param path
 	 * 		The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
-	 * @return The data stream that represents the data read from the given file as text lines
+	 * @return The data stream that represents the data read from the given file as text lines.
 	 * @throws IOException
 	 */
 
@@ -306,11 +294,11 @@ public class PythonStreamExecutionEnvironment {
 	 * A thin wrapper layer over {@link StreamExecutionEnvironment#socketTextStream(java.lang.String, int)}.
 	 *
 	 * @param host
-	 * 		The host name which a server socket binds
+	 * 		The host name which a server socket binds.
 	 * @param port
 	 * 		The port number which a server socket binds. A port number of 0 means that the port number is automatically
 	 * 		allocated.
-	 * @return A python data stream containing the strings received from the socket
+	 * @return A python data stream containing the strings received from the socket.
 	 */
 	public PythonDataStream socket_text_stream(String host, int port) {
 		return new PythonDataStream<>(env.socketTextStream(host, port).map(new UtilityFunctions.SerializerMap<String>()));
@@ -320,7 +308,7 @@ public class PythonStreamExecutionEnvironment {
 	 * A thin wrapper layer over {@link StreamExecutionEnvironment#enableCheckpointing(long)}.
 	 *
 	 * @param interval Time interval between state checkpoints in milliseconds.
-	 * @return The same {@code PythonStreamExecutionEnvironment} instance of the caller
+	 * @return The same {@code PythonStreamExecutionEnvironment} instance of the caller.
 	 */
 	public PythonStreamExecutionEnvironment enable_checkpointing(long interval) {
 		this.env.enableCheckpointing(interval);
@@ -332,8 +320,8 @@ public class PythonStreamExecutionEnvironment {
 	 *
 	 * @param interval Time interval between state checkpoints in milliseconds.
 	 * @param mode
-	 *             The checkpointing mode, selecting between "exactly once" and "at least once" guaranteed.
-	 * @return The same {@code PythonStreamExecutionEnvironment} instance of the caller
+	 *      The checkpointing mode, selecting between "exactly once" and "at least once" guaranteed.
+	 * @return The same {@code PythonStreamExecutionEnvironment} instance of the caller.
 	 */
 	public PythonStreamExecutionEnvironment enable_checkpointing(long interval, CheckpointingMode mode) {
 		this.env.enableCheckpointing(interval, mode);
@@ -343,8 +331,8 @@ public class PythonStreamExecutionEnvironment {
 	/**
 	 * A thin wrapper layer over {@link StreamExecutionEnvironment#setParallelism(int)}.
 	 *
-	 * @param parallelism The parallelism
-	 * @return The same {@code PythonStreamExecutionEnvironment} instance of the caller
+	 * @param parallelism The parallelism.
+	 * @return The same {@code PythonStreamExecutionEnvironment} instance of the caller.
 	 */
 	public PythonStreamExecutionEnvironment set_parallelism(int parallelism) {
 		this.env.setParallelism(parallelism);
@@ -354,7 +342,7 @@ public class PythonStreamExecutionEnvironment {
 	/**
 	 * A thin wrapper layer over {@link StreamExecutionEnvironment#execute()}.
 	 *
-	 * @return The result of the job execution
+	 * @return The result of the job execution.
 	 */
 	public JobExecutionResult execute() throws Exception {
 		return execute(false);
@@ -367,9 +355,10 @@ public class PythonStreamExecutionEnvironment {
 	 * or remote. In the case of local execution, the relevant cached files are distributed using the
 	 * local machine temporary folder, otherwise a shared storage medium is used for this purpose.</p>
 	 *
-	 * @return The result of the job execution
+	 * @param local Specify whether it is a local execution so files can be referenced using local file system.
+	 * @return The result of the job execution.
 	 */
-	public JobExecutionResult execute(Boolean local) throws Exception {
+	public JobExecutionResult execute(boolean local) throws Exception {
 		if (PythonEnvironmentConfig.pythonTmpCachePath == null) {
 			// Nothing to be done! Is is executed on the task manager.
 			return new JobExecutionResult(null, 0, null);
@@ -391,14 +380,21 @@ public class PythonStreamExecutionEnvironment {
 	}
 
 	/**
-	 * A thin wrapper layer over {@link StreamExecutionEnvironment#execute(java.lang.String).
+	 * A thin wrapper layer over {@link StreamExecutionEnvironment#execute(java.lang.String)}.
 	 *
 	 * <p>In addition, it enables the caller to provide a hint about the execution mode - whether it is local
 	 * or remote. In the case of local execution, the relevant cached files are distributed using the
 	 * local machine temporary folder, otherwise a shared storage medium is used for this purpose.</p>
 	 *
-	 * @return The result of the job execution, containing elapsed time and accumulators.
-	 * @throws Exception which occurs during job execution.
+	 * @param job_name
+	 *     Desired name for the job.
+	 * @param local
+	 *     If set to true, then assume local execution using local file system versus shared
+	 *     file system (.e.g hdfs).
+	 * @return
+	 *     The result of the job execution, containing elapsed time and accumulators.
+	 * @throws Exception
+	 *     Exception which occurs during job execution.
 	 */
 	public JobExecutionResult execute(String job_name, Boolean local) throws Exception {
 		if (PythonEnvironmentConfig.pythonTmpCachePath == null) {
@@ -411,21 +407,20 @@ public class PythonStreamExecutionEnvironment {
 		return result;
 	}
 
-	private void distributeFiles(boolean local) throws IOException, URISyntaxException
-	{
+	private void distributeFiles(boolean local) throws IOException, URISyntaxException {
 		String rootDir;
 		if (local || this.env instanceof LocalStreamEnvironment) {
 			rootDir = System.getProperty("java.io.tmpdir");
 		} else {
 			rootDir = "hdfs:///tmp";
 		}
-		PythonEnvironmentConfig.FLINK_HDFS_PATH = Paths.get(rootDir, "flink_cache_" +
+		PythonEnvironmentConfig.flinkHdfsPath = Paths.get(rootDir, "flink_cache_" +
 			(new Random(System.currentTimeMillis())).nextLong()).toString();
 
 		FileCache.copy(new Path(PythonEnvironmentConfig.pythonTmpCachePath),
-			new Path(PythonEnvironmentConfig.FLINK_HDFS_PATH), true);
+			new Path(PythonEnvironmentConfig.flinkHdfsPath), true);
 
-		this.env.registerCachedFile(PythonEnvironmentConfig.FLINK_HDFS_PATH, PythonEnvironmentConfig.FLINK_PYTHON_DC_ID);
+		this.env.registerCachedFile(PythonEnvironmentConfig.flinkHdfsPath, PythonEnvironmentConfig.FLINK_PYTHON_DC_ID);
 	}
 
 	private void cleanupDistributedFiles() throws IOException, URISyntaxException {
@@ -440,3 +435,4 @@ public class PythonStreamExecutionEnvironment {
 		}
 	}
 }
+

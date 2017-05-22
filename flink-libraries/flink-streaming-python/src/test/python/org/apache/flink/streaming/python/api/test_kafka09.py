@@ -67,7 +67,7 @@ class KafkaStringProducer(threading.Thread, TestBase):
     def run(self):
         env = self._get_execution_environment()
 
-        stream = env.create_python_source(StringGenerator(self._msg, self._end_msg, num_iters=100))
+        stream = env.add_source(StringGenerator(self._msg, self._end_msg, num_iters=100))
 
         producer = PythonFlinkKafkaProducer09(KAFKA_DEFAULT_BOOTSTRAP_SERVERS, "kafka09-test", ToStringSchema())
         producer.set_log_failures_only(False);   # "False" by default
@@ -118,7 +118,7 @@ class KafkaStringConsumer(threading.Thread, TestBase):
         consumer = PythonFlinkKafkaConsumer09("kafka09-test", StringDeserializationSchema(), props)
 
         env = self._get_execution_environment()
-        env.add_java_source(consumer) \
+        env.add_source(consumer) \
             .flat_map(Tokenizer()) \
             .key_by(Selector()) \
             .time_window(milliseconds(100)) \

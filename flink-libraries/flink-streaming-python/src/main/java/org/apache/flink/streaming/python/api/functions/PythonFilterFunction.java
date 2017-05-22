@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -22,6 +23,7 @@ import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+
 import org.python.core.PyObject;
 
 import java.io.IOException;
@@ -52,7 +54,7 @@ public class PythonFilterFunction extends RichFilterFunction<PyObject> {
 		this.fun = (FilterFunction<PyObject>) UtilityFunctions.smartFunctionDeserialization(
 			getRuntimeContext(), this.serFun);
 		if (this.fun instanceof RichFunction) {
-			final RichFilterFunction filterFun = (RichFilterFunction)this.fun;
+			final RichFilterFunction filterFun = (RichFilterFunction) this.fun;
 			filterFun.setRuntimeContext(getRuntimeContext());
 			filterFun.open(parameters);
 		}
@@ -61,7 +63,7 @@ public class PythonFilterFunction extends RichFilterFunction<PyObject> {
 	@Override
 	public void close() throws Exception {
 		if (this.fun instanceof RichFunction) {
-			((RichFilterFunction)this.fun).close();
+			((RichFilterFunction) this.fun).close();
 		}
 	}
 

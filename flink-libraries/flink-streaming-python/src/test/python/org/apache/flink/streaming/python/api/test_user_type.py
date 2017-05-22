@@ -67,7 +67,7 @@ class Main(TestBase):
 
     def run(self):
         env = self._get_execution_environment()
-        env.create_python_source(Generator(num_iters=constants.NUM_ITERATIONS_IN_TEST)) \
+        env.add_source(Generator(num_iters=constants.NUM_ITERATIONS_IN_TEST)) \
             .map(Tokenizer()) \
             .key_by(Selector()) \
             .time_window(milliseconds(30)) \

@@ -15,18 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.python.api.environment.PythonEnvironmentConfig;
 import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+
 import org.python.core.Py;
 import org.python.core.PyObject;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.python.core.PySystemState;
 import org.python.util.PythonInterpreter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +72,7 @@ public class UtilityFunctions {
 	 */
 	public static PyObject adapt(Object o) {
 		if (o instanceof PyObject) {
-			return (PyObject)o;
+			return (PyObject) o;
 		}
 		return  Py.java2py(o);
 	}

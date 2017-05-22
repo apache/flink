@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
 import org.apache.flink.api.common.functions.MapFunction;
@@ -22,6 +23,7 @@ import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+
 import org.python.core.PyObject;
 
 import java.io.IOException;
@@ -50,7 +52,7 @@ public class PythonMapFunction extends RichMapFunction<PyObject, PyObject> {
 		this.fun = (MapFunction<PyObject, PyObject>) UtilityFunctions.smartFunctionDeserialization(
 			getRuntimeContext(), serFun);
 		if (this.fun instanceof RichFunction) {
-			final RichMapFunction mapFun = (RichMapFunction)this.fun;
+			final RichMapFunction mapFun = (RichMapFunction) this.fun;
 			mapFun.setRuntimeContext(getRuntimeContext());
 			mapFun.open(config);
 		}
@@ -59,7 +61,7 @@ public class PythonMapFunction extends RichMapFunction<PyObject, PyObject> {
 	@Override
 	public void close() throws Exception {
 		if (this.fun instanceof RichFunction) {
-			((RichMapFunction)this.fun).close();
+			((RichMapFunction) this.fun).close();
 		}
 	}
 

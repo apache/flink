@@ -15,18 +15,18 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ################################################################################
-import struct
-from flink.functions.FilterFunction import FilterFunction
-from flink.functions.FlatMapFunction import FlatMapFunction
-from flink.functions.GroupReduceFunction import GroupReduceFunction
+from flink.plan.Environment import get_environment
 from flink.functions.MapFunction import MapFunction
+from flink.functions.FlatMapFunction import FlatMapFunction
+from flink.functions.FilterFunction import FilterFunction
 from flink.functions.MapPartitionFunction import MapPartitionFunction
 from flink.functions.ReduceFunction import ReduceFunction
-from flink.plan.Constants import INT, STRING
+from flink.functions.GroupReduceFunction import GroupReduceFunction
 from flink.plan.Constants import Order, WriteMode
-from flink.plan.Environment import get_environment
-from utils import Id, Verify
+from flink.plan.Constants import INT, STRING
+import struct
 from uuid import uuid4
+from utils import Id, Verify
 
 if __name__ == "__main__":
     env = get_environment()

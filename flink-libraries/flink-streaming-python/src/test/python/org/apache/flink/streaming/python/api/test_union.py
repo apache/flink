@@ -54,9 +54,9 @@ class Main(TestBase):
 
     def run(self):
         env = self._get_execution_environment()
-        seq1 = env.create_python_source(Generator(msg='Hello', num_iters=constants.NUM_ITERATIONS_IN_TEST))
-        seq2 = env.create_python_source(Generator(msg='World', num_iters=constants.NUM_ITERATIONS_IN_TEST))
-        seq3 = env.create_python_source(Generator(msg='Happy', num_iters=constants.NUM_ITERATIONS_IN_TEST))
+        seq1 = env.add_source(Generator(msg='Hello', num_iters=constants.NUM_ITERATIONS_IN_TEST))
+        seq2 = env.add_source(Generator(msg='World', num_iters=constants.NUM_ITERATIONS_IN_TEST))
+        seq3 = env.add_source(Generator(msg='Happy', num_iters=constants.NUM_ITERATIONS_IN_TEST))
 
         seq1.union(seq2, seq3) \
             .flat_map(Tokenizer()) \

@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.datastream;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+
 import org.python.core.PyObject;
 
 
@@ -28,7 +30,7 @@ import org.python.core.PyObject;
  * <p>{@code PythonSingleOutputStreamOperator} represents a user defined transformation
  * applied on a {@link PythonDataStream} with one predefined output type.</p>
  */
-@Public
+@PublicEvolving
 public class PythonSingleOutputStreamOperator extends PythonDataStream<SingleOutputStreamOperator<PyObject>> {
 	public PythonSingleOutputStreamOperator(SingleOutputStreamOperator<PyObject> stream) {
 		super(stream);

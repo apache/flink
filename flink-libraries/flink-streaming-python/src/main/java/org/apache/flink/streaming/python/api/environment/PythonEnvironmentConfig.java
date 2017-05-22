@@ -18,7 +18,9 @@
 
 package org.apache.flink.streaming.python.api.environment;
 
-
+/**
+ * An environment configuration placeholder.
+ */
 public class PythonEnvironmentConfig {
 	public static final String FLINK_PYTHON_DC_ID = "flink";
 
@@ -34,6 +36,6 @@ public class PythonEnvironmentConfig {
 	 * Holds the path in the shared storage at which the python script(s) reside. It is set on the client side
 	 * within the execution process.
 	 */
-	public static String FLINK_HDFS_PATH = "hdfs:///tmp/flink"; // "file:/tmp/flink"
+	public static String flinkHdfsPath = "hdfs:///tmp/flink"; // "file:/tmp/flink"
 
 }

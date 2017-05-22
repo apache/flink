@@ -17,18 +17,10 @@
 ################################################################################
 import sys
 from utils.python_test_base import TestBase
-from utils.pygeneratorbase import PyGeneratorBase
 from org.apache.flink.api.common.functions import MapFunction, FlatMapFunction, ReduceFunction
 from org.apache.flink.api.java.functions import KeySelector
 from org.apache.flink.streaming.api.windowing.time.Time import milliseconds
 
-
-class Generator(PyGeneratorBase):
-    def __init__(self, num_iters):
-        super(Generator, self).__init__(num_iters)
-
-    def do(self, ctx):
-        ctx.collect(222)
 
 class DummyTupple(MapFunction):
     def map(self, value):

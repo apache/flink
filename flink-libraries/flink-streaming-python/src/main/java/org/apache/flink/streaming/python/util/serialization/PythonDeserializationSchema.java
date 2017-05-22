@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.util.serialization;
 
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -44,7 +45,7 @@ public class PythonDeserializationSchema implements DeserializationSchema<Object
 			try {
 				this.schema = (DeserializationSchema<Object>) SerializationUtils.deserializeObject(this.serSchema);
 			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
+				throw new RuntimeException(e.getMessage());
 			}
 		}
 		return this.schema.deserialize(message);

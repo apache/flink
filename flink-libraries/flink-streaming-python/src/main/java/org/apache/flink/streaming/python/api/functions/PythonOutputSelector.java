@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+
 import org.python.core.PyObject;
 
 import java.io.IOException;
@@ -48,14 +50,9 @@ public class PythonOutputSelector implements OutputSelector<PyObject> {
 		if (this.fun == null) {
 			try {
 				this.fun = (OutputSelector<PyObject>) SerializationUtils.deserializeObject(this.serFun);
-			} catch (IOException e) {
-				e.printStackTrace();
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
+			} catch (IOException | ClassNotFoundException e) {
+				throw new RuntimeException(e.getMessage());
 			}
-		}
-		if (this.fun == null) {
-			return null;
 		}
 		return this.fun.select(value);
 	}

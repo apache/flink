@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.util.serialization;
 
-import java.io.IOException;
-
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
+
 import org.python.core.PyObject;
+
+import java.io.IOException;
 
 /**
  * A Python serialization schema, which implements {@link SerializationSchema}. It converts
@@ -41,11 +43,9 @@ public class PythonSerializationSchema implements SerializationSchema<PyObject> 
 	public byte[] serialize(PyObject element) {
 		if (this.schema == null) {
 			try {
-				this.schema = (SerializationSchema<PyObject>)SerializationUtils.deserializeObject(this.serSchema);
-			} catch (IOException e) {
-				e.printStackTrace();
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
+				this.schema = (SerializationSchema<PyObject>) SerializationUtils.deserializeObject(this.serSchema);
+			} catch (IOException | ClassNotFoundException e) {
+				throw new RuntimeException(e.getMessage());
 			}
 		}
 		return this.schema.serialize(element);

@@ -15,8 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api;
-import org.apache.commons.io.FilenameUtils;
+
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -24,14 +25,15 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.streaming.python.api.environment.PythonEnvironmentConfig;
 import org.apache.flink.streaming.python.api.functions.UtilityFunctions;
 
+import org.apache.commons.io.FilenameUtils;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.io.PrintWriter;
 import java.io.IOException;
-
+import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -41,12 +43,11 @@ import java.util.Arrays;
 import java.util.Random;
 
 /**
- * Allows the execution of Flink stream plan that is written in Python
+ * Allows the execution of Flink stream plan that is written in Python.
  */
 public class PythonStreamBinder {
 	private static final Random r = new Random(System.currentTimeMillis());
 	public static final String FLINK_PYTHON_FILE_PATH = System.getProperty("java.io.tmpdir") + File.separator + "flink_streaming_plan_";
-
 
 	private PythonStreamBinder() {
 	}
@@ -54,7 +55,7 @@ public class PythonStreamBinder {
 	/**
 	 * Entry point for the execution of a python streaming task.
 	 *
-	 * @param args <pathToScript> [<pathToPackage1> .. [<pathToPackageX]] - [parameter1]..[parameterX]
+	 * @param args pathToScript [pathToPackage1 [pathToPackageX[ - [parameter1[ parameterX]]]]
 	 * @throws Exception
 	 */
 	public static void main(String[] args) throws Exception {
@@ -70,8 +71,7 @@ public class PythonStreamBinder {
 		}
 		else {
 			script = new File(args[0]);
-			if ((!script.exists()) || (!script.isFile()))
-			{
+			if ((!script.exists()) || (!script.isFile())) {
 				throw new FileNotFoundException("Could not find file: " + args[0]);
 			}
 		}
@@ -91,7 +91,7 @@ public class PythonStreamBinder {
 		if (split != 0) {
 			String[] a = new String[args.length - split];
 			a[0] = args[0];
-			System.arraycopy(args, split + 1, a, 1, args.length - (split +1));
+			System.arraycopy(args, split + 1, a, 1, args.length - (split + 1));
 			args = a;
 		} else if (args.length > 1) {
 			args = new String[]{args[0]};
@@ -130,8 +130,8 @@ public class PythonStreamBinder {
 
 		//additional files/folders(modules)
 		for (int x = 1; x < filePaths.length; x++) {
-			String currentParent = (new File(filePaths[x])).getParent();
-			if (currentParent.startsWith(".")) {
+			boolean isRelativePath = !(new File(filePaths[x])).isAbsolute();
+			if (isRelativePath) {
 				filePaths[x] = parentDir + File.separator + filePaths[x];
 			}
 			copyFile(filePaths[x], tempFilePath, null);

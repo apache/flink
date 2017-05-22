@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.datastream;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -25,6 +26,7 @@ import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.python.api.functions.PyKey;
 import org.apache.flink.streaming.python.api.functions.PythonReduceFunction;
+
 import org.python.core.PyObject;
 
 import java.io.IOException;
@@ -36,10 +38,10 @@ import java.io.IOException;
  * <p>A {@code PythonKeyedStream} represents a {@link PythonDataStream} on which operator state is
  * partitioned by key using a provided {@link org.apache.flink.api.java.functions.KeySelector;}</p>
  */
-@Public
+@PublicEvolving
 public class PythonKeyedStream extends PythonDataStream<KeyedStream<PyObject, PyKey>> {
 
-	public PythonKeyedStream(KeyedStream<PyObject, PyKey> stream) {
+	PythonKeyedStream(KeyedStream<PyObject, PyKey> stream) {
 		super(stream);
 	}
 
@@ -55,7 +57,7 @@ public class PythonKeyedStream extends PythonDataStream<KeyedStream<PyObject, Py
 	}
 
 	/**
-	 * A thin wrapper layer over {@link KeyedStream#timeWindow(Time)}
+	 * A thin wrapper layer over {@link KeyedStream#timeWindow(Time)}.
 	 *
 	 * @param size The size of the window.
 	 * @return The python windowed stream {@link PythonWindowedStream}
@@ -65,7 +67,7 @@ public class PythonKeyedStream extends PythonDataStream<KeyedStream<PyObject, Py
 	}
 
 	/**
-	 * A thin wrapper layer over {@link KeyedStream#timeWindow(Time, Time)}
+	 * A thin wrapper layer over {@link KeyedStream#timeWindow(Time, Time)}.
 	 *
 	 * @param size The size of the window.
 	 * @return The python wrapper {@link PythonWindowedStream}
@@ -75,7 +77,7 @@ public class PythonKeyedStream extends PythonDataStream<KeyedStream<PyObject, Py
 	}
 
 	/**
-	 * A thin wrapper layer over {@link KeyedStream#reduce(ReduceFunction)}
+	 * A thin wrapper layer over {@link KeyedStream#reduce(ReduceFunction)}.
 	 *
 	 * @param reducer
 	 *            The {@link ReduceFunction} that will be called for every

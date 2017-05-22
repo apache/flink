@@ -56,7 +56,7 @@ class Main:
             except:
                 failed_tests.append(test.__name__)
                 ex_type = sys.exc_info()[0]
-                print("\n{}\n{}\n{}\n".format('#'*len(ex_type), ex_type, '#'*len(ex_type)))
+                print("\n{}\n{}\n{}\n".format('#'*len(str(ex_type)), ex_type, '#'*len(str(ex_type))))
 
         if failed_tests:
             print("\nThe following tests were failed:")

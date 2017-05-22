@@ -15,12 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
-import java.io.IOException;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+
 import org.python.core.PyObject;
+
+import java.io.IOException;
 
 /**
  * The {@code PythonReduceFunction} is a thin wrapper layer over a Python UDF {@code ReduceFunction}.

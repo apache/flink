@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.datastream;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
@@ -25,6 +26,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.python.api.functions.PyKey;
 import org.apache.flink.streaming.python.api.functions.PythonApplyFunction;
 import org.apache.flink.streaming.python.api.functions.PythonReduceFunction;
+
 import org.python.core.PyObject;
 
 import java.io.IOException;
@@ -37,11 +39,11 @@ import java.io.IOException;
  * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. Window emission
  * is triggered based on a {@link org.apache.flink.streaming.api.windowing.triggers.Trigger}.</p>
  */
-@Public
+@PublicEvolving
 public class PythonWindowedStream<W extends Window> {
 	private final WindowedStream<PyObject, PyKey, W> stream;
 
-	public PythonWindowedStream(WindowedStream<PyObject, PyKey, W> stream) {
+	PythonWindowedStream(WindowedStream<PyObject, PyKey, W> stream) {
 		this.stream = stream;
 	}
 

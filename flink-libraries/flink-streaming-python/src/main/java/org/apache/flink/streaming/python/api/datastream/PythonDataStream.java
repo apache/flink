@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.datastream;
 
-import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -37,6 +37,7 @@ import org.apache.flink.streaming.python.api.functions.PythonOutputSelector;
 import org.apache.flink.streaming.python.api.functions.PythonSinkFunction;
 import org.apache.flink.streaming.python.util.serialization.PythonSerializationSchema;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
+
 import org.python.core.PyObject;
 
 import java.io.IOException;
@@ -57,7 +58,7 @@ import java.util.ArrayList;
  * this layer handles Python wrappers (e.g. {@code PythonDataStream}) to comply with the
  * Python standard coding styles.</p>
  */
-@Public
+@PublicEvolving
 public class PythonDataStream<D extends DataStream<PyObject>> {
 	protected final D stream;
 
@@ -147,7 +148,9 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	 * A thin wrapper layer over {@link DataStream#print()}.
 	 */
 	@PublicEvolving
-	public void print() { stream.print(); }
+	public void print() {
+		stream.print();
+	}
 
 	/**
 	 * A thin wrapper layer over {@link DataStream#writeAsText(java.lang.String)}.
@@ -156,7 +159,9 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	 *            The path pointing to the location the text file is written to.
 	 */
 	@PublicEvolving
-	public void write_as_text(String path) { stream.writeAsText(path); }
+	public void write_as_text(String path) {
+		stream.writeAsText(path);
+	}
 
 	/**
 	 * A thin wrapper layer over {@link DataStream#writeAsText(java.lang.String, WriteMode)}.
@@ -168,10 +173,12 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	 *            NO_OVERWRITE and OVERWRITE.
 	 */
 	@PublicEvolving
-	public void write_as_text(String path, WriteMode mode) { stream.writeAsText(path, mode); }
+	public void write_as_text(String path, WriteMode mode) {
+		stream.writeAsText(path, mode);
+	}
 
 	/**
-	 * A thin wrapper layer over {@link DataStream#writeToSocket(java.lang.String, int, SerializationSchema)}
+	 * A thin wrapper layer over {@link DataStream#writeToSocket(java.lang.String, int, SerializationSchema)}.
 	 *
 	 * @param host
 	 *            host of the socket
@@ -186,7 +193,7 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	}
 
 	/**
-	 * A thin wrapper layer over {@link DataStream#addSink(SinkFunction)}
+	 * A thin wrapper layer over {@link DataStream#addSink(SinkFunction)}.
 	 *
 	 * @param sink_func
 	 *            The object containing the sink's invoke function.
@@ -206,16 +213,16 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	 * given to the {@link PythonIterativeStream#close_with(PythonDataStream)} method is
 	 * the data stream that will be fed back and used as the input for the
 	 * iteration head. </p>
-	 * <p>
-	 * A common usage pattern for streaming iterations is to use output
+	 *
+	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
 	 * {@link #split(OutputSelector)} for more information.
-	 * <p>
-	 * The iteration edge will be partitioned the same way as the first input of
+	 *
+	 * <p>The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
 	 * {@link PythonIterativeStream#close_with(PythonDataStream)} call.
-	 * <p>
-	 * By default a PythonDataStream with iteration will never terminate, but the user
+	 *
+	 * <p>By default a PythonDataStream with iteration will never terminate, but the user
 	 * can use the maxWaitTime parameter to set a max waiting time for the
 	 * iteration head. If no data received in the set time, the stream
 	 * terminates.
@@ -223,7 +230,9 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	 * @return The iterative data stream created.
 	 */
 	@PublicEvolving
-	public PythonIterativeStream iterate() { return new PythonIterativeStream(this.stream.iterate()); }
+	public PythonIterativeStream iterate() {
+		return new PythonIterativeStream(this.stream.iterate());
+	}
 
 	/**
 	 * A thin wrapper layer over {@link DataStream#iterate(long)}.
@@ -234,17 +243,17 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	 * this IterativeStream will be the iteration head. The data stream
 	 * given to the {@link PythonIterativeStream#close_with(PythonDataStream)} method is
 	 * the data stream that will be fed back and used as the input for the
-	 * iteration head.</p>
-	 * <p>
-	 * A common usage pattern for streaming iterations is to use output
+	 * iteration head.
+	 *
+	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
 	 * {@link #split(OutputSelector)} for more information.
-	 * <p>
-	 * The iteration edge will be partitioned the same way as the first input of
+	 *
+	 * <p>The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
 	 * {@link PythonIterativeStream#close_with(PythonDataStream)} call.
-	 * <p>
-	 * By default a PythonDataStream with iteration will never terminate, but the user
+	 *
+	 * <p>By default a PythonDataStream with iteration will never terminate, but the user
 	 * can use the maxWaitTime parameter to set a max waiting time for the
 	 * iteration head. If no data received in the set time, the stream
 	 * terminates.

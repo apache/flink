@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
 import org.apache.flink.configuration.Configuration;
@@ -24,6 +25,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.python.util.PythonCollector;
 import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
 import org.apache.flink.util.Collector;
+
 import org.python.core.PyObject;
 
 import java.io.IOException;
@@ -55,7 +57,7 @@ public class PythonApplyFunction<W extends Window> extends RichWindowFunction<Py
 			(WindowFunction<PyObject, PyObject, Object, Window>) UtilityFunctions.smartFunctionDeserialization(
 			getRuntimeContext(), this.serFun);
 		if (this.fun instanceof RichWindowFunction) {
-			final RichWindowFunction winFun = (RichWindowFunction)this.fun;
+			final RichWindowFunction winFun = (RichWindowFunction) this.fun;
 			winFun.setRuntimeContext(getRuntimeContext());
 			winFun.open(parameters);
 		}
@@ -65,7 +67,7 @@ public class PythonApplyFunction<W extends Window> extends RichWindowFunction<Py
 	@Override
 	public void close() throws Exception {
 		if (this.fun instanceof RichWindowFunction) {
-			((RichWindowFunction)this.fun).close();
+			((RichWindowFunction) this.fun).close();
 		}
 	}
 

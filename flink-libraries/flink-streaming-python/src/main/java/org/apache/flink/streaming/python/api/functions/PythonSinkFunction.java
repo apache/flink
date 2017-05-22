@@ -15,14 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
 import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+
 import org.python.core.PyObject;
 
 import java.io.IOException;
@@ -40,7 +41,6 @@ public class PythonSinkFunction extends RichSinkFunction<PyObject> {
 	private static final long serialVersionUID = -9030596504893036458L;
 	private final byte[] serFun;
 	private transient SinkFunction<PyObject> fun;
-	private transient RuntimeContext context;
 
 	public PythonSinkFunction(SinkFunction<PyObject> fun) throws IOException {
 		this.serFun = SerializationUtils.serializeObject(fun);
@@ -52,7 +52,7 @@ public class PythonSinkFunction extends RichSinkFunction<PyObject> {
 		this.fun = (SinkFunction<PyObject>) UtilityFunctions.smartFunctionDeserialization(
 			getRuntimeContext(), this.serFun);
 		if (this.fun instanceof RichFunction) {
-			final RichSinkFunction sinkFunction = (RichSinkFunction)this.fun;
+			final RichSinkFunction sinkFunction = (RichSinkFunction) this.fun;
 			sinkFunction.setRuntimeContext(getRuntimeContext());
 			sinkFunction.open(parameters);
 		}
@@ -61,7 +61,7 @@ public class PythonSinkFunction extends RichSinkFunction<PyObject> {
 	@Override
 	public void close() throws Exception {
 		if (this.fun instanceof RichFunction) {
-			((RichSinkFunction)this.fun).close();
+			((RichSinkFunction) this.fun).close();
 		}
 	}
 

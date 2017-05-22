@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.datastream;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.datastream.SplitStream;
+
 import org.python.core.PyObject;
 
 
@@ -33,12 +35,12 @@ import org.python.core.PyObject;
 @PublicEvolving
 public class PythonSplitStream extends PythonDataStream<SplitStream<PyObject>> {
 
-	public PythonSplitStream(SplitStream<PyObject> splitStream) {
+	PythonSplitStream(SplitStream<PyObject> splitStream) {
 		super(splitStream);
 	}
 
 	/**
-	 * A thin wrapper layer over {@link SplitStream#select(java.lang.String...)}
+	 * A thin wrapper layer over {@link SplitStream#select(java.lang.String...)}.
 	 *
 	 * @param output_names
 	 *            The output names for which the operator will receive the

@@ -15,24 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api;
 
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
-import org.apache.flink.streaming.python.api.PythonStreamBinder;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.ListIterator;
 
+/**
+ * A single unit-test class for the streaming python API. Internally, it executes all the python
+ * unit-test using the 'run_all_tests.py' located under
+ * 'flink-libraries/flink-streaming-python/src/test/python/org/apache/flink/streaming/python/api'
+ */
 public class PythonStreamBinderTest extends StreamingProgramTestBase {
-	final private static String defaultPythonScriptName = "run_all_tests.py";
-	final private static String flinkPythonRltvPath = "flink-libraries/flink-streaming-python";
-	final private static String pathToStreamingTests = "src/test/python/org/apache/flink/streaming/python/api";
+	private static final String DEFAULT_PYTHON_SCRIPT_NAME = "run_all_tests.py";
+	private static final String FLINK_PYTHON_RLTV_PATH = "flink-libraries/flink-streaming-python";
+	private static final String PATH_TO_STREAMING_TESTS = "src/test/python/org/apache/flink/streaming/python/api";
 
 	public PythonStreamBinderTest() {
 	}
@@ -48,20 +50,22 @@ public class PythonStreamBinderTest extends StreamingProgramTestBase {
 
 	@Override
 	public void testProgram() throws Exception {
-		this.main(new String[]{});
+		main(new String[]{});
 	}
 
 	private static String[] prepareDefaultArgs() throws Exception {
-		File testFullPath = findStreamTestFile(defaultPythonScriptName);
-		List<String> filesInTestPath = getFilesInFolder(testFullPath.getParent());
+		File testFullPath = findStreamTestFile(DEFAULT_PYTHON_SCRIPT_NAME);
+		File[] filesInTestPath = testFullPath.getParentFile().listFiles((dir, name) ->
+			name.startsWith("test_") ||
+				new File(dir.getAbsolutePath() + File.separator + name).isDirectory());
 
-		String[] args = new String[filesInTestPath.size() + 1];
+		String[] args = new String[filesInTestPath.length + 1];
 		args[0] = testFullPath.getAbsolutePath();
 
-		for (final ListIterator<String> it = filesInTestPath.listIterator(); it.hasNext();) {
-			final String p = it.next();
-			args[it.previousIndex() + 1] = p;
+		for (int index = 0; index < filesInTestPath.length; index++) {
+			args[index + 1] = filesInTestPath[index].getCanonicalPath();
 		}
+
 		return args;
 	}
 
@@ -71,30 +75,17 @@ public class PythonStreamBinderTest extends StreamingProgramTestBase {
 		}
 		FileSystem fs = FileSystem.getLocalFileSystem();
 		String workingDir = fs.getWorkingDirectory().getPath();
-		if (!workingDir.endsWith(flinkPythonRltvPath)) {
-			workingDir += File.separator + flinkPythonRltvPath;
+		if (!workingDir.endsWith(FLINK_PYTHON_RLTV_PATH)) {
+			workingDir += File.separator + FLINK_PYTHON_RLTV_PATH;
 		}
 		FileStatus[] status = fs.listStatus(
-			new Path( workingDir + File.separator + pathToStreamingTests));
+			new Path(workingDir + File.separator + PATH_TO_STREAMING_TESTS));
 		for (FileStatus f : status) {
-			String file_name = f.getPath().getName();
-			if (file_name.equals(name)) {
+			String fileName = f.getPath().getName();
+			if (fileName.equals(name)) {
 				return new File(f.getPath().getPath());
 			}
 		}
 		throw new FileNotFoundException();
-	}
-
-	private static List<String> getFilesInFolder(String path) {
-		List<String> results = new ArrayList<>();
-		File[] files = new File(path).listFiles();
-		if (files != null) {
-			for (File file : files) {
-				if (file.isDirectory() || file.getName().startsWith("test_")) {
-					results.add("." + File.separator + file.getName());
-				}
-			}
-		}
-		return results;
 	}
 }

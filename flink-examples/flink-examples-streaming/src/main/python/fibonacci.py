@@ -96,7 +96,7 @@ class Main:
                 print ("Error in reading input file. Exiting...")
                 sys.exit(5)
         else:
-            input_stream = env.create_python_source(Generator(num_iters=50))
+            input_stream = env.add_source(Generator(num_iters=50))
 
         # create an iterative data stream from the input with 5 second timeout
         it = input_stream.map(InPut()).iterate(5000)

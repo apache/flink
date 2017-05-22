@@ -62,7 +62,7 @@ class Main:
 
     def run(self):
         env = PythonStreamExecutionEnvironment.get_execution_environment()
-        env.create_python_source(Generator(num_iters=100)) \
+        env.add_source(Generator(num_iters=100)) \
             .flat_map(Tokenizer()) \
             .key_by(Selector()) \
             .time_window(milliseconds(30)) \
