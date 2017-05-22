@@ -206,7 +206,7 @@ under the License.
 		</dependency>
 
 		<!-- Concrete logging framework - we add this only here (and not in the 
-			root POM to not tie the projects to one specific framework and make
+			root POM) to not tie the projects to one specific framework and make
 			it easier for users to swap logging frameworks -->
 
 		<dependency>
@@ -219,6 +219,22 @@ under the License.
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
 			<scope>compile</scope>
+		</dependency>
+
+		<!--
+			The Hadoop 2 Uber jar should not go into the Flink dist jar, but
+			sit next to it. Hence, we set it to 'provided' here.
+		-->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-hadoop2-uber</artifactId>
+			<version>${project.version}</version>
+			<!--
+				Exclusion of flink-shaded-hadoop2 not necessary, dependencies
+				are shaded away properly by flink-shaded-hadoop2-uber.
+			-->
+			<scope>provided</scope>
 		</dependency>
 
 		<!--
