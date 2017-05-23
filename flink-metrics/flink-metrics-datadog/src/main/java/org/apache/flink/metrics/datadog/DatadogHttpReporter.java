@@ -171,6 +171,9 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		return metricGroup.getAllVariables().get(HOST_VARIABLE);
 	}
 
+	/**
+	 * Removes leading and trailing angle brackets.
+	 */
 	private String getVariableName(String str) {
 		return str.substring(1, str.length() - 1);
 	}
