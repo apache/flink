@@ -24,10 +24,11 @@ import org.apache.flink.util.TestLogger;
 import akka.actor.ActorSystem;
 import org.junit.Assert;
 import org.junit.Test;
-import scala.concurrent.ExecutionContext;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import scala.concurrent.ExecutionContext;
 
 import static org.apache.flink.runtime.webmonitor.handlers.TaskManagersHandler.TASK_MANAGER_ID_KEY;
 import static org.junit.Assert.assertEquals;

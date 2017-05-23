@@ -31,10 +31,11 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Tuple2;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import scala.Tuple2;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

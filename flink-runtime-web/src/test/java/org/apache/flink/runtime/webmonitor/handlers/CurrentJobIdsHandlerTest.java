@@ -20,9 +20,10 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.junit.Assert;
 import org.junit.Test;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.concurrent.TimeUnit;
+
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Tests for the CurrentJobIdsHandler.

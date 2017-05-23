@@ -26,10 +26,11 @@ import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.OperatorBackPressureStats;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import scala.Option;
 
 import java.io.StringWriter;
 import java.util.Map;
+
+import scala.Option;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;

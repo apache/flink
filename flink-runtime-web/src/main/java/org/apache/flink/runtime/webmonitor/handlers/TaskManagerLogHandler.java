@@ -68,10 +68,6 @@ import io.netty.handler.stream.ChunkedFile;
 import io.netty.util.concurrent.GenericFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.concurrent.ExecutionContextExecutor;
-import scala.concurrent.duration.FiniteDuration;
-import scala.reflect.ClassTag$;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -81,6 +77,11 @@ import java.net.InetSocketAddress;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
+
+import scala.Option;
+import scala.concurrent.ExecutionContextExecutor;
+import scala.concurrent.duration.FiniteDuration;
+import scala.reflect.ClassTag$;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;

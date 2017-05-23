@@ -27,9 +27,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Assert;
 import org.junit.Test;
-import scala.Option;
 
 import java.util.Collections;
+
+import scala.Option;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;

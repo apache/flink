@@ -39,7 +39,6 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import scala.Option;
 
 import java.io.File;
 import java.io.InputStream;
@@ -47,6 +46,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import scala.Option;
 
 /**
  * Tests for the HistoryServer.

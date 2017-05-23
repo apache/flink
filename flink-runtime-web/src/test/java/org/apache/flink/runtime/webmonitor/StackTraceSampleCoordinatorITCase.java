@@ -43,10 +43,11 @@ import akka.testkit.JavaTestKit;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import scala.concurrent.Await;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.concurrent.TimeUnit;
+
+import scala.concurrent.Await;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.AllVerticesRunning;
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ExecutionGraphFound;

@@ -21,10 +21,11 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Tests for the TaskManagersHandler.

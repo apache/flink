@@ -31,12 +31,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.junit.Assert;
 import org.junit.Test;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
+
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Tests for the CurrentJobsOverviewHandler.

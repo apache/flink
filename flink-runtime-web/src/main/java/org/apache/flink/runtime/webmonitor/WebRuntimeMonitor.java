@@ -78,10 +78,6 @@ import akka.actor.ActorSystem;
 import io.netty.handler.codec.http.router.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.ExecutionContextExecutor;
-import scala.concurrent.Promise;
-import scala.concurrent.duration.FiniteDuration;
 
 import javax.net.ssl.SSLContext;
 
@@ -92,6 +88,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import scala.concurrent.ExecutionContext$;
+import scala.concurrent.ExecutionContextExecutor;
+import scala.concurrent.Promise;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

@@ -27,11 +27,12 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.WeakHashMap;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
-
-import java.util.WeakHashMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

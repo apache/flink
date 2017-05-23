@@ -45,18 +45,19 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import scala.Option;
-import scala.collection.JavaConverters;
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.ExecutionContextExecutor;
-import scala.concurrent.Future$;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+
+import scala.Option;
+import scala.collection.JavaConverters;
+import scala.concurrent.ExecutionContext$;
+import scala.concurrent.ExecutionContextExecutor;
+import scala.concurrent.Future$;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.isA;

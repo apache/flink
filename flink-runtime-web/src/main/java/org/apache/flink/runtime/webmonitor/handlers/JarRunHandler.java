@@ -27,12 +27,13 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
+
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * This handler handles requests to fetch plan for a jar.

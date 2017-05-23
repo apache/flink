@@ -32,6 +32,10 @@ import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.UUID;
+import java.util.concurrent.TimeoutException;
+
 import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Await;
@@ -39,9 +43,6 @@ import scala.concurrent.Future;
 import scala.concurrent.Promise;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
-
-import java.util.UUID;
-import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
