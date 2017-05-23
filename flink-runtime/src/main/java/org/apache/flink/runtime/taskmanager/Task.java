@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.SafetyNetCloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -71,7 +72,6 @@ import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
-
 import org.apache.flink.util.WrappingRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1172,13 +1172,14 @@ public class Task implements Runnable, TaskActions {
 				// build a local closure
 				final StatefulTask statefulTask = (StatefulTask) invokable;
 				final String taskName = taskNameWithSubtask;
-
+				final SafetyNetCloseableRegistry safetyNetCloseableRegistry =
+					FileSystemSafetyNet.getSafetyNetCloseableRegistryForThread();
 				Runnable runnable = new Runnable() {
 					@Override
 					public void run() {
 						// activate safety net for checkpointing thread
 						LOG.debug("Creating FileSystem stream leak safety net for {}", Thread.currentThread().getName());
-						FileSystemSafetyNet.initializeSafetyNetForThread();
+						FileSystemSafetyNet.setSafetyNetCloseableRegistryForThread(safetyNetCloseableRegistry);
 
 						try {
 							boolean success = statefulTask.triggerCheckpoint(checkpointMetaData, checkpointOptions);
@@ -1202,8 +1203,6 @@ public class Task implements Runnable, TaskActions {
 							// close and de-activate safety net for checkpointing thread
 							LOG.debug("Ensuring all FileSystem streams are closed for {}",
 									Thread.currentThread().getName());
-
-							FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
 						}
 					}
 				};
