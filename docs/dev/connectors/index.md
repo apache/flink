@@ -39,13 +39,13 @@ The [predefined data sinks]({{ site.baseurl }}/dev/datastream_api.html#data-sink
 
 Connectors provide code for interfacing with various third-party systems. Currently these systems are supported:
 
- * [Apache Kafka](kafka.html) (sink/source)
+ * [Apache Kafka](kafka.html) (source/sink)
  * [Apache Cassandra](cassandra.html) (sink)
- * [Amazon Kinesis Streams](kinesis.html) (sink/source)
+ * [Amazon Kinesis Streams](kinesis.html) (source/sink)
  * [Elasticsearch](elasticsearch.html) (sink)
  * [Hadoop FileSystem](filesystem_sink.html) (sink)
- * [RabbitMQ](rabbitmq.html) (sink/source)
- * [Apache NiFi](nifi.html) (sink/source)
+ * [RabbitMQ](rabbitmq.html) (source/sink)
+ * [Apache NiFi](nifi.html) (source/sink)
  * [Twitter Streaming API](twitter.html) (source)
 
 Keep in mind that to use one of these connectors in an application, additional third party
@@ -53,6 +53,16 @@ components are usually required, e.g. servers for the data stores or message que
 Note also that while the streaming connectors listed in this section are part of the
 Flink project and are included in source releases, they are not included in the binary distributions. 
 Further instructions can be found in the corresponding subsections.
+
+## Connectors in Apache Bahir
+
+Additional streaming connectors for Flink are being released through [Apache Bahir](https://bahir.apache.org/), including:
+
+ * [Apache ActiveMQ](https://bahir.apache.org/docs/flink/current/flink-streaming-activemq/) (source/sink)
+ * [Apache Flume](https://bahir.apache.org/docs/flink/current/flink-streaming-flume/) (sink)
+ * [Redis](https://bahir.apache.org/docs/flink/current/flink-streaming-redis/) (sink)
+ * [Akka](https://bahir.apache.org/docs/flink/current/flink-streaming-akka/) (sink)
+ * [Netty](https://bahir.apache.org/docs/flink/current/flink-streaming-netty/) (source)
 
 ## Other Ways to Connect to Flink
 
