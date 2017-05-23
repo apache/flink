@@ -39,6 +39,7 @@ import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -93,7 +94,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 		expectedCheckpointIds.add(2L);
 
 		final RetrievableStateHandle<CompletedCheckpoint> failingRetrievableStateHandle = mock(RetrievableStateHandle.class);
-		when(failingRetrievableStateHandle.retrieveState()).thenThrow(new Exception("Test exception"));
+		when(failingRetrievableStateHandle.retrieveState()).thenThrow(new IOException("Test exception"));
 
 		final RetrievableStateHandle<CompletedCheckpoint> retrievableStateHandle1 = mock(RetrievableStateHandle.class);
 		when(retrievableStateHandle1.retrieveState()).thenReturn(completedCheckpoint1);
