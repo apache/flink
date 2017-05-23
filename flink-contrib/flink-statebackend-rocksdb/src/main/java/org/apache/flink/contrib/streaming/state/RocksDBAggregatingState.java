@@ -25,8 +25,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
+
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
@@ -47,10 +47,10 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 	extends AbstractRocksDBState<K, N, AggregatingState<T, R>, AggregatingStateDescriptor<T, ACC, R>, ACC>
 	implements InternalAggregatingState<N, T, R> {
 
-	/** Serializer for the values */
+	/** Serializer for the values. */
 	private final TypeSerializer<ACC> valueSerializer;
 
-	/** User-specified aggregation function */
+	/** User-specified aggregation function. */
 	private final AggregateFunction<T, ACC, R> aggFunction;
 
 	/**
@@ -64,7 +64,7 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 	 *
 	 * @param namespaceSerializer
 	 *             The serializer for the namespace.
-	 * @param stateDesc              
+	 * @param stateDesc
 	 *             The state identifier for the state. This contains the state name and aggregation function.
 	 */
 	public RocksDBAggregatingState(
@@ -154,7 +154,7 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 					writeKeyWithGroupAndNamespace(
 							keyGroup, key, source,
 							keySerializationStream, keySerializationDataOutputView);
-					
+
 					final byte[] sourceKey = keySerializationStream.toByteArray();
 					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 
@@ -174,7 +174,7 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 
 			// if something came out of merging the sources, merge it or write it to the target
 			if (current != null) {
-				// create the target full-binary-key 
+				// create the target full-binary-key
 				writeKeyWithGroupAndNamespace(
 						keyGroup, key, target,
 						keySerializationStream, keySerializationDataOutputView);

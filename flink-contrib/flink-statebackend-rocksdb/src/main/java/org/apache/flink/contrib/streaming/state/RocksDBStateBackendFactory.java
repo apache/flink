@@ -39,13 +39,13 @@ public class RocksDBStateBackendFactory implements StateBackendFactory<RocksDBSt
 
 	private static final long serialVersionUID = 4906988360901930371L;
 
-	/** The key under which the config stores the directory where checkpoints should be stored */
+	/** The key under which the config stores the directory where checkpoints should be stored. */
 	public static final String CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.fs.checkpointdir";
-	/** The key under which the config stores the directory where RocksDB should be stored */
+	/** The key under which the config stores the directory where RocksDB should be stored. */
 	public static final String ROCKSDB_CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.rocksdb.checkpointdir";
 
 	@Override
-	public RocksDBStateBackend createFromConfig(Configuration config) 
+	public RocksDBStateBackend createFromConfig(Configuration config)
 			throws IllegalConfigurationException, IOException {
 
 		final String checkpointDirURI = config.getString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);

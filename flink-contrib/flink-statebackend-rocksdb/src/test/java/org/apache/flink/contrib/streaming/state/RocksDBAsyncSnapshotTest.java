@@ -19,7 +19,6 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -61,12 +60,10 @@ import org.apache.flink.util.FutureUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
-
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -408,7 +405,7 @@ public class RocksDBAsyncSnapshotTest {
 							} catch (InterruptedException e) {
 								Thread.currentThread().interrupt();
 							}
-							if(closed) {
+							if (closed) {
 								throw new IOException("Stream closed.");
 							}
 							super.write(b);
@@ -422,7 +419,7 @@ public class RocksDBAsyncSnapshotTest {
 							} catch (InterruptedException e) {
 								Thread.currentThread().interrupt();
 							}
-							if(closed) {
+							if (closed) {
 								throw new IOException("Stream closed.");
 							}
 							super.write(b, off, len);
@@ -439,7 +436,7 @@ public class RocksDBAsyncSnapshotTest {
 		}
 	}
 
-	public static class AsyncCheckpointOperator
+	private static class AsyncCheckpointOperator
 		extends AbstractStreamOperator<String>
 		implements OneInputStreamOperator<String, String>, StreamCheckpointedOperator {
 
@@ -479,10 +476,5 @@ public class RocksDBAsyncSnapshotTest {
 			// do nothing so that we don't block
 		}
 
-	}
-
-	public static class DummyMapFunction<T> implements MapFunction<T, T> {
-		@Override
-		public T map(T value) { return value; }
 	}
 }

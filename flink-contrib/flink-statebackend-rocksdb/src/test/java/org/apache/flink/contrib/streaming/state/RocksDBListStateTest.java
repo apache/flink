@@ -64,9 +64,9 @@ public class RocksDBListStateTest {
 		backend.setDbStoragePath(tmp.newFolder().getAbsolutePath());
 
 		final RocksDBKeyedStateBackend<String> keyedBackend = createKeyedBackend(backend);
-		
+
 		try {
-			InternalListState<VoidNamespace, Long> state = 
+			InternalListState<VoidNamespace, Long> state =
 					keyedBackend.createListState(VoidNamespaceSerializer.INSTANCE, stateDescr);
 			state.setCurrentNamespace(VoidNamespace.INSTANCE);
 
