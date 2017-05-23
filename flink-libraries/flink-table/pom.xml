@@ -193,6 +193,10 @@ under the License.
 				<executions>
 					<execution>
 						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
 						<configuration>
 							<filters>
 								<filter>
@@ -224,6 +228,10 @@ under the License.
 									<pattern>org.slf4j</pattern>
 									<shadedPattern>org.apache.flink.shaded.calcite.org.slf4j</shadedPattern>
 								</relocation>-->
+								<reloacation>
+									<pattern>org.apache.calcite</pattern>
+									<shadedPattern>org.apache.flink.shaded.org.apache.calcite</shadedPattern>
+								</reloacation>
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>org.apache.flink.shaded.calcite.com.fasterxml.jackson</shadedPattern>
