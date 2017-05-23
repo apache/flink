@@ -33,10 +33,6 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 
 import org.junit.Assert;
 import org.junit.Test;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
@@ -45,6 +41,11 @@ import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.assertEquals;
 
