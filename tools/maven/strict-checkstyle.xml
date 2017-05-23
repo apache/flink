@@ -197,8 +197,8 @@ This file is based on the checkstyle file of Apache Beam.
     <module name="ImportOrder">
       <!-- Checks for out of order import statements. -->
       <property name="severity" value="error"/>
-      <!-- Flink imports first, then other imports, then javax and java imports, then static imports. -->
-      <property name="groups" value="org.apache.flink,*,javax,java"/>
+      <!-- Flink imports first, then other imports, then javax, java and scala imports, then static imports. -->
+      <property name="groups" value="org.apache.flink,*,javax,java,scala"/>
       <property name="separated" value="true"/>
       <property name="sortStaticImportsAlphabetically" value="true"/>
       <property name="option" value="bottom"/>

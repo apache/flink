@@ -28,14 +28,14 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.FieldSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
 
-import scala.Product;
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+
+import scala.Product;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
