@@ -26,7 +26,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.Options;
@@ -47,7 +46,7 @@ import java.util.Arrays;
 public class RocksDBPerformanceTest extends TestLogger {
 
 	@Rule
-	public final TemporaryFolder TMP = new TemporaryFolder();
+	public final TemporaryFolder tmp = new TemporaryFolder();
 
 	@Rule
 	public final RetryRule retry = new RetryRule();
@@ -55,7 +54,7 @@ public class RocksDBPerformanceTest extends TestLogger {
 	@Test(timeout = 2000)
 	@RetryOnFailure(times = 3)
 	public void testRocksDbMergePerformance() throws Exception {
-		final File rocksDir = TMP.newFolder();
+		final File rocksDir = tmp.newFolder();
 
 		// ensure the RocksDB library is loaded to a distinct location each retry
 		NativeLibraryLoader.getInstance().loadLibrary(rocksDir.getAbsolutePath());
@@ -83,8 +82,8 @@ public class RocksDBPerformanceTest extends TestLogger {
 					.setSync(false)
 					.setDisableWAL(true);
 
-			final RocksDB rocksDB = RocksDB.open(options, rocksDir.getAbsolutePath()))
-		{
+			final RocksDB rocksDB = RocksDB.open(options, rocksDir.getAbsolutePath())) {
+
 			// ----- insert -----
 			log.info("begin insert");
 
@@ -133,7 +132,7 @@ public class RocksDBPerformanceTest extends TestLogger {
 	@Test(timeout = 2000)
 	@RetryOnFailure(times = 3)
 	public void testRocksDbRangeGetPerformance() throws Exception {
-		final File rocksDir = TMP.newFolder();
+		final File rocksDir = tmp.newFolder();
 
 		// ensure the RocksDB library is loaded to a distinct location each retry
 		NativeLibraryLoader.getInstance().loadLibrary(rocksDir.getAbsolutePath());
@@ -161,8 +160,8 @@ public class RocksDBPerformanceTest extends TestLogger {
 					.setSync(false)
 					.setDisableWAL(true);
 
-			final RocksDB rocksDB = RocksDB.open(options, rocksDir.getAbsolutePath()))
-		{
+			final RocksDB rocksDB = RocksDB.open(options, rocksDir.getAbsolutePath())) {
+
 			final byte[] keyTemplate = Arrays.copyOf(keyBytes, keyBytes.length + 4);
 
 			final Unsafe unsafe = MemoryUtils.UNSAFE;
@@ -204,7 +203,6 @@ public class RocksDBPerformanceTest extends TestLogger {
 			log.info("end get - duration: {} ms", (endGet - beginGet) / 1_000_000);
 		}
 	}
-
 
 	private static boolean samePrefix(byte[] prefix, byte[] key) {
 		for (int i = 0; i < prefix.length; i++) {

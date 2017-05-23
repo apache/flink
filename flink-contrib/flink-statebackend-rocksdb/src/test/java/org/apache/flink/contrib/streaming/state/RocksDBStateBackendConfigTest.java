@@ -18,7 +18,6 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -32,6 +31,8 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+
+import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -59,7 +60,7 @@ import static org.mockito.Mockito.when;
 
 
 /**
- * Tests for configuring the RocksDB State Backend
+ * Tests for configuring the RocksDB State Backend.
  */
 @SuppressWarnings("serial")
 public class RocksDBStateBackendConfigTest {
@@ -101,7 +102,6 @@ public class RocksDBStateBackendConfigTest {
 						1,
 						new KeyGroupRange(0, 0),
 						env.getTaskKvStateRegistry());
-
 
 		File instanceBasePath = keyedBackend.getInstanceBasePath();
 		assertThat(instanceBasePath.getAbsolutePath(), anyOf(startsWith(testDir1.getAbsolutePath()), startsWith(testDir2.getAbsolutePath())));
@@ -157,7 +157,6 @@ public class RocksDBStateBackendConfigTest {
 						1,
 						new KeyGroupRange(0, 0),
 						env.getTaskKvStateRegistry());
-
 
 		File instanceBasePath = keyedBackend.getInstanceBasePath();
 		assertThat(instanceBasePath.getAbsolutePath(), anyOf(startsWith(dir1.getAbsolutePath()), startsWith(dir2.getAbsolutePath())));

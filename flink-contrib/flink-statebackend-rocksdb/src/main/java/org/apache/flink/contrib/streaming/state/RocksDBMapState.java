@@ -30,6 +30,7 @@ import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.Preconditions;
+
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
@@ -45,7 +46,7 @@ import java.util.Map;
 
 /**
  * {@link MapState} implementation that stores state in RocksDB.
- * <p>
+ *
  * <p>{@link RocksDBStateBackend} must ensure that we set the
  * {@link org.rocksdb.StringAppendOperator} on the column family that we use for our state since
  * we use the {@code merge()} call.
@@ -58,10 +59,10 @@ import java.util.Map;
 public class RocksDBMapState<K, N, UK, UV>
 	extends AbstractRocksDBState<K, N, MapState<UK, UV>, MapStateDescriptor<UK, UV>, Map<UK, UV>>
 	implements InternalMapState<N, UK, UV> {
-	
-	private static Logger LOG = LoggerFactory.getLogger(RocksDBMapState.class);
 
-	/** Serializer for the keys and values */
+	private static final Logger LOG = LoggerFactory.getLogger(RocksDBMapState.class);
+
+	/** Serializer for the keys and values. */
 	private final TypeSerializer<UK> userKeySerializer;
 	private final TypeSerializer<UV> userValueSerializer;
 
@@ -105,19 +106,19 @@ public class RocksDBMapState<K, N, UK, UV>
 
 	@Override
 	public void put(UK userKey, UV userValue) throws IOException, RocksDBException {
-		
+
 		byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(userKey);
 		byte[] rawValueBytes = serializeUserValue(userValue);
 
 		backend.db.put(columnFamily, writeOptions, rawKeyBytes, rawValueBytes);
 	}
-	
+
 	@Override
 	public void putAll(Map<UK, UV> map) throws IOException, RocksDBException {
 		if (map == null) {
 			return;
 		}
-		
+
 		for (Map.Entry<UK, UV> entry : map.entrySet()) {
 			put(entry.getKey(), entry.getValue());
 		}
@@ -137,7 +138,7 @@ public class RocksDBMapState<K, N, UK, UV>
 
 		return (rawValueBytes != null);
 	}
-	
+
 	@Override
 	public Iterable<Map.Entry<UK, UV>> entries() throws IOException, RocksDBException {
 		final Iterator<Map.Entry<UK, UV>> iterator = iterator();
@@ -158,7 +159,7 @@ public class RocksDBMapState<K, N, UK, UV>
 	@Override
 	public Iterable<UK> keys() throws IOException, RocksDBException {
 		final byte[] prefixBytes = serializeCurrentKeyAndNamespace();
-		
+
 		return new Iterable<UK>() {
 			@Override
 			public Iterator<UK> iterator() {
@@ -176,7 +177,7 @@ public class RocksDBMapState<K, N, UK, UV>
 	@Override
 	public Iterable<UV> values() throws IOException, RocksDBException {
 		final byte[] prefixBytes = serializeCurrentKeyAndNamespace();
-		
+
 		return new Iterable<UV>() {
 			@Override
 			public Iterator<UV> iterator() {
@@ -202,7 +203,7 @@ public class RocksDBMapState<K, N, UK, UV>
 			}
 		};
 	}
-	
+
 	@Override
 	public void clear() {
 		try {
@@ -216,7 +217,7 @@ public class RocksDBMapState<K, N, UK, UV>
 			LOG.warn("Error while cleaning the state.", e);
 		}
 	}
-	
+
 	@Override
 	@SuppressWarnings("unchecked")
 	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
@@ -229,7 +230,7 @@ public class RocksDBMapState<K, N, UK, UV>
 				namespaceSerializer);
 
 		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(des.f0, backend.getNumberOfKeyGroups());
-		
+
 		ByteArrayOutputStreamWithPos outputStream = new ByteArrayOutputStreamWithPos(128);
 		DataOutputViewStreamWrapper outputView = new DataOutputViewStreamWrapper(outputStream);
 		writeKeyWithGroupAndNamespace(keyGroup, des.f0, des.f1, outputStream, outputView);
@@ -246,7 +247,7 @@ public class RocksDBMapState<K, N, UK, UV>
 		if (!iterator.hasNext()) {
 			return null;
 		}
-		
+
 		return KvStateRequestSerializer.serializeMap(new Iterable<Map.Entry<UK, UV>>() {
 			@Override
 			public Iterator<Map.Entry<UK, UV>> iterator() {
@@ -254,21 +255,21 @@ public class RocksDBMapState<K, N, UK, UV>
 			}
 		}, userKeySerializer, userValueSerializer);
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Serialization Methods
 	// ------------------------------------------------------------------------
-	
+
 	private byte[] serializeCurrentKeyAndNamespace() throws IOException {
 		writeCurrentKeyWithGroupAndNamespace();
-		
+
 		return keySerializationStream.toByteArray();
 	}
 
 	private byte[] serializeUserKeyWithCurrentKeyAndNamespace(UK userKey) throws IOException {
 		writeCurrentKeyWithGroupAndNamespace();
 		userKeySerializer.serialize(userKey, keySerializationDataOutputView);
-		
+
 		return keySerializationStream.toByteArray();
 	}
 
@@ -282,7 +283,6 @@ public class RocksDBMapState<K, N, UK, UV>
 			userValueSerializer.serialize(userValue, keySerializationDataOutputView);
 		}
 
-		
 		return keySerializationStream.toByteArray();
 	}
 
@@ -291,7 +291,7 @@ public class RocksDBMapState<K, N, UK, UV>
 		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
 
 		readKeyWithGroupAndNamespace(bais, in);
-	
+
 		return userKeySerializer.deserialize(in);
 	}
 
@@ -303,20 +303,20 @@ public class RocksDBMapState<K, N, UK, UV>
 
 		return isNull ? null : userValueSerializer.deserialize(in);
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Internal Classes
 	// ------------------------------------------------------------------------
-	
-	/** A map entry in RocksDBMapState */
+
+	/** A map entry in RocksDBMapState. */
 	private class RocksDBMapEntry implements Map.Entry<UK, UV> {
 		private final RocksDB db;
-		
+
 		/** The raw bytes of the key stored in RocksDB. Each user key is stored in RocksDB
 		 * with the format #KeyGroup#Key#Namespace#UserKey. */
 		private final byte[] rawKeyBytes;
-		
-		/** The raw bytes of the value stored in RocksDB */
+
+		/** The raw bytes of the value stored in RocksDB. */
 		private byte[] rawValueBytes;
 
 		/** True if the entry has been deleted. */
@@ -329,7 +329,7 @@ public class RocksDBMapState<K, N, UK, UV>
 
 		RocksDBMapEntry(final RocksDB db, final byte[] rawKeyBytes, final byte[] rawValueBytes) {
 			this.db = db;
-			
+
 			this.rawKeyBytes = rawKeyBytes;
 			this.rawValueBytes = rawValueBytes;
 			this.deleted = false;
@@ -383,7 +383,7 @@ public class RocksDBMapState<K, N, UK, UV>
 			}
 
 			UV oldValue = getValue();
-			
+
 			try {
 				userValue = value;
 				rawValueBytes = serializeUserValue(value);
@@ -400,29 +400,28 @@ public class RocksDBMapState<K, N, UK, UV>
 	/** An auxiliary utility to scan all entries under the given key. */
 	private abstract class RocksDBMapIterator<T> implements Iterator<T> {
 
-		final static int CACHE_SIZE_BASE = 1;
-		final static int CACHE_SIZE_LIMIT = 128;
+		static final int CACHE_SIZE_BASE = 1;
+		static final int CACHE_SIZE_LIMIT = 128;
 
 		/** The db where data resides. */
 		private final RocksDB db;
 
-		/** 
+		/**
 		 * The prefix bytes of the key being accessed. All entries under the same key
 		 * has the same prefix, hence we can stop the iterating once coming across an
-		 * entry with a different prefix. 
+		 * entry with a different prefix.
 		 */
 		private final byte[] keyPrefixBytes;
 
 		/**
 		 * True if all entries have been accessed or the iterator has come across an
-		 * entry with a different prefix. 
+		 * entry with a different prefix.
 		 */
 		private boolean expired = false;
 
 		/** A in-memory cache for the entries in the rocksdb. */
 		private ArrayList<RocksDBMapEntry> cacheEntries = new ArrayList<>();
 		private int cacheIndex = 0;
-
 
 		RocksDBMapIterator(final RocksDB db, final byte[] keyPrefixBytes) {
 			this.db = db;
@@ -440,7 +439,7 @@ public class RocksDBMapState<K, N, UK, UV>
 		public void remove() {
 			if (cacheIndex == 0 || cacheIndex > cacheEntries.size()) {
 				throw new IllegalStateException("The remove operation must be called after an valid next operation.");
-			} 
+			}
 
 			RocksDBMapEntry lastEntry = cacheEntries.get(cacheIndex - 1);
 			lastEntry.remove();
@@ -489,7 +488,7 @@ public class RocksDBMapState<K, N, UK, UV>
 
 			iterator.seek(startBytes);
 
-			/* 
+			/*
 			 * If the last returned entry is not deleted, it will be the first entry in the
 			 * iterating. Skip it to avoid redundant access in such cases.
 			 */
@@ -515,7 +514,7 @@ public class RocksDBMapState<K, N, UK, UV>
 
 			iterator.close();
 		}
-		
+
 		private boolean underSameKey(byte[] rawKeyBytes) {
 			if (rawKeyBytes.length < keyPrefixBytes.length) {
 				return false;

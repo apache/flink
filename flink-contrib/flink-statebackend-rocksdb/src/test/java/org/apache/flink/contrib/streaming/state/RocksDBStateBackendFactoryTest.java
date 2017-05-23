@@ -22,6 +22,9 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for the RocksDBStateBackendFactory.
+ */
 public class RocksDBStateBackendFactoryTest {
 
 	@Test
