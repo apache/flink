@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.webmonitor.handlers.JarActionHandler.JarActionHandlerConfig;
+
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -27,8 +28,10 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the JarActionHandler.
+ */
 public class JarActionHandlerTest {
 
 	/**

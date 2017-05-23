@@ -15,18 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.metrics;
 
-import akka.actor.ActorSystem;
 import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
-import org.apache.flink.runtime.webmonitor.handlers.JobVertexAccumulatorsHandler;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorSystem;
 import org.junit.Assert;
 import org.junit.Test;
-import scala.concurrent.ExecutionContext;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import scala.concurrent.ExecutionContext;
 
 import static org.apache.flink.runtime.webmonitor.metrics.JobMetricsHandler.PARAMETER_JOB_ID;
 import static org.apache.flink.runtime.webmonitor.metrics.JobVertexMetricsHandler.PARAMETER_VERTEX_ID;
@@ -34,6 +36,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+/**
+ * Tests for the JobVertexMetricsHandler.
+ */
 public class JobVertexMetricsHandlerTest extends TestLogger {
 	@Test
 	public void testGetPaths() {

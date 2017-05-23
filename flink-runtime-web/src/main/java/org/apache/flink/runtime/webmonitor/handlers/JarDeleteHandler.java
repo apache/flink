@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -60,7 +61,7 @@ public class JarDeleteHandler extends AbstractJsonRequestHandler {
 				success = success || f.delete();
 			}
 			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 			gen.writeStartObject();
 			if (!success) {
 				// this seems to always fail on Windows.

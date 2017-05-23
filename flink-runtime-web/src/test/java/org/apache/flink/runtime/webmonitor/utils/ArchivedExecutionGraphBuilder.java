@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.utils;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
@@ -33,6 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+/**
+ * Utility class for constructing an ArchivedExecutionGraph.
+ */
 public class ArchivedExecutionGraphBuilder {
 
 	private static final Random RANDOM = new Random();

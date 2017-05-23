@@ -26,11 +26,10 @@ package org.apache.flink.runtime.webmonitor.handlers;
 public class JsonFactory {
 
 	/** The singleton Jackson JSON factory. */
-	public static final com.fasterxml.jackson.core.JsonFactory jacksonFactory =
+	public static final com.fasterxml.jackson.core.JsonFactory JACKSON_FACTORY =
 			new com.fasterxml.jackson.core.JsonFactory();
-	
+
 	// --------------------------------------------------------------------------------------------
-	
-	/** Don't instantiate */
+
 	private JsonFactory() {}
 }

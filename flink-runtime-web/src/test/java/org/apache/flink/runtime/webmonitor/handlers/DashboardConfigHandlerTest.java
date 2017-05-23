@@ -15,16 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
+
+import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.TimeZone;
 
+/**
+ * Tests for the DashboardConfigHandler.
+ */
 public class DashboardConfigHandlerTest {
 	@Test
 	public void testGetPaths() {
@@ -42,7 +47,7 @@ public class DashboardConfigHandlerTest {
 
 		String json = DashboardConfigHandler.createConfigJson(refreshInterval);
 
-		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
+		JsonNode result = ArchivedJobGenerationUtils.MAPPER.readTree(json);
 
 		Assert.assertEquals(refreshInterval, result.get("refresh-interval").asLong());
 		Assert.assertEquals(timeZone.getDisplayName(), result.get("timezone-name").asText());

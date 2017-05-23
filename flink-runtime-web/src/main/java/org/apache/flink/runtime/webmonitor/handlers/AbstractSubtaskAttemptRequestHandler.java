@@ -28,14 +28,14 @@ import java.util.Map;
  * Base class for request handlers whose response depends on a specific subtask execution attempt
  * (defined via the "attempt" parameter) of a specific subtask (defined via the
  * "subtasknum" parameter) in a specific job vertex (defined via the "vertexid" parameter) in a
- * specific job, defined via (defined voa the "jobid" parameter).  
+ * specific job, defined via (defined voa the "jobid" parameter).
  */
 public abstract class AbstractSubtaskAttemptRequestHandler extends AbstractSubtaskRequestHandler {
-	
+
 	public AbstractSubtaskAttemptRequestHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
-	
+
 	@Override
 	public String handleRequest(AccessExecutionVertex vertex, Map<String, String> params) throws Exception {
 		final String attemptNumberString = params.get("attempt");
@@ -50,7 +50,7 @@ public abstract class AbstractSubtaskAttemptRequestHandler extends AbstractSubta
 		catch (NumberFormatException e) {
 			throw new RuntimeException("Invalid attempt number parameter");
 		}
-		
+
 		final AccessExecution currentAttempt = vertex.getCurrentExecutionAttempt();
 		if (attempt == currentAttempt.getAttemptNumber()) {
 			return handleRequest(currentAttempt, params);

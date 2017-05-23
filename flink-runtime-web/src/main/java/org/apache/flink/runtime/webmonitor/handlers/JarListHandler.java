@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandler;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -31,6 +32,9 @@ import java.util.Map;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
+/**
+ * Handle request for listing uploaded jars.
+ */
 public class JarListHandler extends AbstractJsonRequestHandler {
 
 	static final String JAR_LIST_REST_PATH = "/jars";
@@ -50,8 +54,8 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
 			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-			
+			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+
 			gen.writeStartObject();
 			gen.writeStringField("address", queryParams.get(RuntimeMonitorHandler.WEB_MONITOR_ADDRESS_KEY));
 			gen.writeArrayFieldStart("files");
@@ -62,11 +66,11 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 					return name.endsWith(".jar");
 				}
 			});
-			
+
 			for (File f : list) {
 				// separate the uuid and the name parts.
 				String id = f.getName();
-				
+
 				int startIndex = id.indexOf("_");
 				if (startIndex < 0) {
 					continue;
@@ -75,13 +79,13 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 				if (name.length() < 5 || !name.endsWith(".jar")) {
 					continue;
 				}
-				
+
 				gen.writeStartObject();
 				gen.writeStringField("id", id);
 				gen.writeStringField("name", name);
 				gen.writeNumberField("uploaded", f.lastModified());
 				gen.writeArrayFieldStart("entry");
-				
+
 				String[] classes = new String[0];
 				try {
 					JarFile jar = new JarFile(f);

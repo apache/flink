@@ -22,6 +22,9 @@ import org.apache.flink.runtime.instance.ActorGateway;
 
 import java.util.Map;
 
+/**
+ * Handler to deny access to jar-related REST calls.
+ */
 public class JarAccessDeniedHandler extends AbstractJsonRequestHandler {
 
 	private static final String ERROR_MESSAGE = "{\"error\": \"Web submission interface is not " +

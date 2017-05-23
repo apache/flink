@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class StackTraceSample {
 
-	/** ID of this sample (unique per job) */
+	/** ID of this sample (unique per job). */
 	private final int sampleId;
 
 	/** Time stamp, when the sample was triggered. */
@@ -46,7 +46,7 @@ public class StackTraceSample {
 	private final Map<ExecutionAttemptID, List<StackTraceElement[]>> stackTracesByTask;
 
 	/**
-	 * Creates a stack trace sample
+	 * Creates a stack trace sample.
 	 *
 	 * @param sampleId          ID of the sample.
 	 * @param startTime         Time stamp, when the sample was triggered.

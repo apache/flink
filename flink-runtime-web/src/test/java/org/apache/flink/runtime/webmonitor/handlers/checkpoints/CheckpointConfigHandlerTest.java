@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -29,6 +27,8 @@ import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -41,6 +41,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the CheckpointConfigHandler.
+ */
 public class CheckpointConfigHandlerTest {
 
 	@Test
@@ -52,7 +55,7 @@ public class CheckpointConfigHandlerTest {
 		when(graph.getJobID()).thenReturn(new JobID());
 		JobCheckpointingSettings settings = graphAndSettings.snapshottingSettings;
 		ExternalizedCheckpointSettings externalizedSettings = graphAndSettings.externalizedSettings;
-		
+
 		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(graph);
 		Assert.assertEquals(1, archives.size());
 		ArchivedJson archive = archives.iterator().next();

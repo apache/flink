@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import akka.actor.ActorSystem;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -32,6 +31,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.StackTraceSampleMessages.TriggerStackTraceSample;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
+
+import akka.actor.ActorSystem;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -250,7 +251,6 @@ public class StackTraceSampleCoordinatorTest {
 			} catch (ExecutionException e) {
 				assertTrue(e.getCause().getCause().getMessage().contains("Timeout"));
 			}
-
 
 			// Collect after the timeout (should be ignored)
 			ExecutionAttemptID executionId = vertices[0].getCurrentExecutionAttempt().getAttemptId();

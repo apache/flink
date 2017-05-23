@@ -18,10 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import akka.actor.ActorSystem;
-
-import io.netty.handler.codec.http.router.Router;
-
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -67,8 +63,8 @@ import org.apache.flink.runtime.webmonitor.handlers.TaskManagersHandler;
 import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointConfigHandler;
 import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsCache;
 import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsDetailsHandler;
-import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsDetailsSubtasksHandler;
+import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsHandler;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.metrics.JobManagerMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.JobMetricsHandler;
@@ -78,15 +74,13 @@ import org.apache.flink.runtime.webmonitor.metrics.TaskManagerMetricsHandler;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.FileUtils;
 
+import akka.actor.ActorSystem;
+import io.netty.handler.codec.http.router.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.ExecutionContextExecutor;
-import scala.concurrent.Promise;
-import scala.concurrent.duration.FiniteDuration;
-
 import javax.net.ssl.SSLContext;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
@@ -95,32 +89,37 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import scala.concurrent.ExecutionContext$;
+import scala.concurrent.ExecutionContextExecutor;
+import scala.concurrent.Promise;
+import scala.concurrent.duration.FiniteDuration;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The root component of the web runtime monitor. This class starts the web server and creates
  * all request handlers for the REST API.
- * <p>
- * The web runtime monitor is based in Netty HTTP. It uses the Netty-Router library to route
+ *
+ * <p>The web runtime monitor is based in Netty HTTP. It uses the Netty-Router library to route
  * HTTP requests of different paths to different response handlers. In addition, it serves the static
  * files of the web frontend, such as HTML, CSS, or JS files.
  */
 public class WebRuntimeMonitor implements WebMonitor {
 
-	/** By default, all requests to the JobManager have a timeout of 10 seconds */
+	/** By default, all requests to the JobManager have a timeout of 10 seconds. */
 	public static final FiniteDuration DEFAULT_REQUEST_TIMEOUT = new FiniteDuration(10, TimeUnit.SECONDS);
 
-	/** Logger for web frontend startup / shutdown messages */
+	/** Logger for web frontend startup / shutdown messages. */
 	private static final Logger LOG = LoggerFactory.getLogger(WebRuntimeMonitor.class);
 
 	// ------------------------------------------------------------------------
 
-	/** Guarding concurrent modifications to the server channel pipeline during startup and shutdown */
+	/** Guarding concurrent modifications to the server channel pipeline during startup and shutdown. */
 	private final Object startupShutdownLock = new Object();
 
 	private final LeaderRetrievalService leaderRetrievalService;
 
-	/** LeaderRetrievalListener which stores the currently leading JobManager and its archive */
+	/** LeaderRetrievalListener which stores the currently leading JobManager and its archive. */
 	private final JobManagerRetriever retriever;
 
 	private final SSLContext serverSSLContext;
@@ -163,9 +162,9 @@ public class WebRuntimeMonitor implements WebMonitor {
 		if (configuredPort < 0) {
 			throw new IllegalArgumentException("Web frontend port is invalid: " + configuredPort);
 		}
-		
+
 		final WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(config);
-		
+
 		// create an empty directory in temp for the web server
 		String rootDirFileName = "flink-web-" + UUID.randomUUID();
 		webRootDir = new File(getBaseDir(config), rootDirFileName);
@@ -236,42 +235,42 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		Router router = new Router();
 		// config how to interact with this web server
-		GET(router, new DashboardConfigHandler(cfg.getRefreshInterval()));
+		get(router, new DashboardConfigHandler(cfg.getRefreshInterval()));
 
 		// the overview - how many task managers, slots, free slots, ...
-		GET(router, new ClusterOverviewHandler(DEFAULT_REQUEST_TIMEOUT));
+		get(router, new ClusterOverviewHandler(DEFAULT_REQUEST_TIMEOUT));
 
 		// job manager configuration
-		GET(router, new JobManagerConfigHandler(config));
+		get(router, new JobManagerConfigHandler(config));
 
 		// overview over jobs
-		GET(router, new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, true));
-		GET(router, new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, false));
-		GET(router, new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, false, true));
+		get(router, new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, true));
+		get(router, new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, false));
+		get(router, new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, false, true));
 
-		GET(router, new CurrentJobIdsHandler(DEFAULT_REQUEST_TIMEOUT));
+		get(router, new CurrentJobIdsHandler(DEFAULT_REQUEST_TIMEOUT));
 
-		GET(router, new JobDetailsHandler(currentGraphs, metricFetcher));
+		get(router, new JobDetailsHandler(currentGraphs, metricFetcher));
 
-		GET(router, new JobVertexDetailsHandler(currentGraphs, metricFetcher));
-		GET(router, new SubtasksTimesHandler(currentGraphs));
-		GET(router, new JobVertexTaskManagersHandler(currentGraphs, metricFetcher));
-		GET(router, new JobVertexAccumulatorsHandler(currentGraphs));
-		GET(router, new JobVertexBackPressureHandler(currentGraphs,	backPressureStatsTracker, refreshInterval));
-		GET(router, new JobVertexMetricsHandler(metricFetcher));
-		GET(router, new SubtasksAllAccumulatorsHandler(currentGraphs));
-		GET(router, new SubtaskCurrentAttemptDetailsHandler(currentGraphs, metricFetcher));
-		GET(router, new SubtaskExecutionAttemptDetailsHandler(currentGraphs, metricFetcher));
-		GET(router, new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs));
+		get(router, new JobVertexDetailsHandler(currentGraphs, metricFetcher));
+		get(router, new SubtasksTimesHandler(currentGraphs));
+		get(router, new JobVertexTaskManagersHandler(currentGraphs, metricFetcher));
+		get(router, new JobVertexAccumulatorsHandler(currentGraphs));
+		get(router, new JobVertexBackPressureHandler(currentGraphs,	backPressureStatsTracker, refreshInterval));
+		get(router, new JobVertexMetricsHandler(metricFetcher));
+		get(router, new SubtasksAllAccumulatorsHandler(currentGraphs));
+		get(router, new SubtaskCurrentAttemptDetailsHandler(currentGraphs, metricFetcher));
+		get(router, new SubtaskExecutionAttemptDetailsHandler(currentGraphs, metricFetcher));
+		get(router, new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs));
 
-		GET(router, new JobPlanHandler(currentGraphs));
-		GET(router, new JobConfigHandler(currentGraphs));
-		GET(router, new JobExceptionsHandler(currentGraphs));
-		GET(router, new JobAccumulatorsHandler(currentGraphs));
-		GET(router, new JobMetricsHandler(metricFetcher));
+		get(router, new JobPlanHandler(currentGraphs));
+		get(router, new JobConfigHandler(currentGraphs));
+		get(router, new JobExceptionsHandler(currentGraphs));
+		get(router, new JobAccumulatorsHandler(currentGraphs));
+		get(router, new JobMetricsHandler(metricFetcher));
 
-		GET(router, new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT, metricFetcher));
-		GET(router,
+		get(router, new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT, metricFetcher));
+		get(router,
 			new TaskManagerLogHandler(
 				retriever,
 				context,
@@ -281,7 +280,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				config,
 				enableSSL,
 				blobView));
-		GET(router,
+		get(router,
 			new TaskManagerLogHandler(
 				retriever,
 				context,
@@ -291,7 +290,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				config,
 				enableSSL,
 				blobView));
-		GET(router, new TaskManagerMetricsHandler(metricFetcher));
+		get(router, new TaskManagerMetricsHandler(metricFetcher));
 
 		router
 			// log and stdout
@@ -303,51 +302,51 @@ public class WebRuntimeMonitor implements WebMonitor {
 				new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, logFiles.stdOutFile,
 					enableSSL));
 
-		GET(router, new JobManagerMetricsHandler(metricFetcher));
+		get(router, new JobManagerMetricsHandler(metricFetcher));
 
 		// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
-		GET(router, new JobCancellationHandler());
+		get(router, new JobCancellationHandler());
 		// DELETE is the preferred way of canceling a job (Rest-conform)
-		DELETE(router, new JobCancellationHandler());
+		delete(router, new JobCancellationHandler());
 
-		GET(router, triggerHandler);
-		GET(router, inProgressHandler);
+		get(router, triggerHandler);
+		get(router, inProgressHandler);
 
 		// stop a job via GET (for proper integration with YARN this has to be performed via GET)
-		GET(router, new JobStoppingHandler());
+		get(router, new JobStoppingHandler());
 		// DELETE is the preferred way of stopping a job (Rest-conform)
-		DELETE(router, new JobStoppingHandler());
+		delete(router, new JobStoppingHandler());
 
 		int maxCachedEntries = config.getInteger(JobManagerOptions.WEB_CHECKPOINTS_HISTORY_SIZE);
 		CheckpointStatsCache cache = new CheckpointStatsCache(maxCachedEntries);
 
 		// Register the checkpoint stats handlers
-		GET(router, new CheckpointStatsHandler(currentGraphs));
-		GET(router, new CheckpointConfigHandler(currentGraphs));
-		GET(router, new CheckpointStatsDetailsHandler(currentGraphs, cache));
-		GET(router, new CheckpointStatsDetailsSubtasksHandler(currentGraphs, cache));
+		get(router, new CheckpointStatsHandler(currentGraphs));
+		get(router, new CheckpointConfigHandler(currentGraphs));
+		get(router, new CheckpointStatsDetailsHandler(currentGraphs, cache));
+		get(router, new CheckpointStatsDetailsSubtasksHandler(currentGraphs, cache));
 
 		if (webSubmitAllow) {
 			// fetch the list of uploaded jars.
-			GET(router, new JarListHandler(uploadDir));
+			get(router, new JarListHandler(uploadDir));
 
 			// get plan for an uploaded jar
-			GET(router, new JarPlanHandler(uploadDir));
+			get(router, new JarPlanHandler(uploadDir));
 
 			// run a jar
-			POST(router, new JarRunHandler(uploadDir, timeout, config));
+			post(router, new JarRunHandler(uploadDir, timeout, config));
 
 			// upload a jar
-			POST(router, new JarUploadHandler(uploadDir));
+			post(router, new JarUploadHandler(uploadDir));
 
 			// delete an uploaded jar from submission interface
-			DELETE(router, new JarDeleteHandler(uploadDir));
+			delete(router, new JarDeleteHandler(uploadDir));
 		} else {
 			// send an Access Denied message
 			JarAccessDeniedHandler jad = new JarAccessDeniedHandler();
-			GET(router, jad);
-			POST(router, jad);
-			DELETE(router, jad);
+			get(router, jad);
+			post(router, jad);
+			delete(router, jad);
 		}
 
 		// this handler serves all the static contents
@@ -375,15 +374,15 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	/**
 	 * Returns an array of all {@link JsonArchivist}s that are relevant for the history server.
-	 * 
-	 * This method is static to allow easier access from the {@link MemoryArchivist}. Requiring a reference
+	 *
+	 * <p>This method is static to allow easier access from the {@link MemoryArchivist}. Requiring a reference
 	 * would imply that the WebRuntimeMonitor is always created before the archivist, which may not hold for all
 	 * deployment modes.
-	 * 
-	 * Similarly, no handler implements the JsonArchivist interface itself but instead contains a separate implementing
+	 *
+	 <p>Similarly, no handler implements the JsonArchivist interface itself but instead contains a separate implementing
 	 * class; otherwise we would either instantiate several handlers even though their main functionality isn't
 	 * required, or yet again require that the WebRuntimeMonitor is started before the archivist.
-	 * 
+	 *
 	 * @return array of all JsonArchivists relevant for the history server
 	 */
 	public static JsonArchivist[] getJsonArchivists() {
@@ -400,13 +399,13 @@ public class WebRuntimeMonitor implements WebMonitor {
 			new CheckpointConfigHandler.CheckpointConfigJsonArchivist(),
 			new CheckpointStatsDetailsHandler.CheckpointStatsDetailsJsonArchivist(),
 			new CheckpointStatsDetailsSubtasksHandler.CheckpointStatsDetailsSubtasksJsonArchivist(),
-				
+
 			new JobVertexDetailsHandler.JobVertexDetailsJsonArchivist(),
 			new SubtasksTimesHandler.SubtasksTimesJsonArchivist(),
 			new JobVertexTaskManagersHandler.JobVertexTaskManagersJsonArchivist(),
 			new JobVertexAccumulatorsHandler.JobVertexAccumulatorsJsonArchivist(),
 			new SubtasksAllAccumulatorsHandler.SubtasksAllAccumulatorsJsonArchivist(),
-			
+
 			new SubtaskExecutionAttemptDetailsHandler.SubtaskExecutionAttemptDetailsJsonArchivist(),
 			new SubtaskExecutionAttemptAccumulatorsHandler.SubtaskExecutionAttemptAccumulatorsJsonArchivist()
 			};
@@ -416,7 +415,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	@Override
 	public void start(String jobManagerAkkaUrl) throws Exception {
 		LOG.info("Starting with JobManager {} on port {}", jobManagerAkkaUrl, getServerPort());
-		
+
 		synchronized (startupShutdownLock) {
 			jobManagerAddressPromise.success(jobManagerAkkaUrl);
 			leaderRetrievalService.start(retriever);
@@ -487,31 +486,31 @@ public class WebRuntimeMonitor implements WebMonitor {
 	 * {@link RuntimeMonitorHandlerBase} with the given {@link Router} for the respective REST method.
 	 * The REST paths under which they are registered are defined by the handlers. **/
 
-	private void GET(Router router, RequestHandler handler) {
-		GET(router, handler(handler));
+	private void get(Router router, RequestHandler handler) {
+		get(router, handler(handler));
 	}
 
-	private void GET(Router router, RuntimeMonitorHandlerBase handler) {
+	private void get(Router router, RuntimeMonitorHandlerBase handler) {
 		for (String path : handler.getPaths()) {
 			router.GET(path, handler);
 		}
 	}
 
-	private void DELETE(Router router, RequestHandler handler) {
-		DELETE(router, handler(handler));
+	private void delete(Router router, RequestHandler handler) {
+		delete(router, handler(handler));
 	}
 
-	private void DELETE(Router router, RuntimeMonitorHandlerBase handler) {
+	private void delete(Router router, RuntimeMonitorHandlerBase handler) {
 		for (String path : handler.getPaths()) {
 			router.DELETE(path, handler);
 		}
 	}
 
-	private void POST(Router router, RequestHandler handler) {
-		POST(router, handler(handler));
+	private void post(Router router, RequestHandler handler) {
+		post(router, handler(handler));
 	}
 
-	private void POST(Router router, RuntimeMonitorHandlerBase handler) {
+	private void post(Router router, RuntimeMonitorHandlerBase handler) {
 		for (String path : handler.getPaths()) {
 			router.POST(path, handler);
 		}

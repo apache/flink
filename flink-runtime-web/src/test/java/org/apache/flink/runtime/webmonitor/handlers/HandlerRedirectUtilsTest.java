@@ -20,15 +20,20 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.DummyActorGateway;
-import org.junit.Test;
+
 import org.junit.Assert;
+import org.junit.Test;
+
 import scala.Tuple2;
 
+/**
+ * Tests for the HandlerRedirectUtils.
+ */
 public class HandlerRedirectUtilsTest {
 
-	static final String localJobManagerAddress = "akka.tcp://flink@127.0.0.1:1234/user/foobar";
-	static final String remoteURL = "127.0.0.2:1235";
-	static final String remotePath = "akka.tcp://flink@" + remoteURL + "/user/jobmanager";
+	private static final String localJobManagerAddress = "akka.tcp://flink@127.0.0.1:1234/user/foobar";
+	private static final String remoteURL = "127.0.0.2:1235";
+	private static final String remotePath = "akka.tcp://flink@" + remoteURL + "/user/jobmanager";
 
 	@Test
 	public void testGetRedirectAddressWithLocalAkkaPath() throws Exception {
@@ -36,7 +41,7 @@ public class HandlerRedirectUtilsTest {
 
 		Tuple2<ActorGateway, Integer> leader = new Tuple2<>(leaderGateway, 1235);
 
-		String redirectingAddress =HandlerRedirectUtils.getRedirectAddress(localJobManagerAddress, leader);
+		String redirectingAddress = HandlerRedirectUtils.getRedirectAddress(localJobManagerAddress, leader);
 
 		Assert.assertNull(redirectingAddress);
 	}
@@ -47,7 +52,7 @@ public class HandlerRedirectUtilsTest {
 
 		Tuple2<ActorGateway, Integer> leader = new Tuple2<>(leaderGateway, 1235);
 
-		String redirectingAddress =HandlerRedirectUtils.getRedirectAddress(localJobManagerAddress, leader);
+		String redirectingAddress = HandlerRedirectUtils.getRedirectAddress(localJobManagerAddress, leader);
 
 		Assert.assertEquals(remoteURL, redirectingAddress);
 	}

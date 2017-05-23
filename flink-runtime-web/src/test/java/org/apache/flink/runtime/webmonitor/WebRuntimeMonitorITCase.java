@@ -18,10 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.curator.test.TestingServer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -40,14 +36,15 @@ import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.curator.test.TestingServer;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.powermock.reflect.Whitebox;
-import scala.Some;
-import scala.Tuple2;
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -56,19 +53,27 @@ import java.util.Scanner;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import scala.Some;
+import scala.Tuple2;
+import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.FiniteDuration;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for the WebRuntimeMonitor.
+ */
 public class WebRuntimeMonitorITCase extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private final static FiniteDuration TestTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
+	private static final FiniteDuration TestTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
 
-	private final String MAIN_RESOURCES_PATH = getClass().getResource("/web").getPath();
+	private final String mainResourcesPath = getClass().getResource("/web").getPath();
 
 	/**
 	 * Tests operation of the monitor in standalone operation.
@@ -87,7 +92,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			webMonitor = startWebRuntimeMonitor(flink);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
-				String expected = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
+				String expected = new Scanner(new File(mainResourcesPath + "/index.html"))
 						.useDelimiter("\\A").next();
 
 				// Request the file from the web server
@@ -215,7 +220,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 					HttpTestClient followingClient = new HttpTestClient(
 							"localhost", followerWebMonitor.getServerPort())) {
 
-				String expected = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
+				String expected = new Scanner(new File(mainResourcesPath + "/index.html"))
 						.useDelimiter("\\A").next();
 
 				// Request the file from the leading web server
@@ -349,7 +354,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			webMonitor = startWebRuntimeMonitor(flink);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
-				String expectedIndex = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
+				String expectedIndex = new Scanner(new File(mainResourcesPath + "/index.html"))
 						.useDelimiter("\\A").next();
 
 				// 1) Request index.html from web server
@@ -411,7 +416,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			webMonitor = startWebRuntimeMonitor(flink);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
-				String expectedIndex = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
+				String expectedIndex = new Scanner(new File(mainResourcesPath + "/index.html"))
 						.useDelimiter("\\A").next();
 
 				// 1) Request index.html from web server

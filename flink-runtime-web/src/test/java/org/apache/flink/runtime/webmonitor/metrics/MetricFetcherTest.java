@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.metrics;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
@@ -36,28 +35,31 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
-import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.TestingHistogram;
-import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import scala.Option;
-import scala.collection.JavaConverters;
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.ExecutionContextExecutor;
-import scala.concurrent.Future$;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
+
+import scala.Option;
+import scala.collection.JavaConverters;
+import scala.concurrent.ExecutionContext$;
+import scala.concurrent.ExecutionContextExecutor;
+import scala.concurrent.Future$;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.metrics.dump.MetricQueryService.METRIC_QUERY_SERVICE_NAME;
 import static org.junit.Assert.assertEquals;
@@ -68,6 +70,9 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
+/**
+ * Tests for the MetricFetcher.
+ */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(MetricFetcher.class)
 public class MetricFetcherTest extends TestLogger {
@@ -165,7 +170,7 @@ public class MetricFetcherTest extends TestLogger {
 		}
 	}
 
-	public class CurrentThreadExecutor implements Executor {
+	private static class CurrentThreadExecutor implements Executor {
 		public void execute(Runnable r) {
 			r.run();
 		}
@@ -179,7 +184,7 @@ public class MetricFetcherTest extends TestLogger {
 
 		SimpleCounter c1 = new SimpleCounter();
 		SimpleCounter c2 = new SimpleCounter();
-		
+
 		c1.inc(1);
 		c2.inc(2);
 

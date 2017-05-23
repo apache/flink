@@ -15,11 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -27,15 +25,23 @@ import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
+
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.junit.Assert;
 import org.junit.Test;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
+import scala.concurrent.duration.FiniteDuration;
+
+/**
+ * Tests for the CurrentJobsOverviewHandler.
+ */
 public class CurrentJobsOverviewHandlerTest {
 
 	@Test
@@ -50,7 +56,7 @@ public class CurrentJobsOverviewHandlerTest {
 		ArchivedJson archive = archives.iterator().next();
 		Assert.assertEquals("/joboverview", archive.getPath());
 
-		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(archive.getJson());
+		JsonNode result = ArchivedJobGenerationUtils.MAPPER.readTree(archive.getJson());
 		ArrayNode running = (ArrayNode) result.get("running");
 		Assert.assertEquals(0, running.size());
 
@@ -83,14 +89,14 @@ public class CurrentJobsOverviewHandlerTest {
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 		JobDetails expectedDetails = WebMonitorUtils.createDetailsForJob(originalJob);
 		StringWriter writer = new StringWriter();
-		try (JsonGenerator gen = ArchivedJobGenerationUtils.jacksonFactory.createGenerator(writer)) {
+		try (JsonGenerator gen = ArchivedJobGenerationUtils.JACKSON_FACTORY.createGenerator(writer)) {
 			CurrentJobsOverviewHandler.writeJobDetailOverviewAsJson(expectedDetails, gen, 0);
 		}
 		compareJobOverview(expectedDetails, writer.toString());
 	}
 
 	private static void compareJobOverview(JobDetails expectedDetails, String answer) throws IOException {
-		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(answer);
+		JsonNode result = ArchivedJobGenerationUtils.MAPPER.readTree(answer);
 
 		Assert.assertEquals(expectedDetails.getJobId().toString(), result.get("jid").asText());
 		Assert.assertEquals(expectedDetails.getJobName(), result.get("name").asText());

@@ -15,13 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.metrics;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractJsonRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JsonFactory;
 import org.apache.flink.util.Preconditions;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -30,10 +32,10 @@ import java.util.Map;
 /**
  * Abstract request handler that returns a list of all available metrics or the values for a set of metrics.
  *
- * If the query parameters do not contain a "get" parameter the list of all metrics is returned.
+ * <p>If the query parameters do not contain a "get" parameter the list of all metrics is returned.
  * {@code [ { "id" : "X" } ] }
  *
- * If the query parameters do contain a "get" parameter a comma-separate list of metric names is expected as a value.
+ * <p>If the query parameters do contain a "get" parameter a comma-separate list of metric names is expected as a value.
  * {@code /get?X,Y}
  * The handler will then return a list containing the values of the requested metrics.
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
@@ -65,8 +67,8 @@ public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler 
 
 	private String getMetricsValues(Map<String, String> pathParams, String requestedMetricsList) throws IOException {
 		if (requestedMetricsList.isEmpty()) {
-			/**
-			 * The WebInterface doesn't check whether the list of available metrics was empty. This can lead to a 
+			/*
+			 * The WebInterface doesn't check whether the list of available metrics was empty. This can lead to a
 			 * request for which the "get" parameter is an empty string.
 			 */
 			return "";
@@ -80,7 +82,7 @@ public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler 
 			String[] requestedMetrics = requestedMetricsList.split(",");
 
 			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 			gen.writeStartArray();
 			for (String requestedMetric : requestedMetrics) {
@@ -107,7 +109,7 @@ public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler 
 				return "";
 			}
 			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 			gen.writeStartArray();
 			for (String m : metrics.keySet()) {

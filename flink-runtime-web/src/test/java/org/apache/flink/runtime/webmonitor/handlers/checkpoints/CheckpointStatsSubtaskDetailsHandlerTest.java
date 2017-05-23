@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsHistory;
@@ -35,6 +33,8 @@ import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -57,6 +57,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the CheckpointStatsSubtaskDetailsHandler.
+ */
 public class CheckpointStatsSubtaskDetailsHandlerTest {
 
 	@Test
@@ -80,10 +83,10 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
 		when(graph.getCheckpointStatsSnapshot()).thenReturn(snapshot);
 		when(graph.getJobID()).thenReturn(new JobID());
-		
+
 		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(graph);
 		Assert.assertEquals(1, archives.size());
-		
+
 		ArchivedJson archive = archives.iterator().next();
 		Assert.assertEquals(
 			"/jobs/" + graph.getJobID() + "/checkpoints/details/" + checkpoint.getCheckpointId() + "/subtasks/" + task.getJobVertexId(),

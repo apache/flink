@@ -15,12 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Tests for the WebMonitorUtils.
+ */
 public class WebMonitorUtilsTest {
 
 	@Test
@@ -29,7 +34,7 @@ public class WebMonitorUtilsTest {
 		JsonArchivist[] reflected = WebMonitorUtils.getJsonArchivists();
 
 		Assert.assertEquals(direct.length, reflected.length);
-		for(int x = 0; x < direct.length; x++) {
+		for (int x = 0; x < direct.length; x++) {
 			Assert.assertSame(direct[x].getClass(), reflected[x].getClass());
 		}
 	}

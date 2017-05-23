@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.File;
 import java.io.StringWriter;
@@ -49,7 +50,7 @@ public class JarPlanHandler extends JarActionHandler {
 			JarActionHandlerConfig config = JarActionHandlerConfig.fromParams(pathParams, queryParams);
 			JobGraph graph = getJobGraphAndClassLoader(config).f0;
 			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 			gen.writeStartObject();
 			gen.writeFieldName("plan");
 			gen.writeRawValue(JsonPlanGenerator.generatePlan(graph));

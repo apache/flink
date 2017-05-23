@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.history;
 
-import io.netty.handler.codec.http.router.Router;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
@@ -34,10 +34,13 @@ import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+
+import io.netty.handler.codec.http.router.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -53,15 +56,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * The HistoryServer provides a WebInterface and REST API to retrieve information about finished jobs for which
  * the JobManager may have already shut down.
- * 
- * The HistoryServer regularly checks a set of directories for job archives created by the {@link FsJobArchivist} and
+ *
+ * <p>The HistoryServer regularly checks a set of directories for job archives created by the {@link FsJobArchivist} and
  * caches these in a local directory. See {@link HistoryServerArchiveFetcher}.
- * 
- * All configuration options are defined in{@link HistoryServerOptions}.
- * 
- * The WebInterface only displays the "Completed Jobs" page.
- * 
- * The REST API is limited to
+ *
+ * <p>All configuration options are defined in{@link HistoryServerOptions}.
+ *
+ * <p>The WebInterface only displays the "Completed Jobs" page.
+ *
+ * <p>The REST API is limited to
  * <ul>
  *     <li>/config</li>
  *     <li>/joboverview</li>
@@ -110,7 +113,7 @@ public class HistoryServer {
 			});
 			System.exit(0);
 		} catch (UndeclaredThrowableException ute) {
-			Throwable cause = ute. getUndeclaredThrowable();
+			Throwable cause = ute.getUndeclaredThrowable();
 			LOG.error("Failed to run HistoryServer.", cause);
 			cause.printStackTrace();
 			System.exit(1);

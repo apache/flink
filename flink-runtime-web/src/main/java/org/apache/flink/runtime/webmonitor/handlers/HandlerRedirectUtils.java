@@ -18,22 +18,24 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.webmonitor.files.MimeTypes;
+
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Tuple2;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import scala.Tuple2;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -48,8 +50,8 @@ public class HandlerRedirectUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HandlerRedirectUtils.class);
 
-	/** Pattern to extract the host from an remote Akka URL */
-	private final static Pattern LeaderAddressHostPattern = Pattern.compile("^.+@(.+):([0-9]+)/user/.+$");
+	/** Pattern to extract the host from an remote Akka URL. */
+	private static final Pattern LeaderAddressHostPattern = Pattern.compile("^.+@(.+):([0-9]+)/user/.+$");
 
 	public static String getRedirectAddress(
 			String localJobManagerAddress,

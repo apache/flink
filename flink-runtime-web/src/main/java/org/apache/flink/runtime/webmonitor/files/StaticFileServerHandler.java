@@ -26,6 +26,10 @@ package org.apache.flink.runtime.webmonitor.files;
  * https://github.com/netty/netty/blob/4.0/example/src/main/java/io/netty/example/http/file/HttpStaticFileServerHandler.java
  *****************************************************************************/
 
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
+
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -47,16 +51,8 @@ import io.netty.handler.codec.http.router.Routed;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedFile;
 import io.netty.util.CharsetUtil;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
-import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.Tuple2;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -74,6 +70,12 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
+
+import scala.Option;
+import scala.Tuple2;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CACHE_CONTROL;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
@@ -99,34 +101,33 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ChannelHandler.Sharable
 public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed> {
 
-	/** Default logger, if none is specified */
+	/** Default logger, if none is specified. */
 	private static final Logger DEFAULT_LOGGER = LoggerFactory.getLogger(StaticFileServerHandler.class);
 
-	/** Timezone in which this server answers its "if-modified" requests */
+	/** Timezone in which this server answers its "if-modified" requests. */
 	private static final TimeZone GMT_TIMEZONE = TimeZone.getTimeZone("GMT");
 
-	/** Date format for HTTP */
+	/** Date format for HTTP. */
 	public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
 
-	/** Be default, we allow files to be cached for 5 minutes */
+	/** Be default, we allow files to be cached for 5 minutes. */
 	private static final int HTTP_CACHE_SECONDS = 300;
 
 	// ------------------------------------------------------------------------
 
-	/** JobManager retriever */
 	private final JobManagerRetriever retriever;
 
 	private final Future<String> localJobManagerAddressFuture;
 
 	private final FiniteDuration timeout;
 
-	/** The path in which the static documents are */
+	/** The path in which the static documents are. */
 	private final File rootPath;
 
-	/** Whether the web service has https enabled */
+	/** Whether the web service has https enabled. */
 	private final boolean httpsEnabled;
 
-	/** The log for all error reporting */
+	/** The log for all error reporting. */
 	private final Logger logger;
 
 	private String localJobManagerAddress;
@@ -218,7 +219,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			// file does not exist. Try to load it with the classloader
 			ClassLoader cl = StaticFileServerHandler.class.getClassLoader();
 
-			try(InputStream resourceStream = cl.getResourceAsStream("web" + requestPath)) {
+			try (InputStream resourceStream = cl.getResourceAsStream("web" + requestPath)) {
 				boolean success = false;
 				try {
 					if (resourceStream != null) {
@@ -282,7 +283,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 				return;
 			}
 		}
-		
+
 		if (logger.isDebugEnabled()) {
 			logger.debug("Responding with file '" + file.getAbsolutePath() + '\'');
 		}

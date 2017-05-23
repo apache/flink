@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.metrics;
 
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +42,7 @@ import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY
 /**
  * Nested data-structure to store metrics.
  *
- * This structure is not thread-safe.
+ * <p>This structure is not thread-safe.
  */
 public class MetricStore {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricStore.class);
@@ -113,9 +115,9 @@ public class MetricStore {
 					}
 					/**
 					 * The duplication is intended. Metrics scoped by subtask are useful for several job/task handlers,
-					 * while the WebInterface task metric queries currently do not account for subtasks, so we don't 
+					 * while the WebInterface task metric queries currently do not account for subtasks, so we don't
 					 * divide by subtask and instead use the concatenation of subtask index and metric name as the name
-					 * for thos.
+					 * for those.
 					 */
 					addMetric(subtask.metrics, name, metric);
 					addMetric(task.metrics, taskInfo.subtaskIndex + "." + name, metric);
@@ -133,8 +135,8 @@ public class MetricStore {
 						job.tasks.put(operatorInfo.vertexID, task);
 					}
 					/**
-					 * As the WebInterface does not account for operators (because it can't) we don't 
-					 * divide by operator and instead use the concatenation of subtask index, operator name and metric name 
+					 * As the WebInterface does not account for operators (because it can't) we don't
+					 * divide by operator and instead use the concatenation of subtask index, operator name and metric name
 					 * as the name.
 					 */
 					addMetric(task.metrics, operatorInfo.subtaskIndex + "." + operatorInfo.operatorName + "." + name, metric);
@@ -245,7 +247,7 @@ public class MetricStore {
 	// -----------------------------------------------------------------------------------------------------------------
 	// sub MetricStore classes
 	// -----------------------------------------------------------------------------------------------------------------
-	private static abstract class ComponentMetricStore {
+	private abstract static class ComponentMetricStore {
 		public final Map<String, String> metrics = new HashMap<>();
 
 		public String getMetric(String name, String defaultValue) {
@@ -267,7 +269,7 @@ public class MetricStore {
 	 */
 	public static class TaskManagerMetricStore extends ComponentMetricStore {
 		public final Set<String> garbageCollectorNames = new HashSet<>();
-		
+
 		public void addGarbageCollectorName(String name) {
 			garbageCollectorNames.add(name);
 		}

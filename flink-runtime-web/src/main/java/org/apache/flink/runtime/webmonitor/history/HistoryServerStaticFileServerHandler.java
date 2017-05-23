@@ -26,6 +26,8 @@ package org.apache.flink.runtime.webmonitor.history;
  * https://github.com/netty/netty/blob/4.0/example/src/main/java/io/netty/example/http/file/HttpStaticFileServerHandler.java
  *****************************************************************************/
 
+import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
+
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
@@ -41,7 +43,6 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.router.Routed;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedFile;
-import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,10 +71,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Simple file server handler used by the {@link HistoryServer} that serves requests to web frontend's static files,
  * such as HTML, CSS, JS or JSON files.
  *
- * This code is based on the "HttpStaticFileServerHandler" from the Netty project's HTTP server
+ * <p>This code is based on the "HttpStaticFileServerHandler" from the Netty project's HTTP server
  * example.
- * 
- * This class is a copy of the {@link StaticFileServerHandler}. The differences are that the request path is
+ *
+ * <p>This class is a copy of the {@link StaticFileServerHandler}. The differences are that the request path is
  * modified to end on ".json" if it does not have a filename extension; when "index.html" is requested we load
  * "index_hs.html" instead to inject the modified HistoryServer WebInterface and that the caching of the "/joboverview"
  * page is prevented.
@@ -81,12 +82,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ChannelHandler.Sharable
 public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHandler<Routed> {
 
-	/** Default logger, if none is specified */
+	/** Default logger, if none is specified. */
 	private static final Logger LOG = LoggerFactory.getLogger(HistoryServerStaticFileServerHandler.class);
 
 	// ------------------------------------------------------------------------
 
-	/** The path in which the static documents are */
+	/** The path in which the static documents are. */
 	private final File rootPath;
 
 	public HistoryServerStaticFileServerHandler(File rootPath) throws IOException {
