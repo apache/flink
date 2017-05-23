@@ -27,10 +27,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
+import org.apache.flink.util.FlinkException;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -182,8 +184,14 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 
 				try {
 					jobGraph = jobGraphRetrievableStateHandle.retrieveState();
-				} catch (Exception e) {
-					throw new Exception("Failed to retrieve the submitted job graph from state handle.", e);
+				} catch (ClassNotFoundException cnfe) {
+					throw new FlinkException("Could not retrieve submitted JobGraph from state handle under " + path +
+						". This indicates that you are trying to recover from state written by an " +
+						"older Flink version which is not compatible. Try cleaning the state handle store.", cnfe);
+				} catch (IOException ioe) {
+					throw new FlinkException("Could not retrieve submitted JobGraph from state handle under " + path +
+						". This indicates that the retrieved state handle is broken. Try cleaning the state handle " +
+						"store.", ioe);
 				}
 
 				addedJobGraphs.add(jobGraph.getJobId());
