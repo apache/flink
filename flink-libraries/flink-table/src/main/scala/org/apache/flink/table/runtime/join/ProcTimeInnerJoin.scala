@@ -21,16 +21,15 @@ package org.apache.flink.table.runtime.join
 import java.util
 import java.util.{List => JList}
 
-import org.apache.flink.api.common.functions.{FlatJoinFunction, RichFilterFunction}
+import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
-import org.apache.flink.table.codegen.{Compiler, GeneratedFunction}
+import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.CRowWrappingCollector
-import org.apache.flink.table.runtime.aggregate.GeneratedAggregations
-import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 import org.slf4j.LoggerFactory
@@ -47,12 +46,12 @@ import org.slf4j.LoggerFactory
   *
   */
 class ProcTimeInnerJoin(
-  private val leftStreamWindowSize: Long,
-  private val rightStreamWindowSize: Long,
-  private val element1Type: TypeInformation[Row],
-  private val element2Type: TypeInformation[Row],
-  private val genJoinFuncName: String,
-  private val genJoinFuncCode: String)
+    private val leftStreamWindowSize: Long,
+    private val rightStreamWindowSize: Long,
+    private val element1Type: TypeInformation[Row],
+    private val element2Type: TypeInformation[Row],
+    private val genJoinFuncName: String,
+    private val genJoinFuncCode: String)
   extends CoProcessFunction[CRow, CRow, CRow]
     with Compiler[FlatJoinFunction[Row, Row, Row]]{
 
@@ -172,9 +171,9 @@ class ProcTimeInnerJoin(
     * @param out       The collector for returning result values.
     */
   override def onTimer(
-    timestamp: Long,
-    ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext,
-    out: Collector[CRow]): Unit = {
+      timestamp: Long,
+      ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext,
+      out: Collector[CRow]): Unit = {
 
     if (timerState1.value == timestamp) {
       expireOutTimeRow(
@@ -203,15 +202,15 @@ class ProcTimeInnerJoin(
     * if there is no timer at present.
     */
   private def processElement(
-    valueC: CRow,
-    ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
-    out: Collector[CRow],
-    winSize: Long,
-    timerState: ValueState[Long],
-    rowMapState: MapState[Long, JList[Row]],
-    oppoRowMapState: MapState[Long, JList[Row]],
-    oppoWinSize: Long,
-    isLeft: Boolean): Unit = {
+      valueC: CRow,
+      ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
+      out: Collector[CRow],
+      winSize: Long,
+      timerState: ValueState[Long],
+      rowMapState: MapState[Long, JList[Row]],
+      oppoRowMapState: MapState[Long, JList[Row]],
+      oppoWinSize: Long,
+      isLeft: Boolean): Unit = {
 
     cRowWrapper.out = out
     cRowWrapper.setChange(valueC.change)
@@ -275,11 +274,11 @@ class ProcTimeInnerJoin(
     * timer until last timer trigger.
     */
   private def expireOutTimeRow(
-    curTime: Long,
-    winSize: Long,
-    rowMapState: MapState[Long, JList[Row]],
-    timerState: ValueState[Long],
-    ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext): Unit = {
+      curTime: Long,
+      winSize: Long,
+      rowMapState: MapState[Long, JList[Row]],
+      timerState: ValueState[Long],
+      ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext): Unit = {
 
     val expiredTime = curTime - winSize
     val keyIter = rowMapState.keys().iterator()

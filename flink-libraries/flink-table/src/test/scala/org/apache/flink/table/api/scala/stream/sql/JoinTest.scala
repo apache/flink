@@ -42,7 +42,7 @@ class JoinTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         binaryNode(
-          "DataStreamJoin",
+          "DataStreamRowStreamJoin",
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),

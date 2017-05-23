@@ -50,8 +50,8 @@ object JoinUtil {
     * @param  inputType   left and right connect stream type
     */
   private[flink] def isStreamStreamJoin(
-    condition: RexNode,
-    inputType: RelDataType) = {
+      condition: RexNode,
+      inputType: RelDataType) = {
 
     def isExistTumble(expr: RexNode): Boolean = {
       expr match {
@@ -194,9 +194,9 @@ object JoinUtil {
    * analysis if condition term has time indicator
    */
   def analyzeSingleConditionTerm(
-    expression: RexNode,
-    leftFieldCount: Int,
-    inputType: RelDataType): Seq[(RelDataType, Boolean)] = {
+      expression: RexNode,
+      leftFieldCount: Int,
+      inputType: RelDataType): Seq[(RelDataType, Boolean)] = {
 
     expression match {
       case i: RexInputRef =>
@@ -270,10 +270,10 @@ object JoinUtil {
     *  ((0 - 1000) - 2000) - (0 - 1000) = -2000(-preceding, +following)
     */
   private def reduceTimeExpression(
-    leftNode: RexNode,
-    rightNode: RexNode,
-    rexBuilder: RexBuilder,
-    config: TableConfig): Long = {
+      leftNode: RexNode,
+      rightNode: RexNode,
+      rexBuilder: RexBuilder,
+      config: TableConfig): Long = {
 
     /**
       * replace the rowtime/proctime with zero literal.
