@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
@@ -27,6 +26,8 @@ import org.apache.flink.runtime.webmonitor.handlers.AbstractExecutionGraphReques
 import org.apache.flink.runtime.webmonitor.handlers.JsonFactory;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -55,6 +56,9 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphRequestHandle
 		return createCheckpointConfigJson(graph);
 	}
 
+	/**
+	 * Archivist for the CheckpointConfigHandler.
+	 */
 	public static class CheckpointConfigJsonArchivist implements JsonArchivist {
 
 		@Override
@@ -68,7 +72,7 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphRequestHandle
 
 	private static String createCheckpointConfigJson(AccessExecutionGraph graph) throws IOException {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 		JobCheckpointingSettings settings = graph.getJobCheckpointingSettings();
 
 		if (settings == null) {

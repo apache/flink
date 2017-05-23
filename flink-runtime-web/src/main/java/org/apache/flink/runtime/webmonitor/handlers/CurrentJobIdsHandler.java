@@ -18,11 +18,12 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsWithIDsOverview;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -42,7 +43,7 @@ public class CurrentJobIdsHandler extends AbstractJsonRequestHandler {
 	private static final String CURRENT_JOB_IDS_REST_PATH = "/jobs";
 
 	private final FiniteDuration timeout;
-	
+
 	public CurrentJobIdsHandler(FiniteDuration timeout) {
 		this.timeout = requireNonNull(timeout);
 	}
@@ -51,7 +52,7 @@ public class CurrentJobIdsHandler extends AbstractJsonRequestHandler {
 	public String[] getPaths() {
 		return new String[]{CURRENT_JOB_IDS_REST_PATH};
 	}
-	
+
 	@Override
 	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		// we need no parameters, get all requests
@@ -59,38 +60,38 @@ public class CurrentJobIdsHandler extends AbstractJsonRequestHandler {
 			if (jobManager != null) {
 				Future<Object> future = jobManager.ask(RequestJobsWithIDsOverview.getInstance(), timeout);
 				JobsWithIDsOverview overview = (JobsWithIDsOverview) Await.result(future, timeout);
-	
+
 				StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-	
+				JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+
 				gen.writeStartObject();
-	
+
 				gen.writeArrayFieldStart("jobs-running");
 				for (JobID jid : overview.getJobsRunningOrPending()) {
 					gen.writeString(jid.toString());
 				}
 				gen.writeEndArray();
-	
+
 				gen.writeArrayFieldStart("jobs-finished");
 				for (JobID jid : overview.getJobsFinished()) {
 					gen.writeString(jid.toString());
 				}
 				gen.writeEndArray();
-	
+
 				gen.writeArrayFieldStart("jobs-cancelled");
 				for (JobID jid : overview.getJobsCancelled()) {
 					gen.writeString(jid.toString());
 				}
 				gen.writeEndArray();
-	
+
 				gen.writeArrayFieldStart("jobs-failed");
 				for (JobID jid : overview.getJobsFailed()) {
 					gen.writeString(jid.toString());
 				}
 				gen.writeEndArray();
-	
+
 				gen.writeEndObject();
-	
+
 				gen.close();
 				return writer.toString();
 			}

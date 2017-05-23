@@ -18,16 +18,17 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
+import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -50,11 +51,10 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 	private static final String COMPLETED_JOBS_REST_PATH = "/joboverview/completed";
 
 	private final FiniteDuration timeout;
-	
+
 	private final boolean includeRunningJobs;
 	private final boolean includeFinishedJobs;
 
-	
 	public CurrentJobsOverviewHandler(
 			FiniteDuration timeout,
 			boolean includeRunningJobs,
@@ -83,23 +83,22 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 			if (jobManager != null) {
 				Future<Object> future = jobManager.ask(
 						new RequestJobDetails(includeRunningJobs, includeFinishedJobs), timeout);
-				
+
 				MultipleJobsDetails result = (MultipleJobsDetails) Await.result(future, timeout);
-	
+
 				final long now = System.currentTimeMillis();
-	
+
 				StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+				JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 				gen.writeStartObject();
-				
-				
+
 				if (includeRunningJobs && includeFinishedJobs) {
 					gen.writeArrayFieldStart("running");
 					for (JobDetails detail : result.getRunningJobs()) {
 						writeJobDetailOverviewAsJson(detail, gen, now);
 					}
 					gen.writeEndArray();
-	
+
 					gen.writeArrayFieldStart("finished");
 					for (JobDetails detail : result.getFinishedJobs()) {
 						writeJobDetailOverviewAsJson(detail, gen, now);
@@ -113,7 +112,7 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 					}
 					gen.writeEndArray();
 				}
-	
+
 				gen.writeEndObject();
 				gen.close();
 				return writer.toString();
@@ -127,12 +126,15 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 		}
 	}
 
+	/**
+	 * Archivist for the CurrentJobsOverviewHandler.
+	 */
 	public static class CurrentJobsOverviewJsonArchivist implements JsonArchivist {
 
 		@Override
 		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
 			StringWriter writer = new StringWriter();
-			try (JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer)) {
+			try (JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer)) {
 				gen.writeStartObject();
 				gen.writeArrayFieldStart("running");
 				gen.writeEndArray();

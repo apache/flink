@@ -47,10 +47,10 @@ public class JarUploadHandler extends AbstractJsonRequestHandler {
 				Map<String, String> pathParams,
 				Map<String, String> queryParams,
 				ActorGateway jobManager) throws Exception {
-		
+
 		String tempFilePath = queryParams.get("filepath");
 		String filename = queryParams.get("filename");
-		
+
 		File tempFile;
 		if (tempFilePath != null && (tempFile = new File(tempFilePath)).exists()) {
 			if (!tempFile.getName().endsWith(".jar")) {
@@ -58,7 +58,7 @@ public class JarUploadHandler extends AbstractJsonRequestHandler {
 				tempFile.delete();
 				return "{\"error\": \"Only Jar files are allowed.\"}";
 			}
-			
+
 			String filenameWithUUID = UUID.randomUUID() + "_" + filename;
 			File newFile = new File(jarDir, filenameWithUUID);
 			if (tempFile.renameTo(newFile)) {
@@ -70,7 +70,7 @@ public class JarUploadHandler extends AbstractJsonRequestHandler {
 				tempFile.delete();
 			}
 		}
-		
+
 		return "{\"error\": \"Failed to upload the file.\"}";
 	}
 }

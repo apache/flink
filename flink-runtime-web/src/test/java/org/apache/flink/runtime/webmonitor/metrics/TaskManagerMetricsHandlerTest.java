@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.metrics;
 
-import akka.actor.ActorSystem;
 import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
-import org.apache.flink.runtime.webmonitor.handlers.JobVertexAccumulatorsHandler;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorSystem;
 import org.junit.Assert;
 import org.junit.Test;
 import scala.concurrent.ExecutionContext;
@@ -33,6 +34,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+/**
+ * Tests for the TaskManagersMetricsHandler.
+ */
 public class TaskManagerMetricsHandlerTest extends TestLogger {
 	@Test
 	public void testGetPaths() {

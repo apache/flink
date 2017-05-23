@@ -15,20 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collection;
 
+/**
+ * Tests for the JobAccumulatorsHandler.
+ */
 public class JobAccumulatorsHandlerTest {
 
 	@Test
@@ -61,7 +66,7 @@ public class JobAccumulatorsHandlerTest {
 	}
 
 	private static void compareAccumulators(AccessExecutionGraph originalJob, String json) throws IOException {
-		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
+		JsonNode result = ArchivedJobGenerationUtils.MAPPER.readTree(json);
 
 		ArrayNode accs = (ArrayNode) result.get("job-accumulators");
 		Assert.assertEquals(0, accs.size());

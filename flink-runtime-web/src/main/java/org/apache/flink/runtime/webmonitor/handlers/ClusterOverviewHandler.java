@@ -18,11 +18,12 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
 import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -45,7 +46,7 @@ public class ClusterOverviewHandler extends AbstractJsonRequestHandler {
 	private static final String commitID = EnvironmentInformation.getRevisionInformation().commitId;
 
 	private final FiniteDuration timeout;
-	
+
 	public ClusterOverviewHandler(FiniteDuration timeout) {
 		this.timeout = checkNotNull(timeout);
 	}
@@ -64,7 +65,7 @@ public class ClusterOverviewHandler extends AbstractJsonRequestHandler {
 				StatusOverview overview = (StatusOverview) Await.result(future, timeout);
 
 				StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+				JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 				gen.writeStartObject();
 				gen.writeNumberField("taskmanagers", overview.getNumTaskManagersConnected());

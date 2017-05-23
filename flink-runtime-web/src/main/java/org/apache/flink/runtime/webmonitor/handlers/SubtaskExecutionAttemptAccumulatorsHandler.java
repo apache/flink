@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -27,6 +26,8 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -37,12 +38,12 @@ import java.util.Map;
 
 /**
  * Base class for request handlers whose response depends on a specific job vertex (defined
- * via the "vertexid" parameter) in a specific job, defined via (defined voa the "jobid" parameter).  
+ * via the "vertexid" parameter) in a specific job, defined via (defined voa the "jobid" parameter).
  */
 public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskAttemptRequestHandler {
 
 	private static final String SUBTASK_ATTEMPT_ACCUMULATORS_REST_PATH = "/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt/accumulators";
-	
+
 	public SubtaskExecutionAttemptAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
@@ -56,7 +57,10 @@ public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskA
 	public String handleRequest(AccessExecution execAttempt, Map<String, String> params) throws Exception {
 		return createAttemptAccumulatorsJson(execAttempt);
 	}
-		
+
+	/**
+	 * Archivist for the SubtaskExecutionAttemptAccumulatorsHandler.
+	 */
 	public static class SubtaskExecutionAttemptAccumulatorsJsonArchivist implements JsonArchivist {
 
 		@Override
@@ -91,8 +95,8 @@ public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskA
 
 	public static String createAttemptAccumulatorsJson(AccessExecution execAttempt) throws IOException {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-		
+		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+
 		final StringifiedAccumulatorResult[] accs = execAttempt.getUserAccumulatorsStringified();
 
 		gen.writeStartObject();
@@ -100,7 +104,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskA
 		gen.writeNumberField("subtask", execAttempt.getParallelSubtaskIndex());
 		gen.writeNumberField("attempt", execAttempt.getAttemptNumber());
 		gen.writeStringField("id", execAttempt.getAttemptId().toString());
-		
+
 		gen.writeArrayFieldStart("user-accumulators");
 		for (StringifiedAccumulatorResult acc : accs) {
 			gen.writeStartObject();
@@ -110,9 +114,9 @@ public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskA
 			gen.writeEndObject();
 		}
 		gen.writeEndArray();
-		
+
 		gen.writeEndObject();
-		
+
 		gen.close();
 		return writer.toString();
 	}

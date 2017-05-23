@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.history;
 
-import io.netty.handler.codec.http.router.Router;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
+
+import io.netty.handler.codec.http.router.Router;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -28,6 +30,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 
+/**
+ * Tests for the HistoryServerStaticFileServerHandler.
+ */
 public class HistoryServerStaticFileServerHandlerTest {
 
 	@Rule

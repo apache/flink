@@ -34,7 +34,7 @@ import java.util.Map;
 public class JobPlanHandler extends AbstractExecutionGraphRequestHandler {
 
 	private static final String JOB_PLAN_REST_PATH = "/jobs/:jobid/plan";
-	
+
 	public JobPlanHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
@@ -49,6 +49,9 @@ public class JobPlanHandler extends AbstractExecutionGraphRequestHandler {
 		return graph.getJsonPlan();
 	}
 
+	/**
+	 * Archivist for the JobPlanHandler.
+	 */
 	public static class JobPlanJsonArchivist implements JsonArchivist {
 
 		@Override

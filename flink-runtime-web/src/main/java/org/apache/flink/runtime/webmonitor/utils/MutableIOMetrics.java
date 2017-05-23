@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.utils;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
@@ -26,16 +26,19 @@ import org.apache.flink.runtime.webmonitor.handlers.JobVertexDetailsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.metrics.MetricStore;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
  * This class is a mutable version of the {@link IOMetrics} class that allows adding up IO-related metrics.
- * 
- * For finished jobs these metrics are stored in the {@link ExecutionGraph} as another {@link IOMetrics}.
+ *
+ * <p>For finished jobs these metrics are stored in the {@link ExecutionGraph} as another {@link IOMetrics}.
  * For running jobs these metrics are retrieved using the {@link MetricFetcher}.
- * 
- * This class provides a common interface to handle both cases, reducing complexity in various handlers (like
+ *
+ * <p>This class provides a common interface to handle both cases, reducing complexity in various handlers (like
  * the {@link JobVertexDetailsHandler}).
  */
 public class MutableIOMetrics extends IOMetrics {
@@ -50,7 +53,7 @@ public class MutableIOMetrics extends IOMetrics {
 	 * Adds the IO metrics for the given attempt to this object. If the {@link AccessExecution} is in
 	 * a terminal state the contained {@link IOMetrics} object is added. Otherwise the given {@link MetricFetcher} is
 	 * used to retrieve the required metrics.
-	 * 
+	 *
 	 * @param attempt Attempt whose IO metrics should be added
 	 * @param fetcher MetricFetcher to retrieve metrics for running jobs
 	 * @param jobID JobID to which the attempt belongs
@@ -83,21 +86,21 @@ public class MutableIOMetrics extends IOMetrics {
 
 	/**
 	 * Writes the IO metrics contained in this object to the given {@link JsonGenerator}.
-	 * 
-	 * The JSON structure written is as follows:
+	 *
+	 * <p>The JSON structure written is as follows:
 	 * "metrics": {
 	 *     "read-bytes": 1,
 	 *     "write-bytes": 2,
 	 *     "read-records": 3,
 	 *     "write-records": 4
 	 * }
-	 * 
+	 *
 	 * @param gen JsonGenerator to which the metrics should be written
 	 * @throws IOException
 	 */
 	public void writeIOMetricsAsJson(JsonGenerator gen) throws IOException {
 		gen.writeObjectFieldStart("metrics");
-		gen.writeNumberField("read-bytes",this.numBytesInLocal + this.numBytesInRemote);
+		gen.writeNumberField("read-bytes", this.numBytesInLocal + this.numBytesInRemote);
 		gen.writeNumberField("write-bytes", this.numBytesOut);
 		gen.writeNumberField("read-records", this.numRecordsIn);
 		gen.writeNumberField("write-records", this.numRecordsOut);

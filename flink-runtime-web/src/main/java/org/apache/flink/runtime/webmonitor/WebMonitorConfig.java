@@ -21,11 +21,13 @@ package org.apache.flink.runtime.webmonitor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 
+/**
+ * Configuration object for {@link WebMonitor}.
+ */
 public class WebMonitorConfig {
 
-	/** The configuration queried by this config object */
+	/** The configuration queried by this config object. */
 	private final Configuration config;
-
 
 	public WebMonitorConfig(Configuration config) {
 		if (config == null) {
@@ -45,7 +47,7 @@ public class WebMonitorConfig {
 	public long getRefreshInterval() {
 		return config.getLong(JobManagerOptions.WEB_REFRESH_INTERVAL);
 	}
-	
+
 	public boolean isProgramSubmitEnabled() {
 		return config.getBoolean(JobManagerOptions.WEB_SUBMIT_ENABLE);
 	}

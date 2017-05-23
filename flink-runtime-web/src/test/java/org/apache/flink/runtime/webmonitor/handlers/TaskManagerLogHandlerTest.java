@@ -15,14 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.router.Routed;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -39,6 +34,13 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.router.Routed;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -61,6 +63,9 @@ import static org.mockito.Matchers.isA;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
+/**
+ * Tests for the TaskManagersLogHandler.
+ */
 public class TaskManagerLogHandlerTest {
 	@Test
 	public void testGetPaths() {
@@ -125,7 +130,6 @@ public class TaskManagerLogHandlerTest {
 		when(retriever.getJobManagerGatewayAndWebPort())
 			.thenReturn(Option.apply(new scala.Tuple2<ActorGateway, Integer>(jobManagerGateway, 0)));
 
-
 		TaskManagerLogHandler handler = new TaskManagerLogHandler(
 			retriever,
 			ExecutionContext$.MODULE$.fromExecutor(Executors.directExecutor()),
@@ -137,7 +141,7 @@ public class TaskManagerLogHandlerTest {
 			new VoidBlobStore());
 
 		final AtomicReference<String> exception = new AtomicReference<>();
-		
+
 		ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
 		when(ctx.write(isA(ByteBuf.class))).thenAnswer(new Answer<Object>() {
 			@Override

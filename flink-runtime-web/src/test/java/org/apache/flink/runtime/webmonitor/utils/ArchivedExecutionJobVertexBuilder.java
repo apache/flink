@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.utils;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
@@ -25,6 +26,9 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Random;
 
+/**
+ * Utility class for constructing an ArchivedExecutionJobVertex.
+ */
 public class ArchivedExecutionJobVertexBuilder {
 
 	private static final Random RANDOM = new Random();

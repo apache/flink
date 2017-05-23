@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -32,7 +30,10 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.utils.MutableIOMetrics;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -66,6 +67,9 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 		return createAttemptDetailsJson(execAttempt, params.get("jobid"), params.get("vertexid"), fetcher);
 	}
 
+	/**
+	 * Archivist for the SubtaskExecutionAttemptDetailsHandler.
+	 */
 	public static class SubtaskExecutionAttemptDetailsJsonArchivist implements JsonArchivist {
 
 		@Override
@@ -83,7 +87,7 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 						.replace(":vertexid", task.getJobVertexId().toString())
 						.replace(":subtasknum", String.valueOf(subtask.getParallelSubtaskIndex()))
 						.replace(":attempt", String.valueOf(subtask.getCurrentExecutionAttempt().getAttemptNumber()));
-					
+
 					archive.add(new ArchivedJson(curAttemptPath1, curAttemptJson));
 					archive.add(new ArchivedJson(curAttemptPath2, curAttemptJson));
 
@@ -109,7 +113,7 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 			String vertexID,
 			@Nullable MetricFetcher fetcher) throws IOException {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 		final ExecutionState status = execAttempt.getState();
 		final long now = System.currentTimeMillis();
@@ -141,7 +145,7 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 			jobID,
 			vertexID
 		);
-		
+
 		counts.writeIOMetricsAsJson(gen);
 
 		gen.writeEndObject();

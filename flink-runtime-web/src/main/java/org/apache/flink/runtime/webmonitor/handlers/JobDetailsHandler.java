@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
@@ -32,7 +30,10 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.utils.MutableIOMetrics;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -40,7 +41,7 @@ import java.util.Collection;
 import java.util.Map;
 
 /**
- * Request handler that returns details about a job, including:
+ * Request handler that returns details about a job. This includes:
  * <ul>
  *     <li>Dataflow plan</li>
  *     <li>id, name, and current status</li>
@@ -71,6 +72,9 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 		return createJobDetailsJson(graph, fetcher);
 	}
 
+	/**
+	 * Archivist for the JobDetailsHandler.
+	 */
 	public static class JobDetailsJsonArchivist implements JsonArchivist {
 
 		@Override
@@ -89,18 +93,18 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 
 	public static String createJobDetailsJson(AccessExecutionGraph graph, @Nullable MetricFetcher fetcher) throws IOException {
 		final StringWriter writer = new StringWriter();
-		final JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+		final JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 		final long now = System.currentTimeMillis();
-		
+
 		gen.writeStartObject();
-		
+
 		// basic info
 		gen.writeStringField("jid", graph.getJobID().toString());
 		gen.writeStringField("name", graph.getJobName());
 		gen.writeBooleanField("isStoppable", graph.isStoppable());
 		gen.writeStringField("state", graph.getState().name());
-		
+
 		// times and duration
 		final long jobStartTime = graph.getStatusTimestamp(JobStatus.CREATED);
 		final long jobEndTime = graph.getState().isGloballyTerminalState() ?
@@ -109,14 +113,14 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 		gen.writeNumberField("end-time", jobEndTime);
 		gen.writeNumberField("duration", (jobEndTime > 0 ? jobEndTime : now) - jobStartTime);
 		gen.writeNumberField("now", now);
-		
+
 		// timestamps
 		gen.writeObjectFieldStart("timestamps");
 		for (JobStatus status : JobStatus.values()) {
 			gen.writeNumberField(status.name(), graph.getStatusTimestamp(status));
 		}
 		gen.writeEndObject();
-		
+
 		// job vertices
 		int[] jobVerticesPerState = new int[ExecutionState.values().length];
 		gen.writeArrayFieldStart("vertices");
@@ -126,7 +130,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 			long startTime = Long.MAX_VALUE;
 			long endTime = 0;
 			boolean allFinished = true;
-			
+
 			for (AccessExecutionVertex vertex : ejv.getTaskVertices()) {
 				final ExecutionState state = vertex.getExecutionState();
 				tasksPerState[state.ordinal()]++;
@@ -136,11 +140,11 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 				if (started > 0) {
 					startTime = Math.min(startTime, started);
 				}
-				
+
 				allFinished &= state.isTerminal();
 				endTime = Math.max(endTime, vertex.getStateTimestamp(state));
 			}
-			
+
 			long duration;
 			if (startTime < Long.MAX_VALUE) {
 				if (allFinished) {
@@ -156,8 +160,8 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 				endTime = -1L;
 				duration = -1L;
 			}
-			
-			ExecutionState jobVertexState = 
+
+			ExecutionState jobVertexState =
 					ExecutionJobVertex.getAggregateJobVertexState(tasksPerState, ejv.getParallelism());
 			jobVerticesPerState[jobVertexState.ordinal()]++;
 
@@ -170,13 +174,13 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 			gen.writeNumberField("start-time", startTime);
 			gen.writeNumberField("end-time", endTime);
 			gen.writeNumberField("duration", duration);
-			
+
 			gen.writeObjectFieldStart("tasks");
 			for (ExecutionState state : ExecutionState.values()) {
 				gen.writeNumberField(state.name(), tasksPerState[state.ordinal()]);
 			}
 			gen.writeEndObject();
-			
+
 			MutableIOMetrics counts = new MutableIOMetrics();
 
 			for (AccessExecutionVertex vertex : ejv.getTaskVertices()) {
@@ -188,7 +192,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 			}
 
 			counts.writeIOMetricsAsJson(gen);
-			
+
 			gen.writeEndObject();
 		}
 		gen.writeEndArray();

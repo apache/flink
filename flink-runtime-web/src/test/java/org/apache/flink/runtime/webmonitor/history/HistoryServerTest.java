@@ -15,14 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.history;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.testkit.TestActorRef;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.io.IOUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -33,10 +28,18 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.ArchiveMessages;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.testkit.TestActorRef;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import scala.Option;
 
 import java.io.File;
 import java.io.InputStream;
@@ -45,8 +48,9 @@ import java.net.URL;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import scala.Option;
-
+/**
+ * Tests for the HistoryServer.
+ */
 public class HistoryServerTest {
 
 	@Rule
@@ -58,7 +62,7 @@ public class HistoryServerTest {
 
 		File jmDirectory = tmpDir.newFolder("jm");
 		File hsDirectory = tmpDir.newFolder("hs");
-		
+
 		Configuration config = new Configuration();
 		config.setString(JobManagerOptions.ARCHIVE_DIR, jmDirectory.toURI().toString());
 

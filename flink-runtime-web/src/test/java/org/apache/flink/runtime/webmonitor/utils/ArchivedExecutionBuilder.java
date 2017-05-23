@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.utils;
 
 import org.apache.flink.metrics.Counter;
@@ -31,6 +32,9 @@ import org.apache.flink.util.Preconditions;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+/**
+ * Utility class for constructing an ArchivedExecution.
+ */
 public class ArchivedExecutionBuilder {
 	private ExecutionAttemptID attemptId;
 	private long[] stateTimestamps;

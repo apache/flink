@@ -31,9 +31,9 @@ import java.util.Map;
  * that can be retrieved via "jobid" parameter.
  */
 public abstract class AbstractExecutionGraphRequestHandler extends AbstractJsonRequestHandler {
-	
+
 	private final ExecutionGraphHolder executionGraphHolder;
-	
+
 	public AbstractExecutionGraphRequestHandler(ExecutionGraphHolder executionGraphHolder) {
 		this.executionGraphHolder = executionGraphHolder;
 	}
@@ -50,16 +50,16 @@ public abstract class AbstractExecutionGraphRequestHandler extends AbstractJsonR
 			jid = JobID.fromHexString(jidString);
 		}
 		catch (Exception e) {
-			throw new RuntimeException("Invalid JobID string '" + jidString + "': " + e.getMessage()); 
+			throw new RuntimeException("Invalid JobID string '" + jidString + "': " + e.getMessage());
 		}
-		
+
 		AccessExecutionGraph eg = executionGraphHolder.getExecutionGraph(jid, jobManager);
 		if (eg == null) {
 			throw new NotFoundException("Could not find job with id " + jid);
 		}
-		
+
 		return handleRequest(eg, pathParams);
 	}
-	
+
 	public abstract String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception;
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
@@ -31,7 +30,10 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.utils.MutableIOMetrics;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -65,6 +67,9 @@ public class JobVertexTaskManagersHandler extends AbstractJobVertexRequestHandle
 		return createVertexDetailsByTaskManagerJson(jobVertex, params.get("jobid"), fetcher);
 	}
 
+	/**
+	 * Archivist for JobVertexTaskManagersHandler.
+	 */
 	public static class JobVertexTaskManagersJsonArchivist implements JsonArchivist {
 
 		@Override
@@ -86,7 +91,7 @@ public class JobVertexTaskManagersHandler extends AbstractJobVertexRequestHandle
 			String jobID,
 			@Nullable MetricFetcher fetcher) throws IOException {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 		// Build a map that groups tasks by TaskManager
 		Map<String, List<AccessExecutionVertex>> taskManagerVertices = new HashMap<>();
@@ -107,7 +112,6 @@ public class JobVertexTaskManagersHandler extends AbstractJobVertexRequestHandle
 
 		// Build JSON response
 		final long now = System.currentTimeMillis();
-
 
 		gen.writeStartObject();
 

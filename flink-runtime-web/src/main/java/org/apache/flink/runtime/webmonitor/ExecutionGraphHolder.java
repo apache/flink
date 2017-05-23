@@ -37,8 +37,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Gateway to obtaining an {@link ExecutionGraph} from a source, like JobManager or Archive.
- * <p>
- * The holder will cache the ExecutionGraph behind a weak reference, which will be cleared
+ *
+ * <p>The holder will cache the ExecutionGraph behind a weak reference, which will be cleared
  * at some point once no one else is pointing to the ExecutionGraph.
  * Note that while the holder runs in the same JVM as the JobManager or Archive, the reference should
  * stay valid.

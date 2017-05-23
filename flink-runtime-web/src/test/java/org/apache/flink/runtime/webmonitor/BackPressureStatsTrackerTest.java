@@ -29,6 +29,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -47,6 +48,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the BackPressureStatsTracker.
+ */
 public class BackPressureStatsTrackerTest {
 
 	/** Tests simple statistics with fake stack traces. */
@@ -148,7 +152,7 @@ public class BackPressureStatsTrackerTest {
 		assertEquals(sampleId, stats.getSampleId());
 		assertEquals(endTime, stats.getEndTimestamp());
 		assertEquals(taskVertices.length, stats.getNumberOfSubTasks());
-		
+
 		for (int i = 0; i < taskVertices.length; i++) {
 			double ratio = stats.getBackPressureRatio(i);
 			// Traces until sub task index are back pressured
