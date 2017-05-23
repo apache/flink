@@ -47,12 +47,10 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-hadoop2-uber</artifactId>
 			<version>${project.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop2</artifactId>
-				</exclusion>
-			</exclusions>
+			<!--
+				Exclusion of flink-shaded-hadoop2 not necessary, dependencies
+				are shaded away properly by flink-shaded-hadoop2-uber.
+			-->
 		</dependency>
 
 		<dependency>
