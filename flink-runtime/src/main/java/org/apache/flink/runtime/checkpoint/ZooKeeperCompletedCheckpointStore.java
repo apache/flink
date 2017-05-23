@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
@@ -376,8 +377,14 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		try {
 			return stateHandlePath.f0.retrieveState();
-		} catch (Exception e) {
-			throw new FlinkException("Could not retrieve checkpoint " + checkpointId + ". The state handle seems to be broken.", e);
+		} catch (ClassNotFoundException cnfe) {
+			throw new FlinkException("Could not retrieve checkpoint " + checkpointId + " from state handle under " +
+				stateHandlePath.f1 + ". This indicates that you are trying to recover from state written by an " +
+				"older Flink version which is not compatible. Try cleaning the state handle store.", cnfe);
+		} catch (IOException ioe) {
+			throw new FlinkException("Could not retrieve checkpoint " + checkpointId + " from state handle under " +
+				stateHandlePath.f1 + ". This indicates that the retrieved state handle is broken. Try cleaning the " +
+				"state handle store.", ioe);
 		}
 	}
 }
