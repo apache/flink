@@ -54,25 +54,21 @@ Note also that while the streaming connectors listed in this section are part of
 Flink project and are included in source releases, they are not included in the binary distributions. 
 Further instructions can be found in the corresponding subsections.
 
-## Related Topics
+## Other Ways to Connect to Flink
 
 ### Data Enrichment via Async I/O
 
-Streaming applications sometimes need to pull in data from external services and databases
-in order to enrich their event streams.
+Using a connector isn't the only way to get data in and out of Flink.
+One common pattern is to query an external database or web service in a `Map` or `FlatMap`
+in order to enrich the primary datastream.
 Flink offers an API for [Asynchronous I/O]({{ site.baseurl }}/dev/stream/asyncio.html)
-to make it easier to do this efficiently and robustly.
-
-### Side Outputs
-
-You can always connect an input stream to as many sinks as you like, but sometimes it is
-useful to emit additional result streams "on the side," as it were.
-[Side Outputs]({{ site.baseurl }}/dev/stream/side_output.html) allow you to flexibily
-split and filter your datastream in a typesafe way.
+to make it easier to do this kind of enrichment efficiently and robustly.
 
 ### Queryable State
 
-Rather than always pushing data to external data stores, it is also possible for external applications to query Flink,
-and read from the partitioned state it manages on demand.
-In some cases this [Queryable State]({{ site.baseurl }}/dev/stream/queryable_state.html) interface can
-eliminate what would otherwise be a bottleneck.
+When a Flink application pushes a lot of data to an external data store, this
+can become an I/O bottleneck.
+If the data involved has many fewer reads than writes, a better approach can be
+for an external application to pull from Flink the data it needs.
+The [Queryable State]({{ site.baseurl }}/dev/stream/queryable_state.html) interface
+enables this by allowing the state being managed by Flink to be queried on demand.
