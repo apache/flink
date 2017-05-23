@@ -32,6 +32,7 @@ import java.lang.{Long => JLong}
 
 import org.apache.flink.cep.operator.CEPOperatorUtils
 import org.apache.flink.cep.scala.pattern.Pattern
+import scala.collection.Map
 
 /**
   * Stream abstraction for CEP pattern detection. A pattern stream is a stream which emits detected

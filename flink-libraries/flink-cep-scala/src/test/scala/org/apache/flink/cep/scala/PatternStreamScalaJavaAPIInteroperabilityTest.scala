@@ -31,6 +31,7 @@ import java.util.{Map => JMap}
 import java.util.{List => JList}
 
 import scala.collection.JavaConverters._
+import scala.collection.Map
 import org.junit.Assert._
 import org.junit.Test
 

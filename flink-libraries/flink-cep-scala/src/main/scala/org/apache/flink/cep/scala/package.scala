@@ -25,6 +25,7 @@ import org.apache.flink.cep.{PatternStream => JPatternStream}
 package object scala {
 
   import collection.JavaConverters._
+  import collection.Map
 
   /**
     * Utility method to wrap [[org.apache.flink.cep.PatternStream]] for usage with the Scala API.
@@ -48,7 +49,7 @@ package object scala {
   }
 
   private[flink] def mapToScala[T](map: JMap[String, JList[T]]): Map[String, Iterable[T]] = {
-    map.asScala.mapValues(_.asScala.toIterable).toMap
+    map.asScala.mapValues(_.asScala.toIterable)
   }
 }
 
