@@ -54,6 +54,16 @@ Note also that while the streaming connectors listed in this section are part of
 Flink project and are included in source releases, they are not included in the binary distributions. 
 Further instructions can be found in the corresponding subsections.
 
+## Connectors in Apache Bahir
+
+The [Apache Bahir](http://bahir.apache.org/) project provides some additional streaming connectors for Flink, including:
+
+ * [Apache ActiveMQ](http://bahir.apache.org/docs/flink/current/flink-streaming-activemq/) (sink/source)
+ * [Apache Flume](http://bahir.apache.org/docs/flink/current/flink-streaming-flume/) (sink)
+ * [Redis](http://bahir.apache.org/docs/flink/current/flink-streaming-redis/) (sink)
+ * [Akka](http://bahir.apache.org/docs/flink/current/flink-streaming-akka/) (sink)
+ * [Netty](http://bahir.apache.org/docs/flink/current/flink-streaming-netty/) (source)
+
 ## Other Ways to Connect to Flink
 
 ### Data Enrichment via Async I/O
