@@ -327,8 +327,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		} catch (Exception ignored) {
 		}
 
-		verifyRocksObjectsReleased();
 		asyncSnapshotThread.join();
+		verifyRocksObjectsReleased();
 	}
 
 	@Test
