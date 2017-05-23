@@ -18,21 +18,6 @@
 
 package org.apache.flink.storm.api;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution;
-import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
-import org.apache.storm.Config;
-import org.apache.storm.generated.AlreadyAliveException;
-import org.apache.storm.generated.InvalidTopologyException;
-import org.apache.storm.generated.KillOptions;
-import org.apache.storm.generated.NotAliveException;
-import org.apache.storm.utils.NimbusClient;
-import org.apache.storm.utils.Utils;
-import com.esotericsoftware.kryo.Serializer;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.ClusterClient;
@@ -46,17 +31,29 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
+import com.esotericsoftware.kryo.Serializer;
+import org.apache.storm.Config;
+import org.apache.storm.generated.AlreadyAliveException;
+import org.apache.storm.generated.InvalidTopologyException;
+import org.apache.storm.generated.KillOptions;
+import org.apache.storm.generated.NotAliveException;
+import org.apache.storm.utils.NimbusClient;
+import org.apache.storm.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Some;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
@@ -67,6 +64,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import scala.Some;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
+
 /**
  * {@link FlinkClient} mimics a Storm {@link NimbusClient} and {@link Nimbus}{@code .Client} at once, to interact with
  * Flink's JobManager instead of Storm's Nimbus.
@@ -76,13 +78,13 @@ public class FlinkClient {
 	/** The log used by this client. */
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkClient.class);
 
-	/** The client's configuration */
-	private final Map<?,?> conf;
-	/** The jobmanager's host name */
+	/** The client's configuration. */
+	private final Map<?, ?> conf;
+	/** The jobmanager's host name. */
 	private final String jobManagerHost;
-	/** The jobmanager's rpc port */
+	/** The jobmanager's rpc port. */
 	private final int jobManagerPort;
-	/** The user specified timeout in milliseconds */
+	/** The user specified timeout in milliseconds. */
 	private final String timeout;
 
 	// The following methods are derived from "backtype.storm.utils.NimbusClient"
@@ -145,8 +147,8 @@ public class FlinkClient {
 
 	/**
 	 * Return a reference to itself.
-	 * <p>
-	 * {@link FlinkClient} mimics both, {@link NimbusClient} and {@link Nimbus}{@code .Client}, at once.
+	 *
+	 * <p>{@link FlinkClient} mimics both, {@link NimbusClient} and {@link Nimbus}{@code .Client}, at once.
 	 *
 	 * @return A reference to itself.
 	 */
@@ -188,7 +190,7 @@ public class FlinkClient {
 
 		try {
 			FlinkClient.addStormConfigToTopology(topology, conf);
-		} catch(ClassNotFoundException e) {
+		} catch (ClassNotFoundException e) {
 			LOG.error("Could not register class for Kryo serialization.", e);
 			throw new InvalidTopologyException("Could not register class for Kryo serialization.");
 		}
@@ -352,9 +354,9 @@ public class FlinkClient {
 					if (klass instanceof String) {
 						flinkConfig.registerKryoType(Class.forName((String) klass));
 					} else {
-						for (Entry<String,String> register : ((Map<String,String>)klass).entrySet()) {
+						for (Entry<String, String> register : ((Map<String, String>) klass).entrySet()) {
 							flinkConfig.registerTypeWithKryoSerializer(Class.forName(register.getKey()),
-									(Class<? extends Serializer<?>>)Class.forName(register.getValue()));
+									(Class<? extends Serializer<?>>) Class.forName(register.getValue()));
 						}
 					}
 				}

@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.util;
 
 import org.apache.storm.task.OutputCollector;
@@ -26,23 +27,26 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * A test implementation of a {@link IRichBolt} that stores incoming records in {@link #RESULT}.
+ */
 public class TestSink implements IRichBolt {
 	private static final long serialVersionUID = 4314871456719370877L;
 
-	public final static List<TopologyContext> result = new LinkedList<TopologyContext>();
+	public static final List<TopologyContext> RESULT = new LinkedList<TopologyContext>();
 
 	@SuppressWarnings("rawtypes")
 	@Override
 	public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
-		result.add(context);
+		RESULT.add(context);
 	}
 
 	@Override
 	public void execute(Tuple input) {
 		if (input.size() == 1) {
-			result.add((TopologyContext) input.getValue(0));
+			RESULT.add((TopologyContext) input.getValue(0));
 		} else {
-			result.add((TopologyContext) input.getValue(1));
+			RESULT.add((TopologyContext) input.getValue(1));
 		}
 	}
 

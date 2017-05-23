@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.wrappers;
 
 /*
@@ -51,7 +52,6 @@ public class StormTuple<IN> implements org.apache.storm.tuple.Tuple {
 	private final String producerComponentId;
 	/** The message that is associated with this tuple. */
 	private final MessageId messageId;
-
 
 	/**
 	 * Create a new Storm tuple from the given Flink tuple.

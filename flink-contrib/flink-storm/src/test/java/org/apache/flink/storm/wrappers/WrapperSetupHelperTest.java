@@ -18,6 +18,7 @@
 package org.apache.flink.storm.wrappers;
 
 import org.apache.flink.storm.util.AbstractTest;
+
 import org.apache.storm.topology.IComponent;
 import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.topology.IRichSpout;
@@ -37,6 +38,9 @@ import java.util.HashSet;
 import static java.util.Collections.singleton;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for the WrapperSetupHelper.
+ */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(WrapperSetupHelper.class)
 @PowerMockIgnore({"javax.*", "org.apache.log4j.*"})
