@@ -112,7 +112,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 	/** Future of the blob cache. */
 	private Future<BlobCache> cache;
 
-	/** Indicates which log file should be displayed;. */
+	/** Indicates which log file should be displayed. */
 	private FileMode fileMode;
 
 	private final ExecutionContextExecutor executor;

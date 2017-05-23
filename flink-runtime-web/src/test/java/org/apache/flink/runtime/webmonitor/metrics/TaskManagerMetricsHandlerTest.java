@@ -35,7 +35,7 @@ import static org.junit.Assert.assertNull;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 /**
- * Tests for the TaskManagersMetricsHandler.
+ * Tests for the TaskManagerMetricsHandler.
  */
 public class TaskManagerMetricsHandlerTest extends TestLogger {
 	@Test

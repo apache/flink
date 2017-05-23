@@ -38,14 +38,12 @@ public interface RequestHandler {
 	 *
 	 * <p>Exceptions may be throws and will be handled.
 	 *
-*
 	 * @param pathParams The map of REST path parameters, decoded by the router.
 	 * @param queryParams The map of query parameters.
 	 * @param jobManager The JobManager actor.
 	 *
 	 * @return The full http response.
 	 *
-*
 	 * @throws Exception Handlers may forward exceptions. Exceptions of type
 	 *         {@link org.apache.flink.runtime.webmonitor.NotFoundException} will cause a HTTP 404
 	 *         response with the exception message, other exceptions will cause a HTTP 500 response

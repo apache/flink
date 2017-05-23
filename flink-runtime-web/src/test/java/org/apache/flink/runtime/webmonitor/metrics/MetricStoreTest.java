@@ -29,7 +29,7 @@ import java.io.IOException;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for teh MetricStore.
+ * Tests for the MetricStore.
  */
 public class MetricStoreTest extends TestLogger {
 	@Test

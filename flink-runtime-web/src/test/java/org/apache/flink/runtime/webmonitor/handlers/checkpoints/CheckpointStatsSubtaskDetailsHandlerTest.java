@@ -58,7 +58,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for the CheckpointStatsSubtaskDetailsHandlerTest.
+ * Tests for the CheckpointStatsSubtaskDetailsHandler.
  */
 public class CheckpointStatsSubtaskDetailsHandlerTest {
 
