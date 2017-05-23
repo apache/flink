@@ -23,6 +23,7 @@ import org.apache.flink.storm.util.TestDummyBolt;
 import org.apache.flink.storm.util.TestDummySpout;
 import org.apache.flink.storm.util.TestSink;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
 import org.apache.storm.generated.ComponentCommon;
@@ -36,11 +37,18 @@ import org.apache.storm.utils.Utils;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the setup of wrappers in a local cluster.
+ */
 public class WrapperSetupInLocalClusterTest extends AbstractTest {
 
 	@Test
@@ -73,17 +81,17 @@ public class WrapperSetupInLocalClusterTest extends AbstractTest {
 		builder.setBolt("bolt1", (IRichBolt) operators.get("bolt1"), dops.get("bolt1")).shuffleGrouping("spout1");
 		builder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
 		builder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
-				.shuffleGrouping("bolt1", TestDummyBolt.groupingStreamId)
-				.shuffleGrouping("bolt1", TestDummyBolt.shuffleStreamId)
-				.shuffleGrouping("bolt2", TestDummyBolt.groupingStreamId)
-				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
+				.shuffleGrouping("bolt1", TestDummyBolt.GROUPING_STREAM_ID)
+				.shuffleGrouping("bolt1", TestDummyBolt.SHUFFLE_STREAM_ID)
+				.shuffleGrouping("bolt2", TestDummyBolt.GROUPING_STREAM_ID)
+				.shuffleGrouping("bolt2", TestDummyBolt.SHUFFLE_STREAM_ID);
 
 		LocalCluster cluster = new LocalCluster();
 		Config c = new Config();
 		c.setNumAckers(0);
 		cluster.submitTopology("test", c, builder.createTopology());
 
-		while (TestSink.result.size() != 8) {
+		while (TestSink.RESULT.size() != 8) {
 			Utils.sleep(100);
 		}
 		cluster.shutdown();
@@ -92,7 +100,7 @@ public class WrapperSetupInLocalClusterTest extends AbstractTest {
 
 		Set<Integer> taskIds = new HashSet<Integer>();
 
-		for (TopologyContext expectedContext : TestSink.result) {
+		for (TopologyContext expectedContext : TestSink.RESULT) {
 			final String thisComponentId = expectedContext.getThisComponentId();
 			int index = taskCounter.get(thisComponentId);
 
@@ -162,14 +170,14 @@ public class WrapperSetupInLocalClusterTest extends AbstractTest {
 				List<Integer> possibleTasks = expectedContext.getComponentTasks(componentId);
 				List<Integer> tasks = topologyContext.getComponentTasks(componentId);
 
-				Iterator<Integer> p_it = possibleTasks.iterator();
-				Iterator<Integer> t_it = tasks.iterator();
-				while(p_it.hasNext()) {
-					Assert.assertTrue(t_it.hasNext());
-					Assert.assertNull(taskToComponents.put(p_it.next(), componentId));
-					Assert.assertTrue(allTaskIds.add(t_it.next()));
+				Iterator<Integer> pIt = possibleTasks.iterator();
+				Iterator<Integer> tIt = tasks.iterator();
+				while (pIt.hasNext()) {
+					Assert.assertTrue(tIt.hasNext());
+					Assert.assertNull(taskToComponents.put(pIt.next(), componentId));
+					Assert.assertTrue(allTaskIds.add(tIt.next()));
 				}
-				Assert.assertFalse(t_it.hasNext());
+				Assert.assertFalse(tIt.hasNext());
 			}
 
 			Assert.assertEquals(taskToComponents, expectedContext.getTaskToComponent());

@@ -17,6 +17,8 @@
 
 package org.apache.flink.storm.wrappers;
 
+import org.apache.flink.storm.util.AbstractTest;
+
 import org.apache.storm.generated.Bolt;
 import org.apache.storm.generated.SpoutSpec;
 import org.apache.storm.generated.StateSpoutSpec;
@@ -24,13 +26,11 @@ import org.apache.storm.generated.StormTopology;
 import org.apache.storm.metric.api.ICombiner;
 import org.apache.storm.metric.api.IMetric;
 import org.apache.storm.metric.api.IReducer;
-import org.apache.flink.storm.util.AbstractTest;
 import org.junit.Test;
 
 import java.util.HashMap;
 
-
-/*
+/**
  * FlinkTopologyContext.getSources(componentId) and FlinkTopologyContext.getTargets(componentId) are not tested here,
  * because those are tested in StormWrapperSetupHelperTest.
  */

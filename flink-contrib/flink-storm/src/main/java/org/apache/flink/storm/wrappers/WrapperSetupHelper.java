@@ -14,8 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.wrappers;
 
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+
+import clojure.lang.Atom;
 import org.apache.storm.Config;
 import org.apache.storm.generated.Bolt;
 import org.apache.storm.generated.ComponentCommon;
@@ -28,8 +32,6 @@ import org.apache.storm.topology.IComponent;
 import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.topology.IRichSpout;
 import org.apache.storm.tuple.Fields;
-import clojure.lang.Atom;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,14 +47,14 @@ import java.util.Map.Entry;
 class WrapperSetupHelper {
 
 	/** The configuration key for the topology name. */
-	final static String TOPOLOGY_NAME = "storm.topology.name";
+	static final String TOPOLOGY_NAME = "storm.topology.name";
 
 	/**
 	 * Computes the number of output attributes used by a {@link SpoutWrapper} or {@link BoltWrapper}
 	 * per declared output stream. The number is {@code -1} for raw output type or a value within range [0;25] for
 	 * output type {@link org.apache.flink.api.java.tuple.Tuple0 Tuple0} to
 	 * {@link org.apache.flink.api.java.tuple.Tuple25 Tuple25}.
-	 * 
+	 *
 	 * @param spoutOrBolt
 	 *            The Storm {@link IRichSpout spout} or {@link IRichBolt bolt} to be used.
 	 * @param rawOutputs
@@ -96,7 +98,7 @@ class WrapperSetupHelper {
 
 	/**
 	 * Creates a {@link TopologyContext} for a Spout or Bolt instance (ie, Flink task / Storm executor).
-	 * 
+	 *
 	 * @param context
 	 *            The Flink runtime context.
 	 * @param spoutOrBolt
@@ -203,7 +205,7 @@ class WrapperSetupHelper {
 	/**
 	 * Sets up {@code taskToComponents}, {@code componentToSortedTasks}, and {@code componentToStreamToFields} for a
 	 * single instance of a Spout or Bolt (ie, task or executor). Furthermore, is computes the unique task-id.
-	 * 
+	 *
 	 * @param componentId
 	 *            The ID of the Spout/Bolt in the topology.
 	 * @param common
@@ -220,7 +222,7 @@ class WrapperSetupHelper {
 	 *            OUTPUT: A map from all component IDs to their sorted list of corresponding task IDs.
 	 * @param componentToStreamToFields
 	 *            OUTPUT: A map from all component IDs to there output streams and output fields.
-	 * 
+	 *
 	 * @return A unique task ID if the currently processed Spout or Bolt ({@code componentId}) is equal to the current
 	 *         Flink operator {@code operatorName} -- {@code null} otherwise.
 	 */
@@ -229,7 +231,7 @@ class WrapperSetupHelper {
 			final int dop, final Map<Integer, String> taskToComponents,
 			final Map<String, List<Integer>> componentToSortedTasks,
 			final Map<String, Map<String, Fields>> componentToStreamToFields) {
-		final int parallelism_hint = common.get_parallelism_hint();
+		final int parallelismHint = common.get_parallelism_hint();
 		Integer taskId = null;
 
 		if (componentId.equals(operatorName)) {
@@ -237,7 +239,7 @@ class WrapperSetupHelper {
 		}
 
 		List<Integer> sortedTasks = new ArrayList<Integer>(dop);
-		for (int i = 0; i < parallelism_hint; ++i) {
+		for (int i = 0; i < parallelismHint; ++i) {
 			taskToComponents.put(tid, componentId);
 			sortedTasks.add(tid);
 			++tid;
@@ -245,7 +247,7 @@ class WrapperSetupHelper {
 		componentToSortedTasks.put(componentId, sortedTasks);
 
 		Map<String, Fields> outputStreams = new HashMap<String, Fields>();
-		for(Entry<String, StreamInfo> outStream : common.get_streams().entrySet()) {
+		for (Entry<String, StreamInfo> outStream : common.get_streams().entrySet()) {
 			outputStreams.put(outStream.getKey(), new Fields(outStream.getValue().get_output_fields()));
 		}
 		componentToStreamToFields.put(componentId, outputStreams);

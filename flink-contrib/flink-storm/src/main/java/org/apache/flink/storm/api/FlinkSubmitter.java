@@ -14,7 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.api;
+
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.program.ContextEnvironment;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 
 import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;
@@ -22,26 +29,20 @@ import org.apache.storm.generated.AlreadyAliveException;
 import org.apache.storm.generated.InvalidTopologyException;
 import org.apache.storm.generated.SubmitOptions;
 import org.apache.storm.utils.Utils;
-
-import java.net.URISyntaxException;
-import java.net.URL;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.program.ContextEnvironment;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.json.simple.JSONValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.Map;
 
 /**
  * {@link FlinkSubmitter} mimics a {@link StormSubmitter} to submit Storm topologies to a Flink cluster.
  */
 public class FlinkSubmitter {
-	public final static Logger logger = LoggerFactory.getLogger(FlinkSubmitter.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkSubmitter.class);
 
 	/**
 	 * Submits a topology to run on the cluster. A topology runs forever or until explicitly killed.
@@ -121,17 +122,17 @@ public class FlinkSubmitter {
 				}
 			}
 
-			logger.info("Submitting topology " + name + " in distributed mode with conf " + serConf);
+			LOG.info("Submitting topology " + name + " in distributed mode with conf " + serConf);
 			client.submitTopologyWithOpts(name, localJar, topology);
 		} catch (final InvalidTopologyException e) {
-			logger.warn("Topology submission exception: " + e.get_msg());
+			LOG.warn("Topology submission exception: " + e.get_msg());
 			throw e;
 		} catch (final AlreadyAliveException e) {
-			logger.warn("Topology already alive exception", e);
+			LOG.warn("Topology already alive exception", e);
 			throw e;
 		}
 
-		logger.info("Finished submitting topology: " + name);
+		LOG.info("Finished submitting topology: " + name);
 	}
 
 	/**
