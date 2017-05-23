@@ -297,8 +297,9 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 			stateMap.put(key, state);
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
-		public T retrieveState() throws Exception {
+		public T retrieveState() {
 			return (T) stateMap.get(key);
 		}
 

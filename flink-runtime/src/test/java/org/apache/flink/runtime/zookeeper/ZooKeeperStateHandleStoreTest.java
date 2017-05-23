@@ -784,7 +784,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 		}
 
 		@Override
-		public Long retrieveState() throws Exception {
+		public Long retrieveState() {
 			return state;
 		}
 
