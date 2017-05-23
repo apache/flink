@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.wikiedits;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the WikipediaEditsSource.
+ */
 public class WikipediaEditsSourceTest {
 
 	private static final Logger LOG = LoggerFactory.getLogger(WikipediaEditsSourceTest.class);
@@ -39,7 +43,7 @@ public class WikipediaEditsSourceTest {
 	/**
 	 * NOTE: if you are behind a firewall you may need to use a SOCKS Proxy for this test.
 	 *
-	 * We first check the connection to the IRC server. If it fails, this test
+	 * <p>We first check the connection to the IRC server. If it fails, this test
 	 * is effectively ignored.
 	 *
 	 * @see <a href="http://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html">Socks Proxy</a>
