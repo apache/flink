@@ -18,14 +18,6 @@
 
 package org.apache.flink.dropwizard.metrics;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricFilter;
-import com.codahale.metrics.ScheduledReporter;
-import com.codahale.metrics.SlidingWindowReservoir;
-import com.codahale.metrics.Snapshot;
-import com.codahale.metrics.Timer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
@@ -36,6 +28,15 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
+
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricFilter;
+import com.codahale.metrics.ScheduledReporter;
+import com.codahale.metrics.SlidingWindowReservoir;
+import com.codahale.metrics.Snapshot;
+import com.codahale.metrics.Timer;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -52,6 +53,9 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the DropwizardFlinkHistogramWrapper.
+ */
 public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 
 	/**
@@ -72,7 +76,7 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 		}
 
 		assertEquals(size, histogramWrapper.getStatistics().size());
-		assertEquals((size - 1)/2.0, histogramWrapper.getStatistics().getQuantile(0.5), 0.001);
+		assertEquals((size - 1) / 2.0, histogramWrapper.getStatistics().getQuantile(0.5), 0.001);
 
 		for (int i = size; i < 2 * size; i++) {
 			histogramWrapper.update(i);
@@ -83,7 +87,7 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 		}
 
 		assertEquals(size, histogramWrapper.getStatistics().size());
-		assertEquals(size + (size - 1)/2.0, histogramWrapper.getStatistics().getQuantile(0.5), 0.001);
+		assertEquals(size + (size - 1) / 2.0, histogramWrapper.getStatistics().getQuantile(0.5), 0.001);
 	}
 
 	/**
@@ -153,6 +157,9 @@ public class DropwizardFlinkHistogramWrapperTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Test reporter.
+	 */
 	public static class TestingReporter extends ScheduledDropwizardReporter {
 		TestingScheduledReporter scheduledReporter = null;
 

@@ -40,7 +40,6 @@ import org.apache.flink.metrics.reporter.Scheduled;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Reporter;
 import com.codahale.metrics.ScheduledReporter;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

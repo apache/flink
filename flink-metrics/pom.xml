@@ -74,8 +74,9 @@ under the License.
 					</dependency>
 				</dependencies>
 				<configuration>
-					<configLocation>../tools/maven/strict-checkstyle.xml</configLocation>
-					<suppressionsLocation>../tools/maven/suppressions.xml</suppressionsLocation>
+					<configLocation>/tools/maven/strict-checkstyle.xml</configLocation>
+					<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
 					<logViolationsToConsole>true</logViolationsToConsole>
 					<failOnViolation>true</failOnViolation>
 				</configuration>
