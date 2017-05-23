@@ -1337,6 +1337,7 @@ under the License.
 						<sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
 						<testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
 						<outputFile>${project.basedir}/target/scalastyle-output.xml</outputFile>
+						<inputEncoding>UTF-8</inputEncoding>
 						<outputEncoding>UTF-8</outputEncoding>
 					</configuration>
 				</plugin>
