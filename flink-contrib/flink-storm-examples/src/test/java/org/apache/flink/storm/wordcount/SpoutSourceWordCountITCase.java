@@ -21,6 +21,9 @@ package org.apache.flink.storm.wordcount;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
+/**
+ * Test for the SpoutSourceWordCount example.
+ */
 public class SpoutSourceWordCountITCase extends StreamingProgramTestBase {
 
 	protected String textPath;

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.storm.split;
 
 import org.apache.flink.api.common.functions.MapFunction;
@@ -33,15 +34,15 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
  * Implements a simple example with two declared output streams for the embedded spout.
- * <p>
- * This example shows how to:
+ *
+ * <p>This example shows how to:
  * <ul>
  * <li>handle multiple output stream of a spout</li>
  * <li>accessing each stream by .split(...) and .select(...)</li>
  * <li>strip wrapper data type SplitStreamType for further processing in Flink</li>
  * </ul>
- * <p>
- * This example would work the same way for multiple bolt output streams.
+ *
+ * <p>This example would work the same way for multiple bolt output streams.
  */
 public class SpoutSplitExample {
 
@@ -94,7 +95,7 @@ public class SpoutSplitExample {
 	/**
 	 * Same as {@link VerifyAndEnrichBolt}.
 	 */
-	public final static class Enrich implements MapFunction<Integer, Tuple2<String, Integer>> {
+	public static final class Enrich implements MapFunction<Integer, Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 5213888269197438892L;
 		private final Tuple2<String, Integer> out;
 		private final boolean isEven;

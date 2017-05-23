@@ -15,10 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.storm.split.operators;
 
-import java.util.Map;
-import java.util.Random;
+package org.apache.flink.storm.split.operators;
 
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -27,6 +25,12 @@ import org.apache.storm.topology.base.BaseRichSpout;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
 
+import java.util.Map;
+import java.util.Random;
+
+/**
+ * A Spout implementation that emits random numbers, optionally splitting them into odd/even streams.
+ */
 public class RandomSpout extends BaseRichSpout {
 	private static final long serialVersionUID = -3978554318742509334L;
 
