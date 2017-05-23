@@ -107,7 +107,7 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 					gen.writeNumberField("managedMemory", instance.getResources().getSizeOfManagedMemory());
 
 					// only send metrics when only one task manager requests them.
-					if (pathParams.containsKey(TASK_MANAGER_ID_KEY)) {
+					while (pathParams.containsKey(TASK_MANAGER_ID_KEY)) {
 						fetcher.update();
 						MetricStore.TaskManagerMetricStore metrics = fetcher.getMetricStore().getTaskManagerMetricStore(instance.getId().toString());
 						if (metrics != null) {
@@ -170,7 +170,9 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 
 							gen.writeEndArray();
 							gen.writeEndObject();
+							break;
 						}
+						Thread.sleep(1000);
 					}
 
 					gen.writeEndObject();
@@ -186,7 +188,7 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 				throw new Exception("No connection to the leading JobManager.");
 			}
 		}
-		catch (Exception e) {
+		catch (RuntimeException e) {
 			throw new RuntimeException("Failed to fetch list of all task managers: " + e.getMessage(), e);
 		}
 	}
