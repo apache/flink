@@ -317,58 +317,6 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
     flatSelect(patternFlatTimeoutFun, patternFlatSelectFun)
   }
-
-  /**
-    * Applies a flat select function to the detected pattern sequence. For each pattern sequence
-    * the provided [[PatternFlatSelectFunction]] is called. The pattern flat select function
-    * can produce an arbitrary number of resulting elements.
-    *
-    * @param patternFlatSelectFun The pattern flat select function which is called for each
-    *                             detected pattern sequence.
-    * @tparam R Type of the resulting elements
-    * @return [[DataStream]] which contains the resulting elements from the pattern flat select
-    *         function.
-    */
-  def flatSelect[R: TypeInformation](
-    patternFlatSelectFun: (Map[String, Iterable[T]]) => TraversableOnce[R]): DataStream[R] = {
-
-    flatSelect((map, col) => patternFlatSelectFun(map).foreach(col.collect))
-  }
-
-  /**
-    * Applies a flat select function to the detected pattern sequence. For each pattern sequence
-    * the provided [[PatternFlatSelectFunction]] is called. The pattern flat select function can
-    * produce an arbitrary number of resulting elements.
-    *
-    * Additionally a timeout function is applied to partial event patterns which have timed out. For
-    * each partial pattern sequence the provided [[PatternFlatTimeoutFunction]] is called. The
-    * pattern timeout function can produce an arbitrary number of resulting timeout events.
-    *
-    * The resulting event and the resulting timeout event are wrapped in an [[Either]] instance.
-    *
-    * @param patternFlatTimeoutFunction The pattern flat timeout function which is called for each
-    *                                   partially matched pattern sequence which has timed out.
-    * @param patternFlatSelectFunction  The pattern flat select function which is called for each
-    *                                   detected pattern sequence.
-    * @tparam L Type of the resulting timeout event
-    * @tparam R Type of the resulting event
-    * @return Data stream of either type which contains the resulting events and the resulting
-    *         timeout events wrapped in a [[Either]] type.
-    */
-  def flatSelect[L: TypeInformation, R: TypeInformation](
-    patternFlatTimeoutFunction: (Map[String, Iterable[T]], Long) => TraversableOnce[L])(
-    patternFlatSelectFunction: (Map[String, Iterable[T]]) => TraversableOnce[R])
-  : DataStream[Either[L, R]] = {
-
-    flatSelect {
-      (map: Map[String, Iterable[T]], timestamp: Long, col: Collector[L]) =>
-        patternFlatTimeoutFunction(map, timestamp).foreach(col.collect)
-    } {
-      (map: Map[String, Iterable[T]], col: Collector[R]) =>
-        patternFlatSelectFunction(map).foreach(col.collect)
-    }
-
-  }
 }
 
 object PatternStream {
