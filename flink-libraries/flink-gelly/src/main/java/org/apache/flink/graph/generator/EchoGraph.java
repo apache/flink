@@ -30,13 +30,13 @@ import org.apache.flink.util.Preconditions;
  * single range of offsets centered at {@code n/2}. A vertex is connected to
  * 'far' vertices, which connect to 'near' vertices, which connect to 'far'
  * vertices, ....
- * <p>
- * Every {@link Vertex} in the {@link EchoGraph} has the same degree.
+ *
+ * <p>Every {@link Vertex} in the {@link EchoGraph} has the same degree.
  * and vertices as far as possible are chose to be linked.
  * {@link EchoGraph} is a specific case of {@link CirculantGraph}.
  */
 public class EchoGraph
-extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
+extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
 	public static final int MINIMUM_VERTEX_COUNT = 2;
 

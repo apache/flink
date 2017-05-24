@@ -35,7 +35,7 @@ import org.apache.flink.types.LongValue;
  * This is an implementation of a simple PageRank algorithm, using a gather-sum-apply iteration.
  * The user can define the damping factor and the maximum number of iterations.
  *
- * The implementation assumes that each page has at least one incoming and one outgoing link.
+ * <p>The implementation assumes that each page has at least one incoming and one outgoing link.
  */
 public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet<Vertex<K, Double>>> {
 
@@ -45,8 +45,8 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 	/**
 	 * Creates an instance of the GSA PageRank algorithm.
 	 *
-	 * The implementation assumes that each page has at least one incoming and one outgoing link.
-	 * 
+	 * <p>The implementation assumes that each page has at least one incoming and one outgoing link.
+	 *
 	 * @param beta the damping factor
 	 * @param maxIterations the maximum number of iterations
 	 */
@@ -81,7 +81,7 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 		public Double gather(Neighbor<Double, Double> neighbor) {
 			double neighborRank = neighbor.getNeighborValue();
 
-			if(getSuperstepNumber() == 1) {
+			if (getSuperstepNumber() == 1) {
 				neighborRank = 1.0 / this.getNumberOfVertices();
 			}
 
@@ -109,7 +109,7 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 
 		@Override
 		public void apply(Double rankSum, Double currentValue) {
-			setResult((1-beta)/this.getNumberOfVertices() + beta * rankSum);
+			setResult((1 - beta) / this.getNumberOfVertices() + beta * rankSum);
 		}
 	}
 

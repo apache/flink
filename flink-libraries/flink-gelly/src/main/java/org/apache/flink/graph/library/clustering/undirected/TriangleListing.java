@@ -33,9 +33,9 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeDegreePair;
-import org.apache.flink.graph.library.clustering.undirected.TriangleListing.Result;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.asm.result.TertiaryResult;
+import org.apache.flink.graph.library.clustering.undirected.TriangleListing.Result;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.CopyableValue;
@@ -51,16 +51,17 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Generates a listing of distinct triangles from the input graph.
- * <p>
- * A triangle is a 3-cycle with vertices A, B, and C connected by edges
+ *
+ * <p>A triangle is a 3-cycle with vertices A, B, and C connected by edges
  * (A, B), (A, C), and (B, C).
- * <p>
- * The input graph must be a simple, undirected graph containing no duplicate
+ *
+ * <p>The input graph must be a simple, undirected graph containing no duplicate
  * edges or self-loops.
- * <p>
- * Algorithm from "Finding, Counting and Listing all Triangles in Large Graphs,
+ *
+ * <p>Algorithm from "Finding, Counting and Listing all Triangles in Large Graphs,
  * An Experimental Study", Thomas Schank and Dorothea Wagner.
- * http://i11www.iti.uni-karlsruhe.de/extra/publications/sw-fclt-05_t.pdf
+ *
+ * <p>See http://i11www.iti.uni-karlsruhe.de/extra/publications/sw-fclt-05_t.pdf
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
@@ -111,7 +112,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
-		if (! TriangleListing.class.isAssignableFrom(other.getClass())) {
+		if (!TriangleListing.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 
@@ -182,8 +183,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	/**
 	 * Removes edge values while filtering such that only edges where the
 	 * source vertex ID compares less than the target vertex ID are emitted.
-	 * <p>
-	 * Since the input graph is a simple graph this filter removes exactly half
+	 *
+	 * <p>Since the input graph is a simple graph this filter removes exactly half
 	 * of the original edges.
 	 *
 	 * @param <T> ID type
@@ -210,8 +211,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * vertex has lower degree are emitted. If the source and target vertex
 	 * degrees are equal then the edge is emitted if the source vertex ID
 	 * compares less than the target vertex ID.
-	 * <p>
-	 * Since the input graph is a simple graph this filter removes exactly half
+	 *
+	 * <p>Since the input graph is a simple graph this filter removes exactly half
 	 * of the original edges.
 	 *
 	 * @param <T> ID type
@@ -270,7 +271,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 					out.collect(output);
 				}
 
-				if (! iter.hasNext()) {
+				if (!iter.hasNext()) {
 					break;
 				}
 
@@ -319,14 +320,14 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				throws Exception {
 			// by the triangle listing algorithm we know f1 < f2
 			if (value.f0.compareTo(value.f1) > 0) {
-				T temp_val = value.f0;
+				T tempVal = value.f0;
 				value.f0 = value.f1;
 
-				if (temp_val.compareTo(value.f2) <= 0) {
-					value.f1 = temp_val;
+				if (tempVal.compareTo(value.f2) <= 0) {
+					value.f1 = tempVal;
 				} else {
 					value.f1 = value.f2;
-					value.f2 = temp_val;
+					value.f2 = tempVal;
 				}
 			}
 

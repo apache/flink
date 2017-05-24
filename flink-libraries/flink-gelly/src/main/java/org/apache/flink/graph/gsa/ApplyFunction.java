@@ -59,17 +59,17 @@ public abstract class ApplyFunction<K, VV, M> implements Serializable {
 	//---------------------------------------------------------------------------------------------
 
 	/**
-	 * This method is invoked once per superstep, after the {@link SumFunction} 
+	 * This method is invoked once per superstep, after the {@link SumFunction}
 	 * in a {@link GatherSumApplyIteration}.
 	 * It updates the Vertex values.
-	 * 
+	 *
 	 * @param newValue the value computed during the current superstep.
 	 * @param currentValue the current Vertex value.
 	 */
 	public abstract void apply(M newValue, VV currentValue);
 
 	/**
-	 * Sets the result for the apply function
+	 * Sets the result for the apply function.
 	 *
 	 * @param result the result of the apply phase
 	 */

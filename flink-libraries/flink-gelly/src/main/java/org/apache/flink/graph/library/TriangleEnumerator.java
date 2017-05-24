@@ -39,24 +39,21 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-
 /**
  * This library method enumerates unique triangles present in the input graph.
  * A triangle consists of three edges that connect three vertices with each other.
  * Edge directions are ignored here.
  * The method returns a DataSet of Tuple3, where the fields of each Tuple3 contain the Vertex IDs of a triangle.
- * <p>
- * <p>
- * The basic algorithm works as follows:
- * It groups all edges that share a common vertex and builds triads, i.e., triples of vertices
- * that are connected by two edges. Finally, all triads are filtered for which no third edge exists
- * that closes the triangle.
- * <p>
- * <p>
- * For a group of <i>n</i> edges that share a common vertex, the number of built triads is quadratic <i>((n*(n-1))/2)</i>.
+ *
+ * <p>The basic algorithm groups all edges that share a common vertex and builds triads,
+ * i.e., triples of vertices that are connected by two edges. Then all triads are filtered
+ * for which no third edge exists that closes the triangle.
+ *
+ * <p>For a group of <i>n</i> edges that share a common vertex, the number of built triads is quadratic <i>((n*(n-1))/2)</i>.
  * Therefore, an optimization of the algorithm is to group edges on the vertex with the smaller output degree to
  * reduce the number of triads.
- * This implementation extends the basic algorithm by computing output degrees of edge vertices and
+ *
+ * <p>This implementation extends the basic algorithm by computing output degrees of edge vertices and
  * grouping on edges on the vertex with the smaller degree.
  */
 public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
@@ -276,6 +273,11 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
 		}
 	}
 
+	/**
+	 * POJO storing two vertex IDs with degree.
+	 *
+	 * @param <K> vertex ID type
+	 */
 	@SuppressWarnings("serial")
 	public static final class EdgeWithDegrees<K> extends Tuple4<K, K, Integer, Integer> {
 
@@ -324,6 +326,11 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
 		}
 	}
 
+	/**
+	 * Tuple storing three vertex IDs.
+	 *
+	 * @param <K> vertex ID type
+	 */
 	public static final class Triad<K> extends Tuple3<K, K, K> {
 		private static final long serialVersionUID = 1L;
 

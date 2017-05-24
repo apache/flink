@@ -32,7 +32,7 @@ import static org.apache.flink.graph.types.valuearray.StringValueArray.HIGH_BIT;
 /**
  * Specialized comparator for StringValueArray based on CopyableValueComparator.
  *
- * This can be used for grouping keys but not for sorting keys.
+ * <p>This can be used for grouping keys but not for sorting keys.
  */
 @Internal
 public class StringValueArrayComparator extends TypeComparator<StringValueArray> {

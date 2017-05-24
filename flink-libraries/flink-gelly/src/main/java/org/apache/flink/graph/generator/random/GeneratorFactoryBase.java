@@ -29,7 +29,7 @@ import java.util.List;
  *
  * @param <T> the type of the {@code RandomGenerator}
  */
-public abstract class AbstractGeneratorFactory<T extends RandomGenerator>
+public abstract class GeneratorFactoryBase<T extends RandomGenerator>
 implements RandomGenerableFactory<T> {
 
 	// A large computation will run in parallel but blocks are generated on
@@ -55,7 +55,7 @@ implements RandomGenerableFactory<T> {
 		List<BlockInfo<T>> blocks = new ArrayList<>(blockCount);
 		long blockStart = 0;
 
-		for (int blockIndex = 0 ; blockIndex < blockCount ; blockIndex++) {
+		for (int blockIndex = 0; blockIndex < blockCount; blockIndex++) {
 			if (blockIndex == blockCount - elementRemainder) {
 				elementsPerBlock++;
 			}

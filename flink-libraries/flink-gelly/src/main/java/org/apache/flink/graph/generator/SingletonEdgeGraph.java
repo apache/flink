@@ -34,7 +34,7 @@ import org.apache.flink.util.Preconditions;
  * A singleton-edge {@link Graph} contains one or more isolated two-paths.
  */
 public class SingletonEdgeGraph
-extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
+extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
 	public static final int MINIMUM_VERTEX_PAIR_COUNT = 1;
 

@@ -19,10 +19,14 @@
 package org.apache.flink.graph.bipartite;
 
 import org.apache.flink.graph.Vertex;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link Projection}.
+ */
 public class ProjectionTest {
 
 	private static final int ID = 10;

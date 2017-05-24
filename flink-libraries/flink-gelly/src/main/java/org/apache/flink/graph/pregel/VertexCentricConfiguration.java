@@ -30,13 +30,13 @@ import java.util.List;
  * degree of parallelism, to register aggregators and use broadcast sets in
  * the {@link org.apache.flink.graph.pregel.ComputeFunction}.
  *
- * The VertexCentricConfiguration object is passed as an argument to
+ * <p>The VertexCentricConfiguration object is passed as an argument to
  * {@link org.apache.flink.graph.Graph#runVertexCentricIteration (
  * org.apache.flink.graph.pregel.ComputeFunction, int, VertexCentricConfiguration)}.
  */
 public class VertexCentricConfiguration extends IterationConfiguration {
 
-	/** the broadcast variables for the compute function **/
+	/** The broadcast variables for the compute function. **/
 	private List<Tuple2<String, DataSet<?>>> bcVars = new ArrayList<>();
 
 	public VertexCentricConfiguration() {}

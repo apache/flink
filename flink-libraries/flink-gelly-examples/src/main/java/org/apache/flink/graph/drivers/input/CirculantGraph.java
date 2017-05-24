@@ -83,7 +83,7 @@ extends GeneratedGraph<LongValue> {
 			ProgramParametrizationException exception = new ProgramParametrizationException("Circulant offset range" +
 				" must use a colon to separate the integer offset and integer length:" + field + "'");
 
-			if (! field.contains(":")) {
+			if (!field.contains(":")) {
 				throw exception;
 			}
 

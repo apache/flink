@@ -53,13 +53,13 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Generates a listing of distinct triangles from the input graph.
- * <p>
- * A triangle is a 3-clique with vertices A, B, and C connected by edges
+ *
+ * <p>A triangle is a 3-clique with vertices A, B, and C connected by edges
  * (A, B), (A, C), and (B, C).
- * <p>
- * The input graph must not contain duplicate edges or self-loops.
- * <p>
- * This algorithm is similar to the undirected version but also tracks and
+ *
+ * <p>The input graph must not contain duplicate edges or self-loops.
+ *
+ * <p>This algorithm is similar to the undirected version but also tracks and
  * computes a bitmask representing the six potential graph edges connecting
  * the triangle vertices.
  *
@@ -112,7 +112,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
-		if (! TriangleListing.class.isAssignableFrom(other.getClass())) {
+		if (!TriangleListing.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 
@@ -258,9 +258,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	private static final class OrderByDegree<T extends Comparable<T>, ET>
 	implements MapFunction<Edge<T, Tuple3<ET, Degrees, Degrees>>, Tuple3<T, T, ByteValue>> {
-		private ByteValue forward = new ByteValue((byte)(EdgeOrder.FORWARD.getBitmask() << 2));
+		private ByteValue forward = new ByteValue((byte) (EdgeOrder.FORWARD.getBitmask() << 2));
 
-		private ByteValue reverse = new ByteValue((byte)(EdgeOrder.REVERSE.getBitmask() << 2));
+		private ByteValue reverse = new ByteValue((byte) (EdgeOrder.REVERSE.getBitmask() << 2));
 
 		private Tuple3<T, T, ByteValue> output = new Tuple3<>();
 
@@ -319,17 +319,17 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 					Tuple2<T, ByteValue> previous = visited.get(i);
 
 					output.f1 = previous.f0;
-					output.f3.setValue((byte)(previous.f1.getValue() | bitmask));
+					output.f3.setValue((byte) (previous.f1.getValue() | bitmask));
 
 					// u, v, w, bitmask
 					out.collect(output);
 				}
 
-				if (! iter.hasNext()) {
+				if (!iter.hasNext()) {
 					break;
 				}
 
-				byte shiftedBitmask = (byte)(bitmask << 2);
+				byte shiftedBitmask = (byte) (bitmask << 2);
 
 				if (visitedCount == visited.size()) {
 					visited.add(new Tuple2<>(edge.f1.copy(), new ByteValue(shiftedBitmask)));
@@ -361,7 +361,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			output.f0 = triplet.f0;
 			output.f1 = triplet.f1;
 			output.f2 = triplet.f2;
-			output.f3.setValue((byte)(triplet.f3.getValue() | edge.f2.getValue()));
+			output.f3.setValue((byte) (triplet.f3.getValue() | edge.f2.getValue()));
 			return output;
 		}
 	}
@@ -381,26 +381,26 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			if (value.f0.compareTo(value.f1) > 0) {
 				byte bitmask = value.f3.getValue();
 
-				T temp_val = value.f0;
+				T tempVal = value.f0;
 				value.f0 = value.f1;
 
-				if (temp_val.compareTo(value.f2) < 0) {
-					value.f1 = temp_val;
+				if (tempVal.compareTo(value.f2) < 0) {
+					value.f1 = tempVal;
 
 					int f0f1 = ((bitmask & 0b100000) >>> 1) | ((bitmask & 0b010000) << 1);
 					int f0f2 = (bitmask & 0b001100) >>> 2;
 					int f1f2 = (bitmask & 0b000011) << 2;
 
-					value.f3.setValue((byte)(f0f1 | f0f2 | f1f2));
+					value.f3.setValue((byte) (f0f1 | f0f2 | f1f2));
 				} else {
 					value.f1 = value.f2;
-					value.f2 = temp_val;
+					value.f2 = tempVal;
 
 					int f0f1 = (bitmask & 0b000011) << 4;
 					int f0f2 = ((bitmask & 0b100000) >>> 3) | ((bitmask & 0b010000) >>> 1);
 					int f1f2 = ((bitmask & 0b001000) >>> 3) | ((bitmask & 0b000100) >>> 1);
 
-					value.f3.setValue((byte)(f0f1 | f0f2 | f1f2));
+					value.f3.setValue((byte) (f0f1 | f0f2 | f1f2));
 				}
 			}
 

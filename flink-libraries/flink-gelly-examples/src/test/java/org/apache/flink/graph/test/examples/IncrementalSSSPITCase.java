@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph.test.examples;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
@@ -31,6 +29,9 @@ import org.apache.flink.graph.examples.data.IncrementalSSSPData;
 import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
+
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -41,6 +42,9 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 
+/**
+ * Tests for {@link IncrementalSSSP}.
+ */
 @RunWith(Parameterized.class)
 public class IncrementalSSSPITCase extends MultipleProgramsTestBase {
 
@@ -104,7 +108,7 @@ public class IncrementalSSSPITCase extends MultipleProgramsTestBase {
 		// configure the iteration
 		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
-		if(IncrementalSSSP.isInSSSP(edgeToBeRemoved, edgesInSSSP)) {
+		if (IncrementalSSSP.isInSSSP(edgeToBeRemoved, edgesInSSSP)) {
 
 			parameters.setDirection(EdgeDirection.IN);
 			parameters.setOptDegrees(true);

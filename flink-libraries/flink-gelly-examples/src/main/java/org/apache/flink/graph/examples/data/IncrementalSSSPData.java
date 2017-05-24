@@ -88,7 +88,7 @@ public class IncrementalSSSPData {
 		return new Edge<Long, Double>(2L, 5L, 2.0);
 	}
 
-	public static final String RESULTED_VERTICES = "1," + Double.MAX_VALUE + "\n" + "2," + Double.MAX_VALUE+ "\n"
+	public static final String RESULTED_VERTICES = "1," + Double.MAX_VALUE + "\n" + "2," + Double.MAX_VALUE + "\n"
 			+ "3," + Double.MAX_VALUE + "\n" + "4,1.0\n" + "5,0.0";
 
 	private IncrementalSSSPData() {}

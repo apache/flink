@@ -19,12 +19,16 @@
 package org.apache.flink.graph.types.valuearray;
 
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link NullValueArray}.
+ */
 public class NullValueArrayTest {
 
 	@Test
@@ -34,7 +38,7 @@ public class NullValueArrayTest {
 		ValueArray<NullValue> nva = new NullValueArray();
 
 		// add several elements
-		for (int i = 0 ; i < count ; i++) {
+		for (int i = 0; i < count; i++) {
 			assertFalse(nva.isFull());
 			assertEquals(i, nva.size());
 
@@ -61,9 +65,9 @@ public class NullValueArrayTest {
 		assertEquals(nva, nva.copy());
 
 		// test copyTo
-		NullValueArray nva_to = new NullValueArray();
-		nva.copyTo(nva_to);
-		assertEquals(nva, nva_to);
+		NullValueArray nvaTo = new NullValueArray();
+		nva.copyTo(nvaTo);
+		assertEquals(nva, nvaTo);
 
 		// test mark/reset
 		int size = nva.size();

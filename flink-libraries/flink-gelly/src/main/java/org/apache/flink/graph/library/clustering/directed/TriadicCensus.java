@@ -18,12 +18,10 @@
 
 package org.apache.flink.graph.library.clustering.directed;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAnalyticBase;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
@@ -31,6 +29,9 @@ import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.clustering.directed.TriadicCensus.Result;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -41,15 +42,15 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 /**
  * A triad is formed by three connected or unconnected vertices in a graph.
  * The triadic census counts the occurrences of each type of triad.
- * <p>
- * http://vlado.fmf.uni-lj.si/pub/networks/doc/triads/triads.pdf
+ *
+ * <p>See http://vlado.fmf.uni-lj.si/pub/networks/doc/triads/triads.pdf
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
 public class TriadicCensus<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-extends AbstractGraphAnalytic<K, VV, EV, Result> {
+extends GraphAnalyticBase<K, VV, EV, Result> {
 
 	private TriangleListingHelper<K> triangleListingHelper;
 
@@ -101,24 +102,24 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		BigInteger three = BigInteger.valueOf(3);
 		BigInteger six = BigInteger.valueOf(6);
 
-		BigInteger vertexCount = BigInteger.valueOf((Long)vertexDegreesHelper.getAccumulator(env, "vc"));
-		BigInteger unidirectionalEdgeCount = BigInteger.valueOf((Long)vertexDegreesHelper.getAccumulator(env, "uec") / 2);
-		BigInteger bidirectionalEdgeCount = BigInteger.valueOf((Long)vertexDegreesHelper.getAccumulator(env, "bec") / 2);
-		BigInteger triplet021dCount = BigInteger.valueOf((Long)vertexDegreesHelper.getAccumulator(env, "021d"));
-		BigInteger triplet021uCount = BigInteger.valueOf((Long)vertexDegreesHelper.getAccumulator(env, "021u"));
-		BigInteger triplet021cCount = BigInteger.valueOf((Long)vertexDegreesHelper.getAccumulator(env, "021c"));
-		BigInteger triplet111dCount = BigInteger.valueOf((Long)vertexDegreesHelper.getAccumulator(env, "111d"));
-		BigInteger triplet111uCount = BigInteger.valueOf((Long)vertexDegreesHelper.getAccumulator(env, "111u"));
-		BigInteger triplet201Count = BigInteger.valueOf((Long)vertexDegreesHelper.getAccumulator(env, "201"));
+		BigInteger vertexCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "vc"));
+		BigInteger unidirectionalEdgeCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "uec") / 2);
+		BigInteger bidirectionalEdgeCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "bec") / 2);
+		BigInteger triplet021dCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "021d"));
+		BigInteger triplet021uCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "021u"));
+		BigInteger triplet021cCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "021c"));
+		BigInteger triplet111dCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "111d"));
+		BigInteger triplet111uCount = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "111u"));
+		BigInteger triplet201Count = BigInteger.valueOf((Long) vertexDegreesHelper.getAccumulator(env, "201"));
 
 		// triads with three connecting edges = closed triplet = triangle
-		BigInteger triangle030tCount = BigInteger.valueOf((Long)triangleListingHelper.getAccumulator(env, "030t"));
-		BigInteger triangle030cCount = BigInteger.valueOf((Long)triangleListingHelper.getAccumulator(env, "030c"));
-		BigInteger triangle120dCount = BigInteger.valueOf((Long)triangleListingHelper.getAccumulator(env, "120d"));
-		BigInteger triangle120uCount = BigInteger.valueOf((Long)triangleListingHelper.getAccumulator(env, "120u"));
-		BigInteger triangle120cCount = BigInteger.valueOf((Long)triangleListingHelper.getAccumulator(env, "120c"));
-		BigInteger triangle210Count = BigInteger.valueOf((Long)triangleListingHelper.getAccumulator(env, "210"));
-		BigInteger triangle300Count = BigInteger.valueOf((Long)triangleListingHelper.getAccumulator(env, "300"));
+		BigInteger triangle030tCount = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "030t"));
+		BigInteger triangle030cCount = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "030c"));
+		BigInteger triangle120dCount = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "120d"));
+		BigInteger triangle120uCount = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "120u"));
+		BigInteger triangle120cCount = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "120c"));
+		BigInteger triangle210Count = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "210"));
+		BigInteger triangle300Count = BigInteger.valueOf((Long) triangleListingHelper.getAccumulator(env, "300"));
 
 		// triads with two connecting edges = open triplet;
 		// each triangle deducts the count of three triplets
@@ -236,7 +237,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 			long triangle210Count = 0;
 			long triangle300tCount = 0;
 
-			for (int i = 0 ; i < typeTable.length ; i++) {
+			for (int i = 0; i < typeTable.length; i++) {
 				if (typeTable[i] == 9) {
 					triangle030tCount += triangleCount[i];
 				} else if (typeTable[i] == 10) {
@@ -509,7 +510,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		/**
 		 * Get the array of counts.
 		 *
-		 * The order of the counts is from least to most connected:
+		 * <p>The order of the counts is from least to most connected:
 		 *   003, 012, 102, 021d, 021u, 021c, 111d, 111u,
 		 *   030t, 030c, 201, 120d, 120u, 120c, 210, 300
 		 *
@@ -550,11 +551,19 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (obj == null) { return false; }
-			if (obj == this) { return true; }
-			if (obj.getClass() != getClass()) { return false; }
+			if (obj == null) {
+				return false;
+			}
 
-			Result rhs = (Result)obj;
+			if (obj == this) {
+				return true;
+			}
+
+			if (obj.getClass() != getClass()) {
+				return false;
+			}
+
+			Result rhs = (Result) obj;
 
 			return new EqualsBuilder()
 				.append(counts, rhs.counts)

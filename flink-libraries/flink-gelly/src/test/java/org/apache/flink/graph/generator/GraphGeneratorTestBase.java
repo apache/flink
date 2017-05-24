@@ -18,18 +18,19 @@
 
 package org.apache.flink.graph.generator;
 
-import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
+import org.apache.flink.api.java.ExecutionEnvironment;
 
-public abstract class AbstractGraphGenerator<K, VV, EV>
-implements GraphGenerator<K, VV, EV> {
+import org.junit.Before;
 
-	// Optional configuration
-	protected int parallelism = PARALLELISM_DEFAULT;
+/**
+ * Base class for graph generator tests.
+ */
+public abstract class GraphGeneratorTestBase {
 
-	@Override
-	public GraphGenerator<K, VV, EV> setParallelism(int parallelism) {
-		this.parallelism = parallelism;
+	protected ExecutionEnvironment env;
 
-		return this;
+	@Before
+	public void setup() {
+		env = ExecutionEnvironment.createCollectionsEnvironment();
 	}
 }

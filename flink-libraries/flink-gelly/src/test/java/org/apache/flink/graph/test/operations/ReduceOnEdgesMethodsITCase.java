@@ -31,6 +31,7 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -38,6 +39,9 @@ import org.junit.runners.Parameterized;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Tests for {@link Graph#groupReduceOnEdges} and {@link Graph#reduceOnEdges}.
+ */
 @RunWith(Parameterized.class)
 public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
@@ -403,7 +407,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v,
-		                         Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
+				Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long weight = Long.MAX_VALUE;
 			long minNeighborId = 0;
@@ -423,7 +427,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v,
-		                         Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
+				Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long weight = Long.MIN_VALUE;
 
@@ -459,7 +463,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v,
-		                         Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
+				Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long weight = Long.MAX_VALUE;
 			long minNeighborId = 0;
@@ -479,7 +483,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-		                         Collector<Tuple2<Long, Long>> out) throws Exception {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
 				out.collect(new Tuple2<>(edge.f0, edge.f1.getTarget()));
@@ -492,7 +496,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-		                         Collector<Tuple2<Long, Long>> out) throws Exception {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
 				if (edge.f0 != 5) {
@@ -508,7 +512,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v, Iterable<Edge<Long, Long>> edges,
-		                         Collector<Tuple2<Long, Long>> out) throws Exception {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			for (Edge<Long, Long> edge : edges) {
 				if (v.getValue() > 2) {
@@ -523,7 +527,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-		                         Collector<Tuple2<Long, Long>> out) throws Exception {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
 				out.collect(new Tuple2<>(edge.f0, edge.f1.getSource()));
@@ -536,7 +540,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-		                         Collector<Tuple2<Long, Long>> out) throws Exception {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
 				if (edge.f0 != 5) {
@@ -552,7 +556,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v, Iterable<Edge<Long, Long>> edges,
-		                         Collector<Tuple2<Long, Long>> out) throws Exception {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			for (Edge<Long, Long> edge : edges) {
 				if (v.getValue() > 2) {
@@ -567,7 +571,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-		                         Collector<Tuple2<Long, Long>> out) throws Exception {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
 				if (Objects.equals(edge.f0, edge.f1.getTarget())) {
 					out.collect(new Tuple2<>(edge.f0, edge.f1.getSource()));
@@ -583,7 +587,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-		                         Collector<Tuple2<Long, Long>> out) throws Exception {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
 				if (edge.f0 != 5 && edge.f0 != 2) {
@@ -603,7 +607,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v, Iterable<Edge<Long, Long>> edges,
-		                         Collector<Tuple2<Long, Long>> out) throws Exception {
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			for (Edge<Long, Long> edge : edges) {
 				if (v.getValue() > 4) {

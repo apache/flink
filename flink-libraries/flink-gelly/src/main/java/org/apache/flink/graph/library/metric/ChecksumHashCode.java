@@ -18,9 +18,9 @@
 
 package org.apache.flink.graph.library.metric;
 
-import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAnalyticBase;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 
@@ -35,7 +35,7 @@ import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
  * @param <EV> edge value type
  */
 public class ChecksumHashCode<K, VV, EV>
-extends AbstractGraphAnalytic<K, VV, EV, Checksum> {
+extends GraphAnalyticBase<K, VV, EV, Checksum> {
 
 	private org.apache.flink.graph.asm.dataset.ChecksumHashCode<Vertex<K, VV>> vertexChecksum;
 

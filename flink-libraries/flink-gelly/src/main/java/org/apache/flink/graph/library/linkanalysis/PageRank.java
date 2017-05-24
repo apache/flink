@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.library.link_analysis;
+package org.apache.flink.graph.library.linkanalysis;
 
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.aggregators.DoubleSumAggregator;
@@ -42,10 +42,10 @@ import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.asm.result.UnaryResult;
-import org.apache.flink.graph.library.link_analysis.Functions.SumScore;
-import org.apache.flink.graph.library.link_analysis.PageRank.Result;
+import org.apache.flink.graph.library.linkanalysis.Functions.SumScore;
+import org.apache.flink.graph.library.linkanalysis.PageRank.Result;
 import org.apache.flink.graph.utils.GraphUtils;
-import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.MurmurHash;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.LongValue;
@@ -63,7 +63,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * out-edges. High-scoring vertices are linked to by other high-scoring
  * vertices; this is similar to the 'authority' score in {@link HITS}.
  *
- * http://ilpubs.stanford.edu:8090/422/1/1999-66.pdf
+ * <p>See http://ilpubs.stanford.edu:8090/422/1/1999-66.pdf
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
@@ -151,7 +151,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
-		if (! PageRank.class.isAssignableFrom(other.getClass())) {
+		if (!PageRank.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 
@@ -380,7 +380,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * factor. Each score is multiplied by the damping factor then added to the
 	 * probability of a "random hop", which is one minus the damping factor.
 	 *
-	 * This operation also accounts for 'sink' vertices, which have no
+	 * <p>This operation also accounts for 'sink' vertices, which have no
 	 * out-edges to project score to. The sink scores are computed by taking
 	 * one minus the sum of vertex scores, which also includes precision error.
 	 * This 'missing' score is evenly distributed across vertices as with the
@@ -506,7 +506,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	implements PrintableResult, UnaryResult<T> {
 		public static final int HASH_SEED = 0x4010af29;
 
-		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
+		private MurmurHash hasher = new MurmurHash(HASH_SEED);
 
 		@Override
 		public T getVertexId0() {

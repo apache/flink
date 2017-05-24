@@ -41,7 +41,7 @@ import java.util.List;
  * @see <a href="http://mathworld.wolfram.com/CirculantGraph.html">Circulant Graph at Wolfram MathWorld</a>
  */
 public class CirculantGraph
-extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
+extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
 	public static final int MINIMUM_VERTEX_COUNT = 2;
 
@@ -178,7 +178,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 		}
 
 		/**
-		 * Get the range offset
+		 * Get the range offset.
 		 *
 		 * @return the offset
 		 */
@@ -187,7 +187,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 		}
 
 		/**
-		 * Get the range length
+		 * Get the range length.
 		 *
 		 * @return the length
 		 */
@@ -196,7 +196,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 		}
 
 		/**
-		 * Get the offset of the last index in the range
+		 * Get the offset of the last index in the range.
 		 *
 		 * @return last offset
 		 */

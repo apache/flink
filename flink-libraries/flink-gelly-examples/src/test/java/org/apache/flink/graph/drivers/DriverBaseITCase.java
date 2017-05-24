@@ -18,11 +18,12 @@
 
 package org.apache.flink.graph.drivers;
 
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.flink.graph.Runner;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.FlinkRuntimeException;
+
+import org.apache.commons.lang3.ArrayUtils;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Assert;
@@ -38,7 +39,8 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- *
+ * Base class for driver integration tests providing utility methods for
+ * verifying program output.
  */
 public abstract class DriverBaseITCase
 extends MultipleProgramsTestBase {
@@ -187,7 +189,7 @@ extends MultipleProgramsTestBase {
 		switch (mode) {
 			case CLUSTER:
 			case COLLECTION:
-				args = (String[])ArrayUtils.add(args, "--__disable_object_reuse");
+				args = ArrayUtils.add(args, "--__disable_object_reuse");
 				break;
 
 			case CLUSTER_OBJECT_REUSE:
@@ -214,7 +216,7 @@ extends MultipleProgramsTestBase {
 	 * Implements a Hamcrest regex matcher. Hamcrest 2.0 provides
 	 * Matchers.matchesPattern(String) but Flink depends on Hamcrest 1.3.
 	 *
-	 * see http://stackoverflow.com/a/25021229
+	 * <p>see http://stackoverflow.com/a/25021229
 	 */
 	private static class RegexMatcher
 	extends TypeSafeMatcher<String> {

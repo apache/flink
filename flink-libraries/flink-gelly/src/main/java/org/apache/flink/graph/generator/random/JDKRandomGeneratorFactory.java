@@ -25,7 +25,7 @@ import org.apache.commons.math3.random.JDKRandomGenerator;
  * distributed collection of {@link JDKRandomGenerator}.
  */
 public class JDKRandomGeneratorFactory
-extends AbstractGeneratorFactory<JDKRandomGenerator> {
+extends GeneratorFactoryBase<JDKRandomGenerator> {
 
 	public static final long DEFAULT_SEED = 0x4b6f7e18198de7a4L;
 

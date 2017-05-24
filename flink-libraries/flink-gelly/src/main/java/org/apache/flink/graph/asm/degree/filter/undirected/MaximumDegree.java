@@ -123,7 +123,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingGraph other) {
 		Preconditions.checkNotNull(other);
 
-		if (! MaximumDegree.class.isAssignableFrom(other.getClass())) {
+		if (!MaximumDegree.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 

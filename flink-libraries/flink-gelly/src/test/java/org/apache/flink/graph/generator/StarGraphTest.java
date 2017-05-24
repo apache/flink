@@ -24,12 +24,16 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link StarGraph}.
+ */
 public class StarGraphTest
-extends AbstractGraphTest {
+extends GraphGeneratorTestBase {
 
 	@Test
 	public void testGraph()

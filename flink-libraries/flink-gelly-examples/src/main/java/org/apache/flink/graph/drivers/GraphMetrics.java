@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.drivers;
 
-import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAnalytic;
 import org.apache.flink.graph.asm.result.PrintableResult;
@@ -26,6 +25,8 @@ import org.apache.flink.graph.drivers.output.Hash;
 import org.apache.flink.graph.drivers.output.Print;
 import org.apache.flink.graph.drivers.parameter.ChoiceParameter;
 import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
+
+import org.apache.commons.lang3.text.StrBuilder;
 
 /**
  * Driver for directed and undirected graph metrics analytics.

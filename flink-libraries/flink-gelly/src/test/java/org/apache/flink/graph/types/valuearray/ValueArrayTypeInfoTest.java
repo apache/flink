@@ -21,7 +21,7 @@
 package org.apache.flink.graph.types.valuearray;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.java.typeutils.runtime.CopyableValueComparator;
+
 import org.junit.Test;
 
 import static org.apache.flink.graph.types.valuearray.ValueArrayTypeInfo.INT_VALUE_ARRAY_TYPE_INFO;
@@ -30,6 +30,9 @@ import static org.apache.flink.graph.types.valuearray.ValueArrayTypeInfo.NULL_VA
 import static org.apache.flink.graph.types.valuearray.ValueArrayTypeInfo.STRING_VALUE_ARRAY_TYPE_INFO;
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link ValueArrayTypeInfo}.
+ */
 public class ValueArrayTypeInfoTest {
 
 	private ExecutionConfig config = new ExecutionConfig();

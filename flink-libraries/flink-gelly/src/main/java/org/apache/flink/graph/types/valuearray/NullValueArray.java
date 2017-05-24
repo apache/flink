@@ -62,7 +62,7 @@ implements ValueArray<NullValue> {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder("[");
-		for (int idx = 0 ; idx < this.position ; idx++) {
+		for (int idx = 0; idx < this.position; idx++) {
 			sb.append("∅");
 			if (idx < position - 1) {
 				sb.append(",");

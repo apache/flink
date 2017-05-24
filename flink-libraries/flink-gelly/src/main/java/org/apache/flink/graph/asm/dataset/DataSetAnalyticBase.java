@@ -16,30 +16,43 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.library.link_analysis;
+package org.apache.flink.graph.asm.dataset;
 
-import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.types.DoubleValue;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.util.Preconditions;
 
-class Functions {
+/**
+ * Base class for {@link DataSetAnalytic}.
+ *
+ * @param <T> element type
+ * @param <R> the return type
+ */
+public abstract class DataSetAnalyticBase<T, R>
+implements DataSetAnalytic<T, R> {
 
-	private Functions() {}
+	protected ExecutionEnvironment env;
 
-	/**
-	 * Sum vertices' scores.
-	 *
-	 * @param <T> ID type
-	 */
-	@ForwardedFields("0")
-	protected static final class SumScore<T>
-		implements ReduceFunction<Tuple2<T, DoubleValue>> {
-		@Override
-		public Tuple2<T, DoubleValue> reduce(Tuple2<T, DoubleValue> left, Tuple2<T, DoubleValue> right)
+	@Override
+	public DataSetAnalyticBase<T, R> run(DataSet<T> input)
 			throws Exception {
-			left.f1.setValue(left.f1.getValue() + right.f1.getValue());
-			return left;
-		}
+		env = input.getExecutionEnvironment();
+		return this;
+	}
+
+	@Override
+	public R execute()
+			throws Exception {
+		env.execute();
+		return getResult();
+	}
+
+	@Override
+	public R execute(String jobName)
+			throws Exception {
+		Preconditions.checkNotNull(jobName);
+
+		env.execute(jobName);
+		return getResult();
 	}
 }

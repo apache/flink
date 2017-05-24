@@ -83,7 +83,7 @@ public class IntValueArraySerializerTest extends SerializerTestBase<IntValueArra
 
 		IntValueArray iva8 = new IntValueArray();
 		iva8.addAll(iva7);
-		for (int i = 0 ; i < 1.5 * defaultElements ; i++) {
+		for (int i = 0; i < 1.5 * defaultElements; i++) {
 			iva8.add(new IntValue(i));
 		}
 		iva8.addAll(iva8);

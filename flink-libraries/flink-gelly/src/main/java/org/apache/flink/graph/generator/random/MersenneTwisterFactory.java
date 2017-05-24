@@ -25,7 +25,7 @@ import org.apache.commons.math3.random.MersenneTwister;
  * distributed collection of {@link MersenneTwister}.
  */
 public class MersenneTwisterFactory
-extends AbstractGeneratorFactory<MersenneTwister> {
+extends GeneratorFactoryBase<MersenneTwister> {
 
 	public static final long DEFAULT_SEED = 0x74c8cc8a58a9ceb9L;
 

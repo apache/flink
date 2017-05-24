@@ -21,7 +21,7 @@ package org.apache.flink.graph.types.valuearray;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.MurmurHash;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.Preconditions;
 
@@ -53,7 +53,7 @@ implements ValueArray<IntValue> {
 	private transient int mark;
 
 	// hasher used to generate the normalized key
-	private Murmur3_32 hash = new Murmur3_32(0x11d2d865);
+	private MurmurHash hash = new MurmurHash(0x11d2d865);
 
 	// hash result stored as normalized key
 	private IntValue hashValue = new IntValue();
@@ -120,7 +120,7 @@ implements ValueArray<IntValue> {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder("[");
-		for (int idx = 0 ; idx < this.position ; idx++) {
+		for (int idx = 0; idx < this.position; idx++) {
 			sb.append(data[idx]);
 			if (idx < position - 1) {
 				sb.append(",");
@@ -178,7 +178,7 @@ implements ValueArray<IntValue> {
 	public void write(DataOutputView out) throws IOException {
 		out.writeInt(position);
 
-		for (int i = 0 ; i < position ; i++) {
+		for (int i = 0; i < position; i++) {
 			out.writeInt(data[i]);
 		}
 	}
@@ -190,7 +190,7 @@ implements ValueArray<IntValue> {
 
 		ensureCapacity(position);
 
-		for (int i = 0 ; i < position ; i++) {
+		for (int i = 0; i < position; i++) {
 			data[i] = in.readInt();
 		}
 	}
@@ -209,7 +209,7 @@ implements ValueArray<IntValue> {
 		hash.reset();
 
 		hash.hash(position);
-		for (int i = 0 ; i < position ; i++) {
+		for (int i = 0; i < position; i++) {
 			hash.hash(data[i]);
 		}
 
@@ -226,7 +226,7 @@ implements ValueArray<IntValue> {
 		IntValueArray other = (IntValueArray) o;
 
 		int min = Math.min(position, other.position);
-		for (int i = 0 ; i < min ; i++) {
+		for (int i = 0; i < min; i++) {
 			int cmp = Integer.compare(data[i], other.data[i]);
 
 			if (cmp != 0) {
@@ -245,7 +245,7 @@ implements ValueArray<IntValue> {
 	public int hashCode() {
 		int hash = 1;
 
-		for (int i = 0 ; i < position ; i++) {
+		for (int i = 0; i < position; i++) {
 			hash = 31 * hash + data[i];
 		}
 
@@ -261,7 +261,7 @@ implements ValueArray<IntValue> {
 				return false;
 			}
 
-			for (int i = 0 ; i < position ; i++) {
+			for (int i = 0; i < position; i++) {
 				if (data[i] != other.data[i]) {
 					return false;
 				}

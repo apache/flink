@@ -18,14 +18,18 @@
 
 package org.apache.flink.graph.drivers;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
+
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+/**
+ * Tests for {@link TriangleListing}.
+ */
 @RunWith(Parameterized.class)
 public class TriangleListingITCase
 extends CopyableValueDriverBaseITCase {
@@ -227,7 +231,6 @@ extends CopyableValueDriverBaseITCase {
 		expectedOutput(parameters(12, "undirected", "hash"), expected);
 	}
 
-
 	@Test
 	public void testPrintWithSmallDirectedRMatGraph() throws Exception {
 		// skip 'char' since it is not printed as a number
@@ -252,7 +255,6 @@ extends CopyableValueDriverBaseITCase {
 
 		expectedOutputChecksum(parameters(7, "directed", "print"), new Checksum(3822, checksum));
 	}
-
 
 	@Test
 	public void testPrintWithSmallUndirectedRMatGraph() throws Exception {

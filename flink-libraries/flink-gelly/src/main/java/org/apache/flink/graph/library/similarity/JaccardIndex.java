@@ -32,7 +32,7 @@ import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeTargetDegree;
 import org.apache.flink.graph.asm.result.BinaryResult;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
-import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.MurmurHash;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.IntValue;
@@ -50,12 +50,12 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * is computed as the number of shared neighbors divided by the number of
  * distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all
  * neighbors are shared).
- * <p>
- * This implementation produces similarity scores for each pair of vertices
+ *
+ * <p>This implementation produces similarity scores for each pair of vertices
  * in the graph with at least one shared neighbor; equivalently, this is the
  * set of all non-zero Jaccard Similarity coefficients.
- * <p>
- * The input graph must be a simple, undirected graph containing no duplicate
+ *
+ * <p>The input graph must be a simple, undirected graph containing no duplicate
  * edges or self-loops.
  *
  * @param <K> graph ID type
@@ -89,7 +89,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * pairs. Small groups generate more data whereas large groups distribute
 	 * computation less evenly among tasks.
 	 *
-	 * The default value should be near-optimal for all use cases.
+	 * <p>The default value should be near-optimal for all use cases.
 	 *
 	 * @param groupSize the group size for the quadratic expansion of neighbor pairs
 	 * @return this
@@ -180,7 +180,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
-		if (! JaccardIndex.class.isAssignableFrom(other.getClass())) {
+		if (!JaccardIndex.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 
@@ -267,11 +267,11 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * This is the first of three operations implementing a self-join to generate
 	 * the full neighbor pairing for each vertex. The number of neighbor pairs
 	 * is (n choose 2) which is quadratic in the vertex degree.
-	 * <p>
-	 * The third operation, {@link GenerateGroupPairs}, processes groups of size
+	 *
+	 * <p>The third operation, {@link GenerateGroupPairs}, processes groups of size
 	 * {@link #groupSize} and emits {@code O(groupSize * deg(vertex))} pairs.
-	 * <p>
-	 * This input to the third operation is still quadratic in the vertex degree.
+	 *
+	 * <p>This input to the third operation is still quadratic in the vertex degree.
 	 * Two prior operations, {@link GenerateGroupSpans} and {@link GenerateGroups},
 	 * each emit datasets linear in the vertex degree, with a forced rebalance
 	 * in between. {@link GenerateGroupSpans} first annotates each edge with the
@@ -310,7 +310,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				// group span, u, v, d(v)
 				output.f1 = edge.f0;
 				output.f2 = edge.f1;
-				output.f3.setValue((int)degree);
+				output.f3.setValue((int) degree);
 
 				out.collect(output);
 
@@ -337,7 +337,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				throws Exception {
 			int spans = value.f0.getValue();
 
-			for (int idx = 0 ; idx < spans ; idx++ ) {
+			for (int idx = 0; idx < spans; idx++) {
 				value.f0.setValue(idx);
 				out.collect(value);
 			}
@@ -346,8 +346,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	/**
 	 * Emits the two-path for all neighbor pairs in this group.
-	 * <p>
-	 * The first {@link #groupSize} vertices are emitted pairwise. Following
+	 *
+	 * <p>The first {@link #groupSize} vertices are emitted pairwise. Following
 	 * vertices are only paired with vertices from this initial group.
 	 *
 	 * @param <T> ID type
@@ -373,7 +373,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			int visitedCount = 0;
 
 			for (Tuple4<IntValue, T, T, IntValue> edge : values) {
-				for (int i = 0 ; i < visitedCount ; i++) {
+				for (int i = 0; i < visitedCount; i++) {
 					Tuple3<T, T, IntValue> prior = visited.get(i);
 
 					prior.f1 = edge.f2;
@@ -384,7 +384,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 					if (degreeSum > Integer.MAX_VALUE) {
 						throw new RuntimeException("Degree sum overflows IntValue");
 					}
-					prior.f2.setValue((int)degreeSum);
+					prior.f2.setValue((int) degreeSum);
 
 					// v, w, d(v) + d(w)
 					out.collect(prior);
@@ -393,10 +393,10 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				}
 
 				if (visitedCount < groupSize) {
-					if (! initialized) {
+					if (!initialized) {
 						initialized = true;
 
-						for (int i = 0 ; i < groupSize ; i++) {
+						for (int i = 0; i < groupSize; i++) {
 							Tuple3<T, T, IntValue> tuple = new Tuple3<>();
 
 							tuple.f0 = edge.f2.copy();
@@ -506,7 +506,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	implements PrintableResult, BinaryResult<T>, Comparable<Result<T>> {
 		public static final int HASH_SEED = 0x731f73e7;
 
-		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
+		private MurmurHash hasher = new MurmurHash(HASH_SEED);
 
 		public Result() {
 			f2 = new IntValue();
@@ -584,8 +584,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			// exact comparison of a/b with x/y using only integer math:
 			// a/b <?> x/y == a*y <?> b*x
 
-			long ay = getSharedNeighborCount().getValue() * (long)o.getDistinctNeighborCount().getValue();
-			long bx = getDistinctNeighborCount().getValue() * (long)o.getSharedNeighborCount().getValue();
+			long ay = getSharedNeighborCount().getValue() * (long) o.getDistinctNeighborCount().getValue();
+			long bx = getDistinctNeighborCount().getValue() * (long) o.getSharedNeighborCount().getValue();
 
 			return Long.compare(ay, bx);
 		}

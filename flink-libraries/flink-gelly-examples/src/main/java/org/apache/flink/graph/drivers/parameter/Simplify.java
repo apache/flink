@@ -30,12 +30,15 @@ import org.apache.flink.types.NullValue;
  * a directed graph where each undirected edge is represented by a directed
  * edge in each direction.
  *
- * This {@link Parameter} indicates whether to simplify the graph and if the
+ * <p>This {@link Parameter} indicates whether to simplify the graph and if the
  * graph should be directed or undirected.
  */
 public class Simplify
 implements Parameter<Ordering> {
 
+	/**
+	 * Whether and how to simplify the graph.
+	 */
 	public enum Ordering {
 		// leave the graph unchanged
 		NONE,

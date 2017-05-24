@@ -18,13 +18,14 @@
 
 package org.apache.flink.graph.asm.dataset;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.SimpleAccumulator;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
+
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import java.io.IOException;
 
@@ -35,7 +36,7 @@ import java.io.IOException;
  * @param <T> element type
  */
 public class ChecksumHashCode<T>
-extends AbstractDataSetAnalytic<T, Checksum> {
+extends DataSetAnalyticBase<T, Checksum> {
 
 	private static final String CHECKSUM = "checksum";
 
@@ -136,11 +137,19 @@ extends AbstractDataSetAnalytic<T, Checksum> {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (obj == null) { return false; }
-			if (obj == this) { return true; }
-			if (obj.getClass() != getClass()) { return false; }
+			if (obj == null) {
+				return false;
+			}
 
-			Checksum rhs = (Checksum)obj;
+			if (obj == this) {
+				return true;
+			}
+
+			if (obj.getClass() != getClass()) {
+				return false;
+			}
+
+			Checksum rhs = (Checksum) obj;
 
 			return new EqualsBuilder()
 				.append(count, rhs.count)

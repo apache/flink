@@ -64,7 +64,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingGraph other) {
 		Preconditions.checkNotNull(other);
 
-		if (! Simplify.class.isAssignableFrom(other.getClass())) {
+		if (!Simplify.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 

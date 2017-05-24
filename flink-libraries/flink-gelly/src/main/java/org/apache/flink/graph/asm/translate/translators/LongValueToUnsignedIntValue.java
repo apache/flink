@@ -25,7 +25,7 @@ import org.apache.flink.types.LongValue;
 /**
  * Translate {@link LongValue} to {@link IntValue}.
  *
- * Throws {@link RuntimeException} for integer overflow.
+ * <p>Throws {@link RuntimeException} for integer overflow.
  */
 public class LongValueToUnsignedIntValue
 implements TranslateFunction<LongValue, IntValue> {

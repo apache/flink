@@ -18,21 +18,21 @@
 
 package org.apache.flink.graph.examples.data;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Provides the default data set used for the PageRank test program.
  * If no parameters are given to the program, the default edge data set is used.
  */
 public class PageRankData {
-	
+
 	public static final String EDGES = "2	1\n" +
-										"5	2\n" + 
+										"5	2\n" +
 										"5	4\n" +
 										"4	3\n" +
 										"4	2\n" +
@@ -41,9 +41,9 @@ public class PageRankData {
 										"1	3\n" +
 										"3	5\n";
 
-	
+
 	public static final String RANKS_AFTER_3_ITERATIONS = "1,0.237\n" +
-														"2,0.248\n" + 
+														"2,0.248\n" +
 														"3,0.173\n" +
 														"4,0.175\n" +
 														"5,0.165\n";

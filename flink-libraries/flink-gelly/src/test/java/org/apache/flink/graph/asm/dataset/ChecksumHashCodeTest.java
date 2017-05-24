@@ -18,10 +18,11 @@
 
 package org.apache.flink.graph.asm.dataset;
 
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
+
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -30,6 +31,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link ChecksumHashCode}.
+ */
 public class ChecksumHashCodeTest {
 
 	private ExecutionEnvironment env;

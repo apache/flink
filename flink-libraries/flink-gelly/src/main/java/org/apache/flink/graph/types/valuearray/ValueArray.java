@@ -30,7 +30,7 @@ import java.io.Serializable;
 /**
  * Basic interface for array types which reuse objects during serialization.
  *
- * Value arrays are usable as grouping keys but not sorting keys.
+ * <p>Value arrays are usable as grouping keys but not sorting keys.
  *
  * @param <T> the {@link Value} type
  */
@@ -76,7 +76,7 @@ extends Iterable<T>, IOReadableWritable, Serializable, NormalizableKey<ValueArra
 	/**
 	 * Saves the array index, which can be restored by calling {@code reset()}.
 	 *
-	 * This is not serialized and is not part of the contract for
+	 * <p>This is not serialized and is not part of the contract for
 	 * {@link #equals(Object)}.
 	 */
 	void mark();
@@ -91,7 +91,7 @@ extends Iterable<T>, IOReadableWritable, Serializable, NormalizableKey<ValueArra
 	 * expected to release the underlying data structure. This allows the array
 	 * to be reused with minimal impact on the garbage collector.
 	 *
-	 * This may reset the {@link #mark()} in order to allow arrays be shrunk.
+	 * <p>This may reset the {@link #mark()} in order to allow arrays be shrunk.
 	 */
 	void clear();
 }

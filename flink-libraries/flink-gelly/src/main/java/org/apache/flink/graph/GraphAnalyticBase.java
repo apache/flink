@@ -29,7 +29,7 @@ import org.apache.flink.util.Preconditions;
  * @param <EV> edge value type
  * @param <T> the return type
  */
-public abstract class AbstractGraphAnalytic<K, VV, EV, T>
+public abstract class GraphAnalyticBase<K, VV, EV, T>
 implements GraphAnalytic<K, VV, EV, T> {
 
 	protected ExecutionEnvironment env;

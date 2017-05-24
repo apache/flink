@@ -37,7 +37,7 @@ import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
 import org.apache.flink.graph.asm.result.BinaryResult;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.similarity.AdamicAdar.Result;
-import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.MurmurHash;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.FloatValue;
@@ -54,17 +54,17 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * http://social.cs.uiuc.edu/class/cs591kgk/friendsadamic.pdf
- * <p>
- * Adamic-Adar measures the similarity between pairs of vertices as the sum of
+ *
+ * <p>Adamic-Adar measures the similarity between pairs of vertices as the sum of
  * the inverse logarithm of degree over shared neighbors. Scores are non-negative
  * and unbounded. A vertex with higher degree has greater overall influence but
  * is less influential to each pair of neighbors.
- * <p>
- * This implementation produces similarity scores for each pair of vertices
+ *
+ * <p>This implementation produces similarity scores for each pair of vertices
  * in the graph with at least one shared neighbor; equivalently, this is the
  * set of all non-zero Adamic-Adar coefficients.
- * <p>
- * The input graph must be a simple, undirected graph containing no duplicate
+ *
+ * <p>The input graph must be a simple, undirected graph containing no duplicate
  * edges or self-loops.
  *
  * @param <K> graph ID type
@@ -137,7 +137,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
-		if (! AdamicAdar.class.isAssignableFrom(other.getClass())) {
+		if (!AdamicAdar.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 
@@ -254,7 +254,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 			long degree = value.f1.getValue();
 			// when the degree is one the logarithm is zero so avoid dividing by this value
-			float inverseLogDegree = (degree == 1) ? 0.0f : 1.0f / (float)Math.log(value.f1.getValue());
+			float inverseLogDegree = (degree == 1) ? 0.0f : 1.0f / (float) Math.log(value.f1.getValue());
 			output.f2.setValue(inverseLogDegree);
 
 			return output;
@@ -266,7 +266,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@ForwardedFields("0->1; 1->2 ; 2->3")
+	@ForwardedFields("0->1; 1->2; 2->3")
 	private static class GenerateGroupSpans<T>
 	implements GroupReduceFunction<Tuple3<T, T, FloatValue>, Tuple4<IntValue, T, T, FloatValue>> {
 		private IntValue groupSpansValue = new IntValue();
@@ -309,7 +309,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				throws Exception {
 			int spans = value.f0.getValue();
 
-			for (int idx = 0 ; idx < spans ; idx++ ) {
+			for (int idx = 0; idx < spans; idx++) {
 				value.f0.setValue(idx);
 				out.collect(value);
 			}
@@ -339,16 +339,16 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				output.f1 = edge.f2;
 				output.f2 = edge.f3;
 
-				for (int i = 0 ; i < visitedCount ; i++) {
+				for (int i = 0; i < visitedCount; i++) {
 					output.f0 = visited.get(i);
 					out.collect(output);
 				}
 
 				if (visitedCount < GROUP_SIZE) {
-					if (! initialized) {
+					if (!initialized) {
 						initialized = true;
 
-						for (int i = 0 ; i < GROUP_SIZE ; i++) {
+						for (int i = 0; i < GROUP_SIZE; i++) {
 							visited.add(edge.f2.copy());
 						}
 					} else {
@@ -451,7 +451,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	implements PrintableResult, BinaryResult<T>, Comparable<Result<T>> {
 		public static final int HASH_SEED = 0xe405f6d1;
 
-		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
+		private MurmurHash hasher = new MurmurHash(HASH_SEED);
 
 		/**
 		 * No-args constructor.
@@ -482,7 +482,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 		/**
 		 * Get the Adamic-Adar score, equal to the sum over common neighbors of
-		 * the inverse logarithm of degree
+		 * the inverse logarithm of degree.
 		 *
 		 * @return Adamic-Adar score
 		 */

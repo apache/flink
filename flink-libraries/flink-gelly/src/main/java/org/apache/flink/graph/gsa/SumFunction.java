@@ -56,11 +56,11 @@ public abstract class SumFunction<VV, EV, M> implements Serializable {
 
 	//---------------------------------------------------------------------------------------------
 	/**
-	 * This method is invoked once per superstep, after the {@link GatherFunction} 
+	 * This method is invoked once per superstep, after the {@link GatherFunction}
 	 * in a {@link GatherSumApplyIteration}.
 	 * It combines the partial values produced by {@link GatherFunction#gather(Neighbor)}
 	 * in pairs, until a single value has been computed.
-	 * 
+	 *
 	 * @param arg0 the first partial value.
 	 * @param arg1 the second partial value.
 	 * @return the combined value.

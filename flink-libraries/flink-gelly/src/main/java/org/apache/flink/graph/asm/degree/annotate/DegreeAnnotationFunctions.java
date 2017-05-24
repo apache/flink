@@ -30,7 +30,12 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
 
+/**
+ * Common user-defined-functions.
+ */
 public class DegreeAnnotationFunctions {
+
+	private DegreeAnnotationFunctions() {}
 
 	// --------------------------------------------------------------------------------------------
 	//  Vertex functions

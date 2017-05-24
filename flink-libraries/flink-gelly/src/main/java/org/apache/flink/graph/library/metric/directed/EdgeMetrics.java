@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph.library.metric.directed;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.accumulators.LongMaximum;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -31,10 +29,10 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAnalyticBase;
 import org.apache.flink.graph.asm.degree.annotate.directed.EdgeDegreesPair;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.graph.asm.result.PrintableResult;
@@ -42,13 +40,16 @@ import org.apache.flink.graph.library.metric.directed.EdgeMetrics.Result;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+
 import java.io.IOException;
 import java.text.NumberFormat;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
- * Compute the following edge metrics in a directed graph:
+ * Compute the following edge metrics in a directed graph.
  *  - number of triangle triplets
  *  - number of rectangle triplets
  *  - maximum number of triangle triplets
@@ -59,7 +60,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class EdgeMetrics<K extends Comparable<K>, VV, EV>
-extends AbstractGraphAnalytic<K, VV, EV, Result> {
+extends GraphAnalyticBase<K, VV, EV, Result> {
 
 	private static final String TRIANGLE_TRIPLET_COUNT = "triangleTripletCount";
 
@@ -88,11 +89,11 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	/*
 	 * Implementation notes:
 	 *
-	 * Use aggregator to replace SumEdgeStats when aggregators are rewritten to use
-	 *   a hash-combineable hashable-reduce.
+	 * <p>Use aggregator to replace SumEdgeStats when aggregators are rewritten to use
+	 * a hash-combineable hashable-reduce.
 	 *
-	 * Use distinct to replace ReduceEdgeStats when the combiner can be disabled
-	 *   with a sorted-reduce forced.
+	 * <p>Use distinct to replace ReduceEdgeStats when the combiner can be disabled
+	 * with a sorted-reduce forced.
 	 */
 
 	@Override
@@ -147,7 +148,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 * the target vertex ID, the source degrees, and the low-order count. The
 	 * second tuple is the same with the source and target roles reversed.
 	 *
-	 * The low-order count is one if the source vertex degree is less than the
+	 * <p>The low-order count is one if the source vertex degree is less than the
 	 * target vertex degree or if the degrees are equal and the source vertex
 	 * ID compares lower than the target vertex ID; otherwise the low-order
 	 * count is zero.
@@ -346,11 +347,19 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (obj == null) { return false; }
-			if (obj == this) { return true; }
-			if (obj.getClass() != getClass()) { return false; }
+			if (obj == null) {
+				return false;
+			}
 
-			Result rhs = (Result)obj;
+			if (obj == this) {
+				return true;
+			}
+
+			if (obj.getClass() != getClass()) {
+				return false;
+			}
+
+			Result rhs = (Result) obj;
 
 			return new EqualsBuilder()
 				.append(triangleTripletCount, rhs.triangleTripletCount)

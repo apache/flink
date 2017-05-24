@@ -21,10 +21,14 @@ package org.apache.flink.graph.asm.translate.translators;
 import org.apache.flink.graph.asm.translate.TranslateFunction;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link LongValueToUnsignedIntValue}.
+ */
 public class LongValueToUnsignedIntValueTest {
 
 	private TranslateFunction<LongValue, IntValue> translator = new LongValueToUnsignedIntValue();
@@ -38,12 +42,12 @@ public class LongValueToUnsignedIntValueTest {
 		assertEquals(new IntValue(-1), translator.translate(new LongValue((1L << 32) - 1), reuse));
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testUpperOutOfRange() throws Exception {
 		translator.translate(new LongValue(1L << 32), reuse);
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testLowerOutOfRange() throws Exception {
 		translator.translate(new LongValue(-1), reuse);
 	}
