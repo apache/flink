@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparator;
-
 import org.junit.Test;
 
 import java.io.DataInput;
@@ -33,8 +32,14 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+/**
+ * Tests for the type extraction of {@link Writable}.
+ */
 @SuppressWarnings("serial")
 public class WritableExtractionTest {
 
@@ -64,7 +69,7 @@ public class WritableExtractionTest {
 				TypeExtractor.createHadoopWritableTypeInfo(ViaInterfaceExtension.class);
 		assertEquals(ViaInterfaceExtension.class, info2.getTypeClass());
 
-		TypeInformation<ViaAbstractClassExtension> info3 = 
+		TypeInformation<ViaAbstractClassExtension> info3 =
 				TypeExtractor.createHadoopWritableTypeInfo(ViaAbstractClassExtension.class);
 		assertEquals(ViaAbstractClassExtension.class, info3.getTypeClass());
 	}
@@ -110,7 +115,7 @@ public class WritableExtractionTest {
 			}
 		};
 
-		TypeInformation<DirectWritable> outType = 
+		TypeInformation<DirectWritable> outType =
 				TypeExtractor.getMapReturnTypes(function, new WritableTypeInfo<>(DirectWritable.class));
 
 		assertTrue(outType instanceof WritableTypeInfo);
@@ -119,14 +124,14 @@ public class WritableExtractionTest {
 
 	@Test
 	public void testExtractAsPartOfPojo() {
-		PojoTypeInfo<PojoWithWritable> pojoInfo = 
+		PojoTypeInfo<PojoWithWritable> pojoInfo =
 				(PojoTypeInfo<PojoWithWritable>) TypeExtractor.getForClass(PojoWithWritable.class);
 
 		boolean foundWritable = false;
 		for (int i = 0; i < pojoInfo.getArity(); i++) {
 			PojoField field = pojoInfo.getPojoFieldAt(i);
 			String name = field.getField().getName();
-			
+
 			if (name.equals("hadoopCitizen")) {
 				if (foundWritable) {
 					fail("already seen");
@@ -134,10 +139,10 @@ public class WritableExtractionTest {
 				foundWritable = true;
 				assertEquals(new WritableTypeInfo<>(DirectWritable.class), field.getTypeInformation());
 				assertEquals(DirectWritable.class, field.getTypeInformation().getTypeClass());
-				
+
 			}
 		}
-		
+
 		assertTrue("missed the writable type", foundWritable);
 	}
 
@@ -152,9 +157,9 @@ public class WritableExtractionTest {
 		};
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<Writable> inType = 
+		TypeInformation<Writable> inType =
 				(TypeInformation<Writable>) (TypeInformation<?>) new WritableTypeInfo<>(DirectWritable.class);
-		
+
 		try {
 			TypeExtractor.getMapReturnTypes(function, inType);
 			fail("exception expected");
@@ -168,20 +173,11 @@ public class WritableExtractionTest {
 	//  test type classes
 	// ------------------------------------------------------------------------
 
-	public interface ExtendedWritable extends Writable {}
+	private interface ExtendedWritable extends Writable {}
 
-	public static abstract class AbstractWritable implements Writable {}
+	private abstract static class AbstractWritable implements Writable {}
 
-	public static class DirectWritable implements Writable {
-
-		@Override
-		public void write(DataOutput dataOutput) throws IOException {}
-
-		@Override
-		public void readFields(DataInput dataInput) throws IOException {}
-	}
-
-	public static class ViaInterfaceExtension implements ExtendedWritable {
+	private static class DirectWritable implements Writable {
 
 		@Override
 		public void write(DataOutput dataOutput) throws IOException {}
@@ -190,7 +186,7 @@ public class WritableExtractionTest {
 		public void readFields(DataInput dataInput) throws IOException {}
 	}
 
-	public static class ViaAbstractClassExtension extends AbstractWritable {
+	private static class ViaInterfaceExtension implements ExtendedWritable {
 
 		@Override
 		public void write(DataOutput dataOutput) throws IOException {}
@@ -199,6 +195,18 @@ public class WritableExtractionTest {
 		public void readFields(DataInput dataInput) throws IOException {}
 	}
 
+	private static class ViaAbstractClassExtension extends AbstractWritable {
+
+		@Override
+		public void write(DataOutput dataOutput) throws IOException {}
+
+		@Override
+		public void readFields(DataInput dataInput) throws IOException {}
+	}
+
+	/**
+	 * Test Pojo containing a {@link DirectWritable}.
+	 */
 	public static class PojoWithWritable {
 		public String str;
 		public DirectWritable hadoopCitizen;

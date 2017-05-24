@@ -18,14 +18,13 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapred;
 
-import java.io.IOException;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.hadoopcompatibility.mapred.HadoopMapFunction;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
@@ -38,6 +37,11 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.io.IOException;
+
+/**
+ * IT cases for the {@link HadoopMapFunction}.
+ */
 @RunWith(Parameterized.class)
 public class HadoopMapFunctionITCase extends MultipleProgramsTestBase {
 
@@ -124,53 +128,60 @@ public class HadoopMapFunctionITCase extends MultipleProgramsTestBase {
 
 		compareResultsByLinesInMemory(expected, resultPath);
 	}
-	
 
-	
+	/**
+	 * {@link Mapper} that only forwards records containing "bananas".
+	 */
 	public static class NonPassingMapper implements Mapper<IntWritable, Text, IntWritable, Text> {
-		
+
 		@Override
-		public void map(final IntWritable k, final Text v, 
+		public void map(final IntWritable k, final Text v,
 				final OutputCollector<IntWritable, Text> out, final Reporter r) throws IOException {
-			if ( v.toString().contains("bananas") ) {
-				out.collect(k,v);
+			if (v.toString().contains("bananas")) {
+				out.collect(k, v);
 			}
 		}
-		
+
 		@Override
 		public void configure(final JobConf arg0) { }
 
 		@Override
 		public void close() throws IOException { }
 	}
-	
+
+	/**
+	 * {@link Mapper} that duplicates records.
+	 */
 	public static class DuplicatingMapper implements Mapper<IntWritable, Text, IntWritable, Text> {
-		
+
 		@Override
-		public void map(final IntWritable k, final Text v, 
+		public void map(final IntWritable k, final Text v,
 				final OutputCollector<IntWritable, Text> out, final Reporter r) throws IOException {
 			out.collect(k, v);
 			out.collect(k, new Text(v.toString().toUpperCase()));
 		}
-		
+
 		@Override
 		public void configure(final JobConf arg0) { }
 
 		@Override
 		public void close() throws IOException { }
 	}
-	
+
+	/**
+	 * {@link Mapper} that filters records based on a prefix.
+	 */
 	public static class ConfigurableMapper implements Mapper<IntWritable, Text, IntWritable, Text> {
 		private String filterPrefix;
-		
+
 		@Override
 		public void map(IntWritable k, Text v, OutputCollector<IntWritable, Text> out, Reporter r)
 				throws IOException {
-			if(v.toString().startsWith(filterPrefix)) {
+			if (v.toString().startsWith(filterPrefix)) {
 				out.collect(k, v);
 			}
 		}
-		
+
 		@Override
 		public void configure(JobConf c) {
 			filterPrefix = c.get("my.filterPrefix");
