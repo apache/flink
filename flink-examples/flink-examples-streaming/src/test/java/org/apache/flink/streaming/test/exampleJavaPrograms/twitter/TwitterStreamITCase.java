@@ -21,6 +21,9 @@ import org.apache.flink.streaming.examples.twitter.TwitterExample;
 import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
+/**
+ * Tests for {@link TwitterExample}.
+ */
 public class TwitterStreamITCase extends StreamingProgramTestBase {
 	protected String resultPath;
 

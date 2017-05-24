@@ -22,6 +22,9 @@ import org.apache.flink.streaming.examples.windowing.WindowWordCount;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
+/**
+ * Tests for {@link WindowWordCount}.
+ */
 public class WindowWordCountITCase extends StreamingProgramTestBase {
 
 	protected String textPath;

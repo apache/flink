@@ -18,12 +18,12 @@
 
 package org.apache.flink.examples.java.graph.util;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Provides the default data sets used for the PageRank example program.
@@ -63,24 +63,24 @@ public class PageRankData {
 		{14L, 12L},
 		{15L, 1L},
 	};
-	
+
 	private static int numPages = 15;
-	
+
 	public static DataSet<Tuple2<Long, Long>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
-		
+
 		List<Tuple2<Long, Long>> edges = new ArrayList<Tuple2<Long, Long>>();
-		for(Object[] e : EDGES) {
-			edges.add(new Tuple2<Long, Long>((Long)e[0], (Long)e[1]));
+		for (Object[] e : EDGES) {
+			edges.add(new Tuple2<Long, Long>((Long) e[0], (Long) e[1]));
 		}
 		return env.fromCollection(edges);
 	}
-	
+
 	public static DataSet<Long> getDefaultPagesDataSet(ExecutionEnvironment env) {
 		return env.generateSequence(1, 15);
 	}
-	
+
 	public static int getNumberOfPages() {
 		return numPages;
 	}
-	
+
 }

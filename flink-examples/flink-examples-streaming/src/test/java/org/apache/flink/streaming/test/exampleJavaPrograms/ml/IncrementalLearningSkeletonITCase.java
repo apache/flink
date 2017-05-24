@@ -21,6 +21,9 @@ import org.apache.flink.streaming.examples.ml.IncrementalLearningSkeleton;
 import org.apache.flink.streaming.examples.ml.util.IncrementalLearningSkeletonData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
+/**
+ * Tests for {@link IncrementalLearningSkeleton}.
+ */
 public class IncrementalLearningSkeletonITCase extends StreamingProgramTestBase {
 
 	protected String resultPath;

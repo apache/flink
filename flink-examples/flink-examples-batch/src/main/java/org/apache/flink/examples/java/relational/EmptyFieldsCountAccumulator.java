@@ -18,32 +18,32 @@
 
 package org.apache.flink.examples.java.relational;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
-import org.apache.commons.lang3.StringUtils;
-
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
+
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * This program filters lines from a CSV file with empty fields. In doing so, it counts the number of empty fields per
  * column within a CSV file using a custom accumulator for vectors. In this context, empty fields are those, that at
  * most contain whitespace characters like space and tab.
- * <p>
- * The input file is a plain text CSV file with the semicolon as field separator and double quotes as field delimiters
+ *
+ * <p>The input file is a plain text CSV file with the semicolon as field separator and double quotes as field delimiters
  * and three columns. See {@link #getDataSet(ExecutionEnvironment, ParameterTool)} for configuration.
- * <p>
- * Usage: <code>EmptyFieldsCountAccumulator --input &lt;path&gt; --output &lt;path&gt;</code> <br>
- * <p>
- * This example shows how to use:
+ *
+ * <p>Usage: <code>EmptyFieldsCountAccumulator --input &lt;path&gt; --output &lt;path&gt;</code> <br>
+ *
+ * <p>This example shows how to use:
  * <ul>
  * <li>custom accumulators
  * <li>tuple data types
@@ -122,7 +122,7 @@ public class EmptyFieldsCountAccumulator {
 
 	/**
 	 * This function filters all incoming tuples that have one or more empty fields.
-	 * In doing so, it also counts the number of empty fields per attribute with an accumulator (registered under 
+	 * In doing so, it also counts the number of empty fields per attribute with an accumulator (registered under
 	 * {@link EmptyFieldsCountAccumulator#EMPTY_FIELD_ACCUMULATOR}).
 	 */
 	public static final class EmptyFieldFilter extends RichFilterFunction<StringTriple> {

@@ -18,10 +18,9 @@
 
 package org.apache.flink.examples.scala.relational
 
+import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
-
-import org.apache.flink.api.java.aggregation.Aggregations
 
 /**
  * This program implements a modified version of the TPC-H query 10. 

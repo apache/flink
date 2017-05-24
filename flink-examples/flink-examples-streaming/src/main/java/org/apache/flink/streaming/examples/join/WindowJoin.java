@@ -27,13 +27,12 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
-
 import org.apache.flink.streaming.examples.join.WindowJoinSampleData.GradeSource;
 import org.apache.flink.streaming.examples.join.WindowJoinSampleData.SalarySource;
 
 /**
  * Example illustrating a windowed stream join between two data streams.
- * 
+ *
  * <p>The example works on two input streams with pairs (name, grade) and (name, salary)
  * respectively. It joins the steams based on "name" within a configurable window.
  *
@@ -52,7 +51,7 @@ public class WindowJoin {
 		final ParameterTool params = ParameterTool.fromArgs(args);
 		final long windowSize = params.getLong("windowSize", 2000);
 		final long rate = params.getLong("rate", 3L);
-		
+
 		System.out.println("Using windowSize=" + windowSize + ", data rate=" + rate);
 		System.out.println("To customize example, use: WindowJoin [--windowSize <window-size-in-millis>] [--rate <elements-per-second>]");
 
@@ -66,7 +65,7 @@ public class WindowJoin {
 		// create the data sources for both grades and salaries
 		DataStream<Tuple2<String, Integer>> grades = GradeSource.getSource(env, rate);
 		DataStream<Tuple2<String, Integer>> salaries = SalarySource.getSource(env, rate);
-		
+
 		// run the actual window join program
 		// for testability, this functionality is in a separate method.
 		DataStream<Tuple3<String, Integer, Integer>> joinedStream = runWindowJoin(grades, salaries, windowSize);
@@ -77,7 +76,7 @@ public class WindowJoin {
 		// execute program
 		env.execute("Windowed Join Example");
 	}
-	
+
 	public static DataStream<Tuple3<String, Integer, Integer>> runWindowJoin(
 			DataStream<Tuple2<String, Integer>> grades,
 			DataStream<Tuple2<String, Integer>> salaries,
@@ -86,11 +85,11 @@ public class WindowJoin {
 		return grades.join(salaries)
 				.where(new NameKeySelector())
 				.equalTo(new NameKeySelector())
-				
+
 				.window(TumblingEventTimeWindows.of(Time.milliseconds(windowSize)))
-				
+
 				.apply(new JoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Integer, Integer>>() {
-					
+
 					@Override
 					public Tuple3<String, Integer, Integer> join(
 									Tuple2<String, Integer> first,
@@ -99,7 +98,7 @@ public class WindowJoin {
 					}
 				});
 	}
-	
+
 	private static class NameKeySelector implements KeySelector<Tuple2<String, Integer>, String> {
 		@Override
 		public String getKey(Tuple2<String, Integer> value) {

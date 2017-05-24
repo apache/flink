@@ -21,8 +21,10 @@ import org.apache.flink.streaming.examples.iteration.IterateExample;
 import org.apache.flink.streaming.examples.iteration.util.IterateExampleData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
+/**
+ * Tests for {@link IterateExample}.
+ */
 public class IterateExampleITCase extends StreamingProgramTestBase {
-
 
 	protected String inputPath;
 	protected String resultPath;

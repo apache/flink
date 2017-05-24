@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.examples.java;
 
 import org.apache.flink.api.java.DataSet;
@@ -24,13 +25,12 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 
 /**
-  * Simple example for demonstrating the use of the Table API for a Word Count in Java.
-  *
-  * This example shows how to:
-  *  - Convert DataSets to Tables
-  *  - Apply group, aggregate, select, and filter operations
-  *
-  */
+ * Simple example for demonstrating the use of the Table API for a Word Count in Java.
+ *
+ * <p>This example shows how to:
+ *  - Convert DataSets to Tables
+ *  - Apply group, aggregate, select, and filter operations
+ */
 public class WordCountTable {
 
 	// *************************************************************************
@@ -62,14 +62,12 @@ public class WordCountTable {
 	//     USER DATA TYPES
 	// *************************************************************************
 
-	public static class WC {
+	private static class WC {
 		public String word;
 		public long frequency;
 
 		// public constructor to make it a Flink POJO
-		public WC() {
-
-		}
+		public WC() {}
 
 		public WC(String word, long frequency) {
 			this.word = word;
@@ -81,5 +79,4 @@ public class WordCountTable {
 			return "WC " + word + " " + frequency;
 		}
 	}
-
 }
