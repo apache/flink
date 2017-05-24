@@ -39,7 +39,6 @@ under the License.
 		<hbc-core.version>2.2.0</hbc-core.version>
 	</properties>
 
-
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>

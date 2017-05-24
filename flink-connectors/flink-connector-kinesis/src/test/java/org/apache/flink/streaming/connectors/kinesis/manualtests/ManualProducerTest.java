@@ -66,7 +66,7 @@ public class ManualProducerTest {
 					// every 10th element goes into a different stream
 					@Override
 					public String getTargetStream(String element) {
-						if(element.split("-")[0].endsWith("0")) {
+						if (element.split("-")[0].endsWith("0")) {
 							return "flink-test-2";
 						}
 						return null; // send to default stream
