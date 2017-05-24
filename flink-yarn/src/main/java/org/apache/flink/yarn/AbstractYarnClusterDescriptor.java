@@ -671,7 +671,13 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		// upload and register ship files	
 		List<String> systemClassPaths = uploadAndRegisterFiles(systemShipFiles, fs, appId.toString(), paths, localResources, envShipFileList);
-		List<String> userClassPaths = uploadAndRegisterFiles(userJarFiles, fs, appId.toString(), paths, localResources, envShipFileList);
+
+		List<String> userClassPaths;
+		if (userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED) {
+			userClassPaths = uploadAndRegisterFiles(userJarFiles, fs, appId.toString(), paths, localResources, envShipFileList);
+		} else {
+			userClassPaths = Collections.emptyList();
+		}
 
 		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.ORDER) {
 			systemClassPaths.addAll(userClassPaths);
