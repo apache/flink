@@ -131,7 +131,7 @@ class ApplicationClient(
       }
 
     case msg: RegisterInfoMessageListenerSuccessful =>
-      // The job manager acts as a proxy between the client and the resource managert
+      // The job manager acts as a proxy between the client and the resource manager
       val jm = sender()
       log.info(s"Successfully registered at the ResourceManager using JobManager $jm")
       yarnJobManager = Some(jm)

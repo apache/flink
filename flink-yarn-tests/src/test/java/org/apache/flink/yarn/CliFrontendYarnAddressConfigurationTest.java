@@ -31,7 +31,6 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -381,7 +380,6 @@ public class CliFrontendYarnAddressConfigurationTest {
 						YarnClient yarnClient,
 						ApplicationReport report,
 						Configuration flinkConfiguration,
-						Path sessionFilesDir,
 						boolean perJobCluster) throws IOException, YarnException {
 
 					return Mockito.mock(YarnClusterClient.class);

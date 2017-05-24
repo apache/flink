@@ -175,7 +175,7 @@ public class FlinkYarnSessionCliTest {
 				Mockito.mock(YarnClient.class),
 				Mockito.mock(ApplicationReport.class),
 				config,
-				new Path("/temp"), false);
+				false);
 		}
 	}
 }
