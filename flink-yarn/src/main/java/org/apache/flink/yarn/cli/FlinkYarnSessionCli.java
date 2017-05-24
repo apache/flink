@@ -413,14 +413,18 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			while (true) {
 				// ------------------ check if there are updates by the cluster -----------
 
-				GetClusterStatusResponse status = yarnCluster.getClusterStatus();
-				LOG.debug("Received status message: {}", status);
+				try {
+					GetClusterStatusResponse status = yarnCluster.getClusterStatus();
+					LOG.debug("Received status message: {}", status);
 
-				if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
-					System.err.println("Number of connected TaskManagers changed to " +
+					if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
+						System.err.println("Number of connected TaskManagers changed to " +
 							status.numRegisteredTaskManagers() + ". " +
-						"Slots available: " + status.totalNumberOfSlots());
-					numTaskmanagers = status.numRegisteredTaskManagers();
+							"Slots available: " + status.totalNumberOfSlots());
+						numTaskmanagers = status.numRegisteredTaskManagers();
+					}
+				} catch (Exception e) {
+					LOG.warn("Could not retrieve the current cluster status. Retrying...", e);
 				}
 
 				List<String> messages = yarnCluster.getNewMessages();
@@ -660,9 +664,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 				// print info and quit:
 				LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
 						"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-						"yarn application -kill " + yarnCluster.getApplicationId() + System.lineSeparator() +
-						"Please also note that the temporary files of the YARN session in {} will not be removed.",
-						yarnDescriptor.getSessionFilesDir());
+						"yarn application -kill " + yarnCluster.getApplicationId());
 				yarnCluster.waitForClusterToBeReady();
 				yarnCluster.disconnect();
 			} else {

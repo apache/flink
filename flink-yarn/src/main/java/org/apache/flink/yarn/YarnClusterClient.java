@@ -27,6 +27,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatus;
@@ -38,9 +39,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
@@ -74,9 +72,6 @@ public class YarnClusterClient extends ClusterClient {
 
 	private Thread clientShutdownHook = new ClientShutdownHook();
 	private PollingThread pollingRunner;
-	private final Configuration hadoopConfig;
-	// (HDFS) location of the files required to run on YARN. Needed here to delete them on shutdown.
-	private final Path sessionFilesDir;
 
 	//---------- Class internal fields -------------------
 
@@ -99,7 +94,6 @@ public class YarnClusterClient extends ClusterClient {
 	 * @param yarnClient Client to talk to YARN
 	 * @param appReport the YARN application ID
 	 * @param flinkConfig Flink configuration
-	 * @param sessionFilesDir Location of files required for YARN session
 	 * @param newlyCreatedCluster Indicator whether this cluster has just been created
 	 * @throws IOException
 	 * @throws YarnException
@@ -108,8 +102,7 @@ public class YarnClusterClient extends ClusterClient {
 		final AbstractYarnClusterDescriptor clusterDescriptor,
 		final YarnClient yarnClient,
 		final ApplicationReport appReport,
-		org.apache.flink.configuration.Configuration flinkConfig,
-		Path sessionFilesDir,
+		Configuration flinkConfig,
 		boolean newlyCreatedCluster) throws Exception {
 
 		super(flinkConfig);
@@ -117,8 +110,6 @@ public class YarnClusterClient extends ClusterClient {
 		this.akkaDuration = AkkaUtils.getTimeout(flinkConfig);
 		this.clusterDescriptor = clusterDescriptor;
 		this.yarnClient = yarnClient;
-		this.hadoopConfig = yarnClient.getConfig();
-		this.sessionFilesDir = sessionFilesDir;
 		this.appReport = appReport;
 		this.appId = appReport.getApplicationId();
 		this.trackingURL = appReport.getTrackingUrl();
@@ -389,19 +380,6 @@ public class YarnClusterClient extends ClusterClient {
 			}
 		} catch (Exception e) {
 			LOG.warn("Exception while deleting the JobManager address file", e);
-		}
-
-		if (sessionFilesDir != null) {
-			LOG.info("Deleting files in " + sessionFilesDir);
-			try {
-				FileSystem shutFS = FileSystem.get(hadoopConfig);
-				shutFS.delete(sessionFilesDir, true); // delete conf and jar file.
-				shutFS.close();
-			} catch (IOException e) {
-				LOG.error("Could not delete the Flink jar and configuration files in HDFS..", e);
-			}
-		} else {
-			LOG.warn("Session file directory not set. Not deleting session files");
 		}
 
 		try {
