@@ -40,7 +40,7 @@ import java.lang.annotation.Target;
  *         // This will be retried 1 time (total runs 2) before failing the test.
  *         throw new IOException("Failing test");
  *     }
- *     
+ *
  *     {@literal @}Test
  *     {@literal @}RetryOnException(times=1, exception=IOException.class)
  *     public void yourTest() throws Exception {
@@ -55,6 +55,6 @@ import java.lang.annotation.Target;
 public @interface RetryOnException {
 
 	int times();
-	
+
 	Class<? extends Throwable> exception();
 }

@@ -47,7 +47,7 @@ public final class OneShotLatch {
 	/**
 	 * Waits until {@link OneShotLatch#trigger()} is called. Once {@code trigger()} has been called this
 	 * call will always return immediately.
-	 * 
+	 *
 	 * @throws InterruptedException Thrown if the thread is interrupted while waiting.
 	 */
 	public void await() throws InterruptedException {
@@ -61,15 +61,15 @@ public final class OneShotLatch {
 	/**
 	 * Waits until {@link OneShotLatch#trigger()} is called. Once {@code #trigger()} has been called this
 	 * call will always return immediately.
-	 * 
+	 *
 	 * <p>If the latch is not triggered within the given timeout, a {@code TimeoutException}
 	 * will be thrown after the timeout.
-	 * 
+	 *
 	 * <p>A timeout value of zero means infinite timeout and make this equivalent to {@link #await()}.
-	 * 
+	 *
 	 * @param timeout   The value of the timeout, a value of zero indicating infinite timeout.
 	 * @param timeUnit  The unit of the timeout
-	 * 
+	 *
 	 * @throws InterruptedException Thrown if the thread is interrupted while waiting.
 	 * @throws TimeoutException Thrown, if the latch is not triggered within the timeout time.
 	 */
@@ -101,7 +101,7 @@ public final class OneShotLatch {
 
 	/**
 	 * Checks if the latch was triggered.
-	 * 
+	 *
 	 * @return True, if the latch was triggered, false if not.
 	 */
 	public boolean isTriggered() {
@@ -109,7 +109,7 @@ public final class OneShotLatch {
 	}
 
 	/**
-	 * resets the latch to triggered = false
+	 * Resets the latch so that {@link #isTriggered()} returns false.
 	 */
 	public void reset() {
 		synchronized (lock) {

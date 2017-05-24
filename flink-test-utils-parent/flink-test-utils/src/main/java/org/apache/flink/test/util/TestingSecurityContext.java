@@ -25,12 +25,13 @@ import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.modules.JaasModule;
 
 import javax.security.auth.login.AppConfigurationEntry;
+
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/*
- * Test security context to support handling both client and server principals in MiniKDC
+/**
+ * Test security context to support handling both client and server principals in MiniKDC.
  * This class is used only in integration test code for connectors like Kafka, HDFS etc.,
  */
 @Internal
@@ -45,13 +46,13 @@ public class TestingSecurityContext {
 		// install dynamic JAAS entries
 		checkArgument(config.getSecurityModules().contains(JaasModule.class));
 		DynamicConfiguration jaasConf = (DynamicConfiguration) javax.security.auth.login.Configuration.getConfiguration();
-		for(Map.Entry<String,ClientSecurityConfiguration> e : clientSecurityConfigurationMap.entrySet()) {
+		for (Map.Entry<String, ClientSecurityConfiguration> e : clientSecurityConfigurationMap.entrySet()) {
 			AppConfigurationEntry entry = KerberosUtils.keytabEntry(e.getValue().getKeytab(), e.getValue().getPrincipal());
 			jaasConf.addAppConfigurationEntry(e.getKey(), entry);
 		}
 	}
 
-	public static class ClientSecurityConfiguration {
+	static class ClientSecurityConfiguration {
 
 		private final String principal;
 

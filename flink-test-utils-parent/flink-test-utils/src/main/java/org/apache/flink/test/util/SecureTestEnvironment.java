@@ -18,17 +18,18 @@
 
 package org.apache.flink.test.util;
 
-
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.SecurityUtils;
+
 import org.apache.hadoop.minikdc.MiniKdc;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,36 +40,36 @@ import java.util.Properties;
  * This class can be used to start/stop MiniKDC and create secure configurations for MiniDFSCluster
  * and MiniYarn.
  *
- * If you use this class in your project, please make sure to add a dependency to
+ * <p>If you use this class in your project, please make sure to add a dependency to
  * <tt>hadoop-minikdc</tt>, e.g. in your <tt>pom.xml</tt>:
- * <pre>{@code
+ * <pre>
  * ...
- * <dependencies>
- *   <dependency>
- *     <groupId>org.apache.hadoop</groupId>
- *     <artifactId>hadoop-minikdc</artifactId>
- *     <version>${minikdc.version}</version>
- *     <scope>compile</scope>
- *   </dependency>
+ * &lt;dependencies&gt;
+ *   &lt;dependency&gt;
+ *     &lt;groupId&gt;org.apache.hadoop&lt;/groupId&gt;
+ *     &lt;artifactId&gt;hadoop-minikdc&lt;/artifactId&gt;
+ *     &lt;version&gt;${minikdc.version}&lt;/version&gt;
+ *     &lt;scope&gt;compile&lt;/scope&gt;
+ *   &lt;/dependency&gt;
  * ...
- * </dependencies>
+ * &lt;/dependencies&gt;
  * ...
  *
- * <build>
- *   <plugins>
- *     <!--
+ * &lt;build&gt;
+ *   &lt;plugins&gt;
+ *     &lt;!--
  *       https://issues.apache.org/jira/browse/DIRSHARED-134
  *       Required to pull the Mini-KDC transitive dependency
- *     -->
- *     <plugin>
- *     <groupId>org.apache.felix</groupId>
- *     <artifactId>maven-bundle-plugin</artifactId>
- *     <version>3.0.1</version>
- *     <inherited>true</inherited>
- *     <extensions>true</extensions>
- *   </plugin>
+ *     --&gt;
+ *     &lt;plugin&gt;
+ *     &lt;groupId&gt;org.apache.felix&lt;/groupId&gt;
+ *     &lt;artifactId&gt;maven-bundle-plugin&lt;/artifactId&gt;
+ *     &lt;version&gt;3.0.1&lt;/version&gt;
+ *     &lt;inherited&gt;true&lt;/inherited&gt;
+ *     &lt;extensions&gt;true&lt;/extensions&gt;
+ *   &lt;/plugin&gt;
  * ...
- * }</pre>
+ * </pre>
  */
 public class SecureTestEnvironment {
 
@@ -96,7 +97,7 @@ public class SecureTestEnvironment {
 
 			String hostName = "localhost";
 			Properties kdcConf = MiniKdc.createConf();
-			if(LOG.isDebugEnabled()) {
+			if (LOG.isDebugEnabled()) {
 				kdcConf.setProperty(MiniKdc.DEBUG, "true");
 			}
 			kdcConf.setProperty(MiniKdc.KDC_BIND_ADDRESS, hostName);
@@ -148,7 +149,7 @@ public class SecureTestEnvironment {
 
 			populateJavaPropertyVariables();
 
-		} catch(Exception e) {
+		} catch (Exception e) {
 			throw new RuntimeException("Exception occured while preparing secure environment.", e);
 		}
 
@@ -158,7 +159,7 @@ public class SecureTestEnvironment {
 
 		LOG.info("Cleaning up Secure Environment");
 
-		if( kdc != null) {
+		if (kdc != null) {
 			kdc.stop();
 			LOG.info("Stopped KDC server");
 		}
@@ -174,7 +175,7 @@ public class SecureTestEnvironment {
 
 	private static void populateJavaPropertyVariables() {
 
-		if(LOG.isDebugEnabled()) {
+		if (LOG.isDebugEnabled()) {
 			System.setProperty("sun.security.krb5.debug", "true");
 		}
 
@@ -199,7 +200,7 @@ public class SecureTestEnvironment {
 
 		org.apache.flink.configuration.Configuration conf;
 
-		if(flinkConf== null) {
+		if (flinkConf == null) {
 			conf = new org.apache.flink.configuration.Configuration();
 		} else {
 			conf = flinkConf;
@@ -215,22 +216,22 @@ public class SecureTestEnvironment {
 
 		Map<String, TestingSecurityContext.ClientSecurityConfiguration> clientSecurityConfigurationMap = new HashMap<>();
 
-		if(testZkServerPrincipal != null ) {
+		if (testZkServerPrincipal != null) {
 			TestingSecurityContext.ClientSecurityConfiguration zkServer =
 					new TestingSecurityContext.ClientSecurityConfiguration(testZkServerPrincipal, testKeytab);
-			clientSecurityConfigurationMap.put("Server",zkServer);
+			clientSecurityConfigurationMap.put("Server", zkServer);
 		}
 
-		if(testZkClientPrincipal != null ) {
+		if (testZkClientPrincipal != null) {
 			TestingSecurityContext.ClientSecurityConfiguration zkClient =
 					new TestingSecurityContext.ClientSecurityConfiguration(testZkClientPrincipal, testKeytab);
-			clientSecurityConfigurationMap.put("Client",zkClient);
+			clientSecurityConfigurationMap.put("Client", zkClient);
 		}
 
-		if(testKafkaServerPrincipal != null ) {
+		if (testKafkaServerPrincipal != null) {
 			TestingSecurityContext.ClientSecurityConfiguration kafkaServer =
 					new TestingSecurityContext.ClientSecurityConfiguration(testKafkaServerPrincipal, testKeytab);
-			clientSecurityConfigurationMap.put("KafkaServer",kafkaServer);
+			clientSecurityConfigurationMap.put("KafkaServer", kafkaServer);
 		}
 
 		return clientSecurityConfigurationMap;

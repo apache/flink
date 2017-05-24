@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
  * shutdown of the Flink clusters (including actor systems, etc) usually dominates
  * the execution of the actual tests.
  *
- * To write a unit test against this test base, simply extend it and add
+ * <p>To write a unit test against this test base, simply extend it and add
  * one or more regular test methods and retrieve the StreamExecutionEnvironment from
  * the context:
  *
