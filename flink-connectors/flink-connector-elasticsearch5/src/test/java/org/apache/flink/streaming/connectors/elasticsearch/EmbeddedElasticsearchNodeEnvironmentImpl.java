@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.streaming.connectors.elasticsearch5.ElasticsearchSinkITCase;
+
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;

@@ -26,8 +26,7 @@ import java.io.Serializable;
  * {@link ActionRequest ActionRequests} should be handled, e.g. dropping them, reprocessing malformed documents, or
  * simply requesting them to be sent to Elasticsearch again if the failure is only temporary.
  *
- * <p>
- * Example:
+ * <p>Example:
  *
  * <pre>{@code
  *
@@ -50,12 +49,10 @@ import java.io.Serializable;
  *
  * }</pre>
  *
- * <p>
- * The above example will let the sink re-add requests that failed due to queue capacity saturation and drop requests
+ * <p>The above example will let the sink re-add requests that failed due to queue capacity saturation and drop requests
  * with malformed documents, without failing the sink. For all other failures, the sink will fail.
  *
- * <p>
- * Note: For Elasticsearch 1.x, it is not feasible to match the type of the failure because the exact type
+ * <p>Note: For Elasticsearch 1.x, it is not feasible to match the type of the failure because the exact type
  * could not be retrieved through the older version Java client APIs (thus, the types will be general {@link Exception}s
  * and only differ in the failure message). In this case, it is recommended to match on the provided REST status code.
  */

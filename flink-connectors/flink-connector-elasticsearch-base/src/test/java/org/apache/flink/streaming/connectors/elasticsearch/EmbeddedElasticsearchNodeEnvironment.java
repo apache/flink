@@ -24,7 +24,7 @@ import java.io.File;
 /**
  * The {@link EmbeddedElasticsearchNodeEnvironment} is used in integration tests to manage Elasticsearch embedded nodes.
  *
- * NOTE: In order for {@link ElasticsearchSinkTestBase} to dynamically load version-specific implementations
+ * <p>NOTE: In order for {@link ElasticsearchSinkTestBase} to dynamically load version-specific implementations
  *       for the tests, concrete implementations must be named {@code EmbeddedElasticsearchNodeEnvironmentImpl}. It must
  *       also be located under the same package. The intentional package-private accessibility of this interface
  *       enforces that.

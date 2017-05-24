@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -41,16 +42,16 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Suite of tests for {@link ElasticsearchSinkBase}.
@@ -123,9 +124,9 @@ public class ElasticsearchSinkBaseTest {
 
 	/**
 	 * Tests that any item failure in the listener callbacks due to flushing on an immediately following checkpoint
-	 * is rethrown; we set a timeout because the test will not finish if the logic is broken
+	 * is rethrown; we set a timeout because the test will not finish if the logic is broken.
 	 */
-	@Test(timeout=5000)
+	@Test(timeout = 5000)
 	public void testItemFailureRethrownOnCheckpointAfterFlush() throws Throwable {
 		final DummyElasticsearchSink<String> sink = new DummyElasticsearchSink<>(
 			new HashMap<String, String>(), new SimpleSinkFunction<String>(), new NoOpFailureHandler());
@@ -250,7 +251,7 @@ public class ElasticsearchSinkBaseTest {
 	 * Tests that any bulk failure in the listener callbacks due to flushing on an immediately following checkpoint
 	 * is rethrown; we set a timeout because the test will not finish if the logic is broken.
 	 */
-	@Test(timeout=5000)
+	@Test(timeout = 5000)
 	public void testBulkFailureRethrownOnOnCheckpointAfterFlush() throws Throwable {
 		final DummyElasticsearchSink<String> sink = new DummyElasticsearchSink<>(
 			new HashMap<String, String>(), new SimpleSinkFunction<String>(), new NoOpFailureHandler());
@@ -307,9 +308,9 @@ public class ElasticsearchSinkBaseTest {
 
 	/**
 	 * Tests that the sink correctly waits for pending requests (including re-added requests) on checkpoints;
-	 * we set a timeout because the test will not finish if the logic is broken
+	 * we set a timeout because the test will not finish if the logic is broken.
 	 */
-	@Test(timeout=5000)
+	@Test(timeout = 5000)
 	public void testAtLeastOnceSink() throws Throwable {
 		final DummyElasticsearchSink<String> sink = new DummyElasticsearchSink<>(
 				new HashMap<String, String>(),
@@ -365,9 +366,9 @@ public class ElasticsearchSinkBaseTest {
 	/**
 	 * This test is meant to assure that testAtLeastOnceSink is valid by testing that if flushing is disabled,
 	 * the snapshot method does indeed finishes without waiting for pending requests;
-	 * we set a timeout because the test will not finish if the logic is broken
+	 * we set a timeout because the test will not finish if the logic is broken.
 	 */
-	@Test(timeout=5000)
+	@Test(timeout = 5000)
 	public void testDoesNotWaitForPendingRequestsIfFlushingDisabled() throws Exception {
 		final DummyElasticsearchSink<String> sink = new DummyElasticsearchSink<>(
 			new HashMap<String, String>(), new SimpleSinkFunction<String>(), new DummyRetryFailureHandler());
@@ -409,7 +410,7 @@ public class ElasticsearchSinkBaseTest {
 
 		/**
 		 * This method is used to mimic a scheduled bulk request; we need to do this
-		 * manually because we are mocking the BulkProcessor
+		 * manually because we are mocking the BulkProcessor.
 		 */
 		public void manualBulkRequestWithAllPendingRequests() {
 			flushLatch.trigger(); // let the flush
@@ -429,7 +430,7 @@ public class ElasticsearchSinkBaseTest {
 		 * Set the list of mock failures to use for the next bulk of item responses. A {@code null}
 		 * means that the response is successful, failed otherwise.
 		 *
-		 * The list is used with corresponding order to the requests in the bulk, i.e. the first
+		 * <p>The list is used with corresponding order to the requests in the bulk, i.e. the first
 		 * request uses the response at index 0, the second requests uses the response at index 1, etc.
 		 */
 		public void setMockItemFailuresListForNextBulkItemResponses(List<? extends Throwable> mockItemFailuresList) {

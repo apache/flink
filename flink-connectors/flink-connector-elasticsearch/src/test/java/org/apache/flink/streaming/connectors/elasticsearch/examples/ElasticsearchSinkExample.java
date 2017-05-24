@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSink;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
+
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
@@ -42,7 +43,7 @@ import java.util.Map;
 public class ElasticsearchSinkExample {
 
 	public static void main(String[] args) throws Exception {
-		
+
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<String> source = env.generateSequence(0, 20).map(new MapFunction<Long, String>() {
@@ -66,7 +67,6 @@ public class ElasticsearchSinkExample {
 				indexer.add(createIndexRequest(element));
 			}
 		}));
-
 
 		env.execute("Elasticsearch Sink Example");
 	}

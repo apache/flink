@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.util.InstantiationUtil;
+
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
@@ -49,14 +50,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Base class for all Flink Elasticsearch Sinks.
  *
- * <p>
- * This class implements the common behaviour across Elasticsearch versions, such as
+ * <p>This class implements the common behaviour across Elasticsearch versions, such as
  * the use of an internal {@link BulkProcessor} to buffer multiple {@link ActionRequest}s before
  * sending the requests to the cluster, as well as passing input records to the user provided
  * {@link ElasticsearchSinkFunction} for processing.
  *
- * <p>
- * The version specific API calls for different Elasticsearch versions should be defined by a concrete implementation of
+ * <p>The version specific API calls for different Elasticsearch versions should be defined by a concrete implementation of
  * a {@link ElasticsearchApiCallBridge}, which is provided to the constructor of this class. This call bridge is used,
  * for example, to create a Elasticsearch {@link Client}, handle failed item responses, etc.
  *
@@ -80,11 +79,21 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	public static final String CONFIG_KEY_BULK_FLUSH_BACKOFF_RETRIES = "bulk.flush.backoff.retries";
 	public static final String CONFIG_KEY_BULK_FLUSH_BACKOFF_DELAY = "bulk.flush.backoff.delay";
 
+	/**
+	 * Used to control whether the retry delay should increase exponentially or remain constant.
+	 */
 	public enum FlushBackoffType {
 		CONSTANT,
 		EXPONENTIAL
 	}
 
+	/**
+	 * Provides a backoff policy for bulk requests. Whenever a bulk request is rejected due to resource constraints
+	 * (i.e. the client's internal thread pool is full), the backoff policy decides how long the bulk processor will
+	 * wait before the operation is retried internally.
+	 *
+	 * <p>This is a proxy for version specific backoff policies.
+	 */
 	public class BulkFlushBackoffPolicy implements Serializable {
 
 		private static final long serialVersionUID = -6022851996101826049L;
@@ -149,14 +158,14 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	//  Internals for the Flink Elasticsearch Sink
 	// ------------------------------------------------------------------------
 
-	/** Call bridge for different version-specfic */
+	/** Call bridge for different version-specific. */
 	private final ElasticsearchApiCallBridge callBridge;
 
 	/**
 	 * Number of pending action requests not yet acknowledged by Elasticsearch.
 	 * This value is maintained only if {@link ElasticsearchSinkBase#flushOnCheckpoint} is {@code true}.
 	 *
-	 * This is incremented whenever the user adds (or re-adds through the {@link ActionRequestFailureHandler}) requests
+	 * <p>This is incremented whenever the user adds (or re-adds through the {@link ActionRequestFailureHandler}) requests
 	 * to the {@link RequestIndexer}. It is decremented for each completed request of a bulk request, in
 	 * {@link BulkProcessor.Listener#afterBulk(long, BulkRequest, BulkResponse)} and
 	 * {@link BulkProcessor.Listener#afterBulk(long, BulkRequest, Throwable)}.
@@ -174,7 +183,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	 * the user considered it should fail the sink via the
 	 * {@link ActionRequestFailureHandler#onFailure(ActionRequest, Throwable, int, RequestIndexer)} method.
 	 *
-	 * Errors will be checked and rethrown before processing each input element, and when the sink is closed.
+	 * <p>Errors will be checked and rethrown before processing each input element, and when the sink is closed.
 	 */
 	private final AtomicReference<Throwable> failureThrowable = new AtomicReference<>();
 
@@ -260,7 +269,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	 * Disable flushing on checkpoint. When disabled, the sink will not wait for all
 	 * pending action requests to be acknowledged by Elasticsearch on checkpoints.
 	 *
-	 * NOTE: If flushing on checkpoint is disabled, the Flink Elasticsearch Sink does NOT
+	 * <p>NOTE: If flushing on checkpoint is disabled, the Flink Elasticsearch Sink does NOT
 	 * provide any strong guarantees for at-least-once delivery of action requests.
 	 */
 	public void disableFlushOnCheckpoint() {
@@ -320,8 +329,9 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	/**
 	 * Build the {@link BulkProcessor}.
 	 *
-	 * Note: this is exposed for testing purposes.
+	 * <p>Note: this is exposed for testing purposes.
 	 */
+	@VisibleForTesting
 	protected BulkProcessor buildBulkProcessor(BulkProcessor.Listener listener) {
 		checkNotNull(listener);
 

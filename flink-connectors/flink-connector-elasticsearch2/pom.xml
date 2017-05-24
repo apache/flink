@@ -43,7 +43,7 @@ under the License.
 	<dependencies>
 
 		<!-- core dependencies -->
- 
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
