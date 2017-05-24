@@ -18,15 +18,6 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.QueryOptions;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-
-import org.apache.cassandra.service.CassandraDaemon;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.InputFormat;
@@ -47,16 +38,20 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ConsistencyLevel;
+import com.datastax.driver.core.QueryOptions;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
+import org.apache.cassandra.service.CassandraDaemon;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -69,8 +64,14 @@ import java.util.Random;
 import java.util.Scanner;
 import java.util.UUID;
 
-import static org.junit.Assert.*;
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
+import static org.junit.Assert.assertTrue;
+
+/**
+ * IT cases for all cassandra sinks.
+ */
 @SuppressWarnings("serial")
 public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<String, Integer, Integer>, CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>>> {
 
@@ -138,7 +139,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		ClassLoader classLoader = CassandraConnectorITCase.class.getClassLoader();
 		File file = new File(classLoader.getResource("cassandra.yaml").getFile());
 		File tmp = new File(tmpDir.getAbsolutePath() + File.separator + "cassandra.yaml");
-		
+
 		assertTrue(tmp.createNewFile());
 
 		try (
@@ -154,7 +155,6 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 				b.flush();
 			}
 		}
-
 
 		// Tell cassandra where the configuration files are.
 		// Use the test configuration file.
@@ -468,11 +468,11 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
 		List<Row> rows = rs.all();
-		assertEquals(scalaTupleCollection.size(), rows.size());
+		Assert.assertEquals(scalaTupleCollection.size(), rows.size());
 
 		for (Row row : rows) {
 			scalaTupleCollection.remove(new scala.Tuple3<>(row.getString("id"), row.getInt("counter"), row.getInt("batch_id")));
 		}
-		assertEquals(0, scalaTupleCollection.size());
+		Assert.assertEquals(0, scalaTupleCollection.size());
 	}
 }

@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.cassandra.example;
 
-import com.datastax.driver.core.Cluster;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
@@ -27,6 +27,8 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.cassandra.CassandraSink;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
+import com.datastax.driver.core.Cluster;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -34,10 +36,10 @@ import java.util.UUID;
 /**
  * This is an example showing the to use the Cassandra Sink (with write-ahead log) in the Streaming API.
  *
- * The example assumes that a table exists in a local cassandra database, according to the following query:
+ * <p>The example assumes that a table exists in a local cassandra database, according to the following query:
  * CREATE TABLE example.values (id text, count int, PRIMARY KEY(id));
- * 
- * Important things to note are that checkpointing is enabled, a StateBackend is set and the enableWriteAheadLog() call
+ *
+ * <p>Important things to note are that checkpointing is enabled, a StateBackend is set and the enableWriteAheadLog() call
  * when creating the CassandraSink.
  */
 public class CassandraTupleWriteAheadSinkExample {
@@ -67,7 +69,7 @@ public class CassandraTupleWriteAheadSinkExample {
 		env.execute();
 	}
 
-	public static class MySource implements SourceFunction<Tuple2<String, Integer>>, ListCheckpointed<Integer> {
+	private static class MySource implements SourceFunction<Tuple2<String, Integer>>, ListCheckpointed<Integer> {
 		private static final long serialVersionUID = 4022367939215095610L;
 
 		private int counter = 0;

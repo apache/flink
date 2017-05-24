@@ -17,10 +17,11 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
+import org.apache.flink.configuration.Configuration;
+
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
 import com.google.common.util.concurrent.ListenableFuture;
-import org.apache.flink.configuration.Configuration;
 
 /**
  * Abstract sink to write tuple-like values into a Cassandra cluster.
