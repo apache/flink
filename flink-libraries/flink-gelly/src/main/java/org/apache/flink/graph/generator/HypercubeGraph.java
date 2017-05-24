@@ -28,7 +28,7 @@ import org.apache.flink.util.Preconditions;
  * @see <a href="http://mathworld.wolfram.com/HypercubeGraph.html">Hypercube Graph at Wolfram MathWorld</a>
  */
 public class HypercubeGraph
-extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
+extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
 	public static final int MINIMUM_DIMENSIONS = 1;
 

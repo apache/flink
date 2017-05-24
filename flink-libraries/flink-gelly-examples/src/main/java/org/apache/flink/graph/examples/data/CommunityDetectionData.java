@@ -37,7 +37,7 @@ public class CommunityDetectionData {
 	public static final double DELTA = 0.5f;
 
 	public static final String COMMUNITIES_SINGLE_ITERATION = "1,5\n" + "2,6\n"
-			+ "3,1\n" + "4,1\n" + "5,1\n" + "6,8\n" + "7,8\n" + "8,7"; 
+			+ "3,1\n" + "4,1\n" + "5,1\n" + "6,8\n" + "7,8\n" + "8,7";
 
 	public static final String COMMUNITIES_WITH_TIE = "1,2\n" + "2,1\n" + "3,1\n" + "4,1\n" + "5,1";
 

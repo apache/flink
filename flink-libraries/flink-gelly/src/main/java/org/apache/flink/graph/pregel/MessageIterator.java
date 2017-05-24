@@ -18,11 +18,11 @@
 
 package org.apache.flink.graph.pregel;
 
-import java.util.Iterator;
-
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.NullValue;
+
+import java.util.Iterator;
 
 /**
  * An iterator that returns messages. The iterator is {@link java.lang.Iterable} at the same time to support
@@ -33,17 +33,17 @@ public final class MessageIterator<Message> implements Iterator<Message>, Iterab
 
 	private transient Iterator<Tuple2<?, Either<NullValue, Message>>> source;
 	private Message first = null;
-	
-	final void setSource(Iterator<Tuple2<?, Either<NullValue, Message>>> source) {
+
+	void setSource(Iterator<Tuple2<?, Either<NullValue, Message>>> source) {
 		this.source = source;
 	}
 
-	final void setFirst(Message msg) {
+	void setFirst(Message msg) {
 		this.first = msg;
 	}
-	
+
 	@Override
-	public final boolean hasNext() {
+	public boolean hasNext() {
 		if (first != null) {
 			return true;
 		}
@@ -51,9 +51,9 @@ public final class MessageIterator<Message> implements Iterator<Message>, Iterab
 			return ((this.source != null) && (this.source.hasNext()));
 		}
 	}
-	
+
 	@Override
-	public final Message next() {
+	public Message next() {
 		if (first != null) {
 			Message toReturn = first;
 			first = null;
@@ -63,7 +63,7 @@ public final class MessageIterator<Message> implements Iterator<Message>, Iterab
 	}
 
 	@Override
-	public final void remove() {
+	public void remove() {
 		throw new UnsupportedOperationException();
 	}
 

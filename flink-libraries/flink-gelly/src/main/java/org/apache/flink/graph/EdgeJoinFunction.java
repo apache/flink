@@ -18,10 +18,10 @@
 
 package org.apache.flink.graph;
 
-import java.io.Serializable;
-
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.java.DataSet;
+
+import java.io.Serializable;
 
 /**
  * Interface to be implemented by the transformation function
@@ -37,7 +37,7 @@ public interface EdgeJoinFunction<EV, T> extends Function, Serializable {
 	/**
 	 * Applies a transformation on the current edge value
 	 * and the value of the matched tuple of the input DataSet.
-	 * 
+	 *
 	 * @param edgeValue the current edge value
 	 * @param inputValue the value of the matched Tuple2 input
 	 * @return the new edge value

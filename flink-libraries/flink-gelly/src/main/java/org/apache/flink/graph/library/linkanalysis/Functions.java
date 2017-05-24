@@ -16,17 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.generator;
+package org.apache.flink.graph.library.linkanalysis;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.junit.Before;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.types.DoubleValue;
 
-public class AbstractGraphTest {
+class Functions {
 
-	protected ExecutionEnvironment env;
+	private Functions() {}
 
-	@Before
-	public void setup() {
-		env = ExecutionEnvironment.createCollectionsEnvironment();
+	/**
+	 * Sum vertices' scores.
+	 *
+	 * @param <T> ID type
+	 */
+	@ForwardedFields("0")
+	protected static final class SumScore<T>
+		implements ReduceFunction<Tuple2<T, DoubleValue>> {
+		@Override
+		public Tuple2<T, DoubleValue> reduce(Tuple2<T, DoubleValue> left, Tuple2<T, DoubleValue> right)
+			throws Exception {
+			left.f1.setValue(left.f1.getValue() + right.f1.getValue());
+			return left;
+		}
 	}
 }

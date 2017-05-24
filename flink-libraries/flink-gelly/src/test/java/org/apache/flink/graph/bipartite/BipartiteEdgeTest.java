@@ -18,11 +18,13 @@
 
 package org.apache.flink.graph.bipartite;
 
-import org.apache.flink.graph.bipartite.BipartiteEdge;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link BipartiteEdge}.
+ */
 public class BipartiteEdgeTest {
 
 	private static final int BOTTOM_ID = 0;

@@ -35,7 +35,7 @@ import org.apache.flink.api.java.DataSet;
 public interface GraphAnalytic<K, VV, EV, T> {
 
 	/**
-	 * This method must be called after the program has executed:
+	 * This method must be called after the program has executed.
 	 *  1) "run" analytics and algorithms
 	 *  2) call ExecutionEnvironment.execute()
 	 *  3) get analytic results

@@ -30,9 +30,9 @@ public interface Parameter<T> {
 	/**
 	 * An informal usage string. Parameter names are prefixed with "--".
 	 *
-	 * Optional parameters are enclosed by "[" and "]".
+	 * <p>Optional parameters are enclosed by "[" and "]".
 	 *
-	 * Generic values are represented by all-caps with specific values enclosed
+	 * <p>Generic values are represented by all-caps with specific values enclosed
 	 * by "&lt;" and "&gt;".
 	 *
 	 * @return command-line usage string

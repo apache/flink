@@ -18,21 +18,21 @@
 
 package org.apache.flink.graph.examples.data;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.NullValue;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Provides the default data set used for the Label Propagation test program.
  * If no parameters are given to the program, the default edge data set is used.
  */
 public class LabelPropagationData {
-	
+
 	public static final String LABELS_AFTER_1_ITERATION = "1,10\n" +
 			"2,10\n" +
 			"3,10\n" +
@@ -41,7 +41,7 @@ public class LabelPropagationData {
 			"6,40\n" +
 			"7,40\n";
 
-	public static final String LABELS_WITH_TIE ="1,10\n" +
+	public static final String LABELS_WITH_TIE = "1,10\n" +
 			"2,10\n" +
 			"3,10\n" +
 			"4,10\n" +
@@ -56,13 +56,13 @@ public class LabelPropagationData {
 	public static final DataSet<Vertex<Long, Long>> getDefaultVertexSet(ExecutionEnvironment env) {
 
 		List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
-		vertices.add(new Vertex<Long, Long>(1l, 10l));
-		vertices.add(new Vertex<Long, Long>(2l, 10l));
-		vertices.add(new Vertex<Long, Long>(3l, 30l));
-		vertices.add(new Vertex<Long, Long>(4l, 40l));
-		vertices.add(new Vertex<Long, Long>(5l, 40l));
-		vertices.add(new Vertex<Long, Long>(6l, 40l));
-		vertices.add(new Vertex<Long, Long>(7l, 40l));
+		vertices.add(new Vertex<Long, Long>(1L, 10L));
+		vertices.add(new Vertex<Long, Long>(2L, 10L));
+		vertices.add(new Vertex<Long, Long>(3L, 30L));
+		vertices.add(new Vertex<Long, Long>(4L, 40L));
+		vertices.add(new Vertex<Long, Long>(5L, 40L));
+		vertices.add(new Vertex<Long, Long>(6L, 40L));
+		vertices.add(new Vertex<Long, Long>(7L, 40L));
 
 		return env.fromCollection(vertices);
 	}
@@ -83,15 +83,15 @@ public class LabelPropagationData {
 	public static final DataSet<Vertex<Long, Long>> getTieVertexSet(ExecutionEnvironment env) {
 
 		List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
-		vertices.add(new Vertex<Long, Long>(1l, 10l));
-		vertices.add(new Vertex<Long, Long>(2l, 10l));
-		vertices.add(new Vertex<Long, Long>(3l, 10l));
-		vertices.add(new Vertex<Long, Long>(4l, 10l));
-		vertices.add(new Vertex<Long, Long>(5l, 0l));
-		vertices.add(new Vertex<Long, Long>(6l, 20l));
-		vertices.add(new Vertex<Long, Long>(7l, 20l));
-		vertices.add(new Vertex<Long, Long>(8l, 20l));
-		vertices.add(new Vertex<Long, Long>(9l, 20l));
+		vertices.add(new Vertex<Long, Long>(1L, 10L));
+		vertices.add(new Vertex<Long, Long>(2L, 10L));
+		vertices.add(new Vertex<Long, Long>(3L, 10L));
+		vertices.add(new Vertex<Long, Long>(4L, 10L));
+		vertices.add(new Vertex<Long, Long>(5L, 0L));
+		vertices.add(new Vertex<Long, Long>(6L, 20L));
+		vertices.add(new Vertex<Long, Long>(7L, 20L));
+		vertices.add(new Vertex<Long, Long>(8L, 20L));
+		vertices.add(new Vertex<Long, Long>(9L, 20L));
 
 		return env.fromCollection(vertices);
 	}

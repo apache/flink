@@ -26,12 +26,17 @@ import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+/**
+ * Tests for {@link Graph#inDegrees()}, {@link Graph#outDegrees()},
+ * and {@link Graph#getDegrees()}.
+ */
 @RunWith(Parameterized.class)
 public class DegreesITCase extends MultipleProgramsTestBase {
 

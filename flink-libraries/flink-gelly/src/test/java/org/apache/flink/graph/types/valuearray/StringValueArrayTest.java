@@ -19,12 +19,16 @@
 package org.apache.flink.graph.types.valuearray;
 
 import org.apache.flink.types.StringValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link StringValueArray}.
+ */
 public class StringValueArrayTest {
 
 	@Test
@@ -35,11 +39,11 @@ public class StringValueArrayTest {
 		ValueArray<StringValue> sva = new StringValueArray(StringValueArray.DEFAULT_CAPACITY_IN_BYTES);
 
 		// fill the array
-		for (int i = 0 ; i < count ; i++) {
+		for (int i = 0; i < count; i++) {
 			assertFalse(sva.isFull());
 			assertEquals(i, sva.size());
 
-			assertTrue(sva.add(new StringValue(Character.toString((char)(i & 0x7F)))));
+			assertTrue(sva.add(new StringValue(Character.toString((char) (i & 0x7F)))));
 
 			assertEquals(i + 1, sva.size());
 		}
@@ -55,16 +59,16 @@ public class StringValueArrayTest {
 		}
 
 		// add element past end of array
-		assertFalse(sva.add(new StringValue(String.valueOf((char)count))));
+		assertFalse(sva.add(new StringValue(String.valueOf((char) count))));
 		assertFalse(sva.addAll(sva));
 
 		// test copy
 		assertEquals(sva, sva.copy());
 
 		// test copyTo
-		StringValueArray sva_to = new StringValueArray();
-		sva.copyTo(sva_to);
-		assertEquals(sva, sva_to);
+		StringValueArray svaTo = new StringValueArray();
+		sva.copyTo(svaTo);
+		assertEquals(sva, svaTo);
 
 		// test clear
 		sva.clear();
@@ -79,11 +83,11 @@ public class StringValueArrayTest {
 		ValueArray<StringValue> sva = new StringValueArray(3200);
 
 		// fill the array
-		for (int i = 0 ; i < count ; i++) {
+		for (int i = 0; i < count; i++) {
 			assertFalse(sva.isFull());
 			assertEquals(i, sva.size());
 
-			assertTrue(sva.add(new StringValue(Character.toString((char)(i & 0xFF)))));
+			assertTrue(sva.add(new StringValue(Character.toString((char) (i & 0xFF)))));
 
 			assertEquals(i + 1, sva.size());
 		}
@@ -99,16 +103,16 @@ public class StringValueArrayTest {
 		}
 
 		// add element past end of array
-		assertFalse(sva.add(new StringValue(String.valueOf((char)count))));
+		assertFalse(sva.add(new StringValue(String.valueOf((char) count))));
 		assertFalse(sva.addAll(sva));
 
 		// test copy
 		assertEquals(sva, sva.copy());
 
 		// test copyTo
-		StringValueArray sva_to = new StringValueArray();
-		sva.copyTo(sva_to);
-		assertEquals(sva, sva_to);
+		StringValueArray svaTo = new StringValueArray();
+		sva.copyTo(svaTo);
+		assertEquals(sva, svaTo);
 
 		// test clear
 		sva.clear();
@@ -122,11 +126,11 @@ public class StringValueArrayTest {
 		ValueArray<StringValue> sva = new StringValueArray();
 
 		// add several elements
-		for (int i = 0 ; i < count ; i++) {
+		for (int i = 0; i < count; i++) {
 			assertFalse(sva.isFull());
 			assertEquals(i, sva.size());
 
-			assertTrue(sva.add(new StringValue(String.valueOf((char)i))));
+			assertTrue(sva.add(new StringValue(String.valueOf((char) i))));
 
 			assertEquals(i + 1, sva.size());
 		}
@@ -142,16 +146,16 @@ public class StringValueArrayTest {
 		}
 
 		// add element past end of array
-		assertTrue(sva.add(new StringValue(String.valueOf((char)count))));
+		assertTrue(sva.add(new StringValue(String.valueOf((char) count))));
 		assertTrue(sva.addAll(sva));
 
 		// test copy
 		assertEquals(sva, sva.copy());
 
 		// test copyTo
-		StringValueArray sva_to = new StringValueArray();
-		sva.copyTo(sva_to);
-		assertEquals(sva, sva_to);
+		StringValueArray svaTo = new StringValueArray();
+		sva.copyTo(svaTo);
+		assertEquals(sva, svaTo);
 
 		// test mark/reset
 		int size = sva.size();

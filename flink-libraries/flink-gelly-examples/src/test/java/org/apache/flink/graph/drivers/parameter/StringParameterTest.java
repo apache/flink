@@ -19,12 +19,16 @@
 package org.apache.flink.graph.drivers.parameter;
 
 import org.apache.flink.api.java.utils.ParameterTool;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+/**
+ * Tests for {@link StringParameter}.
+ */
 public class StringParameterTest
 extends ParameterTestBase {
 

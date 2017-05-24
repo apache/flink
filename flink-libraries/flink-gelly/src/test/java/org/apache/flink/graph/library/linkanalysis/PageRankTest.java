@@ -16,17 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.library.link_analysis;
+package org.apache.flink.graph.library.linkanalysis;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.asm.dataset.Collect;
-import org.apache.flink.graph.library.link_analysis.PageRank.Result;
+import org.apache.flink.graph.library.linkanalysis.PageRank.Result;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -36,6 +37,9 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link PageRank}.
+ */
 public class PageRankTest
 extends AsmTestBase {
 

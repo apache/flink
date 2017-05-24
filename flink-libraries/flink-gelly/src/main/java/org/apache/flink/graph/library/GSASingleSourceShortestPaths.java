@@ -29,7 +29,7 @@ import org.apache.flink.graph.gsa.Neighbor;
 import org.apache.flink.graph.gsa.SumFunction;
 
 /**
- * This is an implementation of the Single Source Shortest Paths algorithm, using a gather-sum-apply iteration
+ * This is an implementation of the Single Source Shortest Paths algorithm, using a gather-sum-apply iteration.
  */
 public class GSASingleSourceShortestPaths<K, VV> implements
 	GraphAlgorithm<K, VV, Double, DataSet<Vertex<K, Double>>> {
@@ -39,7 +39,7 @@ public class GSASingleSourceShortestPaths<K, VV> implements
 
 	/**
 	 * Creates an instance of the GSA SingleSourceShortestPaths algorithm.
-	 * 
+	 *
 	 * @param srcVertexId The ID of the source vertex.
 	 * @param maxIterations The maximum number of iterations to run.
 	 */
@@ -58,7 +58,7 @@ public class GSASingleSourceShortestPaths<K, VV> implements
 	}
 
 	@SuppressWarnings("serial")
-	public static final class InitVerticesMapper<K, VV> implements MapFunction<Vertex<K, VV>, Double> {
+	private static final class InitVerticesMapper<K, VV> implements MapFunction<Vertex<K, VV>, Double> {
 
 		private K srcVertexId;
 

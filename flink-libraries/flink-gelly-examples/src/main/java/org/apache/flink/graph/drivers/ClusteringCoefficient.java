@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph.drivers;
 
-import org.apache.commons.lang3.text.StrBuilder;
-import org.apache.commons.lang3.text.WordUtils;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAnalytic;
@@ -30,6 +28,9 @@ import org.apache.flink.graph.drivers.output.Print;
 import org.apache.flink.graph.drivers.parameter.ChoiceParameter;
 import org.apache.flink.graph.drivers.parameter.LongParameter;
 import org.apache.flink.types.CopyableValue;
+
+import org.apache.commons.lang3.text.StrBuilder;
+import org.apache.commons.lang3.text.WordUtils;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 

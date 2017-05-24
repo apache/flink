@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.library.link_analysis;
+package org.apache.flink.graph.library.linkanalysis;
 
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.aggregators.DoubleSumAggregator;
@@ -38,9 +38,9 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.asm.result.UnaryResult;
-import org.apache.flink.graph.library.link_analysis.Functions.SumScore;
-import org.apache.flink.graph.library.link_analysis.HITS.Result;
-import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.library.linkanalysis.Functions.SumScore;
+import org.apache.flink.graph.library.linkanalysis.HITS.Result;
+import org.apache.flink.graph.utils.MurmurHash;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.util.Collector;
@@ -54,11 +54,11 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * Hyperlink-Induced Topic Search computes two interdependent scores for every
  * vertex in a directed graph. A good "hub" links to good "authorities" and
  * good "authorities" are linked from good "hubs".
- * <p>
- * This algorithm can be configured to terminate either by a limit on the number
+ *
+ * <p>This algorithm can be configured to terminate either by a limit on the number
  * of iterations, a convergence threshold, or both.
- * <p>
- * http://www.cs.cornell.edu/home/kleinber/auth.pdf
+ *
+ * <p>See http://www.cs.cornell.edu/home/kleinber/auth.pdf
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
@@ -139,7 +139,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
-		if (! HITS.class.isAssignableFrom(other.getClass())) {
+		if (!HITS.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 
@@ -287,7 +287,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * initial hub score of 1.0. The hub scores are initialized to zero since
 	 * these will be computed based on the initial authority scores.
 	 *
-	 * The initial scores are non-normalized.
+	 * <p>The initial scores are non-normalized.
 	 *
 	 * @param <T> ID type
 	 */
@@ -471,7 +471,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		@Override
 		public Tuple3<T, DoubleValue, DoubleValue> join(Tuple3<T, DoubleValue, DoubleValue> first, Tuple3<T, DoubleValue, DoubleValue> second)
 				throws Exception {
-			if (! isInitialSuperstep) {
+			if (!isInitialSuperstep) {
 				changeInScores += Math.abs(second.f1.getValue() - first.f1.getValue());
 				changeInScores += Math.abs(second.f2.getValue() - first.f2.getValue());
 			}
@@ -485,7 +485,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * The algorithm terminates when the change in scores compared against the
 	 * prior iteration falls to or below the given convergence threshold.
 	 *
-	 * An optimization of this implementation of HITS is to leave the initial
+	 * <p>An optimization of this implementation of HITS is to leave the initial
 	 * scores non-normalized; therefore, the change in scores after the first
 	 * superstep cannot be measured and a negative value is emitted to signal
 	 * that the iteration should continue.
@@ -534,7 +534,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	implements PrintableResult, UnaryResult<T> {
 		public static final int HASH_SEED = 0xc7e39a63;
 
-		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
+		private MurmurHash hasher = new MurmurHash(HASH_SEED);
 
 		@Override
 		public T getVertexId0() {

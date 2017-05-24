@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph;
 
-import org.apache.commons.lang3.StringEscapeUtils;
-import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvOutputFormat;
@@ -52,6 +50,9 @@ import org.apache.flink.graph.drivers.output.Print;
 import org.apache.flink.graph.drivers.parameter.Parameterized;
 import org.apache.flink.util.InstantiationUtil;
 
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.text.StrBuilder;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -59,14 +60,14 @@ import java.util.List;
 /**
  * This default main class executes Flink drivers.
  *
- * An execution has one input, one algorithm, and one output. Anything more
+ * <p>An execution has one input, one algorithm, and one output. Anything more
  * complex can be expressed as a user program written in a JVM language.
  *
- * Inputs and algorithms are decoupled by, respectively, producing and
+ * <p>Inputs and algorithms are decoupled by, respectively, producing and
  * consuming a graph. Currently only {@code Graph} is supported but later
  * updates may add support for new graph types such as {@code BipartiteGraph}.
  *
- * Algorithms must explicitly support each type of output via implementation of
+ * <p>Algorithms must explicitly support each type of output via implementation of
  * interfaces. This is scalable as the number of outputs is small and finite.
  */
 public class Runner {

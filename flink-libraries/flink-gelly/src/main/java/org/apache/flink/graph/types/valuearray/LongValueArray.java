@@ -21,7 +21,7 @@ package org.apache.flink.graph.types.valuearray;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.MurmurHash;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Preconditions;
@@ -54,7 +54,7 @@ implements ValueArray<LongValue> {
 	private transient int mark;
 
 	// hasher used to generate the normalized key
-	private Murmur3_32 hash = new Murmur3_32(0xdf099ea8);
+	private MurmurHash hash = new MurmurHash(0xdf099ea8);
 
 	// hash result stored as normalized key
 	private IntValue hashValue = new IntValue();
@@ -121,7 +121,7 @@ implements ValueArray<LongValue> {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder("[");
-		for (int idx = 0 ; idx < this.position ; idx++) {
+		for (int idx = 0; idx < this.position; idx++) {
 			sb.append(data[idx]);
 			if (idx < position - 1) {
 				sb.append(",");
@@ -179,7 +179,7 @@ implements ValueArray<LongValue> {
 	public void write(DataOutputView out) throws IOException {
 		out.writeInt(position);
 
-		for (int i = 0 ; i < position ; i++) {
+		for (int i = 0; i < position; i++) {
 			out.writeLong(data[i]);
 		}
 	}
@@ -191,7 +191,7 @@ implements ValueArray<LongValue> {
 
 		ensureCapacity(position);
 
-		for (int i = 0 ; i < position ; i++) {
+		for (int i = 0; i < position; i++) {
 			data[i] = in.readLong();
 		}
 	}
@@ -210,7 +210,7 @@ implements ValueArray<LongValue> {
 		hash.reset();
 
 		hash.hash(position);
-		for (int i = 0 ; i < position ; i++) {
+		for (int i = 0; i < position; i++) {
 			hash.hash(data[i]);
 		}
 
@@ -227,7 +227,7 @@ implements ValueArray<LongValue> {
 		LongValueArray other = (LongValueArray) o;
 
 		int min = Math.min(position, other.position);
-		for (int i = 0 ; i < min ; i++) {
+		for (int i = 0; i < min; i++) {
 			int cmp = Long.compare(data[i], other.data[i]);
 
 			if (cmp != 0) {
@@ -246,7 +246,7 @@ implements ValueArray<LongValue> {
 	public int hashCode() {
 		int hash = 1;
 
-		for (int i = 0 ; i < position ; i++) {
+		for (int i = 0; i < position; i++) {
 			hash = 31 * hash + (int) (data[i] ^ data[i] >>> 32);
 		}
 
@@ -262,7 +262,7 @@ implements ValueArray<LongValue> {
 				return false;
 			}
 
-			for (int i = 0 ; i < position ; i++) {
+			for (int i = 0; i < position; i++) {
 				if (data[i] != other.data[i]) {
 					return false;
 				}

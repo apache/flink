@@ -30,6 +30,7 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -37,6 +38,9 @@ import org.junit.runners.Parameterized;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link Graph} operations.
+ */
 @RunWith(Parameterized.class)
 public class GraphOperationsITCase extends MultipleProgramsTestBase {
 

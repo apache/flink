@@ -30,7 +30,7 @@ import java.io.IOException;
  * @param <T> element type
  */
 public class Count<T>
-extends AbstractDataSetAnalytic<T, Long> {
+extends DataSetAnalyticBase<T, Long> {
 
 	private static final String COUNT = "count";
 

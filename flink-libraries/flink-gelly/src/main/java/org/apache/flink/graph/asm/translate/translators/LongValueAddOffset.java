@@ -32,7 +32,7 @@ implements TranslateFunction<LongValue, LongValue> {
 	/**
 	 * Translate {@link LongValue} by adding a constant offset value.
 	 *
-	 * The summation is *not* checked for overflow or underflow.
+	 * <p>The summation is *not* checked for overflow or underflow.
 	 *
 	 * @param offset value to be added to each element
 	 */

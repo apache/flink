@@ -83,7 +83,7 @@ public class LongValueArraySerializerTest extends SerializerTestBase<LongValueAr
 
 		LongValueArray lva8 = new LongValueArray();
 		lva8.addAll(lva7);
-		for (int i = 0 ; i < 1.5 * defaultElements ; i++) {
+		for (int i = 0; i < 1.5 * defaultElements; i++) {
 			lva8.add(new LongValue(i));
 		}
 		lva8.addAll(lva8);

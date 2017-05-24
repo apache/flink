@@ -35,7 +35,7 @@ public interface VertexJoinFunction<VV, T> extends Function, Serializable {
 	/**
 	 * Applies a transformation on the current vertex value
 	 * and the value of the matched tuple of the input DataSet.
-	 * 
+	 *
 	 * @param vertexValue the current vertex value
 	 * @param inputValue the value of the matched Tuple2 input
 	 * @return the new vertex value

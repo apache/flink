@@ -36,7 +36,7 @@ import java.util.List;
 /**
  * Driver for {@link org.apache.flink.graph.library.GSAConnectedComponents}.
  *
- * The gather-sum-apply implementation is used because scatter-gather does not
+ * <p>The gather-sum-apply implementation is used because scatter-gather does not
  * handle object reuse (see FLINK-5891).
  */
 public class ConnectedComponents<K extends Comparable<K>, VV, EV>

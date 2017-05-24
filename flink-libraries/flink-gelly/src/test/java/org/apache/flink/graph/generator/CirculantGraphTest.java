@@ -24,14 +24,16 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
-import org.junit.Rule;
+
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link CirculantGraph}.
+ */
 public class CirculantGraphTest
-extends AbstractGraphTest {
+extends GraphGeneratorTestBase {
 
 	@Test
 	public void testGraph()

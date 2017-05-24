@@ -18,19 +18,20 @@
 
 package org.apache.flink.graph.library.metric.directed;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.accumulators.LongMaximum;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAnalyticBase;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.metric.directed.VertexMetrics.Result;
+
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -38,7 +39,7 @@ import java.text.NumberFormat;
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
- * Compute the following vertex metrics in a directed graph:
+ * Compute the following vertex metrics in a directed graph.
  *  - number of vertices
  *  - number of edges
  *  - number of unidirectional edges
@@ -55,7 +56,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class VertexMetrics<K extends Comparable<K>, VV, EV>
-extends AbstractGraphAnalytic<K, VV, EV, Result> {
+extends GraphAnalyticBase<K, VV, EV, Result> {
 
 	private static final String VERTEX_COUNT = "vertexCount";
 
@@ -255,25 +256,25 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		/**
 		 * Get the average degree, the average number of in- plus out-edges per vertex.
 		 *
-		 * A result of {@code Float.NaN} is returned for an empty graph for
+		 * <p>A result of {@code Float.NaN} is returned for an empty graph for
 		 * which both the number of edges and number of vertices is zero.
 		 *
 		 * @return average degree
 		 */
 		public double getAverageDegree() {
-			return vertexCount == 0 ? Double.NaN : getNumberOfEdges() / (double)vertexCount;
+			return vertexCount == 0 ? Double.NaN : getNumberOfEdges() / (double) vertexCount;
 		}
 
 		/**
 		 * Get the density, the ratio of actual to potential edges between vertices.
 		 *
-		 * A result of {@code Float.NaN} is returned for a graph with fewer than
+		 * <p>A result of {@code Float.NaN} is returned for a graph with fewer than
 		 * two vertices for which the number of edges is zero.
 		 *
 		 * @return density
 		 */
 		public double getDensity() {
-			return vertexCount <= 1 ? Double.NaN : getNumberOfEdges() / (double)(vertexCount*(vertexCount-1));
+			return vertexCount <= 1 ? Double.NaN : getNumberOfEdges() / (double) (vertexCount * (vertexCount - 1));
 		}
 
 		/**
@@ -358,11 +359,19 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (obj == null) { return false; }
-			if (obj == this) { return true; }
-			if (obj.getClass() != getClass()) { return false; }
+			if (obj == null) {
+				return false;
+			}
 
-			Result rhs = (Result)obj;
+			if (obj == this) {
+				return true;
+			}
+
+			if (obj.getClass() != getClass()) {
+				return false;
+			}
+
+			Result rhs = (Result) obj;
 
 			return new EqualsBuilder()
 				.append(vertexCount, rhs.vertexCount)

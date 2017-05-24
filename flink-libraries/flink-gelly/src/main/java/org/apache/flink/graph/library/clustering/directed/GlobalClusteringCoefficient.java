@@ -18,16 +18,17 @@
 
 package org.apache.flink.graph.library.clustering.directed;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAnalyticBase;
 import org.apache.flink.graph.asm.dataset.Count;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.clustering.directed.GlobalClusteringCoefficient.Result;
 import org.apache.flink.graph.library.metric.directed.VertexMetrics;
 import org.apache.flink.types.CopyableValue;
+
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
@@ -40,7 +41,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class GlobalClusteringCoefficient<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-extends AbstractGraphAnalytic<K, VV, EV, Result> {
+extends GraphAnalyticBase<K, VV, EV, Result> {
 
 	private Count<TriangleListing.Result<K>> triangleCount;
 
@@ -142,13 +143,13 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		 * number of closed triplets (triangles) divided by the total number of
 		 * triplets.
 		 *
-		 * A score of {@code Double.NaN} is returned for a graph of isolated vertices
+		 * <p>A score of {@code Double.NaN} is returned for a graph of isolated vertices
 		 * for which both the triangle count and number of neighbors are zero.
 		 *
 		 * @return global clustering coefficient score
 		 */
 		public double getGlobalClusteringCoefficientScore() {
-			return (tripletCount == 0) ? Double.NaN : triangleCount / (double)tripletCount;
+			return (tripletCount == 0) ? Double.NaN : triangleCount / (double) tripletCount;
 		}
 
 		@Override
@@ -168,11 +169,19 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (obj == null) { return false; }
-			if (obj == this) { return true; }
-			if (obj.getClass() != getClass()) { return false; }
+			if (obj == null) {
+				return false;
+			}
 
-			Result rhs = (Result)obj;
+			if (obj == this) {
+				return true;
+			}
+
+			if (obj.getClass() != getClass()) {
+				return false;
+			}
+
+			Result rhs = (Result) obj;
 
 			return new EqualsBuilder()
 				.append(tripletCount, rhs.tripletCount)

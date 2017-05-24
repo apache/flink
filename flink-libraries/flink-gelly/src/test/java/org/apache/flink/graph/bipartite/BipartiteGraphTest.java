@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.test.util.TestBaseUtils;
+
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -31,6 +32,9 @@ import java.util.Arrays;
 import static org.apache.flink.graph.generator.TestUtils.compareGraph;
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link BipartiteGraph}.
+ */
 public class BipartiteGraphTest {
 
 	@Test

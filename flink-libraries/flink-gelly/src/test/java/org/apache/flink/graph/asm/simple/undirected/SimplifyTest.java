@@ -24,12 +24,16 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.LinkedList;
 import java.util.List;
 
+/**
+ * Tests for {@link Simplify}.
+ */
 public class SimplifyTest {
 
 	protected Graph<IntValue, NullValue, NullValue> graph;

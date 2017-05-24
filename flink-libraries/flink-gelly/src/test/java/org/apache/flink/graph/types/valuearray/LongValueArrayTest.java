@@ -19,12 +19,16 @@
 package org.apache.flink.graph.types.valuearray;
 
 import org.apache.flink.types.LongValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link LongValueArray}.
+ */
 public class LongValueArrayTest {
 
 	@Test
@@ -34,7 +38,7 @@ public class LongValueArrayTest {
 		ValueArray<LongValue> lva = new LongValueArray(LongValueArray.DEFAULT_CAPACITY_IN_BYTES);
 
 		// fill the array
-		for (int i = 0 ; i < count ; i++) {
+		for (int i = 0; i < count; i++) {
 			assertFalse(lva.isFull());
 			assertEquals(i, lva.size());
 
@@ -61,9 +65,9 @@ public class LongValueArrayTest {
 		assertEquals(lva, lva.copy());
 
 		// test copyTo
-		LongValueArray lva_to = new LongValueArray();
-		lva.copyTo(lva_to);
-		assertEquals(lva, lva_to);
+		LongValueArray lvaTo = new LongValueArray();
+		lva.copyTo(lvaTo);
+		assertEquals(lva, lvaTo);
 
 		// test clear
 		lva.clear();
@@ -77,7 +81,7 @@ public class LongValueArrayTest {
 		ValueArray<LongValue> lva = new LongValueArray();
 
 		// add several elements
-		for (int i = 0 ; i < count ; i++) {
+		for (int i = 0; i < count; i++) {
 			assertFalse(lva.isFull());
 			assertEquals(i, lva.size());
 
@@ -104,9 +108,9 @@ public class LongValueArrayTest {
 		assertEquals(lva, lva.copy());
 
 		// test copyTo
-		LongValueArray lva_to = new LongValueArray();
-		lva.copyTo(lva_to);
-		assertEquals(lva, lva_to);
+		LongValueArray lvaTo = new LongValueArray();
+		lva.copyTo(lvaTo);
+		assertEquals(lva, lvaTo);
 
 		// test mark/reset
 		int size = lva.size();

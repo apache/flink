@@ -24,12 +24,16 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link CompleteGraph}.
+ */
 public class CompleteGraphTest
-extends AbstractGraphTest {
+extends GraphGeneratorTestBase {
 
 	@Test
 	public void testGraph()
@@ -54,7 +58,7 @@ extends AbstractGraphTest {
 			.generate();
 
 		assertEquals(vertexCount, graph.numberOfVertices());
-		assertEquals(vertexCount*(vertexCount-1), graph.numberOfEdges());
+		assertEquals(vertexCount * (vertexCount - 1), graph.numberOfEdges());
 
 		long minInDegree = graph.inDegrees().min(1).collect().get(0).f1.getValue();
 		long minOutDegree = graph.outDegrees().min(1).collect().get(0).f1.getValue();

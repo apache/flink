@@ -86,7 +86,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Edge<K, Tuple2<EV, LongValue>>>
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
-		if (! EdgeSourceDegree.class.isAssignableFrom(other.getClass())) {
+		if (!EdgeSourceDegree.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 

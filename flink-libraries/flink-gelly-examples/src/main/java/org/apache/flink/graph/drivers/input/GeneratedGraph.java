@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.drivers.input;
 
-import org.apache.commons.lang3.text.WordUtils;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
@@ -33,6 +32,8 @@ import org.apache.flink.types.CharValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.types.ShortValue;
+
+import org.apache.commons.lang3.text.WordUtils;
 
 /**
  * Base class for generated graphs.
@@ -177,7 +178,7 @@ implements Input<K, NullValue, NullValue> {
 	/**
 	 * Translate {@link LongValue} to {@link ByteValue}.
 	 *
-	 * Throws {@link RuntimeException} for byte overflow.
+	 * <p>Throws {@link RuntimeException} for byte overflow.
 	 */
 	static class LongValueToUnsignedByteValue
 	implements TranslateFunction<LongValue, ByteValue> {
@@ -205,7 +206,7 @@ implements Input<K, NullValue, NullValue> {
 	/**
 	 * Translate {@link LongValue} to {@link Byte}.
 	 *
-	 * Throws {@link RuntimeException} for byte overflow.
+	 * <p>Throws {@link RuntimeException} for byte overflow.
 	 */
 	static class LongValueToUnsignedByte
 	implements TranslateFunction<LongValue, Byte> {
@@ -227,7 +228,7 @@ implements Input<K, NullValue, NullValue> {
 	/**
 	 * Translate {@link LongValue} to {@link ShortValue}.
 	 *
-	 * Throws {@link RuntimeException} for short overflow.
+	 * <p>Throws {@link RuntimeException} for short overflow.
 	 */
 	static class LongValueToUnsignedShortValue
 	implements TranslateFunction<LongValue, ShortValue> {
@@ -255,7 +256,7 @@ implements Input<K, NullValue, NullValue> {
 	/**
 	 * Translate {@link LongValue} to {@link Short}.
 	 *
-	 * Throws {@link RuntimeException} for short overflow.
+	 * <p>Throws {@link RuntimeException} for short overflow.
 	 */
 	static class LongValueToUnsignedShort
 	implements TranslateFunction<LongValue, Short> {
@@ -277,7 +278,7 @@ implements Input<K, NullValue, NullValue> {
 	/**
 	 * Translate {@link LongValue} to {@link CharValue}.
 	 *
-	 * Throws {@link RuntimeException} for char overflow.
+	 * <p>Throws {@link RuntimeException} for char overflow.
 	 */
 	static class LongValueToCharValue
 	implements TranslateFunction<LongValue, CharValue> {
@@ -305,7 +306,7 @@ implements Input<K, NullValue, NullValue> {
 	/**
 	 * Translate {@link LongValue} to {@code Character}.
 	 *
-	 * Throws {@link RuntimeException} for char overflow.
+	 * <p>Throws {@link RuntimeException} for char overflow.
 	 */
 	static class LongValueToChar
 	implements TranslateFunction<LongValue, Character> {
@@ -327,7 +328,7 @@ implements Input<K, NullValue, NullValue> {
 	/**
 	 * Translate {@link LongValue} to {@link Integer}.
 	 *
-	 * Throws {@link RuntimeException} for integer overflow.
+	 * <p>Throws {@link RuntimeException} for integer overflow.
 	 */
 	static class LongValueToUnsignedInt
 	implements TranslateFunction<LongValue, Integer> {

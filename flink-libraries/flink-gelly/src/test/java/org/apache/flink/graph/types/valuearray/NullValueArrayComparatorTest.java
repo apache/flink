@@ -23,6 +23,9 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.NullValue;
 
+/**
+ * Tests for {@link NullValueArrayComparator}.
+ */
 public class NullValueArrayComparatorTest extends ComparatorTestBase<NullValueArray> {
 
 	@Override

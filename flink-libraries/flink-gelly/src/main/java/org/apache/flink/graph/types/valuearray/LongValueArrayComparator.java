@@ -30,7 +30,7 @@ import java.io.IOException;
 /**
  * Specialized comparator for LongValueArray based on CopyableValueComparator.
  *
- * This can be used for grouping keys but not for sorting keys.
+ * <p>This can be used for grouping keys but not for sorting keys.
  */
 @Internal
 public class LongValueArrayComparator extends TypeComparator<LongValueArray> {

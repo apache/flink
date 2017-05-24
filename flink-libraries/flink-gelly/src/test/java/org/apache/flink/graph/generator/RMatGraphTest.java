@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.generator;
 
-import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
@@ -27,13 +26,18 @@ import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
+import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link RMatGraph}.
+ */
 public class RMatGraphTest
-extends AbstractGraphTest {
+extends GraphGeneratorTestBase {
 
 	@Test
 	public void testGraphMetrics()

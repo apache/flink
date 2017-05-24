@@ -32,7 +32,7 @@ import org.apache.flink.graph.EdgeOrder;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
-import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.MurmurHash;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.ByteValue;
@@ -93,7 +93,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
-		if (! VertexDegrees.class.isAssignableFrom(other.getClass())) {
+		if (!VertexDegrees.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 
@@ -271,7 +271,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 	extends Tuple3<LongValue, LongValue, LongValue> {
 		private static final int HASH_SEED = 0x3a12fc31;
 
-		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
+		private MurmurHash hasher = new MurmurHash(HASH_SEED);
 
 		public Degrees() {
 			this(new LongValue(), new LongValue(), new LongValue());

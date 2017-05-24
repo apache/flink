@@ -35,7 +35,7 @@ import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.asm.result.UnaryResult;
 import org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result;
-import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.MurmurHash;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.CopyableValue;
@@ -49,12 +49,12 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * The local clustering coefficient measures the connectedness of each vertex's
  * neighborhood. Scores range from 0.0 (no edges between neighbors) to 1.0
  * (neighborhood is a clique).
- * <p>
- * An edge between a vertex's neighbors is a triangle. Counting edges between
+ *
+ * <p>An edge between a vertex's neighbors is a triangle. Counting edges between
  * neighbors is equivalent to counting the number of triangles which include
  * the vertex.
- * <p>
- * The input graph must be a simple graph containing no duplicate edges or
+ *
+ * <p>The input graph must be a simple graph containing no duplicate edges or
  * self-loops.
  *
  * @param <K> graph ID type
@@ -98,6 +98,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 		return this;
 	}
+
 	@Override
 	protected String getAlgorithmName() {
 		return LocalClusteringCoefficient.class.getName();
@@ -107,7 +108,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
-		if (! LocalClusteringCoefficient.class.isAssignableFrom(other.getClass())) {
+		if (!LocalClusteringCoefficient.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 
@@ -257,7 +258,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	implements PrintableResult, UnaryResult<T> {
 		public static final int HASH_SEED = 0x37a208c4;
 
-		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
+		private MurmurHash hasher = new MurmurHash(HASH_SEED);
 
 		@Override
 		public T getVertexId0() {
@@ -293,7 +294,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * number of edges between neighbors, equal to the triangle count,
 		 * divided by the number of potential edges between neighbors.
 		 *
-		 * A score of {@code Double.NaN} is returned for a vertex with degree 1
+		 * <p>A score of {@code Double.NaN} is returned for a vertex with degree 1
 		 * for which both the triangle count and number of neighbors are zero.
 		 *
 		 * @return local clustering coefficient score
@@ -302,7 +303,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			long degree = getDegree().getValue();
 			long neighborPairs = degree * (degree - 1);
 
-			return (neighborPairs == 0) ? Double.NaN : getTriangleCount().getValue() / (double)neighborPairs;
+			return (neighborPairs == 0) ? Double.NaN : getTriangleCount().getValue() / (double) neighborPairs;
 		}
 
 		/**

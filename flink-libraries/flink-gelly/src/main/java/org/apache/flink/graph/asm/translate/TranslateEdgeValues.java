@@ -79,7 +79,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, OLD, K, VV, NEW> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingGraph other) {
 		Preconditions.checkNotNull(other);
 
-		if (! TranslateEdgeValues.class.isAssignableFrom(other.getClass())) {
+		if (!TranslateEdgeValues.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 

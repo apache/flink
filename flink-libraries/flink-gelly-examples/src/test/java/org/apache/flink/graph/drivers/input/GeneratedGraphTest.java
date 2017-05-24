@@ -21,21 +21,25 @@ package org.apache.flink.graph.drivers.input;
 import org.apache.flink.graph.asm.translate.TranslateFunction;
 import org.apache.flink.graph.drivers.input.GeneratedGraph.LongValueToChar;
 import org.apache.flink.graph.drivers.input.GeneratedGraph.LongValueToCharValue;
+import org.apache.flink.graph.drivers.input.GeneratedGraph.LongValueToLong;
 import org.apache.flink.graph.drivers.input.GeneratedGraph.LongValueToString;
 import org.apache.flink.graph.drivers.input.GeneratedGraph.LongValueToUnsignedByte;
 import org.apache.flink.graph.drivers.input.GeneratedGraph.LongValueToUnsignedByteValue;
 import org.apache.flink.graph.drivers.input.GeneratedGraph.LongValueToUnsignedInt;
-import org.apache.flink.graph.drivers.input.GeneratedGraph.LongValueToLong;
 import org.apache.flink.graph.drivers.input.GeneratedGraph.LongValueToUnsignedShort;
 import org.apache.flink.graph.drivers.input.GeneratedGraph.LongValueToUnsignedShortValue;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.CharValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link GeneratedGraph}.
+ */
 public class GeneratedGraphTest {
 
 	private TranslateFunction<LongValue, ByteValue> byteValueTranslator = new LongValueToUnsignedByteValue();
@@ -61,12 +65,12 @@ public class GeneratedGraphTest {
 		assertEquals(new ByteValue((byte) -1), byteValueTranslator.translate(new LongValue((1L << 8) - 1), byteValue));
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testByteValueTranslationUpperOutOfRange() throws Exception {
 		byteValueTranslator.translate(new LongValue(1L << 8), byteValue);
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testByteValueTranslationLowerOutOfRange() throws Exception {
 		byteValueTranslator.translate(new LongValue(-1), byteValue);
 	}
@@ -80,12 +84,12 @@ public class GeneratedGraphTest {
 		assertEquals(Byte.valueOf((byte) -1), byteTranslator.translate(new LongValue((1L << 8) - 1), null));
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testByteTranslationUpperOutOfRange() throws Exception {
 		byteTranslator.translate(new LongValue(1L << 8), null);
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testByteTranslationLowerOutOfRange() throws Exception {
 		byteTranslator.translate(new LongValue(-1), null);
 	}
@@ -99,12 +103,12 @@ public class GeneratedGraphTest {
 		assertEquals(new ShortValue((short) -1), shortValueTranslator.translate(new LongValue((1L << 16) - 1), shortValue));
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testShortValueTranslationUpperOutOfRange() throws Exception {
 		shortValueTranslator.translate(new LongValue(1L << 16), shortValue);
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testShortValueTranslationLowerOutOfRange() throws Exception {
 		shortValueTranslator.translate(new LongValue(-1), shortValue);
 	}
@@ -118,12 +122,12 @@ public class GeneratedGraphTest {
 		assertEquals(Short.valueOf((short) -1), shortTranslator.translate(new LongValue((1L << 16) - 1), null));
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testShortTranslationUpperOutOfRange() throws Exception {
 		shortTranslator.translate(new LongValue(1L << 16), null);
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testShortTranslationLowerOutOfRange() throws Exception {
 		shortTranslator.translate(new LongValue(-1), null);
 	}
@@ -136,12 +140,12 @@ public class GeneratedGraphTest {
 		assertEquals(new CharValue(Character.MAX_VALUE), charValueTranslator.translate(new LongValue((long) Character.MAX_VALUE), charValue));
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testCharValueTranslationUpperOutOfRange() throws Exception {
 		charValueTranslator.translate(new LongValue(1L << 16), charValue);
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testCharValueTranslationLowerOutOfRange() throws Exception {
 		charValueTranslator.translate(new LongValue(-1), charValue);
 	}
@@ -154,12 +158,12 @@ public class GeneratedGraphTest {
 		assertEquals(Character.valueOf(Character.MAX_VALUE), charTranslator.translate(new LongValue((long) Character.MAX_VALUE), null));
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testCharacterTranslationUpperOutOfRange() throws Exception {
 		charTranslator.translate(new LongValue(1L << 16), null);
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testCharacterTranslationLowerOutOfRange() throws Exception {
 		charTranslator.translate(new LongValue(-1), null);
 	}
@@ -173,12 +177,12 @@ public class GeneratedGraphTest {
 		assertEquals(Integer.valueOf(-1), intTranslator.translate(new LongValue((1L << 32) - 1), null));
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testIntegerTranslationUpperOutOfRange() throws Exception {
 		intTranslator.translate(new LongValue(1L << 32), null);
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected = IllegalArgumentException.class)
 	public void testIntegerTranslationLowerOutOfRange() throws Exception {
 		intTranslator.translate(new LongValue(-1), null);
 	}

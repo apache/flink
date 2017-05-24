@@ -23,7 +23,7 @@ import java.io.Serializable;
 /**
  * A resettable implementation of the 32-bit MurmurHash algorithm.
  */
-public class Murmur3_32 implements Serializable {
+public class MurmurHash implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -41,7 +41,7 @@ public class Murmur3_32 implements Serializable {
 	 *
 	 * @param seed MurmurHash seed
 	 */
-	public Murmur3_32(int seed) {
+	public MurmurHash(int seed) {
 		this.seed = seed;
 		reset();
 	}
@@ -51,7 +51,7 @@ public class Murmur3_32 implements Serializable {
 	 *
 	 * @return this
 	 */
-	public Murmur3_32 reset() {
+	public MurmurHash reset() {
 		count = 0;
 		hash = seed;
 		return this;
@@ -63,7 +63,7 @@ public class Murmur3_32 implements Serializable {
 	 * @param input 64-bit input value
 	 * @return this
 	 */
-	public Murmur3_32 hash(double input) {
+	public MurmurHash hash(double input) {
 		hash(Double.doubleToLongBits(input));
 		return this;
 	}
@@ -74,7 +74,7 @@ public class Murmur3_32 implements Serializable {
 	 * @param input 32-bit input value
 	 * @return this
 	 */
-	public Murmur3_32 hash(float input) {
+	public MurmurHash hash(float input) {
 		hash(Float.floatToIntBits(input));
 		return this;
 	}
@@ -85,7 +85,7 @@ public class Murmur3_32 implements Serializable {
 	 * @param input 32-bit input value
 	 * @return this
 	 */
-	public Murmur3_32 hash(int input) {
+	public MurmurHash hash(int input) {
 		count++;
 
 		input *= 0xcc9e2d51;
@@ -105,9 +105,9 @@ public class Murmur3_32 implements Serializable {
 	 * @param input 64-bit input value
 	 * @return this
 	 */
-	public Murmur3_32 hash(long input) {
-		hash((int)(input >>> 32));
-		hash((int)input);
+	public MurmurHash hash(long input) {
+		hash((int) (input >>> 32));
+		hash((int) input);
 		return this;
 	}
 

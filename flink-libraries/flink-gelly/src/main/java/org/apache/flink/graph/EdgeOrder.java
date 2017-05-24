@@ -32,7 +32,7 @@ public enum EdgeOrder {
 	private final byte bitmask;
 
 	EdgeOrder(int bitmask) {
-		this.bitmask = (byte)bitmask;
+		this.bitmask = (byte) bitmask;
 	}
 
 	/**

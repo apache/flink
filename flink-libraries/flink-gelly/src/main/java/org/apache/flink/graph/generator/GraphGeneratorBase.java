@@ -16,43 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.asm.dataset;
+package org.apache.flink.graph.generator;
 
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.util.Preconditions;
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
- * Base class for {@link DataSetAnalytic}.
+ * Base class for graph generators.
  *
- * @param <T> element type
- * @param <R> the return type
+ * @param <K> graph ID type
+ * @param <VV> vertex value type
+ * @param <EV> edge value type
  */
-public abstract class AbstractDataSetAnalytic<T, R>
-implements DataSetAnalytic<T, R> {
+public abstract class GraphGeneratorBase<K, VV, EV>
+implements GraphGenerator<K, VV, EV> {
 
-	protected ExecutionEnvironment env;
+	// Optional configuration
+	protected int parallelism = PARALLELISM_DEFAULT;
 
 	@Override
-	public AbstractDataSetAnalytic<T, R> run(DataSet<T> input)
-			throws Exception {
-		env = input.getExecutionEnvironment();
+	public GraphGenerator<K, VV, EV> setParallelism(int parallelism) {
+		this.parallelism = parallelism;
+
 		return this;
-	}
-
-	@Override
-	public R execute()
-			throws Exception {
-		env.execute();
-		return getResult();
-	}
-
-	@Override
-	public R execute(String jobName)
-			throws Exception {
-		Preconditions.checkNotNull(jobName);
-
-		env.execute(jobName);
-		return getResult();
 	}
 }

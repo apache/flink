@@ -27,7 +27,7 @@ import org.apache.flink.types.NullValue;
 /**
  * Create an Edge from a Tuple2.
  *
- * The new edge's value is set to {@link NullValue}.
+ * <p>The new edge's value is set to {@link NullValue}.
  *
  * @param <K> edge ID type
  */

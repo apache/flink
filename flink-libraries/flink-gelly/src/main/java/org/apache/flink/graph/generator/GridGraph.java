@@ -39,7 +39,7 @@ import java.util.List;
  * @see <a href="http://mathworld.wolfram.com/GridGraph.html">Grid Graph at Wolfram MathWorld</a>
  */
 public class GridGraph
-extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
+extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
 	// Required to create the DataSource
 	private final ExecutionEnvironment env;

@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.generator;
 
-import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -32,13 +31,15 @@ import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import java.util.List;
 
 /**
  * @see <a href="http://www.cs.cmu.edu/~christos/PUBLICATIONS/siam04.pdf">R-MAT: A Recursive Model for Graph Mining</a>
  */
 public class RMatGraph<T extends RandomGenerator>
-extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
+extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
 	public static final int MINIMUM_VERTEX_COUNT = 1;
 
@@ -64,15 +65,15 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	private final long edgeCount;
 
 	// Optional configuration
-	public float A = DEFAULT_A;
+	private float a = DEFAULT_A;
 
-	public float B = DEFAULT_B;
+	private float b = DEFAULT_B;
 
-	public float C = DEFAULT_C;
+	private float c = DEFAULT_C;
 
 	private boolean noiseEnabled = false;
 
-	public float noise = DEFAULT_NOISE;
+	private float noise = DEFAULT_NOISE;
 
 	/**
 	 * A directed power-law multi{@link Graph graph} generated using the
@@ -99,22 +100,22 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	/**
 	 * The parameters for recursively subdividing the adjacency matrix.
 	 *
-	 * Setting A = B = C = 0.25 emulates the Erdős–Rényi model.
+	 * <p>Setting A = B = C = 0.25 emulates the Erdős–Rényi model.
 	 *
-	 * Graph500 uses A = 0.57, B = C = 0.19.
+	 * <p>Graph500 uses A = 0.57, B = C = 0.19.
 	 *
-	 * @param A likelihood of source bit = 0, target bit = 0
-	 * @param B likelihood of source bit = 0, target bit = 1
-	 * @param C likelihood of source bit = 1, target bit = 0
+	 * @param a likelihood of source bit = 0, target bit = 0
+	 * @param b likelihood of source bit = 0, target bit = 1
+	 * @param c likelihood of source bit = 1, target bit = 0
 	 * @return this
 	 */
-	public RMatGraph<T> setConstants(float A, float B, float C) {
-		Preconditions.checkArgument(A >= 0.0f && B >= 0.0f && C >= 0.0f && A + B + C <= 1.0f,
+	public RMatGraph<T> setConstants(float a, float b, float c) {
+		Preconditions.checkArgument(a >= 0.0f && b >= 0.0f && c >= 0.0f && a + b + c <= 1.0f,
 			"RMat parameters A, B, and C must be non-negative and sum to less than or equal to one");
 
-		this.A = A;
-		this.B = B;
-		this.C = C;
+		this.a = a;
+		this.b = b;
+		this.c = c;
 
 		return this;
 	}
@@ -155,7 +156,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 			.rebalance()
 				.setParallelism(parallelism)
 				.name("Rebalance")
-			.flatMap(new GenerateEdges<T>(vertexCount, scale, A, B, C, noiseEnabled, noise))
+			.flatMap(new GenerateEdges<T>(vertexCount, scale, a, b, c, noiseEnabled, noise))
 				.setParallelism(parallelism)
 				.name("RMat graph edges");
 
@@ -174,13 +175,13 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 		private final int scale;
 
-		private final float A;
+		private final float a;
 
-		private final float B;
+		private final float b;
 
-		private final float C;
+		private final float c;
 
-		private final float D;
+		private final float d;
 
 		private final boolean noiseEnabled;
 
@@ -195,13 +196,13 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 		private Edge<LongValue, NullValue> targetToSource = new Edge<>(target, source, NullValue.getInstance());
 
-		public GenerateEdges(long vertexCount, int scale, float A, float B, float C, boolean noiseEnabled, float noise) {
+		public GenerateEdges(long vertexCount, int scale, float a, float b, float c, boolean noiseEnabled, float noise) {
 			this.vertexCount = vertexCount;
 			this.scale = scale;
-			this.A = A;
-			this.B = B;
-			this.C = C;
-			this.D = 1.0f - A - B - C;
+			this.a = a;
+			this.b = b;
+			this.c = c;
+			this.d = 1.0f - a - b - c;
 			this.noiseEnabled = noiseEnabled;
 			this.noise = noise;
 		}
@@ -217,10 +218,10 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 				long y = 0;
 
 				// matrix constants are reset for each edge
-				float a = A;
-				float b = B;
-				float c = C;
-				float d = D;
+				float a = this.a;
+				float b = this.b;
+				float c = this.c;
+				float d = this.d;
 
 				for (int bit = 0; bit < scale; bit++) {
 					// generated next bit for source and target
