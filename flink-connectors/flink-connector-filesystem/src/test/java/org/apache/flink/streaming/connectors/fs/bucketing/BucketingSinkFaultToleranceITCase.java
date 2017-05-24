@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.fs.bucketing;
 
-import com.google.common.collect.Sets;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -25,6 +25,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.checkpointing.StreamFaultToleranceTestBase;
 import org.apache.flink.util.NetUtils;
+
+import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -37,11 +39,11 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.BufferedReader;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -55,13 +57,13 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for {@link BucketingSink}.
  *
- * <p>
- * This test only verifies the exactly once behaviour of the sink. Another test tests the
+ *
+ * <p>This test only verifies the exactly once behaviour of the sink. Another test tests the
  * rolling behaviour.
  */
 public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestBase {
 
-	final long NUM_STRINGS = 16_000;
+	static final long NUM_STRINGS = 16_000;
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
@@ -102,10 +104,8 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 	public void testProgram(StreamExecutionEnvironment env) {
 		assertTrue("Broken test setup", NUM_STRINGS % 40 == 0);
 
-		int PARALLELISM = 12;
-
 		env.enableCheckpointing(20);
-		env.setParallelism(PARALLELISM);
+		env.setParallelism(12);
 		env.disableOperatorChaining();
 
 		DataStream<String> stream = env.addSource(new StringGeneratingSourceFunction(NUM_STRINGS)).startNewChain();
@@ -207,7 +207,6 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 
 		private long failurePos;
 		private long count;
-
 
 		OnceFailingIdentityMapper(long numElements) {
 			this.numElements = numElements;

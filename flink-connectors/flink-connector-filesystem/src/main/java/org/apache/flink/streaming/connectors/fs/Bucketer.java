@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.fs;
 
 import org.apache.hadoop.fs.Path;
@@ -25,8 +26,8 @@ import java.io.Serializable;
  * A bucketer is used with a {@link RollingSink}
  * to put emitted elements into rolling files.
  *
- * <p>
- * The {@code RollingSink} has one active bucket that it is writing to at a time. Whenever
+ *
+ * <p>The {@code RollingSink} has one active bucket that it is writing to at a time. Whenever
  * a new element arrives it will ask the {@code Bucketer} if a new bucket should be started and
  * the old one closed. The {@code Bucketer} can, for example, decide to start new buckets
  * based on system time.
