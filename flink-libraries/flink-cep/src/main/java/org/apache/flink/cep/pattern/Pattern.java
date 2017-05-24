@@ -30,10 +30,10 @@ import org.apache.flink.util.Preconditions;
 
 /**
  * Base class for a pattern definition.
- * <p>
- * A pattern definition is used by {@link org.apache.flink.cep.nfa.compiler.NFACompiler} to create a {@link NFA}.
  *
- * <pre>{@code
+ * <p>A pattern definition is used by {@link org.apache.flink.cep.nfa.compiler.NFACompiler} to create a {@link NFA}.
+ *
+ * <p><pre>{@code
  * Pattern<T, F> pattern = Pattern.<T>begin("start")
  *   .next("middle").subtype(F.class)
  *   .followedBy("end").where(new MyCondition());
@@ -57,8 +57,8 @@ public class Pattern<T, F extends T> {
 	/** Window length in which the pattern match has to occur. */
 	private Time windowTime;
 
-	/** A quantifier for the pattern. By default set to {@link Quantifier#ONE(ConsumingStrategy)}. */
-	private Quantifier quantifier = Quantifier.ONE(ConsumingStrategy.STRICT);
+	/** A quantifier for the pattern. By default set to {@link Quantifier#one(ConsumingStrategy)}. */
+	private Quantifier quantifier = Quantifier.one(ConsumingStrategy.STRICT);
 
 	/**
 	 * Applicable to a {@code times} pattern, and holds
@@ -77,7 +77,7 @@ public class Pattern<T, F extends T> {
 			final ConsumingStrategy consumingStrategy) {
 		this.name = name;
 		this.previous = previous;
-		this.quantifier = Quantifier.ONE(consumingStrategy);
+		this.quantifier = Quantifier.one(consumingStrategy);
 	}
 
 	public Pattern<T, ? extends T> getPrevious() {
@@ -295,13 +295,13 @@ public class Pattern<T, F extends T> {
 	 * {@code A1 A2 B} appears, this will generate patterns:
 	 * {@code A1 B} and {@code A1 A2 B}. See also {@link #allowCombinations()}.
 	 *
-	 * @return The same pattern with a {@link Quantifier#ONE_OR_MORE(ConsumingStrategy)} quantifier applied.
+	 * @return The same pattern with a {@link Quantifier#oneOrMore(ConsumingStrategy)} quantifier applied.
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> oneOrMore() {
 		checkIfNoNotPattern();
 		checkIfQuantifierApplied();
-		this.quantifier = Quantifier.ONE_OR_MORE(quantifier.getConsumingStrategy());
+		this.quantifier = Quantifier.oneOrMore(quantifier.getConsumingStrategy());
 		return this;
 	}
 
@@ -317,14 +317,14 @@ public class Pattern<T, F extends T> {
 		checkIfNoNotPattern();
 		checkIfQuantifierApplied();
 		Preconditions.checkArgument(times > 0, "You should give a positive number greater than 0.");
-		this.quantifier = Quantifier.TIMES(quantifier.getConsumingStrategy());
+		this.quantifier = Quantifier.times(quantifier.getConsumingStrategy());
 		this.times = times;
 		return this;
 	}
 
 	/**
-	 * Applicable only to {@link Quantifier#ONE_OR_MORE(ConsumingStrategy)} and
-	 * {@link Quantifier#TIMES(ConsumingStrategy)} patterns, this option allows more flexibility to the matching events.
+	 * Applicable only to {@link Quantifier#oneOrMore(ConsumingStrategy)} and
+	 * {@link Quantifier#times(ConsumingStrategy)} patterns, this option allows more flexibility to the matching events.
 	 *
 	 * <p>If {@code allowCombinations()} is not applied for a
 	 * pattern {@code A.oneOrMore().followedBy(B)} and a sequence of events

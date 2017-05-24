@@ -25,6 +25,11 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import java.io.Serializable;
 import java.util.Objects;
 
+/**
+ * Represents a transition from one {@link State} to another.
+ *
+ * @param <T> type of events that are handled by the {@link IterativeCondition}
+ */
 public class StateTransition<T> implements Serializable {
 	private static final long serialVersionUID = -4825345749997891838L;
 

@@ -295,7 +295,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * {{{A1 A2 B}}} appears, this will generate patterns:
     * {{{A1 B}}} and {{{A1 A2 B}}}. See also {{{allowCombinations()}}}.
     *
-    * @return The same pattern with a [[Quantifier.ONE_OR_MORE()]] quantifier applied.
+    * @return The same pattern with a [[Quantifier.oneOrMore()]] quantifier applied.
     * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
     */
   def oneOrMore: Pattern[T, F] = {
@@ -316,7 +316,7 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   }
 
   /**
-    * Applicable only to [[Quantifier.ONE_OR_MORE()]] and [[Quantifier.TIMES()]] patterns,
+    * Applicable only to [[Quantifier.oneOrMore()]] and [[Quantifier.times()]] patterns,
     * this option allows more flexibility to the matching events.
     *
     * If {{{allowCombinations()}}} is not applied for a

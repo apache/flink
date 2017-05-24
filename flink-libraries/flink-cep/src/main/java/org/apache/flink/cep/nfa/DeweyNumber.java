@@ -31,7 +31,7 @@ import java.util.Arrays;
 /**
  * Versioning scheme which allows to retrieve dependencies between different versions.
  *
- * A dewey number consists of a sequence of digits d1.d2.d3. ... .dn. A dewey number v is compatible
+ * <p>A dewey number consists of a sequence of digits d1.d2.d3. ... .dn. A dewey number v is compatible
  * to v' iff v contains v' as a prefix or if both dewey number differ only in the last digit and
  * the last digit of v is greater than v'.
  *
@@ -58,7 +58,7 @@ public class DeweyNumber implements Serializable {
 	/**
 	 * Checks whether this dewey number is compatible to the other dewey number.
 	 *
-	 * True iff this contains other as a prefix or iff they differ only in the last digit whereas
+	 * <p>True iff this contains other as a prefix or iff they differ only in the last digit whereas
 	 * the last digit of this is greater than the last digit of other.
 	 *
 	 * @param other The other dewey number to check compatibility against
@@ -106,7 +106,7 @@ public class DeweyNumber implements Serializable {
 
 	/**
 	 * Creates a new dewey number from this such that its last digit is increased by the supplied
-	 * number
+	 * number.
 	 *
 	 * @param times how many times to increase the Dewey number
 	 * @return A new dewey number derived from this whose last digit is increased by given number

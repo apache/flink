@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -33,6 +34,7 @@ import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
+
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -462,7 +464,6 @@ public class CEPFrom12MigrationTest {
 			harness.close();
 		}
 	}
-
 
 	@Test
 	public void testSinglePatternAfterMigration() throws Exception {
