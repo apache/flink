@@ -79,70 +79,86 @@ public class CEPRescalingTest {
 		assertEquals(1, KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(maxParallelism, 2, keygroup));
 
 		// now we start the test, we go from parallelism 1 to 2.
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = null;
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness1 = null;
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness2 = null;
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
-			getTestHarness(maxParallelism, 1, 0);
-		harness.open();
+		try {
+			harness = getTestHarness(maxParallelism, 1, 0);
+			harness.open();
 
-		harness.processElement(new StreamRecord<>(startEvent1, 1));						// valid element
-		harness.processElement(new StreamRecord<>(new Event(7, "foobar", 1.0), 2));
+			harness.processElement(
+				new StreamRecord<>(startEvent1, 1));                        // valid element
+			harness.processElement(new StreamRecord<>(new Event(7, "foobar", 1.0), 2));
 
-		harness.processElement(new StreamRecord<>(startEvent2, 3));						// valid element
-		harness.processElement(new StreamRecord<Event>(middleEvent2, 4));				// valid element
+			harness.processElement(
+				new StreamRecord<>(startEvent2, 3));                        // valid element
+			harness.processElement(
+				new StreamRecord<Event>(middleEvent2, 4));                // valid element
 
-		// take a snapshot with some elements in internal sorting queue
-		OperatorStateHandles snapshot = harness.snapshot(0, 0);
-		harness.close();
+			// take a snapshot with some elements in internal sorting queue
+			OperatorStateHandles snapshot = harness.snapshot(0, 0);
+			harness.close();
 
-		// initialize two sub-tasks with the previously snapshotted state to simulate scaling up
+			// initialize two sub-tasks with the previously snapshotted state to simulate scaling up
 
-		// we know that the valid element will go to index 0,
-		// so we initialize the two tasks and we put the rest of
-		// the valid elements for the pattern on task 0.
+			// we know that the valid element will go to index 0,
+			// so we initialize the two tasks and we put the rest of
+			// the valid elements for the pattern on task 0.
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness1 =
-			getTestHarness(maxParallelism, 2, 0);
+			harness1 = getTestHarness(maxParallelism, 2, 0);
 
-		harness1.setup();
-		harness1.initializeState(snapshot);
-		harness1.open();
+			harness1.setup();
+			harness1.initializeState(snapshot);
+			harness1.open();
 
-		// if element timestamps are not correctly checkpointed/restored this will lead to
-		// a pruning time underflow exception in NFA
-		harness1.processWatermark(new Watermark(2));
+			// if element timestamps are not correctly checkpointed/restored this will lead to
+			// a pruning time underflow exception in NFA
+			harness1.processWatermark(new Watermark(2));
 
-		harness1.processElement(new StreamRecord<Event>(middleEvent1, 3));				// valid element
-		harness1.processElement(new StreamRecord<>(endEvent1, 5));						// valid element
+			harness1.processElement(
+				new StreamRecord<Event>(middleEvent1, 3));                // valid element
+			harness1.processElement(
+				new StreamRecord<>(endEvent1, 5));                        // valid element
 
-		harness1.processWatermark(new Watermark(Long.MAX_VALUE));
+			harness1.processWatermark(new Watermark(Long.MAX_VALUE));
 
-		// watermarks and the result
-		assertEquals(3, harness1.getOutput().size());
-		verifyWatermark(harness1.getOutput().poll(), 2);
-		verifyPattern(harness1.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
+			// watermarks and the result
+			assertEquals(3, harness1.getOutput().size());
+			verifyWatermark(harness1.getOutput().poll(), 2);
+			verifyPattern(harness1.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness2 =
-			getTestHarness(maxParallelism, 2, 1);
+			harness2 = getTestHarness(maxParallelism, 2, 1);
 
-		harness2.setup();
-		harness2.initializeState(snapshot);
-		harness2.open();
+			harness2.setup();
+			harness2.initializeState(snapshot);
+			harness2.open();
 
-		// now we move to the second parallel task
-		harness2.processWatermark(new Watermark(2));
+			// now we move to the second parallel task
+			harness2.processWatermark(new Watermark(2));
 
-		harness2.processElement(new StreamRecord<>(endEvent2, 5));
-		harness2.processElement(new StreamRecord<>(new Event(42, "start", 1.0), 4));
+			harness2.processElement(new StreamRecord<>(endEvent2, 5));
+			harness2.processElement(new StreamRecord<>(new Event(42, "start", 1.0), 4));
 
-		harness2.processWatermark(new Watermark(Long.MAX_VALUE));
+			harness2.processWatermark(new Watermark(Long.MAX_VALUE));
 
-		assertEquals(3, harness2.getOutput().size());
-		verifyWatermark(harness2.getOutput().poll(), 2);
-		verifyPattern(harness2.getOutput().poll(), startEvent2, middleEvent2, endEvent2);
+			assertEquals(3, harness2.getOutput().size());
+			verifyWatermark(harness2.getOutput().poll(), 2);
+			verifyPattern(harness2.getOutput().poll(), startEvent2, middleEvent2, endEvent2);
+		} finally {
+			closeSilently(harness);
+			closeSilently(harness1);
+			closeSilently(harness2);
+		}
+	}
 
-		harness.close();
-		harness1.close();
-		harness2.close();
+	private static void closeSilently(OneInputStreamOperatorTestHarness<?, ?> harness) {
+		if (harness != null) {
+			try {
+				harness.close();
+			} catch (Throwable ignored) {
+			}
+		}
 	}
 
 	@Test
@@ -211,109 +227,120 @@ public class CEPRescalingTest {
 			getTestHarness(maxParallelism, 3, 2);
 		harness3.open();
 
-		harness1.processWatermark(Long.MIN_VALUE);
-		harness2.processWatermark(Long.MIN_VALUE);
-		harness3.processWatermark(Long.MIN_VALUE);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness4 = null;
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness5 = null;
 
-		harness1.processElement(new StreamRecord<>(startEvent1, 1));						// valid element
-		harness1.processElement(new StreamRecord<>(new Event(7, "foobar", 1.0), 2));
-		harness1.processElement(new StreamRecord<Event>(middleEvent1, 3));					// valid element
-		harness1.processElement(new StreamRecord<>(endEvent1, 5));							// valid element
+		try {
+			harness1.processWatermark(Long.MIN_VALUE);
+			harness2.processWatermark(Long.MIN_VALUE);
+			harness3.processWatermark(Long.MIN_VALUE);
 
-		// till here we have a valid sequence, so after creating the
-		// new instance and sending it a watermark, we expect it to fire,
-		// even with no new elements.
+			harness1.processElement(
+				new StreamRecord<>(startEvent1, 1));                        // valid element
+			harness1.processElement(new StreamRecord<>(new Event(7, "foobar", 1.0), 2));
+			harness1.processElement(
+				new StreamRecord<Event>(middleEvent1, 3));                    // valid element
+			harness1.processElement(
+				new StreamRecord<>(endEvent1, 5));                            // valid element
 
-		harness1.processElement(new StreamRecord<>(startEvent3, 10));
-		harness1.processElement(new StreamRecord<>(startEvent1, 10));
+			// till here we have a valid sequence, so after creating the
+			// new instance and sending it a watermark, we expect it to fire,
+			// even with no new elements.
 
-		harness2.processElement(new StreamRecord<>(startEvent2, 7));
-		harness2.processElement(new StreamRecord<Event>(middleEvent2, 8));
+			harness1.processElement(new StreamRecord<>(startEvent3, 10));
+			harness1.processElement(new StreamRecord<>(startEvent1, 10));
 
-		harness3.processElement(new StreamRecord<>(startEvent4, 15));
-		harness3.processElement(new StreamRecord<Event>(middleEvent4, 16));
-		harness3.processElement(new StreamRecord<>(endEvent4, 17));
+			harness2.processElement(new StreamRecord<>(startEvent2, 7));
+			harness2.processElement(new StreamRecord<Event>(middleEvent2, 8));
 
-		// so far we only have the initial watermark
-		assertEquals(1, harness1.getOutput().size());
-		verifyWatermark(harness1.getOutput().poll(), Long.MIN_VALUE);
+			harness3.processElement(new StreamRecord<>(startEvent4, 15));
+			harness3.processElement(new StreamRecord<Event>(middleEvent4, 16));
+			harness3.processElement(new StreamRecord<>(endEvent4, 17));
 
-		assertEquals(1, harness2.getOutput().size());
-		verifyWatermark(harness2.getOutput().poll(), Long.MIN_VALUE);
+			// so far we only have the initial watermark
+			assertEquals(1, harness1.getOutput().size());
+			verifyWatermark(harness1.getOutput().poll(), Long.MIN_VALUE);
 
-		assertEquals(1, harness3.getOutput().size());
-		verifyWatermark(harness3.getOutput().poll(), Long.MIN_VALUE);
+			assertEquals(1, harness2.getOutput().size());
+			verifyWatermark(harness2.getOutput().poll(), Long.MIN_VALUE);
 
-		// we take a snapshot and make it look as a single operator
-		// this will be the initial state of all downstream tasks.
-		OperatorStateHandles snapshot = AbstractStreamOperatorTestHarness.repackageState(
-			harness2.snapshot(0, 0),
-			harness1.snapshot(0, 0),
-			harness3.snapshot(0, 0)
-		);
+			assertEquals(1, harness3.getOutput().size());
+			verifyWatermark(harness3.getOutput().poll(), Long.MIN_VALUE);
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness4 =
-			getTestHarness(maxParallelism, 2, 0);
-		harness4.setup();
-		harness4.initializeState(snapshot);
-		harness4.open();
+			// we take a snapshot and make it look as a single operator
+			// this will be the initial state of all downstream tasks.
+			OperatorStateHandles snapshot = AbstractStreamOperatorTestHarness.repackageState(
+				harness2.snapshot(0, 0),
+				harness1.snapshot(0, 0),
+				harness3.snapshot(0, 0)
+			);
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness5 =
-			getTestHarness(maxParallelism, 2, 1);
-		harness5.setup();
-		harness5.initializeState(snapshot);
-		harness5.open();
+			harness4 = getTestHarness(maxParallelism, 2, 0);
+			harness4.setup();
+			harness4.initializeState(snapshot);
+			harness4.open();
 
-		harness5.processElement(new StreamRecord<>(endEvent2, 11));
-		harness5.processWatermark(new Watermark(12));
+			harness5 = getTestHarness(maxParallelism, 2, 1);
+			harness5.setup();
+			harness5.initializeState(snapshot);
+			harness5.open();
 
-		verifyPattern(harness5.getOutput().poll(), startEvent2, middleEvent2, endEvent2);
-		verifyWatermark(harness5.getOutput().poll(), 12);
+			harness5.processElement(new StreamRecord<>(endEvent2, 11));
+			harness5.processWatermark(new Watermark(12));
 
-		// if element timestamps are not correctly checkpointed/restored this will lead to
-		// a pruning time underflow exception in NFA
-		harness4.processWatermark(new Watermark(12));
+			verifyPattern(harness5.getOutput().poll(), startEvent2, middleEvent2, endEvent2);
+			verifyWatermark(harness5.getOutput().poll(), 12);
 
-		assertEquals(2, harness4.getOutput().size());
-		verifyPattern(harness4.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
-		verifyWatermark(harness4.getOutput().poll(), 12);
+			// if element timestamps are not correctly checkpointed/restored this will lead to
+			// a pruning time underflow exception in NFA
+			harness4.processWatermark(new Watermark(12));
 
-		harness4.processElement(new StreamRecord<Event>(middleEvent3, 15));			// valid element
-		harness4.processElement(new StreamRecord<>(endEvent3, 16));					// valid element
-
-		harness4.processElement(new StreamRecord<Event>(middleEvent1, 15));			// valid element
-		harness4.processElement(new StreamRecord<>(endEvent1, 16));					// valid element
-
-		harness4.processWatermark(new Watermark(Long.MAX_VALUE));
-		harness5.processWatermark(new Watermark(Long.MAX_VALUE));
-
-		// verify result
-		assertEquals(3, harness4.getOutput().size());
-
-		// check the order of the events in the output
-		Queue<Object> output = harness4.getOutput();
-		StreamRecord<?> resultRecord = (StreamRecord<?>) output.peek();
-		assertTrue(resultRecord.getValue() instanceof Map);
-
-		@SuppressWarnings("unchecked")
-		Map<String, List<Event>> patternMap = (Map<String, List<Event>>) resultRecord.getValue();
-		if (patternMap.get("start").get(0).getId() == 7) {
+			assertEquals(2, harness4.getOutput().size());
 			verifyPattern(harness4.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
-			verifyPattern(harness4.getOutput().poll(), startEvent3, middleEvent3, endEvent3);
-		} else {
-			verifyPattern(harness4.getOutput().poll(), startEvent3, middleEvent3, endEvent3);
-			verifyPattern(harness4.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
+			verifyWatermark(harness4.getOutput().poll(), 12);
+
+			harness4.processElement(
+				new StreamRecord<Event>(middleEvent3, 15));            // valid element
+			harness4.processElement(
+				new StreamRecord<>(endEvent3, 16));                    // valid element
+
+			harness4.processElement(
+				new StreamRecord<Event>(middleEvent1, 15));            // valid element
+			harness4.processElement(
+				new StreamRecord<>(endEvent1, 16));                    // valid element
+
+			harness4.processWatermark(new Watermark(Long.MAX_VALUE));
+			harness5.processWatermark(new Watermark(Long.MAX_VALUE));
+
+			// verify result
+			assertEquals(3, harness4.getOutput().size());
+
+			// check the order of the events in the output
+			Queue<Object> output = harness4.getOutput();
+			StreamRecord<?> resultRecord = (StreamRecord<?>) output.peek();
+			assertTrue(resultRecord.getValue() instanceof Map);
+
+			@SuppressWarnings("unchecked")
+			Map<String, List<Event>> patternMap =
+				(Map<String, List<Event>>) resultRecord.getValue();
+			if (patternMap.get("start").get(0).getId() == 7) {
+				verifyPattern(harness4.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
+				verifyPattern(harness4.getOutput().poll(), startEvent3, middleEvent3, endEvent3);
+			} else {
+				verifyPattern(harness4.getOutput().poll(), startEvent3, middleEvent3, endEvent3);
+				verifyPattern(harness4.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
+			}
+
+			// after scaling down this should end up here
+			assertEquals(2, harness5.getOutput().size());
+			verifyPattern(harness5.getOutput().poll(), startEvent4, middleEvent4, endEvent4);
+		} finally {
+			closeSilently(harness1);
+			closeSilently(harness2);
+			closeSilently(harness3);
+			closeSilently(harness4);
+			closeSilently(harness5);
 		}
-
-		// after scaling down this should end up here
-		assertEquals(2, harness5.getOutput().size());
-		verifyPattern(harness5.getOutput().poll(), startEvent4, middleEvent4, endEvent4);
-
-		harness1.close();
-		harness2.close();
-		harness3.close();
-		harness4.close();
-		harness5.close();
 	}
 
 	private void verifyWatermark(Object outputObject, long timestamp) {

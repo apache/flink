@@ -84,22 +84,26 @@ public class CEPFrom12MigrationTest {
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
-		harness.setup();
-		harness.open();
+		try {
+			harness.setup();
+			harness.open();
 
-		harness.processElement(new StreamRecord<Event>(startEvent, 1));
-		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
-		harness.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3));
-		harness.processElement(new StreamRecord<Event>(middleEvent1, 2));
-		harness.processElement(new StreamRecord<Event>(middleEvent2, 3));
+			harness.processElement(new StreamRecord<Event>(startEvent, 1));
+			harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
+			harness
+				.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3));
+			harness.processElement(new StreamRecord<Event>(middleEvent1, 2));
+			harness.processElement(new StreamRecord<Event>(middleEvent2, 3));
 
-		harness.processWatermark(new Watermark(5));
+			harness.processWatermark(new Watermark(5));
 
-		// do snapshot and save to file
-		OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
-		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/cep-migration-after-branching-flink1.2-snapshot");
-
-		harness.close();
+			// do snapshot and save to file
+			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSnapshotUtil.writeStateHandle(snapshot,
+				"src/test/resources/cep-migration-after-branching-flink1.2-snapshot");
+		} finally {
+			harness.close();
+		}
 	}
 
 	@Test
@@ -130,95 +134,101 @@ public class CEPFrom12MigrationTest {
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
-		harness.setup();
-		harness.initializeState(
+		try {
+			harness.setup();
+			harness.initializeState(
 				OperatorSnapshotUtil.readStateHandle(
-						OperatorSnapshotUtil.getResourceFilename("cep-migration-after-branching-flink1.2-snapshot")));
-		harness.open();
+					OperatorSnapshotUtil
+						.getResourceFilename("cep-migration-after-branching-flink1.2-snapshot")));
+			harness.open();
 
-		harness.processElement(new StreamRecord<>(new Event(42, "start", 1.0), 4));
-		harness.processElement(new StreamRecord<>(endEvent, 5));
+			harness.processElement(new StreamRecord<>(new Event(42, "start", 1.0), 4));
+			harness.processElement(new StreamRecord<>(endEvent, 5));
 
-		harness.processWatermark(new Watermark(20));
+			harness.processWatermark(new Watermark(20));
 
-		ConcurrentLinkedQueue<Object> result = harness.getOutput();
+			ConcurrentLinkedQueue<Object> result = harness.getOutput();
 
-		// watermark and 2 results
-		assertEquals(3, result.size());
+			// watermark and 2 results
+			assertEquals(3, result.size());
 
-		Object resultObject1 = result.poll();
-		assertTrue(resultObject1 instanceof StreamRecord);
-		StreamRecord<?> resultRecord1 = (StreamRecord<?>) resultObject1;
-		assertTrue(resultRecord1.getValue() instanceof Map);
+			Object resultObject1 = result.poll();
+			assertTrue(resultObject1 instanceof StreamRecord);
+			StreamRecord<?> resultRecord1 = (StreamRecord<?>) resultObject1;
+			assertTrue(resultRecord1.getValue() instanceof Map);
 
-		Object resultObject2 = result.poll();
-		assertTrue(resultObject2 instanceof StreamRecord);
-		StreamRecord<?> resultRecord2 = (StreamRecord<?>) resultObject2;
-		assertTrue(resultRecord2.getValue() instanceof Map);
+			Object resultObject2 = result.poll();
+			assertTrue(resultObject2 instanceof StreamRecord);
+			StreamRecord<?> resultRecord2 = (StreamRecord<?>) resultObject2;
+			assertTrue(resultRecord2.getValue() instanceof Map);
 
-		@SuppressWarnings("unchecked")
-		Map<String, List<Event>> patternMap1 = (Map<String, List<Event>>) resultRecord1.getValue();
+			@SuppressWarnings("unchecked")
+			Map<String, List<Event>> patternMap1 =
+				(Map<String, List<Event>>) resultRecord1.getValue();
 
-		assertEquals(startEvent, patternMap1.get("start").get(0));
-		assertEquals(middleEvent1, patternMap1.get("middle").get(0));
-		assertEquals(endEvent, patternMap1.get("end").get(0));
+			assertEquals(startEvent, patternMap1.get("start").get(0));
+			assertEquals(middleEvent1, patternMap1.get("middle").get(0));
+			assertEquals(endEvent, patternMap1.get("end").get(0));
 
-		@SuppressWarnings("unchecked")
-		Map<String, List<Event>> patternMap2 = (Map<String, List<Event>>) resultRecord2.getValue();
+			@SuppressWarnings("unchecked")
+			Map<String, List<Event>> patternMap2 =
+				(Map<String, List<Event>>) resultRecord2.getValue();
 
-		assertEquals(startEvent, patternMap2.get("start").get(0));
-		assertEquals(middleEvent2, patternMap2.get("middle").get(0));
-		assertEquals(endEvent, patternMap2.get("end").get(0));
+			assertEquals(startEvent, patternMap2.get("start").get(0));
+			assertEquals(middleEvent2, patternMap2.get("middle").get(0));
+			assertEquals(endEvent, patternMap2.get("end").get(0));
 
-		// and now go for a checkpoint with the new serializers
+			// and now go for a checkpoint with the new serializers
 
-		final Event startEvent1 = new Event(42, "start", 2.0);
-		final SubEvent middleEvent3 = new SubEvent(42, "foo", 1.0, 11.0);
-		final Event endEvent1 = new Event(42, "end", 2.0);
+			final Event startEvent1 = new Event(42, "start", 2.0);
+			final SubEvent middleEvent3 = new SubEvent(42, "foo", 1.0, 11.0);
+			final Event endEvent1 = new Event(42, "end", 2.0);
 
-		harness.processElement(new StreamRecord<Event>(startEvent1, 21));
-		harness.processElement(new StreamRecord<Event>(middleEvent3, 23));
+			harness.processElement(new StreamRecord<Event>(startEvent1, 21));
+			harness.processElement(new StreamRecord<Event>(middleEvent3, 23));
 
-		// simulate snapshot/restore with some elements in internal sorting queue
-		OperatorStateHandles snapshot = harness.snapshot(1L, 1L);
-		harness.close();
+			// simulate snapshot/restore with some elements in internal sorting queue
+			OperatorStateHandles snapshot = harness.snapshot(1L, 1L);
+			harness.close();
 
-		harness = new KeyedOneInputStreamOperatorTestHarness<>(
+			harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						IntSerializer.INSTANCE,
-						new NFAFactory(),
-						true),
+					Event.createTypeSerializer(),
+					false,
+					IntSerializer.INSTANCE,
+					new NFAFactory(),
+					true),
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO);
 
-		harness.setup();
-		harness.initializeState(snapshot);
-		harness.open();
+			harness.setup();
+			harness.initializeState(snapshot);
+			harness.open();
 
-		harness.processElement(new StreamRecord<>(endEvent1, 25));
+			harness.processElement(new StreamRecord<>(endEvent1, 25));
 
-		harness.processWatermark(new Watermark(50));
+			harness.processWatermark(new Watermark(50));
 
-		result = harness.getOutput();
+			result = harness.getOutput();
 
-		// watermark and the result
-		assertEquals(2, result.size());
+			// watermark and the result
+			assertEquals(2, result.size());
 
-		Object resultObject3 = result.poll();
-		assertTrue(resultObject3 instanceof StreamRecord);
-		StreamRecord<?> resultRecord3 = (StreamRecord<?>) resultObject3;
-		assertTrue(resultRecord3.getValue() instanceof Map);
+			Object resultObject3 = result.poll();
+			assertTrue(resultObject3 instanceof StreamRecord);
+			StreamRecord<?> resultRecord3 = (StreamRecord<?>) resultObject3;
+			assertTrue(resultRecord3.getValue() instanceof Map);
 
-		@SuppressWarnings("unchecked")
-		Map<String, List<Event>> patternMap3 = (Map<String, List<Event>>) resultRecord3.getValue();
+			@SuppressWarnings("unchecked")
+			Map<String, List<Event>> patternMap3 =
+				(Map<String, List<Event>>) resultRecord3.getValue();
 
-		assertEquals(startEvent1, patternMap3.get("start").get(0));
-		assertEquals(middleEvent3, patternMap3.get("middle").get(0));
-		assertEquals(endEvent1, patternMap3.get("end").get(0));
-
-		harness.close();
+			assertEquals(startEvent1, patternMap3.get("start").get(0));
+			assertEquals(middleEvent3, patternMap3.get("middle").get(0));
+			assertEquals(endEvent1, patternMap3.get("end").get(0));
+		} finally {
+			harness.close();
+		}
 	}
 
 	/**
@@ -251,19 +261,23 @@ public class CEPFrom12MigrationTest {
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
-		harness.setup();
-		harness.open();
-		harness.processElement(new StreamRecord<Event>(startEvent1, 1));
-		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
-		harness.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3));
-		harness.processElement(new StreamRecord<Event>(middleEvent1, 2));
-		harness.processWatermark(new Watermark(5));
+		try {
+			harness.setup();
+			harness.open();
+			harness.processElement(new StreamRecord<Event>(startEvent1, 1));
+			harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
+			harness
+				.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3));
+			harness.processElement(new StreamRecord<Event>(middleEvent1, 2));
+			harness.processWatermark(new Watermark(5));
 
-		// do snapshot and save to file
-		OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
-		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/cep-migration-starting-new-pattern-flink1.2-snapshot");
-
-		harness.close();
+			// do snapshot and save to file
+			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSnapshotUtil.writeStateHandle(snapshot,
+				"src/test/resources/cep-migration-starting-new-pattern-flink1.2-snapshot");
+		} finally {
+			harness.close();
+		}
 	}
 
 	@Test
@@ -295,108 +309,115 @@ public class CEPFrom12MigrationTest {
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
-		harness.setup();
-		harness.initializeState(
+		try {
+			harness.setup();
+			harness.initializeState(
 				OperatorSnapshotUtil.readStateHandle(
-						OperatorSnapshotUtil.getResourceFilename("cep-migration-starting-new-pattern-flink1.2-snapshot")));
-		harness.open();
+					OperatorSnapshotUtil.getResourceFilename(
+						"cep-migration-starting-new-pattern-flink1.2-snapshot")));
+			harness.open();
 
-		harness.processElement(new StreamRecord<>(startEvent2, 5));
-		harness.processElement(new StreamRecord<Event>(middleEvent2, 6));
-		harness.processElement(new StreamRecord<>(endEvent, 7));
+			harness.processElement(new StreamRecord<>(startEvent2, 5));
+			harness.processElement(new StreamRecord<Event>(middleEvent2, 6));
+			harness.processElement(new StreamRecord<>(endEvent, 7));
 
-		harness.processWatermark(new Watermark(20));
+			harness.processWatermark(new Watermark(20));
 
-		ConcurrentLinkedQueue<Object> result = harness.getOutput();
+			ConcurrentLinkedQueue<Object> result = harness.getOutput();
 
-		// watermark and 3 results
-		assertEquals(4, result.size());
+			// watermark and 3 results
+			assertEquals(4, result.size());
 
-		Object resultObject1 = result.poll();
-		assertTrue(resultObject1 instanceof StreamRecord);
-		StreamRecord<?> resultRecord1 = (StreamRecord<?>) resultObject1;
-		assertTrue(resultRecord1.getValue() instanceof Map);
+			Object resultObject1 = result.poll();
+			assertTrue(resultObject1 instanceof StreamRecord);
+			StreamRecord<?> resultRecord1 = (StreamRecord<?>) resultObject1;
+			assertTrue(resultRecord1.getValue() instanceof Map);
 
-		Object resultObject2 = result.poll();
-		assertTrue(resultObject2 instanceof StreamRecord);
-		StreamRecord<?> resultRecord2 = (StreamRecord<?>) resultObject2;
-		assertTrue(resultRecord2.getValue() instanceof Map);
+			Object resultObject2 = result.poll();
+			assertTrue(resultObject2 instanceof StreamRecord);
+			StreamRecord<?> resultRecord2 = (StreamRecord<?>) resultObject2;
+			assertTrue(resultRecord2.getValue() instanceof Map);
 
-		Object resultObject3 = result.poll();
-		assertTrue(resultObject3 instanceof StreamRecord);
-		StreamRecord<?> resultRecord3 = (StreamRecord<?>) resultObject3;
-		assertTrue(resultRecord3.getValue() instanceof Map);
+			Object resultObject3 = result.poll();
+			assertTrue(resultObject3 instanceof StreamRecord);
+			StreamRecord<?> resultRecord3 = (StreamRecord<?>) resultObject3;
+			assertTrue(resultRecord3.getValue() instanceof Map);
 
-		@SuppressWarnings("unchecked")
-		Map<String, List<Event>> patternMap1 = (Map<String, List<Event>>) resultRecord1.getValue();
+			@SuppressWarnings("unchecked")
+			Map<String, List<Event>> patternMap1 =
+				(Map<String, List<Event>>) resultRecord1.getValue();
 
-		assertEquals(startEvent1, patternMap1.get("start").get(0));
-		assertEquals(middleEvent1, patternMap1.get("middle").get(0));
-		assertEquals(endEvent, patternMap1.get("end").get(0));
+			assertEquals(startEvent1, patternMap1.get("start").get(0));
+			assertEquals(middleEvent1, patternMap1.get("middle").get(0));
+			assertEquals(endEvent, patternMap1.get("end").get(0));
 
-		@SuppressWarnings("unchecked")
-		Map<String, List<Event>> patternMap2 = (Map<String, List<Event>>) resultRecord2.getValue();
+			@SuppressWarnings("unchecked")
+			Map<String, List<Event>> patternMap2 =
+				(Map<String, List<Event>>) resultRecord2.getValue();
 
-		assertEquals(startEvent1, patternMap2.get("start").get(0));
-		assertEquals(middleEvent2, patternMap2.get("middle").get(0));
-		assertEquals(endEvent, patternMap2.get("end").get(0));
+			assertEquals(startEvent1, patternMap2.get("start").get(0));
+			assertEquals(middleEvent2, patternMap2.get("middle").get(0));
+			assertEquals(endEvent, patternMap2.get("end").get(0));
 
-		@SuppressWarnings("unchecked")
-		Map<String, List<Event>> patternMap3 = (Map<String, List<Event>>) resultRecord3.getValue();
+			@SuppressWarnings("unchecked")
+			Map<String, List<Event>> patternMap3 =
+				(Map<String, List<Event>>) resultRecord3.getValue();
 
-		assertEquals(startEvent2, patternMap3.get("start").get(0));
-		assertEquals(middleEvent2, patternMap3.get("middle").get(0));
-		assertEquals(endEvent, patternMap3.get("end").get(0));
+			assertEquals(startEvent2, patternMap3.get("start").get(0));
+			assertEquals(middleEvent2, patternMap3.get("middle").get(0));
+			assertEquals(endEvent, patternMap3.get("end").get(0));
 
-		// and now go for a checkpoint with the new serializers
+			// and now go for a checkpoint with the new serializers
 
-		final Event startEvent3 = new Event(42, "start", 2.0);
-		final SubEvent middleEvent3 = new SubEvent(42, "foo", 1.0, 11.0);
-		final Event endEvent1 = new Event(42, "end", 2.0);
+			final Event startEvent3 = new Event(42, "start", 2.0);
+			final SubEvent middleEvent3 = new SubEvent(42, "foo", 1.0, 11.0);
+			final Event endEvent1 = new Event(42, "end", 2.0);
 
-		harness.processElement(new StreamRecord<Event>(startEvent3, 21));
-		harness.processElement(new StreamRecord<Event>(middleEvent3, 23));
+			harness.processElement(new StreamRecord<Event>(startEvent3, 21));
+			harness.processElement(new StreamRecord<Event>(middleEvent3, 23));
 
-		// simulate snapshot/restore with some elements in internal sorting queue
-		OperatorStateHandles snapshot = harness.snapshot(1L, 1L);
-		harness.close();
+			// simulate snapshot/restore with some elements in internal sorting queue
+			OperatorStateHandles snapshot = harness.snapshot(1L, 1L);
+			harness.close();
 
-		harness = new KeyedOneInputStreamOperatorTestHarness<>(
+			harness = new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						IntSerializer.INSTANCE,
-						new NFAFactory(),
-						true),
+					Event.createTypeSerializer(),
+					false,
+					IntSerializer.INSTANCE,
+					new NFAFactory(),
+					true),
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO);
 
-		harness.setup();
-		harness.initializeState(snapshot);
-		harness.open();
+			harness.setup();
+			harness.initializeState(snapshot);
+			harness.open();
 
-		harness.processElement(new StreamRecord<>(endEvent1, 25));
+			harness.processElement(new StreamRecord<>(endEvent1, 25));
 
-		harness.processWatermark(new Watermark(50));
+			harness.processWatermark(new Watermark(50));
 
-		result = harness.getOutput();
+			result = harness.getOutput();
 
-		// watermark and the result
-		assertEquals(2, result.size());
+			// watermark and the result
+			assertEquals(2, result.size());
 
-		Object resultObject4 = result.poll();
-		assertTrue(resultObject4 instanceof StreamRecord);
-		StreamRecord<?> resultRecord4 = (StreamRecord<?>) resultObject4;
-		assertTrue(resultRecord4.getValue() instanceof Map);
+			Object resultObject4 = result.poll();
+			assertTrue(resultObject4 instanceof StreamRecord);
+			StreamRecord<?> resultRecord4 = (StreamRecord<?>) resultObject4;
+			assertTrue(resultRecord4.getValue() instanceof Map);
 
-		@SuppressWarnings("unchecked")
-		Map<String, List<Event>> patternMap4 = (Map<String, List<Event>>) resultRecord4.getValue();
+			@SuppressWarnings("unchecked")
+			Map<String, List<Event>> patternMap4 =
+				(Map<String, List<Event>>) resultRecord4.getValue();
 
-		assertEquals(startEvent3, patternMap4.get("start").get(0));
-		assertEquals(middleEvent3, patternMap4.get("middle").get(0));
-		assertEquals(endEvent1, patternMap4.get("end").get(0));
-
-		harness.close();
+			assertEquals(startEvent3, patternMap4.get("start").get(0));
+			assertEquals(middleEvent3, patternMap4.get("middle").get(0));
+			assertEquals(endEvent1, patternMap4.get("end").get(0));
+		} finally {
+			harness.close();
+		}
 	}
 
 	/**
@@ -428,15 +449,18 @@ public class CEPFrom12MigrationTest {
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
-		harness.setup();
-		harness.open();
-		harness.processWatermark(new Watermark(5));
+		try {
+			harness.setup();
+			harness.open();
+			harness.processWatermark(new Watermark(5));
 
-		// do snapshot and save to file
-		OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
-		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/cep-migration-single-pattern-afterwards-flink1.2-snapshot");
-
-		harness.close();
+			// do snapshot and save to file
+			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSnapshotUtil.writeStateHandle(snapshot,
+				"src/test/resources/cep-migration-single-pattern-afterwards-flink1.2-snapshot");
+		} finally {
+			harness.close();
+		}
 	}
 
 
@@ -465,32 +489,36 @@ public class CEPFrom12MigrationTest {
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
-		harness.setup();
-		harness.initializeState(
+		try {
+			harness.setup();
+			harness.initializeState(
 				OperatorSnapshotUtil.readStateHandle(
-						OperatorSnapshotUtil.getResourceFilename("cep-migration-single-pattern-afterwards-flink1.2-snapshot")));
-		harness.open();
+					OperatorSnapshotUtil.getResourceFilename(
+						"cep-migration-single-pattern-afterwards-flink1.2-snapshot")));
+			harness.open();
 
-		harness.processElement(new StreamRecord<>(startEvent1, 5));
+			harness.processElement(new StreamRecord<>(startEvent1, 5));
 
-		harness.processWatermark(new Watermark(20));
+			harness.processWatermark(new Watermark(20));
 
-		ConcurrentLinkedQueue<Object> result = harness.getOutput();
+			ConcurrentLinkedQueue<Object> result = harness.getOutput();
 
-		// watermark and the result
-		assertEquals(2, result.size());
+			// watermark and the result
+			assertEquals(2, result.size());
 
-		Object resultObject = result.poll();
-		assertTrue(resultObject instanceof StreamRecord);
-		StreamRecord<?> resultRecord = (StreamRecord<?>) resultObject;
-		assertTrue(resultRecord.getValue() instanceof Map);
+			Object resultObject = result.poll();
+			assertTrue(resultObject instanceof StreamRecord);
+			StreamRecord<?> resultRecord = (StreamRecord<?>) resultObject;
+			assertTrue(resultRecord.getValue() instanceof Map);
 
-		@SuppressWarnings("unchecked")
-		Map<String, List<Event>> patternMap = (Map<String, List<Event>>) resultRecord.getValue();
+			@SuppressWarnings("unchecked")
+			Map<String, List<Event>> patternMap =
+				(Map<String, List<Event>>) resultRecord.getValue();
 
-		assertEquals(startEvent1, patternMap.get("start").get(0));
-
-		harness.close();
+			assertEquals(startEvent1, patternMap.get("start").get(0));
+		} finally {
+			harness.close();
+		}
 	}
 
 	private static class SinglePatternNFAFactory implements NFACompiler.NFAFactory<Event> {
