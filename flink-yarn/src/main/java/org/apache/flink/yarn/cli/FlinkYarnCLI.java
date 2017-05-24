@@ -15,19 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.yarn.cli;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.YarnClusterClientV2;
 import org.apache.flink.yarn.YarnClusterDescriptorV2;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,27 +50,27 @@ import static org.apache.flink.client.cli.CliFrontendParser.ADDRESS_OPTION;
 public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkYarnCLI.class);
 
-	/** The id for the CommandLine interface */
+	/** The id for the CommandLine interface. */
 	private static final String ID = "yarn";
 
 	private static final String YARN_DYNAMIC_PROPERTIES_SEPARATOR = "@@"; // this has to be a regex for String.split()
 
 	//------------------------------------ Command Line argument options -------------------------
 	// the prefix transformation is used by the CliFrontend static constructor.
-	private final Option QUEUE;
-	private final Option SHIP_PATH;
-	private final Option FLINK_JAR;
-	private final Option JM_MEMORY;
-	private final Option DETACHED;
-	private final Option ZOOKEEPER_NAMESPACE;
+	private final Option queue;
+	private final Option shipPath;
+	private final Option flinkJar;
+	private final Option jmMemory;
+	private final Option detached;
+	private final Option zookeeperNamespace;
 
-	private final Options ALL_OPTIONS;
+	private final Options allOptions;
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.network.memory.min=536346624</tt>
+	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.network.memory.min=536346624</tt>.
 	 */
-	private final Option DYNAMIC_PROPERTIES;
+	private final Option dynamicProperties;
 
 	//------------------------------------ Internal fields -------------------------
 	// use detach mode as default
@@ -76,22 +78,22 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 
 	public FlinkYarnCLI(String shortPrefix, String longPrefix) {
 
-		QUEUE = new Option(shortPrefix + "qu", longPrefix + "queue", true, "Specify YARN queue.");
-		SHIP_PATH = new Option(shortPrefix + "t", longPrefix + "ship", true, "Ship files in the specified directory (t for transfer)");
-		FLINK_JAR = new Option(shortPrefix + "j", longPrefix + "jar", true, "Path to Flink jar file");
-		JM_MEMORY = new Option(shortPrefix + "jm", longPrefix + "jobManagerMemory", true, "Memory for JobManager Container [in MB]");
-		DYNAMIC_PROPERTIES = new Option(shortPrefix + "D", true, "Dynamic properties");
-		DETACHED = new Option(shortPrefix + "a", longPrefix + "attached", false, "Start attached");
-		ZOOKEEPER_NAMESPACE = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
+		queue = new Option(shortPrefix + "qu", longPrefix + "queue", true, "Specify YARN queue.");
+		shipPath = new Option(shortPrefix + "t", longPrefix + "ship", true, "Ship files in the specified directory (t for transfer)");
+		flinkJar = new Option(shortPrefix + "j", longPrefix + "jar", true, "Path to Flink jar file");
+		jmMemory = new Option(shortPrefix + "jm", longPrefix + "jobManagerMemory", true, "Memory for JobManager Container [in MB]");
+		dynamicProperties = new Option(shortPrefix + "D", true, "Dynamic properties");
+		detached = new Option(shortPrefix + "a", longPrefix + "attached", false, "Start attached");
+		zookeeperNamespace = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
 
-		ALL_OPTIONS = new Options();
-		ALL_OPTIONS.addOption(FLINK_JAR);
-		ALL_OPTIONS.addOption(JM_MEMORY);
-		ALL_OPTIONS.addOption(QUEUE);
-		ALL_OPTIONS.addOption(SHIP_PATH);
-		ALL_OPTIONS.addOption(DYNAMIC_PROPERTIES);
-		ALL_OPTIONS.addOption(DETACHED);
-		ALL_OPTIONS.addOption(ZOOKEEPER_NAMESPACE);
+		allOptions = new Options();
+		allOptions.addOption(flinkJar);
+		allOptions.addOption(jmMemory);
+		allOptions.addOption(queue);
+		allOptions.addOption(shipPath);
+		allOptions.addOption(dynamicProperties);
+		allOptions.addOption(detached);
+		allOptions.addOption(zookeeperNamespace);
 	}
 
 	public YarnClusterDescriptorV2 createDescriptor(String defaultApplicationName, CommandLine cmd) {
@@ -100,8 +102,8 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 
 		// Jar Path
 		Path localJarPath;
-		if (cmd.hasOption(FLINK_JAR.getOpt())) {
-			String userPath = cmd.getOptionValue(FLINK_JAR.getOpt());
+		if (cmd.hasOption(flinkJar.getOpt())) {
+			String userPath = cmd.getOptionValue(flinkJar.getOpt());
 			if (!userPath.startsWith("file://")) {
 				userPath = "file://" + userPath;
 			}
@@ -117,7 +119,7 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 				localJarPath = new Path(new File(decodedPath).toURI());
 			} catch (UnsupportedEncodingException e) {
 				throw new RuntimeException("Couldn't decode the encoded Flink dist jar path: " + encodedJarPath +
-					" Please supply a path manually via the -" + FLINK_JAR.getOpt() + " option.");
+					" Please supply a path manually via the -" + flinkJar.getOpt() + " option.");
 			}
 		}
 
@@ -125,8 +127,8 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 
 		List<File> shipFiles = new ArrayList<>();
 		// path to directory to ship
-		if (cmd.hasOption(SHIP_PATH.getOpt())) {
-			String shipPath = cmd.getOptionValue(SHIP_PATH.getOpt());
+		if (cmd.hasOption(shipPath.getOpt())) {
+			String shipPath = cmd.getOptionValue(this.shipPath.getOpt());
 			File shipDir = new File(shipPath);
 			if (shipDir.isDirectory()) {
 				shipFiles.add(shipDir);
@@ -138,36 +140,36 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 		yarnClusterDescriptor.addShipFiles(shipFiles);
 
 		// queue
-		if (cmd.hasOption(QUEUE.getOpt())) {
-			yarnClusterDescriptor.setQueue(cmd.getOptionValue(QUEUE.getOpt()));
+		if (cmd.hasOption(queue.getOpt())) {
+			yarnClusterDescriptor.setQueue(cmd.getOptionValue(queue.getOpt()));
 		}
 
 		// JobManager Memory
-		if (cmd.hasOption(JM_MEMORY.getOpt())) {
-			int jmMemory = Integer.valueOf(cmd.getOptionValue(JM_MEMORY.getOpt()));
+		if (cmd.hasOption(jmMemory.getOpt())) {
+			int jmMemory = Integer.valueOf(cmd.getOptionValue(this.jmMemory.getOpt()));
 			yarnClusterDescriptor.setJobManagerMemory(jmMemory);
 		}
 
 		String[] dynamicProperties = null;
-		if (cmd.hasOption(DYNAMIC_PROPERTIES.getOpt())) {
-			dynamicProperties = cmd.getOptionValues(DYNAMIC_PROPERTIES.getOpt());
+		if (cmd.hasOption(this.dynamicProperties.getOpt())) {
+			dynamicProperties = cmd.getOptionValues(this.dynamicProperties.getOpt());
 		}
 		String dynamicPropertiesEncoded = StringUtils.join(dynamicProperties, YARN_DYNAMIC_PROPERTIES_SEPARATOR);
 
 		yarnClusterDescriptor.setDynamicPropertiesEncoded(dynamicPropertiesEncoded);
 
-		if (cmd.hasOption(DETACHED.getOpt()) || cmd.hasOption(CliFrontendParser.DETACHED_OPTION.getOpt())) {
+		if (cmd.hasOption(detached.getOpt()) || cmd.hasOption(CliFrontendParser.DETACHED_OPTION.getOpt())) {
 			// TODO: not support non detach mode now.
 			//this.detachedMode = false;
 		}
 		yarnClusterDescriptor.setDetachedMode(this.detachedMode);
 
-		if(defaultApplicationName != null) {
+		if (defaultApplicationName != null) {
 			yarnClusterDescriptor.setName(defaultApplicationName);
 		}
 
-		if (cmd.hasOption(ZOOKEEPER_NAMESPACE.getOpt())) {
-			String zookeeperNamespace = cmd.getOptionValue(ZOOKEEPER_NAMESPACE.getOpt());
+		if (cmd.hasOption(zookeeperNamespace.getOpt())) {
+			String zookeeperNamespace = cmd.getOptionValue(this.zookeeperNamespace.getOpt());
 			yarnClusterDescriptor.setZookeeperNamespace(zookeeperNamespace);
 		}
 
@@ -201,7 +203,7 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 
 	@Override
 	public void addRunOptions(Options baseOptions) {
-		for (Object option : ALL_OPTIONS.getOptions()) {
+		for (Object option : allOptions.getOptions()) {
 			baseOptions.addOption((Option) option);
 		}
 	}
@@ -233,9 +235,6 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 		return new YarnClusterClientV2(yarnClusterDescriptor, config);
 	}
 
-	/**
-	 * Utility method
-	 */
 	private void logAndSysout(String message) {
 		LOG.info(message);
 		System.out.println(message);

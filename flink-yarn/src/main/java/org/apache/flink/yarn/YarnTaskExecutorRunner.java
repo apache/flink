@@ -37,6 +37,7 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.Preconditions;
+
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
@@ -52,13 +53,12 @@ import java.util.concurrent.Callable;
  */
 public class YarnTaskExecutorRunner {
 
-	/** Logger */
 	protected static final Logger LOG = LoggerFactory.getLogger(YarnTaskExecutorRunner.class);
 
-	/** The process environment variables */
+	/** The process environment variables. */
 	private static final Map<String, String> ENV = System.getenv();
 
-	/** The exit code returned if the initialization of the yarn task executor runner failed */
+	/** The exit code returned if the initialization of the yarn task executor runner failed. */
 	private static final int INIT_ERROR_EXIT_CODE = 31;
 
 	private MetricRegistry metricRegistry;
@@ -131,7 +131,7 @@ public class YarnTaskExecutorRunner {
 			configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
 
 			String keytabPath = null;
-			if(remoteKeytabPath != null) {
+			if (remoteKeytabPath != null) {
 				File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
 				keytabPath = f.getAbsolutePath();
 				LOG.info("keytab path: {}", keytabPath);
@@ -251,7 +251,6 @@ public class YarnTaskExecutorRunner {
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-
 
 	protected void shutdown() {
 			if (taskExecutorRpcService != null) {

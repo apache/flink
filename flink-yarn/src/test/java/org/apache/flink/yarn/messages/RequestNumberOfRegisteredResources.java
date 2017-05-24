@@ -18,8 +18,11 @@
 
 package org.apache.flink.yarn.messages;
 
+/**
+ * Test message that returns the number of registered resources.
+ */
 public class RequestNumberOfRegisteredResources {
-	public static RequestNumberOfRegisteredResources Instance = new RequestNumberOfRegisteredResources();
+	public static final RequestNumberOfRegisteredResources INSTANCE = new RequestNumberOfRegisteredResources();
 
 	private RequestNumberOfRegisteredResources() {}
 }

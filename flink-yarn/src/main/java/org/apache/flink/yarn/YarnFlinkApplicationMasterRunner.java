@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import akka.actor.ActorSystem;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
@@ -46,9 +45,10 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
+
+import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.duration.FiniteDuration;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -57,32 +57,33 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 
+import scala.concurrent.duration.FiniteDuration;
+
 /**
  * This class is the executable entry point for the YARN Application Master that
  * executes a single Flink job and then shuts the YARN application down.
- * 
+ *
  * <p>The lifetime of the YARN application bound to that of the Flink job. Other
  * YARN Application Master implementations are for example the YARN session.
- * 
- * It starts actor system and the actors for {@link JobManagerRunner}
+ *
+ * <p>It starts actor system and the actors for {@link JobManagerRunner}
  * and {@link YarnResourceManager}.
  *
- * The JobManagerRunner start a {@link org.apache.flink.runtime.jobmaster.JobMaster}
+ * <p>The JobManagerRunner start a {@link org.apache.flink.runtime.jobmaster.JobMaster}
  * JobMaster handles Flink job execution, while the YarnResourceManager handles container
  * allocation and failure detection.
  */
 public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicationMasterRunner
 		implements OnCompletionActions, FatalErrorHandler {
 
-	/** Logger */
 	protected static final Logger LOG = LoggerFactory.getLogger(YarnFlinkApplicationMasterRunner.class);
 
-	/** The job graph file path */
+	/** The job graph file path. */
 	private static final String JOB_GRAPH_FILE_PATH = "flink.jobgraph.path";
 
 	// ------------------------------------------------------------------------
 
-	/** The lock to guard startup / shutdown / manipulation methods */
+	/** The lock to guard startup / shutdown / manipulation methods. */
 	private final Object lock = new Object();
 
 	@GuardedBy("lock")
@@ -144,7 +145,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 					HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 				heartbeatServices = HeartbeatServices.fromConfiguration(config);
-				
+
 				metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 				// ---- (2) init resource manager -------
@@ -310,7 +311,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	//----------------------------------------------------------------------------------------------
 
 	/**
-	 * Job completion notification triggered by JobManager
+	 * Job completion notification triggered by JobManager.
 	 */
 	@Override
 	public void jobFinished(JobExecutionResult result) {
@@ -318,7 +319,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	}
 
 	/**
-	 * Job completion notification triggered by JobManager
+	 * Job completion notification triggered by JobManager.
 	 */
 	@Override
 	public void jobFailed(Throwable cause) {
@@ -326,7 +327,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	}
 
 	/**
-	 * Job completion notification triggered by self
+	 * Job completion notification triggered by self.
 	 */
 	@Override
 	public void jobFinishedByOther() {
