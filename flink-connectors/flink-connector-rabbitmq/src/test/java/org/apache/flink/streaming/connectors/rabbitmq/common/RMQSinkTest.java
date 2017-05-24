@@ -17,20 +17,28 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq.common;
 
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.connectors.rabbitmq.RMQSink;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
+
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the {@link RMQSink}.
+ */
 public class RMQSinkTest {
 
 	private static final String QUEUE_NAME = "queue";
@@ -42,7 +50,6 @@ public class RMQSinkTest {
 	private Connection connection;
 	private Channel channel;
 	private SerializationSchema<String> serializationSchema;
-
 
 	@Before
 	public void before() throws Exception {

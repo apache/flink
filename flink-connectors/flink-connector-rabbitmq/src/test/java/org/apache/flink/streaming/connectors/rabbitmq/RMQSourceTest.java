@@ -17,12 +17,6 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.QueueingConsumer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -39,6 +33,13 @@ import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.Envelope;
+import com.rabbitmq.client.QueueingConsumer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -59,7 +60,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 
-
 /**
  * Tests for the RMQSource. The source supports two operation modes.
  * 1) Exactly-once (when checkpointed) with RabbitMQ transactions and the deduplication mechanism in
@@ -67,7 +67,7 @@ import static org.mockito.Matchers.any;
  * 2) At-least-once (when checkpointed) with RabbitMQ transactions but not deduplication.
  * 3) No strong delivery guarantees (without checkpointing) with RabbitMQ auto-commit mode.
  *
- * This tests assumes that the message ids are increasing monotonously. That doesn't have to be the
+ * <p>This tests assumes that the message ids are increasing monotonously. That doesn't have to be the
  * case. The correlation id is used to uniquely identify messages.
  */
 @RunWith(PowerMockRunner.class)
@@ -156,7 +156,7 @@ public class RMQSourceTest {
 
 		long totalNumberOfAcks = 0;
 
-		for (int i=0; i < numSnapshots; i++) {
+		for (int i = 0; i < numSnapshots; i++) {
 			long snapshotId = random.nextLong();
 			OperatorStateHandles data;
 
@@ -230,9 +230,8 @@ public class RMQSourceTest {
 		}
 	}
 
-
 	/**
-	 * The source should not acknowledge ids in auto-commit mode or check for previously acknowledged ids
+	 * The source should not acknowledge ids in auto-commit mode or check for previously acknowledged ids.
 	 */
 	@Test
 	public void testCheckpointingDisabled() throws Exception {
@@ -248,7 +247,7 @@ public class RMQSourceTest {
 	}
 
 	/**
-	 * Tests error reporting in case of invalid correlation ids
+	 * Tests error reporting in case of invalid correlation ids.
 	 */
 	@Test
 	public void testCorrelationIdNotSet() throws InterruptedException {

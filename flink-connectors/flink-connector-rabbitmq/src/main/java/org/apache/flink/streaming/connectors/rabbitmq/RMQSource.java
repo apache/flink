@@ -17,9 +17,6 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
-import java.io.IOException;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -38,30 +35,33 @@ import com.rabbitmq.client.QueueingConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.util.List;
+
 /**
  * RabbitMQ source (consumer) which reads from a queue and acknowledges messages on checkpoints.
  * When checkpointing is enabled, it guarantees exactly-once processing semantics.
  *
- * RabbitMQ requires messages to be acknowledged. On failures, RabbitMQ will re-resend all messages
+ * <p>RabbitMQ requires messages to be acknowledged. On failures, RabbitMQ will re-resend all messages
  * which have not been acknowledged previously. When a failure occurs directly after a completed
  * checkpoint, all messages part of this checkpoint might be processed again because they couldn't
  * be acknowledged before failure. This case is handled by the {@link MessageAcknowledgingSourceBase}
  * base class which deduplicates the messages using the correlation id.
  *
- * RabbitMQ's Delivery Tags do NOT represent unique ids / offsets. That's why the source uses the
+ * <p>RabbitMQ's Delivery Tags do NOT represent unique ids / offsets. That's why the source uses the
  * Correlation ID in the message properties to check for duplicate messages. Note that the
  * correlation id has to be set at the producer. If the correlation id is not set, messages may
  * be produced more than once in corner cases.
  *
- * This source can be operated in three different modes:
+ * <p>This source can be operated in three different modes:
  *
- * 1) Exactly-once (when checkpointed) with RabbitMQ transactions and messages with
+ * <p>1) Exactly-once (when checkpointed) with RabbitMQ transactions and messages with
  *    unique correlation IDs.
  * 2) At-least-once (when checkpointed) with RabbitMQ transactions but no deduplication mechanism
  *    (correlation id is not set).
  * 3) No strong delivery guarantees (without checkpointing) with RabbitMQ auto-commit mode.
  *
- * Users may overwrite the setupConnectionFactory() method to pass their setup their own
+ * <p>Users may overwrite the setupConnectionFactory() method to pass their setup their own
  * ConnectionFactory in case the constructor parameters are not sufficient.
  *
  * @param <OUT> The type of the data read from RabbitMQ.
@@ -89,9 +89,9 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	/**
 	 * Creates a new RabbitMQ source with at-least-once message processing guarantee when
 	 * checkpointing is enabled. No strong delivery guarantees when checkpointing is disabled.
-	 * For exactly-once, please use the constructor
-	 * {@link RMQSource#RMQSource(RMQConnectionConfig, String, boolean usesCorrelationId, DeserializationSchema)},
-	 * set {@param usesCorrelationId} to true and enable checkpointing.
+	 *
+	 * <p>For exactly-once, please use the constructor
+	 * {@link RMQSource#RMQSource(RMQConnectionConfig, String, boolean, DeserializationSchema)}.
 	 * @param rmqConnectionConfig The RabbiMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param queueName  The queue to receive messages from.
 	 * @param deserializationSchema A {@link DeserializationSchema} for turning the bytes received
@@ -105,7 +105,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	/**
 	 * Creates a new RabbitMQ source. For exactly-once, you must set the correlation ids of messages
 	 * at the producer. The correlation id must be unique. Otherwise the behavior of the source is
-	 * undefined. In doubt, set {@param usesCorrelationId} to false. When correlation ids are not
+	 * undefined. If in doubt, set usesCorrelationId to false. When correlation ids are not
 	 * used, this source has at-least-once processing semantics when checkpointing is enabled.
 	 * @param rmqConnectionConfig The RabbiMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param queueName The queue to receive messages from.
@@ -116,7 +116,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 *                              into Java objects.
 	 */
 	public RMQSource(RMQConnectionConfig rmqConnectionConfig,
-					String queueName, boolean usesCorrelationId,DeserializationSchema<OUT> deserializationSchema) {
+					String queueName, boolean usesCorrelationId, DeserializationSchema<OUT> deserializationSchema) {
 		super(String.class);
 		this.rmqConnectionConfig = rmqConnectionConfig;
 		this.queueName = queueName;
@@ -184,7 +184,6 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 				+ " at " + rmqConnectionConfig.getHost(), e);
 		}
 	}
-
 
 	@Override
 	public void run(SourceContext<OUT> ctx) throws Exception {
