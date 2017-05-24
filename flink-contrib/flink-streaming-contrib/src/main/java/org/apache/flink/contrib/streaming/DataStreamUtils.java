@@ -31,6 +31,9 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Iterator;
 
+/**
+ * A collection of utilities for {@link DataStream DataStreams}.
+ */
 public final class DataStreamUtils {
 
 	/**
@@ -38,19 +41,19 @@ public final class DataStreamUtils {
 	 * @return The iterator
 	 */
 	public static <OUT> Iterator<OUT> collect(DataStream<OUT> stream) throws IOException {
-		
+
 		TypeSerializer<OUT> serializer = stream.getType().createSerializer(
 				stream.getExecutionEnvironment().getConfig());
-		
+
 		SocketStreamIterator<OUT> iter = new SocketStreamIterator<OUT>(serializer);
 
 		//Find out what IP of us should be given to CollectSink, that it will be able to connect to
 		StreamExecutionEnvironment env = stream.getExecutionEnvironment();
 		InetAddress clientAddress;
-		
+
 		if (env instanceof RemoteStreamEnvironment) {
-			String host = ((RemoteStreamEnvironment)env).getHost();
-			int port = ((RemoteStreamEnvironment)env).getPort();
+			String host = ((RemoteStreamEnvironment) env).getHost();
+			int port = ((RemoteStreamEnvironment) env).getPort();
 			try {
 				clientAddress = ConnectionUtils.findConnectingAddress(new InetSocketAddress(host, port), 2000, 400);
 			}
@@ -73,7 +76,7 @@ public final class DataStreamUtils {
 		sink.setParallelism(1); // It would not work if multiple instances would connect to the same port
 
 		(new CallExecute(env, iter)).start();
-		
+
 		return iter;
 	}
 
