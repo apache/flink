@@ -38,7 +38,6 @@ import org.apache.flink.runtime.metrics.MetricRegistry
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-
 /** JobManager actor for execution on Yarn. It enriches the [[JobManager]] with additional messages
   * to start/administer/stop the Yarn session.
   *

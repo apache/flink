@@ -39,20 +39,20 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The basis of {@link HighAvailabilityServices} for YARN setups.
  * These high-availability services auto-configure YARN's HDFS and the YARN application's
  * working directory to be used to store job recovery data.
- * 
+ *
  * <p>Note for implementers: This class locks access to and creation of services,
  * to make sure all services are properly shut down when shutting down this class.
  * To participate in the checks, overriding methods should frame method body with
  * calls to {@code enter()} and {@code exit()} as shown in the following pattern:
- * 
+ *
  * <pre>{@code
  * public LeaderRetrievalService getResourceManagerLeaderRetriever() {
  *     enter();
@@ -67,21 +67,21 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public abstract class YarnHighAvailabilityServices implements HighAvailabilityServices {
 
-	/** The name of the sub directory in which Flink stores the recovery data */
+	/** The name of the sub directory in which Flink stores the recovery data. */
 	public static final String FLINK_RECOVERY_DATA_DIR = "flink_recovery_data";
 
-	/** Logger for these services, shared with subclasses */
+	/** Logger for these services, shared with subclasses. */
 	protected static final Logger LOG = LoggerFactory.getLogger(YarnHighAvailabilityServices.class);
 
 	// ------------------------------------------------------------------------
 
-	/** The lock that guards all accesses to methods in this class */
+	/** The lock that guards all accesses to methods in this class. */
 	private final ReentrantLock lock;
 
-	/** The Flink FileSystem object that represent the HDFS used by YARN */
+	/** The Flink FileSystem object that represent the HDFS used by YARN. */
 	protected final FileSystem flinkFileSystem;
 
-	/** The Hadoop FileSystem object that represent the HDFS used by YARN */
+	/** The Hadoop FileSystem object that represent the HDFS used by YARN. */
 	protected final org.apache.hadoop.fs.FileSystem hadoopFileSystem;
 
 	/** The working directory of this YARN application.
@@ -89,13 +89,13 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 	protected final Path workingDirectory;
 
 	/** The directory for HA persistent data. This should be deleted when the
-	 * HA services clean up */
+	 * HA services clean up. */
 	protected final Path haDataDirectory;
 
-	/** Blob store service to be used for the BlobServer and BlobCache */
+	/** Blob store service to be used for the BlobServer and BlobCache. */
 	protected final BlobStoreService blobStoreService;
 
-	/** Flag marking this instance as shut down */
+	/** Flag marking this instance as shut down. */
 	private volatile boolean closed;
 
 	// ------------------------------------------------------------------------
@@ -103,13 +103,13 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 	/**
 	 * Creates new YARN high-availability services, configuring the file system and recovery
 	 * data directory based on the working directory in the given Hadoop configuration.
-	 * 
+	 *
 	 * <p>This class requires that the default Hadoop file system configured in the given
 	 * Hadoop configuration is an HDFS.
-	 * 
+	 *
 	 * @param config     The Flink configuration of this component / process.
 	 * @param hadoopConf The Hadoop configuration for the YARN cluster.
-	 * 
+	 *
 	 * @throws IOException Thrown, if the initialization of the Hadoop file system used by YARN fails.
 	 */
 	protected YarnHighAvailabilityServices(
@@ -280,7 +280,7 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 	/**
 	 * Acquires the lock and checks whether the services are already closed. If they are
 	 * already closed, the method releases the lock and returns {@code false}.
-	 * 
+	 *
 	 * @return True, if the lock was acquired and the services are not closed, false if the services are closed.
 	 */
 	boolean enterUnlessClosed() {
@@ -307,12 +307,12 @@ public abstract class YarnHighAvailabilityServices implements HighAvailabilitySe
 	/**
 	 * Creates the high-availability services for a single-job Flink YARN application, to be
 	 * used in the Application Master that runs both ResourceManager and JobManager.
-	 * 
+	 *
 	 * @param flinkConfig  The Flink configuration.
 	 * @param hadoopConfig The Hadoop configuration for the YARN cluster.
-	 * 
+	 *
 	 * @return The created high-availability services.
-	 * 
+	 *
 	 * @throws IOException Thrown, if the high-availability services could not be initialized.
 	 */
 	public static YarnHighAvailabilityServices forSingleJobAppMaster(

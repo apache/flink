@@ -18,13 +18,12 @@
 
 package org.apache.flink.yarn
 
-import java.util.{Date, UUID, List => JavaList}
+import java.util.{UUID, List => JavaList}
 
-import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.clusterframework.ApplicationStatus
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.yarn.api.records.{Container, ContainerStatus, FinalApplicationStatus}
+import org.apache.hadoop.yarn.api.records.{Container, ContainerStatus}
 
 import scala.concurrent.duration.{Deadline, FiniteDuration}
 

@@ -27,10 +27,10 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,21 +43,20 @@ import java.util.concurrent.Callable;
  * It starts actor system and the actors for {@link org.apache.flink.runtime.jobmaster.JobMaster}
  * and {@link YarnResourceManager}.
  *
- * The JobMasters handles Flink job execution, while the YarnResourceManager handles container
+ * <p>The JobMasters handles Flink job execution, while the YarnResourceManager handles container
  * allocation and failure detection.
  */
 public abstract class AbstractYarnFlinkApplicationMasterRunner {
 
-	/** Logger */
 	protected static final Logger LOG = LoggerFactory.getLogger(AbstractYarnFlinkApplicationMasterRunner.class);
 
-	/** The process environment variables */
+	/** The process environment variables. */
 	protected static final Map<String, String> ENV = System.getenv();
 
-	/** The exit code returned if the initialization of the application master failed */
+	/** The exit code returned if the initialization of the application master failed. */
 	protected static final int INIT_ERROR_EXIT_CODE = 31;
 
-	/** The host name passed by env */
+	/** The host name passed by env. */
 	protected String appMasterHostname;
 
 	/**
@@ -87,7 +86,7 @@ public abstract class AbstractYarnFlinkApplicationMasterRunner {
 			LOG.info("Remote keytab principal obtained {}", remoteKeytabPrincipal);
 
 			String keytabPath = null;
-			if(remoteKeytabPath != null) {
+			if (remoteKeytabPath != null) {
 				File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
 				keytabPath = f.getAbsolutePath();
 				LOG.debug("Keytab path: {}", keytabPath);
@@ -96,7 +95,7 @@ public abstract class AbstractYarnFlinkApplicationMasterRunner {
 			UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
 
 			LOG.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
-					currentUser.getShortUserName(), yarnClientUsername );
+					currentUser.getShortUserName(), yarnClientUsername);
 
 			// Flink configuration
 			final Map<String, String> dynamicProperties =
@@ -122,7 +121,7 @@ public abstract class AbstractYarnFlinkApplicationMasterRunner {
 			}
 
 			SecurityUtils.SecurityConfiguration sc;
-			if(hadoopConfiguration != null) {
+			if (hadoopConfiguration != null) {
 				sc = new SecurityUtils.SecurityConfiguration(flinkConfig, hadoopConfiguration);
 			} else {
 				sc = new SecurityUtils.SecurityConfiguration(flinkConfig);
@@ -170,7 +169,7 @@ public abstract class AbstractYarnFlinkApplicationMasterRunner {
 	/**
 	 * @param baseDirectory  The working directory
 	 * @param additional Additional parameters
-	 * 
+	 *
 	 * @return The configuration to be used by the TaskExecutors.
 	 */
 	private static Configuration createConfiguration(String baseDirectory, Map<String, String> additional) {
@@ -194,7 +193,7 @@ public abstract class AbstractYarnFlinkApplicationMasterRunner {
 			configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
 		}
 
-		// if the user has set the deprecated YARN-specific config keys, we add the 
+		// if the user has set the deprecated YARN-specific config keys, we add the
 		// corresponding generic config keys instead. that way, later code needs not
 		// deal with deprecated config keys
 

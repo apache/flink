@@ -35,7 +35,7 @@ import java.io.IOException;
 /**
  * These YarnHighAvailabilityServices are for use by the TaskManager in setups,
  * where there is one ResourceManager that is statically configured in the Flink configuration.
- * 
+ *
  * <h3>Handled failure types</h3>
  * <ul>
  *     <li><b>User code & operator failures:</b> Failed operators are recovered from checkpoints.</li>
@@ -52,7 +52,7 @@ import java.io.IOException;
  * <p>Internally, these services put their recovery data into YARN's working directory,
  * except for checkpoints, which are in the configured checkpoint directory. That way,
  * checkpoints can be resumed with a new job/application, even if the complete YARN application
- * is killed and cleaned up. 
+ * is killed and cleaned up.
  *
  * <p>A typical YARN setup that uses these HA services first starts the ResourceManager
  * inside the ApplicationMaster and puts its RPC endpoint address into the configuration with which
@@ -63,7 +63,7 @@ import java.io.IOException;
  */
 public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServices {
 
-	/** The RPC URL under which the single ResourceManager can be reached while available */ 
+	/** The RPC URL under which the single ResourceManager can be reached while available. */
 	private final String resourceManagerRpcUrl;
 
 	// ------------------------------------------------------------------------
@@ -72,7 +72,7 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 	 * Creates new YarnPreConfiguredMasterHaServices for the given Flink and YARN configuration.
 	 * This constructor parses the ResourceManager address from the Flink configuration and sets
 	 * up the HDFS access to store recovery data in the YARN application's working directory.
-	 * 
+	 *
 	 * @param config     The Flink configuration of this component / process.
 	 * @param hadoopConf The Hadoop configuration for the YARN cluster.
 	 *
@@ -97,7 +97,7 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 			final int rmPort = config.getInteger(YarnConfigOptions.APP_MASTER_RPC_PORT);
 
 			if (rmHost == null) {
-				throw new IllegalConfigurationException("Config parameter '" + 
+				throw new IllegalConfigurationException("Config parameter '" +
 						YarnConfigOptions.APP_MASTER_RPC_ADDRESS.key() + "' is missing.");
 			}
 			if (rmPort < 0) {
@@ -105,7 +105,7 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 						YarnConfigOptions.APP_MASTER_RPC_PORT.key() + "' is missing.");
 			}
 			if (rmPort <= 0 || rmPort >= 65536) {
-				throw new IllegalConfigurationException("Invalid value for '" + 
+				throw new IllegalConfigurationException("Invalid value for '" +
 						YarnConfigOptions.APP_MASTER_RPC_PORT.key() + "' - port must be in [1, 65535]");
 			}
 

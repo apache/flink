@@ -34,7 +34,7 @@ import java.util.concurrent.Executors;
 /**
  * These YarnHighAvailabilityServices are for the Application Master in setups where there is one
  * ResourceManager that is statically configured in the Flink configuration.
- * 
+ *
  * <h3>Handled failure types</h3>
  * <ul>
  *     <li><b>User code & operator failures:</b> Failed operators are recovered from checkpoints.</li>
@@ -51,11 +51,11 @@ import java.util.concurrent.Executors;
  * <p>Internally, these services put their recovery data into YARN's working directory,
  * except for checkpoints, which are in the configured checkpoint directory. That way,
  * checkpoints can be resumed with a new job/application, even if the complete YARN application
- * is killed and cleaned up. 
+ * is killed and cleaned up.
  *
  * <p>Because ResourceManager and JobManager run both in the same process (Application Master), they
  * use an embedded leader election service to find each other.
- * 
+ *
  * <p>A typical YARN setup that uses these HA services first starts the ResourceManager
  * inside the ApplicationMaster and puts its RPC endpoint address into the configuration with which
  * the TaskManagers are started. Because of this static addressing scheme, the setup cannot handle failures
@@ -65,21 +65,21 @@ import java.util.concurrent.Executors;
  */
 public class YarnIntraNonHaMasterServices extends AbstractYarnNonHaServices {
 
-	/** The dispatcher thread pool for these services */
+	/** The dispatcher thread pool for these services. */
 	private final ExecutorService dispatcher;
 
-	/** The embedded leader election service used by JobManagers to find the resource manager */
+	/** The embedded leader election service used by JobManagers to find the resource manager. */
 	private final SingleLeaderElectionService resourceManagerLeaderElectionService;
 
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates new YarnIntraNonHaMasterServices for the given Flink and YARN configuration.
-	 * 
-	 * This constructor initializes access to the HDFS to store recovery data, and creates the
+	 *
+	 * <p>This constructor initializes access to the HDFS to store recovery data, and creates the
 	 * embedded leader election services through which ResourceManager and JobManager find and
 	 * confirm each other.
-	 * 
+	 *
 	 * @param config     The Flink configuration of this component / process.
 	 * @param hadoopConf The Hadoop configuration for the YARN cluster.
 	 *

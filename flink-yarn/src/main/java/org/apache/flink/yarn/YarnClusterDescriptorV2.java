@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.yarn;
 
+package org.apache.flink.yarn;
 
 /**
  * Implementation of {@link org.apache.flink.yarn.AbstractYarnClusterDescriptor} which is used to start the new application master for a job under flip-6.
  * This implementation is now however tricky, since YarnClusterDescriptorV2 is related YarnClusterClientV2, but AbstractYarnClusterDescriptor is related
- * to YarnClusterClient. We should let YarnClusterDescriptorV2 implements ClusterDescriptor<YarnClusterClientV2>.
+ * to YarnClusterClient. We should let YarnClusterDescriptorV2 implements ClusterDescriptor&lt;YarnClusterClientV2&gt;.
  * However, in order to use the code in AbstractYarnClusterDescriptor for setting environments and so on, we make YarnClusterDescriptorV2 as now.
  */
 public class YarnClusterDescriptorV2 extends AbstractYarnClusterDescriptor {
