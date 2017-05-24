@@ -23,14 +23,16 @@ import org.apache.flink.api.common.functions.MapFunction;
 import java.util.HashSet;
 import java.util.Set;
 
-
+/**
+ * {@link MapFunction} that verifies that he partitioning is identical.
+ */
 public class PartitionValidatingMapper implements MapFunction<Integer, Integer> {
 
 	private static final long serialVersionUID = 1088381231244959088L;
-	
+
 	/* the partitions from which this function received data */
 	private final Set<Integer> myPartitions = new HashSet<>();
-	
+
 	private final int numPartitions;
 	private final int maxPartitions;
 

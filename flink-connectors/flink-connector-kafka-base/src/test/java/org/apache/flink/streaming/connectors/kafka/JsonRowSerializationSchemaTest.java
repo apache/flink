@@ -14,19 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.Types;
-import org.apache.flink.types.Row;
 import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JsonRowSerializationSchema;
+import org.apache.flink.table.api.Types;
+import org.apache.flink.types.Row;
+
 import org.junit.Test;
 
 import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for the {@link JsonRowSerializationSchema}.
+ */
 public class JsonRowSerializationSchemaTest {
 
 	@Test

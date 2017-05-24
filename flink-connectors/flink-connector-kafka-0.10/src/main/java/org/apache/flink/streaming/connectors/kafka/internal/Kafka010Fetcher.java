@@ -36,10 +36,10 @@ import java.util.Properties;
 
 /**
  * A fetcher that fetches data from Kafka brokers via the Kafka 0.10 consumer API.
- * 
+ *
  * <p>This fetcher re-uses basically all functionality of the 0.9 fetcher. It only additionally
  * takes the KafkaRecord-attached timestamp and attaches it to the Flink records.
- * 
+ *
  * @param <T> The type of elements produced by the fetcher.
  */
 public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
@@ -57,8 +57,7 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
-			boolean useMetrics) throws Exception
-	{
+			boolean useMetrics) throws Exception {
 		super(
 				sourceContext,
 				assignedPartitionsWithInitialOffsets,
@@ -88,7 +87,7 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 
 	/**
 	 * This method needs to be overridden because Kafka broke binary compatibility between 0.9 and 0.10,
-	 * changing binary signatures
+	 * changing binary signatures.
 	 */
 	@Override
 	protected KafkaConsumerCallBridge010 createCallBridge() {

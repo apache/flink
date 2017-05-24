@@ -14,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util.serialization;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.util.List;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
@@ -28,13 +29,15 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.List;
 
 /**
  * Deserialization schema from Avro bytes over {@link SpecificRecord} to {@link Row}.
  *
- * Deserializes the <code>byte[]</code> messages into (nested) Flink Rows.
+ * <p>Deserializes the <code>byte[]</code> messages into (nested) Flink Rows.
  *
  * {@link Utf8} is converted to regular Java Strings.
  */
@@ -56,7 +59,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	private final MutableByteArrayInputStream inputStream;
 
 	/**
-	 * Avro decoder that decodes binary data
+	 * Avro decoder that decodes binary data.
 	 */
 	private final Decoder decoder;
 
@@ -133,9 +136,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	 * InputStream instance, copying message to process, and creation of Decoder on every new message.
 	 */
 	private static final class MutableByteArrayInputStream extends ByteArrayInputStream {
-		/**
-		 * Create MutableByteArrayInputStream
-		 */
+
 		public MutableByteArrayInputStream() {
 			super(new byte[0]);
 		}

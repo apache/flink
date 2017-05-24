@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util.serialization;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,11 +22,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 
-
 /**
  * DeserializationSchema that deserializes a JSON String into an ObjectNode.
- * <p>
- * Fields can be accessed by calling objectNode.get(&lt;name>).as(&lt;type>)
+ *
+ * <p>Fields can be accessed by calling objectNode.get(&lt;name>).as(&lt;type>)
  */
 public class JSONDeserializationSchema extends AbstractDeserializationSchema<ObjectNode> {
 	private ObjectMapper mapper;

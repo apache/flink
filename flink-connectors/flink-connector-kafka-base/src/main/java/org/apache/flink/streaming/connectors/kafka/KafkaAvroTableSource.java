@@ -18,13 +18,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import java.util.List;
-import java.util.Properties;
-import org.apache.avro.Schema;
-import org.apache.avro.specific.SpecificData;
-import org.apache.avro.specific.SpecificRecord;
-import org.apache.avro.specific.SpecificRecordBase;
-import org.apache.avro.util.Utf8;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.AvroTypeInfo;
@@ -34,6 +27,15 @@ import org.apache.flink.streaming.util.serialization.AvroRowDeserializationSchem
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
+
+import org.apache.avro.Schema;
+import org.apache.avro.specific.SpecificData;
+import org.apache.avro.specific.SpecificRecord;
+import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.avro.util.Utf8;
+
+import java.util.List;
+import java.util.Properties;
 
 /**
  * A version-agnostic Kafka Avro {@link StreamTableSource}.

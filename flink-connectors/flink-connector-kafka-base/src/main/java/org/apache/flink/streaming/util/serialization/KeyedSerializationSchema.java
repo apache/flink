@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util.serialization;
 
 import java.io.Serializable;
@@ -22,7 +23,7 @@ import java.io.Serializable;
  * The serialization schema describes how to turn a data object into a different serialized
  * representation. Most data sinks (for example Apache Kafka) require the data to be handed
  * to them in a specific format (for example as byte strings).
- * 
+ *
  * @param <T> The type to be serialized.
  */
 public interface KeyedSerializationSchema<T> extends Serializable {
@@ -36,17 +37,16 @@ public interface KeyedSerializationSchema<T> extends Serializable {
 	 */
 	byte[] serializeKey(T element);
 
-
 	/**
-	 * Serializes the value of the incoming element to a byte array
-	 * 
+	 * Serializes the value of the incoming element to a byte array.
+	 *
 	 * @param element The incoming element to be serialized
 	 * @return the value of the element as a byte array
 	 */
 	byte[] serializeValue(T element);
 
 	/**
-	 * Optional method to determine the target topic for the element
+	 * Optional method to determine the target topic for the element.
 	 *
 	 * @param element Incoming element to determine the target topic from
 	 * @return null or the target topic

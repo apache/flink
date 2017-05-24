@@ -15,19 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kafka;
 
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -45,11 +35,24 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
+
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for checking whether {@link FlinkKafkaConsumerBase} can restore from snapshots that were
@@ -60,7 +63,7 @@ import org.mockito.stubbing.Answer;
  */
 public class FlinkKafkaConsumerBaseFrom12MigrationTest {
 
-	final static HashMap<KafkaTopicPartition, Long> PARTITION_STATE = new HashMap<>();
+	private static final HashMap<KafkaTopicPartition, Long> PARTITION_STATE = new HashMap<>();
 
 	static {
 		PARTITION_STATE.put(new KafkaTopicPartition("abc", 13), 16768L);
@@ -100,7 +103,6 @@ public class FlinkKafkaConsumerBaseFrom12MigrationTest {
 
 		StreamSource<String, DummyFlinkKafkaConsumer<String>> consumerOperator =
 				new StreamSource<>(consumerFunction);
-
 
 		final AbstractStreamOperatorTestHarness<String> testHarness =
 				new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
@@ -307,8 +309,7 @@ public class FlinkKafkaConsumerBaseFrom12MigrationTest {
 		}
 	}
 
-
-	private static abstract class DummySourceContext
+	private abstract static class DummySourceContext
 			implements SourceFunction.SourceContext<String> {
 
 		private final Object lock = new Object();

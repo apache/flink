@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.types.Row;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
+import org.apache.flink.types.Row;
 
 import java.util.Properties;
 
@@ -29,9 +30,9 @@ import java.util.Properties;
  * Kafka 0.8 {@link KafkaTableSink} that serializes data in JSON format.
  */
 public class Kafka08JsonTableSink extends KafkaJsonTableSink {
-	
+
 	/**
-	 * Creates {@link KafkaTableSink} for Kafka 0.8
+	 * Creates {@link KafkaTableSink} for Kafka 0.8.
 	 *
 	 * @param topic topic in Kafka to which table is written
 	 * @param properties properties to connect to Kafka
@@ -42,7 +43,7 @@ public class Kafka08JsonTableSink extends KafkaJsonTableSink {
 	}
 
 	/**
-	 * Creates {@link KafkaTableSink} for Kafka 0.8
+	 * Creates {@link KafkaTableSink} for Kafka 0.8.
 	 *
 	 * @param topic topic in Kafka to which table is written
 	 * @param properties properties to connect to Kafka

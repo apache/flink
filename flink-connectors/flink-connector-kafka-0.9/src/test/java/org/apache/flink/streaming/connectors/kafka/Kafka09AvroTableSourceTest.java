@@ -18,12 +18,16 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import java.util.Properties;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.util.serialization.AvroRowDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.types.Row;
 
+import java.util.Properties;
+
+/**
+ * Tests for the {@link Kafka09AvroTableSource}.
+ */
 public class Kafka09AvroTableSourceTest extends KafkaTableSourceTestBase {
 
 	@Override

@@ -14,14 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util.serialization;
+
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
-
 
 /**
  * Serialization schema that serializes an object into a JSON bytes.
@@ -33,9 +34,9 @@ import org.apache.flink.util.Preconditions;
  * {@link JsonRowDeserializationSchema}.
  */
 public class JsonRowSerializationSchema implements SerializationSchema<Row> {
-	/** Fields names in the input Row object */
+	/** Fields names in the input Row object. */
 	private final String[] fieldNames;
-	/** Object mapper that is used to create output JSON objects */
+	/** Object mapper that is used to create output JSON objects. */
 	private static ObjectMapper mapper = new ObjectMapper();
 
 	/**

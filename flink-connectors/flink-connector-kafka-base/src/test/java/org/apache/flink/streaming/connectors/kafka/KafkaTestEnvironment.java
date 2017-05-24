@@ -17,11 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Properties;
-
-import kafka.server.KafkaServer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
@@ -31,8 +26,14 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
+import kafka.server.KafkaServer;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Properties;
+
 /**
- * Abstract class providing a Kafka test environment
+ * Abstract class providing a Kafka test environment.
  */
 public abstract class KafkaTestEnvironment {
 
@@ -89,9 +90,14 @@ public abstract class KafkaTestEnvironment {
 
 	// -- offset handlers
 
+	/**
+	 * Simple interface to commit and retrieve offsets.
+	 */
 	public interface KafkaOffsetHandler {
 		Long getCommittedOffset(String topicName, int partition);
+
 		void setCommittedOffset(String topicName, int partition, long offset);
+
 		void close();
 	}
 

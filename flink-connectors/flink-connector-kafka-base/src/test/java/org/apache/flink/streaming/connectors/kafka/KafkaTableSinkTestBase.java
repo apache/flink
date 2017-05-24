@@ -15,9 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.kafka;
 
-import java.util.Properties;
+package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -27,7 +26,10 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWra
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.types.Row;
+
 import org.junit.Test;
+
+import java.util.Properties;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -38,6 +40,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+/**
+ * Abstract test base for all Kafka table sink tests.
+ */
 public abstract class KafkaTableSinkTestBase {
 
 	private static final String TOPIC = "testTopic";
@@ -46,7 +51,7 @@ public abstract class KafkaTableSinkTestBase {
 	private static final FlinkKafkaPartitioner<Row> PARTITIONER = new CustomPartitioner();
 	private static final Properties PROPERTIES = createSinkProperties();
 	@SuppressWarnings("unchecked")
-	private final FlinkKafkaProducerBase<Row> PRODUCER = new FlinkKafkaProducerBase<Row>(
+	private final FlinkKafkaProducerBase<Row> producer = new FlinkKafkaProducerBase<Row>(
 		TOPIC, new KeyedSerializationSchemaWrapper(getSerializationSchema()), PROPERTIES, PARTITIONER) {
 
 		@Override
@@ -61,7 +66,7 @@ public abstract class KafkaTableSinkTestBase {
 		KafkaTableSink kafkaTableSink = spy(createTableSink());
 		kafkaTableSink.emitDataStream(dataStream);
 
-		verify(dataStream).addSink(eq(PRODUCER));
+		verify(dataStream).addSink(eq(producer));
 
 		verify(kafkaTableSink).createKafkaProducer(
 			eq(TOPIC),
@@ -87,7 +92,7 @@ public abstract class KafkaTableSinkTestBase {
 	protected abstract SerializationSchema<Row> getSerializationSchema();
 
 	private KafkaTableSink createTableSink() {
-		return createTableSink(TOPIC, PROPERTIES, PARTITIONER, PRODUCER);
+		return createTableSink(TOPIC, PROPERTIES, PARTITIONER, producer);
 	}
 
 	private static Properties createSinkProperties() {

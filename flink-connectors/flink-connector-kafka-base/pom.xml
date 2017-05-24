@@ -106,7 +106,7 @@ under the License.
 		</dependency>
 
 		<!-- test dependencies -->
-		
+
 		<!-- force using the latest zkclient -->
 		<dependency>
 			<groupId>com.101tec</groupId>
@@ -187,7 +187,6 @@ under the License.
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
-	
 
 	<build>
 		<plugins>
@@ -233,5 +232,5 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
-	
+
 </project>

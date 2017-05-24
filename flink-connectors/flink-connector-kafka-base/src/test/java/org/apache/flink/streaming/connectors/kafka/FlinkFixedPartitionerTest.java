@@ -15,16 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
+
 import org.junit.Assert;
 import org.junit.Test;
 
-public class TestFlinkFixedPartitioner {
-
+/**
+ * Tests for the {@link FlinkFixedPartitioner}.
+ */
+public class FlinkFixedPartitionerTest {
 
 	/**
+	 * Test for when there are more sinks than partitions.
 	 * <pre>
 	 *   		Flink Sinks:		Kafka Partitions
 	 * 			1	---------------->	1
@@ -54,7 +59,7 @@ public class TestFlinkFixedPartitioner {
 	}
 
 	/**
-	 *
+	 * Tests for when there are more partitions than sinks.
 	 * <pre>
 	 * 		Flink Sinks:		Kafka Partitions
 	 * 			1	---------------->	1
@@ -88,7 +93,7 @@ public class TestFlinkFixedPartitioner {
 	@Test
 	public void testMixedCase() {
 		FlinkFixedPartitioner<String> part = new FlinkFixedPartitioner<>();
-		int[] partitions = new int[]{0,1};
+		int[] partitions = new int[]{0, 1};
 
 		part.open(0, 3);
 		Assert.assertEquals(0, part.partition("abc1", null, null, null, partitions));

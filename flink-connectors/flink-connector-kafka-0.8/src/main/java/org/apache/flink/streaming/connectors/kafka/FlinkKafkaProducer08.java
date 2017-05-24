@@ -27,11 +27,10 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
 import java.util.Properties;
 
-
 /**
  * Flink Sink to produce data into a Kafka topic. This producer is compatible with Kafka 0.8.
  *
- * Please note that this producer does not have any reliability guarantees.
+ * <p>Please note that this producer does not have any reliability guarantees.
  *
  * @param <IN> Type of the messages to write into Kafka.
  */

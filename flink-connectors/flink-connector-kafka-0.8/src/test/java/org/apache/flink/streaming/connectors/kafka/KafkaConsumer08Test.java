@@ -18,34 +18,11 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
-
-import java.net.InetAddress;
-import java.net.URL;
-import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
-import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.util.NetUtils;
-import org.apache.flink.util.SerializedValue;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -56,6 +33,20 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.net.InetAddress;
+import java.net.URL;
+import java.net.UnknownHostException;
+import java.util.Collections;
+import java.util.Properties;
+
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.powermock.api.mockito.PowerMockito.when;
+
+/**
+ * Tests for the {@link FlinkKafkaConsumer08}.
+ */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(FlinkKafkaConsumer08.class)
 @PowerMockIgnore("javax.management.*")
@@ -101,7 +92,7 @@ public class KafkaConsumer08Test {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testCreateSourceWithoutCluster() {
 		try {
@@ -181,7 +172,7 @@ public class KafkaConsumer08Test {
 							+ " config are invalid"));
 		}
 	}
-	
+
 	private Properties createKafkaProps(String zookeeperConnect, String bootstrapServers, String groupId) {
 		Properties props = new Properties();
 		props.setProperty("zookeeper.connect", zookeeperConnect);

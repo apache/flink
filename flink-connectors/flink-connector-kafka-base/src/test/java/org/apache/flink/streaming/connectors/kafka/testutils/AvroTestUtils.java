@@ -18,13 +18,6 @@
 
 package org.apache.flink.streaming.connectors.kafka.testutils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
-import org.apache.avro.reflect.ReflectData;
-import org.apache.avro.specific.SpecificRecord;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.io.avro.generated.Address;
 import org.apache.flink.api.io.avro.generated.Colors;
@@ -32,12 +25,21 @@ import org.apache.flink.api.io.avro.generated.User;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.types.Row;
 
+import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
+import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.specific.SpecificRecord;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+
 /**
  * Utilities for creating Avro Schemas.
  */
 public final class AvroTestUtils {
 
-	private static String NAMESPACE = "org.apache.flink.streaming.connectors.kafka";
+	private static final String NAMESPACE = "org.apache.flink.streaming.connectors.kafka";
 
 	/**
 	 * Creates a flat Avro Schema for testing.

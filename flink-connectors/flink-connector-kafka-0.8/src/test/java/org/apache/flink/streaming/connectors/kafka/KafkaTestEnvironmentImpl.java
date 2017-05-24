@@ -15,22 +15,8 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.streaming.connectors.kafka;
 
-import kafka.admin.AdminUtils;
-import kafka.api.PartitionMetadata;
-import kafka.common.KafkaException;
-import kafka.network.SocketServer;
-import kafka.server.KafkaConfig;
-import kafka.server.KafkaServer;
-import org.I0Itec.zkclient.ZkClient;
-import org.apache.commons.io.FileUtils;
-import org.apache.curator.RetryPolicy;
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.retry.ExponentialBackoffRetry;
-import org.apache.curator.test.TestingServer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
@@ -41,9 +27,23 @@ import org.apache.flink.streaming.connectors.kafka.testutils.ZooKeeperStringSeri
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
+
+import kafka.admin.AdminUtils;
+import kafka.api.PartitionMetadata;
+import kafka.common.KafkaException;
+import kafka.network.SocketServer;
+import kafka.server.KafkaConfig;
+import kafka.server.KafkaServer;
+import kafka.utils.SystemTime$;
+import org.I0Itec.zkclient.ZkClient;
+import org.apache.commons.io.FileUtils;
+import org.apache.curator.RetryPolicy;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.curator.test.TestingServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.collection.Seq;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,12 +55,14 @@ import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 
+import scala.collection.Seq;
+
 import static org.apache.flink.util.NetUtils.hostAndPortToUrlString;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * An implementation of the KafkaServerProvider for Kafka 0.8
+ * An implementation of the KafkaServerProvider for Kafka 0.8 .
  */
 public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
@@ -165,7 +167,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	public boolean isSecureRunSupported() {
 		return false;
 	}
-
 
 	@Override
 	public void prepare(int numKafkaServers, Properties additionalServerProperties, boolean secureMode) {
@@ -325,7 +326,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	/**
-	 * Copied from com.github.sakserv.minicluster.KafkaLocalBrokerIntegrationTest (ASL licensed)
+	 * Copied from com.github.sakserv.minicluster.KafkaLocalBrokerIntegrationTest (ASL licensed).
 	 */
 	protected KafkaServer getKafkaServer(int brokerId, File tmpFolder) throws Exception {
 		LOG.info("Starting broker with id {}", brokerId);
@@ -342,7 +343,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		// for CI stability, increase zookeeper session timeout
 		kafkaProperties.put("zookeeper.session.timeout.ms", "30000");
 		kafkaProperties.put("zookeeper.connection.timeout.ms", "30000");
-		if(additionalServerProperties != null) {
+		if (additionalServerProperties != null) {
 			kafkaProperties.putAll(additionalServerProperties);
 		}
 
@@ -354,7 +355,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			KafkaConfig kafkaConfig = new KafkaConfig(kafkaProperties);
 
 			try {
-				KafkaServer server = new KafkaServer(kafkaConfig, new KafkaLocalSystemTime());
+				KafkaServer server = new KafkaServer(kafkaConfig, SystemTime$.MODULE$);
 				server.startup();
 				return server;
 			}

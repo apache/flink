@@ -26,11 +26,11 @@ import java.util.List;
 
 /**
  * The ConsumerCallBridge simply calls the {@link KafkaConsumer#assign(java.util.Collection)} method.
- * 
- * This indirection is necessary, because Kafka broke binary compatibility between 0.9 and 0.10,
+ *
+ * <p>This indirection is necessary, because Kafka broke binary compatibility between 0.9 and 0.10,
  * changing {@code assign(List)} to {@code assign(Collection)}.
- * 
- * Because of that, we need two versions whose compiled code goes against different method signatures.
+ *
+ * <p>Because of that, we need two versions whose compiled code goes against different method signatures.
  */
 public class KafkaConsumerCallBridge010 extends KafkaConsumerCallBridge {
 

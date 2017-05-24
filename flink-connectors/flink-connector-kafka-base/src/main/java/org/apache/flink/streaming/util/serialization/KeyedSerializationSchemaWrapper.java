@@ -14,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util.serialization;
 
 /**
  * A simple wrapper for using the SerializationSchema with the KeyedDeserializationSchema
- * interface
+ * interface.
  * @param <T> The type to serialize
  */
 public class KeyedSerializationSchemaWrapper<T> implements KeyedSerializationSchema<T> {

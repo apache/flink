@@ -27,16 +27,16 @@ import static java.util.Objects.requireNonNull;
 /**
  * Flink's description of a partition in a Kafka topic.
  * Serializable, and common across all Kafka consumer subclasses (0.8, 0.9, ...)
- * 
+ *
  * <p>Note: This class must not change in its structure, because it would change the
  * serialization format and make previous savepoints unreadable.
  */
 public final class KafkaTopicPartition implements Serializable {
 
 	/** THIS SERIAL VERSION UID MUST NOT CHANGE, BECAUSE IT WOULD BREAK
-	 * READING OLD SERIALIZED INSTANCES FROM SAVEPOINTS */
+	 * READING OLD SERIALIZED INSTANCES FROM SAVEPOINTS. */
 	private static final long serialVersionUID = 722083576322742325L;
-	
+
 	// ------------------------------------------------------------------------
 
 	private final String topic;
@@ -50,7 +50,7 @@ public final class KafkaTopicPartition implements Serializable {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	public String getTopic() {
 		return topic;
 	}
@@ -60,7 +60,7 @@ public final class KafkaTopicPartition implements Serializable {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return "KafkaTopicPartition{" +
@@ -87,7 +87,7 @@ public final class KafkaTopicPartition implements Serializable {
 	public int hashCode() {
 		return cachedHash;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -109,10 +109,9 @@ public final class KafkaTopicPartition implements Serializable {
 		return sb.toString();
 	}
 
-
 	public static List<KafkaTopicPartition> dropLeaderData(List<KafkaTopicPartitionLeader> partitionInfos) {
 		List<KafkaTopicPartition> ret = new ArrayList<>(partitionInfos.size());
-		for(KafkaTopicPartitionLeader ktpl: partitionInfos) {
+		for (KafkaTopicPartitionLeader ktpl: partitionInfos) {
 			ret.add(ktpl.getTopicPartition());
 		}
 		return ret;

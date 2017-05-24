@@ -19,15 +19,18 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.junit.Test;
 
+/**
+ * {@link KafkaShortRetentionTestBase} for Kafka 0.8 .
+ */
 @SuppressWarnings("serial")
 public class KafkaShortRetention08ITCase extends KafkaShortRetentionTestBase {
 
-	@Test(timeout=60000)
+	@Test(timeout = 60000)
 	public void testAutoOffsetReset() throws Exception {
 		runAutoOffsetResetTest();
 	}
 
-	@Test(timeout=60000)
+	@Test(timeout = 60000)
 	public void testAutoOffsetResetNone() throws Exception {
 		runFailOnAutoOffsetResetNoneEager();
 	}

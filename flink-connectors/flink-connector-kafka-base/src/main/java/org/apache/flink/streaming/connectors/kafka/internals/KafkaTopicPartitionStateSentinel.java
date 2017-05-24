@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 /**
  * Magic values used to represent special offset states before partitions are actually read.
  *
- * The values are all negative. Negative offsets are not used by Kafka (invalid), so we
+ * <p>The values are all negative. Negative offsets are not used by Kafka (invalid), so we
  * pick a number that is probably (hopefully) not used by Kafka as a magic number for anything else.
  */
 public class KafkaTopicPartitionStateSentinel {
@@ -31,7 +31,7 @@ public class KafkaTopicPartitionStateSentinel {
 	/**
 	 * Magic number that defines the partition should start from the earliest offset.
 	 *
-	 * This is used as a placeholder so that the actual earliest offset can be evaluated lazily
+	 * <p>This is used as a placeholder so that the actual earliest offset can be evaluated lazily
 	 * when the partition will actually start to be read by the consumer.
 	 */
 	public static final long EARLIEST_OFFSET = -915623761775L;
@@ -39,7 +39,7 @@ public class KafkaTopicPartitionStateSentinel {
 	/**
 	 * Magic number that defines the partition should start from the latest offset.
 	 *
-	 * This is used as a placeholder so that the actual latest offset can be evaluated lazily
+	 * <p>This is used as a placeholder so that the actual latest offset can be evaluated lazily
 	 * when the partition will actually start to be read by the consumer.
 	 */
 	public static final long LATEST_OFFSET = -915623761774L;
@@ -47,7 +47,7 @@ public class KafkaTopicPartitionStateSentinel {
 	/**
 	 * Magic number that defines the partition should start from its committed group offset in Kafka.
 	 *
-	 * This is used as a placeholder so that the actual committed group offset can be evaluated lazily
+	 * <p>This is used as a placeholder so that the actual committed group offset can be evaluated lazily
 	 * when the partition will actually start to be read by the consumer.
 	 */
 	public static final long GROUP_OFFSET = -915623761773L;

@@ -14,12 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util.serialization;
+
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import java.io.IOException;
 
@@ -27,12 +29,12 @@ import static org.apache.flink.api.java.typeutils.TypeExtractor.getForClass;
 
 /**
  * DeserializationSchema that deserializes a JSON String into an ObjectNode.
- * <p>
- * Key fields can be accessed by calling objectNode.get("key").get(&lt;name>).as(&lt;type>)
- * <p>
- * Value fields can be accessed by calling objectNode.get("value").get(&lt;name>).as(&lt;type>)
- * <p>
- * Metadata fields can be accessed by calling objectNode.get("metadata").get(&lt;name>).as(&lt;type>) and include
+ *
+ * <p>Key fields can be accessed by calling objectNode.get("key").get(&lt;name>).as(&lt;type>)
+ *
+ * <p>Value fields can be accessed by calling objectNode.get("value").get(&lt;name>).as(&lt;type>)
+ *
+ * <p>Metadata fields can be accessed by calling objectNode.get("metadata").get(&lt;name>).as(&lt;type>) and include
  * the "offset" (long), "topic" (String) and "partition" (int).
  */
 public class JSONKeyValueDeserializationSchema implements KeyedDeserializationSchema<ObjectNode> {

@@ -38,13 +38,17 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
+
 import org.junit.Test;
 
 import javax.annotation.Nullable;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
-
+/**
+ * IT cases for Kafka 0.10 .
+ */
 public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 	// ------------------------------------------------------------------------
@@ -82,7 +86,6 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 	public void testFailOnDeploy() throws Exception {
 		runFailOnDeployTest();
 	}
-
 
 	// --- source to partition mappings and exactly once ---
 
@@ -170,7 +173,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 	}
 
 	/**
-	 * Kafka 0.10 specific test, ensuring Timestamps are properly written to and read from Kafka
+	 * Kafka 0.10 specific test, ensuring Timestamps are properly written to and read from Kafka.
 	 */
 	@Test(timeout = 60000)
 	public void testTimestamps() throws Exception {
@@ -193,9 +196,9 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 			@Override
 			public void run(SourceContext<Long> ctx) throws Exception {
 				long i = 0;
-				while(running) {
-					ctx.collectWithTimestamp(i, i*2);
-					if(i++ == 1000L) {
+				while (running) {
+					ctx.collectWithTimestamp(i, i * 2);
+					if (i++ == 1000L) {
 						running = false;
 					}
 				}
@@ -213,7 +216,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 
 			@Override
 			public int partition(Long next, byte[] key, byte[] value, String targetTopic, int[] partitions) {
-				return (int)(next % 3);
+				return (int) (next % 3);
 			}
 		});
 		prod.setParallelism(3);
@@ -235,7 +238,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 			@Nullable
 			@Override
 			public Watermark checkAndGetNextWatermark(Long lastElement, long extractedTimestamp) {
-				if(lastElement % 10 == 0) {
+				if (lastElement % 10 == 0) {
 					return new Watermark(lastElement);
 				}
 				return null;
@@ -278,7 +281,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		@Override
 		public void processElement(StreamRecord<Long> element) throws Exception {
 			elCount++;
-			if(element.getValue() * 2 != element.getTimestamp()) {
+			if (element.getValue() * 2 != element.getTimestamp()) {
 				throw new RuntimeException("Invalid timestamp: " + element);
 			}
 		}
@@ -287,13 +290,13 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		public void processWatermark(Watermark mark) throws Exception {
 			wmCount++;
 
-			if(lastWM <= mark.getTimestamp()) {
+			if (lastWM <= mark.getTimestamp()) {
 				lastWM = mark.getTimestamp();
 			} else {
 				throw new RuntimeException("Received watermark higher than the last one");
 			}
 
-			if( mark.getTimestamp() % 10 != 0 && mark.getTimestamp() != Long.MAX_VALUE ) {
+			if (mark.getTimestamp() % 10 != 0 && mark.getTimestamp() != Long.MAX_VALUE) {
 				throw new RuntimeException("Invalid watermark: " + mark.getTimestamp());
 			}
 		}
@@ -301,11 +304,11 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		@Override
 		public void close() throws Exception {
 			super.close();
-			if(elCount != 1000L) {
+			if (elCount != 1000L) {
 				throw new RuntimeException("Wrong final element count " + elCount);
 			}
 
-			if(wmCount <= 2) {
+			if (wmCount <= 2) {
 				throw new RuntimeException("Almost no watermarks have been sent " + wmCount);
 			}
 		}
@@ -322,6 +325,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 			this.ti = TypeInfoParser.parse("Long");
 			this.ser = ti.createSerializer(new ExecutionConfig());
 		}
+
 		@Override
 		public TypeInformation<Long> getProducedType() {
 			return ti;

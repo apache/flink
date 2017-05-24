@@ -28,7 +28,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -36,12 +35,15 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link ClosableBlockingQueue}.
+ */
 public class ClosableBlockingQueueTest {
 
 	// ------------------------------------------------------------------------
 	//  single-threaded unit tests
 	// ------------------------------------------------------------------------
-	
+
 	@Test
 	public void testCreateQueueHashCodeEquals() {
 		try {
@@ -54,14 +56,14 @@ public class ClosableBlockingQueueTest {
 			assertTrue(queue2.isEmpty());
 			assertEquals(0, queue1.size());
 			assertEquals(0, queue2.size());
-			
+
 			assertTrue(queue1.hashCode() == queue2.hashCode());
 			//noinspection EqualsWithItself
 			assertTrue(queue1.equals(queue1));
 			//noinspection EqualsWithItself
 			assertTrue(queue2.equals(queue2));
 			assertTrue(queue1.equals(queue2));
-			
+
 			assertNotNull(queue1.toString());
 			assertNotNull(queue2.toString());
 
@@ -86,7 +88,7 @@ public class ClosableBlockingQueueTest {
 			//noinspection EqualsWithItself
 			assertTrue(queue4.equals(queue4));
 			assertTrue(queue3.equals(queue4));
-			
+
 			assertNotNull(queue3.toString());
 			assertNotNull(queue4.toString());
 		}
@@ -95,7 +97,7 @@ public class ClosableBlockingQueueTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testCloseEmptyQueue() {
 		try {
@@ -103,10 +105,10 @@ public class ClosableBlockingQueueTest {
 			assertTrue(queue.isOpen());
 			assertTrue(queue.close());
 			assertFalse(queue.isOpen());
-			
+
 			assertFalse(queue.addIfOpen("element"));
 			assertTrue(queue.isEmpty());
-			
+
 			try {
 				queue.add("some element");
 				fail("should cause an exception");
@@ -125,15 +127,15 @@ public class ClosableBlockingQueueTest {
 		try {
 			ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>(asList(1, 2, 3));
 			assertTrue(queue.isOpen());
-			
+
 			assertFalse(queue.close());
 			assertFalse(queue.close());
-			
+
 			queue.poll();
 
 			assertFalse(queue.close());
 			assertFalse(queue.close());
-			
+
 			queue.pollBatch();
 
 			assertTrue(queue.close());
@@ -154,36 +156,36 @@ public class ClosableBlockingQueueTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testPeekAndPoll() {
 		try {
 			ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>();
-			
+
 			assertNull(queue.peek());
 			assertNull(queue.peek());
 			assertNull(queue.poll());
 			assertNull(queue.poll());
-			
+
 			assertEquals(0, queue.size());
-			
+
 			queue.add("a");
 			queue.add("b");
 			queue.add("c");
 
 			assertEquals(3, queue.size());
-			
+
 			assertEquals("a", queue.peek());
 			assertEquals("a", queue.peek());
 			assertEquals("a", queue.peek());
 
 			assertEquals(3, queue.size());
-			
+
 			assertEquals("a", queue.poll());
 			assertEquals("b", queue.poll());
 
 			assertEquals(1, queue.size());
-			
+
 			assertEquals("c", queue.peek());
 			assertEquals("c", queue.peek());
 
@@ -193,9 +195,9 @@ public class ClosableBlockingQueueTest {
 			assertNull(queue.poll());
 			assertNull(queue.peek());
 			assertNull(queue.peek());
-			
+
 			assertTrue(queue.close());
-			
+
 			try {
 				queue.peek();
 				fail("should cause an exception");
@@ -222,13 +224,13 @@ public class ClosableBlockingQueueTest {
 			ClosableBlockingQueue<String> queue = new ClosableBlockingQueue<>();
 
 			assertNull(queue.pollBatch());
-			
+
 			queue.add("a");
 			queue.add("b");
-			
+
 			assertEquals(asList("a", "b"), queue.pollBatch());
 			assertNull(queue.pollBatch());
-			
+
 			queue.add("c");
 
 			assertEquals(singletonList("c"), queue.pollBatch());
@@ -363,16 +365,16 @@ public class ClosableBlockingQueueTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  multi-threaded tests
 	// ------------------------------------------------------------------------
-	
+
 	@Test
 	public void notifyOnClose() {
 		try {
 			final long oneYear = 365L * 24 * 60 * 60 * 1000;
-			
+
 			// test "getBatchBlocking()"
 			final ClosableBlockingQueue<String> queue1 = new ClosableBlockingQueue<>();
 			QueueCall call1 = new QueueCall() {
@@ -418,7 +420,7 @@ public class ClosableBlockingQueueTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@SuppressWarnings("ThrowableResultOfMethodCallIgnored")
 	@Test
 	public void testMultiThreadedAddGet() {
@@ -426,9 +428,9 @@ public class ClosableBlockingQueueTest {
 			final ClosableBlockingQueue<Integer> queue = new ClosableBlockingQueue<>();
 			final AtomicReference<Throwable> pushErrorRef = new AtomicReference<>();
 			final AtomicReference<Throwable> pollErrorRef = new AtomicReference<>();
-			
+
 			final int numElements = 2000;
-			
+
 			Thread pusher = new Thread("pusher") {
 
 				@Override
@@ -437,14 +439,14 @@ public class ClosableBlockingQueueTest {
 						final Random rnd = new Random();
 						for (int i = 0; i < numElements; i++) {
 							queue.add(i);
-							
+
 							// sleep a bit, sometimes
 							int sleepTime = rnd.nextInt(3);
 							if (sleepTime > 1) {
 								Thread.sleep(sleepTime);
 							}
 						}
-						
+
 						while (true) {
 							if (queue.close()) {
 								break;
@@ -466,11 +468,11 @@ public class ClosableBlockingQueueTest {
 				public void run() {
 					try {
 						int count = 0;
-						
+
 						try {
 							final Random rnd = new Random();
 							int nextExpected = 0;
-							
+
 							while (true) {
 								int getMethod = count % 7;
 								switch (getMethod) {
@@ -534,7 +536,7 @@ public class ClosableBlockingQueueTest {
 										count++;
 									}
 								}
-								
+
 								// sleep a bit, sometimes
 								int sleepTime = rnd.nextInt(3);
 								if (sleepTime > 1) {
@@ -551,10 +553,10 @@ public class ClosableBlockingQueueTest {
 				}
 			};
 			poller.start();
-			
+
 			pusher.join();
 			poller.join();
-			
+
 			if (pushErrorRef.get() != null) {
 				Throwable t = pushErrorRef.get();
 				t.printStackTrace();
@@ -571,16 +573,16 @@ public class ClosableBlockingQueueTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Utils
 	// ------------------------------------------------------------------------
-	
+
 	private static void testCallExitsOnClose(
 			final QueueCall call, ClosableBlockingQueue<String> queue) throws Exception {
-		
+
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
-		
+
 		Runnable runnable = new Runnable() {
 			@Override
 			public void run() {
@@ -602,7 +604,7 @@ public class ClosableBlockingQueueTest {
 		Throwable cause = errorRef.get();
 		assertTrue(cause instanceof IllegalStateException);
 	}
-	
+
 	private interface QueueCall {
 		void call() throws Exception;
 	}

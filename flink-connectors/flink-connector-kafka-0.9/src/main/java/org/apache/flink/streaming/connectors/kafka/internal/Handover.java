@@ -19,10 +19,12 @@
 package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.util.ExceptionUtils;
+
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
+
 import java.io.Closeable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -32,13 +34,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <i>producer</i> thread to a <i>consumer</i> thread. It effectively behaves like a
  * "size one blocking queue", with some extras around exception reporting, closing, and
  * waking up thread without {@link Thread#interrupt() interrupting} threads.
- * 
+ *
  * <p>This class is used in the Flink Kafka Consumer to hand over data and exceptions between
  * the thread that runs the KafkaConsumer class and the main thread.
- * 
+ *
  * <p>The Handover has the notion of "waking up" the producer thread with a {@link WakeupException}
  * rather than a thread interrupt.
- * 
+ *
  * <p>The Handover can also be "closed", signalling from one thread to the other that it
  * the thread has terminated.
  */
@@ -54,12 +56,12 @@ public final class Handover implements Closeable {
 	/**
 	 * Polls the next element from the Handover, possibly blocking until the next element is
 	 * available. This method behaves similar to polling from a blocking queue.
-	 * 
+	 *
 	 * <p>If an exception was handed in by the producer ({@link #reportError(Throwable)}), then
 	 * that exception is thrown rather than an element being returned.
-	 * 
+	 *
 	 * @return The next element (buffer of records, never null).
-	 * 
+	 *
 	 * @throws ClosedException Thrown if the Handover was {@link #close() closed}.
 	 * @throws Exception Rethrows exceptions from the {@link #reportError(Throwable)} method.
 	 */
@@ -81,7 +83,7 @@ public final class Handover implements Closeable {
 
 				// this statement cannot be reached since the above method always throws an exception
 				// this is only here to silence the compiler and any warnings
-				return ConsumerRecords.empty(); 
+				return ConsumerRecords.empty();
 			}
 		}
 	}
@@ -90,11 +92,11 @@ public final class Handover implements Closeable {
 	 * Hands over an element from the producer. If the Handover already has an element that was
 	 * not yet picked up by the consumer thread, this call blocks until the consumer picks up that
 	 * previous element.
-	 * 
+	 *
 	 * <p>This behavior is similar to a "size one" blocking queue.
-	 * 
+	 *
 	 * @param element The next element to hand over.
-	 * 
+	 *
 	 * @throws InterruptedException
 	 *                 Thrown, if the thread is interrupted while blocking for the Handover to be empty.
 	 * @throws WakeupException
@@ -135,15 +137,15 @@ public final class Handover implements Closeable {
 	 * Reports an exception. The consumer will throw the given exception immediately, if
 	 * it is currently blocked in the {@link #pollNext()} method, or the next time it
 	 * calls that method.
-	 * 
+	 *
 	 * <p>After this method has been called, no call to either {@link #produce(ConsumerRecords)}
 	 * or {@link #pollNext()} will ever return regularly any more, but will always return
 	 * exceptionally.
-	 * 
+	 *
 	 * <p>If another exception was already reported, this method does nothing.
-	 * 
+	 *
 	 * <p>For the producer, the Handover will appear as if it was {@link #close() closed}.
-	 * 
+	 *
 	 * @param t The exception to report.
 	 */
 	public void reportError(Throwable t) {
@@ -163,7 +165,7 @@ public final class Handover implements Closeable {
 	 * Closes the handover. Both the {@link #produce(ConsumerRecords)} method and the
 	 * {@link #pollNext()} will throw a {@link ClosedException} on any currently blocking and
 	 * future invocations.
-	 * 
+	 *
 	 * <p>If an exception was previously reported via the {@link #reportError(Throwable)} method,
 	 * that exception will not be overridden. The consumer thread will throw that exception upon
 	 * calling {@link #pollNext()}, rather than the {@code ClosedException}.

@@ -43,6 +43,9 @@ import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+/**
+ * Abstract test base for all Kafka producer tests.
+ */
 @SuppressWarnings("serial")
 public abstract class KafkaProducerTestBase extends KafkaTestBase {
 
@@ -50,7 +53,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 	 * This tests verifies that custom partitioning works correctly, with a default topic
 	 * and dynamic topic. The number of partitions for each topic is deliberately different.
 	 *
-	 * Test topology:
+	 * <p>Test topology:
 	 *
 	 * <pre>
 	 *             +------> (sink) --+--> [DEFAULT_TOPIC-1] --> (source) -> (map) -----+
@@ -67,11 +70,11 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 	 *            \                  |                             |          |        |
 	 *             +------> (sink) --+--> [DYNAMIC_TOPIC-3] --> (source) -> (map) -----+
 	 * </pre>
-	 * 
-	 * Each topic has an independent mapper that validates the values come consistently from
+	 *
+	 * <p>Each topic has an independent mapper that validates the values come consistently from
 	 * the correct Kafka partition of the topic is is responsible of.
-	 * 
-	 * Each topic also has a final sink that validates that there are no duplicates and that all
+	 *
+	 * <p>Each topic also has a final sink that validates that there are no duplicates and that all
 	 * partitions are present.
 	 */
 	public void runCustomPartitioningTest() {
@@ -171,7 +174,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 
 	// ------------------------------------------------------------------------
 
-	public static class CustomPartitioner extends FlinkKafkaPartitioner<Tuple2<Long, String>> implements Serializable {
+	private static class CustomPartitioner extends FlinkKafkaPartitioner<Tuple2<Long, String>> implements Serializable {
 
 		private final Map<String, Integer> expectedTopicsToNumPartitions;
 

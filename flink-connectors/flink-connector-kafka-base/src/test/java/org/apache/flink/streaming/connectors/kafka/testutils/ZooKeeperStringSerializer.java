@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.connectors.kafka.testutils;
 
-import org.I0Itec.zkclient.serialize.ZkSerializer;
 import org.apache.flink.configuration.ConfigConstants;
+
+import org.I0Itec.zkclient.serialize.ZkSerializer;
 
 /**
  * Simple ZooKeeper serializer for Strings.

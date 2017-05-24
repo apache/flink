@@ -33,13 +33,13 @@ public class Tuple2FlinkPartitioner extends FlinkKafkaPartitioner<Tuple2<Integer
 	public Tuple2FlinkPartitioner(int expectedPartitions) {
 		this.expectedPartitions = expectedPartitions;
 	}
-	
+
 	@Override
 	public int partition(Tuple2<Integer, Integer> next, byte[] key, byte[] value, String targetTopic, int[] partitions) {
 		if (partitions.length != expectedPartitions) {
 			throw new IllegalArgumentException("Expected " + expectedPartitions + " partitions");
 		}
-		
+
 		return next.f0;
 	}
 }

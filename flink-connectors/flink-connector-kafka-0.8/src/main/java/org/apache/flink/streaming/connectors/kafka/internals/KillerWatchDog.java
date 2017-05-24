@@ -21,7 +21,7 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 /**
  * A watch dog thread that forcibly kills another thread, if that thread does not
  * finish in time.
- * 
+ *
  * <p>This uses the discouraged {@link Thread#stop()} method. While this is not
  * advisable, this watch dog is only for extreme cases of thread that simply
  * to not terminate otherwise.

@@ -39,10 +39,8 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.TopicPartition;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -63,7 +61,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
 import static org.powermock.api.mockito.PowerMockito.doAnswer;
@@ -91,10 +88,10 @@ public class Kafka09FetcherTest {
 
 		// ----- the mock consumer with blocking poll calls ----
 		final MultiShotLatch blockerLatch = new MultiShotLatch();
-		
+
 		KafkaConsumer<?, ?> mockConsumer = mock(KafkaConsumer.class);
 		when(mockConsumer.poll(anyLong())).thenAnswer(new Answer<ConsumerRecords<?, ?>>() {
-			
+
 			@Override
 			public ConsumerRecords<?, ?> answer(InvocationOnMock invocation) throws InterruptedException {
 				sync.trigger();
@@ -157,7 +154,7 @@ public class Kafka09FetcherTest {
 		sync.await();
 
 		// ----- trigger the offset commit -----
-		
+
 		final AtomicReference<Throwable> commitError = new AtomicReference<>();
 		final Thread committer = new Thread("committer runner") {
 			@Override
@@ -192,11 +189,11 @@ public class Kafka09FetcherTest {
 
 	@Test
 	public void ensureOffsetsGetCommitted() throws Exception {
-		
+
 		// test data
 		final KafkaTopicPartition testPartition1 = new KafkaTopicPartition("test", 42);
 		final KafkaTopicPartition testPartition2 = new KafkaTopicPartition("another", 99);
-		
+
 		final Map<KafkaTopicPartition, Long> testCommitData1 = new HashMap<>();
 		testCommitData1.put(testPartition1, 11L);
 		testCommitData1.put(testPartition2, 18L);
@@ -206,7 +203,6 @@ public class Kafka09FetcherTest {
 		testCommitData2.put(testPartition2, 28L);
 
 		final BlockingQueue<Map<TopicPartition, OffsetAndMetadata>> commitStore = new LinkedBlockingQueue<>();
-
 
 		// ----- the mock consumer with poll(), wakeup(), and commit(A)sync calls ----
 
@@ -234,7 +230,7 @@ public class Kafka09FetcherTest {
 			@Override
 			public Void answer(InvocationOnMock invocation) {
 				@SuppressWarnings("unchecked")
-				Map<TopicPartition, OffsetAndMetadata> offsets = 
+				Map<TopicPartition, OffsetAndMetadata> offsets =
 						(Map<TopicPartition, OffsetAndMetadata>) invocation.getArguments()[0];
 
 				OffsetCommitCallback callback = (OffsetCommitCallback) invocation.getArguments()[1];
@@ -242,7 +238,7 @@ public class Kafka09FetcherTest {
 				commitStore.add(offsets);
 				callback.onComplete(offsets, null);
 
-				return null; 
+				return null;
 			}
 		}).when(mockConsumer).commitAsync(
 				Mockito.<Map<TopicPartition, OffsetAndMetadata>>any(), any(OffsetCommitCallback.class));
@@ -322,7 +318,7 @@ public class Kafka09FetcherTest {
 				assertEquals(27L, entry.getValue().offset());
 			}
 		}
-		
+
 		// ----- test done, wait till the fetcher is done for a clean shutdown -----
 		fetcher.cancel();
 		fetcherRunner.join();
@@ -386,7 +382,6 @@ public class Kafka09FetcherTest {
 				new Properties(),
 				0L,
 				false);
-
 
 		// ----- run the fetcher -----
 
