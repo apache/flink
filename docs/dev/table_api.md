@@ -231,9 +231,9 @@ You can then create the source as follows (example for Kafka 0.8):
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // specify JSON field names and types
-TypeInformation<Row> typeInfo = Types.ROW(
+TypeInformation<Row> typeInfo = Types.ROW_NAMED(
   new String[] { "id", "name", "score" },
-  new TypeInformation<?>[] { Types.INT(), Types.STRING(), Types.DOUBLE() }
+  Types.INT, Types.STRING, Types.DOUBLE
 );
 
 KafkaJsonTableSource kafkaTableSource = new Kafka08JsonTableSource(
