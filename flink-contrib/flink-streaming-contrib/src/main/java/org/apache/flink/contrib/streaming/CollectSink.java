@@ -17,27 +17,27 @@
 
 package org.apache.flink.contrib.streaming;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.Socket;
-import java.net.InetAddress;
-
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.Socket;
 
 /**
  * A specialized data sink to be used by DataStreamUtils.collect.
  */
 class CollectSink<IN> extends RichSinkFunction<IN> {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	private final InetAddress hostIp;
 	private final int port;
 	private final TypeSerializer<IN> serializer;
-	
+
 	private transient Socket client;
 	private transient OutputStream outputStream;
 	private transient DataOutputViewStreamWrapper streamWriter;
@@ -91,7 +91,7 @@ class CollectSink<IN> extends RichSinkFunction<IN> {
 				outputStream.flush();
 				outputStream.close();
 			}
-			
+
 			// first regular attempt to cleanly close. Failing that will escalate
 			if (client != null) {
 				client.close();
