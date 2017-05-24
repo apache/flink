@@ -18,18 +18,6 @@
 
 package org.apache.flink.cep.nfa.compiler;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterators;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -45,6 +33,21 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.NotCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
+
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterators;
+
+import javax.annotation.Nullable;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Compiler class containing methods to compile a {@link Pattern} into a {@link NFA} or a
@@ -396,7 +399,7 @@ public class NFACompiler {
 
 		/**
 		 * Creates a "complex" state consisting of given number of states with
-		 * same {@link IterativeCondition}
+		 * same {@link IterativeCondition}.
 		 *
 		 * @param sinkState the state that the created state should point to
 		 * @param times     number of times the state should be copied
@@ -720,8 +723,8 @@ public class NFACompiler {
 
 	/**
 	 * Implementation of the {@link NFAFactory} interface.
-	 * <p>
-	 * The implementation takes the input type serializer, the window time and the set of
+	 *
+	 * <p>The implementation takes the input type serializer, the window time and the set of
 	 * states and their transitions to be able to create an NFA from them.
 	 *
 	 * @param <T> Type of the input events which are processed by the NFA

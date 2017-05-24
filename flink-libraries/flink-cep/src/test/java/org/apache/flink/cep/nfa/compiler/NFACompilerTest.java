@@ -32,6 +32,7 @@ import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -45,6 +46,9 @@ import static com.google.common.collect.Sets.newHashSet;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link NFACompiler}.
+ */
 public class NFACompilerTest extends TestLogger {
 
 	private static final SimpleCondition<Event> startFilter = new SimpleCondition<Event>() {
@@ -116,7 +120,7 @@ public class NFACompilerTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the NFACompiler generates the correct NFA from a given Pattern
+	 * Tests that the NFACompiler generates the correct NFA from a given Pattern.
 	 */
 	@Test
 	public void testNFACompilerWithSimplePattern() {

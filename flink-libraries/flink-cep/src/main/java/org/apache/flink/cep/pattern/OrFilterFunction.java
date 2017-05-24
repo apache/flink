@@ -21,13 +21,12 @@ package org.apache.flink.cep.pattern;
 import org.apache.flink.api.common.functions.FilterFunction;
 
 /**
- * @deprecated This is only used when migrating from an older Flink version.
- * Use the {@link org.apache.flink.cep.pattern.conditions.OrCondition} instead.
- *
- * <p>A filter function which combines two filter functions with a logical or. Thus, the filter
+ * A filter function which combines two filter functions with a logical or. Thus, the filter
  * function only returns true, iff at least one of the filter functions holds true.
  *
  * @param <T> Type of the element to filter
+ * @deprecated This is only used when migrating from an older Flink version.
+ * Use the {@link org.apache.flink.cep.pattern.conditions.OrCondition} instead.
  */
 @Deprecated
 public class OrFilterFunction<T> implements FilterFunction<T> {

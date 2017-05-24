@@ -35,6 +35,7 @@ import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+
 import org.junit.Test;
 
 import java.util.List;
@@ -44,6 +45,9 @@ import java.util.Queue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for rescaling of CEP operators.
+ */
 public class CEPRescalingTest {
 
 	@Test
@@ -64,7 +68,7 @@ public class CEPRescalingTest {
 
 		Event startEvent1 = new Event(7, "start", 1.0);
 		SubEvent middleEvent1 = new SubEvent(7, "foo", 1.0, 10.0);
-		Event endEvent1=  new Event(7, "end", 1.0);
+		Event endEvent1 = new Event(7, "end", 1.0);
 
 		int keygroup = KeyGroupRangeAssignment.assignToKeyGroup(keySelector.getKey(startEvent1), maxParallelism);
 		assertEquals(1, keygroup);

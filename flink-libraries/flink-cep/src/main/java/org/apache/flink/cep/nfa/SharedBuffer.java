@@ -18,9 +18,6 @@
 
 package org.apache.flink.cep.nfa;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
@@ -36,6 +33,10 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
+
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -57,15 +58,15 @@ import java.util.Stack;
 /**
  * A shared buffer implementation which stores values under a key. Additionally, the values can be
  * versioned such that it is possible to retrieve their predecessor element in the buffer.
- * <p>
- * The idea of the implementation is to have for each key a dedicated {@link SharedBufferPage}. Each
+ *
+ * <p>The idea of the implementation is to have for each key a dedicated {@link SharedBufferPage}. Each
  * buffer page maintains a collection of the inserted values.
  *
- * The values are wrapped in a {@link SharedBufferEntry}. The shared buffer entry allows to store
+ * <p>The values are wrapped in a {@link SharedBufferEntry}. The shared buffer entry allows to store
  * relations between different entries. A dewey versioning scheme allows to discriminate between
  * different relations (e.g. preceding element).
  *
- * The implementation is strongly based on the paper "Efficient Pattern Matching over Event Streams".
+ * <p>The implementation is strongly based on the paper "Efficient Pattern Matching over Event Streams".
  *
  * @see <a href="https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf">
  *     https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf</a>
@@ -245,7 +246,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 				if (currentEntry == null) {
 					final ListMultimap<K, V> completePath = ArrayListMultimap.create();
 
-					while(!currentPath.isEmpty()) {
+					while (!currentPath.isEmpty()) {
 						final SharedBufferEntry<K, V> currentPathEntry = currentPath.pop();
 
 						completePath.put(currentPathEntry.getKey(), currentPathEntry.getValueTime().getValue());
@@ -398,7 +399,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 
-		for(Map.Entry<K, SharedBufferPage<K, V>> entry: pages.entrySet()){
+		for (Map.Entry<K, SharedBufferPage<K, V>> entry : pages.entrySet()) {
 			builder.append("Key: ").append(entry.getKey()).append("\n");
 			builder.append("Value: ").append(entry.getValue()).append("\n");
 		}
@@ -644,7 +645,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	}
 
 	/**
-	 * Versioned edge between two shared buffer entries
+	 * Versioned edge between two shared buffer entries.
 	 *
 	 * @param <K> Type of the key
 	 * @param <V> Type of the value
@@ -747,7 +748,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		public boolean equals(Object obj) {
 			if (obj instanceof ValueTimeWrapper) {
 				@SuppressWarnings("unchecked")
-				ValueTimeWrapper<V> other = (ValueTimeWrapper<V>)obj;
+				ValueTimeWrapper<V> other = (ValueTimeWrapper<V>) obj;
 
 				return timestamp == other.getTimestamp() && value.equals(other.getValue()) && counter == other.getCounter();
 			} else {
@@ -928,7 +929,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 				// key for the current page
 				keySerializer.serialize(page.getKey(), target);
-				
+
 				// number of page entries
 				target.writeInt(page.entries.size());
 
@@ -1182,7 +1183,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		for (int i = 0; i < numberPages; i++) {
 			// key of the page
 			@SuppressWarnings("unchecked")
-			K key = (K)ois.readObject();
+			K key = (K) ois.readObject();
 
 			SharedBufferPage<K, V> page = new SharedBufferPage<>(key);
 
