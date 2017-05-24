@@ -18,8 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.commons.cli.CommandLine;
-
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
@@ -33,6 +31,8 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+
+import org.apache.commons.cli.CommandLine;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
@@ -40,14 +40,12 @@ import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
 import org.mockito.Mockito;
 
 import java.io.File;
@@ -73,8 +71,8 @@ public class CliFrontendYarnAddressConfigurationTest {
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private final static PrintStream OUT = System.out;
-	private final static PrintStream ERR = System.err;
+	private static final PrintStream OUT = System.out;
+	private static final PrintStream ERR = System.err;
 
 	@BeforeClass
 	public static void disableStdOutErr() {
@@ -106,7 +104,6 @@ public class CliFrontendYarnAddressConfigurationTest {
 
 	private static final String validPropertiesFile = "applicationID=" + TEST_YARN_APPLICATION_ID;
 
-
 	private static final String TEST_JOB_MANAGER_ADDRESS = "192.168.1.33";
 	private static final int TEST_JOB_MANAGER_PORT = 55443;
 
@@ -114,10 +111,8 @@ public class CliFrontendYarnAddressConfigurationTest {
 		"jobmanager.rpc.address: " + TEST_JOB_MANAGER_ADDRESS + "\n" +
 		"jobmanager.rpc.port: " + TEST_JOB_MANAGER_PORT;
 
-
 	private static final String invalidPropertiesFile =
 		"jasfobManager=" + TEST_YARN_JOB_MANAGER_ADDRESS + ":asf" + TEST_YARN_JOB_MANAGER_PORT;
-
 
 	/**
 	 * Test that the CliFrontend is able to pick up the .yarn-properties file from a specified location.
@@ -174,7 +169,6 @@ public class CliFrontendYarnAddressConfigurationTest {
 			TEST_JOB_MANAGER_ADDRESS,
 			TEST_JOB_MANAGER_PORT);
 	}
-
 
 	@Test
 	public void testResumeFromYarnID() throws Exception {
@@ -257,7 +251,6 @@ public class CliFrontendYarnAddressConfigurationTest {
 			TEST_YARN_JOB_MANAGER_PORT);
 	}
 
-
 	@Test
 	public void testYarnIDOverridesPropertiesFile() throws Exception {
 		File directoryPath = writeYarnPropertiesFile(invalidPropertiesFile);
@@ -275,7 +268,6 @@ public class CliFrontendYarnAddressConfigurationTest {
 			TEST_YARN_JOB_MANAGER_ADDRESS,
 			TEST_YARN_JOB_MANAGER_PORT);
 	}
-
 
 	@Test
 	public void testManualOptionsOverridesYarn() throws Exception {
@@ -307,7 +299,7 @@ public class CliFrontendYarnAddressConfigurationTest {
 		String currentUser = System.getProperty("user.name");
 
 		// copy .yarn-properties-<username>
-		File testPropertiesFile = new File(tmpFolder, ".yarn-properties-"+currentUser);
+		File testPropertiesFile = new File(tmpFolder, ".yarn-properties-" + currentUser);
 		Files.write(testPropertiesFile.toPath(), contents.getBytes(), StandardOpenOption.CREATE);
 
 		// copy reference flink-conf.yaml to temporary test directory and append custom configuration path.
@@ -336,9 +328,8 @@ public class CliFrontendYarnAddressConfigurationTest {
 		}
 	}
 
-
 	/**
-	 * Injects an extended FlinkYarnSessionCli that deals with mocking Yarn communication
+	 * Injects an extended FlinkYarnSessionCli that deals with mocking Yarn communication.
 	 */
 	private static class CustomYarnTestCLI extends TestCLI {
 
@@ -396,7 +387,6 @@ public class CliFrontendYarnAddressConfigurationTest {
 					return Mockito.mock(YarnClusterClient.class);
 				}
 
-
 				private class TestYarnClient extends YarnClientImpl {
 
 					private final List<ApplicationReport> reports = new LinkedList<>();
@@ -438,7 +428,6 @@ public class CliFrontendYarnAddressConfigurationTest {
 			}
 		}
 	}
-
 
 	private static void checkJobManagerAddress(Configuration config, String expectedAddress, int expectedPort) {
 		String jobManagerAddress = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
