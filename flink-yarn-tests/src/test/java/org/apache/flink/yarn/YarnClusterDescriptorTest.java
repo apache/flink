@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.TestBaseUtils;
+
 import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -34,13 +36,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Tests for the YarnClusterDescriptor.
+ */
 public class YarnClusterDescriptorTest {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
-	 * Tests to ship a lib folder through the {@code YarnClusterDescriptor.addShipFiles}
+	 * Tests to ship a lib folder through the {@code YarnClusterDescriptor.addShipFiles}.
 	 */
 	@Test
 	public void testExplicitLibShipping() throws Exception {
@@ -77,7 +82,7 @@ public class YarnClusterDescriptorTest {
 	}
 
 	/**
-	 * Tests to ship a lib folder through the {@code ConfigConstants.ENV_FLINK_LIB_DIR}
+	 * Tests to ship a lib folder through the {@code ConfigConstants.ENV_FLINK_LIB_DIR}.
 	 */
 	@Test
 	public void testEnvironmentLibShipping() throws Exception {

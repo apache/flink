@@ -18,19 +18,19 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.Options;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Options;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -41,18 +41,20 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Tests for the FlinkYarnSessionCli.
+ */
 public class FlinkYarnSessionCliTest {
 
 	@Rule
 	public TemporaryFolder tmp = new TemporaryFolder();
 
 	@Test
-	public void testDynamicProperties() throws IOException {
+	public void testDynamicProperties() throws Exception {
 
 		Map<String, String> map = new HashMap<String, String>(System.getenv());
 		File tmpFolder = tmp.newFolder();
@@ -66,14 +68,8 @@ public class FlinkYarnSessionCliTest {
 		cli.addRunOptions(options);
 
 		CommandLineParser parser = new DefaultParser();
-		CommandLine cmd = null;
-		try {
-			cmd = parser.parse(options, new String[]{"run", "-j", "fake.jar", "-n", "15",
+		CommandLine cmd = parser.parse(options, new String[]{"run", "-j", "fake.jar", "-n", "15",
 				"-D", "akka.ask.timeout=5 min", "-D", "env.java.opts=-DappName=foobar"});
-		} catch(Exception e) {
-			e.printStackTrace();
-			Assert.fail("Parsing failed with " + e.getMessage());
-		}
 
 		AbstractYarnClusterDescriptor flinkYarnDescriptor = cli.createDescriptor(null, cmd);
 
