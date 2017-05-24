@@ -17,30 +17,30 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
-import com.amazonaws.services.kinesis.model.HashKeyRange;
-import com.amazonaws.services.kinesis.model.SequenceNumberRange;
-import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.util.InstantiationUtil;
+
+import com.amazonaws.services.kinesis.model.HashKeyRange;
+import com.amazonaws.services.kinesis.model.SequenceNumberRange;
+import com.amazonaws.services.kinesis.model.Shard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -77,10 +77,10 @@ public class KinesisDataFetcher<T> {
 	//  Consumer-wide settings
 	// ------------------------------------------------------------------------
 
-	/** Configuration properties for the Flink Kinesis Consumer */
+	/** Configuration properties for the Flink Kinesis Consumer. */
 	private final Properties configProps;
 
-	/** The list of Kinesis streams that the consumer is subscribing to */
+	/** The list of Kinesis streams that the consumer is subscribing to. */
 	private final List<String> streams;
 
 	/**
@@ -94,7 +94,7 @@ public class KinesisDataFetcher<T> {
 	//  Subtask-specific settings
 	// ------------------------------------------------------------------------
 
-	/** Runtime context of the subtask that this fetcher was created in */
+	/** Runtime context of the subtask that this fetcher was created in. */
 	private final RuntimeContext runtimeContext;
 
 	private final int totalNumberOfConsumerSubtasks;
@@ -105,7 +105,7 @@ public class KinesisDataFetcher<T> {
 	//  Executor services to run created threads
 	// ------------------------------------------------------------------------
 
-	/** Executor service to run {@link ShardConsumer}s to consume Kinesis shards */
+	/** Executor service to run {@link ShardConsumer}s to consume Kinesis shards. */
 	private final ExecutorService shardConsumersExecutor;
 
 	// ------------------------------------------------------------------------
@@ -135,22 +135,22 @@ public class KinesisDataFetcher<T> {
 
 	private final SourceFunction.SourceContext<T> sourceContext;
 
-	/** Checkpoint lock, also used to synchronize operations on subscribedShardsState */
+	/** Checkpoint lock, also used to synchronize operations on subscribedShardsState. */
 	private final Object checkpointLock;
 
-	/** Reference to the first error thrown by any of the {@link ShardConsumer} threads */
+	/** Reference to the first error thrown by any of the {@link ShardConsumer} threads. */
 	private final AtomicReference<Throwable> error;
 
-	/** The Kinesis proxy that the fetcher will be using to discover new shards */
+	/** The Kinesis proxy that the fetcher will be using to discover new shards. */
 	private final KinesisProxyInterface kinesis;
 
-	/** Thread that executed runFetcher() */
+	/** Thread that executed runFetcher(). */
 	private volatile Thread mainThread;
 
 	/**
 	 * The current number of shards that are actively read by this fetcher.
 	 *
-	 * This value is updated in {@link KinesisDataFetcher#registerNewSubscribedShardState(KinesisStreamShardState)},
+	 * <p>This value is updated in {@link KinesisDataFetcher#registerNewSubscribedShardState(KinesisStreamShardState)},
 	 * and {@link KinesisDataFetcher#updateState(int, SequenceNumber)}.
 	 */
 	private final AtomicInteger numberOfActiveShards = new AtomicInteger(0);
@@ -183,7 +183,7 @@ public class KinesisDataFetcher<T> {
 			KinesisProxy.create(configProps));
 	}
 
-	/** This constructor is exposed for testing purposes */
+	/** This constructor is exposed for testing purposes. */
 	protected KinesisDataFetcher(List<String> streams,
 								SourceFunction.SourceContext<T> sourceContext,
 								Object checkpointLock,
@@ -381,9 +381,9 @@ public class KinesisDataFetcher<T> {
 		shardConsumersExecutor.shutdownNow();
 	}
 
-	/** After calling {@link KinesisDataFetcher#shutdownFetcher()}, this can be called to await the fetcher shutdown */
+	/** After calling {@link KinesisDataFetcher#shutdownFetcher()}, this can be called to await the fetcher shutdown. */
 	public void awaitTermination() throws InterruptedException {
-		while(!shardConsumersExecutor.isTerminated()) {
+		while (!shardConsumersExecutor.isTerminated()) {
 			Thread.sleep(50);
 		}
 	}
@@ -400,7 +400,7 @@ public class KinesisDataFetcher<T> {
 	//  Functions that update the subscribedStreamToLastDiscoveredShardIds state
 	// ------------------------------------------------------------------------
 
-	/** Updates the last discovered shard of a subscribed stream; only updates if the update is valid */
+	/** Updates the last discovered shard of a subscribed stream; only updates if the update is valid. */
 	public void advanceLastDiscoveredShardOfStream(String stream, String shardId) {
 		String lastSeenShardIdOfStream = this.subscribedStreamsToLastDiscoveredShardIds.get(stream);
 
@@ -417,7 +417,7 @@ public class KinesisDataFetcher<T> {
 	/**
 	 * A utility function that does the following:
 	 *
-	 * 1. Find new shards for each stream that we haven't seen before
+	 * <p>1. Find new shards for each stream that we haven't seen before
 	 * 2. For each new shard, determine whether this consumer subtask should subscribe to them;
 	 * 	  if yes, it is added to the returned list of shards
 	 * 3. Update the subscribedStreamsToLastDiscoveredShardIds state so that we won't get shards
@@ -538,7 +538,7 @@ public class KinesisDataFetcher<T> {
 				this.numberOfActiveShards.incrementAndGet();
 			}
 
-			return subscribedShardsState.size()-1;
+			return subscribedShardsState.size() - 1;
 		}
 	}
 
@@ -574,7 +574,7 @@ public class KinesisDataFetcher<T> {
 
 	/**
 	 * Utility function to create an initial map of the last discovered shard id of each subscribed stream, set to null;
-	 * This is called in the constructor; correct values will be set later on by calling advanceLastDiscoveredShardOfStream()
+	 * This is called in the constructor; correct values will be set later on by calling advanceLastDiscoveredShardOfStream().
 	 *
 	 * @param streams the list of subscribed streams
 	 * @return the initial map for subscribedStreamsToLastDiscoveredShardIds
@@ -588,7 +588,7 @@ public class KinesisDataFetcher<T> {
 	}
 
 	/**
-	 * Utility function to convert {@link StreamShardHandle} into {@link StreamShardMetadata}
+	 * Utility function to convert {@link StreamShardHandle} into {@link StreamShardMetadata}.
 	 *
 	 * @param streamShardHandle the {@link StreamShardHandle} to be converted
 	 * @return a {@link StreamShardMetadata} object
@@ -615,7 +615,7 @@ public class KinesisDataFetcher<T> {
 	}
 
 	/**
-	 * Utility function to convert {@link StreamShardMetadata} into {@link StreamShardHandle}
+	 * Utility function to convert {@link StreamShardMetadata} into {@link StreamShardHandle}.
 	 *
 	 * @param streamShardMetadata the {@link StreamShardMetadata} to be converted
 	 * @return a {@link StreamShardHandle} object

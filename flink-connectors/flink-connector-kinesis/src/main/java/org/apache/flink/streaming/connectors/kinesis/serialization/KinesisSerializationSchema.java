@@ -14,8 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.kinesis.serialization;
 
+package org.apache.flink.streaming.connectors.kinesis.serialization;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -27,7 +27,7 @@ import java.nio.ByteBuffer;
  */
 public interface KinesisSerializationSchema<T> extends Serializable {
 	/**
-	 * Serialize the given element into a ByteBuffer
+	 * Serialize the given element into a ByteBuffer.
 	 *
 	 * @param element The element to serialize
 	 * @return Serialized representation of the element

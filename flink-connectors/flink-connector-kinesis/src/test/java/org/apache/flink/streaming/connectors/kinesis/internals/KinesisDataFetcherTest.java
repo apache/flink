@@ -17,21 +17,22 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
-import com.amazonaws.services.kinesis.model.HashKeyRange;
-import com.amazonaws.services.kinesis.model.SequenceNumberRange;
-import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
-import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
+import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDataFetcher;
+
+import com.amazonaws.services.kinesis.model.HashKeyRange;
+import com.amazonaws.services.kinesis.model.SequenceNumberRange;
+import com.amazonaws.services.kinesis.model.Shard;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -40,9 +41,9 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.HashMap;
-import java.util.Map;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
@@ -54,6 +55,9 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the {@link KinesisDataFetcher}.
+ */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(TestableKinesisDataFetcher.class)
 public class KinesisDataFetcherTest {
@@ -92,10 +96,10 @@ public class KinesisDataFetcherTest {
 		HashMap<String, String> subscribedStreamsToLastSeenShardIdsUnderTest =
 			KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(fakeStreams);
 
-		Map<String,Integer> streamToShardCount = new HashMap<>();
+		Map<String, Integer> streamToShardCount = new HashMap<>();
 		Random rand = new Random();
 		for (String fakeStream : fakeStreams) {
-			streamToShardCount.put(fakeStream, rand.nextInt(5)+1);
+			streamToShardCount.put(fakeStream, rand.nextInt(5) + 1);
 		}
 
 		final TestableKinesisDataFetcher fetcher =
@@ -140,10 +144,10 @@ public class KinesisDataFetcherTest {
 		assertTrue(streamsInState.containsAll(fakeStreams));
 
 		// assert that the last seen shards in state is correctly set
-		for (Map.Entry<String,String> streamToLastSeenShard : subscribedStreamsToLastSeenShardIdsUnderTest.entrySet()) {
+		for (Map.Entry<String, String> streamToLastSeenShard : subscribedStreamsToLastSeenShardIdsUnderTest.entrySet()) {
 			assertTrue(
 				streamToLastSeenShard.getValue().equals(
-					KinesisShardIdGenerator.generateFromShardOrder(streamToShardCount.get(streamToLastSeenShard.getKey())-1)));
+					KinesisShardIdGenerator.generateFromShardOrder(streamToShardCount.get(streamToLastSeenShard.getKey()) - 1)));
 		}
 	}
 
@@ -184,7 +188,7 @@ public class KinesisDataFetcherTest {
 				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(1))),
 			UUID.randomUUID().toString());
 
-		Map<String,Integer> streamToShardCount = new HashMap<>();
+		Map<String, Integer> streamToShardCount = new HashMap<>();
 		streamToShardCount.put("fakeStream1", 3); // fakeStream1 will still have 3 shards after restore
 		streamToShardCount.put("fakeStream2", 2); // fakeStream2 will still have 2 shards after restore
 
@@ -230,10 +234,10 @@ public class KinesisDataFetcherTest {
 		assertTrue(streamsInState.containsAll(fakeStreams));
 
 		// assert that the last seen shards in state is correctly set
-		for (Map.Entry<String,String> streamToLastSeenShard : subscribedStreamsToLastSeenShardIdsUnderTest.entrySet()) {
+		for (Map.Entry<String, String> streamToLastSeenShard : subscribedStreamsToLastSeenShardIdsUnderTest.entrySet()) {
 			assertTrue(
 				streamToLastSeenShard.getValue().equals(
-					KinesisShardIdGenerator.generateFromShardOrder(streamToShardCount.get(streamToLastSeenShard.getKey())-1)));
+					KinesisShardIdGenerator.generateFromShardOrder(streamToShardCount.get(streamToLastSeenShard.getKey()) - 1)));
 		}
 	}
 
@@ -274,9 +278,9 @@ public class KinesisDataFetcherTest {
 				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(1))),
 			UUID.randomUUID().toString());
 
-		Map<String,Integer> streamToShardCount = new HashMap<>();
-		streamToShardCount.put("fakeStream1", 3+1); // fakeStream1 had 3 shards before & 1 new shard after restore
-		streamToShardCount.put("fakeStream2", 2+3); // fakeStream2 had 2 shards before & 3 new shard after restore
+		Map<String, Integer> streamToShardCount = new HashMap<>();
+		streamToShardCount.put("fakeStream1", 3 + 1); // fakeStream1 had 3 shards before & 1 new shard after restore
+		streamToShardCount.put("fakeStream2", 2 + 3); // fakeStream2 had 2 shards before & 3 new shard after restore
 
 		HashMap<String, String> subscribedStreamsToLastSeenShardIdsUnderTest =
 			KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(fakeStreams);
@@ -321,10 +325,10 @@ public class KinesisDataFetcherTest {
 		assertTrue(streamsInState.containsAll(fakeStreams));
 
 		// assert that the last seen shards in state is correctly set
-		for (Map.Entry<String,String> streamToLastSeenShard : subscribedStreamsToLastSeenShardIdsUnderTest.entrySet()) {
+		for (Map.Entry<String, String> streamToLastSeenShard : subscribedStreamsToLastSeenShardIdsUnderTest.entrySet()) {
 			assertTrue(
 				streamToLastSeenShard.getValue().equals(
-					KinesisShardIdGenerator.generateFromShardOrder(streamToShardCount.get(streamToLastSeenShard.getKey())-1)));
+					KinesisShardIdGenerator.generateFromShardOrder(streamToShardCount.get(streamToLastSeenShard.getKey()) - 1)));
 		}
 	}
 
@@ -367,7 +371,7 @@ public class KinesisDataFetcherTest {
 				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(1))),
 			UUID.randomUUID().toString());
 
-		Map<String,Integer> streamToShardCount = new HashMap<>();
+		Map<String, Integer> streamToShardCount = new HashMap<>();
 		streamToShardCount.put("fakeStream1", 3); // fakeStream1 has fixed 3 shards
 		streamToShardCount.put("fakeStream2", 2); // fakeStream2 has fixed 2 shards
 		streamToShardCount.put("fakeStream3", 0); // no shards can be found for fakeStream3
@@ -463,9 +467,9 @@ public class KinesisDataFetcherTest {
 				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(1))),
 			UUID.randomUUID().toString());
 
-		Map<String,Integer> streamToShardCount = new HashMap<>();
-		streamToShardCount.put("fakeStream1", 3+1); // fakeStream1 had 3 shards before & 1 new shard after restore
-		streamToShardCount.put("fakeStream2", 2+3); // fakeStream2 had 2 shards before & 2 new shard after restore
+		Map<String, Integer> streamToShardCount = new HashMap<>();
+		streamToShardCount.put("fakeStream1", 3 + 1); // fakeStream1 had 3 shards before & 1 new shard after restore
+		streamToShardCount.put("fakeStream2", 2 + 3); // fakeStream2 had 2 shards before & 2 new shard after restore
 		streamToShardCount.put("fakeStream3", 0); // no shards can be found for fakeStream3
 		streamToShardCount.put("fakeStream4", 0); // no shards can be found for fakeStream4
 
@@ -569,11 +573,12 @@ public class KinesisDataFetcherTest {
 		}
 
 		@Override
-		protected KinesisDataFetcher<T> createFetcher(List<String> streams,
-													  SourceFunction.SourceContext<T> sourceContext,
-													  RuntimeContext runtimeContext,
-													  Properties configProps,
-													  KinesisDeserializationSchema<T> deserializationSchema) {
+		protected KinesisDataFetcher<T> createFetcher(
+				List<String> streams,
+				SourceFunction.SourceContext<T> sourceContext,
+				RuntimeContext runtimeContext,
+				Properties configProps,
+				KinesisDeserializationSchema<T> deserializationSchema) {
 			return fetcher;
 		}
 

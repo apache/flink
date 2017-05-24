@@ -17,14 +17,15 @@
 
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
-import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
-import com.amazonaws.services.kinesis.model.GetRecordsResult;
-import com.amazonaws.services.kinesis.model.Record;
-import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
+
+import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
+import com.amazonaws.services.kinesis.model.GetRecordsResult;
+import com.amazonaws.services.kinesis.model.Record;
+import com.amazonaws.services.kinesis.model.Shard;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -67,7 +68,7 @@ public class FakeKinesisBehavioursFactory {
 
 	}
 
-	public static KinesisProxyInterface nonReshardedStreamsBehaviour(Map<String,Integer> streamsToShardCount) {
+	public static KinesisProxyInterface nonReshardedStreamsBehaviour(Map<String, Integer> streamsToShardCount) {
 		return new NonReshardedStreamsKinesis(streamsToShardCount);
 
 	}
@@ -79,14 +80,14 @@ public class FakeKinesisBehavioursFactory {
 	public static KinesisProxyInterface totalNumOfRecordsAfterNumOfGetRecordsCalls(final int numOfRecords, final int numOfGetRecordsCalls) {
 		return new SingleShardEmittingFixNumOfRecordsKinesis(numOfRecords, numOfGetRecordsCalls);
 	}
-	
+
 	public static KinesisProxyInterface totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(
 		final int numOfRecords, final int numOfGetRecordsCall, final int orderOfCallToExpire) {
 		return new SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis(
 			numOfRecords, numOfGetRecordsCall, orderOfCallToExpire);
 	}
 
-	public static class SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis extends SingleShardEmittingFixNumOfRecordsKinesis {
+	private static class SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis extends SingleShardEmittingFixNumOfRecordsKinesis {
 
 		private boolean expiredOnceAlready = false;
 		private boolean expiredIteratorRefreshed = false;
@@ -103,7 +104,7 @@ public class FakeKinesisBehavioursFactory {
 
 		@Override
 		public GetRecordsResult getRecords(String shardIterator, int maxRecordsToGet) {
-			if ((Integer.valueOf(shardIterator) == orderOfCallToExpire-1) && !expiredOnceAlready) {
+			if ((Integer.valueOf(shardIterator) == orderOfCallToExpire - 1) && !expiredOnceAlready) {
 				// we fake only once the expired iterator exception at the specified get records attempt order
 				expiredOnceAlready = true;
 				throw new ExpiredIteratorException("Artificial expired shard iterator");
@@ -130,7 +131,7 @@ public class FakeKinesisBehavioursFactory {
 				// fake the iterator refresh when this is called again after getRecords throws expired iterator
 				// exception on the orderOfCallToExpire attempt
 				expiredIteratorRefreshed = true;
-				return String.valueOf(orderOfCallToExpire-1);
+				return String.valueOf(orderOfCallToExpire - 1);
 			}
 		}
 	}
@@ -141,7 +142,7 @@ public class FakeKinesisBehavioursFactory {
 
 		protected final int totalNumOfRecords;
 
-		protected final Map<String,List<Record>> shardItrToRecordBatch;
+		protected final Map<String, List<Record>> shardItrToRecordBatch;
 
 		public SingleShardEmittingFixNumOfRecordsKinesis(final int numOfRecords, final int numOfGetRecordsCalls) {
 			this.totalNumOfRecords = numOfRecords;
@@ -151,9 +152,9 @@ public class FakeKinesisBehavioursFactory {
 			this.shardItrToRecordBatch = new HashMap<>();
 
 			int numOfAlreadyPartitionedRecords = 0;
-			int numOfRecordsPerBatch = numOfRecords/numOfGetRecordsCalls + 1;
-			for (int batch=0; batch<totalNumOfGetRecordsCalls; batch++) {
-				if (batch != totalNumOfGetRecordsCalls-1) {
+			int numOfRecordsPerBatch = numOfRecords / numOfGetRecordsCalls + 1;
+			for (int batch = 0; batch < totalNumOfGetRecordsCalls; batch++) {
+				if (batch != totalNumOfGetRecordsCalls - 1) {
 					shardItrToRecordBatch.put(
 						String.valueOf(batch),
 						createRecordBatchWithRange(
@@ -176,8 +177,8 @@ public class FakeKinesisBehavioursFactory {
 			return new GetRecordsResult()
 				.withRecords(shardItrToRecordBatch.get(shardIterator))
 				.withNextShardIterator(
-					(Integer.valueOf(shardIterator) == totalNumOfGetRecordsCalls-1)
-						? null : String.valueOf(Integer.valueOf(shardIterator)+1)); // last next shard iterator is null
+					(Integer.valueOf(shardIterator) == totalNumOfGetRecordsCalls - 1)
+						? null : String.valueOf(Integer.valueOf(shardIterator) + 1)); // last next shard iterator is null
 		}
 
 		@Override
@@ -211,8 +212,8 @@ public class FakeKinesisBehavioursFactory {
 
 		private Map<String, List<StreamShardHandle>> streamsWithListOfShards = new HashMap<>();
 
-		public NonReshardedStreamsKinesis(Map<String,Integer> streamsToShardCount) {
-			for (Map.Entry<String,Integer> streamToShardCount : streamsToShardCount.entrySet()) {
+		public NonReshardedStreamsKinesis(Map<String, Integer> streamsToShardCount) {
+			for (Map.Entry<String, Integer> streamToShardCount : streamsToShardCount.entrySet()) {
 				String streamName = streamToShardCount.getKey();
 				int shardCount = streamToShardCount.getValue();
 
@@ -220,7 +221,7 @@ public class FakeKinesisBehavioursFactory {
 					// don't do anything
 				} else {
 					List<StreamShardHandle> shardsOfStream = new ArrayList<>(shardCount);
-					for (int i=0; i < shardCount; i++) {
+					for (int i = 0; i < shardCount; i++) {
 						shardsOfStream.add(
 							new StreamShardHandle(
 								streamName,

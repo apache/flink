@@ -17,6 +17,10 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
+import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
+
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.ClientConfigurationFactory;
 import com.amazonaws.auth.AWSCredentials;
@@ -29,9 +33,6 @@ import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
-import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
 
 import java.util.Properties;
 
@@ -126,7 +127,7 @@ public class AWSUtil {
 	}
 
 	/**
-	 * Checks whether or not a region ID is valid
+	 * Checks whether or not a region ID is valid.
 	 *
 	 * @param region The AWS region ID to check
 	 * @return true if the supplied region ID is valid, false otherwise

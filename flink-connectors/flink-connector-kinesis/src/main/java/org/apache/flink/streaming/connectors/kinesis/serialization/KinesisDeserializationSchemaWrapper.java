@@ -23,7 +23,7 @@ import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import java.io.IOException;
 
 /**
- * A simple wrapper for using the {@link DeserializationSchema} with the {@link KinesisDeserializationSchema} interface
+ * A simple wrapper for using the {@link DeserializationSchema} with the {@link KinesisDeserializationSchema} interface.
  *
  * @param <T> The type created by the deserialization schema.
  */

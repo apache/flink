@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kinesis.manualtests;
 
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
-import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -26,6 +25,9 @@ import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.testutils.ExactlyOnceValidatingConsumerThread;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisEventsGeneratorProducerThread;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
+
+import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,8 +40,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * Then, it starts a consuming topology, ensuring that all records up to a certain
  * point have been seen.
  *
- * Invocation:
- * --region eu-central-1 --accessKey XXXXXXXXXXXX --secretKey XXXXXXXXXXXXXXXX
+ * <p>Invocation:
+ * --region eu-central-1 --accessKey X --secretKey X
  */
 public class ManualExactlyOnceTest {
 
@@ -67,8 +69,8 @@ public class ManualExactlyOnceTest {
 
 		// wait until stream has been created
 		DescribeStreamResult status = client.describeStream(streamName);
-		LOG.info("status {}" ,status);
-		while(!status.getStreamDescription().getStreamStatus().equals("ACTIVE")) {
+		LOG.info("status {}" , status);
+		while (!status.getStreamDescription().getStreamStatus().equals("ACTIVE")) {
 			status = client.describeStream(streamName);
 			LOG.info("Status of stream {}", status);
 			Thread.sleep(1000);

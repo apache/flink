@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.config;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 
 /**
- * Optional producer specific configuration keys for {@link FlinkKinesisProducer}
+ * Optional producer specific configuration keys for {@link FlinkKinesisProducer}.
  */
 public class ProducerConfigConstants extends AWSConfigConstants {
 

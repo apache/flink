@@ -17,13 +17,14 @@
 
 package org.apache.flink.streaming.connectors.kinesis.config;
 
-import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumer;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 
+import com.amazonaws.services.kinesis.model.ShardIteratorType;
+
 /**
- * Optional consumer specific configuration keys and default values for {@link FlinkKinesisConsumer}
+ * Optional consumer specific configuration keys and default values for {@link FlinkKinesisConsumer}.
  */
 public class ConsumerConfigConstants extends AWSConfigConstants {
 
@@ -33,13 +34,13 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	 */
 	public enum InitialPosition {
 
-		/** Start reading from the earliest possible record in the stream (excluding expired data records) */
+		/** Start reading from the earliest possible record in the stream (excluding expired data records). */
 		TRIM_HORIZON(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM),
 
-		/** Start reading from the latest incoming record */
+		/** Start reading from the latest incoming record. */
 		LATEST(SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM),
 
-		/** Start reading from the record at the specified timestamp */
+		/** Start reading from the record at the specified timestamp. */
 		AT_TIMESTAMP(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM);
 
 		private SentinelSequenceNumber sentinelSequenceNumber;
@@ -53,55 +54,55 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 		}
 	}
 
-	/** The initial position to start reading Kinesis streams from (LATEST is used if not set) */
+	/** The initial position to start reading Kinesis streams from (LATEST is used if not set). */
 	public static final String STREAM_INITIAL_POSITION = "flink.stream.initpos";
 
-	/** The initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION) */
+	/** The initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION). */
 	public static final String STREAM_INITIAL_TIMESTAMP = "flink.stream.initpos.timestamp";
 
-	/** The date format of initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION) */
+	/** The date format of initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION). */
 	public static final String STREAM_TIMESTAMP_DATE_FORMAT = "flink.stream.initpos.timestamp.format";
 
-	/** The base backoff time between each describeStream attempt */
+	/** The base backoff time between each describeStream attempt. */
 	public static final String STREAM_DESCRIBE_BACKOFF_BASE = "flink.stream.describe.backoff.base";
 
-	/** The maximum backoff time between each describeStream attempt */
+	/** The maximum backoff time between each describeStream attempt. */
 	public static final String STREAM_DESCRIBE_BACKOFF_MAX = "flink.stream.describe.backoff.max";
 
-	/** The power constant for exponential backoff between each describeStream attempt */
+	/** The power constant for exponential backoff between each describeStream attempt. */
 	public static final String STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.describe.backoff.expconst";
 
-	/** The maximum number of records to try to get each time we fetch records from a AWS Kinesis shard */
+	/** The maximum number of records to try to get each time we fetch records from a AWS Kinesis shard. */
 	public static final String SHARD_GETRECORDS_MAX = "flink.shard.getrecords.maxrecordcount";
 
-	/** The maximum number of getRecords attempts if we get ProvisionedThroughputExceededException */
+	/** The maximum number of getRecords attempts if we get ProvisionedThroughputExceededException. */
 	public static final String SHARD_GETRECORDS_RETRIES = "flink.shard.getrecords.maxretries";
 
-	/** The base backoff time between getRecords attempts if we get a ProvisionedThroughputExceededException */
+	/** The base backoff time between getRecords attempts if we get a ProvisionedThroughputExceededException. */
 	public static final String SHARD_GETRECORDS_BACKOFF_BASE = "flink.shard.getrecords.backoff.base";
 
-	/** The maximum backoff time between getRecords attempts if we get a ProvisionedThroughputExceededException */
+	/** The maximum backoff time between getRecords attempts if we get a ProvisionedThroughputExceededException. */
 	public static final String SHARD_GETRECORDS_BACKOFF_MAX = "flink.shard.getrecords.backoff.max";
 
-	/** The power constant for exponential backoff between each getRecords attempt */
+	/** The power constant for exponential backoff between each getRecords attempt. */
 	public static final String SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT = "flink.shard.getrecords.backoff.expconst";
 
-	/** The interval between each getRecords request to a AWS Kinesis shard in milliseconds */
+	/** The interval between each getRecords request to a AWS Kinesis shard in milliseconds. */
 	public static final String SHARD_GETRECORDS_INTERVAL_MILLIS = "flink.shard.getrecords.intervalmillis";
 
-	/** The maximum number of getShardIterator attempts if we get ProvisionedThroughputExceededException */
+	/** The maximum number of getShardIterator attempts if we get ProvisionedThroughputExceededException. */
 	public static final String SHARD_GETITERATOR_RETRIES = "flink.shard.getiterator.maxretries";
 
-	/** The base backoff time between getShardIterator attempts if we get a ProvisionedThroughputExceededException */
+	/** The base backoff time between getShardIterator attempts if we get a ProvisionedThroughputExceededException. */
 	public static final String SHARD_GETITERATOR_BACKOFF_BASE = "flink.shard.getiterator.backoff.base";
 
-	/** The maximum backoff time between getShardIterator attempts if we get a ProvisionedThroughputExceededException */
+	/** The maximum backoff time between getShardIterator attempts if we get a ProvisionedThroughputExceededException. */
 	public static final String SHARD_GETITERATOR_BACKOFF_MAX = "flink.shard.getiterator.backoff.max";
 
-	/** The power constant for exponential backoff between each getShardIterator attempt */
+	/** The power constant for exponential backoff between each getShardIterator attempt. */
 	public static final String SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT = "flink.shard.getiterator.backoff.expconst";
 
-	/** The interval between each attempt to discover new shards */
+	/** The interval between each attempt to discover new shards. */
 	public static final String SHARD_DISCOVERY_INTERVAL_MILLIS = "flink.shard.discovery.intervalmillis";
 
 	// ------------------------------------------------------------------------

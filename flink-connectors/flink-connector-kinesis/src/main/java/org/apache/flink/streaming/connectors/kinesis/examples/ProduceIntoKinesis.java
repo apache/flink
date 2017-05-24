@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.kinesis.examples;
 
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -25,10 +25,12 @@ import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 
+import org.apache.commons.lang3.RandomStringUtils;
+
 import java.util.Properties;
 
 /**
- * This is an example on how to produce data into Kinesis
+ * This is an example on how to produce data into Kinesis.
  */
 public class ProduceIntoKinesis {
 
@@ -57,13 +59,16 @@ public class ProduceIntoKinesis {
 		see.execute();
 	}
 
+	/**
+	 * Data generator that creates strings starting with a sequence number followed by a dash and 12 random characters.
+	 */
 	public static class EventsGenerator implements SourceFunction<String> {
 		private boolean running = true;
 
 		@Override
 		public void run(SourceContext<String> ctx) throws Exception {
 			long seq = 0;
-			while(running) {
+			while (running) {
 				Thread.sleep(10);
 				ctx.collect((seq++) + "-" + RandomStringUtils.randomAlphabetic(12));
 			}

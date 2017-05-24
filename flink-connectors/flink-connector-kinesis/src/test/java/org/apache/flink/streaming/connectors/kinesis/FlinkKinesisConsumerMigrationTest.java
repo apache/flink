@@ -17,19 +17,20 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
-import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
-import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+
+import com.amazonaws.services.kinesis.model.Shard;
 import org.junit.Test;
 
 import java.net.URL;
@@ -37,8 +38,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -136,11 +137,12 @@ public class FlinkKinesisConsumerMigrationTest {
 		}
 
 		@Override
-		protected KinesisDataFetcher<T> createFetcher(List<String> streams,
-													  	SourceFunction.SourceContext<T> sourceContext,
-													  	RuntimeContext runtimeContext,
-													  	Properties configProps,
-													  	KinesisDeserializationSchema<T> deserializationSchema) {
+		protected KinesisDataFetcher<T> createFetcher(
+				List<String> streams,
+				SourceFunction.SourceContext<T> sourceContext,
+				RuntimeContext runtimeContext,
+				Properties configProps,
+				KinesisDeserializationSchema<T> deserializationSchema) {
 			return mock(KinesisDataFetcher.class);
 		}
 	}
