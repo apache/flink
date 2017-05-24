@@ -32,6 +32,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -105,12 +106,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	private static final int MIN_TM_MEMORY = 768;
 
 	private Configuration conf = new YarnConfiguration();
-
-	/**
-	 * Files (usually in a distributed file system) used for the YARN session of Flink.
-	 * Contains configuration files and jar files.
-	 */
-	private Path sessionFilesDir;
 
 	/**
 	 * If the user has specified a different number of slots, we store them here
@@ -416,7 +411,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			flinkConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, appReport.getHost());
 			flinkConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, appReport.getRpcPort());
 
-			return createYarnClusterClient(this, yarnClient, appReport, flinkConfiguration, sessionFilesDir, false);
+			return createYarnClusterClient(this, yarnClient, appReport, flinkConfiguration, false);
 		} catch (Exception e) {
 			throw new RuntimeException("Couldn't retrieve Yarn cluster", e);
 		}
@@ -583,7 +578,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		flinkConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
 
 		// the Flink cluster is deployed in YARN. Represent cluster
-		return createYarnClusterClient(this, yarnClient, report, flinkConfiguration, sessionFilesDir, true);
+		return createYarnClusterClient(this, yarnClient, report, flinkConfiguration, true);
 	}
 
 	public ApplicationReport startAppMaster(JobGraph jobGraph, YarnClient yarnClient, YarnClientApplication yarnApplication) throws Exception {
@@ -739,10 +734,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 
-		sessionFilesDir = new Path(fs.getHomeDirectory(), ".flink/" + appId.toString() + "/");
+		Path yarnFilesDir = new Path(fs.getHomeDirectory(), ".flink/" + appId + '/');
 
 		FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
-		fs.setPermission(sessionFilesDir, permission); // set permission for path.
+		fs.setPermission(yarnFilesDir, permission); // set permission for path.
 
 		//To support Yarn Secure Integration Test Scenario
 		//In Integration test setup, the Yarn containers created by YarnMiniCluster does not have the Yarn site XML
@@ -812,6 +807,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		appMasterEnv.put(YarnConfigKeys.ENV_SLOTS, String.valueOf(slots));
 		appMasterEnv.put(YarnConfigKeys.ENV_DETACHED, String.valueOf(detached));
 		appMasterEnv.put(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE, getZookeeperNamespace());
+		appMasterEnv.put(YarnConfigKeys.FLINK_YARN_FILES, yarnFilesDir.toUri().toString());
 
 		// https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md#identity-on-an-insecure-cluster-hadoop_user_name
 		appMasterEnv.put(YarnConfigKeys.ENV_HADOOP_USER_NAME, UserGroupInformation.getCurrentUser().getUserName());
@@ -863,7 +859,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		setApplicationTags(appContext);
 
 		// add a hook to clean up in case deployment fails
-		Thread deploymentFailureHook = new DeploymentFailureHook(yarnClient, yarnApplication);
+		Thread deploymentFailureHook = new DeploymentFailureHook(yarnClient, yarnApplication, yarnFilesDir);
 		Runtime.getRuntime().addShutdownHook(deploymentFailureHook);
 		LOG.info("Submitting application master " + appId);
 		yarnClient.submitApplication(appContext);
@@ -1057,10 +1053,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 	}
 
-	public String getSessionFilesDir() {
-		return sessionFilesDir.toString();
-	}
-
 	public void setName(String name) {
 		if(name == null) {
 			throw new IllegalArgumentException("The passed name is null");
@@ -1226,22 +1218,24 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private class DeploymentFailureHook extends Thread {
 
-		DeploymentFailureHook(YarnClient yarnClient, YarnClientApplication yarnApplication) {
-			this.yarnClient = yarnClient;
-			this.yarnApplication = yarnApplication;
-		}
+		private final YarnClient yarnClient;
+		private final YarnClientApplication yarnApplication;
+		private final Path yarnFilesDir;
 
-		private YarnClient yarnClient;
-		private YarnClientApplication yarnApplication;
+		DeploymentFailureHook(YarnClient yarnClient, YarnClientApplication yarnApplication, Path yarnFilesDir) {
+			this.yarnClient = Preconditions.checkNotNull(yarnClient);
+			this.yarnApplication = Preconditions.checkNotNull(yarnApplication);
+			this.yarnFilesDir = Preconditions.checkNotNull(yarnFilesDir);
+		}
 
 		@Override
 		public void run() {
 			LOG.info("Cancelling deployment from Deployment Failure Hook");
 			failSessionDuringDeployment(yarnClient, yarnApplication);
-			LOG.info("Deleting files in " + sessionFilesDir);
+			LOG.info("Deleting files in {}.", yarnFilesDir);
 			try {
 				FileSystem fs = FileSystem.get(conf);
-				fs.delete(sessionFilesDir, true);
+				fs.delete(yarnFilesDir, true);
 				fs.close();
 			} catch (IOException e) {
 				LOG.error("Failed to delete Flink Jar and conf files in HDFS", e);
@@ -1348,14 +1342,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			YarnClient yarnClient,
 			ApplicationReport report,
 			org.apache.flink.configuration.Configuration flinkConfiguration,
-			Path sessionFilesDir,
 			boolean perJobCluster) throws Exception {
 		return new YarnClusterClient(
 			descriptor,
 			yarnClient,
 			report,
 			flinkConfiguration,
-			sessionFilesDir,
 			perJobCluster);
 	}
 }
