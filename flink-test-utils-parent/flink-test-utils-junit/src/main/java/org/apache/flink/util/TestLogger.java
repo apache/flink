@@ -22,7 +22,6 @@ import org.junit.Rule;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +62,7 @@ public class TestLogger {
 					, description, exceptionToString(e));
 		}
 	};
-	
+
 	private static String exceptionToString(Throwable t) {
 		if (t == null) {
 			return "(null)";

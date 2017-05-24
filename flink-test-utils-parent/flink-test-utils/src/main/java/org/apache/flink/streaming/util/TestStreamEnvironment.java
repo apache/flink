@@ -36,8 +36,8 @@ import java.util.Collections;
  * A {@link StreamExecutionEnvironment} that executes its jobs on {@link LocalFlinkMiniCluster}.
  */
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
-	
-	/** The mini cluster in which this environment executes its jobs */
+
+	/** The mini cluster in which this environment executes its jobs. */
 	private final LocalFlinkMiniCluster miniCluster;
 
 	private final Collection<Path> jarFiles;
@@ -63,7 +63,6 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 		this(miniCluster, parallelism, Collections.<Path>emptyList(), Collections.<URL>emptyList());
 	}
 
-	
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		final StreamGraph streamGraph = getStreamGraph();
@@ -114,7 +113,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	/**
 	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
 	 * the given cluster with the given default parallelism.
-	 * 
+	 *
 	 * @param cluster The test cluster to run the test program on.
 	 * @param parallelism The default parallelism for the test programs.
 	 */
@@ -131,5 +130,5 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	 */
 	public static void unsetAsContext() {
 		resetContextEnvironment();
-	} 
+	}
 }

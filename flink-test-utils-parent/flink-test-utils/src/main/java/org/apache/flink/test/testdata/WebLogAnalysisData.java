@@ -18,7 +18,9 @@
 
 package org.apache.flink.test.testdata;
 
-
+/**
+ * Test data for WebLogAnalysis programs.
+ */
 public class WebLogAnalysisData {
 	public static final String DOCS =
 		"url_10|volutpat magna quis consectetuer volutpat ad erat editors exerci oscillations euismod volutpat Lorem convectionullamcorper Lorem volutpat enim tation elit |\n" +

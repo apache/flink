@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.testdata;
 
-
 /**
  *
  */

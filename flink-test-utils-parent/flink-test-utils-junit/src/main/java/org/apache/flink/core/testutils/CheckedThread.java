@@ -31,7 +31,7 @@ package org.apache.flink.core.testutils;
  */
 public abstract class CheckedThread extends Thread {
 
-	/** The error thrown from the main work method */
+	/** The error thrown from the main work method. */
 	private volatile Throwable error;
 
 	// ------------------------------------------------------------------------

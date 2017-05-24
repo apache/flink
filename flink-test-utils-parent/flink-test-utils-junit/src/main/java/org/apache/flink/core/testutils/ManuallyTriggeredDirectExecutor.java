@@ -19,13 +19,14 @@
 package org.apache.flink.core.testutils;
 
 import javax.annotation.Nonnull;
+
 import java.util.ArrayDeque;
 import java.util.concurrent.Executor;
 
 /**
  * An executor that does not immediately execute a Runnable, but only executes it
  * upon an explicit trigger.
- * 
+ *
  * <p>This executor can be used in concurrent tests to control when certain asynchronous
  * actions should happen.
  */

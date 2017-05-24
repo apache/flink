@@ -46,7 +46,7 @@ public class CommonTestUtils {
 
 	/**
 	 * Reads the path to the directory for temporary files from the configuration and returns it.
-	 * 
+	 *
 	 * @return the path to the directory for temporary files
 	 */
 	public static String getTempDir() {
@@ -85,9 +85,9 @@ public class CommonTestUtils {
 	/**
 	 * Creates a temporary file that contains the given string.
 	 * The file is written with the platform's default encoding.
-	 * 
+	 *
 	 * <p>The temp file is automatically deleted on JVM exit.
-	 * 
+	 *
 	 * @param contents The contents to be written to the file.
 	 * @return The temp file URI.
 	 */
@@ -267,7 +267,7 @@ public class CommonTestUtils {
 				29, 0, 0, 0, 1, 0, 39, 0, 40, 0, 1, 0, 25, 0, 0, 0, 70, 0, 3, 0, 1, 0, 0, 0, 28, -69, 0, 8,
 				89, -73, 0, 9, 18, 10, -74, 0, 11, 42, -76, 0, 5, -74, 0, 12, 16, 125, -74, 0, 13, -74, 0, 14,
 				-80, 0, 0, 0, 2, 0, 26, 0, 0, 0, 6, 0, 1, 0, 0, 0, 51, 0, 27, 0, 0, 0, 12, 0, 1, 0, 0, 0, 28,
-				0, 28, 0, 29, 0, 0, 0, 1, 0, 41, 0, 0, 0, 2, 0, 42,};
+				0, 28, 0, 29, 0, 0, 0, 1, 0, 41, 0, 0, 0, 2, 0, 42};
 
 		try {
 			// define a class into the classloader
