@@ -413,14 +413,18 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			while (true) {
 				// ------------------ check if there are updates by the cluster -----------
 
-				GetClusterStatusResponse status = yarnCluster.getClusterStatus();
-				LOG.debug("Received status message: {}", status);
+				try {
+					GetClusterStatusResponse status = yarnCluster.getClusterStatus();
+					LOG.debug("Received status message: {}", status);
 
-				if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
-					System.err.println("Number of connected TaskManagers changed to " +
+					if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
+						System.err.println("Number of connected TaskManagers changed to " +
 							status.numRegisteredTaskManagers() + ". " +
-						"Slots available: " + status.totalNumberOfSlots());
-					numTaskmanagers = status.numRegisteredTaskManagers();
+							"Slots available: " + status.totalNumberOfSlots());
+						numTaskmanagers = status.numRegisteredTaskManagers();
+					}
+				} catch (Exception e) {
+					LOG.warn("Could not retrieve the current cluster status. Retrying...", e);
 				}
 
 				List<String> messages = yarnCluster.getNewMessages();
