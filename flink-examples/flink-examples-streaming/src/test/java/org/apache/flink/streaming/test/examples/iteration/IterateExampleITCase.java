@@ -15,36 +15,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.test.exampleJavaPrograms.windowing;
+package org.apache.flink.streaming.test.examples.iteration;
 
-import org.apache.flink.streaming.examples.windowing.TopSpeedWindowing;
-import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExampleData;
+import org.apache.flink.streaming.examples.iteration.IterateExample;
+import org.apache.flink.streaming.examples.iteration.util.IterateExampleData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
 /**
- * Tests for {@link TopSpeedWindowing}.
+ * Tests for {@link IterateExample}.
  */
-public class TopSpeedWindowingExampleITCase extends StreamingProgramTestBase {
+public class IterateExampleITCase extends StreamingProgramTestBase {
 
-	protected String textPath;
+	protected String inputPath;
 	protected String resultPath;
 
 	@Override
 	protected void preSubmit() throws Exception {
-		setParallelism(1); //needed to ensure total ordering for windows
-		textPath = createTempFile("text.txt", TopSpeedWindowingExampleData.CAR_DATA);
+		inputPath = createTempFile("fibonacciInput.txt", IterateExampleData.INPUT_PAIRS);
 		resultPath = getTempDirPath("result");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(TopSpeedWindowingExampleData.TOP_SPEEDS, resultPath);
+		// the example is inherently non-deterministic. The iteration timeout of 5000 ms
+		// is frequently not enough to make the test run stable on CI infrastructure
+		// with very small containers, so we cannot do a validation here
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		TopSpeedWindowing.main(new String[]{
-				"--input", textPath,
+		IterateExample.main(new String[]{
+				"--input", inputPath,
 				"--output", resultPath});
 	}
 }

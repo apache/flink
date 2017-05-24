@@ -15,37 +15,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.test.exampleJavaPrograms.iteration;
+package org.apache.flink.streaming.test.examples.windowing;
 
-import org.apache.flink.streaming.examples.iteration.IterateExample;
-import org.apache.flink.streaming.examples.iteration.util.IterateExampleData;
+import org.apache.flink.streaming.examples.windowing.SessionWindowing;
+import org.apache.flink.streaming.examples.windowing.util.SessionWindowingData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
 /**
- * Tests for {@link IterateExample}.
+ * Tests for {@link SessionWindowing}.
  */
-public class IterateExampleITCase extends StreamingProgramTestBase {
+public class SessionWindowingITCase extends StreamingProgramTestBase {
 
-	protected String inputPath;
 	protected String resultPath;
 
 	@Override
 	protected void preSubmit() throws Exception {
-		inputPath = createTempFile("fibonacciInput.txt", IterateExampleData.INPUT_PAIRS);
 		resultPath = getTempDirPath("result");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		// the example is inherently non-deterministic. The iteration timeout of 5000 ms
-		// is frequently not enough to make the test run stable on CI infrastructure
-		// with very small containers, so we cannot do a validation here
+		compareResultsByLinesInMemory(SessionWindowingData.EXPECTED, resultPath);
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		IterateExample.main(new String[]{
-				"--input", inputPath,
-				"--output", resultPath});
+		SessionWindowing.main(new String[]{"--output", resultPath});
 	}
 }

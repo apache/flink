@@ -15,36 +15,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.test.exampleScalaPrograms.windowing;
+package org.apache.flink.streaming.test.examples.ml;
 
-import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExampleData;
-import org.apache.flink.streaming.scala.examples.windowing.TopSpeedWindowing;
+import org.apache.flink.streaming.examples.ml.IncrementalLearningSkeleton;
+import org.apache.flink.streaming.examples.ml.util.IncrementalLearningSkeletonData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
 /**
- * Tests for {@link TopSpeedWindowing}.
+ * Tests for {@link IncrementalLearningSkeleton}.
  */
-public class TopSpeedWindowingExampleITCase extends StreamingProgramTestBase {
-	protected String textPath;
+public class IncrementalLearningSkeletonITCase extends StreamingProgramTestBase {
+
 	protected String resultPath;
 
 	@Override
 	protected void preSubmit() throws Exception {
-		setParallelism(1); //needed to ensure total ordering for windows
-		textPath = createTempFile("text.txt", TopSpeedWindowingExampleData.CAR_DATA);
 		resultPath = getTempDirPath("result");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(TopSpeedWindowingExampleData.TOP_CASE_CLASS_SPEEDS, resultPath);
+		compareResultsByLinesInMemory(IncrementalLearningSkeletonData.RESULTS, resultPath);
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		TopSpeedWindowing.main(new String[]{
-				"--input", textPath,
-				"--output", resultPath});
-
+		IncrementalLearningSkeleton.main(new String[]{"--output", resultPath});
 	}
 }

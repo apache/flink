@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.test.exampleJavaPrograms.join;
+package org.apache.flink.streaming.test.examples.join;
 
 /**
  * Class with sample data for window join examples.

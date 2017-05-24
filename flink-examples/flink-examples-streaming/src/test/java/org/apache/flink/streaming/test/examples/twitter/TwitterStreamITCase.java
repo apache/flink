@@ -15,17 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.test.exampleJavaPrograms.ml;
+package org.apache.flink.streaming.test.examples.twitter;
 
-import org.apache.flink.streaming.examples.ml.IncrementalLearningSkeleton;
-import org.apache.flink.streaming.examples.ml.util.IncrementalLearningSkeletonData;
+import org.apache.flink.streaming.examples.twitter.TwitterExample;
+import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
 /**
- * Tests for {@link IncrementalLearningSkeleton}.
+ * Tests for {@link TwitterExample}.
  */
-public class IncrementalLearningSkeletonITCase extends StreamingProgramTestBase {
-
+public class TwitterStreamITCase extends StreamingProgramTestBase {
 	protected String resultPath;
 
 	@Override
@@ -35,11 +34,12 @@ public class IncrementalLearningSkeletonITCase extends StreamingProgramTestBase 
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(IncrementalLearningSkeletonData.RESULTS, resultPath);
+		compareResultsByLinesInMemory(TwitterExampleData.STREAMING_COUNTS_AS_TUPLES, resultPath);
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		IncrementalLearningSkeleton.main(new String[]{"--output", resultPath});
+		TwitterExample.main(new String[]{"--output", resultPath});
 	}
+
 }

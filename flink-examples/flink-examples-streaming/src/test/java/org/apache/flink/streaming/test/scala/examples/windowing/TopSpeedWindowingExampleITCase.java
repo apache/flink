@@ -15,31 +15,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.test.exampleJavaPrograms.windowing;
+package org.apache.flink.streaming.test.scala.examples.windowing;
 
-import org.apache.flink.streaming.examples.windowing.SessionWindowing;
-import org.apache.flink.streaming.examples.windowing.util.SessionWindowingData;
+import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExampleData;
+import org.apache.flink.streaming.scala.examples.windowing.TopSpeedWindowing;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
 /**
- * Tests for {@link SessionWindowing}.
+ * Tests for {@link TopSpeedWindowing}.
  */
-public class SessionWindowingITCase extends StreamingProgramTestBase {
-
+public class TopSpeedWindowingExampleITCase extends StreamingProgramTestBase {
+	protected String textPath;
 	protected String resultPath;
 
 	@Override
 	protected void preSubmit() throws Exception {
+		setParallelism(1); //needed to ensure total ordering for windows
+		textPath = createTempFile("text.txt", TopSpeedWindowingExampleData.CAR_DATA);
 		resultPath = getTempDirPath("result");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(SessionWindowingData.EXPECTED, resultPath);
+		compareResultsByLinesInMemory(TopSpeedWindowingExampleData.TOP_CASE_CLASS_SPEEDS, resultPath);
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		SessionWindowing.main(new String[]{"--output", resultPath});
+		TopSpeedWindowing.main(new String[]{
+				"--input", textPath,
+				"--output", resultPath});
+
 	}
 }

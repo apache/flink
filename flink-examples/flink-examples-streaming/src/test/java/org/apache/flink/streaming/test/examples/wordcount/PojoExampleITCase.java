@@ -16,21 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.test.exampleJavaPrograms.windowing;
+package org.apache.flink.streaming.test.examples.wordcount;
 
-import org.apache.flink.streaming.examples.windowing.WindowWordCount;
+import org.apache.flink.streaming.examples.wordcount.PojoExample;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
 /**
- * Tests for {@link WindowWordCount}.
+ * Tests for {@link PojoExample}.
  */
-public class WindowWordCountITCase extends StreamingProgramTestBase {
+public class PojoExampleITCase extends StreamingProgramTestBase {
 
 	protected String textPath;
 	protected String resultPath;
-	protected String windowSize = "250";
-	protected String slideSize = "150";
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -40,18 +38,13 @@ public class WindowWordCountITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void postSubmit() throws Exception {
-		// since the parallel tokenizers might have different speed
-		// the exact output can not be checked just whether it is well-formed
-		// checks that the result lines look like e.g. (faust, 2)
-		checkLinesAgainstRegexp(resultPath, "^\\([a-z]+,(\\d)+\\)");
+		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		WindowWordCount.main(new String[]{
+		PojoExample.main(new String[]{
 				"--input", textPath,
-				"--output", resultPath,
-				"--window", windowSize,
-				"--slide", slideSize});
+				"--output", resultPath});
 	}
 }
