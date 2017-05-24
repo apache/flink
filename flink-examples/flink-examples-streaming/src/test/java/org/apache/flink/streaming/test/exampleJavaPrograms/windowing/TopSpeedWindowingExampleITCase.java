@@ -21,8 +21,11 @@ import org.apache.flink.streaming.examples.windowing.TopSpeedWindowing;
 import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExampleData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
+/**
+ * Tests for {@link TopSpeedWindowing}.
+ */
 public class TopSpeedWindowingExampleITCase extends StreamingProgramTestBase {
-	
+
 	protected String textPath;
 	protected String resultPath;
 

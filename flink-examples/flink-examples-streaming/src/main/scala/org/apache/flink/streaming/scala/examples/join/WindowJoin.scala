@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.scala.examples.join
 
-import org.apache.flink.streaming.api.scala._
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 

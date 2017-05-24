@@ -43,13 +43,13 @@ public class LinearRegressionDataGenerator {
 
 	/**
 	 * Main method to generate data for the {@link org.apache.flink.examples.java.ml.LinearRegression} example program.
-	 * <p>
-	 * The generator creates to files:
+	 *
+	 * <p>The generator creates to files:
 	 * <ul>
 	 * <li><code>{tmp.dir}/data</code> for the data points
-	 * </ul> 
-	 * 
-	 * @param args 
+	 * </ul>
+	 *
+	 * @param args
 	 * <ol>
 	 * <li>Int: Number of data points
 	 * <li><b>Optional</b> Long: Random seed
@@ -72,15 +72,15 @@ public class LinearRegressionDataGenerator {
 		// write the points out
 		BufferedWriter pointsOut = null;
 		try {
-			pointsOut = new BufferedWriter(new FileWriter(new File(tmpDir+"/"+POINTS_FILE)));
+			pointsOut = new BufferedWriter(new FileWriter(new File(tmpDir + "/" + POINTS_FILE)));
 			StringBuilder buffer = new StringBuilder();
 
 			// DIMENSIONALITY + 1 means that the number of x(dimensionality) and target y
-			double[] point = new double[DIMENSIONALITY+1];
+			double[] point = new double[DIMENSIONALITY + 1];
 
 			for (int i = 1; i <= numDataPoints; i++) {
 				point[0] = random.nextGaussian();
-				point[1] = 2 * point[0] + 0.01*random.nextGaussian();
+				point[1] = 2 * point[0] + 0.01 * random.nextGaussian();
 				writePoint(point, buffer, pointsOut);
 			}
 
@@ -91,9 +91,8 @@ public class LinearRegressionDataGenerator {
 			}
 		}
 
-		System.out.println("Wrote "+numDataPoints+" data points to "+tmpDir+"/"+POINTS_FILE);
+		System.out.println("Wrote " + numDataPoints + " data points to " + tmpDir + "/" + POINTS_FILE);
 	}
-
 
 	private static void writePoint(double[] data, StringBuilder buffer, BufferedWriter out) throws IOException {
 		buffer.setLength(0);
@@ -101,7 +100,7 @@ public class LinearRegressionDataGenerator {
 		// write coordinates
 		for (int j = 0; j < data.length; j++) {
 			buffer.append(FORMAT.format(data[j]));
-			if(j < data.length - 1) {
+			if (j < data.length - 1) {
 				buffer.append(DELIMITER);
 			}
 		}

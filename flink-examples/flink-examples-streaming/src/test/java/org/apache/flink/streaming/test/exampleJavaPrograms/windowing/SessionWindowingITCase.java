@@ -21,6 +21,9 @@ import org.apache.flink.streaming.examples.windowing.SessionWindowing;
 import org.apache.flink.streaming.examples.windowing.util.SessionWindowingData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
+/**
+ * Tests for {@link SessionWindowing}.
+ */
 public class SessionWindowingITCase extends StreamingProgramTestBase {
 
 	protected String resultPath;

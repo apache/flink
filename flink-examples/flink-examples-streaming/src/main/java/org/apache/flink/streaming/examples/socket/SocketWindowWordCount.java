@@ -29,7 +29,7 @@ import org.apache.flink.util.Collector;
 /**
  * Implements a streaming windowed version of the "WordCount" program.
  *
- * This program connects to a server socket and reads strings from the socket.
+ * <p>This program connects to a server socket and reads strings from the socket.
  * The easiest way to try this out is to open a text server (at port 12345)
  * using the <i>netcat</i> tool via
  * <pre>
@@ -95,7 +95,7 @@ public class SocketWindowWordCount {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Data type for words with count
+	 * Data type for words with count.
 	 */
 	public static class WordWithCount {
 

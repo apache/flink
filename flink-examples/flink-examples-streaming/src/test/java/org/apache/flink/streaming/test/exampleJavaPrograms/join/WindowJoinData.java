@@ -59,6 +59,6 @@ public class WindowJoinData {
 			"18,jerry,2138\n" + "18,alice,7503\n" + "18,alice,6424\n" + "18,tom,140\n" + "18,john,9802\n" +
 			"19,grace,2977\n" + "19,grace,889\n" + "19,john,1338";
 
-	/** Utility class, should not be instantiated */
+	/** Utility class, should not be instantiated. */
 	private WindowJoinData() {}
 }

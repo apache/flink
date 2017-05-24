@@ -22,6 +22,9 @@ import org.apache.flink.streaming.examples.wordcount.WordCount;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
+/**
+ * Tests for {@link WordCount}.
+ */
 public class WordCountITCase extends StreamingProgramTestBase {
 
 	protected String textPath;

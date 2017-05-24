@@ -20,8 +20,8 @@ package org.apache.flink.examples.java.ml.util;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.examples.java.ml.LinearRegression.Params;
 import org.apache.flink.examples.java.ml.LinearRegression.Data;
+import org.apache.flink.examples.java.ml.LinearRegression.Params;
 
 import java.util.LinkedList;
 import java.util.List;

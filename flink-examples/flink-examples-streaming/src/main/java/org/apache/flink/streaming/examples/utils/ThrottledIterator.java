@@ -74,9 +74,9 @@ public class ThrottledIterator<T> implements Iterator<T>, Serializable {
 		if (lastBatchCheckTime > 0) {
 			if (++num >= sleepBatchSize) {
 				num = 0;
-	
+
 				final long now = System.currentTimeMillis();
-				final long elapsed = now - lastBatchCheckTime; 
+				final long elapsed = now - lastBatchCheckTime;
 				if (elapsed < sleepBatchTime) {
 					try {
 						Thread.sleep(sleepBatchTime - elapsed);

@@ -22,6 +22,9 @@ import org.apache.flink.streaming.examples.wordcount.PojoExample;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
+/**
+ * Tests for {@link PojoExample}.
+ */
 public class PojoExampleITCase extends StreamingProgramTestBase {
 
 	protected String textPath;

@@ -28,22 +28,20 @@ import org.apache.flink.util.Collector;
 /**
  * This example shows an implementation of WordCount without using the Tuple2
  * type, but a custom class.
- * 
- * <p>
- * Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt;</code><br>
+ *
+ * <p>Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link WordCountData}.
- * 
- * <p>
- * This example shows how to:
+ *
+ * <p>This example shows how to:
  * <ul>
  * <li>use POJO data types,
  * <li>write a simple Flink program,
- * <li>write and use user-defined functions. 
+ * <li>write and use user-defined functions.
  * </ul>
  */
 public class PojoExample {
-	
+
 	// *************************************************************************
 	// PROGRAM
 	// *************************************************************************

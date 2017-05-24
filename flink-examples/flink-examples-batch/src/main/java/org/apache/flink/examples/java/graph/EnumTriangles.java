@@ -39,17 +39,15 @@ import java.util.List;
 /**
  * Triangle enumeration is a pre-processing step to find closely connected parts in graphs.
  * A triangle consists of three edges that connect three vertices with each other.
- * 
- * <p>
- * The algorithm works as follows: 
- * It groups all edges that share a common vertex and builds triads, i.e., triples of vertices 
- * that are connected by two edges. Finally, all triads are filtered for which no third edge exists 
+ *
+ * <p>The algorithm works as follows:
+ * It groups all edges that share a common vertex and builds triads, i.e., triples of vertices
+ * that are connected by two edges. Finally, all triads are filtered for which no third edge exists
  * that closes the triangle.
- *  
- * <p>
- * Input files are plain text files and must be formatted as follows:
+ *
+ * <p>Input files are plain text files and must be formatted as follows:
  * <ul>
- * <li>Edges are represented as pairs for vertex IDs which are separated by space 
+ * <li>Edges are represented as pairs for vertex IDs which are separated by space
  * characters. Edges are separated by new-line characters.<br>
  * For example <code>"1 2\n2 12\n1 12\n42 63"</code> gives four (undirected) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63)
  * that include a triangle
@@ -59,17 +57,15 @@ import java.util.List;
  *     /  \
  *   (2)-(12)
  * </pre>
- * 
- * Usage: <code>EnumTriangleBasic --edges &lt;path&gt; --output &lt;path&gt;</code><br>
- * If no parameters are provided, the program is run with default data from {@link EnumTrianglesData}. 
- * 
- * <p>
- * This example shows how to use:
+ *
+ * <p>Usage: <code>EnumTriangleBasic --edges &lt;path&gt; --output &lt;path&gt;</code><br>
+ * If no parameters are provided, the program is run with default data from {@link EnumTrianglesData}.
+ *
+ * <p>This example shows how to use:
  * <ul>
  * <li>Custom Java objects which extend Tuple
  * <li>Group Sorting
  * </ul>
- * 
  */
 @SuppressWarnings("serial")
 public class EnumTriangles {
@@ -77,7 +73,7 @@ public class EnumTriangles {
 	// *************************************************************************
 	//     PROGRAM
 	// *************************************************************************
-	
+
 	public static void main(String[] args) throws Exception {
 
 		// Checking input parameters
@@ -88,7 +84,7 @@ public class EnumTriangles {
 
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
-	
+
 		// read input data
 		DataSet<Edge> edges;
 		if (params.has("edges")) {
@@ -106,7 +102,7 @@ public class EnumTriangles {
 		// project edges by vertex id
 		DataSet<Edge> edgesById = edges
 				.map(new EdgeByIdProjector());
-		
+
 		DataSet<Triad> triangles = edgesById
 				// build triads
 				.groupBy(Edge.V1).sortGroup(Edge.V2, Order.ASCENDING).reduceGroup(new TriadBuilder())
@@ -128,60 +124,60 @@ public class EnumTriangles {
 	//     USER FUNCTIONS
 	// *************************************************************************
 
-	/** Converts a Tuple2 into an Edge */
+	/** Converts a Tuple2 into an Edge. */
 	@ForwardedFields("0;1")
 	public static class TupleEdgeConverter implements MapFunction<Tuple2<Integer, Integer>, Edge> {
 		private final Edge outEdge = new Edge();
-		
+
 		@Override
 		public Edge map(Tuple2<Integer, Integer> t) throws Exception {
 			outEdge.copyVerticesFromTuple2(t);
 			return outEdge;
 		}
 	}
-	
+
 	/** Projects an edge (pair of vertices) such that the id of the first is smaller than the id of the second. */
 	private static class EdgeByIdProjector implements MapFunction<Edge, Edge> {
-	
+
 		@Override
 		public Edge map(Edge inEdge) throws Exception {
-			
+
 			// flip vertices if necessary
-			if(inEdge.getFirstVertex() > inEdge.getSecondVertex()) {
+			if (inEdge.getFirstVertex() > inEdge.getSecondVertex()) {
 				inEdge.flipVertices();
 			}
-			
+
 			return inEdge;
 		}
 	}
-	
+
 	/**
 	 *  Builds triads (triples of vertices) from pairs of edges that share a vertex.
-	 *  The first vertex of a triad is the shared vertex, the second and third vertex are ordered by vertexId. 
+	 *  The first vertex of a triad is the shared vertex, the second and third vertex are ordered by vertexId.
 	 *  Assumes that input edges share the first vertex and are in ascending order of the second vertex.
 	 */
 	@ForwardedFields("0")
 	private static class TriadBuilder implements GroupReduceFunction<Edge, Triad> {
 		private final List<Integer> vertices = new ArrayList<Integer>();
 		private final Triad outTriad = new Triad();
-		
+
 		@Override
 		public void reduce(Iterable<Edge> edgesIter, Collector<Triad> out) throws Exception {
-			
+
 			final Iterator<Edge> edges = edgesIter.iterator();
-			
+
 			// clear vertex list
 			vertices.clear();
-			
+
 			// read first edge
 			Edge firstEdge = edges.next();
 			outTriad.setFirstVertex(firstEdge.getFirstVertex());
 			vertices.add(firstEdge.getSecondVertex());
-			
+
 			// build and emit triads
 			while (edges.hasNext()) {
 				Integer higherVertexId = edges.next().getSecondVertex();
-				
+
 				// combine vertex with all previously read vertices
 				for (Integer lowerVertexId : vertices) {
 					outTriad.setSecondVertex(lowerVertexId);
@@ -192,14 +188,14 @@ public class EnumTriangles {
 			}
 		}
 	}
-	
+
 	/** Filters triads (three vertices connected by two edges) without a closing third edge. */
 	private static class TriadFilter implements JoinFunction<Triad, Edge, Triad> {
-		
+
 		@Override
 		public Triad join(Triad triad, Edge edge) throws Exception {
 			return triad;
 		}
 	}
-	
+
 }

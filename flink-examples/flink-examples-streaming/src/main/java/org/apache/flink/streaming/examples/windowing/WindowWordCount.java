@@ -27,22 +27,18 @@ import org.apache.flink.streaming.examples.wordcount.WordCount;
 /**
  * Implements a windowed version of the streaming "WordCount" program.
  *
- * <p>
- * The input is a plain text file with lines separated by newline characters.
- * 
- * <p>
- * Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt; --window &lt;n&gt; --slide &lt;n&gt;</code><br>
+ * <p>The input is a plain text file with lines separated by newline characters.
+ *
+ * <p>Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt; --window &lt;n&gt; --slide &lt;n&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link org.apache.flink.examples.java.wordcount.util.WordCountData}.
  *
- * <p>
- * This example shows how to:
+ * <p>This example shows how to:
  * <ul>
  * <li>write a simple Flink Streaming program,
  * <li>use tuple data types,
  * <li>use basic windowing abstractions.
  * </ul>
- *
  */
 public class WindowWordCount {
 
