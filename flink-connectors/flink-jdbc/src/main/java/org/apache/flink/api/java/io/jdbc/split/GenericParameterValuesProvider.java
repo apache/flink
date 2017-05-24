@@ -15,22 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.java.io.jdbc.split;
 
-import java.io.Serializable;
+package org.apache.flink.api.java.io.jdbc.split;
 
 import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
 
-/** 
- * 
+import java.io.Serializable;
+
+/**
  * This splits generator actually does nothing but wrapping the query parameters
  * computed by the user before creating the {@link JDBCInputFormat} instance.
- * 
- * */
+ */
 public class GenericParameterValuesProvider implements ParameterValuesProvider {
 
 	private final Serializable[][] parameters;
-	
+
 	public GenericParameterValuesProvider(Serializable[][] parameters) {
 		this.parameters = parameters;
 	}

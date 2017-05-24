@@ -18,20 +18,24 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.jdbc.JDBCInputFormat.JDBCInputFormatBuilder;
+import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
+import org.apache.flink.types.Row;
+
+import org.junit.Assert;
+import org.junit.Test;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Types;
 
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.jdbc.JDBCInputFormat.JDBCInputFormatBuilder;
-import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
-import org.apache.flink.types.Row;
-import org.junit.Assert;
-import org.junit.Test;
-
+/**
+ * Tests using both {@link JDBCInputFormat} and {@link JDBCOutputFormat}.
+ */
 public class JDBCFullTest extends JDBCTestBase {
 
 	@Test
@@ -50,7 +54,7 @@ public class JDBCFullTest extends JDBCTestBase {
 				.setDrivername(JDBCTestBase.DRIVER_CLASS)
 				.setDBUrl(JDBCTestBase.DB_URL)
 				.setQuery(JDBCTestBase.SELECT_ALL_BOOKS)
-				.setRowTypeInfo(rowTypeInfo);
+				.setRowTypeInfo(ROW_TYPE_INFO);
 
 		if (exploitParallelism) {
 			final int fetchSize = 1;
@@ -69,8 +73,8 @@ public class JDBCFullTest extends JDBCTestBase {
 		source.output(JDBCOutputFormat.buildJDBCOutputFormat()
 				.setDrivername(JDBCTestBase.DRIVER_CLASS)
 				.setDBUrl(JDBCTestBase.DB_URL)
-				.setQuery("insert into newbooks (id,title,author,price,qty) values (?,?,?,?,?)")
-				.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR,Types.DOUBLE,Types.INTEGER})
+				.setQuery("insert into newbooks (id, title, author, price, qty) values (?,?,?,?,?)")
+				.setSqlTypes(new int[]{Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.DOUBLE, Types.INTEGER})
 				.finish());
 
 		environment.execute();

@@ -15,7 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.io.jdbc;
+
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
+
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
 import java.io.OutputStream;
 import java.sql.Connection;
@@ -23,16 +30,11 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-
 /**
- * Base test class for JDBC Input and Output formats
+ * Base test class for JDBC Input and Output formats.
  */
 public class JDBCTestBase {
-	
+
 	public static final String DRIVER_CLASS = "org.apache.derby.jdbc.EmbeddedDriver";
 	public static final String DB_URL = "jdbc:derby:memory:ebookshop";
 	public static final String INPUT_TABLE = "books";
@@ -43,7 +45,7 @@ public class JDBCTestBase {
 	public static final String INSERT_TEMPLATE = "insert into %s (id, title, author, price, qty) values (?,?,?,?,?)";
 	public static final String SELECT_ALL_BOOKS_SPLIT_BY_ID = SELECT_ALL_BOOKS + " WHERE id BETWEEN ? AND ?";
 	public static final String SELECT_ALL_BOOKS_SPLIT_BY_AUTHOR = SELECT_ALL_BOOKS + " WHERE author = ?";
-	
+
 	public static final TestEntry[] TEST_DATA = {
 			new TestEntry(1001, ("Java public for dummies"), ("Tan Ah Teck"), 11.11, 11),
 			new TestEntry(1002, ("More Java for dummies"), ("Tan Ah Teck"), 22.22, 22),
@@ -57,13 +59,13 @@ public class JDBCTestBase {
 			new TestEntry(1010, ("A Teaspoon of Java 1.8"), ("Kevin Jones"), null, 1010)
 	};
 
-	protected static class TestEntry {
+	static class TestEntry {
 		protected final Integer id;
 		protected final String title;
 		protected final String author;
 		protected final Double price;
 		protected final Integer qty;
-		
+
 		private TestEntry(Integer id, String title, String author, Double price, Integer qty) {
 			this.id = id;
 			this.title = title;
@@ -73,7 +75,7 @@ public class JDBCTestBase {
 		}
 	}
 
-	public static final RowTypeInfo rowTypeInfo = new RowTypeInfo(
+	public static final RowTypeInfo ROW_TYPE_INFO = new RowTypeInfo(
 		BasicTypeInfo.INT_TYPE_INFO,
 		BasicTypeInfo.STRING_TYPE_INFO,
 		BasicTypeInfo.STRING_TYPE_INFO,
@@ -91,7 +93,7 @@ public class JDBCTestBase {
 		sqlQueryBuilder.append("PRIMARY KEY (id))");
 		return sqlQueryBuilder.toString();
 	}
-	
+
 	public static String getInsertQuery() {
 		StringBuilder sqlQueryBuilder = new StringBuilder("INSERT INTO books (id, title, author, price, qty) VALUES ");
 		for (int i = 0; i < TEST_DATA.length; i++) {
@@ -108,7 +110,7 @@ public class JDBCTestBase {
 		String insertQuery = sqlQueryBuilder.toString();
 		return insertQuery;
 	}
-	
+
 	public static final OutputStream DEV_NULL = new OutputStream() {
 		@Override
 		public void write(int b) {
@@ -126,13 +128,13 @@ public class JDBCTestBase {
 			insertDataIntoInputTable(conn);
 		}
 	}
-	
+
 	private static void createTable(Connection conn, String tableName) throws SQLException {
 		Statement stat = conn.createStatement();
 		stat.executeUpdate(getCreateQuery(tableName));
 		stat.close();
 	}
-	
+
 	private static void insertDataIntoInputTable(Connection conn) throws SQLException {
 		Statement stat = conn.createStatement();
 		stat.execute(getInsertQuery());
@@ -147,7 +149,7 @@ public class JDBCTestBase {
 			Statement stat = conn.createStatement()) {
 
 			stat.executeUpdate("DROP TABLE " + INPUT_TABLE);
-			stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE);	
+			stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE);
 		}
 	}
 }

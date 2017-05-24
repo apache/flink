@@ -18,6 +18,12 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.types.Row;
+
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Test;
+
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -25,11 +31,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import org.apache.flink.types.Row;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Test;
-
+/**
+ * Tests for the {@link JDBCOutputFormat}.
+ */
 public class JDBCOutputFormatTest extends JDBCTestBase {
 
 	private JDBCOutputFormat jdbcOutputFormat;
@@ -79,7 +83,6 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
 				.finish();
 	}
-
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testIncompatibleTypes() throws IOException {
