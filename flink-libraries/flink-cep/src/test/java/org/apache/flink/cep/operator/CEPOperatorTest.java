@@ -654,6 +654,7 @@ public class CEPOperatorTest extends TestLogger {
 						Lists.newArrayList(startEvent2, endEvent, middleEvent3)
 				)
 		);
+		harness.close();
 	}
 
 	private void verifyWatermark(Object outputObject, long timestamp) {
