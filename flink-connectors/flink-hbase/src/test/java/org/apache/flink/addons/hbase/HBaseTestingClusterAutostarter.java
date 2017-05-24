@@ -20,10 +20,11 @@
 
 package org.apache.flink.addons.hbase;
 
+import org.apache.flink.util.TestLogger;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.logging.impl.Log4JLogger;
-import org.apache.flink.util.TestLogger;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -95,7 +96,7 @@ public class HBaseTestingClusterAutostarter extends TestLogger implements Serial
 
 		assertNotNull("HBaseAdmin is not initialized successfully.", admin);
 		HTableDescriptor desc = new HTableDescriptor(tableName);
-		for(byte[] fam : columnFamilyName) {
+		for (byte[] fam : columnFamilyName) {
 			HColumnDescriptor colDef = new HColumnDescriptor(fam);
 			desc.addFamily(colDef);
 		}
@@ -195,6 +196,7 @@ public class HBaseTestingClusterAutostarter extends TestLogger implements Serial
 	public static Configuration getConf() {
 		return conf;
 	}
+
 	private static void createHBaseSiteXml(File hbaseSiteXmlDirectory, String zookeeperQuorum) {
 		hbaseSiteXmlFile = new File(hbaseSiteXmlDirectory, "hbase-site.xml");
 		// Create the hbase-site.xml file for this run.

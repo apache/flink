@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
@@ -36,36 +37,36 @@ import org.apache.hadoop.mapreduce.Job;
 
 /**
  * Simple stub for HBase DataSet write
- * 
- * To run the test first create the test table with hbase shell.
- * 
- * Use the following commands:
+ *
+ * <p>To run the test first create the test table with hbase shell.
+ *
+ * <p>Use the following commands:
  * <ul>
  *     <li>create 'test-table', 'someCf'</li>
  * </ul>
- * 
+ *
  */
 @SuppressWarnings("serial")
 public class HBaseWriteExample {
-	
+
 	// *************************************************************************
 	//     PROGRAM
 	// *************************************************************************
-	
+
 	public static void main(String[] args) throws Exception {
 
-		if(!parseParameters(args)) {
+		if (!parseParameters(args)) {
 			return;
 		}
-		
+
 		// set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		// get input data
 		DataSet<String> text = getTextDataSet(env);
-		
-		DataSet<Tuple2<String, Integer>> counts = 
-				// split up the lines in pairs (2-tuples) containing: (word,1)
+
+		DataSet<Tuple2<String, Integer>> counts =
+				// split up the lines in pairs (2-tuples) containing: (word, 1)
 				text.flatMap(new Tokenizer())
 				// group by the tuple field "0" and sum up tuple field "1"
 				.groupBy(0)
@@ -75,8 +76,8 @@ public class HBaseWriteExample {
 		Job job = Job.getInstance();
 		job.getConfiguration().set(TableOutputFormat.OUTPUT_TABLE, outputTableName);
 		// TODO is "mapred.output.dir" really useful?
-		job.getConfiguration().set("mapred.output.dir",HBaseFlinkTestConstants.TMP_DIR);
-		counts.map(new RichMapFunction <Tuple2<String,Integer>, Tuple2<Text,Mutation>>() {
+		job.getConfiguration().set("mapred.output.dir", HBaseFlinkTestConstants.TMP_DIR);
+		counts.map(new RichMapFunction <Tuple2<String, Integer>, Tuple2<Text, Mutation>>() {
 			private transient Tuple2<Text, Mutation> reuse;
 
 			@Override
@@ -89,24 +90,24 @@ public class HBaseWriteExample {
 			public Tuple2<Text, Mutation> map(Tuple2<String, Integer> t) throws Exception {
 				reuse.f0 = new Text(t.f0);
 				Put put = new Put(t.f0.getBytes(ConfigConstants.DEFAULT_CHARSET));
-				put.add(HBaseFlinkTestConstants.CF_SOME,HBaseFlinkTestConstants.Q_SOME, Bytes.toBytes(t.f1));
+				put.add(HBaseFlinkTestConstants.CF_SOME, HBaseFlinkTestConstants.Q_SOME, Bytes.toBytes(t.f1));
 				reuse.f1 = put;
 				return reuse;
 			}
 		}).output(new HadoopOutputFormat<Text, Mutation>(new TableOutputFormat<Text>(), job));
-		
+
 		// execute program
 		env.execute("WordCount (HBase sink) Example");
 	}
-	
+
 	// *************************************************************************
 	//     USER FUNCTIONS
 	// *************************************************************************
-	
+
 	/**
 	 * Implements the string tokenizer that splits sentences into words as a user-defined
-	 * FlatMapFunction. The function takes a line (String) and splits it into 
-	 * multiple pairs in the form of "(word,1)" (Tuple2<String, Integer>).
+	 * FlatMapFunction. The function takes a line (String) and splits it into
+	 * multiple pairs in the form of "(word, 1)" (Tuple2&lt;String, Integer&gt;).
 	 */
 	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
 
@@ -114,7 +115,7 @@ public class HBaseWriteExample {
 		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
 			// normalize and split the line
 			String[] tokens = value.toLowerCase().split("\\W+");
-			
+
 			// emit the pairs
 			for (String token : tokens) {
 				if (token.length() > 0) {
@@ -123,20 +124,20 @@ public class HBaseWriteExample {
 			}
 		}
 	}
-	
+
 	// *************************************************************************
 	//     UTIL METHODS
 	// *************************************************************************
 	private static boolean fileOutput = false;
 	private static String textPath;
 	private static String outputTableName = HBaseFlinkTestConstants.TEST_TABLE_NAME;
-	
+
 	private static boolean parseParameters(String[] args) {
-		
-		if(args.length > 0) {
+
+		if (args.length > 0) {
 			// parse input arguments
 			fileOutput = true;
-			if(args.length == 2) {
+			if (args.length == 2) {
 				textPath = args[0];
 				outputTableName = args[1];
 			} else {
@@ -150,9 +151,9 @@ public class HBaseWriteExample {
 		}
 		return true;
 	}
-	
+
 	private static DataSet<String> getTextDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
+		if (fileOutput) {
 			// read the text file from given input path
 			return env.readTextFile(textPath);
 		} else {
@@ -160,9 +161,11 @@ public class HBaseWriteExample {
 			return getDefaultTextLineDataSet(env);
 		}
 	}
+
 	private static DataSet<String> getDefaultTextLineDataSet(ExecutionEnvironment env) {
 		return env.fromElements(WORDS);
 	}
+
 	private static final String[] WORDS = new String[] {
 		"To be, or not to be,--that is the question:--",
 		"Whether 'tis nobler in the mind to suffer",

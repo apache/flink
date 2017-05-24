@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.addons.hbase;
 
 import org.apache.flink.api.common.io.InputFormat;
@@ -23,6 +24,7 @@ import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitAssigner;
+
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -31,7 +33,6 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -42,7 +43,7 @@ import java.util.List;
  */
 public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInputSplit> {
 
-	protected static Logger LOG = LoggerFactory.getLogger(AbstractTableInputFormat.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(AbstractTableInputFormat.class);
 
 	// helper variable to decide whether the input is exhausted or not
 	protected boolean endReached = false;
@@ -50,7 +51,7 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 	protected transient HTable table = null;
 	protected transient Scan scan = null;
 
-	/** HBase iterator wrapper */
+	/** HBase iterator wrapper. */
 	protected ResultScanner resultScanner = null;
 
 	protected byte[] currentRow;
@@ -65,7 +66,8 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 
 	/**
 	 * What table is to be read.
-	 * Per instance of a TableInputFormat derivative only a single table name is possible.
+	 *
+	 * <p>Per instance of a TableInputFormat derivative only a single table name is possible.
 	 *
 	 * @return The name of the table
 	 */
@@ -74,7 +76,7 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 	/**
 	 * HBase returns an instance of {@link Result}.
 	 *
-	 * This method maps the returned {@link Result} instance into the output type {@link T}.
+	 * <p>This method maps the returned {@link Result} instance into the output type {@link T}.
 	 *
 	 * @param r The Result instance from HBase that needs to be converted
 	 * @return The appropriate instance of {@link T} that contains the data of Result.
@@ -83,10 +85,11 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 
 	/**
 	 * Creates a {@link Scan} object and opens the {@link HTable} connection.
-	 * These are opened here because they are needed in the createInputSplits
+	 *
+	 * <p>These are opened here because they are needed in the createInputSplits
 	 * which is called before the openInputFormat method.
 	 *
-	 * The connection is opened in this method and closed in {@link #closeInputFormat()}.
+	 * <p>The connection is opened in this method and closed in {@link #closeInputFormat()}.
 	 *
 	 * @param parameters The configuration that is to be used
 	 * @see Configuration

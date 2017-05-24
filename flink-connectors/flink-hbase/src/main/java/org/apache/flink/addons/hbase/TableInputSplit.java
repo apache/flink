@@ -28,7 +28,7 @@ public class TableInputSplit extends LocatableInputSplit {
 
 	private static final long serialVersionUID = 1L;
 
-	/** The name of the table to retrieve data from */
+	/** The name of the table to retrieve data from. */
 	private final byte[] tableName;
 
 	/** The start row of the split. */
@@ -38,8 +38,8 @@ public class TableInputSplit extends LocatableInputSplit {
 	private final byte[] endRow;
 
 	/**
-	 * Creates a new table input split
-	 * 
+	 * Creates a new table input split.
+	 *
 	 * @param splitNumber
 	 *        the number of the input split
 	 * @param hostnames
@@ -62,7 +62,7 @@ public class TableInputSplit extends LocatableInputSplit {
 
 	/**
 	 * Returns the table name.
-	 * 
+	 *
 	 * @return The table name.
 	 */
 	public byte[] getTableName() {
@@ -71,7 +71,7 @@ public class TableInputSplit extends LocatableInputSplit {
 
 	/**
 	 * Returns the start row.
-	 * 
+	 *
 	 * @return The start row.
 	 */
 	public byte[] getStartRow() {
@@ -80,7 +80,7 @@ public class TableInputSplit extends LocatableInputSplit {
 
 	/**
 	 * Returns the end row.
-	 * 
+	 *
 	 * @return The end row.
 	 */
 	public byte[] getEndRow() {
