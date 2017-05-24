@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.test.exampleJavaPrograms.wordcount;
+package org.apache.flink.streaming.test.examples.wordcount;
 
 import org.apache.flink.streaming.examples.wordcount.WordCount;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
