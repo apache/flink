@@ -20,77 +20,93 @@ package org.apache.flink.table.explain;
 
 import java.util.List;
 
+/**
+ * Field hierarchy of an execution plan.
+ */
 public class Node {
 	private int id;
 	private String type;
 	private String pact;
 	private String contents;
 	private int parallelism;
-	private String driver_strategy;
+	private String driverStrategy;
 	private List<Predecessors> predecessors;
-	private List<Global_properties> global_properties;
-	private List<LocalProperty> local_properties;
+	private List<GlobalProperties> globalProperties;
+	private List<LocalProperty> localProperties;
 	private List<Estimates> estimates;
 	private List<Costs> costs;
-	private List<Compiler_hints> compiler_hints;
+	private List<CompilerHints> compilerHints;
 
 	public int getId() {
 		return id;
 	}
+
 	public String getType() {
 		return type;
 	}
+
 	public String getPact() {
 		return pact;
 	}
+
 	public String getContents() {
 		return contents;
 	}
+
 	public int getParallelism() {
 		return parallelism;
 	}
-	public String getDriver_strategy() {
-		return driver_strategy;
+
+	public String getDriverStrategy() {
+		return driverStrategy;
 	}
+
 	public List<Predecessors> getPredecessors() {
 		return predecessors;
 	}
-	public List<Global_properties> getGlobal_properties() {
-		return global_properties;
+
+	public List<GlobalProperties> getGlobalProperties() {
+		return globalProperties;
 	}
-	public List<LocalProperty> getLocal_properties() {
-		return local_properties;
+
+	public List<LocalProperty> getLocalProperties() {
+		return localProperties;
 	}
+
 	public List<Estimates> getEstimates() {
 		return estimates;
 	}
+
 	public List<Costs> getCosts() {
 		return costs;
 	}
-	public List<Compiler_hints> getCompiler_hints() {
-		return compiler_hints;
+
+	public List<CompilerHints> getCompilerHints() {
+		return compilerHints;
 	}
 }
 
 class Predecessors {
-	private String ship_strategy;
-	private String exchange_mode;
+	private String shipStrategy;
+	private String exchangeMode;
 
-	public String getShip_strategy() {
-		return ship_strategy;
+	public String getShipStrategy() {
+		return shipStrategy;
 	}
-	public String getExchange_mode() {
-		return exchange_mode;
+
+	public String getExchangeMode() {
+		return exchangeMode;
 	}
 }
 
-class Global_properties {
+class GlobalProperties {
 	private String name;
 	private String value;
 
 	public String getValue() {
 		return value;
 	}
+
 	public String getName() {
 		return name;
 	}
@@ -103,6 +119,7 @@ class LocalProperty {
 	public String getValue() {
 		return value;
 	}
+
 	public String getName() {
 		return name;
 	}
@@ -115,6 +132,7 @@ class Estimates {
 	public String getValue() {
 		return value;
 	}
+
 	public String getName() {
 		return name;
 	}
@@ -127,18 +145,20 @@ class Costs {
 	public String getValue() {
 		return value;
 	}
+
 	public String getName() {
 		return name;
 	}
 }
 
-class Compiler_hints {
+class CompilerHints {
 	private String name;
 	private String value;
 
 	public String getValue() {
 		return value;
 	}
+
 	public String getName() {
 		return name;
 	}
