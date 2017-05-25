@@ -19,7 +19,8 @@
 package org.apache.flink.table.api.scala.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala.stream.sql.SortITCase.{EventTimeSourceFunction,StringRowSelectorSink}
+import org.apache.flink.table.api.scala.stream.sql.SortITCase.StringRowSelectorSink
+import org.apache.flink.table.api.scala.stream.sql.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableEnvironment
@@ -50,12 +51,16 @@ class SortITCase extends StreamingWithStateTestBase {
       Left((2000L, (2L, 2, "Hello"))),
       Left((2000L, (2L, 3, "Hello"))),
       Left((3000L, (3L, 3, "Hello"))),
+      Left((2000L, (3L, 1, "Hello"))),
       Right(2000L),
       Left((4000L, (4L, 4, "Hello"))),
       Right(3000L),
       Left((5000L, (5L, 5, "Hello"))),
       Right(5000L),
       Left((6000L, (6L, 65, "Hello"))),
+      Left((6000L, (6L, 6, "Hello"))),
+      Left((6000L, (6L, 67, "Hello"))),
+      Left((6000L, (6L, -1, "Hello"))),
       Left((6000L, (6L, 6, "Hello"))),
       Right(7000L),
       Left((9000L, (6L, 9, "Hello"))),
@@ -74,6 +79,7 @@ class SortITCase extends StreamingWithStateTestBase {
       Right(19000L))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
@@ -93,11 +99,11 @@ class SortITCase extends StreamingWithStateTestBase {
     
     val expected = mutable.MutableList(
       "1", "15", "16",
-      "2", "2", "3",
+      "1", "2", "2", "3",
       "3",
       "4",
       "5",
-      "6", "65",
+      "-1", "6", "6", "65", "67",
       "18", "7", "9",
       "7", "17", "77", 
       "18",
@@ -109,18 +115,6 @@ class SortITCase extends StreamingWithStateTestBase {
 
 object SortITCase {
 
-  class EventTimeSourceFunction[T](
-      dataWithTimestampList: Seq[Either[(Long, T), Long]]) extends SourceFunction[T] {
-    override def run(ctx: SourceContext[T]): Unit = {
-      dataWithTimestampList.foreach {
-        case Left(t) => ctx.collectWithTimestamp(t._2, t._1)
-        case Right(w) => ctx.emitWatermark(new Watermark(w))
-      }
-    }
-
-    override def cancel(): Unit = ???
-  }
-  
   final class StringRowSelectorSink(private val field:Int) extends RichSinkFunction[Row]() {
     def invoke(value: Row) {
       testResults.synchronized {

@@ -37,17 +37,16 @@ import java.util.ArrayList
 import java.util.Collections
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import java.lang.{Integer=>JInt}
 
 /**
  * Process Function used for the aggregate in bounded proctime sort without offset/fetch
  * [[org.apache.flink.streaming.api.datastream.DataStream]]
  *
- * @param fieldCount Is used to indicate fields in the current element to forward
- * @param inputType It is used to mark the type of the incoming data
+ * @param inputRowType It is used to mark the type of the incoming data
  * @param rowComparator the [[java.util.Comparator]] is used for this sort aggregation
  */
 class ProcTimeSortProcessFunction(
-  private val fieldCount: Int,
   private val inputRowType: CRowTypeInfo,
   private val rowComparator: CollectionRowComparator)
     extends ProcessFunction[CRow, CRow] {
@@ -64,6 +63,11 @@ class ProcTimeSortProcessFunction(
         inputRowType.asInstanceOf[CRowTypeInfo].rowType)
     stateEventsBuffer = getRuntimeContext.getListState(sortDescriptor)
     
+    if (outputC == null) {
+      val arity:Integer = inputRowType.getArity
+      outputC = new CRow(Row.of(arity), true)
+    }
+    
   }
 
   override def processElement(
@@ -73,14 +77,9 @@ class ProcTimeSortProcessFunction(
 
     val input = inputC.row
     
-    if( outputC == null) {
-      outputC = new CRow(input, true)
-    }
-    
     val currentTime = ctx.timerService.currentProcessingTime
     //buffer the event incoming event
   
-    //we accumulate the events as they arrive within the given proctime
     stateEventsBuffer.add(input)
     
     //deduplication of multiple registered timers is done automatically
@@ -93,9 +92,7 @@ class ProcTimeSortProcessFunction(
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
     
-    var i = 0
     val iter =  stateEventsBuffer.get.iterator()
-    
     
     sortArray.clear()
     while(iter.hasNext()) {
@@ -105,10 +102,6 @@ class ProcTimeSortProcessFunction(
     //if we do not rely on java collections to do the sort we could implement 
     //an insertion sort as we get the elements  from the state
     Collections.sort(sortArray, rowComparator)
-    
-    //no retraction now
-            
-    //no selection of offset/fetch
     
     //we need to build the output and emit the events in order
     var iElemenets = 0

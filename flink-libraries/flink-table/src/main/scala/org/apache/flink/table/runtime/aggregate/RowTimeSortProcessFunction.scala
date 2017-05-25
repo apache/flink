@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import org.apache.flink.api.common.state.{ ListState, ListStateDescriptor }
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, ListTypeInfo}
 import org.apache.flink.runtime.state.{ FunctionInitializationContext, FunctionSnapshotContext }
@@ -42,20 +41,16 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
  * Process Function used for the aggregate in bounded rowtime sort without offset/fetch
  * [[org.apache.flink.streaming.api.datastream.DataStream]]
  *
- * @param fieldCount Is used to indicate fields in the current element to forward
- * @param inputType It is used to mark the type of the incoming data
+ * @param inputRowType It is used to mark the type of the incoming data
  * @param rowComparator the [[java.util.Comparator]] is used for this sort aggregation
  */
 class RowTimeSortProcessFunction(
-  private val fieldCount: Int,
   private val inputRowType: CRowTypeInfo,
   private val rowComparator: CollectionRowComparator)
     extends ProcessFunction[CRow, CRow] {
 
   Preconditions.checkNotNull(rowComparator)
 
-  private val sortArray: ArrayList[Row] = new ArrayList[Row]
-  
   // the state which keeps all the events that are not expired.
   // Each timestamp will contain an associated list with the events 
   // received at that timestamp
@@ -65,7 +60,6 @@ class RowTimeSortProcessFunction(
   private var lastTriggeringTsState: ValueState[Long] = _
   
   private var outputC: CRow = _
-  
   
   override def open(config: Configuration) {
      
@@ -85,6 +79,11 @@ class RowTimeSortProcessFunction(
     val lastTriggeringTsDescriptor: ValueStateDescriptor[Long] =
       new ValueStateDescriptor[Long]("lastTriggeringTsState", classOf[Long])
     lastTriggeringTsState = getRuntimeContext.getState(lastTriggeringTsDescriptor)
+    
+    if (outputC == null) {
+      val arity:Integer = inputRowType.getArity
+      outputC = new CRow(Row.of(arity), true)
+    }
   }
 
   
@@ -93,29 +92,25 @@ class RowTimeSortProcessFunction(
     ctx: ProcessFunction[CRow, CRow]#Context,
     out: Collector[CRow]): Unit = {
 
-     val input = inputC.row
-    
-     if( outputC == null) {
-      outputC = new CRow(input, true)
-    }
+    val input = inputC.row
     
     // triggering timestamp for trigger calculation
-    val triggeringTs = ctx.timestamp
+    val rowtime = ctx.timestamp
 
     val lastTriggeringTs = lastTriggeringTsState.value
 
     // check if the data is expired, if not, save the data and register event time timer
-    if (triggeringTs > lastTriggeringTs) {
-      val data = dataState.get(triggeringTs)
+    if (rowtime > lastTriggeringTs) {
+      val data = dataState.get(rowtime)
       if (null != data) {
         data.add(input)
-        dataState.put(triggeringTs, data)
+        dataState.put(rowtime, data)
       } else {
         val data = new JArrayList[Row]
         data.add(input)
-        dataState.put(triggeringTs, data)
+        dataState.put(rowtime, data)
         // register event time timer
-        ctx.timerService.registerEventTimeTimer(triggeringTs)
+        ctx.timerService.registerEventTimeTimer(rowtime)
       }
     }
   }
@@ -131,30 +126,13 @@ class RowTimeSortProcessFunction(
 
     if (null != inputs) {
       
-      var dataListIndex = 0
-
-      // no retraction needed for time order sort
+      Collections.sort(inputs,rowComparator)
       
-      //no selection of offset/fetch
-      
-      dataListIndex = 0
-      sortArray.clear()
-      while (dataListIndex < inputs.size()) {
-        val curRow = inputs.get(dataListIndex)
-        sortArray.add(curRow)
-        dataListIndex += 1
-      }
-      
-      //if we do not rely on java collections to do the sort we could implement 
-      //an insertion sort as we get the elements  from the state
-      Collections.sort(sortArray, rowComparator)
-    
-    
       //we need to build the output and emit the events in order
-      dataListIndex = 0
-      while (dataListIndex < sortArray.size) {
+      var dataListIndex = 0
+      while (dataListIndex < inputs.size) {
          // do we need to recreate the object no to mess references in previous results?
-        outputC.row = sortArray.get(dataListIndex)  
+        outputC.row = inputs.get(dataListIndex)  
         out.collect(outputC)
         dataListIndex += 1
       }
@@ -162,7 +140,6 @@ class RowTimeSortProcessFunction(
       //we need to  clear the events processed
       dataState.remove(timestamp)
       lastTriggeringTsState.update(timestamp)
-    
     }
   }
   

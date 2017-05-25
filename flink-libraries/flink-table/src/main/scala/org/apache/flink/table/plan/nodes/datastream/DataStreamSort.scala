@@ -56,53 +56,53 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.plan.nodes.CommonSort
 
 /**
   * Flink RelNode which matches along with Sort Rule.
   *
  */
 class DataStreamSort(
-  sortCollation: RelCollation,
-  sortOffset: RexNode,
-  sortFetch: RexNode,
-  cluster: RelOptCluster,
-  traitSet: RelTraitSet,
-  inputNode: RelNode,
-  schema: RowSchema,
-  inputSchema: RowSchema,
-  description: String)
-    extends SingleRel(cluster, traitSet, inputNode) with DataStreamRel {
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    inputNode: RelNode,
+    inputSchema: RowSchema,
+    schema: RowSchema,
+    sortCollation: RelCollation,
+    sortOffset: RexNode,
+    sortFetch: RexNode,
+    description: String)
+  extends SingleRel(cluster, traitSet, inputNode)
+  with CommonSort
+  with DataStreamRel {
 
   override def deriveRowType(): RelDataType = schema.logicalType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamSort(
-      sortCollation,
-      sortOffset,
-      sortFetch,
       cluster,
       traitSet,
       inputs.get(0),
-      schema,
       inputSchema,
+      schema,
+      sortCollation,
+      sortOffset,
+      sortFetch,
       description)
   }
 
   override def toString: String = {
-    s"Sort(by: ($SortUtil.getSortFieldToString(sortCollation, rowRelDataType))," +
-      " offset: $SortUtil.getOffsetToString(sortOffset)," +
-      " fetch: $SortUtil.getFetchToString(sortFetch, sortOffset))"
+    s"Sort(by: ($$sortFieldsToString(sortCollation, schema.logicalType))," +
+      " offset: $offsetToString(sortOffset)," +
+      " fetch: $fetchToString(sortFetch, sortOffset))"
   }
   
   override def explainTerms(pw: RelWriter) : RelWriter = {
     
-    //need to identify time between others order fields. Time needs to be first sort element
-    checkTimeOrder()
-    
     super.explainTerms(pw)
-      .item("orderBy", SortUtil.getSortFieldToString(sortCollation, schema.logicalType))
-      .item("offset", SortUtil.getOffsetToString(sortOffset))
-      .item("fetch", SortUtil.getFetchToString(sortFetch, sortOffset))
+      .item("orderBy", sortFieldsToString(sortCollation, schema.logicalType))
+      .item("offset", offsetToString(sortOffset))
+      .item("fetch", fetchToString(sortFetch, sortOffset))
   }
 
   override def translateToPlan(
@@ -124,22 +124,22 @@ class DataStreamSort(
     //enable to extend for other types of aggregates that will not be implemented in a window
     timeType match {
         case _ if FlinkTypeFactory.isProctimeIndicatorType(timeType)  =>
-            (sortOffset,sortFetch) match {
-              case (o: Any, f: Any)  => // offset and fetch needs retraction
+            (sortOffset, sortFetch) match {
+              case (_: RexNode, _: RexNode)  => // offset and fetch needs retraction
                 throw new TableException("SQL/Table does not support sort with offset and fetch") 
-              case (_, f: Any) => // offset needs retraction
+              case (_, _: RexNode) => // offset needs retraction
                 throw new TableException("SQL/Table does not support sort with fetch")
-              case (o: Any, _) =>  // fetch needs retraction
+              case (_: RexNode, _) =>  // fetch needs retraction
                 throw new TableException("SQL/Table does not support sort with offset")
               case _ => createSortProcTime(inputDS, execCfg)  //sort can be done without retraction
             }
         case _ if FlinkTypeFactory.isRowtimeIndicatorType(timeType) =>
-            (sortOffset,sortFetch) match {
-              case (o: Any, f: Any)  => // offset and fetch needs retraction
+            (sortOffset, sortFetch) match {
+              case (_: RexNode, _: RexNode)  => // offset and fetch needs retraction
                 throw new TableException("SQL/Table does not support sort with offset and fetch") 
-              case (_, f: Any) => // offset needs retraction
+              case (_, _: RexNode) => // offset needs retraction
                 throw new TableException("SQL/Table does not support sort with fetch")
-              case (o: Any, _) =>  // fetch needs retraction
+              case (_: RexNode, _) =>  // fetch needs retraction
                 throw new TableException("SQL/Table does not support sort with offset")
               case _ => createSortRowTime(inputDS, execCfg)  //sort can be done without retraction
             }
@@ -161,21 +161,23 @@ class DataStreamSort(
     //if the order has secondary sorting fields in addition to the proctime
     if( SortUtil.getSortFieldIndexList(sortCollation).size > 1) {
     
-      val processFunction = SortUtil.createProcTimeSortFunction(sortCollation,
-           inputSchema.logicalType, inputSchema.physicalTypeInfo, execCfg)
+      val processFunction = SortUtil.createProcTimeSortFunction(
+        sortCollation,
+        inputSchema.logicalType, 
+        inputSchema.physicalTypeInfo, 
+        execCfg)
       
-      inputDS
-            .keyBy(new NullByteKeySelector[CRow])
-            .process(processFunction).setParallelism(1).setMaxParallelism(1)
-            .returns(returnTypeInfo)
-            .asInstanceOf[DataStream[CRow]]
+      inputDS.keyBy(new NullByteKeySelector[CRow])
+        .process(processFunction).setParallelism(1).setMaxParallelism(1)
+        .returns(returnTypeInfo)
+        .asInstanceOf[DataStream[CRow]]
     } else {
       //if the order is done only on proctime we only need to forward the elements
-        inputDS.keyBy(new NullByteKeySelector[CRow])
-          .map(new IdentityRowMap())
-          .setParallelism(1).setMaxParallelism(1)
-          .returns(returnTypeInfo)
-          .asInstanceOf[DataStream[CRow]]
+      inputDS.keyBy(new NullByteKeySelector[CRow])
+        .map(new IdentityCRowMap())
+        .setParallelism(1).setMaxParallelism(1)
+        .returns(returnTypeInfo)
+        .asInstanceOf[DataStream[CRow]]
     }   
   }
   
@@ -188,38 +190,17 @@ class DataStreamSort(
 
     val returnTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
        
-    val processFunction = SortUtil.createRowTimeSortFunction(sortCollation,
-           inputSchema.logicalType, inputSchema.physicalTypeInfo, execCfg)
+    val processFunction = SortUtil.createRowTimeSortFunction(
+      sortCollation,
+      inputSchema.logicalType, 
+      inputSchema.physicalTypeInfo, 
+      execCfg)
       
-    inputDS
-          .keyBy(new NullByteKeySelector[CRow])
-          .process(processFunction).setParallelism(1).setMaxParallelism(1)
-          .returns(returnTypeInfo)
-          .asInstanceOf[DataStream[CRow]]
+    inputDS.keyBy(new NullByteKeySelector[CRow])
+      .process(processFunction).setParallelism(1).setMaxParallelism(1)
+      .returns(returnTypeInfo)
+      .asInstanceOf[DataStream[CRow]]
        
-  }
-  
-  /**
-   * Function is used to check at verification time if the SQL syntax is supported
-   */
-  
-  def checkTimeOrder() = {
-     //need to identify time between others order fields. Time needs to be first sort element
-    val timeType = SortUtil.getTimeType(sortCollation, schema.logicalType)
-    //time ordering needs to be ascending
-    if (SortUtil.getTimeDirection(sortCollation) != Direction.ASCENDING) {
-      throw new TableException("SQL/Table supports only ascending time ordering")
-    }
-    //enable to extend for other types of aggregates that will not be implemented in a window
-    timeType match {
-        case _ if FlinkTypeFactory.isProctimeIndicatorType(timeType) =>
-        case _ if FlinkTypeFactory.isRowtimeIndicatorType(timeType) =>
-        case _ =>
-          throw new TableException("SQL/Table needs to have sort on time as first sort element")    
-
-    }
   }
 
 }
-
-

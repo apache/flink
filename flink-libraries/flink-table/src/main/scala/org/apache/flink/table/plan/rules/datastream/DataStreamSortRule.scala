@@ -30,6 +30,10 @@ import org.apache.calcite.rel.RelCollation
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalSort
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.api.TableException
+import org.apache.calcite.rel.RelFieldCollation.Direction
+import org.apache.flink.table.runtime.aggregate.SortUtil
 
 /**
  * Rule to convert a LogicalSort into a DataStreamSort.
@@ -42,7 +46,17 @@ class DataStreamSortRule
       "DataStreamSortRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    super.matches(call)
+
+    val result = super.matches(call)
+    
+    //need to identify time between others order fields. Time needs to be first sort element
+    // we can safely convert the object if the match rule succeeded 
+    if(result) {
+      val calcSort: FlinkLogicalSort = call.rel(0).asInstanceOf[FlinkLogicalSort]
+      checkTimeOrder(calcSort)
+    }
+    
+    result
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -53,16 +67,41 @@ class DataStreamSortRule
     val inputRowType = convInput.asInstanceOf[RelSubset].getOriginal.getRowType
 
     new DataStreamSort(
-      calcSort.collation,
-      calcSort.offset,
-      calcSort.fetch,
       rel.getCluster,
       traitSet,
       convInput,
-      new RowSchema(rel.getRowType),
       new RowSchema(inputRowType),
+      new RowSchema(rel.getRowType),
+      calcSort.collation,
+      calcSort.offset,
+      calcSort.fetch,
       description)
     
+  }
+  
+   
+  /**
+   * Function is used to check at verification time if the SQL syntax is supported
+   */
+  
+  def checkTimeOrder(calcSort: FlinkLogicalSort) = {
+    
+    val rowType = calcSort.getRowType
+    val sortCollation = calcSort.collation 
+     //need to identify time between others order fields. Time needs to be first sort element
+    val timeType = SortUtil.getTimeType(sortCollation, rowType)
+    //time ordering needs to be ascending
+    if (SortUtil.getTimeDirection(sortCollation) != Direction.ASCENDING) {
+      throw new TableException("SQL/Table supports only ascending time ordering")
+    }
+    //enable to extend for other types of aggregates that will not be implemented in a window
+    timeType match {
+        case _ if FlinkTypeFactory.isProctimeIndicatorType(timeType) =>
+        case _ if FlinkTypeFactory.isRowtimeIndicatorType(timeType) =>
+        case _ =>
+          throw new TableException("SQL/Table needs to have sort on time as first sort element")    
+
+    }
   }
 
 }

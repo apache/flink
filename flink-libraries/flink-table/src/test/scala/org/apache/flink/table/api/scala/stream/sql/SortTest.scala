@@ -39,7 +39,9 @@ class SortTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode("DataStreamSort",
           streamTableNode(0),
-          term("orderBy", "proctime ASC, c ASC], offset=[null], fetch=[unlimited")),
+          term("orderBy", "proctime ASC", "c ASC"),
+          term("offset", "null"), 
+          term("fetch","unlimited")),
         term("select", "a", "TIME_MATERIALIZATION(proctime) AS proctime", "c"))
 
     streamUtil.verifySql(sqlQuery, expected)
@@ -56,34 +58,30 @@ class SortTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode("DataStreamSort",
           streamTableNode(0),
-          term("orderBy", "rowtime ASC, c ASC], offset=[null], fetch=[unlimited")),
+          term("orderBy", "rowtime ASC, c ASC"),
+          term("offset","null"),
+          term("fetch","unlimited")),
         term("select", "a", "TIME_MATERIALIZATION(rowtime) AS rowtime", "c"))
        
     streamUtil.verifySql(sqlQuery, expected)
   }
   
-   @Test
+  
+  //test should fail because time order is descending
+  @Test(expected = classOf[TableException])
   def testSortProcessingTimeDesc() = {
 
     val sqlQuery = "SELECT a FROM MyTable ORDER BY proctime DESC, c"
-    //fail if no error is thrown
-    try{
-      streamUtil.verifySql(sqlQuery, "")
-    } catch {
-      case rt : Throwable => assert(true)
-    }
+    streamUtil.verifySql(sqlQuery, "")
   }
-   
-    @Test
-   def testSortProcessingTimeSecondaryField() = {
+  
+  
+  //test should fail because time is not the primary order field
+  @Test(expected = classOf[TableException])
+  def testSortProcessingTimeSecondaryField() = {
 
     val sqlQuery = "SELECT a FROM MyTable ORDER BY c, proctime"
-    //fail if no error is thrown
-    try{
-      streamUtil.verifySql(sqlQuery, "")
-    } catch {
-      case rt : Throwable => assert(true)
-    }
+    streamUtil.verifySql(sqlQuery, "")
   }
   
 }
