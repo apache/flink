@@ -51,8 +51,7 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
 	public ContextEnvironmentFactory(ClusterClient client, List<URL> jarFilesToAttach,
 			List<URL> classpathsToAttach, ClassLoader userCodeClassLoader, int defaultParallelism,
-			boolean isDetached, SavepointRestoreSettings savepointSettings)
-	{
+			boolean isDetached, SavepointRestoreSettings savepointSettings) {
 		this.client = client;
 		this.jarFilesToAttach = jarFilesToAttach;
 		this.classpathsToAttach = classpathsToAttach;
@@ -68,9 +67,9 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 			throw new InvalidProgramException("Multiple enviornments cannot be created in detached mode");
 		}
 
-		lastEnvCreated = isDetached ?
-				new DetachedEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings):
-				new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings);
+		lastEnvCreated = isDetached
+			? new DetachedEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings)
+			: new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings);
 		if (defaultParallelism > 0) {
 			lastEnvCreated.setParallelism(defaultParallelism);
 		}

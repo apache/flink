@@ -23,7 +23,7 @@ import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.junit.Before;
+
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;

@@ -15,16 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.client.cli;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
+package org.apache.flink.client.cli;
 
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
 
 import java.net.InetSocketAddress;
 import java.net.URL;

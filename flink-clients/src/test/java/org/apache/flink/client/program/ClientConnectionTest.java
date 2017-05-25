@@ -18,9 +18,6 @@
 
 package org.apache.flink.client.program;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -35,13 +32,19 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
 import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.UUID;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * This test starts a job client without the JobManager being reachable. It
@@ -114,7 +117,7 @@ public class ClientConnectionTest extends TestLogger {
 	/**
 	 * FLINK-6629
 	 *
-	 * Tests that the {@link HighAvailabilityServices} are respected when initializing the ClusterClient's
+	 * <p>Tests that the {@link HighAvailabilityServices} are respected when initializing the ClusterClient's
 	 * {@link ActorSystem} and retrieving the leading JobManager.
 	 */
 	@Test
