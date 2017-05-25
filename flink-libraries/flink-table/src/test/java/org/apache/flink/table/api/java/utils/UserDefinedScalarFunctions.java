@@ -15,25 +15,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.api.java.utils;
 
-import java.util.Arrays;
 import org.apache.flink.table.functions.ScalarFunction;
 
+import java.util.Arrays;
+
+/**
+ * Test scalar functions.
+ */
 public class UserDefinedScalarFunctions {
 
+	/**
+	 * Increment input.
+	 */
 	public static class JavaFunc0 extends ScalarFunction {
 		public long eval(Long l) {
 			return l + 1;
 		}
 	}
 
+	/**
+	 * Concatenate inputs as strings.
+	 */
 	public static class JavaFunc1 extends ScalarFunction {
 		public String eval(Integer a, int b,  Long c) {
 			return a + " and " + b + " and " + c;
 		}
 	}
 
+	/**
+	 * Append product to string.
+	 */
 	public static class JavaFunc2 extends ScalarFunction {
 		public String eval(String s, Integer... a) {
 			int m = 1;
@@ -44,6 +58,9 @@ public class UserDefinedScalarFunctions {
 		}
 	}
 
+	/**
+	 * Test overloading.
+	 */
 	public static class JavaFunc3 extends ScalarFunction {
 		public int eval(String a, int... b) {
 			return b.length;
@@ -54,6 +71,9 @@ public class UserDefinedScalarFunctions {
 		}
 	}
 
+	/**
+	 * Concatenate arrays as strings.
+	 */
 	public static class JavaFunc4 extends ScalarFunction {
 		public String eval(Integer[] a, String[] b) {
 			return Arrays.toString(a) + " and " + Arrays.toString(b);

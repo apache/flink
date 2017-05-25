@@ -27,12 +27,16 @@ import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestB
 import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.table.utils.CommonTestData;
 import org.apache.flink.types.Row;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+/**
+ * Integration tests for {@link BatchTableSource}.
+ */
 @RunWith(Parameterized.class)
 public class TableSourceITCase extends TableProgramsCollectionTestBase {
 

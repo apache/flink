@@ -20,6 +20,7 @@ package org.apache.flink.table.annotation;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.table.catalog.TableSourceConverter;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

@@ -61,6 +61,7 @@
  * {@link org.apache.flink.table.api.java.StreamTableEnvironment#toAppendStream(Table, java.lang.Class)}}, or
  * {@link org.apache.flink.table.api.java.StreamTableEnvironment#toRetractStream(Table, java.lang.Class)}}.
  */
+
 package org.apache.flink.table.api.java;
 
 import org.apache.flink.table.api.Table;

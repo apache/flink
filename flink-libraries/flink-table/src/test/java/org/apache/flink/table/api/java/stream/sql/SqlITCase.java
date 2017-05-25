@@ -18,27 +18,31 @@
 
 package org.apache.flink.table.api.java.stream.sql;
 
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.types.Row;
-import org.apache.flink.table.api.scala.stream.utils.StreamITCase;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.api.java.stream.utils.StreamTestData;
+import org.apache.flink.table.api.scala.stream.utils.StreamITCase;
+import org.apache.flink.types.Row;
+
 import org.junit.Test;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Integration tests for streaming SQL.
+ */
 public class SqlITCase extends StreamingMultipleProgramsTestBase {
-	
+
 	@Test
 	public void testRowRegisterRowWithNames() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -49,17 +53,17 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		data.add(Row.of(1, 1L, "Hi"));
 		data.add(Row.of(2, 2L, "Hello"));
 		data.add(Row.of(3, 2L, "Hello world"));
-		
+
 		TypeInformation<?>[] types = {
 				BasicTypeInfo.INT_TYPE_INFO,
 				BasicTypeInfo.LONG_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO};
-		String names[] = {"a","b","c"};
-		
+		String[] names = {"a", "b", "c"};
+
 		RowTypeInfo typeInfo = new RowTypeInfo(types, names);
-		
+
 		DataStream<Row> ds = env.fromCollection(data).returns(typeInfo);
-		
+
 		Table in = tableEnv.fromDataStream(ds, "a,b,c");
 		tableEnv.registerTable("MyTableRow", in);
 
