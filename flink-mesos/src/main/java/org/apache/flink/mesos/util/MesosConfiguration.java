@@ -23,9 +23,10 @@ import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
-import scala.Option;
 
 import java.util.Map;
+
+import scala.Option;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -53,7 +54,7 @@ public class MesosConfiguration {
 	/**
 	 * The Mesos connection string.
 	 *
-	 * The value should be in one of the following forms:
+	 * <p>The value should be in one of the following forms:
 	 * <pre>
 	 * {@code
 	 *     host:port
@@ -62,28 +63,28 @@ public class MesosConfiguration {
 	 *     file:///path/to/file (where file contains one of the above)
 	 * }
 	 * </pre>
-     */
+	 */
 	public String masterUrl() {
 		return masterUrl;
 	}
 
 	/**
 	 * The framework registration info.
-     */
+	 */
 	public Protos.FrameworkInfo.Builder frameworkInfo() {
 		return frameworkInfo;
 	}
 
 	/**
 	 * The credential to authenticate the framework principal.
-     */
+	 */
 	public Option<Protos.Credential.Builder> credential() {
 		return credential;
 	}
 
 	/**
 	 * Revise the configuration with updated framework info.
-     */
+	 */
 	public MesosConfiguration withFrameworkInfo(Protos.FrameworkInfo.Builder frameworkInfo) {
 		return new MesosConfiguration(masterUrl, frameworkInfo, credential);
 	}
@@ -92,11 +93,11 @@ public class MesosConfiguration {
 	 * Create the Mesos scheduler driver based on this configuration.
 	 * @param scheduler the scheduler to use.
 	 * @param implicitAcknowledgements whether to configure the driver for implicit acknowledgements.
-     * @return a scheduler driver.
-     */
+	 * @return a scheduler driver.
+	 */
 	public SchedulerDriver createDriver(Scheduler scheduler, boolean implicitAcknowledgements) {
 		MesosSchedulerDriver schedulerDriver;
-		if(this.credential().isDefined()) {
+		if (this.credential().isDefined()) {
 			schedulerDriver =
 				new MesosSchedulerDriver(scheduler, frameworkInfo.build(), this.masterUrl(),
 					implicitAcknowledgements, this.credential().get().build());
@@ -119,11 +120,11 @@ public class MesosConfiguration {
 	}
 
 	/**
-	 * A utility method to log relevant Mesos connection info
-     */
+	 * A utility method to log relevant Mesos connection info.
+	 */
 	public static void logMesosConfig(Logger log, MesosConfiguration config) {
 
-		Map<String,String> env = System.getenv();
+		Map<String, String> env = System.getenv();
 		Protos.FrameworkInfo.Builder info = config.frameworkInfo();
 
 		log.info("--------------------------------------------------------------------------------");
@@ -137,10 +138,10 @@ public class MesosConfiguration {
 		log.info("    Role: {}", info.hasRole() ? info.getRole() : "(none)");
 		log.info("    Principal: {}", info.hasPrincipal() ? info.getPrincipal() : "(none)");
 		log.info("    Host: {}", info.hasHostname() ? info.getHostname() : "(none)");
-		if(env.containsKey("LIBPROCESS_IP")) {
+		if (env.containsKey("LIBPROCESS_IP")) {
 			log.info("    LIBPROCESS_IP: {}", env.get("LIBPROCESS_IP"));
 		}
-		if(env.containsKey("LIBPROCESS_PORT")) {
+		if (env.containsKey("LIBPROCESS_PORT")) {
 			log.info("    LIBPROCESS_PORT: {}", env.get("LIBPROCESS_PORT"));
 		}
 		log.info("    Web UI: {}", info.hasWebuiUrl() ? info.getWebuiUrl() : "(none)");

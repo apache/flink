@@ -18,23 +18,23 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-import com.netflix.fenzo.ConstraintEvaluator;
-import com.netflix.fenzo.TaskAssignmentResult;
-import com.netflix.fenzo.TaskRequest;
-import com.netflix.fenzo.VMTaskFitnessCalculator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.Utils;
 import org.apache.flink.mesos.scheduler.LaunchableTask;
 import org.apache.flink.mesos.util.MesosArtifactResolver;
 import org.apache.flink.mesos.util.MesosConfiguration;
-import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.util.Preconditions;
+
+import com.netflix.fenzo.ConstraintEvaluator;
+import com.netflix.fenzo.TaskAssignmentResult;
+import com.netflix.fenzo.TaskRequest;
+import com.netflix.fenzo.VMTaskFitnessCalculator;
 import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 
 import java.util.Collections;
 import java.util.List;
@@ -42,15 +42,17 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 
-import static org.apache.flink.mesos.Utils.variable;
+import scala.Option;
+
 import static org.apache.flink.mesos.Utils.range;
 import static org.apache.flink.mesos.Utils.ranges;
 import static org.apache.flink.mesos.Utils.scalar;
+import static org.apache.flink.mesos.Utils.variable;
 
 /**
  * Implements the launch of a Mesos worker.
  *
- * Translates the abstract {@link ContainerSpecification} into a concrete
+ * <p>Translates the abstract {@link ContainerSpecification} into a concrete
  * Mesos-specific {@link Protos.TaskInfo}.
  */
 public class LaunchableMesosWorker implements LaunchableTask {
@@ -59,9 +61,9 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	/**
 	 * The set of configuration keys to be dynamically configured with a port allocated from Mesos.
 	 */
-	private static String[] TM_PORT_KEYS = {
+	private static final String[] TM_PORT_KEYS = {
 		"taskmanager.rpc.port",
-		"taskmanager.data.port" };
+		"taskmanager.data.port"};
 
 	private final MesosArtifactResolver resolver;
 	private final ContainerSpecification containerSpec;
@@ -88,7 +90,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		this.params = Preconditions.checkNotNull(params);
 		this.taskID = Preconditions.checkNotNull(taskID);
 		this.mesosConfiguration = Preconditions.checkNotNull(mesosConfiguration);
-		
+
 		this.taskRequest = new Request();
 	}
 
@@ -204,7 +206,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		//configure task manager hostname property if hostname override property is supplied
 		Option<String> taskManagerHostnameOption = params.getTaskManagerHostname();
 
-		if(taskManagerHostnameOption.isDefined()) {
+		if (taskManagerHostnameOption.isDefined()) {
 			// replace the TASK_ID pattern by the actual task id value of the Mesos task
 			final String taskManagerHostname = MesosTaskManagerParameters.TASK_ID_PATTERN
 				.matcher(taskManagerHostnameOption.get())
@@ -225,7 +227,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		}
 
 		// ship additional files
-		for(ContainerSpecification.Artifact artifact : containerSpec.getArtifacts()) {
+		for (ContainerSpecification.Artifact artifact : containerSpec.getArtifacts()) {
 			cmd.addUris(Utils.uri(resolver, artifact));
 		}
 
@@ -271,9 +273,9 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		// in event that no docker image or mesos image name is specified, we must still
 		// set type to MESOS
 		containerInfo.setType(Protos.ContainerInfo.Type.MESOS);
-		switch(params.containerType()) {
+		switch (params.containerType()) {
 			case MESOS:
-				if(params.containerImageName().isDefined()) {
+				if (params.containerImageName().isDefined()) {
 					containerInfo
 						.setMesos(Protos.ContainerInfo.MesosInfo.newBuilder()
 							.setImage(Protos.Image.newBuilder()
@@ -285,7 +287,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 
 			case DOCKER:
 				assert(params.containerImageName().isDefined());
-					containerInfo
+				containerInfo
 					.setType(Protos.ContainerInfo.Type.DOCKER)
 					.setDocker(Protos.ContainerInfo.DockerInfo.newBuilder()
 						.setNetwork(Protos.ContainerInfo.DockerInfo.Network.HOST)
@@ -299,7 +301,6 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		// add any volumes to the containerInfo
 		containerInfo.addAllVolumes(params.containerVolumes());
 		taskInfo.setContainer(containerInfo);
-
 
 		return taskInfo.build();
 	}

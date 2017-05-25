@@ -18,9 +18,13 @@
 
 package org.apache.flink.mesos.util;
 
-import org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.configuration.Configuration;
 
+import org.apache.curator.framework.CuratorFramework;
+
+/**
+ * Utilities for Zookeeper.
+ */
 public class ZooKeeperUtils {
 
 	/**

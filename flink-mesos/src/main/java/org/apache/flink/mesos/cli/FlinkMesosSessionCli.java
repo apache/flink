@@ -18,10 +18,11 @@
 
 package org.apache.flink.mesos.cli;
 
+import org.apache.flink.configuration.Configuration;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.configuration.Configuration;
 
 import java.io.IOException;
 import java.util.Map;
@@ -35,28 +36,30 @@ public class FlinkMesosSessionCli {
 
 	/**
 	 * Decode encoded dynamic properties.
+	 *
 	 * @param dynamicPropertiesEncoded encoded properties produced by the encoding method.
 	 * @return a configuration instance to be merged with the static configuration.
 	 */
 	public static Configuration decodeDynamicProperties(String dynamicPropertiesEncoded) {
 		try {
 			Configuration configuration = new Configuration();
-			if(dynamicPropertiesEncoded != null) {
-				TypeReference<Map<String, String>> typeRef = new TypeReference<Map<String, String>>() {};
-				Map<String,String> props = mapper.readValue(dynamicPropertiesEncoded, typeRef);
+			if (dynamicPropertiesEncoded != null) {
+				TypeReference<Map<String, String>> typeRef = new TypeReference<Map<String, String>>() {
+				};
+				Map<String, String> props = mapper.readValue(dynamicPropertiesEncoded, typeRef);
 				for (Map.Entry<String, String> property : props.entrySet()) {
 					configuration.setString(property.getKey(), property.getValue());
 				}
 			}
 			return configuration;
-		}
-		catch(IOException ex) {
+		} catch (IOException ex) {
 			throw new IllegalArgumentException("unreadable encoded properties", ex);
 		}
 	}
 
 	/**
 	 * Encode dynamic properties as a string to be transported as an environment variable.
+	 *
 	 * @param configuration the dynamic properties to encode.
 	 * @return a string to be decoded later.
 	 */

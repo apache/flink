@@ -18,16 +18,6 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Address;
-import akka.actor.Props;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
-
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -62,14 +52,18 @@ import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
-import org.apache.mesos.Protos;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Address;
+import akka.actor.Props;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.PosixParser;
+import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import scala.Option;
-import scala.concurrent.duration.Duration;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -82,6 +76,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import scala.Option;
+import scala.concurrent.duration.Duration;
+import scala.concurrent.duration.FiniteDuration;
+
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -89,24 +87,26 @@ import static org.apache.flink.util.Preconditions.checkState;
  * It starts actor system and the actors for {@link JobManager}
  * and {@link MesosFlinkResourceManager}.
  *
- * The JobManager handles Flink job execution, while the MesosFlinkResourceManager handles container
+ * <p>The JobManager handles Flink job execution, while the MesosFlinkResourceManager handles container
  * allocation and failure detection.
  */
 public class MesosApplicationMasterRunner {
-	/** Logger */
+
 	protected static final Logger LOG = LoggerFactory.getLogger(MesosApplicationMasterRunner.class);
 
-	/** The maximum time that TaskManagers may be waiting to register at the JobManager,
-	 * before they quit */
+	/**
+	 * The maximum time that TaskManagers may be waiting to register at the JobManager,
+	 * before they quit.
+	 */
 	private static final FiniteDuration TASKMANAGER_REGISTRATION_TIMEOUT = new FiniteDuration(5, TimeUnit.MINUTES);
 
-	/** The process environment variables */
+	/** The process environment variables. */
 	private static final Map<String, String> ENV = System.getenv();
 
-	/** The exit code returned if the initialization of the application master failed */
+	/** The exit code returned if the initialization of the application master failed. */
 	private static final int INIT_ERROR_EXIT_CODE = 31;
 
-	/** The exit code returned if the process exits because a critical actor died */
+	/** The exit code returned if the process exits because a critical actor died. */
 	private static final int ACTOR_DIED_EXIT_CODE = 32;
 
 	// ------------------------------------------------------------------------
@@ -142,7 +142,7 @@ public class MesosApplicationMasterRunner {
 
 	/**
 	 * The instance entry point for the Mesos AppMaster. Obtains user group
-	 * information and calls the main work method {@link #runPrivileged(Configuration,Configuration)} as a
+	 * information and calls the main work method {@link #runPrivileged(Configuration, Configuration)} as a
 	 * privileged action.
 	 *
 	 * @param args The command line arguments.
@@ -318,7 +318,6 @@ public class MesosApplicationMasterRunner {
 				getJobManagerClass(),
 				getArchivistClass())._1();
 
-
 			// 2: the web monitor
 			LOG.debug("Starting Web Frontend");
 
@@ -328,7 +327,7 @@ public class MesosApplicationMasterRunner {
 				actorSystem,
 				jobManager,
 				LOG);
-			if(webMonitor != null) {
+			if (webMonitor != null) {
 				final URL webMonitorURL = new URL("http", appMasterHostname, webMonitor.getServerPort(), "/");
 				mesosConfig.frameworkInfo().setWebuiUrl(webMonitorURL.toExternalForm());
 			}
@@ -380,7 +379,7 @@ public class MesosApplicationMasterRunner {
 				}
 			}
 
-			if(artifactServer != null) {
+			if (artifactServer != null) {
 				try {
 					artifactServer.stop();
 				} catch (Throwable ignored) {
@@ -396,7 +395,7 @@ public class MesosApplicationMasterRunner {
 				}
 			}
 
-			if(futureExecutor != null) {
+			if (futureExecutor != null) {
 				try {
 					futureExecutor.shutdownNow();
 				} catch (Throwable tt) {
@@ -404,7 +403,7 @@ public class MesosApplicationMasterRunner {
 				}
 			}
 
-			if(ioExecutor != null) {
+			if (ioExecutor != null) {
 				try {
 					ioExecutor.shutdownNow();
 				} catch (Throwable tt) {
@@ -493,7 +492,7 @@ public class MesosApplicationMasterRunner {
 			.setHostname(hostname);
 		Protos.Credential.Builder credential = null;
 
-		if(!flinkConfig.containsKey(ConfigConstants.MESOS_MASTER_URL)) {
+		if (!flinkConfig.containsKey(ConfigConstants.MESOS_MASTER_URL)) {
 			throw new IllegalConfigurationException(ConfigConstants.MESOS_MASTER_URL + " must be configured.");
 		}
 		String masterUrl = flinkConfig.getString(ConfigConstants.MESOS_MASTER_URL, null);
@@ -517,7 +516,7 @@ public class MesosApplicationMasterRunner {
 			ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_USER,
 			ConfigConstants.DEFAULT_MESOS_RESOURCEMANAGER_FRAMEWORK_USER));
 
-		if(flinkConfig.containsKey(ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_PRINCIPAL)) {
+		if (flinkConfig.containsKey(ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_PRINCIPAL)) {
 			frameworkInfo.setPrincipal(flinkConfig.getString(
 				ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_PRINCIPAL, null));
 
@@ -526,7 +525,7 @@ public class MesosApplicationMasterRunner {
 
 			// some environments use a side-channel to communicate the secret to Mesos,
 			// and thus don't set the 'secret' configuration setting
-			if(flinkConfig.containsKey(ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET)) {
+			if (flinkConfig.containsKey(ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET)) {
 				credential.setSecret(flinkConfig.getString(
 					ConfigConstants.MESOS_RESOURCEMANAGER_FRAMEWORK_SECRET, null));
 			}
@@ -545,7 +544,7 @@ public class MesosApplicationMasterRunner {
 	 * needs (such as JAR file, config file, ...) and all environment variables into a container specification.
 	 * The Mesos fetcher then ensures that those artifacts will be copied into the task's sandbox directory.
 	 * A lightweight HTTP server serves the artifacts to the fetcher.
-     */
+	 */
 	private static void applyOverlays(
 		Configuration globalConfiguration, ContainerSpecification containerSpec) throws IOException {
 
@@ -565,7 +564,7 @@ public class MesosApplicationMasterRunner {
 
 	private static void configureArtifactServer(MesosArtifactServer server, ContainerSpecification container) throws IOException {
 		// serve the artifacts associated with the container environment
-		for(ContainerSpecification.Artifact artifact : container.getArtifacts()) {
+		for (ContainerSpecification.Artifact artifact : container.getArtifacts()) {
 			server.addPath(artifact.source, artifact.dest);
 		}
 	}

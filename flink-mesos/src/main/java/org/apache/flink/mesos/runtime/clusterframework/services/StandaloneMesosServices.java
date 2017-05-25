@@ -35,5 +35,6 @@ public class StandaloneMesosServices implements MesosServices {
 	}
 
 	@Override
-	public void close(boolean cleanup) throws Exception {}
+	public void close(boolean cleanup) throws Exception {
+	}
 }

@@ -19,12 +19,13 @@
 package org.apache.flink.mesos.runtime.clusterframework.store;
 
 import org.apache.mesos.Protos;
-import scala.Option;
 
 import java.io.Serializable;
 import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Objects;
+
+import scala.Option;
 
 import static java.util.Objects.requireNonNull;
 
@@ -83,7 +84,7 @@ public interface MesosWorkerStore {
 	/**
 	 * A stored worker.
 	 *
-	 * The assigned slaveid/hostname is valid in Launched and Released states.  The hostname is needed
+	 * <p>The assigned slaveid/hostname is valid in Launched and Released states.  The hostname is needed
 	 * by Fenzo for optimization purposes.
 	 */
 	class Worker implements Serializable {
@@ -112,28 +113,28 @@ public interface MesosWorkerStore {
 
 		/**
 		 * Get the worker's task ID.
-         */
+		 */
 		public Protos.TaskID taskID() {
 			return taskID;
 		}
 
 		/**
 		 * Get the worker's assigned slave ID.
-         */
+		 */
 		public Option<Protos.SlaveID> slaveID() {
 			return slaveID;
 		}
 
 		/**
 		 * Get the worker's assigned hostname.
-         */
+		 */
 		public Option<String> hostname() {
 			return hostname;
 		}
 
 		/**
 		 * Get the worker's state.
-         */
+		 */
 		public WorkerState state() {
 			return state;
 		}
