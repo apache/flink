@@ -262,6 +262,8 @@ This file is based on the checkstyle file of Apache Beam.
       <property name="allowMissingThrowsTags" value="true"/>
       <property name="allowThrowsTagsForSubclasses" value="true"/>
       <property name="allowUndeclaredRTE" value="true"/>
+		<!-- This check sometimes failed for with "Unable to get class information for @throws tag" for custom exceptions -->
+	  <property name="suppressLoadErrors" value="true"/>
     </module>
 
     <!-- Check that paragraph tags are used correctly in Javadoc. -->
