@@ -185,13 +185,18 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				new HashMap<>(registeredStates.size());
 
 		// eagerly create deep copies of the list states in the sync phase, so that we can use them in the async writing
-		for (Map.Entry<String, PartitionableListState<?>> entry : this.registeredStates.entrySet()) {
-
-			PartitionableListState<?> listState = entry.getValue();
-			if (null != listState) {
-				listState = listState.deepCopy();
+		ClassLoader snapshotClassLoader = Thread.currentThread().getContextClassLoader();
+		Thread.currentThread().setContextClassLoader(userClassloader);
+		try {
+			for (Map.Entry<String, PartitionableListState<?>> entry : this.registeredStates.entrySet()) {
+				PartitionableListState<?> listState = entry.getValue();
+				if (null != listState) {
+					listState = listState.deepCopy();
+				}
+				registeredStatesDeepCopies.put(entry.getKey(), listState);
 			}
-			registeredStatesDeepCopies.put(entry.getKey(), listState);
+		} finally {
+			Thread.currentThread().setContextClassLoader(snapshotClassLoader);
 		}
 
 		// implementation of the async IO operation, based on FutureTask
@@ -258,8 +263,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			task.run();
 		}
 
-		LOG.info("DefaultOperatorStateBackend snapshot (" + streamFactory + ", synchronous part) in thread " +
-				Thread.currentThread() + " took " + (System.currentTimeMillis() - syncStartTime) + " ms.");
+		LOG.info("DefaultOperatorStateBackend snapshot ({}, synchronous part) in thread {} took {} ms.",
+				streamFactory, Thread.currentThread(), (System.currentTimeMillis() - syncStartTime));
 
 		return task;
 	}
