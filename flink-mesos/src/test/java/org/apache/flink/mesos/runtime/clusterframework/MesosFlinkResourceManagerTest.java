@@ -18,29 +18,33 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.testkit.JavaTestKit;
-import akka.testkit.TestActorRef;
-import akka.testkit.TestProbe;
-import com.netflix.fenzo.ConstraintEvaluator;
-import junit.framework.AssertionFailedError;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.scheduler.ConnectionMonitor;
 import org.apache.flink.mesos.scheduler.LaunchCoordinator;
 import org.apache.flink.mesos.scheduler.TaskMonitor;
-import org.apache.flink.mesos.scheduler.messages.*;
+import org.apache.flink.mesos.scheduler.messages.AcceptOffers;
+import org.apache.flink.mesos.scheduler.messages.Disconnected;
 import org.apache.flink.mesos.scheduler.messages.Error;
+import org.apache.flink.mesos.scheduler.messages.OfferRescinded;
+import org.apache.flink.mesos.scheduler.messages.ReRegistered;
+import org.apache.flink.mesos.scheduler.messages.Registered;
+import org.apache.flink.mesos.scheduler.messages.ResourceOffers;
+import org.apache.flink.mesos.scheduler.messages.StatusUpdate;
 import org.apache.flink.mesos.util.MesosArtifactResolver;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
-import org.apache.flink.runtime.clusterframework.messages.*;
+import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.messages.NotifyResourceStarted;
+import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
+import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
+import org.apache.flink.runtime.clusterframework.messages.RemoveResource;
+import org.apache.flink.runtime.clusterframework.messages.ResourceRemoved;
+import org.apache.flink.runtime.clusterframework.messages.SetWorkerPoolSize;
+import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -50,27 +54,43 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
-import org.apache.mesos.SchedulerDriver;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.testkit.JavaTestKit;
+import akka.testkit.TestActorRef;
+import akka.testkit.TestProbe;
+import com.netflix.fenzo.ConstraintEvaluator;
+import junit.framework.AssertionFailedError;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
+import org.apache.mesos.SchedulerDriver;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+
 import scala.Option;
 
-import java.util.*;
-
 import static java.util.Collections.singletonList;
-
 import static org.apache.flink.mesos.runtime.clusterframework.MesosFlinkResourceManager.extractGoalState;
 import static org.apache.flink.mesos.runtime.clusterframework.MesosFlinkResourceManager.extractResourceID;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * General tests for the Mesos resource manager component.
@@ -125,13 +145,24 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 		}
 
 		@Override
-		protected ActorRef createConnectionMonitor() { return connectionMonitor.ref(); }
+		protected ActorRef createConnectionMonitor() {
+			return connectionMonitor.ref();
+		}
+
 		@Override
-		protected ActorRef createTaskRouter() { return taskRouter.ref(); }
+		protected ActorRef createTaskRouter() {
+			return taskRouter.ref();
+		}
+
 		@Override
-		protected ActorRef createLaunchCoordinator() { return launchCoordinator.ref(); }
+		protected ActorRef createLaunchCoordinator() {
+			return launchCoordinator.ref();
+		}
+
 		@Override
-		protected ActorRef createReconciliationCoordinator() { return reconciliationCoordinator.ref(); }
+		protected ActorRef createReconciliationCoordinator() {
+			return reconciliationCoordinator.ref();
+		}
 
 		@Override
 		protected void fatalError(String message, Throwable error) {
@@ -214,11 +245,11 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 			ContaineredTaskManagerParameters containeredParams =
 				new ContaineredTaskManagerParameters(1024, 768, 256, 4, new HashMap<String, String>());
 			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(
-				1.0, 
-				MesosTaskManagerParameters.ContainerType.MESOS, 
-				Option.<String>empty(), 
-				containeredParams, 
-				Collections.<Protos.Volume>emptyList(), 
+				1.0,
+				MesosTaskManagerParameters.ContainerType.MESOS,
+				Option.<String>empty(),
+				containeredParams,
+				Collections.<Protos.Volume>emptyList(),
 				Collections.<ConstraintEvaluator>emptyList(),
 				Option.<String>empty(),
 				Option.<String>empty());
@@ -301,8 +332,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 						resourceManagerInstance.launchCoordinator.expectMsgClass(LaunchCoordinator.Launch.class);
 
 						register(Collections.<ResourceID>emptyList());
-					}
-					catch(Exception ex) {
+					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
 				}
@@ -331,8 +361,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 						assertThat(resourceManagerInstance.workersInLaunch, hasEntry(extractResourceID(task1), worker1launched));
 						register(singletonList(extractResourceID(task1)));
 						assertThat(resourceManagerInstance.workersInLaunch.entrySet(), empty());
-					}
-					catch(Exception ex) {
+					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
 				}
@@ -364,8 +393,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 
 						// verify that the internal state was updated
 						assertThat(resourceManagerInstance.workersInLaunch.entrySet(), empty());
-					}
-					catch(Exception ex) {
+					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
 				}
@@ -409,8 +437,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 						// verify that the instance state was updated
 						assertThat(resourceManagerInstance.workersBeingReturned.entrySet(), empty());
 						verify(workerStore).removeWorker(task1);
-					}
-					catch(Exception ex) {
+					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
 				}
@@ -442,8 +469,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 						assertThat(resourceManagerInstance.workersInNew, hasEntry(extractResourceID(task1), expected));
 						resourceManagerInstance.taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
 						resourceManagerInstance.launchCoordinator.expectMsgClass(LaunchCoordinator.Launch.class);
-					}
-					catch(Exception ex) {
+					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
 				}
@@ -508,8 +534,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 						resourceManagerInstance.taskRouter.expectMsg(
 							new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker1launched)));
 						verify(schedulerDriver).acceptOffers(msg.offerIds(), msg.operations(), msg.filters());
-					}
-					catch(Exception ex) {
+					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
 				}
@@ -567,8 +592,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 						// verify that the instance state was updated
 						assertThat(resourceManagerInstance.workersInLaunch.entrySet(), empty());
 						verify(workerStore).newTaskID();
-					}
-					catch(Exception ex) {
+					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
 				}
@@ -604,8 +628,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 						assertThat(resourceManagerInstance.workersInLaunch.entrySet(), empty());
 						expectMsgClass(ResourceRemoved.class);
 						verify(workerStore).newTaskID();
-					}
-					catch(Exception ex) {
+					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
 				}
@@ -632,8 +655,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 						verify(schedulerDriver).stop(false);
 						verify(workerStore).stop(true);
 						expectTerminated(resourceManager.actor());
-					}
-					catch(Exception ex) {
+					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
 				}
@@ -665,8 +687,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 						resourceManagerInstance.reconciliationCoordinator.expectMsgClass(Registered.class);
 						resourceManagerInstance.launchCoordinator.expectMsgClass(Registered.class);
 						resourceManagerInstance.taskRouter.expectMsgClass(Registered.class);
-					}
-					catch(Exception ex) {
+					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
 				}
@@ -697,8 +718,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 						resourceManagerInstance.reconciliationCoordinator.expectMsgClass(ReRegistered.class);
 						resourceManagerInstance.launchCoordinator.expectMsgClass(ReRegistered.class);
 						resourceManagerInstance.taskRouter.expectMsgClass(ReRegistered.class);
-					}
-					catch(Exception ex) {
+					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
 				}
@@ -726,8 +746,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 						resourceManagerInstance.reconciliationCoordinator.expectMsgClass(Disconnected.class);
 						resourceManagerInstance.launchCoordinator.expectMsgClass(Disconnected.class);
 						resourceManagerInstance.taskRouter.expectMsgClass(Disconnected.class);
-					}
-					catch(Exception ex) {
+					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
 				}
@@ -752,8 +771,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 						watch(resourceManager.actor());
 						resourceManager.tell(new Error("test"), resourceManager);
 						expectTerminated(resourceManager.actor());
-					}
-					catch(Exception ex) {
+					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
 				}
