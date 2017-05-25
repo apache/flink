@@ -249,6 +249,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	private final AtomicInteger verticesFinished;
 
+	/** State the number of executions in RUNNING or FINISHED state */
+	private volatile AtomicInteger executionsRunningOrFinished;
+
 	/** Current status of the job execution */
 	private volatile JobStatus state = JobStatus.CREATED;
 
@@ -1117,6 +1120,93 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
+	/**
+	 * Transition global state and execution state from RECONCILING to CREATED directly, otherwise
+	 * fail the job to terminate reconciling.
+	 *
+	 * The RECONCILING state is a temporarily state which may transition to RUNNING, FAILING, FINISHED
+	 * based on task status report.
+	 */
+	public void reconcile() {
+		this.executionsRunningOrFinished = new AtomicInteger();
+
+		// the current executions would be recovered from task reports
+		this.currentExecutions.clear();
+
+		if (transitionState(JobStatus.CREATED, JobStatus.RECONCILING)) {
+			for (ExecutionJobVertex ejv : verticesInCreationOrder) {
+				ejv.reconcile();
+			}
+		} else {
+			throw new IllegalStateException("Job is not in expected CREATED state, actually in " + this.state);
+		}
+	}
+
+	/**
+	 * Recover the individual execution based on task status report, which includes:
+	 *
+	 *  1. Create new execution attempt to replace the current in ExecutionVertex.
+	 *  2. Assign the slot to new execution attempt.
+	 *  3. Create new intermediate result partition to recover in ExecutionVertex, also update the result
+	 *  partition in produced results of ExecutionJobVertex and in ExecutionEdge of downstream consumer vertex.
+	 *
+	 * @param vertexId               The job vertex id for finding ExecutionJobVertex
+	 * @param subTaskIndex       The sub index of this execution
+	 * @param attemptId            The execution attempt id
+	 * @param attemptNumber    The execution attempt number
+	 * @param state 				 The current execution state
+	 * @param startTimestamp  The timestamp for execution creation
+	 * @param partitionIds         The result partition ids of this execution
+	 * @param slot					The slot used for deploying this execution
+	 * @throws GlobalModVersionMismatch
+	 * @throws JobException
+	 */
+	public void recoverForExecution(
+		JobVertexID vertexId,
+		int subTaskIndex,
+		ExecutionAttemptID attemptId,
+		int attemptNumber,
+		ExecutionState state,
+		long startTimestamp,
+		ResultPartitionID[] partitionIds,
+		SimpleSlot slot) throws GlobalModVersionMismatch, JobException {
+
+		// create new execution attempt for recovery
+		Execution execution = getJobVertex(vertexId).recoverForNewExecution(
+			subTaskIndex,
+			attemptId,
+			attemptNumber,
+			globalModVersion,
+			startTimestamp,
+			partitionIds,
+			slot);
+
+		// transition to reported state for recovered execution
+		switch (state) {
+			case RUNNING:
+				executionsRunningOrFinished.getAndIncrement();
+				execution.switchToRunning();
+				return;
+
+			case FINISHED:
+				executionsRunningOrFinished.getAndIncrement();
+				execution.markFinished();
+				return;
+
+			case CANCELED:
+				execution.cancelingComplete();
+				return;
+
+			case FAILED:
+				execution.markFailed(new Exception("Receiving failed task state during recovery."));
+				return;
+
+			default:
+				execution.fail(new Exception("Receiving illegal task state: " + state));
+				return;
+		}
+	}
+
 	public void restart() {
 		try {
 			synchronized (progressLock) {
@@ -1294,7 +1384,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			// done :-)
 
 			// check whether we are still in "RUNNING" and trigger the final cleanup
-			if (state == JobStatus.RUNNING) {
+			JobStatus currentState = state;
+			if (currentState == JobStatus.RUNNING || currentState == JobStatus.RECONCILING) {
 				// we do the final cleanup in the I/O executor, because it may involve
 				// some heavier work
 
@@ -1311,7 +1402,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 				// if we do not make this state transition, then a concurrent
 				// cancellation or failure happened
-				if (transitionState(JobStatus.RUNNING, JobStatus.FINISHED)) {
+				if (transitionState(currentState, JobStatus.FINISHED)) {
 					onTerminalState(JobStatus.FINISHED);
 				}
 			}
@@ -1362,6 +1453,31 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			}
 		}
 		// done transitioning the state
+	}
+
+	/**
+	 * The final job state transition based on reconciling results:
+	 *
+	 * 1. If all the execution states are reported as FINISHED, the current job state is FINISHED
+	 * 2. If not all the executions are reported as RUNNING or FINISHED, transition to FAILING from RECONCILING
+	 * otherwise transition to RUNNING from RECONCILING
+	 */
+	public void tryRunOrFail() {
+		JobStatus currentState = state;
+
+		if (currentState != JobStatus.RECONCILING) {
+			LOG.info("Job is not in expected RECONCILING state, actually in {}", currentState);
+			return;
+		}
+
+		if (executionsRunningOrFinished.get() != numVerticesTotal) {
+			failGlobal(new Exception("Only " + executionsRunningOrFinished.get() +" tasks are reported in running state."));
+			return;
+		}
+
+		if (!transitionState(currentState, JobStatus.RUNNING)) {
+			throw new IllegalStateException("Job is not in expected RECONCILING state, actually in " + this.state);
+		}
 	}
 
 	/**
@@ -1631,7 +1747,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 
 		// see what this means for us. currently, the first FAILED state means -> FAILED
-		if (newExecutionState == ExecutionState.FAILED) {
+		// for RECONCILING job status, the failover wants to be triggered after duration time
+		if (newExecutionState == ExecutionState.FAILED && state != JobStatus.RECONCILING) {
 			final Throwable ex = error != null ? error : new FlinkException("Unknown Error (missing cause)");
 
 			// by filtering out late failure calls, we can save some work in

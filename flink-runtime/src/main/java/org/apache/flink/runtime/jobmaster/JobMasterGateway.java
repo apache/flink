@@ -40,6 +40,8 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.taskexecutor.TaskSlotReportResponse;
+import org.apache.flink.runtime.taskexecutor.TaskSlotStatus;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -52,7 +54,7 @@ import java.util.UUID;
 public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 
 	// ------------------------------------------------------------------------
-	//  Job start and stop methods
+	//  Job start, reconcile and stop methods
 	// ------------------------------------------------------------------------
 
 	void startJobExecution();
@@ -217,6 +219,21 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	Future<RegistrationResponse> registerTaskManager(
 			final String taskManagerRpcAddress,
 			final TaskManagerLocation taskManagerLocation,
+			final UUID leaderId,
+			@RpcTimeout final Time timeout);
+
+	/**
+	 * Report the task and slot status at the job manager.
+	 *
+	 * @param taskManagerId    identifying the task manager
+	 * @param taskSlotStatus 	the task and slot status
+	 * @param leaderId             identifying the job leader
+	 * @param timeout             for the rpc call
+	 * @return Future report response indicating whether the report was successful or not
+	 */
+	Future<TaskSlotReportResponse> reportTaskSlotStatus(
+			final ResourceID taskManagerId,
+			final Iterable<TaskSlotStatus> taskSlotStatus,
 			final UUID leaderId,
 			@RpcTimeout final Time timeout);
 

@@ -44,6 +44,20 @@ public class IntermediateResultPartition {
 		this.partitionId = new IntermediateResultPartitionID();
 	}
 
+	public IntermediateResultPartition(
+			IntermediateResult totalResult,
+			ExecutionVertex producer,
+			int partitionNumber,
+			List<List<ExecutionEdge>> consumers,
+			IntermediateResultPartitionID partitionId) {
+
+		this.totalResult = totalResult;
+		this.producer = producer;
+		this.partitionNumber = partitionNumber;
+		this.consumers = consumers;
+		this.partitionId = partitionId;
+	}
+
 	public ExecutionVertex getProducer() {
 		return producer;
 	}

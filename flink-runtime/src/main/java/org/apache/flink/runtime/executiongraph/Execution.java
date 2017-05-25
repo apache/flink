@@ -70,6 +70,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
+import static org.apache.flink.runtime.execution.ExecutionState.RECONCILING;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -181,6 +182,52 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		this.vertex = checkNotNull(vertex);
 		this.attemptId = new ExecutionAttemptID();
 		this.timeout = checkNotNull(timeout);
+
+		this.globalModVersion = globalModVersion;
+		this.attemptNumber = attemptNumber;
+
+		this.stateTimestamps = new long[ExecutionState.values().length];
+		markTimestamp(ExecutionState.CREATED, startTimestamp);
+
+		this.partialInputChannelDeploymentDescriptors = new ConcurrentLinkedQueue<>();
+		this.terminationFuture = new FlinkCompletableFuture<>();
+	}
+
+	/**
+	 * Creates a new Execution attempt for recovery
+	 *
+	 * @param executor
+	 *             The executor used to dispatch callbacks from futures and asynchronous RPC calls.
+	 * @param vertex
+	 *             The execution vertex to which this Execution belongs
+	 * @param attemptId
+	 *             The execution attempt id
+	 * @param attemptNumber
+	 *             The execution attempt number.
+	 * @param state
+	 *             The execution attempt state
+	 * @param globalModVersion
+	 *             The global modification version of the execution graph when this execution was created
+	 * @param startTimestamp
+	 *             The timestamp that marks the creation of this Execution
+	 * @param timeout
+	 *             The timeout for RPC calls like deploy/cancel/stop.
+	 */
+	public Execution(
+			Executor executor,
+			ExecutionVertex vertex,
+			ExecutionAttemptID attemptId,
+			int attemptNumber,
+			ExecutionState state,
+			long globalModVersion,
+			long startTimestamp,
+			Time timeout) {
+
+		this.executor = checkNotNull(executor);
+		this.vertex = checkNotNull(vertex);
+		this.attemptId = checkNotNull(attemptId);
+		this.timeout = checkNotNull(timeout);
+		this.state = checkNotNull(state);
 
 		this.globalModVersion = globalModVersion;
 		this.attemptNumber = attemptNumber;
@@ -495,7 +542,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 
 			// these two are the common cases where we need to send a cancel call
-			else if (current == RUNNING || current == DEPLOYING) {
+			else if (current == RUNNING || current == DEPLOYING || (current == RECONCILING && this.assignedResource != null)) {
 				// try to transition to canceling, if successful, send the cancel call
 				if (transitionState(current, CANCELING)) {
 					sendCancelRpcCall();
@@ -511,7 +558,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 				return;
 			}
-			else if (current == CREATED || current == SCHEDULED) {
+			else if (current == CREATED || current == SCHEDULED || (current == RECONCILING && this.assignedResource == null)) {
 				// from here, we can directly switch to cancelled, because no task has been deployed
 				if (transitionState(current, CANCELED)) {
 
@@ -536,6 +583,19 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				throw new IllegalStateException(current.name());
 			}
 		}
+	}
+
+	public void reconcile() {
+		if (!transitionState(CREATED, RECONCILING)) {
+			throw new IllegalStateException("Execution can not set RECONCILING state from " + this.state);
+		}
+	}
+
+	public void assignExecutionSlot(SimpleSlot slot) throws JobException {
+		if (!slot.setExecutedVertex(this)) {
+			throw new JobException("Could not assign the ExecutionVertex to the slot " + slot);
+		}
+		this.assignedResource = slot;
 	}
 
 	void scheduleOrUpdateConsumers(List<List<ExecutionEdge>> allConsumers) {
@@ -773,7 +833,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		while (true) {
 			ExecutionState current = this.state;
 
-			if (current == RUNNING || current == DEPLOYING) {
+			if (current == RUNNING || current == DEPLOYING || current == RECONCILING) {
 
 				if (transitionState(current, FINISHED)) {
 					try {
@@ -837,7 +897,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			if (current == CANCELED) {
 				return;
 			}
-			else if (current == CANCELING || current == RUNNING || current == DEPLOYING) {
+			else if (current == CANCELING || current == RUNNING || current == DEPLOYING || current == RECONCILING) {
 
 				updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
@@ -968,7 +1028,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	boolean switchToRunning() {
 
-		if (transitionState(DEPLOYING, RUNNING)) {
+		if (transitionState(DEPLOYING, RUNNING) || transitionState(RECONCILING, RUNNING)) {
 			sendPartitionInfos();
 			return true;
 		}

@@ -616,6 +616,12 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 		return result;
 	}
 
+	public SimpleSlot recoverSimpleSlot(AllocatedSlot slot) {
+		SimpleSlot result = new SimpleSlot(slot, providerAndOwner, slot.getSlotNumber());
+		allocatedSlots.add(result);
+		return result;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Methods for tests
 	// ------------------------------------------------------------------------

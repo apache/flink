@@ -24,6 +24,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.metrics.MetricGroup;
@@ -56,6 +57,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.LeaderIdMismatchException;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.instance.SlotPool;
 import org.apache.flink.runtime.instance.SlotPoolGateway;
@@ -91,6 +93,8 @@ import org.apache.flink.runtime.rpc.StartStoppable;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskSlotReportResponse;
+import org.apache.flink.runtime.taskexecutor.TaskSlotStatus;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -98,6 +102,7 @@ import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
+import scala.concurrent.duration.Duration;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -105,11 +110,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -180,6 +186,15 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	private final SlotPoolGateway slotPoolGateway;
 
 	private volatile UUID leaderSessionID;
+
+	/** Flag used to handle the behavior of task report RPC message, the job manager will accept and process task status
+	 * reports only if reconciling as true, otherwise will refuse the reports */
+	private volatile boolean reconciling = false;
+
+	/** Flag used to handle the behavior of other RPC messages, set true at the same time with reconciling flag,
+	 *  and set false later than reconciling flag. The job manager will refuse to process other RPC messages temporarily
+	 *  if recovering as true and task manager will retry to send messages later again until accepted. */
+	private volatile boolean recovering = false;
 
 	// --------- ResourceManager --------
 
@@ -317,26 +332,57 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	}
 
 	/**
-	 * Suspend the job and shutdown all other services including rpc.
+	 * Transition the global state and execution state to RECONCILING and start the internal components,
+	 * then schedule to check the reconciliation result after duration time.
+	 *
+	 * @param leaderSessionID The necessary leader id for running the job.
 	 */
-	@Override
-	public void shutDown() throws Exception {
-		taskManagerHeartbeatManager.stop();
-		resourceManagerHeartbeatManager.stop();
+	public void reconcile(final UUID leaderSessionID) throws Exception {
+		if (LEADER_ID_UPDATER.compareAndSet(this, null, leaderSessionID)) {
 
-		// make sure there is a graceful exit
-		getSelf().suspendExecution(new Exception("JobManager is shutting down."));
-		super.shutDown();
+			// make sure we receive RPC and async calls
+			super.start();
+
+			startInternalComponents();
+
+			log.info("JobManager started to reconcile as leader {} for job {}", leaderSessionID, jobGraph.getJobID());
+			try {
+				executionGraph.reconcile();
+			} catch (Throwable t) {
+				executionGraph.failGlobal(t);
+				return;
+			}
+
+			reconciling = true;
+			recovering = true;
+
+			Duration duration = Duration.create(configuration.getString(
+				JobManagerOptions.JOB_MANAGER_RECONCILE_DURATION,
+				JobManagerOptions.JOB_MANAGER_RECONCILE_DURATION.defaultValue()));
+			if (duration.isFinite()) {
+				log.info("Job manager will finish RECONCILING state after {} times", Time.milliseconds(duration.toMillis()));
+				scheduleRunAsync(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							reconciling = false;
+							executionGraph.tryRunOrFail();
+							recovering = false;
+						} catch (Throwable t) {
+							onTerminalReconciling(t);
+						}
+					}
+				}, Time.milliseconds(duration.toMillis()));
+			} else {
+				throw new IllegalArgumentException("Invalid format for parameter " +
+					JobManagerOptions.JOB_MANAGER_RECONCILE_DURATION);
+			}
+		} else {
+			log.warn("Job already started with leader ID {}, ignoring this reconcile request.", leaderSessionID);
+		}
 	}
 
-	//----------------------------------------------------------------------------------------------
-	// RPC methods
-	//----------------------------------------------------------------------------------------------
-
-	//-- job starting and stopping  -----------------------------------------------------------------
-
-	@RpcMethod
-	public void startJobExecution() {
+	private void startInternalComponents() {
 		// double check that the leader status did not change
 		if (leaderSessionID == null) {
 			log.info("Aborting job startup - JobManager lost leader status");
@@ -350,7 +396,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			log.debug("Staring SlotPool component");
 			slotPool.start(leaderSessionID, getAddress());
 		} catch (Exception e) {
-			log.error("Faild to start job {} ({})", jobGraph.getName(), jobGraph.getJobID(), e);
+			log.error("Failed to start job {} ({})", jobGraph.getName(), jobGraph.getJobID(), e);
 
 			handleFatalError(new Exception("Could not start job execution: Failed to start the slot pool.", e));
 		}
@@ -370,6 +416,44 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 			return;
 		}
+	}
+
+	/**
+	 * Terminates the reconciling process for any exceptions on JobManager side.
+	 *
+	 * @param t The exception caused during reconciling.
+	 */
+	private void onTerminalReconciling(Throwable t) {
+		if (reconciling) {
+			reconciling = false;
+			recovering = false;
+
+			executionGraph.failGlobal(t);
+		}
+	}
+
+	/**
+	 * Suspend the job and shutdown all other services including rpc.
+	 */
+	@Override
+	public void shutDown() throws Exception {
+		taskManagerHeartbeatManager.stop();
+		resourceManagerHeartbeatManager.stop();
+
+		// make sure there is a graceful exit
+		getSelf().suspendExecution(new Exception("JobManager is shutting down."));
+		super.shutDown();
+	}
+
+	//----------------------------------------------------------------------------------------------
+	// RPC methods
+	//----------------------------------------------------------------------------------------------
+
+	//-- job starting, reconciling and stopping  -----------------------------------------------------------------
+
+	@RpcMethod
+	public void startJobExecution() {
+		startInternalComponents();
 
 		// start scheduling job in another thread
 		executor.execute(new Runnable() {
@@ -377,8 +461,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			public void run() {
 				try {
 					executionGraph.scheduleForExecution();
-				}
-				catch (Throwable t) {
+				} catch (Throwable t) {
 					executionGraph.failGlobal(t);
 				}
 			}
@@ -424,6 +507,71 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	}
 
 	//----------------------------------------------------------------------------------------------
+
+	@RpcMethod
+	public Future<TaskSlotReportResponse> reportTaskSlotStatus(
+			final ResourceID taskManagerId,
+			final Iterable<TaskSlotStatus> taskSlots,
+			final UUID leaderId) throws Exception {
+
+		validateLeaderSessionId(leaderId);
+
+		if (log.isDebugEnabled()) {
+			log.debug("Receiving task and slot {} from task manager {}", taskSlots, taskManagerId);
+		}
+
+		final TaskSlotReportResponse response;
+		if (!reconciling) {
+			response = new TaskSlotReportResponse.Decline("The job manager is not in reconciling state now.");
+			return FlinkCompletableFuture.completed(response);
+		}
+
+		final Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManager = registeredTaskManagers.get(taskManagerId);
+		if (taskManager == null) {
+			response = new TaskSlotReportResponse.Decline("Unknown task manager " + taskManagerId);
+			return FlinkCompletableFuture.completed(response);
+		}
+
+		final RpcTaskManagerGateway rpcTaskManagerGateway = new RpcTaskManagerGateway(taskManager.f1, leaderId);
+		for (TaskSlotStatus taskSlotStatus : taskSlots) {
+			final SlotOffer slotOffer = taskSlotStatus.getSlotOffer();
+			final AllocatedSlot allocatedSlot = new AllocatedSlot(
+				slotOffer.getAllocationId(),
+				jobGraph.getJobID(),
+				taskManager.f0,
+				slotOffer.getSlotIndex(),
+				slotOffer.getResourceProfile(),
+				rpcTaskManagerGateway);
+
+			// recover the slot in slot pool, not use RPC here for logic simple
+			final SimpleSlot slot = slotPool.recoverSimpleSlot(allocatedSlot);
+			try{
+				// recover the individual execution in execution graph
+				executionGraph.recoverForExecution(
+					taskSlotStatus.getJobVertexID(),
+					taskSlotStatus.getSubtaskIndex(),
+					taskSlotStatus.getExecutionAttemptID(),
+					taskSlotStatus.getAttemptNumber(),
+					taskSlotStatus.getExecutionState(),
+					taskSlotStatus.getCreateTimestamp(),
+					taskSlotStatus.getResultPartitionIDs(),
+					slot);
+			} catch (Throwable t) {
+				log.error("Recovering task and slot failed.", t);
+
+				//double check to release slot because the slot may have not been assigned to execution when causing exception
+				slotPoolGateway.returnAllocatedSlot(slot);
+
+				onTerminalReconciling(t);
+
+				response = new TaskSlotReportResponse.Decline("Recovering task and slot failed.");
+				return FlinkCompletableFuture.completed(response);
+			}
+		}
+
+		response = new TaskSlotReportResponse.Success();
+		return FlinkCompletableFuture.completed(response);
+	}
 
 	/**
 	 * Updates the task execution state for a given task.

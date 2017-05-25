@@ -89,6 +89,14 @@ public class JobManagerOptions {
 		key("jobmanager.resourcemanager.reconnect-interval")
 		.defaultValue(2000L);
 
+	/**
+	 * The maximum time job manager defines to wait for task manager reporting task status.
+	 * If exceed this duration, the job manager will refuse the reporting.
+	 */
+	public static final ConfigOption<String> JOB_MANAGER_RECONCILE_DURATION =
+		key("jobmanager.reconcile-duration")
+		.defaultValue("60 s");
+
 	// ------------------------------------------------------------------------
 	//  JobManager web UI
 	// ------------------------------------------------------------------------

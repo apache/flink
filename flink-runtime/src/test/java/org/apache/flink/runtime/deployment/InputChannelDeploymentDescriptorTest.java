@@ -65,20 +65,20 @@ public class InputChannelDeploymentDescriptorTest {
 			ExecutionVertex localProducer = mockExecutionVertex(state, consumerResourceId);
 			IntermediateResultPartition localPartition = mockPartition(localProducer);
 			ResultPartitionID localPartitionId = new ResultPartitionID(localPartition.getPartitionId(), localProducer.getCurrentExecutionAttempt().getAttemptId());
-			ExecutionEdge localEdge = new ExecutionEdge(localPartition, consumer, 0);
+			ExecutionEdge localEdge = new ExecutionEdge(localPartition, consumer, 0, 0);
 
 			// Remote partition
 			ExecutionVertex remoteProducer = mockExecutionVertex(state, ResourceID.generate()); // new resource ID
 			IntermediateResultPartition remotePartition = mockPartition(remoteProducer);
 			ResultPartitionID remotePartitionId = new ResultPartitionID(remotePartition.getPartitionId(), remoteProducer.getCurrentExecutionAttempt().getAttemptId());
 			ConnectionID remoteConnectionId = new ConnectionID(remoteProducer.getCurrentAssignedResource().getTaskManagerLocation(), 0);
-			ExecutionEdge remoteEdge = new ExecutionEdge(remotePartition, consumer, 1);
+			ExecutionEdge remoteEdge = new ExecutionEdge(remotePartition, consumer, 1, 1);
 
 			// Unknown partition
 			ExecutionVertex unknownProducer = mockExecutionVertex(state, null); // no assigned resource
 			IntermediateResultPartition unknownPartition = mockPartition(unknownProducer);
 			ResultPartitionID unknownPartitionId = new ResultPartitionID(unknownPartition.getPartitionId(), unknownProducer.getCurrentExecutionAttempt().getAttemptId());
-			ExecutionEdge unknownEdge = new ExecutionEdge(unknownPartition, consumer, 2);
+			ExecutionEdge unknownEdge = new ExecutionEdge(unknownPartition, consumer, 2, 2);
 
 			InputChannelDeploymentDescriptor[] desc = InputChannelDeploymentDescriptor.fromEdges(
 				new ExecutionEdge[]{localEdge, remoteEdge, unknownEdge},
@@ -127,7 +127,7 @@ public class InputChannelDeploymentDescriptorTest {
 		ExecutionVertex unknownProducer = mockExecutionVertex(ExecutionState.CREATED, null); // no assigned resource
 		IntermediateResultPartition unknownPartition = mockPartition(unknownProducer);
 		ResultPartitionID unknownPartitionId = new ResultPartitionID(unknownPartition.getPartitionId(), unknownProducer.getCurrentExecutionAttempt().getAttemptId());
-		ExecutionEdge unknownEdge = new ExecutionEdge(unknownPartition, consumer, 2);
+		ExecutionEdge unknownEdge = new ExecutionEdge(unknownPartition, consumer, 2, 0);
 
 		// This should work if lazy deployment is allowed
 		boolean allowLazyDeployment = true;

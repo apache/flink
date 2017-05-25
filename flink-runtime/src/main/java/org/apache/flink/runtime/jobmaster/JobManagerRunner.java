@@ -378,10 +378,6 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			log.info("JobManager runner for job {} ({}) was granted leadership with session id {} at {}.",
 				jobGraph.getName(), jobGraph.getJobID(), leaderSessionID, getAddress());
 
-			// The operation may be blocking, but since this runner is idle before it been granted the leadership,
-			// it's okay that job manager wait for the operation complete
-			leaderElectionService.confirmLeaderSessionID(leaderSessionID);
-
 			final JobSchedulingStatus schedulingStatus;
 			try {
 				schedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobGraph.getJobID());
@@ -405,12 +401,20 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				try {
 					// Now set the running status is after getting leader ship and 
 					// set finished status after job in terminated status.
-					// So if finding the job is running, it means someone has already run the job, need recover.
+					// If finding the job is already running, that means someone has run the job before, need reconcile.
 					if (schedulingStatus == JobSchedulingStatus.PENDING) {
 						runningJobsRegistry.setJobRunning(jobGraph.getJobID());
+						jobManager.start(leaderSessionID);
+					}
+					else if (schedulingStatus == JobSchedulingStatus.RUNNING) {
+						jobManager.reconcile(leaderSessionID);
 					}
 
-					jobManager.start(leaderSessionID);
+					// The operation may be blocking, but since this runner is idle before it been granted the leadership,
+					// it's okay that job manager wait for the operation complete
+					// It is important to confirm for exposing leader id after job manager reconciling to avoid task manager
+					// registering in advance.
+					leaderElectionService.confirmLeaderSessionID(leaderSessionID);
 				} catch (Exception e) {
 					onFatalError(new Exception("Could not start the job manager.", e));
 				}

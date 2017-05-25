@@ -26,10 +26,13 @@ public class ExecutionEdge {
 
 	private final int inputNum;
 
-	public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum) {
+	private final int index;
+
+	public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum, int index) {
 		this.source = source;
 		this.target = target;
 		this.inputNum = inputNum;
+		this.index = index;
 	}
 
 	public IntermediateResultPartition getSource() {
@@ -42,6 +45,10 @@ public class ExecutionEdge {
 
 	public int getInputNum() {
 		return inputNum;
+	}
+
+	public int getIndex() {
+		return index;
 	}
 
 	@Override

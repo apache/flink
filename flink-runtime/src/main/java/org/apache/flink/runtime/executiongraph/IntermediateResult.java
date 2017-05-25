@@ -96,6 +96,17 @@ public class IntermediateResult {
 		partitionsAssigned++;
 	}
 
+	public void recoverPartition(int partitionNumber, IntermediateResultPartition partition) {
+		if (partition == null || partitionNumber < 0 || partitionNumber >= numParallelProducers) {
+			throw new IllegalArgumentException();
+		}
+
+		final IntermediateResultPartition preIrp = partitions[partitionNumber];
+		partitions[partitionNumber] = partition;
+		partitionLookupHelper.remove(preIrp.getPartitionId());
+		partitionLookupHelper.put(partition.getPartitionId(), partitionNumber);
+	}
+
 	public IntermediateDataSetID getId() {
 		return id;
 	}
@@ -128,6 +139,10 @@ public class IntermediateResult {
 		} else {
 			throw new IllegalArgumentException("Unknown intermediate result partition ID " + resultPartitionId);
 		}
+	}
+
+	public IntermediateResultPartition getPartitionByNumber(int partitionNumber) {
+		return partitions[partitionNumber];
 	}
 
 	public int getNumberOfAssignedPartitions() {

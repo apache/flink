@@ -63,6 +63,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
+import static org.apache.flink.runtime.execution.ExecutionState.RECONCILING;
 
 /**
  * The ExecutionVertex is a parallel subtask of the execution. It may be executed once, or several times, each of
@@ -356,7 +357,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 		for (int i = 0; i < sourcePartitions.length; i++) {
 			IntermediateResultPartition irp = sourcePartitions[i];
-			edges[i] = new ExecutionEdge(irp, this, inputNumber);
+			edges[i] = new ExecutionEdge(irp, this, inputNumber, i);
 		}
 
 		return edges;
@@ -368,7 +369,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 		// simple case same number of sources as targets
 		if (numSources == parallelism) {
-			return new ExecutionEdge[] { new ExecutionEdge(sourcePartitions[subTaskIndex], this, inputNumber) };
+			return new ExecutionEdge[] { new ExecutionEdge(sourcePartitions[subTaskIndex], this, inputNumber, 0) };
 		}
 		else if (numSources < parallelism) {
 
@@ -387,7 +388,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				sourcePartition = (int) (subTaskIndex / factor);
 			}
 
-			return new ExecutionEdge[] { new ExecutionEdge(sourcePartitions[sourcePartition], this, inputNumber) };
+			return new ExecutionEdge[] { new ExecutionEdge(sourcePartitions[sourcePartition], this, inputNumber, 0) };
 		}
 		else {
 			if (numSources % parallelism == 0) {
@@ -397,7 +398,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 				ExecutionEdge[] edges = new ExecutionEdge[factor];
 				for (int i = 0; i < factor; i++) {
-					edges[i] = new ExecutionEdge(sourcePartitions[startIndex + i], this, inputNumber);
+					edges[i] = new ExecutionEdge(sourcePartitions[startIndex + i], this, inputNumber, i);
 				}
 				return edges;
 			}
@@ -411,7 +412,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 				ExecutionEdge[] edges = new ExecutionEdge[end - start];
 				for (int i = 0; i < edges.length; i++) {
-					edges[i] = new ExecutionEdge(sourcePartitions[start + i], this, inputNumber);
+					edges[i] = new ExecutionEdge(sourcePartitions[start + i], this, inputNumber, i);
 				}
 
 				return edges;
@@ -592,12 +593,82 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
+	public Execution recoverForNewExecution(
+			ExecutionAttemptID attemptId,
+			int attemptNumber,
+			long initialGlobalModVersion,
+			long startTimestamp,
+			IntermediateResult[] producedDataSets,
+			ResultPartitionID[] partitionIds,
+			SimpleSlot slot) throws GlobalModVersionMismatch, JobException {
+
+		LOG.debug("Recovering execution vertex {} for new execution.", getTaskNameWithSubtaskIndex());
+
+		final long actualModVersion = getExecutionGraph().getGlobalModVersion();
+		if (actualModVersion > initialGlobalModVersion) {
+			throw new GlobalModVersionMismatch(initialGlobalModVersion, actualModVersion);
+		}
+
+		if (currentExecution.getState() == RECONCILING) {
+			// create new execution attempt to replace the current one
+			final Execution newExecution = new Execution(
+				getExecutionGraph().getFutureExecutor(),
+				this,
+				attemptId,
+				attemptNumber,
+				ExecutionState.RECONCILING,
+				initialGlobalModVersion,
+				startTimestamp,
+				timeout);
+			this.currentExecution = newExecution;
+
+			// recover the current executions in ExecutionGraph
+			getExecutionGraph().registerExecution(newExecution);
+
+			// assign the slot for recovered execution
+			newExecution.assignExecutionSlot(slot);
+
+			// create new intermediate result partition and update it in produced intermediate results of ExecutionJobVertex,
+			// also update it in execution edge of downstream consumer vertex
+			resultPartitions.clear();
+			for (int i = 0 ; i < producedDataSets.length ; i++) {
+				final List<List<ExecutionEdge>> consumers = producedDataSets[i].getPartitionByNumber(subTaskIndex).getConsumers();
+				final IntermediateResultPartition irp = new IntermediateResultPartition(
+					producedDataSets[i],
+					this,
+					subTaskIndex,
+					consumers,
+					partitionIds[i].getPartitionId());
+
+				resultPartitions.put(irp.getPartitionId(), irp);
+				producedDataSets[i].recoverPartition(subTaskIndex, irp);
+
+				for (ExecutionEdge edge : consumers.get(0)) {
+					edge.getTarget().recoverInputEdge(edge, irp);
+				}
+			}
+			return newExecution;
+		} else {
+			throw new IllegalStateException("Cannot recover a vertex that is in non-reconciling state " + currentExecution.getState());
+		}
+	}
+
+	public void recoverInputEdge(ExecutionEdge preEdge, IntermediateResultPartition curIrp) {
+		final int inputNumber = preEdge.getInputNum();
+		final int index = preEdge.getIndex();
+		inputEdges[inputNumber][index] = new ExecutionEdge(curIrp, this, inputNumber, index);
+	}
+
 	public boolean scheduleForExecution(SlotProvider slotProvider, boolean queued) {
 		return this.currentExecution.scheduleForExecution(slotProvider, queued);
 	}
 
 	public void deployToSlot(SimpleSlot slot) throws JobException {
 		this.currentExecution.deployToSlot(slot);
+	}
+
+	public void reconcile() {
+		this.currentExecution.reconcile();
 	}
 
 	/**

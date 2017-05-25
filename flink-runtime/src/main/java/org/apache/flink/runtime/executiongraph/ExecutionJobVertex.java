@@ -36,6 +36,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
@@ -494,6 +495,15 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	}
 
 	/**
+	 * Reconciles all currently created vertex executions.
+	 */
+	public void reconcile() {
+		for (ExecutionVertex ev : getTaskVertices()) {
+			ev.reconcile();
+		}
+	}
+
+	/**
 	 * Cancels all currently running vertex executions.
 	 */
 	public void cancel() {
@@ -557,6 +567,25 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 				result.resetForNewExecution();
 			}
 		}
+	}
+
+	public Execution recoverForNewExecution(
+			int subTaskIndex,
+			ExecutionAttemptID attemptId,
+			int attemptNumber,
+			long initialGlobalModVersion,
+			long startTimestamp,
+			ResultPartitionID[] partitionIds,
+			SimpleSlot slot) throws GlobalModVersionMismatch, JobException {
+
+		return taskVertices[subTaskIndex].recoverForNewExecution(
+			attemptId,
+			attemptNumber,
+			initialGlobalModVersion,
+			startTimestamp,
+			producedDataSets,
+			partitionIds,
+			slot);
 	}
 
 	// --------------------------------------------------------------------------------------------
