@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobSubmissionResult;
@@ -25,12 +26,13 @@ import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusRespon
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
 
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 
 /**
  * Cluster client for communication with an standalone (on-premise) cluster or an existing cluster that has been
@@ -48,7 +50,6 @@ public class StandaloneClusterClient extends ClusterClient {
 
 	@Override
 	public void waitForClusterToBeReady() {}
-
 
 	@Override
 	public String getWebInterfaceURL() {

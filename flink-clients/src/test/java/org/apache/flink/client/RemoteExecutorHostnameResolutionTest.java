@@ -23,6 +23,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -35,6 +36,9 @@ import java.util.Collections;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
+/**
+ * Tests the hostname resolution of the {@link RemoteExecutor}.
+ */
 public class RemoteExecutorHostnameResolutionTest extends TestLogger {
 
 	private static final String nonExistingHostname = "foo.bar.com.invalid";
@@ -72,7 +76,7 @@ public class RemoteExecutorHostnameResolutionTest extends TestLogger {
 			// that is what we want!
 		}
 	}
-	
+
 	private static Plan getProgram() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.fromElements(1, 2, 3).output(new DiscardingOutputFormat<Integer>());

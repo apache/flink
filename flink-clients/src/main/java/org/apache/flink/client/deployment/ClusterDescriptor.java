@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.deployment;
 
-
 import org.apache.flink.client.program.ClusterClient;
 
 /**
@@ -27,7 +26,7 @@ import org.apache.flink.client.program.ClusterClient;
 public interface ClusterDescriptor<ClientType extends ClusterClient> {
 
 	/**
-	 * Returns a String containing details about the cluster (NodeManagers, available memory, ...)
+	 * Returns a String containing details about the cluster (NodeManagers, available memory, ...).
 	 *
 	 */
 	String getClusterDescription();
@@ -41,7 +40,7 @@ public interface ClusterDescriptor<ClientType extends ClusterClient> {
 	ClientType retrieve(String applicationID) throws UnsupportedOperationException;
 
 	/**
-	 * Triggers deployment of a cluster
+	 * Triggers deployment of a cluster.
 	 * @return Client for the cluster
 	 * @throws UnsupportedOperationException if this cluster descriptor doesn't support the operation
 	 */

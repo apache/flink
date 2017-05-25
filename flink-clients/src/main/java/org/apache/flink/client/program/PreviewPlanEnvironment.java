@@ -69,11 +69,10 @@ public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 		};
 		initializeContextEnvironment(factory);
 	}
-	
+
 	public void unsetAsContext() {
 		resetContextEnvironment();
 	}
-	
 
 	public void setPreview(String preview) {
 		this.preview = preview;

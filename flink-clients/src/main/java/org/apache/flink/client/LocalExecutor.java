@@ -18,8 +18,6 @@
 
 package org.apache.flink.client;
 
-import java.util.List;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -28,17 +26,19 @@ import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+
+import java.util.List;
 
 /**
  * A PlanExecutor that runs Flink programs on a local embedded Flink runtime instance.
@@ -50,24 +50,24 @@ import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
  * then this executor needs to be explicitly started, to keep running across several executions.</p>
  */
 public class LocalExecutor extends PlanExecutor {
-	
+
 	private static final boolean DEFAULT_OVERWRITE = false;
 
 	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = -1;
 
-	/** we lock to ensure singleton execution */
+	/** we lock to ensure singleton execution. */
 	private final Object lock = new Object();
 
-	/** The mini cluster on which to execute the local programs */
+	/** The mini cluster on which to execute the local programs. */
 	private LocalFlinkMiniCluster flink;
 
-	/** Custom user configuration for the execution */
+	/** Custom user configuration for the execution. */
 	private final Configuration configuration;
 
-	/** Config value for how many slots to provide in the local cluster */
+	/** Config value for how many slots to provide in the local cluster. */
 	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 
-	/** Config flag whether to overwrite existing files by default */
+	/** Config flag whether to overwrite existing files by default. */
 	private boolean defaultOverwriteFiles = DEFAULT_OVERWRITE;
 
 	// ------------------------------------------------------------------------
@@ -93,7 +93,7 @@ public class LocalExecutor extends PlanExecutor {
 	}
 
 	public void setTaskManagerNumSlots(int taskManagerNumSlots) {
-		this.taskManagerNumSlots = taskManagerNumSlots; 
+		this.taskManagerNumSlots = taskManagerNumSlots;
 	}
 
 	public int getTaskManagerNumSlots() {
@@ -119,7 +119,7 @@ public class LocalExecutor extends PlanExecutor {
 			}
 		}
 	}
-	
+
 	@Override
 	public void stop() throws Exception {
 		synchronized (lock) {
@@ -139,14 +139,14 @@ public class LocalExecutor extends PlanExecutor {
 
 	/**
 	 * Executes the given program on a local runtime and waits for the job to finish.
-	 * 
+	 *
 	 * <p>If the executor has not been started before, this starts the executor and shuts it down
 	 * after the job finished. If the job runs in session mode, the executor is kept alive until
 	 * no more references to the executor exist.</p>
-	 * 
+	 *
 	 * @param plan The plan of the program to execute.
 	 * @return The net runtime of the program, in milliseconds.
-	 * 
+	 *
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
@@ -236,18 +236,17 @@ public class LocalExecutor extends PlanExecutor {
 		return configuration;
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 	//  Static variants that internally bring up an instance and shut it down after the execution
 	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Executes the given program.
-	 * 
+	 *
 	 * @param pa The program.
 	 * @param args The parameters.
 	 * @return The execution result of the program.
-	 * 
+	 *
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
@@ -257,10 +256,10 @@ public class LocalExecutor extends PlanExecutor {
 
 	/**
 	 * Executes the given dataflow plan.
-	 * 
-	 * @param plan The dataflow plan. 
+	 *
+	 * @param plan The dataflow plan.
 	 * @return The execution result.
-	 * 
+	 *
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
@@ -270,7 +269,7 @@ public class LocalExecutor extends PlanExecutor {
 
 	/**
 	 * Creates a JSON representation of the given dataflow's execution plan.
-	 * 
+	 *
 	 * @param plan The dataflow plan.
 	 * @return The dataflow's execution plan, as a JSON string.
 	 * @throws Exception Thrown, if the optimization process that creates the execution plan failed.
@@ -287,7 +286,7 @@ public class LocalExecutor extends PlanExecutor {
 
 	/**
 	 * Creates a JSON representation of the given dataflow plan.
-	 * 
+	 *
 	 * @param plan The dataflow plan.
 	 * @return The dataflow plan (prior to optimization) as a JSON string.
 	 */

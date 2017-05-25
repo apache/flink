@@ -24,18 +24,19 @@ import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.util.StandaloneUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 /**
  * Tests that verify that the LeaderRetrievalService correctly handles non-resolvable host names
- * and does not fail with another exception
+ * and does not fail with another exception.
  */
 public class LeaderRetrievalServiceHostnameResolutionTest extends TestLogger {
 

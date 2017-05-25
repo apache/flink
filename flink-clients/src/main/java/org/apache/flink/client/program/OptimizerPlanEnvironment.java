@@ -28,6 +28,9 @@ import org.apache.flink.optimizer.plan.FlinkPlan;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 
+/**
+ * An {@link ExecutionEnvironment} that never executes a job but only creates the optimized plan.
+ */
 public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 	private final Optimizer compiler;
@@ -41,7 +44,7 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 	// ------------------------------------------------------------------------
 	//  Execution Environment methods
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan plan = createProgramPlan(jobName);
@@ -66,7 +69,7 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 	}
 
 	public FlinkPlan getOptimizedPlan(PackagedProgram prog) throws ProgramInvocationException {
-		
+
 		// temporarily write syserr and sysout to a byte array.
 		PrintStream originalOut = System.out;
 		PrintStream originalErr = System.err;
@@ -98,10 +101,10 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 		String stdout = baos.toString();
 		String stderr = baes.toString();
-		
+
 		throw new ProgramInvocationException(
 				"The program plan could not be fetched - the program aborted pre-maturely."
-						+ "\n\nSystem.err: " + (stdout.length() == 0 ? "(none)" : stdout) 
+						+ "\n\nSystem.err: " + (stdout.length() == 0 ? "(none)" : stdout)
 						+ "\n\nSystem.out: " + (stderr.length() == 0 ? "(none)" : stderr));
 	}
 	// ------------------------------------------------------------------------
@@ -116,13 +119,13 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 		};
 		initializeContextEnvironment(factory);
 	}
-	
+
 	private void unsetAsContext() {
 		resetContextEnvironment();
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	public void setPlan(FlinkPlan plan){
 		this.optimizerPlan = plan;
 	}
