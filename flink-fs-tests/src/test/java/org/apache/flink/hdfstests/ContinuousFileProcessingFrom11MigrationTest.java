@@ -40,6 +40,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -56,6 +57,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 
+/**
+ * Tests that verify the migration from 1.1 snapshots.
+ */
 public class ContinuousFileProcessingFrom11MigrationTest {
 
 	private static final int NO_OF_FILES = 5;
@@ -87,10 +91,10 @@ public class ContinuousFileProcessingFrom11MigrationTest {
 			MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
 			hdfsCluster = builder.build();
 
-			hdfsURI = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() +"/";
+			hdfsURI = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() + "/";
 			hdfs = new org.apache.hadoop.fs.Path(hdfsURI).getFileSystem(hdConf);
 
-		} catch(Throwable e) {
+		} catch (Throwable e) {
 			e.printStackTrace();
 			Assert.fail("Test failed " + e.getMessage());
 		}
@@ -166,7 +170,6 @@ public class ContinuousFileProcessingFrom11MigrationTest {
 
 		TimestampedFileInputSplit split4 =
 			new TimestampedFileInputSplit(11, 0, new Path("test/test3"), 0, 100, null);
-
 
 		final OneShotLatch latch = new OneShotLatch();
 
@@ -347,7 +350,7 @@ public class ContinuousFileProcessingFrom11MigrationTest {
 
 	///////////				Source Contexts Used by the tests				/////////////////
 
-	private static abstract class DummySourceContext
+	private abstract static class DummySourceContext
 		implements SourceFunction.SourceContext<TimestampedFileInputSplit> {
 
 		private final Object lock = new Object();
@@ -388,7 +391,7 @@ public class ContinuousFileProcessingFrom11MigrationTest {
 		FSDataOutputStream stream = hdfs.create(tmp);
 		StringBuilder str = new StringBuilder();
 		for (int i = 0; i < LINES_PER_FILE; i++) {
-			String line = fileIdx +": "+ sampleLine + " " + i +"\n";
+			String line = fileIdx + ": " + sampleLine + " " + i + "\n";
 			str.append(line);
 			stream.write(line.getBytes(ConfigConstants.DEFAULT_CHARSET));
 		}

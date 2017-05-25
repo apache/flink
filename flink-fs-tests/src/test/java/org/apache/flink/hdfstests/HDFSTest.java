@@ -18,7 +18,6 @@
 
 package org.apache.flink.hdfstests;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
@@ -36,6 +35,8 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.FileUtils;
+
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -77,17 +78,17 @@ public class HDFSTest {
 			MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
 			hdfsCluster = builder.build();
 
-			hdfsURI = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() +"/";
+			hdfsURI = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() + "/";
 
 			hdPath = new org.apache.hadoop.fs.Path("/test");
 			hdfs = hdPath.getFileSystem(hdConf);
 			FSDataOutputStream stream = hdfs.create(hdPath);
-			for(int i = 0; i < 10; i++) {
+			for (int i = 0; i < 10; i++) {
 				stream.write("Hello HDFS\n".getBytes(ConfigConstants.DEFAULT_CHARSET));
 			}
 			stream.close();
 
-		} catch(Throwable e) {
+		} catch (Throwable e) {
 			e.printStackTrace();
 			Assert.fail("Test failed " + e.getMessage());
 		}
@@ -112,23 +113,23 @@ public class HDFSTest {
 		try {
 			FileSystem fs = file.getFileSystem();
 			assertTrue("Must be HadoopFileSystem", fs instanceof HadoopFileSystem);
-			
+
 			DopOneTestEnvironment.setAsContext();
 			try {
 				WordCount.main(new String[]{
 						"--input", file.toString(),
 						"--output", result.toString()});
 			}
-			catch(Throwable t) {
+			catch (Throwable t) {
 				t.printStackTrace();
 				Assert.fail("Test failed with " + t.getMessage());
 			}
 			finally {
 				DopOneTestEnvironment.unsetAsContext();
 			}
-			
+
 			assertTrue("No result file present", hdfs.exists(result));
-			
+
 			// validate output:
 			org.apache.hadoop.fs.FSDataInputStream inStream = hdfs.open(result);
 			StringWriter writer = new StringWriter();
@@ -141,7 +142,7 @@ public class HDFSTest {
 
 		} catch (IOException e) {
 			e.printStackTrace();
-			Assert.fail("Error in test: " + e.getMessage() );
+			Assert.fail("Error in test: " + e.getMessage());
 		}
 	}
 
@@ -149,7 +150,7 @@ public class HDFSTest {
 	public void testAvroOut() {
 		String type = "one";
 		AvroOutputFormat<String> avroOut =
-				new AvroOutputFormat<String>( String.class );
+				new AvroOutputFormat<String>(String.class);
 
 		org.apache.hadoop.fs.Path result = new org.apache.hadoop.fs.Path(hdfsURI + "/avroTest");
 
@@ -166,11 +167,10 @@ public class HDFSTest {
 			avroOut.writeRecord(type);
 			avroOut.close();
 
-
 			assertTrue("No result file present", hdfs.exists(result));
 			FileStatus[] files = hdfs.listStatus(result);
 			Assert.assertEquals(2, files.length);
-			for(FileStatus file : files) {
+			for (FileStatus file : files) {
 				assertTrue("1.avro".equals(file.getPath().getName()) || "2.avro".equals(file.getPath().getName()));
 			}
 
@@ -249,9 +249,8 @@ public class HDFSTest {
 		}
 	}
 
-	// package visible
-	static abstract class DopOneTestEnvironment extends ExecutionEnvironment {
-		
+	abstract static class DopOneTestEnvironment extends ExecutionEnvironment {
+
 		public static void setAsContext() {
 			final LocalEnvironment le = new LocalEnvironment();
 			le.setParallelism(1);
@@ -264,7 +263,7 @@ public class HDFSTest {
 				}
 			});
 		}
-		
+
 		public static void unsetAsContext() {
 			resetContextEnvironment();
 		}
