@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
-import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -30,25 +30,25 @@ import java.util.Set;
  */
 public class GetShardListResult {
 
-	private final Map<String, LinkedList<KinesisStreamShard>> streamsToRetrievedShardList = new HashMap<>();
+	private final Map<String, LinkedList<StreamShardHandle>> streamsToRetrievedShardList = new HashMap<>();
 
-	public void addRetrievedShardToStream(String stream, KinesisStreamShard retrievedShard) {
+	public void addRetrievedShardToStream(String stream, StreamShardHandle retrievedShard) {
 		if (!streamsToRetrievedShardList.containsKey(stream)) {
-			streamsToRetrievedShardList.put(stream, new LinkedList<KinesisStreamShard>());
+			streamsToRetrievedShardList.put(stream, new LinkedList<StreamShardHandle>());
 		}
 		streamsToRetrievedShardList.get(stream).add(retrievedShard);
 	}
 
-	public void addRetrievedShardsToStream(String stream, List<KinesisStreamShard> retrievedShards) {
+	public void addRetrievedShardsToStream(String stream, List<StreamShardHandle> retrievedShards) {
 		if (retrievedShards.size() != 0) {
 			if (!streamsToRetrievedShardList.containsKey(stream)) {
-				streamsToRetrievedShardList.put(stream, new LinkedList<KinesisStreamShard>());
+				streamsToRetrievedShardList.put(stream, new LinkedList<StreamShardHandle>());
 			}
 			streamsToRetrievedShardList.get(stream).addAll(retrievedShards);
 		}
 	}
 
-	public List<KinesisStreamShard> getRetrievedShardListOfStream(String stream) {
+	public List<StreamShardHandle> getRetrievedShardListOfStream(String stream) {
 		if (!streamsToRetrievedShardList.containsKey(stream)) {
 			return null;
 		} else {
@@ -56,7 +56,7 @@ public class GetShardListResult {
 		}
 	}
 
-	public KinesisStreamShard getLastSeenShardOfStream(String stream) {
+	public StreamShardHandle getLastSeenShardOfStream(String stream) {
 		if (!streamsToRetrievedShardList.containsKey(stream)) {
 			return null;
 		} else {

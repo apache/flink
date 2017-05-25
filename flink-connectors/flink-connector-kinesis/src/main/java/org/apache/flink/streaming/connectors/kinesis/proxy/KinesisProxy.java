@@ -32,7 +32,7 @@ import com.amazonaws.services.kinesis.model.Shard;
 import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -237,7 +237,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, @Nullable Object startingMarker) throws InterruptedException {
+	public String getShardIterator(StreamShardHandle shard, String shardIteratorType, @Nullable Object startingMarker) throws InterruptedException {
 		GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest()
 			.withStreamName(shard.getStreamName())
 			.withShardId(shard.getShard().getShardId())
@@ -315,8 +315,8 @@ public class KinesisProxy implements KinesisProxyInterface {
 		}
 	}
 
-	private List<KinesisStreamShard> getShardsOfStream(String streamName, @Nullable String lastSeenShardId) throws InterruptedException {
-		List<KinesisStreamShard> shardsOfStream = new ArrayList<>();
+	private List<StreamShardHandle> getShardsOfStream(String streamName, @Nullable String lastSeenShardId) throws InterruptedException {
+		List<StreamShardHandle> shardsOfStream = new ArrayList<>();
 
 		DescribeStreamResult describeStreamResult;
 		do {
@@ -324,7 +324,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 
 			List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
 			for (Shard shard : shards) {
-				shardsOfStream.add(new KinesisStreamShard(streamName, shard));
+				shardsOfStream.add(new StreamShardHandle(streamName, shard));
 			}
 
 			if (shards.size() != 0) {
@@ -384,7 +384,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 			List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
 			Iterator<Shard> shardItr = shards.iterator();
 			while (shardItr.hasNext()) {
-				if (KinesisStreamShard.compareShardIds(shardItr.next().getShardId(), startShardId) <= 0) {
+				if (StreamShardHandle.compareShardIds(shardItr.next().getShardId(), startShardId) <= 0) {
 					shardItr.remove();
 				}
 			}
