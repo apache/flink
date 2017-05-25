@@ -18,9 +18,6 @@
 
 package org.apache.flink.cep.nfa;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.ListMultimap;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
@@ -29,9 +26,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.EnumSerializer;
-import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.cep.NonDuplicatingTypeSerializer;
@@ -44,7 +41,12 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.ListMultimap;
+
 import javax.annotation.Nullable;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -68,27 +70,26 @@ import java.util.Stack;
 
 /**
  * Non-deterministic finite automaton implementation.
- * <p>
- * The {@link org.apache.flink.cep.operator.AbstractKeyedCEPPatternOperator CEP operator}
+ *
+ * <p>The {@link org.apache.flink.cep.operator.AbstractKeyedCEPPatternOperator CEP operator}
  * keeps one NFA per key, for keyed input streams, and a single global NFA for non-keyed ones.
  * When an event gets processed, it updates the NFA's internal state machine.
- * <p>
- * An event that belongs to a partially matched sequence is kept in an internal
+ *
+ * <p>An event that belongs to a partially matched sequence is kept in an internal
  * {@link SharedBuffer buffer}, which is a memory-optimized data-structure exactly for
  * this purpose. Events in the buffer are removed when all the matched sequences that
  * contain them are:
  * <ol>
- *     <li>emitted (success)</li>
- *     <li>discarded (patterns containing NOT)</li>
- *     <li>timed-out (windowed patterns)</li>
+ *  <li>emitted (success)</li>
+ *  <li>discarded (patterns containing NOT)</li>
+ *  <li>timed-out (windowed patterns)</li>
  * </ol>
  *
- * The implementation is strongly based on the paper "Efficient Pattern Matching over Event Streams".
- *
- * @see <a href="https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf">
- *     https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf</a>
+ * <p>The implementation is strongly based on the paper "Efficient Pattern Matching over Event Streams".
  *
  * @param <T> Type of the processed events
+ * @see <a href="https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf">
+ * https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf</a>
  */
 public class NFA<T> implements Serializable {
 
@@ -289,7 +290,7 @@ public class NFA<T> implements Serializable {
 		}
 
 		// prune shared buffer based on window length
-		if(windowTime > 0L) {
+		if (windowTime > 0L) {
 			long pruningTimestamp = timestamp - windowTime;
 
 			if (pruningTimestamp < timestamp) {
@@ -360,6 +361,7 @@ public class NFA<T> implements Serializable {
 		int getTotalIgnoreBranches() {
 			return totalIgnoreBranches;
 		}
+
 		int getTotalTakeBranches() {
 			return totalTakeBranches;
 		}
@@ -672,7 +674,7 @@ public class NFA<T> implements Serializable {
 
 	//////////////////////			Fault-Tolerance / Migration			//////////////////////
 
-	private final static String BEGINNING_STATE_NAME = "$beginningState$";
+	private static final String BEGINNING_STATE_NAME = "$beginningState$";
 
 	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
 		ois.defaultReadObject();
@@ -747,7 +749,6 @@ public class NFA<T> implements Serializable {
 						}
 					}).getTargetState().getName();
 
-
 				final State<T> previousState = convertedStates.get(previousName);
 
 				computationStates.add(ComputationState.createState(
@@ -783,16 +784,16 @@ public class NFA<T> implements Serializable {
 
 	@SuppressWarnings("unchecked")
 	private ComputationState<T> readComputationState(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		final State<T> state = (State<T>)ois.readObject();
+		final State<T> state = (State<T>) ois.readObject();
 		State<T> previousState;
 		try {
-			previousState = (State<T>)ois.readObject();
+			previousState = (State<T>) ois.readObject();
 		} catch (OptionalDataException e) {
 			previousState = null;
 		}
 
 		final long timestamp = ois.readLong();
-		final DeweyNumber version = (DeweyNumber)ois.readObject();
+		final DeweyNumber version = (DeweyNumber) ois.readObject();
 		final long startTimestamp = ois.readLong();
 
 		final boolean hasEvent = ois.readBoolean();
@@ -915,7 +916,7 @@ public class NFA<T> implements Serializable {
 			serializeStates(record.states, target);
 			target.writeLong(record.windowTime);
 			target.writeBoolean(record.handleTimeout);
-			
+
 			sharedBufferSerializer.serialize(record.eventSharedBuffer, target);
 
 			target.writeInt(record.computationStates.size());
@@ -948,10 +949,10 @@ public class NFA<T> implements Serializable {
 			Set<State<T>> states = deserializeStates(source);
 			long windowTime = source.readLong();
 			boolean handleTimeout = source.readBoolean();
-			
+
 			NFA<T> nfa = new NFA<>(eventSerializer, windowTime, handleTimeout);
 			nfa.states = states;
-			
+
 			nfa.eventSharedBuffer = sharedBufferSerializer.deserialize(source);
 
 			Queue<ComputationState<T>> computationStates = new LinkedList<>();
@@ -1132,7 +1133,6 @@ public class NFA<T> implements Serializable {
 			TypeSerializer<State.StateType> stateTypeSerializer = new EnumSerializer<>(State.StateType.class);
 			TypeSerializer<StateTransitionAction> actionSerializer = new EnumSerializer<>(StateTransitionAction.class);
 
-
 			final int noOfStates = in.readInt();
 			Map<String, State<T>> states = new HashMap<>(noOfStates);
 
@@ -1250,7 +1250,7 @@ public class NFA<T> implements Serializable {
 				ois.close();
 				bais.close();
 				return copy;
-			} catch (IOException|ClassNotFoundException e) {
+			} catch (IOException | ClassNotFoundException e) {
 				throw new RuntimeException("Could not copy NFA.", e);
 			}
 		}

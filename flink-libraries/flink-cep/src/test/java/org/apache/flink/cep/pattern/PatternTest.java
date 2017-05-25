@@ -25,15 +25,23 @@ import org.apache.flink.cep.pattern.conditions.OrCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.pattern.conditions.SubtypeCondition;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for constructing {@link Pattern}.
+ */
 public class PatternTest extends TestLogger {
-	/**
-	 * These test simply test that the pattern construction completes without failure
-	 */
 
+	/**
+	 * These test simply test that the pattern construction completes without failure.
+	 */
 	@Test
 	public void testStrictContiguity() {
 		Pattern<Object, ?> pattern = Pattern.begin("start").next("next").next("end");

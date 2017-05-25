@@ -65,8 +65,8 @@ public abstract class IterativeCondition<T> implements Function, Serializable {
 
 	/**
 	 * The filter function that evaluates the predicate.
-	 * <p>
-	 * <strong>IMPORTANT:</strong> The system assumes that the function does not
+	 *
+	 * <p><strong>IMPORTANT:</strong> The system assumes that the function does not
 	 * modify the elements on which the predicate is applied. Violating this assumption
 	 * can lead to incorrect results.
 	 *

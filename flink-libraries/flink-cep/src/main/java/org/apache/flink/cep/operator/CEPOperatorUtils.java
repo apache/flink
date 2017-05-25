@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.cep.PatternStream;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -39,6 +40,9 @@ import org.apache.flink.types.Either;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Utility methods for creating {@link PatternStream}.
+ */
 public class CEPOperatorUtils {
 
 	/**
@@ -61,7 +65,7 @@ public class CEPOperatorUtils {
 
 		if (inputStream instanceof KeyedStream) {
 			// We have to use the KeyedCEPPatternOperator which can deal with keyed input streams
-			KeyedStream<T, K> keyedStream= (KeyedStream<T, K>) inputStream;
+			KeyedStream<T, K> keyedStream = (KeyedStream<T, K>) inputStream;
 
 			TypeSerializer<K> keySerializer = keyedStream.getKeyType().createSerializer(keyedStream.getExecutionConfig());
 
@@ -122,7 +126,7 @@ public class CEPOperatorUtils {
 
 		if (inputStream instanceof KeyedStream) {
 			// We have to use the KeyedCEPPatternOperator which can deal with keyed input streams
-			KeyedStream<T, K> keyedStream= (KeyedStream<T, K>) inputStream;
+			KeyedStream<T, K> keyedStream = (KeyedStream<T, K>) inputStream;
 
 			TypeSerializer<K> keySerializer = keyedStream.getKeyType().createSerializer(keyedStream.getExecutionConfig());
 

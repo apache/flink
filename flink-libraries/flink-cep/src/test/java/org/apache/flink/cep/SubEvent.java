@@ -18,6 +18,9 @@
 
 package org.apache.flink.cep;
 
+/**
+ * A subclass of {@link Event} for usage in tests.
+ */
 public class SubEvent extends Event {
 	private final double volume;
 

@@ -21,6 +21,7 @@ package org.apache.flink.cep;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.core.fs.FileSystem;
@@ -31,8 +32,8 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-
 import org.apache.flink.types.Either;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -42,6 +43,9 @@ import org.junit.rules.TemporaryFolder;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * End to end tests of both CEP operators and {@link NFA}.
+ */
 @SuppressWarnings("serial")
 public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
@@ -70,7 +74,8 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 	/**
-	 * Checks that a certain event sequence is recognized
+	 * Checks that a certain event sequence is recognized.
+	 *
 	 * @throws Exception
 	 */
 	@Test
@@ -224,7 +229,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			Tuple2.of(new Event(5, "middle", 5.0), 7L),
 			// last element for high final watermark
 			Tuple2.of(new Event(5, "middle", 5.0), 100L)
-		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event,Long>>() {
+		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
 
 			@Override
 			public long extractTimestamp(Tuple2<Event, Long> element, long previousTimestamp) {
@@ -307,7 +312,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			Tuple2.of(new Event(1, "middle", 5.0), 7L),
 			Tuple2.of(new Event(3, "middle", 6.0), 9L),
 			Tuple2.of(new Event(3, "end", 7.0), 7L)
-		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event,Long>>() {
+		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
 
 			@Override
 			public long extractTimestamp(Tuple2<Event, Long> element, long currentTimestamp) {
@@ -444,7 +449,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			Tuple2.of(new Event(1, "middle", 2.0), 5L),
 			Tuple2.of(new Event(1, "start", 2.0), 4L),
 			Tuple2.of(new Event(1, "end", 2.0), 6L)
-		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event,Long>>() {
+		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
 
 			@Override
 			public long extractTimestamp(Tuple2<Event, Long> element, long currentTimestamp) {
@@ -515,7 +520,8 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 	/**
-	 * Checks that a certain event sequence is recognized with an OR filter
+	 * Checks that a certain event sequence is recognized with an OR filter.
+	 *
 	 * @throws Exception
 	 */
 	@Test
