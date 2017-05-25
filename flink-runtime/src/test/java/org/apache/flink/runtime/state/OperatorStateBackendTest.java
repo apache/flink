@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -35,6 +36,9 @@ import org.apache.flink.util.FutureUtil;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Matchers;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -61,6 +65,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
@@ -206,6 +211,43 @@ public class OperatorStateBackendTest {
 		} catch (IllegalStateException ignored) {
 
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testCorrectClassLoaderUsedOnSnapshot() throws Exception {
+
+		AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
+
+		final Environment env = createMockEnvironment();
+		OperatorStateBackend operatorStateBackend = abstractStateBackend.createOperatorStateBackend(env, "test-op-name");
+
+		// mock serializer which tests that on copy, the correct classloader is used as the context classloader
+		TypeSerializer<Integer> mockSerializer = mock(TypeSerializer.class);
+		when(mockSerializer.copy(Matchers.any(Integer.class))).thenAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				Assert.assertEquals(env.getUserClassLoader(), Thread.currentThread().getContextClassLoader());
+				return null;
+			}
+		});
+		// return actual serializers / config snapshots so that the snapshot proceeds properly
+		when(mockSerializer.duplicate()).thenReturn(IntSerializer.INSTANCE);
+		when(mockSerializer.snapshotConfiguration()).thenReturn(IntSerializer.INSTANCE.snapshotConfiguration());
+
+		// write some state
+		ListStateDescriptor<Integer> stateDescriptor = new ListStateDescriptor<>("test", mockSerializer);
+		ListState<Integer> listState = operatorStateBackend.getListState(stateDescriptor);
+
+		listState.add(42);
+
+		CheckpointStreamFactory streamFactory = abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
+		RunnableFuture<OperatorStateHandle> runnableFuture =
+			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forFullCheckpoint());
+		FutureUtil.runIfNotDoneAndGet(runnableFuture);
+
+		// make sure that the method of interest is called
+		verify(mockSerializer).copy(Matchers.any(Integer.class));
 	}
 
 	@Test
