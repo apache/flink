@@ -466,7 +466,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		}
 		sink.close();
 
-		ResultSet rs = session.execute(SELECT_DATA_QUERY);
+		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
 		List<Row> rows = rs.all();
 		assertEquals(scalaTupleCollection.size(), rows.size());
 
