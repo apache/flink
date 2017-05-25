@@ -18,7 +18,6 @@
 
 package org.apache.flink.hdfstests;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FileStatus;
@@ -30,6 +29,8 @@ import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.AfterClass;
@@ -51,15 +52,18 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link FsStateBackend}.
+ */
 public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
-	private static File TEMP_DIR;
+	private static File tempDir;
 
-	private static String HDFS_ROOT_URI;
+	private static String hdfsRootUri;
 
-	private static MiniDFSCluster HDFS_CLUSTER;
+	private static MiniDFSCluster hdfsCluster;
 
-	private static FileSystem FS;
+	private static FileSystem fs;
 
 	// ------------------------------------------------------------------------
 	//  startup / shutdown
@@ -68,17 +72,17 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	@BeforeClass
 	public static void createHDFS() {
 		try {
-			TEMP_DIR = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
+			tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 
 			Configuration hdConf = new Configuration();
-			hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, TEMP_DIR.getAbsolutePath());
+			hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tempDir.getAbsolutePath());
 			MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
-			HDFS_CLUSTER = builder.build();
+			hdfsCluster = builder.build();
 
-			HDFS_ROOT_URI = "hdfs://" + HDFS_CLUSTER.getURI().getHost() + ":"
-					+ HDFS_CLUSTER.getNameNodePort() + "/";
+			hdfsRootUri = "hdfs://" + hdfsCluster.getURI().getHost() + ":"
+					+ hdfsCluster.getNameNodePort() + "/";
 
-			FS = FileSystem.get(new URI(HDFS_ROOT_URI));
+			fs = FileSystem.get(new URI(hdfsRootUri));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -89,15 +93,15 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	@AfterClass
 	public static void destroyHDFS() {
 		try {
-			HDFS_CLUSTER.shutdown();
-			FileUtils.deleteDirectory(TEMP_DIR);
+			hdfsCluster.shutdown();
+			FileUtils.deleteDirectory(tempDir);
 		}
 		catch (Exception ignored) {}
 	}
 
 	@Override
 	protected FsStateBackend getStateBackend() throws Exception {
-		URI stateBaseURI = new URI(HDFS_ROOT_URI + UUID.randomUUID().toString());
+		URI stateBaseURI = new URI(hdfsRootUri + UUID.randomUUID().toString());
 		return new FsStateBackend(stateBaseURI);
 
 	}
@@ -118,7 +122,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	@Override
 	@Test
 	public void testReducingStateRestoreWithWrongSerializers() {}
-	
+
 	@Override
 	@Test
 	public void testMapStateRestoreWithWrongSerializers() {}
@@ -130,7 +134,6 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(basePath, 15));
 			JobID jobId = new JobID();
-
 
 			CheckpointStreamFactory streamFactory = backend.createStreamFactory(jobId, "test_op");
 
@@ -169,7 +172,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 			// use with try-with-resources
 			FileStateHandle handle4;
 			try (CheckpointStreamFactory.CheckpointStateOutputStream stream4 =
-						 streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis())) {
+					streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis())) {
 				stream4.write(state4);
 				handle4 = (FileStateHandle) stream4.closeAndGetHandle();
 			}
@@ -213,7 +216,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
 	private static void ensureFileDeleted(Path path) {
 		try {
-			assertFalse(FS.exists(path));
+			assertFalse(fs.exists(path));
 		}
 		catch (IOException ignored) {}
 	}
@@ -224,7 +227,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
 	private static boolean isDirectoryEmpty(Path directory) {
 		try {
-			FileStatus[] nested = FS.listStatus(directory);
+			FileStatus[] nested = fs.listStatus(directory);
 			return  nested == null || nested.length == 0;
 		}
 		catch (IOException e) {
@@ -233,7 +236,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	}
 
 	private static URI randomHdfsFileUri() {
-		String uriString = HDFS_ROOT_URI + UUID.randomUUID().toString();
+		String uriString = hdfsRootUri + UUID.randomUUID().toString();
 		try {
 			return new URI(uriString);
 		}
