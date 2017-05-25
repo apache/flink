@@ -18,6 +18,14 @@
 
 package org.apache.flink.mesos.util;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.net.SSLUtils;
+
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -42,25 +50,17 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.router.Handler;
 import io.netty.handler.codec.http.router.Routed;
 import io.netty.handler.codec.http.router.Router;
-import io.netty.handler.stream.ChunkedStream;
-
-import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.stream.ChunkedStream;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.CharsetUtil;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FileStatus;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.net.SSLUtils;
 import org.jets3t.service.utils.Mimetypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -68,6 +68,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+
+import scala.Option;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CACHE_CONTROL;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
@@ -81,11 +83,10 @@ import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
-
 /**
  * A generic Mesos artifact server, designed specifically for use by the Mesos Fetcher.
  *
- * More information:
+ * <p>More information:
  * http://mesos.apache.org/documentation/latest/fetcher/
  * http://mesos.apache.org/documentation/latest/fetcher-cache-internals/
  */
@@ -101,7 +102,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 	private final URL baseURL;
 
-	private final Map<Path,URL> paths = new HashMap<>();
+	private final Map<Path, URL> paths = new HashMap<>();
 
 	private final SSLContext serverSSLContext;
 
@@ -153,7 +154,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 			}
 		};
 
-		NioEventLoopGroup bossGroup   = new NioEventLoopGroup(1);
+		NioEventLoopGroup bossGroup = new NioEventLoopGroup(1);
 		NioEventLoopGroup workerGroup = new NioEventLoopGroup();
 
 		this.bootstrap = new ServerBootstrap();
@@ -169,7 +170,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 		String address = bindAddress.getAddress().getHostAddress();
 		int port = bindAddress.getPort();
 
-		String httpProtocol = (serverSSLContext != null) ? "https": "http";
+		String httpProtocol = (serverSSLContext != null) ? "https" : "http";
 
 		baseURL = new URL(httpProtocol, serverHostname, port, "/" + prefix + "/");
 
@@ -201,7 +202,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 	 * @param remoteFile the remote path with which to locate the file.
 	 * @return the fully-qualified remote path to the file.
 	 * @throws MalformedURLException if the remote path is invalid.
-     */
+	 */
 	public synchronized URL addFile(File localFile, String remoteFile) throws IOException, MalformedURLException {
 		return addPath(new Path(localFile.toURI()), new Path(remoteFile));
 	}
@@ -214,10 +215,10 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 	 * @throws MalformedURLException if the remote path is invalid.
 	 */
 	public synchronized URL addPath(Path path, Path remoteFile) throws IOException, MalformedURLException {
-		if(paths.containsKey(remoteFile)) {
+		if (paths.containsKey(remoteFile)) {
 			throw new IllegalArgumentException("duplicate path registered");
 		}
-		if(remoteFile.isAbsolute()) {
+		if (remoteFile.isAbsolute()) {
 			throw new IllegalArgumentException("not expecting an absolute path");
 		}
 		URL fileURL = new URL(baseURL, remoteFile.toString());
@@ -229,7 +230,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 	}
 
 	public synchronized void removePath(Path remoteFile) {
-		if(paths.containsKey(remoteFile)) {
+		if (paths.containsKey(remoteFile)) {
 			URL fileURL = null;
 			try {
 				fileURL = new URL(baseURL, remoteFile.toString());
@@ -274,11 +275,11 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 		public VirtualFileServerHandler(Path path) throws IOException {
 			this.path = path;
-			if(!path.isAbsolute()) {
+			if (!path.isAbsolute()) {
 				throw new IllegalArgumentException("path must be absolute: " + path.toString());
 			}
 			this.fs = path.getFileSystem();
-			if(!fs.exists(path) || fs.getFileStatus(path).isDir()) {
+			if (!fs.exists(path) || fs.getFileStatus(path).isDir()) {
 				throw new IllegalArgumentException("no such file: " + path.toString());
 			}
 		}
@@ -292,11 +293,10 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 				LOG.debug("{} request for file '{}'", request.getMethod(), path);
 			}
 
-			if(!(request.getMethod() == GET || request.getMethod() == HEAD)) {
+			if (!(request.getMethod() == GET || request.getMethod() == HEAD)) {
 				sendMethodNotAllowed(ctx);
 				return;
 			}
-
 
 			final FileStatus status;
 			try {
@@ -322,8 +322,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 				final FSDataInputStream stream = fs.open(path);
 				try {
 					ctx.write(new ChunkedStream(stream));
-				}
-				catch(Exception e) {
+				} catch (Exception e) {
 					stream.close();
 					throw e;
 				}
@@ -368,7 +367,6 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 			ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
 		}
 	}
-
 
 	/**
 	 * Handle a request for a non-existent file.

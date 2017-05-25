@@ -18,34 +18,36 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-import com.netflix.fenzo.ConstraintEvaluator;
-import com.netflix.fenzo.functions.Func1;
-import com.netflix.fenzo.plugins.HostAttrValueConstraint;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.util.Preconditions;
+
+import com.netflix.fenzo.ConstraintEvaluator;
+import com.netflix.fenzo.functions.Func1;
+import com.netflix.fenzo.plugins.HostAttrValueConstraint;
 import org.apache.mesos.Protos;
-import scala.Option;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import scala.Option;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
  * This class describes the Mesos-specific parameters for launching a TaskManager process.
  *
- * These parameters are in addition to the common parameters
+ * <p>These parameters are in addition to the common parameters
  * provided by {@link ContaineredTaskManagerParameters}.
  */
 public class MesosTaskManagerParameters {
 
-	/** Pattern replaced in the {@link #MESOS_TM_HOSTNAME} by the actual task id of the Mesos task */
+	/** Pattern replaced in the {@link #MESOS_TM_HOSTNAME} by the actual task id of the Mesos task. */
 	public static final Pattern TASK_ID_PATTERN = Pattern.compile("_TASK_", Pattern.LITERAL);
 
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_SLOTS =
@@ -75,11 +77,11 @@ public class MesosTaskManagerParameters {
 	public static final ConfigOption<String> MESOS_TM_BOOTSTRAP_CMD =
 		key("mesos.resourcemanager.tasks.bootstrap-cmd")
 		.noDefaultValue();
-	
+
 	public static final ConfigOption<String> MESOS_RM_CONTAINER_VOLUMES =
 		key("mesos.resourcemanager.tasks.container.volumes")
 		.noDefaultValue();
-	
+
 	public static final ConfigOption<String> MESOS_CONSTRAINTS_HARD_HOSTATTR =
 		key("mesos.constraints.hard.hostattribute")
 		.noDefaultValue();
@@ -102,9 +104,9 @@ public class MesosTaskManagerParameters {
 	private final ContaineredTaskManagerParameters containeredParameters;
 
 	private final List<Protos.Volume> containerVolumes;
-	
+
 	private final List<ConstraintEvaluator> constraints;
-	
+
 	private final Option<String> bootstrapCommand;
 
 	private final Option<String> taskManagerHostname;
@@ -129,10 +131,9 @@ public class MesosTaskManagerParameters {
 		this.taskManagerHostname = Preconditions.checkNotNull(taskManagerHostname);
 	}
 
-
-    /**
+	/**
 	 * Get the CPU units to use for the TaskManager process.
-     */
+	 */
 	public double cpus() {
 		return cpus;
 	}
@@ -140,49 +141,53 @@ public class MesosTaskManagerParameters {
 	/**
 	 * Get the container type (Mesos or Docker).  The default is Mesos.
 	 *
-	 * Mesos provides a facility for a framework to specify which containerizer to use.
-     */
+	 * <p>Mesos provides a facility for a framework to specify which containerizer to use.
+	 */
 	public ContainerType containerType() {
 		return containerType;
 	}
 
 	/**
 	 * Get the container image name.
-     */
+	 */
 	public Option<String> containerImageName() {
 		return containerImageName;
 	}
 
 	/**
 	 * Get the common containered parameters.
-     */
+	 */
 	public ContaineredTaskManagerParameters containeredParameters() {
 		return containeredParameters;
 	}
 
 	/**
-	 * Get the container volumes string
+	 * Get the container volumes string.
 	 */
 	public List<Protos.Volume> containerVolumes() {
 		return containerVolumes;
 	}
 
 	/**
-	 * Get the placement constraints
+	 * Get the placement constraints.
 	 */
 	public List<ConstraintEvaluator> constraints() {
 		return constraints;
 	}
 
 	/**
- 	 * Get the taskManager hostname.
- 	 */
-	public Option<String> getTaskManagerHostname() { return taskManagerHostname; }
+	 * Get the taskManager hostname.
+	 */
+	public Option<String> getTaskManagerHostname() {
+		return taskManagerHostname;
+	}
 
 	/**
- 	 * Get the bootstrap command.
- 	 */
-	public Option<String> bootstrapCommand() { return bootstrapCommand;	}	
+	 * Get the bootstrap command.
+	 */
+	public Option<String> bootstrapCommand() {
+		return bootstrapCommand;
+	}
 
 	@Override
 	public String toString() {
@@ -200,8 +205,9 @@ public class MesosTaskManagerParameters {
 
 	/**
 	 * Create the Mesos TaskManager parameters.
+	 *
 	 * @param flinkConfig the TM configuration.
-     */
+	 */
 	public static MesosTaskManagerParameters create(Configuration flinkConfig) {
 
 		List<ConstraintEvaluator> constraints = parseConstraints(flinkConfig.getString(MESOS_CONSTRAINTS_HARD_HOSTATTR));
@@ -212,7 +218,7 @@ public class MesosTaskManagerParameters {
 			flinkConfig.getInteger(MESOS_RM_TASKS_SLOTS));
 
 		double cpus = flinkConfig.getDouble(MESOS_RM_TASKS_CPUS);
-		if(cpus <= 0.0) {
+		if (cpus <= 0.0) {
 			cpus = Math.max(containeredParameters.numSlots(), 1.0);
 		}
 
@@ -221,13 +227,13 @@ public class MesosTaskManagerParameters {
 
 		ContainerType containerType;
 		String containerTypeString = flinkConfig.getString(MESOS_RM_CONTAINER_TYPE);
-		switch(containerTypeString) {
+		switch (containerTypeString) {
 			case MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_MESOS:
 				containerType = ContainerType.MESOS;
 				break;
 			case MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE_DOCKER:
 				containerType = ContainerType.DOCKER;
-				if(imageName == null || imageName.length() == 0) {
+				if (imageName == null || imageName.length() == 0) {
 					throw new IllegalConfigurationException(MESOS_RM_CONTAINER_IMAGE_NAME.key() +
 						" must be specified for docker container type");
 				}
@@ -250,7 +256,7 @@ public class MesosTaskManagerParameters {
 			cpus,
 			containerType,
 			Option.apply(imageName),
-			containeredParameters,			
+			containeredParameters,
 			containerVolumes,
 			constraints,
 			tmBootstrapCommand,
@@ -287,7 +293,7 @@ public class MesosTaskManagerParameters {
 			}
 		}));
 	}
-	
+
 	/**
 	 * Used to build volume specs for mesos. This allows for mounting additional volumes into a container
 	 *
@@ -341,6 +347,9 @@ public class MesosTaskManagerParameters {
 		}
 	}
 
+	/**
+	 * The supported containerizers.
+	 */
 	public enum ContainerType {
 		MESOS,
 		DOCKER

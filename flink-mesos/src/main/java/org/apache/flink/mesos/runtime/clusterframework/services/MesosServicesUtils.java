@@ -24,6 +24,9 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.zookeeper.ZooKeeperUtilityFactory;
 import org.apache.flink.util.ConfigurationUtil;
 
+/**
+ * Utilities for the {@link MesosServices}.
+ */
 public class MesosServicesUtils {
 
 	/**

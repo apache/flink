@@ -26,17 +26,19 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperSharedValue;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.ZooKeeperVersionedValue;
 import org.apache.flink.util.FlinkException;
+
 import org.apache.mesos.Protos;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
+
+import scala.Option;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -53,13 +55,13 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 	/** Flag indicating whether this instance is running. */
 	private boolean isRunning;
 
-	/** A persistent value of the assigned framework ID */
+	/** A persistent value of the assigned framework ID. */
 	private final ZooKeeperSharedValue frameworkIdInZooKeeper;
 
-	/** A persistent count of all tasks created, for generating unique IDs */
+	/** A persistent count of all tasks created, for generating unique IDs. */
 	private final ZooKeeperSharedCount totalTaskCountInZooKeeper;
 
-	/** A persistent store of serialized workers */
+	/** A persistent store of serialized workers. */
 	private final ZooKeeperStateHandleStore<MesosWorkerStore.Worker> workersInZooKeeper;
 
 	@SuppressWarnings("unchecked")
@@ -69,7 +71,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 		ZooKeeperSharedCount totalTaskCountInZooKeeper) throws Exception {
 		this.workersInZooKeeper = checkNotNull(workersInZooKeeper, "workersInZooKeeper");
 		this.frameworkIdInZooKeeper = checkNotNull(frameworkIdInZooKeeper, "frameworkIdInZooKeeper");
-		this.totalTaskCountInZooKeeper= checkNotNull(totalTaskCountInZooKeeper, "totalTaskCountInZooKeeper");
+		this.totalTaskCountInZooKeeper = checkNotNull(totalTaskCountInZooKeeper, "totalTaskCountInZooKeeper");
 	}
 
 	@Override
@@ -89,7 +91,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 				frameworkIdInZooKeeper.close();
 				totalTaskCountInZooKeeper.close();
 
-				if(cleanup) {
+				if (cleanup) {
 					workersInZooKeeper.releaseAndTryRemoveAll();
 				}
 
@@ -237,7 +239,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 		synchronized (startStopLock) {
 			verifyIsRunning();
 
-			if(workersInZooKeeper.exists(path) == -1) {
+			if (workersInZooKeeper.exists(path) == -1) {
 				LOG.debug("No such worker {} in ZooKeeper.", taskID);
 				return false;
 			}
