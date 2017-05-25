@@ -18,20 +18,26 @@
 package org.apache.flink.streaming.connectors.kinesis.model;
 
 /**
- * A wrapper class that bundles a {@link KinesisStreamShard} with its last processed sequence number.
+ * A wrapper class that bundles a {@link StreamShardHandle} with its last processed sequence number.
  */
 public class KinesisStreamShardState {
 
-	private KinesisStreamShard kinesisStreamShard;
+	private KinesisStreamShardV2 kinesisStreamShard;
+	private StreamShardHandle streamShardHandle;
 	private SequenceNumber lastProcessedSequenceNum;
 
-	public KinesisStreamShardState(KinesisStreamShard kinesisStreamShard, SequenceNumber lastProcessedSequenceNum) {
+	public KinesisStreamShardState(KinesisStreamShardV2 kinesisStreamShard, StreamShardHandle streamShardHandle, SequenceNumber lastProcessedSequenceNum) {
 		this.kinesisStreamShard = kinesisStreamShard;
+		this.streamShardHandle = streamShardHandle;
 		this.lastProcessedSequenceNum = lastProcessedSequenceNum;
 	}
 
-	public KinesisStreamShard getKinesisStreamShard() {
+	public KinesisStreamShardV2 getKinesisStreamShard() {
 		return this.kinesisStreamShard;
+	}
+
+	public StreamShardHandle getStreamShardHandle() {
+		return this.streamShardHandle;
 	}
 
 	public SequenceNumber getLastProcessedSequenceNum() {
@@ -46,6 +52,7 @@ public class KinesisStreamShardState {
 	public String toString() {
 		return "KinesisStreamShardState{" +
 			"kinesisStreamShard='" + kinesisStreamShard.toString() + "'" +
+			", streamShardHandle='" + streamShardHandle.toString() + "'" +
 			", lastProcessedSequenceNumber='" + lastProcessedSequenceNum.toString() + "'}";
 	}
 
@@ -61,11 +68,13 @@ public class KinesisStreamShardState {
 
 		KinesisStreamShardState other = (KinesisStreamShardState) obj;
 
-		return kinesisStreamShard.equals(other.getKinesisStreamShard()) && lastProcessedSequenceNum.equals(other.getLastProcessedSequenceNum());
+		return kinesisStreamShard.equals(other.getKinesisStreamShard()) &&
+			streamShardHandle.equals(other.getStreamShardHandle()) &&
+			lastProcessedSequenceNum.equals(other.getLastProcessedSequenceNum());
 	}
 
 	@Override
 	public int hashCode() {
-		return 37 * (kinesisStreamShard.hashCode() + lastProcessedSequenceNum.hashCode());
+		return 37 * (kinesisStreamShard.hashCode() + streamShardHandle.hashCode() + lastProcessedSequenceNum.hashCode());
 	}
 }

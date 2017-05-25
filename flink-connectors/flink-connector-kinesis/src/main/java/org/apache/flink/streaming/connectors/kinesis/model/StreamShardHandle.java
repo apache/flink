@@ -19,17 +19,14 @@ package org.apache.flink.streaming.connectors.kinesis.model;
 
 import com.amazonaws.services.kinesis.model.Shard;
 
-import java.io.Serializable;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A legacy serializable representation of a AWS Kinesis Stream shard. It is basically a wrapper class around the information
- * provided along with {@link com.amazonaws.services.kinesis.model.Shard}.
+ * A wrapper class around the information provided along with streamName and {@link com.amazonaws.services.kinesis.model.Shard},
+ * with some extra utility methods to determine whether or not a shard is closed and whether or not the shard is
+ * a result of parent shard splits or merges.
  */
-public class KinesisStreamShard implements Serializable {
-
-	private static final long serialVersionUID = -6004217801761077536L;
+public class StreamShardHandle {
 
 	private final String streamName;
 	private final Shard shard;
@@ -37,14 +34,14 @@ public class KinesisStreamShard implements Serializable {
 	private final int cachedHash;
 
 	/**
-	 * Create a new KinesisStreamShard
+	 * Create a new StreamShardHandle
 	 *
 	 * @param streamName
 	 *           the name of the Kinesis stream that this shard belongs to
 	 * @param shard
-	 *           the actual AWS Shard instance that will be wrapped within this KinesisStreamShard
+	 *           the actual AWS Shard instance that will be wrapped within this StreamShardHandle
 	 */
-	public KinesisStreamShard(String streamName, Shard shard) {
+	public StreamShardHandle(String streamName, Shard shard) {
 		this.streamName = checkNotNull(streamName);
 		this.shard = checkNotNull(shard);
 
@@ -70,14 +67,14 @@ public class KinesisStreamShard implements Serializable {
 
 	@Override
 	public String toString() {
-		return "KinesisStreamShard{" +
+		return "StreamShardHandle{" +
 			"streamName='" + streamName + "'" +
 			", shard='" + shard.toString() + "'}";
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (!(obj instanceof KinesisStreamShard)) {
+		if (!(obj instanceof StreamShardHandle)) {
 			return false;
 		}
 
@@ -85,7 +82,7 @@ public class KinesisStreamShard implements Serializable {
 			return true;
 		}
 
-		KinesisStreamShard other = (KinesisStreamShard) obj;
+		StreamShardHandle other = (StreamShardHandle) obj;
 
 		return streamName.equals(other.getStreamName()) && shard.equals(other.getShard());
 	}

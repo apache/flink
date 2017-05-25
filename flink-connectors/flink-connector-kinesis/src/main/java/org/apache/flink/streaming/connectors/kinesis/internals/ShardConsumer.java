@@ -24,7 +24,7 @@ import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
@@ -60,7 +60,7 @@ public class ShardConsumer<T> implements Runnable {
 
 	private final KinesisDataFetcher<T> fetcherRef;
 
-	private final KinesisStreamShard subscribedShard;
+	private final StreamShardHandle subscribedShard;
 
 	private final int maxNumberOfRecordsPerFetch;
 	private final long fetchIntervalMillis;
@@ -79,7 +79,7 @@ public class ShardConsumer<T> implements Runnable {
 	 */
 	public ShardConsumer(KinesisDataFetcher<T> fetcherRef,
 						Integer subscribedShardStateIndex,
-						KinesisStreamShard subscribedShard,
+						StreamShardHandle subscribedShard,
 						SequenceNumber lastSequenceNum) {
 		this(fetcherRef,
 			subscribedShardStateIndex,
@@ -91,7 +91,7 @@ public class ShardConsumer<T> implements Runnable {
 	/** This constructor is exposed for testing purposes */
 	protected ShardConsumer(KinesisDataFetcher<T> fetcherRef,
 							Integer subscribedShardStateIndex,
-							KinesisStreamShard subscribedShard,
+							StreamShardHandle subscribedShard,
 							SequenceNumber lastSequenceNum,
 							KinesisProxyInterface kinesis) {
 		this.fetcherRef = checkNotNull(fetcherRef);
