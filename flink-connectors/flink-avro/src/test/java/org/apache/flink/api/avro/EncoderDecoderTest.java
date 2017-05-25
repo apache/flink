@@ -18,6 +18,16 @@
 
 package org.apache.flink.api.avro;
 
+import org.apache.flink.api.io.avro.generated.Address;
+import org.apache.flink.api.io.avro.generated.Colors;
+import org.apache.flink.api.io.avro.generated.Fixed16;
+import org.apache.flink.api.io.avro.generated.User;
+import org.apache.flink.util.StringUtils;
+
+import org.apache.avro.reflect.ReflectDatumReader;
+import org.apache.avro.reflect.ReflectDatumWriter;
+import org.junit.Test;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -29,16 +39,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.reflect.ReflectDatumWriter;
-import org.apache.flink.api.io.avro.generated.Address;
-import org.apache.flink.api.io.avro.generated.Colors;
-import org.apache.flink.api.io.avro.generated.Fixed16;
-import org.apache.flink.api.io.avro.generated.User;
-import org.apache.flink.util.StringUtils;
-import org.junit.Test;
-
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Tests the {@link DataOutputEncoder} and {@link DataInputDecoder} classes for Avro serialization.
@@ -48,32 +51,32 @@ public class EncoderDecoderTest {
 	public void testComplexStringsDirecty() {
 		try {
 			Random rnd = new Random(349712539451944123L);
-			
+
 			for (int i = 0; i < 10; i++) {
 				String testString = StringUtils.getRandomString(rnd, 10, 100);
-				
+
 				ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
 				{
 					DataOutputStream dataOut = new DataOutputStream(baos);
 					DataOutputEncoder encoder = new DataOutputEncoder();
 					encoder.setOut(dataOut);
-					
+
 					encoder.writeString(testString);
 					dataOut.flush();
 					dataOut.close();
 				}
-				
+
 				byte[] data = baos.toByteArray();
-				
+
 				// deserialize
 				{
 					ByteArrayInputStream bais = new ByteArrayInputStream(data);
 					DataInputStream dataIn = new DataInputStream(bais);
 					DataInputDecoder decoder = new DataInputDecoder();
 					decoder.setIn(dataIn);
-	
+
 					String deserialized = decoder.readString();
-					
+
 					assertEquals(testString, deserialized);
 				}
 			}
@@ -84,49 +87,49 @@ public class EncoderDecoderTest {
 			fail("Test failed due to an exception: " + e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testPrimitiveTypes() {
-		
+
 		testObjectSerialization(new Boolean(true));
 		testObjectSerialization(new Boolean(false));
-		
+
 		testObjectSerialization(Byte.valueOf((byte) 0));
 		testObjectSerialization(Byte.valueOf((byte) 1));
 		testObjectSerialization(Byte.valueOf((byte) -1));
 		testObjectSerialization(Byte.valueOf(Byte.MIN_VALUE));
 		testObjectSerialization(Byte.valueOf(Byte.MAX_VALUE));
-		
+
 		testObjectSerialization(Short.valueOf((short) 0));
 		testObjectSerialization(Short.valueOf((short) 1));
 		testObjectSerialization(Short.valueOf((short) -1));
 		testObjectSerialization(Short.valueOf(Short.MIN_VALUE));
 		testObjectSerialization(Short.valueOf(Short.MAX_VALUE));
-		
+
 		testObjectSerialization(Integer.valueOf(0));
 		testObjectSerialization(Integer.valueOf(1));
 		testObjectSerialization(Integer.valueOf(-1));
 		testObjectSerialization(Integer.valueOf(Integer.MIN_VALUE));
 		testObjectSerialization(Integer.valueOf(Integer.MAX_VALUE));
-		
+
 		testObjectSerialization(Long.valueOf(0));
 		testObjectSerialization(Long.valueOf(1));
 		testObjectSerialization(Long.valueOf(-1));
 		testObjectSerialization(Long.valueOf(Long.MIN_VALUE));
 		testObjectSerialization(Long.valueOf(Long.MAX_VALUE));
-		
+
 		testObjectSerialization(Float.valueOf(0));
 		testObjectSerialization(Float.valueOf(1));
 		testObjectSerialization(Float.valueOf(-1));
-		testObjectSerialization(Float.valueOf((float)Math.E));
-		testObjectSerialization(Float.valueOf((float)Math.PI));
+		testObjectSerialization(Float.valueOf((float) Math.E));
+		testObjectSerialization(Float.valueOf((float) Math.PI));
 		testObjectSerialization(Float.valueOf(Float.MIN_VALUE));
 		testObjectSerialization(Float.valueOf(Float.MAX_VALUE));
 		testObjectSerialization(Float.valueOf(Float.MIN_NORMAL));
 		testObjectSerialization(Float.valueOf(Float.NaN));
 		testObjectSerialization(Float.valueOf(Float.NEGATIVE_INFINITY));
 		testObjectSerialization(Float.valueOf(Float.POSITIVE_INFINITY));
-		
+
 		testObjectSerialization(Double.valueOf(0));
 		testObjectSerialization(Double.valueOf(1));
 		testObjectSerialization(Double.valueOf(-1));
@@ -138,15 +141,15 @@ public class EncoderDecoderTest {
 		testObjectSerialization(Double.valueOf(Double.NaN));
 		testObjectSerialization(Double.valueOf(Double.NEGATIVE_INFINITY));
 		testObjectSerialization(Double.valueOf(Double.POSITIVE_INFINITY));
-		
+
 		testObjectSerialization("");
 		testObjectSerialization("abcdefg");
 		testObjectSerialization("ab\u1535\u0155xyz\u706F");
-		
+
 		testObjectSerialization(new SimpleTypes(3637, 54876486548L, (byte) 65, "We're out looking for astronauts", (short) 0x2387, 2.65767523));
 		testObjectSerialization(new SimpleTypes(705608724, -1L, (byte) -65, "Serve me the sky with a big slice of lemon", (short) Byte.MIN_VALUE, 0.0000001));
 	}
-	
+
 	@Test
 	public void testArrayTypes() {
 		{
@@ -170,7 +173,7 @@ public class EncoderDecoderTest {
 			testObjectSerialization(array);
 		}
 	}
-	
+
 	@Test
 	public void testEmptyArray() {
 		{
@@ -194,14 +197,14 @@ public class EncoderDecoderTest {
 			testObjectSerialization(array);
 		}
 	}
-	
+
 	@Test
 	public void testObjects() {
 		// simple object containing only primitives
 		{
 			testObjectSerialization(new Book(976243875L, "The Serialization Odysse", 42));
 		}
-		
+
 		// object with collection
 		{
 			ArrayList<String> list = new ArrayList<String>();
@@ -210,22 +213,22 @@ public class EncoderDecoderTest {
 			list.add("C");
 			list.add("D");
 			list.add("E");
-			
+
 			testObjectSerialization(new BookAuthor(976243875L, list, "Arno Nym"));
 		}
-		
+
 		// object with empty collection
 		{
 			ArrayList<String> list = new ArrayList<String>();
 			testObjectSerialization(new BookAuthor(987654321L, list, "The Saurus"));
 		}
 	}
-	
+
 	@Test
 	public void testNestedObjectsWithCollections() {
 		testObjectSerialization(new ComplexNestedObject2(true));
 	}
-	
+
 	@Test
 	public void testGeneratedObjectWithNullableFields() {
 		List<CharSequence> strings = Arrays.asList(new CharSequence[] { "These", "strings", "should", "be", "recognizable", "as", "a", "meaningful", "sequence" });
@@ -243,33 +246,33 @@ public class EncoderDecoderTest {
 		User user = new User("Freudenreich", 1337, "macintosh gray",
 				1234567890L, 3.1415926, null, true, strings, bools, null,
 				Colors.GREEN, map, f, new Boolean(true), addr);
-		
+
 		testObjectSerialization(user);
 	}
-	
+
 	@Test
 	public void testVarLenCountEncoding() {
 		try {
 			long[] values = new long[] { 0, 1, 2, 3, 4, 0, 574, 45236, 0, 234623462, 23462462346L, 0, 9734028767869761L, 0x7fffffffffffffffL};
-			
+
 			// write
 			ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
 			{
 				DataOutputStream dataOut = new DataOutputStream(baos);
-				
+
 				for (long val : values) {
 					DataOutputEncoder.writeVarLongCount(dataOut, val);
 				}
-				
+
 				dataOut.flush();
 				dataOut.close();
 			}
-			
+
 			// read
 			{
 				ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
 				DataInputStream dataIn = new DataInputStream(bais);
-				
+
 				for (long val : values) {
 					long read = DataInputDecoder.readVarLongCount(dataIn);
 					assertEquals("Wrong var-len encoded value read.", val, read);
@@ -282,30 +285,30 @@ public class EncoderDecoderTest {
 			fail("Test failed due to an exception: " + e.getMessage());
 		}
 	}
-	
+
 	private static <X> void testObjectSerialization(X obj) {
-		
+
 		try {
-			
+
 			// serialize
 			ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
 			{
 				DataOutputStream dataOut = new DataOutputStream(baos);
 				DataOutputEncoder encoder = new DataOutputEncoder();
 				encoder.setOut(dataOut);
-				
+
 				@SuppressWarnings("unchecked")
 				Class<X> clazz = (Class<X>) obj.getClass();
 				ReflectDatumWriter<X> writer = new ReflectDatumWriter<X>(clazz);
-				
+
 				writer.write(obj, encoder);
 				dataOut.flush();
 				dataOut.close();
 			}
-			
+
 			byte[] data = baos.toByteArray();
 			X result = null;
-			
+
 			// deserialize
 			{
 				ByteArrayInputStream bais = new ByteArrayInputStream(data);
@@ -316,21 +319,21 @@ public class EncoderDecoderTest {
 				@SuppressWarnings("unchecked")
 				Class<X> clazz = (Class<X>) obj.getClass();
 				ReflectDatumReader<X> reader = new ReflectDatumReader<X>(clazz);
-				
-				// create a reuse object if possible, otherwise we have no reuse object 
+
+				// create a reuse object if possible, otherwise we have no reuse object
 				X reuse = null;
 				try {
 					@SuppressWarnings("unchecked")
 					X test = (X) obj.getClass().newInstance();
 					reuse = test;
 				} catch (Throwable t) {}
-				
+
 				result = reader.read(reuse, decoder);
 			}
-			
+
 			// check
 			final String message = "Deserialized object is not the same as the original";
-			
+
 			if (obj.getClass().isArray()) {
 				Class<?> clazz = obj.getClass();
 				if (clazz == byte[].class) {
@@ -366,26 +369,24 @@ public class EncoderDecoderTest {
 			fail("Test failed due to an exception: " + e.getMessage());
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Test Objects
 	// --------------------------------------------------------------------------------------------
 
+	private static final class SimpleTypes {
 
-	public static final class SimpleTypes {
-		
 		private final int iVal;
 		private final long lVal;
 		private final byte bVal;
 		private final String sVal;
 		private final short rVal;
 		private final double dVal;
-		
-		
+
 		public SimpleTypes() {
 			this(0, 0, (byte) 0, "", (short) 0, 0);
 		}
-		
+
 		public SimpleTypes(int iVal, long lVal, byte bVal, String sVal, short rVal, double dVal) {
 			this.iVal = iVal;
 			this.lVal = lVal;
@@ -394,36 +395,36 @@ public class EncoderDecoderTest {
 			this.rVal = rVal;
 			this.dVal = dVal;
 		}
-		
+
 		@Override
 		public boolean equals(Object obj) {
 			if (obj.getClass() == SimpleTypes.class) {
 				SimpleTypes other = (SimpleTypes) obj;
-				
+
 				return other.iVal == this.iVal &&
 						other.lVal == this.lVal &&
 						other.bVal == this.bVal &&
 						other.sVal.equals(this.sVal) &&
 						other.rVal == this.rVal &&
 						other.dVal == this.dVal;
-				
+
 			} else {
 				return false;
 			}
 		}
 	}
-	
-	public static class ComplexNestedObject1 {
-		
+
+	private static class ComplexNestedObject1 {
+
 		private double doubleValue;
-		
+
 		private List<String> stringList;
-		
+
 		public ComplexNestedObject1() {}
-		
+
 		public ComplexNestedObject1(int offInit) {
 			this.doubleValue = 6293485.6723 + offInit;
-				
+
 			this.stringList = new ArrayList<String>();
 			this.stringList.add("A" + offInit);
 			this.stringList.add("somewhat" + offInit);
@@ -432,7 +433,7 @@ public class EncoderDecoderTest {
 			this.stringList.add("of" + offInit);
 			this.stringList.add("strings" + offInit);
 		}
-		
+
 		@Override
 		public boolean equals(Object obj) {
 			if (obj.getClass() == ComplexNestedObject1.class) {
@@ -443,18 +444,18 @@ public class EncoderDecoderTest {
 			}
 		}
 	}
-	
-	public static class ComplexNestedObject2 {
-		
+
+	private static class ComplexNestedObject2 {
+
 		private long longValue;
-		
+
 		private Map<String, ComplexNestedObject1> theMap;
-		
+
 		public ComplexNestedObject2() {}
-		
+
 		public ComplexNestedObject2(boolean init) {
 			this.longValue = 46547;
-				
+
 			this.theMap = new HashMap<String, ComplexNestedObject1>();
 			this.theMap.put("36354L", new ComplexNestedObject1(43546543));
 			this.theMap.put("785611L", new ComplexNestedObject1(45784568));
@@ -463,7 +464,7 @@ public class EncoderDecoderTest {
 			this.theMap.put("1919876876896L", new ComplexNestedObject1(27154));
 			this.theMap.put("-868468468L", new ComplexNestedObject1(546435));
 		}
-		
+
 		@Override
 		public boolean equals(Object obj) {
 			if (obj.getClass() == ComplexNestedObject2.class) {
@@ -474,8 +475,8 @@ public class EncoderDecoderTest {
 			}
 		}
 	}
-	
-	public static class Book {
+
+	private static class Book {
 
 		private long bookId;
 		private String title;
@@ -488,7 +489,7 @@ public class EncoderDecoderTest {
 			this.title = title;
 			this.authorId = authorId;
 		}
-		
+
 		@Override
 		public boolean equals(Object obj) {
 			if (obj.getClass() == Book.class) {
@@ -500,7 +501,7 @@ public class EncoderDecoderTest {
 		}
 	}
 
-	public static class BookAuthor {
+	private static class BookAuthor {
 
 		private long authorId;
 		private List<String> bookTitles;
@@ -513,7 +514,7 @@ public class EncoderDecoderTest {
 			this.bookTitles = bookTitles;
 			this.authorName = authorName;
 		}
-		
+
 		@Override
 		public boolean equals(Object obj) {
 			if (obj.getClass() == BookAuthor.class) {

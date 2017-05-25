@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.io.avro.example;
 
-import java.io.IOException;
-import java.util.Random;
-
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.io.GenericInputFormat;
@@ -29,10 +26,15 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
+import java.io.IOException;
+import java.util.Random;
+
+/**
+ * Example that shows how to use an Avro typea in a program.
+ */
 @SuppressWarnings("serial")
 public class AvroTypeExample {
-	
-	
+
 	public static void main(String[] args) throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -45,49 +47,45 @@ public class AvroTypeExample {
 			.reduceGroup(new ConcatenatingReducer())
 			.print();
 	}
-	
-	
-	public static final class NumberExtractingMapper implements MapFunction<User, Tuple2<User, Integer>> {
-		
+
+	private static final class NumberExtractingMapper implements MapFunction<User, Tuple2<User, Integer>> {
+
 		@Override
 		public Tuple2<User, Integer> map(User user) {
 			return new Tuple2<User, Integer>(user, user.getFavoriteNumber());
 		}
 	}
-	
-	
-	public static final class ConcatenatingReducer implements GroupReduceFunction<Tuple2<User, Integer>, Tuple2<Integer, String>> {
+
+	private static final class ConcatenatingReducer implements GroupReduceFunction<Tuple2<User, Integer>, Tuple2<Integer, String>> {
 
 		@Override
 		public void reduce(Iterable<Tuple2<User, Integer>> values, Collector<Tuple2<Integer, String>> out) throws Exception {
 			int number = 0;
 			StringBuilder colors = new StringBuilder();
-			
+
 			for (Tuple2<User, Integer> u : values) {
 				number = u.f1;
 				colors.append(u.f0.getFavoriteColor()).append(" - ");
 			}
-			
+
 			colors.setLength(colors.length() - 3);
 			out.collect(new Tuple2<Integer, String>(number, colors.toString()));
 		}
 	}
-	
-	
-	public static final class UserGeneratingInputFormat extends GenericInputFormat<User> {
+
+	private static final class UserGeneratingInputFormat extends GenericInputFormat<User> {
 
 		private static final long serialVersionUID = 1L;
-		
+
 		private static final int NUM = 100;
-		
+
 		private final Random rnd = new Random(32498562304986L);
-		
+
 		private static final String[] NAMES = { "Peter", "Bob", "Liddy", "Alexander", "Stan" };
-		
+
 		private static final String[] COLORS = { "mauve", "crimson", "copper", "sky", "grass" };
-		
+
 		private int count;
-		
 
 		@Override
 		public boolean reachedEnd() throws IOException {
@@ -97,7 +95,7 @@ public class AvroTypeExample {
 		@Override
 		public User nextRecord(User reuse) throws IOException {
 			count++;
-			
+
 			User u = new User();
 			u.setName(NAMES[rnd.nextInt(NAMES.length)]);
 			u.setFavoriteColor(COLORS[rnd.nextInt(COLORS.length)]);

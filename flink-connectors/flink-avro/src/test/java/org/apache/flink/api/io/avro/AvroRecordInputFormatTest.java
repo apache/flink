@@ -18,18 +18,6 @@
 
 package org.apache.flink.api.io.avro;
 
-import org.apache.avro.Schema;
-import org.apache.avro.file.DataFileReader;
-import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.file.FileReader;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DatumReader;
-import org.apache.avro.io.DatumWriter;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.avro.util.Utf8;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -46,6 +34,19 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
+import org.apache.avro.Schema;
+import org.apache.avro.file.DataFileReader;
+import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.file.FileReader;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.util.Utf8;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -73,33 +74,31 @@ import static org.junit.Assert.assertTrue;
  * http://avro.apache.org/docs/current/gettingstartedjava.html
  */
 public class AvroRecordInputFormatTest {
-	
+
 	public File testFile;
-	
-	final static String TEST_NAME = "Alyssa";
-	
-	final static String TEST_ARRAY_STRING_1 = "ELEMENT 1";
-	final static String TEST_ARRAY_STRING_2 = "ELEMENT 2";
-	
-	final static boolean TEST_ARRAY_BOOLEAN_1 = true;
-	final static boolean TEST_ARRAY_BOOLEAN_2 = false;
-	
-	final static Colors TEST_ENUM_COLOR = Colors.GREEN;
-	
-	final static String TEST_MAP_KEY1 = "KEY 1";
-	final static long TEST_MAP_VALUE1 = 8546456L;
-	final static String TEST_MAP_KEY2 = "KEY 2";
-	final static long TEST_MAP_VALUE2 = 17554L;
-	
-	final static int TEST_NUM = 239;
-	final static String TEST_STREET = "Baker Street";
-	final static String TEST_CITY = "London";
-	final static String TEST_STATE = "London";
-	final static String TEST_ZIP = "NW1 6XE";
-	
+
+	static final String TEST_NAME = "Alyssa";
+
+	static final String TEST_ARRAY_STRING_1 = "ELEMENT 1";
+	static final String TEST_ARRAY_STRING_2 = "ELEMENT 2";
+
+	static final boolean TEST_ARRAY_BOOLEAN_1 = true;
+	static final boolean TEST_ARRAY_BOOLEAN_2 = false;
+
+	static final Colors TEST_ENUM_COLOR = Colors.GREEN;
+
+	static final String TEST_MAP_KEY1 = "KEY 1";
+	static final long TEST_MAP_VALUE1 = 8546456L;
+	static final String TEST_MAP_KEY2 = "KEY 2";
+	static final long TEST_MAP_VALUE2 = 17554L;
+
+	static final int TEST_NUM = 239;
+	static final String TEST_STREET = "Baker Street";
+	static final String TEST_CITY = "London";
+	static final String TEST_STATE = "London";
+	static final String TEST_ZIP = "NW1 6XE";
 
 	private Schema userSchema = new User().getSchema();
-
 
 	public static void writeTestFile(File testFile) throws IOException {
 		ArrayList<CharSequence> stringArray = new ArrayList<CharSequence>();
@@ -113,14 +112,13 @@ public class AvroRecordInputFormatTest {
 		HashMap<CharSequence, Long> longMap = new HashMap<CharSequence, Long>();
 		longMap.put(TEST_MAP_KEY1, TEST_MAP_VALUE1);
 		longMap.put(TEST_MAP_KEY2, TEST_MAP_VALUE2);
-		
+
 		Address addr = new Address();
 		addr.setNum(TEST_NUM);
 		addr.setStreet(TEST_STREET);
 		addr.setCity(TEST_CITY);
 		addr.setState(TEST_STATE);
 		addr.setZip(TEST_ZIP);
-
 
 		User user1 = new User();
 
@@ -162,12 +160,12 @@ public class AvroRecordInputFormatTest {
 		dataFileWriter.append(user2);
 		dataFileWriter.close();
 	}
+
 	@Before
 	public void createFiles() throws IOException {
 		testFile = File.createTempFile("AvroInputFormatTest", null);
 		writeTestFile(testFile);
 	}
-
 
 	/**
 	 * Test if the AvroInputFormat is able to properly read data from an avro file.
@@ -176,45 +174,45 @@ public class AvroRecordInputFormatTest {
 	@Test
 	public void testDeserialisation() throws IOException {
 		Configuration parameters = new Configuration();
-		
+
 		AvroInputFormat<User> format = new AvroInputFormat<User>(new Path(testFile.getAbsolutePath()), User.class);
-		
+
 		format.configure(parameters);
 		FileInputSplit[] splits = format.createInputSplits(1);
 		assertEquals(splits.length, 1);
 		format.open(splits[0]);
-		
+
 		User u = format.nextRecord(null);
 		assertNotNull(u);
-		
+
 		String name = u.getName().toString();
 		assertNotNull("empty record", name);
 		assertEquals("name not equal", TEST_NAME, name);
-		
+
 		// check arrays
 		List<CharSequence> sl = u.getTypeArrayString();
 		assertEquals("element 0 not equal", TEST_ARRAY_STRING_1, sl.get(0).toString());
 		assertEquals("element 1 not equal", TEST_ARRAY_STRING_2, sl.get(1).toString());
-		
+
 		List<Boolean> bl = u.getTypeArrayBoolean();
 		assertEquals("element 0 not equal", TEST_ARRAY_BOOLEAN_1, bl.get(0));
 		assertEquals("element 1 not equal", TEST_ARRAY_BOOLEAN_2, bl.get(1));
-		
+
 		// check enums
 		Colors enumValue = u.getTypeEnum();
 		assertEquals("enum not equal", TEST_ENUM_COLOR, enumValue);
-		
+
 		// check maps
 		Map<CharSequence, Long> lm = u.getTypeMap();
 		assertEquals("map value of key 1 not equal", TEST_MAP_VALUE1, lm.get(new Utf8(TEST_MAP_KEY1)).longValue());
 		assertEquals("map value of key 2 not equal", TEST_MAP_VALUE2, lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
-		
+
 		assertFalse("expecting second element", format.reachedEnd());
 		assertNotNull("expecting second element", format.nextRecord(u));
-		
+
 		assertNull(format.nextRecord(u));
 		assertTrue(format.reachedEnd());
-		
+
 		format.close();
 	}
 
@@ -225,46 +223,46 @@ public class AvroRecordInputFormatTest {
 	@Test
 	public void testDeserialisationReuseAvroRecordFalse() throws IOException {
 		Configuration parameters = new Configuration();
-		
+
 		AvroInputFormat<User> format = new AvroInputFormat<User>(new Path(testFile.getAbsolutePath()), User.class);
 		format.setReuseAvroValue(false);
-		
+
 		format.configure(parameters);
 		FileInputSplit[] splits = format.createInputSplits(1);
 		assertEquals(splits.length, 1);
 		format.open(splits[0]);
-		
+
 		User u = format.nextRecord(null);
 		assertNotNull(u);
-		
+
 		String name = u.getName().toString();
 		assertNotNull("empty record", name);
 		assertEquals("name not equal", TEST_NAME, name);
-		
+
 		// check arrays
 		List<CharSequence> sl = u.getTypeArrayString();
 		assertEquals("element 0 not equal", TEST_ARRAY_STRING_1, sl.get(0).toString());
 		assertEquals("element 1 not equal", TEST_ARRAY_STRING_2, sl.get(1).toString());
-		
+
 		List<Boolean> bl = u.getTypeArrayBoolean();
 		assertEquals("element 0 not equal", TEST_ARRAY_BOOLEAN_1, bl.get(0));
 		assertEquals("element 1 not equal", TEST_ARRAY_BOOLEAN_2, bl.get(1));
-		
+
 		// check enums
 		Colors enumValue = u.getTypeEnum();
 		assertEquals("enum not equal", TEST_ENUM_COLOR, enumValue);
-		
+
 		// check maps
 		Map<CharSequence, Long> lm = u.getTypeMap();
 		assertEquals("map value of key 1 not equal", TEST_MAP_VALUE1, lm.get(new Utf8(TEST_MAP_KEY1)).longValue());
 		assertEquals("map value of key 2 not equal", TEST_MAP_VALUE2, lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
-		
+
 		assertFalse("expecting second element", format.reachedEnd());
 		assertNotNull("expecting second element", format.nextRecord(u));
-		
+
 		assertNull(format.nextRecord(u));
 		assertTrue(format.reachedEnd());
-		
+
 		format.close();
 	}
 
@@ -274,7 +272,7 @@ public class AvroRecordInputFormatTest {
 	 * However, if generated classes are not available, one can also use GenericData.Record.
 	 * It is an untyped key-value record which is using a schema to validate the correctness of the data.
 	 *
-	 * It is not recommended to use GenericData.Record with Flink. Use generated POJOs instead.
+	 * <p>It is not recommended to use GenericData.Record with Flink. Use generated POJOs instead.
 	 */
 	@Test
 	public void testDeserializeToGenericType() throws IOException {
@@ -284,7 +282,7 @@ public class AvroRecordInputFormatTest {
 			// initialize Record by reading it from disk (that's easier than creating it by hand)
 			GenericData.Record rec = new GenericData.Record(userSchema);
 			dataFileReader.next(rec);
-			
+
 			// check if record has been read correctly
 			assertNotNull(rec);
 			assertEquals("name not equal", TEST_NAME, rec.get("name").toString());
@@ -296,7 +294,7 @@ public class AvroRecordInputFormatTest {
 
 			ExecutionConfig ec = new ExecutionConfig();
 			Assert.assertEquals(GenericTypeInfo.class, te.getClass());
-			
+
 			Serializers.recursivelyRegisterType(te.getTypeClass(), ec, new HashSet<Class<?>>());
 
 			TypeSerializer<GenericData.Record> tser = te.createSerializer(ec);
@@ -312,8 +310,7 @@ public class AvroRecordInputFormatTest {
 
 			GenericData.Record newRec;
 			try (DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(
-					new ByteArrayInputStream(out.toByteArray())))
-			{
+					new ByteArrayInputStream(out.toByteArray()))) {
 				newRec = tser.deserialize(inView);
 			}
 
@@ -324,7 +321,7 @@ public class AvroRecordInputFormatTest {
 			assertEquals(null, newRec.get("type_long_test"));
 		}
 	}
-		
+
 	/**
 	 * This test validates proper serialization with specific (generated POJO) types.
 	 */
@@ -355,8 +352,7 @@ public class AvroRecordInputFormatTest {
 
 			User newRec;
 			try (DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(
-					new ByteArrayInputStream(out.toByteArray())))
-			{
+					new ByteArrayInputStream(out.toByteArray()))) {
 				newRec = tser.deserialize(inView);
 			}
 
@@ -370,9 +366,8 @@ public class AvroRecordInputFormatTest {
 	/**
 	 * Test if the AvroInputFormat is able to properly read data from an Avro
 	 * file as a GenericRecord.
-	 * 
-	 * @throws IOException,
-	 *             if there is an exception
+	 *
+	 * @throws IOException
 	 */
 	@Test
 	public void testDeserialisationGenericRecord() throws IOException {
@@ -385,8 +380,8 @@ public class AvroRecordInputFormatTest {
 	}
 
 	/**
-	 * Helper method to test GenericRecord serialisation
-	 * 
+	 * Helper method to test GenericRecord serialisation.
+	 *
 	 * @param format
 	 *            the format to test
 	 * @param parameters
@@ -441,10 +436,9 @@ public class AvroRecordInputFormatTest {
 
 	/**
 	 * Test if the AvroInputFormat is able to properly read data from an avro
-	 * file as a GenericRecord
-	 * 
-	 * @throws IOException,
-	 *             if there is an error
+	 * file as a GenericRecord.
+	 *
+	 * @throws IOException if there is an error
 	 */
 	@Test
 	public void testDeserialisationGenericRecordReuseAvroValueFalse() throws IOException {

@@ -15,7 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.io;
+
+import org.apache.flink.api.common.io.FileOutputFormat;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.fs.Path;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
@@ -24,15 +29,16 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.flink.api.common.io.FileOutputFormat;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.core.fs.Path;
 
 import java.io.IOException;
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * {@link FileOutputFormat} for Avro records.
+ * @param <E>
+ */
 public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializable {
 
 	/**
@@ -40,11 +46,11 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 	 */
 	public enum Codec {
 
-		NULL((byte)0, CodecFactory.nullCodec()),
-		SNAPPY((byte)1, CodecFactory.snappyCodec()),
-		BZIP2((byte)2, CodecFactory.bzip2Codec()),
-		DEFLATE((byte)3, CodecFactory.deflateCodec(CodecFactory.DEFAULT_DEFLATE_LEVEL)),
-		XZ((byte)4, CodecFactory.xzCodec(CodecFactory.DEFAULT_XZ_LEVEL));
+		NULL((byte) 0, CodecFactory.nullCodec()),
+		SNAPPY((byte) 1, CodecFactory.snappyCodec()),
+		BZIP2((byte) 2, CodecFactory.bzip2Codec()),
+		DEFLATE((byte) 3, CodecFactory.deflateCodec(CodecFactory.DEFAULT_DEFLATE_LEVEL)),
+		XZ((byte) 4, CodecFactory.xzCodec(CodecFactory.DEFAULT_XZ_LEVEL));
 
 		private byte codecByte;
 
@@ -80,7 +86,7 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 	private transient Schema userDefinedSchema = null;
 
 	private transient Codec codec = null;
-	
+
 	private transient DataFileWriter<E> dataFileWriter;
 
 	public AvroOutputFormat(Path filePath, Class<E> type) {
@@ -124,7 +130,7 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 		if (org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(avroValueType)) {
 			datumWriter = new SpecificDatumWriter<E>(avroValueType);
 			try {
-				schema = ((org.apache.avro.specific.SpecificRecordBase)avroValueType.newInstance()).getSchema();
+				schema = ((org.apache.avro.specific.SpecificRecordBase) avroValueType.newInstance()).getSchema();
 			} catch (InstantiationException | IllegalAccessException e) {
 				throw new RuntimeException(e.getMessage());
 			}
@@ -152,7 +158,7 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 			out.writeByte(-1);
 		}
 
-		if(userDefinedSchema != null) {
+		if (userDefinedSchema != null) {
 			byte[] json = userDefinedSchema.toString().getBytes(ConfigConstants.DEFAULT_CHARSET);
 			out.writeInt(json.length);
 			out.write(json);
@@ -170,7 +176,7 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 		}
 
 		int length = in.readInt();
-		if(length != 0) {
+		if (length != 0) {
 			byte[] json = new byte[length];
 			in.readFully(json);
 

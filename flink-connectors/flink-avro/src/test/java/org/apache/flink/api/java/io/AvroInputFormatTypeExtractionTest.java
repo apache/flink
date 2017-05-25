@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.io;
 
 import org.apache.flink.api.common.io.InputFormat;
@@ -26,9 +25,13 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Tests for the type extraction of the {@link AvroInputFormat}.
+ */
 public class AvroInputFormatTypeExtractionTest {
 
 	@Test
@@ -42,7 +45,6 @@ public class AvroInputFormatTypeExtractionTest {
 			DataSet<MyAvroType> input = env.createInput(format);
 			TypeInformation<?> typeInfoDataSet = input.getType();
 
-
 			Assert.assertTrue(typeInfoDirect instanceof PojoTypeInfo);
 			Assert.assertTrue(typeInfoDataSet instanceof PojoTypeInfo);
 
@@ -54,6 +56,9 @@ public class AvroInputFormatTypeExtractionTest {
 		}
 	}
 
+	/**
+	 * Test type.
+	 */
 	public static final class MyAvroType {
 
 		public String theString;

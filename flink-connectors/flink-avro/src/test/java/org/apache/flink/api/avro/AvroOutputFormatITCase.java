@@ -18,24 +18,27 @@
 
 package org.apache.flink.api.avro;
 
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.io.avro.example.User;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.AvroOutputFormat;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.test.util.JavaProgramTestBase;
+
+import org.apache.avro.file.DataFileReader;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.reflect.ReflectDatumReader;
+import org.apache.avro.specific.SpecificDatumReader;
 import org.junit.Assert;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.avro.file.DataFileReader;
-import org.apache.avro.io.DatumReader;
-import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.flink.api.io.avro.example.User;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.io.AvroOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.test.util.JavaProgramTestBase;
-
+/**
+ * IT cases for the {@link AvroOutputFormat}.
+ */
 @SuppressWarnings("serial")
 public class AvroOutputFormatITCase extends JavaProgramTestBase {
 
@@ -56,7 +59,6 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
 		outputPath1 = getTempDirPath("avro_output1");
 		outputPath2 = getTempDirPath("avro_output2");
 	}
-
 
 	@Override
 	protected void testProgram() throws Exception {
@@ -129,11 +131,9 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
 			Assert.assertTrue("expected user " + expectedResult + " not found.", result2.contains(expectedResult));
 		}
 
-
 	}
 
-
-	public final static class ConvertToUser extends RichMapFunction<Tuple3<String, Integer, String>, User> {
+	private static final class ConvertToUser extends RichMapFunction<Tuple3<String, Integer, String>, User> {
 
 		@Override
 		public User map(Tuple3<String, Integer, String> value) throws Exception {
@@ -141,7 +141,7 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
 		}
 	}
 
-	public final static class ConvertToReflective extends RichMapFunction<User, ReflectiveUser> {
+	private static final class ConvertToReflective extends RichMapFunction<User, ReflectiveUser> {
 
 		@Override
 		public ReflectiveUser map(User value) throws Exception {
@@ -149,8 +149,7 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
 		}
 	}
 
-	
-	public static class ReflectiveUser {
+	private static class ReflectiveUser {
 		private String name;
 		private int favoriteNumber;
 		private String favoriteColor;
@@ -162,13 +161,15 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
 			this.favoriteNumber = favoriteNumber;
 			this.favoriteColor = favoriteColor;
 		}
-		
+
 		public String getName() {
 			return this.name;
 		}
+
 		public String getFavoriteColor() {
 			return this.favoriteColor;
 		}
+
 		public int getFavoriteNumber() {
 			return this.favoriteNumber;
 		}
