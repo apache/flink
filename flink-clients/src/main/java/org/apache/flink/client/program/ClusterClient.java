@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.program;
 
-import akka.actor.ActorSystem;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
@@ -59,13 +58,10 @@ import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+
+import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.Tuple2;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -75,32 +71,38 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import scala.Option;
+import scala.Tuple2;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
+
 /**
  * Encapsulates the functionality necessary to submit a program to a remote cluster.
  */
 public abstract class ClusterClient {
 
-	private final Logger LOG = LoggerFactory.getLogger(getClass());
+	private final Logger log = LoggerFactory.getLogger(getClass());
 
-	/** The optimizer used in the optimization of batch programs */
+	/** The optimizer used in the optimization of batch programs. */
 	final Optimizer compiler;
 
 	/** The actor system used to communicate with the JobManager. Lazily initialized upon first use */
 	protected final LazyActorSystemLoader actorSystemLoader;
 
-	/** Configuration of the client */
+	/** Configuration of the client. */
 	protected final Configuration flinkConfig;
 
-	/** Timeout for futures */
+	/** Timeout for futures. */
 	protected final FiniteDuration timeout;
 
-	/** Lookup timeout for the job manager retrieval service */
+	/** Lookup timeout for the job manager retrieval service. */
 	private final FiniteDuration lookupTimeout;
 
-	/** Service factory for high available */
+	/** Service factory for high available. */
 	protected final HighAvailabilityServices highAvailabilityServices;
 
-	/** Flag indicating whether to sysout print execution updates */
+	/** Flag indicating whether to sysout print execution updates. */
 	private boolean printStatusDuringExecution = true;
 
 	/**
@@ -110,7 +112,7 @@ public abstract class ClusterClient {
 	 */
 	private JobExecutionResult lastJobExecutionResult;
 
-	/** Switch for blocking/detached job submission of the client */
+	/** Switch for blocking/detached job submission of the client. */
 	private boolean detachedJobSubmission = false;
 
 	// ------------------------------------------------------------------------
@@ -153,7 +155,7 @@ public abstract class ClusterClient {
 			highAvailabilityServices,
 			Time.milliseconds(lookupTimeout.toMillis()),
 			flinkConfig,
-			LOG);
+			log);
 
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
 	}
@@ -162,9 +164,12 @@ public abstract class ClusterClient {
 	//  Startup & Shutdown
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Utility class to lazily instantiate an {@link ActorSystem}.
+	 */
 	protected static class LazyActorSystemLoader {
 
-		private final Logger LOG;
+		private final Logger log;
 
 		private final HighAvailabilityServices highAvailabilityServices;
 
@@ -178,11 +183,11 @@ public abstract class ClusterClient {
 				HighAvailabilityServices highAvailabilityServices,
 				Time timeout,
 				Configuration configuration,
-				Logger LOG) {
+				Logger log) {
 			this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
 			this.timeout = Preconditions.checkNotNull(timeout);
 			this.configuration = Preconditions.checkNotNull(configuration);
-			this.LOG = Preconditions.checkNotNull(LOG);
+			this.log = Preconditions.checkNotNull(log);
 		}
 
 		/**
@@ -210,7 +215,7 @@ public abstract class ClusterClient {
 
 			if (!isLoaded()) {
 				// start actor system
-				LOG.info("Starting client actor system.");
+				log.info("Starting client actor system.");
 
 				final InetAddress ownHostname;
 				try {
@@ -296,15 +301,13 @@ public abstract class ClusterClient {
 	// ------------------------------------------------------------------------
 
 	public static String getOptimizedPlanAsJson(Optimizer compiler, PackagedProgram prog, int parallelism)
-			throws CompilerException, ProgramInvocationException
-	{
+			throws CompilerException, ProgramInvocationException {
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		return jsonGen.getOptimizerPlanAsJSON((OptimizedPlan) getOptimizedPlan(compiler, prog, parallelism));
 	}
 
 	public static FlinkPlan getOptimizedPlan(Optimizer compiler, PackagedProgram prog, int parallelism)
-			throws CompilerException, ProgramInvocationException
-	{
+			throws CompilerException, ProgramInvocationException {
 		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
 			return getOptimizedPlan(compiler, prog.getPlanWithJars(), parallelism);
@@ -347,8 +350,7 @@ public abstract class ClusterClient {
 	 * @throws ProgramInvocationException
 	 */
 	public JobSubmissionResult run(PackagedProgram prog, int parallelism)
-			throws ProgramInvocationException, ProgramMissingJobException
-	{
+			throws ProgramInvocationException, ProgramMissingJobException {
 		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
 
@@ -362,7 +364,7 @@ public abstract class ClusterClient {
 			return run(jobWithJars, parallelism, prog.getSavepointSettings());
 		}
 		else if (prog.isUsingInteractiveMode()) {
-			LOG.info("Starting program in interactive mode");
+			log.info("Starting program in interactive mode");
 
 			final List<URL> libraries;
 			if (hasUserJarsInClassPath(prog.getAllLibraries())) {
@@ -436,8 +438,7 @@ public abstract class ClusterClient {
 
 	public JobSubmissionResult run(FlinkPlan compiledPlan,
 			List<URL> libraries, List<URL> classpaths, ClassLoader classLoader, SavepointRestoreSettings savepointSettings)
-		throws ProgramInvocationException
-	{
+			throws ProgramInvocationException {
 		JobGraph job = getJobGraph(compiledPlan, libraries, classpaths, savepointSettings);
 		return submitJob(job, classLoader);
 	}
@@ -507,7 +508,7 @@ public abstract class ClusterClient {
 	}
 
 	/**
-	 * Reattaches to a running from from the supplied job id
+	 * Reattaches to a running from from the supplied job id.
 	 * @param jobID The job id of the job to attach to
 	 * @return The JobExecutionResult for the jobID
 	 * @throws JobExecutionException if an error occurs during monitoring the job execution
@@ -612,7 +613,7 @@ public abstract class ClusterClient {
 	 * Stopping works only for streaming programs. Be aware, that the program might continue to run for
 	 * a while after sending the stop command, because after sources stopped to emit data all operators
 	 * need to finish processing.
-	 * 
+	 *
 	 * @param jobId
 	 *            the job ID of the streaming program to stop
 	 * @throws Exception
@@ -632,10 +633,10 @@ public abstract class ClusterClient {
 		final Object result = Await.result(response, timeout);
 
 		if (result instanceof JobManagerMessages.StoppingSuccess) {
-			LOG.info("Job stopping with ID " + jobId + " succeeded.");
+			log.info("Job stopping with ID " + jobId + " succeeded.");
 		} else if (result instanceof JobManagerMessages.StoppingFailure) {
 			final Throwable t = ((JobManagerMessages.StoppingFailure) result).cause();
-			LOG.info("Job stopping with ID " + jobId + " failed.", t);
+			log.info("Job stopping with ID " + jobId + " failed.", t);
 			throw new Exception("Failed to stop the job because of \n" + t.getMessage());
 		} else {
 			throw new Exception("Unknown message received while stopping: " + result.getClass().getName());
@@ -685,14 +686,13 @@ public abstract class ClusterClient {
 		}
 	}
 
-
 	// ------------------------------------------------------------------------
 	//  Sessions
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Tells the JobManager to finish the session (job) defined by the given ID.
-	 * 
+	 *
 	 * @param jobId The ID that identifies the session.
 	 */
 	public void endSession(JobID jobId) throws Exception {
@@ -713,10 +713,10 @@ public abstract class ClusterClient {
 		}
 
 		ActorGateway jobManagerGateway = getJobManagerGateway();
-		
+
 		for (JobID jid : jobIds) {
 			if (jid != null) {
-				LOG.info("Telling job manager to end the session {}.", jid);
+				log.info("Telling job manager to end the session {}.", jid);
 				jobManagerGateway.tell(new JobManagerMessages.RemoveCachedJob(jid));
 			}
 		}
@@ -760,7 +760,7 @@ public abstract class ClusterClient {
 				throw new RuntimeException("URL is invalid. This should not happen.", e);
 			}
 		}
- 
+
 		job.setClasspaths(classpaths);
 
 		return job;
@@ -778,7 +778,7 @@ public abstract class ClusterClient {
 	 * @throws Exception
 	 */
 	public ActorGateway getJobManagerGateway() throws Exception {
-		LOG.debug("Looking up JobManager");
+		log.debug("Looking up JobManager");
 
 		try {
 			return LeaderRetrievalUtils.retrieveLeaderGateway(
@@ -796,7 +796,7 @@ public abstract class ClusterClient {
 	 * @param message The message to log/print
 	 */
 	protected void logAndSysout(String message) {
-		LOG.info(message);
+		log.info(message);
 		if (printStatusDuringExecution) {
 			System.out.println(message);
 		}
@@ -809,18 +809,18 @@ public abstract class ClusterClient {
 	/**
 	 * Blocks until the client has determined that the cluster is ready for Job submission.
 	 *
-	 * This is delayed until right before job submission to report any other errors first
+	 * <p>This is delayed until right before job submission to report any other errors first
 	 * (e.g. invalid job definitions/errors in the user jar)
 	 */
 	public abstract void waitForClusterToBeReady();
 
 	/**
-	 * Returns an URL (as a string) to the JobManager web interface
+	 * Returns an URL (as a string) to the JobManager web interface.
 	 */
 	public abstract String getWebInterfaceURL();
 
 	/**
-	 * Returns the latest cluster status, with number of Taskmanagers and slots
+	 * Returns the latest cluster status, with number of Taskmanagers and slots.
 	 */
 	public abstract GetClusterStatusResponse getClusterStatus();
 
@@ -857,7 +857,7 @@ public abstract class ClusterClient {
 	}
 
 	/**
-	 * Return the Flink configuration object
+	 * Return the Flink configuration object.
 	 * @return The Flink configuration object
 	 */
 	public Configuration getFlinkConfiguration() {
@@ -865,7 +865,7 @@ public abstract class ClusterClient {
 	}
 
 	/**
-	 * The client may define an upper limit on the number of slots to use
+	 * The client may define an upper limit on the number of slots to use.
 	 * @return -1 if unknown
 	 */
 	public abstract int getMaxSlots();

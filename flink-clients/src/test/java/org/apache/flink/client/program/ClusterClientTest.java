@@ -21,18 +21,22 @@ package org.apache.flink.client.program;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+/**
+ * Tests for the {@link ClusterClient}.
+ */
 public class ClusterClientTest extends TestLogger {
 
 	/**
 	 * FLINK-6641
 	 *
-	 * Tests that the {@link ClusterClient} does not clean up HA data when being shut down.
+	 * <p>Tests that the {@link ClusterClient} does not clean up HA data when being shut down.
 	 */
 	@Test
 	public void testClusterClientShutdown() throws Exception {

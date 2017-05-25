@@ -20,8 +20,8 @@ package org.apache.flink.client.cli;
 
 import org.apache.commons.cli.CommandLine;
 
-import static org.apache.flink.client.cli.CliFrontendParser.HELP_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.ADDRESS_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.HELP_OPTION;
 
 /**
  * Base class for all options parsed from the command line.
@@ -34,7 +34,6 @@ public abstract class CommandLineOptions {
 	private final String jobManagerAddress;
 
 	private final boolean printHelp;
-
 
 	protected CommandLineOptions(CommandLine line) {
 		this.commandLine = line;

@@ -15,16 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.client.cli;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
+
 import java.net.URL;
 import java.util.List;
-
 
 /**
  * Custom command-line interface to load hooks for the command-line interface.
@@ -32,7 +33,7 @@ import java.util.List;
 public interface CustomCommandLine<ClusterType extends ClusterClient> {
 
 	/**
-	 * Signals whether the custom command-line wants to execute or not
+	 * Signals whether the custom command-line wants to execute or not.
 	 * @param commandLine The command-line options
 	 * @param configuration The Flink configuration
 	 * @return True if the command-line wants to run, False otherwise
@@ -40,7 +41,7 @@ public interface CustomCommandLine<ClusterType extends ClusterClient> {
 	boolean isActive(CommandLine commandLine, Configuration configuration);
 
 	/**
-	 * Gets the unique identifier of this CustomCommandLine
+	 * Gets the unique identifier of this CustomCommandLine.
 	 * @return A unique identifier
 	 */
 	String getId();
@@ -58,7 +59,7 @@ public interface CustomCommandLine<ClusterType extends ClusterClient> {
 	void addGeneralOptions(Options baseOptions);
 
 	/**
-	 * Retrieves a client for a running cluster
+	 * Retrieves a client for a running cluster.
 	 * @param commandLine The command-line parameters from the CliFrontend
 	 * @param config The Flink config
 	 * @return Client if a cluster could be retrieved
@@ -69,7 +70,7 @@ public interface CustomCommandLine<ClusterType extends ClusterClient> {
 			Configuration config) throws UnsupportedOperationException;
 
 	/**
-	 * Creates the client for the cluster
+	 * Creates the client for the cluster.
 	 * @param applicationName The application name to use
 	 * @param commandLine The command-line options parsed by the CliFrontend
 	 * @param config The Flink config to use

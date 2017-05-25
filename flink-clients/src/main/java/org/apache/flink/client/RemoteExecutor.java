@@ -18,11 +18,6 @@
 
 package org.apache.flink.client;
 
-import java.net.InetSocketAddress;
-import java.net.URL;
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -30,21 +25,26 @@ import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.StandaloneClusterClient;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.configuration.Configuration;
+
+import java.net.InetSocketAddress;
+import java.net.URL;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * The RemoteExecutor is a {@link org.apache.flink.api.common.PlanExecutor} that takes the program
  * and ships it to a remote Flink cluster for execution.
- * 
+ *
  * <p>The RemoteExecutor is pointed at the JobManager and gets the program and (if necessary) the
  * set of libraries that need to be shipped together with the program.</p>
- * 
+ *
  * <p>The RemoteExecutor is used in the {@link org.apache.flink.api.java.RemoteEnvironment} to
  * remotely execute program parts.</p>
  */
@@ -61,7 +61,6 @@ public class RemoteExecutor extends PlanExecutor {
 	private ClusterClient client;
 
 	private int defaultParallelism = 1;
-
 
 	public RemoteExecutor(String hostname, int port) {
 		this(hostname, port, new Configuration(), Collections.<URL>emptyList(),
@@ -109,7 +108,6 @@ public class RemoteExecutor extends PlanExecutor {
 		this.jarFiles = jarFiles;
 		this.globalClasspaths = globalClasspaths;
 
-
 		clientConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, inet.getHostName());
 		clientConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, inet.getPort());
 	}
@@ -134,7 +132,7 @@ public class RemoteExecutor extends PlanExecutor {
 	/**
 	 * Gets the parallelism that will be used when neither the program does not define
 	 * any parallelism at all.
-	 * 
+	 *
 	 * @return The default parallelism for the executor.
 	 */
 	public int getDefaultParallelism() {
@@ -144,7 +142,6 @@ public class RemoteExecutor extends PlanExecutor {
 	// ------------------------------------------------------------------------
 	//  Startup & Shutdown
 	// ------------------------------------------------------------------------
-
 
 	@Override
 	public void start() throws Exception {

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.client.cli;
 
 import org.apache.commons.cli.CommandLine;
@@ -23,7 +24,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.RUNNING_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SCHEDULED_OPTION;
 
 /**
- * Command line options for the LIST command
+ * Command line options for the LIST command.
  */
 public class ListOptions extends CommandLineOptions {
 
