@@ -19,6 +19,7 @@
 package org.apache.flink.yarn;
 
 import akka.actor.ActorRef;
+import akka.actor.PoisonPill;
 import akka.actor.Props;
 
 import org.apache.flink.configuration.ConfigConstants;
@@ -300,6 +301,8 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		} catch (Throwable t) {
 			LOG.error("Could not cleanly shut down the Node Manager Client", t);
 		}
+
+		self().tell(decorateMessage(PoisonPill.getInstance()), self());
 	}
 
 	@Override
