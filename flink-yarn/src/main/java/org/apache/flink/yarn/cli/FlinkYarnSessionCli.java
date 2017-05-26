@@ -424,7 +424,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 						numTaskmanagers = status.numRegisteredTaskManagers();
 					}
 				} catch (Exception e) {
-					LOG.warn("Could not retrieve the current cluster status. Retrying...", e);
+					LOG.warn("Could not retrieve the current cluster status. Skipping current retrieval attempt ...", e);
 				}
 
 				List<String> messages = yarnCluster.getNewMessages();

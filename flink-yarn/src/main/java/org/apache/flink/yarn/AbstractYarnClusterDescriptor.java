@@ -1235,7 +1235,11 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			LOG.info("Deleting files in {}.", yarnFilesDir);
 			try {
 				FileSystem fs = FileSystem.get(conf);
-				fs.delete(yarnFilesDir, true);
+
+				if (!fs.delete(yarnFilesDir, true)) {
+					throw new IOException("Deleting files in " + yarnFilesDir + " was unsuccessful");
+				}
+
 				fs.close();
 			} catch (IOException e) {
 				LOG.error("Failed to delete Flink Jar and conf files in HDFS", e);
