@@ -230,7 +230,6 @@ public class EmbeddedLeaderService {
 					currentLeaderConfirmed = service;
 					currentLeaderAddress = address;
 					currentLeaderProposed = null;
-					service.isLeader = true;
 
 					// notify all listeners
 					for (EmbeddedLeaderRetrievalService listener : listeners) {
@@ -266,6 +265,7 @@ public class EmbeddedLeaderService {
 				// propose a leader and ask it
 				final UUID leaderSessionId = UUID.randomUUID();
 				EmbeddedLeaderElectionService leaderService = allLeaderContenders.iterator().next();
+				leaderService.isLeader = true;
 
 				currentLeaderSessionId = leaderSessionId;
 				currentLeaderProposed = leaderService;

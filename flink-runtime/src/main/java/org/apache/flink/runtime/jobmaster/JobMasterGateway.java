@@ -54,7 +54,7 @@ import java.util.UUID;
 public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 
 	// ------------------------------------------------------------------------
-	//  Job start, reconcile and stop methods
+	//  Job start and stop methods
 	// ------------------------------------------------------------------------
 
 	void startJobExecution();

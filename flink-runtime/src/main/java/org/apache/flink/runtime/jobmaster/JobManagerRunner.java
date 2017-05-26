@@ -401,7 +401,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				try {
 					// Now set the running status is after getting leader ship and 
 					// set finished status after job in terminated status.
-					// If finding the job is already running, that means someone has run the job before, need reconcile.
+					// So if finding the job is running, it means someone has already run the job before, need recover.
 					if (schedulingStatus == JobSchedulingStatus.PENDING) {
 						runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 						jobManager.start(leaderSessionID);

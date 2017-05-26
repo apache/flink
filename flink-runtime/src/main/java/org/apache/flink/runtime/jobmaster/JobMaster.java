@@ -110,12 +110,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -461,7 +460,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			public void run() {
 				try {
 					executionGraph.scheduleForExecution();
-				} catch (Throwable t) {
+				}
+				catch (Throwable t) {
 					executionGraph.failGlobal(t);
 				}
 			}

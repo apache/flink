@@ -1383,7 +1383,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		if (numFinished == numVerticesTotal) {
 			// done :-)
 
-			// check whether we are still in "RUNNING" and trigger the final cleanup
+			// check whether we are still in "RUNNING" or "RECONCILING" and trigger the final cleanup
 			JobStatus currentState = state;
 			if (currentState == JobStatus.RUNNING || currentState == JobStatus.RECONCILING) {
 				// we do the final cleanup in the I/O executor, because it may involve
