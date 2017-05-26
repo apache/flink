@@ -17,10 +17,15 @@
  */
 package org.apache.flink.cep
 
+import java.util.{List => JList, Map => JMap}
+
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.cep.{PatternStream => JPatternStream}
 
 package object scala {
+
+  import collection.JavaConverters._
+  import collection.Map
 
   /**
     * Utility method to wrap [[org.apache.flink.cep.PatternStream]] for usage with the Scala API.
@@ -40,7 +45,11 @@ package object scala {
 
   private[flink] def cleanClosure[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
     ClosureCleaner.clean(f, checkSerializable)
-    return f
+    f
+  }
+
+  private[flink] def mapToScala[T](map: JMap[String, JList[T]]): Map[String, Iterable[T]] = {
+    map.asScala.mapValues(_.asScala.toIterable)
   }
 }
 
