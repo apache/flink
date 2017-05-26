@@ -100,8 +100,8 @@ class YarnJobManager(
     handleYarnShutdown orElse super.handleMessage
   }
 
-  def handleYarnShutdown: Receive = {
-    case msg:StopCluster =>
+  private def handleYarnShutdown: Receive = {
+    case msg: StopCluster =>
       super.handleMessage(msg)
 
       // do global cleanup if the yarn files path has been set
@@ -113,7 +113,11 @@ class YarnJobManager(
 
           try {
             val fs = path.getFileSystem
-            fs.delete(path, true)
+
+            if (!fs.delete(path, true)) {
+              throw new IOException(s"Deleting yarn application files under $filePath " +
+                s"was unsuccessful.")
+            }
           } catch {
             case ioe: IOException =>
               log.warn(
