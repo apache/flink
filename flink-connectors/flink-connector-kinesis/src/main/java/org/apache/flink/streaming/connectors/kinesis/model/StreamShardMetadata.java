@@ -22,9 +22,11 @@ import java.util.Objects;
 
 /**
  * A serializable representation of a AWS Kinesis Stream shard. It is basically a wrapper class around the information
- * disintegrating from {@link com.amazonaws.services.kinesis.model.Shard} and its nested classes.
+ * disintegrated from {@link com.amazonaws.services.kinesis.model.Shard} and its nested classes. The disintegration
+ * is required to avoid being locked-in to a specific AWS SDK version in order to maintain the consumer's state
+ * backwards compatibility.
  */
-public class KinesisStreamShardV2 implements Serializable {
+public class StreamShardMetadata implements Serializable {
 
 	private static final long serialVersionUID = 5134869582298563604L;
 
@@ -103,7 +105,7 @@ public class KinesisStreamShardV2 implements Serializable {
 
 	@Override
 	public String toString() {
-		return "KinesisStreamShardV2{" +
+		return "StreamShardMetadata{" +
 			"streamName='" + streamName + "'" +
 			", shardId='" + shardId + "'" +
 			", parentShardId='" + parentShardId + "'" +
@@ -116,7 +118,7 @@ public class KinesisStreamShardV2 implements Serializable {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (!(obj instanceof KinesisStreamShardV2)) {
+		if (!(obj instanceof StreamShardMetadata)) {
 			return false;
 		}
 
@@ -124,7 +126,7 @@ public class KinesisStreamShardV2 implements Serializable {
 			return true;
 		}
 
-		KinesisStreamShardV2 other = (KinesisStreamShardV2) obj;
+		StreamShardMetadata other = (StreamShardMetadata) obj;
 
 		return streamName.equals(other.getStreamName()) &&
 			shardId.equals(other.getShardId()) &&

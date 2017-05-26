@@ -41,7 +41,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
-import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardV2;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableFlinkKinesisConsumer;
@@ -543,26 +543,26 @@ public class FlinkKinesisConsumerTest {
 		config.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
 		config.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 
-		List<Tuple2<KinesisStreamShardV2, SequenceNumber>> globalUnionState = new ArrayList<>(4);
+		List<Tuple2<StreamShardMetadata, SequenceNumber>> globalUnionState = new ArrayList<>(4);
 		globalUnionState.add(Tuple2.of(
-			KinesisDataFetcher.createKinesisStreamShardV2(new StreamShardHandle("fakeStream",
+			KinesisDataFetcher.convertToStreamShardMetadata(new StreamShardHandle("fakeStream",
 				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(0)))),
 			new SequenceNumber("1")));
 		globalUnionState.add(Tuple2.of(
-			KinesisDataFetcher.createKinesisStreamShardV2(new StreamShardHandle("fakeStream",
+			KinesisDataFetcher.convertToStreamShardMetadata(new StreamShardHandle("fakeStream",
 				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(1)))),
 			new SequenceNumber("1")));
 		globalUnionState.add(Tuple2.of(
-			KinesisDataFetcher.createKinesisStreamShardV2(new StreamShardHandle("fakeStream",
+			KinesisDataFetcher.convertToStreamShardMetadata(new StreamShardHandle("fakeStream",
 				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(2)))),
 			new SequenceNumber("1")));
 		globalUnionState.add(Tuple2.of(
-			KinesisDataFetcher.createKinesisStreamShardV2(new StreamShardHandle("fakeStream",
+			KinesisDataFetcher.convertToStreamShardMetadata(new StreamShardHandle("fakeStream",
 				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(3)))),
 			new SequenceNumber("1")));
 
-		TestingListState<Tuple2<KinesisStreamShardV2, SequenceNumber>> listState = new TestingListState<>();
-		for (Tuple2<KinesisStreamShardV2, SequenceNumber> state : globalUnionState) {
+		TestingListState<Tuple2<StreamShardMetadata, SequenceNumber>> listState = new TestingListState<>();
+		for (Tuple2<StreamShardMetadata, SequenceNumber> state : globalUnionState) {
 			listState.add(state);
 		}
 
@@ -606,23 +606,23 @@ public class FlinkKinesisConsumerTest {
 		config.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
 		config.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 
-		ArrayList<Tuple2<KinesisStreamShardV2, SequenceNumber>> initialState = new ArrayList<>(1);
+		ArrayList<Tuple2<StreamShardMetadata, SequenceNumber>> initialState = new ArrayList<>(1);
 		initialState.add(Tuple2.of(
-			KinesisDataFetcher.createKinesisStreamShardV2(new StreamShardHandle("fakeStream1",
+			KinesisDataFetcher.convertToStreamShardMetadata(new StreamShardHandle("fakeStream1",
 				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(0)))),
 			new SequenceNumber("1")));
 
-		ArrayList<Tuple2<KinesisStreamShardV2, SequenceNumber>> expectedStateSnapshot = new ArrayList<>(3);
+		ArrayList<Tuple2<StreamShardMetadata, SequenceNumber>> expectedStateSnapshot = new ArrayList<>(3);
 		expectedStateSnapshot.add(Tuple2.of(
-			KinesisDataFetcher.createKinesisStreamShardV2(new StreamShardHandle("fakeStream1",
+			KinesisDataFetcher.convertToStreamShardMetadata(new StreamShardHandle("fakeStream1",
 				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(0)))),
 			new SequenceNumber("12")));
 		expectedStateSnapshot.add(Tuple2.of(
-			KinesisDataFetcher.createKinesisStreamShardV2(new StreamShardHandle("fakeStream1",
+			KinesisDataFetcher.convertToStreamShardMetadata(new StreamShardHandle("fakeStream1",
 				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(1)))),
 			new SequenceNumber("11")));
 		expectedStateSnapshot.add(Tuple2.of(
-			KinesisDataFetcher.createKinesisStreamShardV2(new StreamShardHandle("fakeStream1",
+			KinesisDataFetcher.convertToStreamShardMetadata(new StreamShardHandle("fakeStream1",
 				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(2)))),
 			new SequenceNumber("31")));
 
@@ -630,8 +630,8 @@ public class FlinkKinesisConsumerTest {
 		// mock operator state backend and initial state for initializeState()
 		// ----------------------------------------------------------------------
 
-		TestingListState<Tuple2<KinesisStreamShardV2, SequenceNumber>> listState = new TestingListState<>();
-		for (Tuple2<KinesisStreamShardV2, SequenceNumber> state : initialState) {
+		TestingListState<Tuple2<StreamShardMetadata, SequenceNumber>> listState = new TestingListState<>();
+		for (Tuple2<StreamShardMetadata, SequenceNumber> state : initialState) {
 			listState.add(state);
 		}
 
@@ -646,8 +646,8 @@ public class FlinkKinesisConsumerTest {
 		// mock a running fetcher and its state for snapshot
 		// ----------------------------------------------------------------------
 
-		HashMap<KinesisStreamShardV2, SequenceNumber> stateSnapshot = new HashMap<>();
-		for (Tuple2<KinesisStreamShardV2, SequenceNumber> tuple : expectedStateSnapshot) {
+		HashMap<StreamShardMetadata, SequenceNumber> stateSnapshot = new HashMap<>();
+		for (Tuple2<StreamShardMetadata, SequenceNumber> tuple : expectedStateSnapshot) {
 			stateSnapshot.put(tuple.f0, tuple.f1);
 		}
 
@@ -674,15 +674,15 @@ public class FlinkKinesisConsumerTest {
 		assertEquals(true, listState.clearCalled);
 		assertEquals(3, listState.getList().size());
 
-		for (Tuple2<KinesisStreamShardV2, SequenceNumber> state : initialState) {
-			for (Tuple2<KinesisStreamShardV2, SequenceNumber> currentState : listState.getList()) {
+		for (Tuple2<StreamShardMetadata, SequenceNumber> state : initialState) {
+			for (Tuple2<StreamShardMetadata, SequenceNumber> currentState : listState.getList()) {
 				assertNotEquals(state, currentState);
 			}
 		}
 
-		for (Tuple2<KinesisStreamShardV2, SequenceNumber> state : expectedStateSnapshot) {
+		for (Tuple2<StreamShardMetadata, SequenceNumber> state : expectedStateSnapshot) {
 			boolean hasOneIsSame = false;
-			for (Tuple2<KinesisStreamShardV2, SequenceNumber> currentState : listState.getList()) {
+			for (Tuple2<StreamShardMetadata, SequenceNumber> currentState : listState.getList()) {
 				hasOneIsSame = hasOneIsSame || state.equals(currentState);
 			}
 			assertEquals(true, hasOneIsSame);
@@ -736,7 +736,7 @@ public class FlinkKinesisConsumerTest {
 
 		for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard : fakeRestoredState.entrySet()) {
 			Mockito.verify(mockedFetcher).registerNewSubscribedShardState(
-				new KinesisStreamShardState(KinesisDataFetcher.createKinesisStreamShardV2(restoredShard.getKey()),
+				new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(restoredShard.getKey()),
 					restoredShard.getKey(), restoredShard.getValue()));
 		}
 	}
@@ -755,9 +755,9 @@ public class FlinkKinesisConsumerTest {
 		// mock operator state backend and initial state for initializeState()
 		// ----------------------------------------------------------------------
 
-		TestingListState<Tuple2<KinesisStreamShardV2, SequenceNumber>> listState = new TestingListState<>();
+		TestingListState<Tuple2<StreamShardMetadata, SequenceNumber>> listState = new TestingListState<>();
 		for (Map.Entry<StreamShardHandle, SequenceNumber> state : fakeRestoredState.entrySet()) {
-			listState.add(Tuple2.of(KinesisDataFetcher.createKinesisStreamShardV2(state.getKey()), state.getValue()));
+			listState.add(Tuple2.of(KinesisDataFetcher.convertToStreamShardMetadata(state.getKey()), state.getValue()));
 		}
 
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
@@ -793,7 +793,7 @@ public class FlinkKinesisConsumerTest {
 
 		for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard : fakeRestoredState.entrySet()) {
 			Mockito.verify(mockedFetcher).registerNewSubscribedShardState(
-				new KinesisStreamShardState(KinesisDataFetcher.createKinesisStreamShardV2(restoredShard.getKey()),
+				new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(restoredShard.getKey()),
 					restoredShard.getKey(), restoredShard.getValue()));
 		}
 	}
@@ -814,12 +814,12 @@ public class FlinkKinesisConsumerTest {
 		// mock operator state backend and initial state for initializeState()
 		// ----------------------------------------------------------------------
 
-		TestingListState<Tuple2<KinesisStreamShardV2, SequenceNumber>> listState = new TestingListState<>();
+		TestingListState<Tuple2<StreamShardMetadata, SequenceNumber>> listState = new TestingListState<>();
 		for (Map.Entry<StreamShardHandle, SequenceNumber> state : fakeRestoredState.entrySet()) {
-			listState.add(Tuple2.of(KinesisDataFetcher.createKinesisStreamShardV2(state.getKey()), state.getValue()));
+			listState.add(Tuple2.of(KinesisDataFetcher.convertToStreamShardMetadata(state.getKey()), state.getValue()));
 		}
 		for (Map.Entry<StreamShardHandle, SequenceNumber> state : fakeRestoredStateForOthers.entrySet()) {
-			listState.add(Tuple2.of(KinesisDataFetcher.createKinesisStreamShardV2(state.getKey()), state.getValue()));
+			listState.add(Tuple2.of(KinesisDataFetcher.convertToStreamShardMetadata(state.getKey()), state.getValue()));
 		}
 
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
@@ -856,13 +856,13 @@ public class FlinkKinesisConsumerTest {
 		for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard : fakeRestoredStateForOthers.entrySet()) {
 			// should never get restored state not belonging to itself
 			Mockito.verify(mockedFetcher, never()).registerNewSubscribedShardState(
-				new KinesisStreamShardState(KinesisDataFetcher.createKinesisStreamShardV2(restoredShard.getKey()),
+				new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(restoredShard.getKey()),
 					restoredShard.getKey(), restoredShard.getValue()));
 		}
 		for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard : fakeRestoredState.entrySet()) {
 			// should get restored state belonging to itself
 			Mockito.verify(mockedFetcher).registerNewSubscribedShardState(
-				new KinesisStreamShardState(KinesisDataFetcher.createKinesisStreamShardV2(restoredShard.getKey()),
+				new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(restoredShard.getKey()),
 					restoredShard.getKey(), restoredShard.getValue()));
 		}
 	}
@@ -910,9 +910,9 @@ public class FlinkKinesisConsumerTest {
 		// mock operator state backend and initial state for initializeState()
 		// ----------------------------------------------------------------------
 
-		TestingListState<Tuple2<KinesisStreamShardV2, SequenceNumber>> listState = new TestingListState<>();
+		TestingListState<Tuple2<StreamShardMetadata, SequenceNumber>> listState = new TestingListState<>();
 		for (Map.Entry<StreamShardHandle, SequenceNumber> state : fakeRestoredState.entrySet()) {
-			listState.add(Tuple2.of(KinesisDataFetcher.createKinesisStreamShardV2(state.getKey()), state.getValue()));
+			listState.add(Tuple2.of(KinesisDataFetcher.convertToStreamShardMetadata(state.getKey()), state.getValue()));
 		}
 
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
@@ -953,13 +953,13 @@ public class FlinkKinesisConsumerTest {
 			SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
 		for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard : fakeRestoredState.entrySet()) {
 			Mockito.verify(mockedFetcher).registerNewSubscribedShardState(
-				new KinesisStreamShardState(KinesisDataFetcher.createKinesisStreamShardV2(restoredShard.getKey()),
+				new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(restoredShard.getKey()),
 					restoredShard.getKey(), restoredShard.getValue()));
 		}
 	}
 
 	@Test
-	public void testCreateFunctionToConvertBetweenKinesisStreamShardAndKinesisStreamShardV2() {
+	public void testLegacyKinesisStreamShardToStreamShardMetadataConversion() {
 		String streamName = "fakeStream1";
 		String shardId = "shard-000001";
 		String parentShardId = "shard-000002";
@@ -969,15 +969,15 @@ public class FlinkKinesisConsumerTest {
 		String startingSequenceNumber = "seq-0000021";
 		String endingSequenceNumber = "seq-00000031";
 
-		KinesisStreamShardV2 kinesisStreamShardV2 = new KinesisStreamShardV2();
-		kinesisStreamShardV2.setStreamName(streamName);
-		kinesisStreamShardV2.setShardId(shardId);
-		kinesisStreamShardV2.setParentShardId(parentShardId);
-		kinesisStreamShardV2.setAdjacentParentShardId(adjacentParentShardId);
-		kinesisStreamShardV2.setStartingHashKey(startingHashKey);
-		kinesisStreamShardV2.setEndingHashKey(endingHashKey);
-		kinesisStreamShardV2.setStartingSequenceNumber(startingSequenceNumber);
-		kinesisStreamShardV2.setEndingSequenceNumber(endingSequenceNumber);
+		StreamShardMetadata streamShardMetadata = new StreamShardMetadata();
+		streamShardMetadata.setStreamName(streamName);
+		streamShardMetadata.setShardId(shardId);
+		streamShardMetadata.setParentShardId(parentShardId);
+		streamShardMetadata.setAdjacentParentShardId(adjacentParentShardId);
+		streamShardMetadata.setStartingHashKey(startingHashKey);
+		streamShardMetadata.setEndingHashKey(endingHashKey);
+		streamShardMetadata.setStartingSequenceNumber(startingSequenceNumber);
+		streamShardMetadata.setEndingSequenceNumber(endingSequenceNumber);
 
 		Shard shard = new Shard()
 			.withShardId(shardId)
@@ -991,12 +991,12 @@ public class FlinkKinesisConsumerTest {
 				.withEndingSequenceNumber(endingSequenceNumber));
 		KinesisStreamShard kinesisStreamShard = new KinesisStreamShard(streamName, shard);
 
-		assertEquals(kinesisStreamShardV2, FlinkKinesisConsumer.createKinesisStreamShardV2(kinesisStreamShard));
+		assertEquals(streamShardMetadata, KinesisStreamShard.convertToStreamShardMetadata(kinesisStreamShard));
 	}
 
 	@Test
-	public void testKinesisStreamShardV2WillUsePojoSerializer() {
-		TypeInformation<KinesisStreamShardV2> typeInformation = TypeInformation.of(KinesisStreamShardV2.class);
+	public void testStreamShardMetadataSerializedUsingPojoSerializer() {
+		TypeInformation<StreamShardMetadata> typeInformation = TypeInformation.of(StreamShardMetadata.class);
 		assertTrue(typeInformation.createSerializer(new ExecutionConfig()) instanceof PojoSerializer);
 	}
 

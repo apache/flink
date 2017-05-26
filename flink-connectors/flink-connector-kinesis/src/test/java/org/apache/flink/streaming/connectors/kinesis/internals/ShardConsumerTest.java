@@ -54,7 +54,7 @@ public class ShardConsumerTest {
 
 		LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest = new LinkedList<>();
 		subscribedShardsStateUnderTest.add(
-			new KinesisStreamShardState(KinesisDataFetcher.createKinesisStreamShardV2(fakeToBeConsumedShard),
+			new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(fakeToBeConsumedShard),
 				fakeToBeConsumedShard, new SequenceNumber("fakeStartingState")));
 
 		TestableKinesisDataFetcher fetcher =
@@ -93,7 +93,7 @@ public class ShardConsumerTest {
 
 		LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest = new LinkedList<>();
 		subscribedShardsStateUnderTest.add(
-			new KinesisStreamShardState(KinesisDataFetcher.createKinesisStreamShardV2(fakeToBeConsumedShard),
+			new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(fakeToBeConsumedShard),
 				fakeToBeConsumedShard, new SequenceNumber("fakeStartingState")));
 
 		TestableKinesisDataFetcher fetcher =

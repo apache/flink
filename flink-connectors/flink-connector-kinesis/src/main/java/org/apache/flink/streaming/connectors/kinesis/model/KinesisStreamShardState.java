@@ -17,23 +17,33 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
+import com.amazonaws.services.kinesis.model.Shard;
+import org.apache.flink.util.Preconditions;
+
 /**
  * A wrapper class that bundles a {@link StreamShardHandle} with its last processed sequence number.
  */
 public class KinesisStreamShardState {
 
-	private KinesisStreamShardV2 kinesisStreamShard;
+	/** A handle object that wraps the actual {@link Shard} instance and stream name. */
 	private StreamShardHandle streamShardHandle;
+
+	/** The checkpointed state for each Kinesis stream shard. */
+	private StreamShardMetadata streamShardMetadata;
 	private SequenceNumber lastProcessedSequenceNum;
 
-	public KinesisStreamShardState(KinesisStreamShardV2 kinesisStreamShard, StreamShardHandle streamShardHandle, SequenceNumber lastProcessedSequenceNum) {
-		this.kinesisStreamShard = kinesisStreamShard;
-		this.streamShardHandle = streamShardHandle;
-		this.lastProcessedSequenceNum = lastProcessedSequenceNum;
+	public KinesisStreamShardState(
+			StreamShardMetadata streamShardMetadata,
+			StreamShardHandle streamShardHandle,
+			SequenceNumber lastProcessedSequenceNum) {
+
+		this.streamShardMetadata = Preconditions.checkNotNull(streamShardMetadata);
+		this.streamShardHandle = Preconditions.checkNotNull(streamShardHandle);
+		this.lastProcessedSequenceNum = Preconditions.checkNotNull(lastProcessedSequenceNum);
 	}
 
-	public KinesisStreamShardV2 getKinesisStreamShard() {
-		return this.kinesisStreamShard;
+	public StreamShardMetadata getStreamShardMetadata() {
+		return this.streamShardMetadata;
 	}
 
 	public StreamShardHandle getStreamShardHandle() {
@@ -51,7 +61,7 @@ public class KinesisStreamShardState {
 	@Override
 	public String toString() {
 		return "KinesisStreamShardState{" +
-			"kinesisStreamShard='" + kinesisStreamShard.toString() + "'" +
+			"streamShardMetadata='" + streamShardMetadata.toString() + "'" +
 			", streamShardHandle='" + streamShardHandle.toString() + "'" +
 			", lastProcessedSequenceNumber='" + lastProcessedSequenceNum.toString() + "'}";
 	}
@@ -68,13 +78,13 @@ public class KinesisStreamShardState {
 
 		KinesisStreamShardState other = (KinesisStreamShardState) obj;
 
-		return kinesisStreamShard.equals(other.getKinesisStreamShard()) &&
+		return streamShardMetadata.equals(other.getStreamShardMetadata()) &&
 			streamShardHandle.equals(other.getStreamShardHandle()) &&
 			lastProcessedSequenceNum.equals(other.getLastProcessedSequenceNum());
 	}
 
 	@Override
 	public int hashCode() {
-		return 37 * (kinesisStreamShard.hashCode() + streamShardHandle.hashCode() + lastProcessedSequenceNum.hashCode());
+		return 37 * (streamShardMetadata.hashCode() + streamShardHandle.hashCode() + lastProcessedSequenceNum.hashCode());
 	}
 }

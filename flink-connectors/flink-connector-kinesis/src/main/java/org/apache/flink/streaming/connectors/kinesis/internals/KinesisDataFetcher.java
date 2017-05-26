@@ -27,7 +27,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
-import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardV2;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
@@ -303,7 +303,7 @@ public class KinesisDataFetcher<T> {
 				// since there may be delay in discovering a new shard, all new shards due to
 				// resharding should be read starting from the earliest record possible
 				KinesisStreamShardState newShardState =
-					new KinesisStreamShardState(createKinesisStreamShardV2(shard), shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
+					new KinesisStreamShardState(convertToStreamShardMetadata(shard), shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
 				int newStateIndex = registerNewSubscribedShardState(newShardState);
 
 				if (LOG.isInfoEnabled()) {
@@ -353,13 +353,13 @@ public class KinesisDataFetcher<T> {
 	 *
 	 * @return state snapshot
 	 */
-	public HashMap<KinesisStreamShardV2, SequenceNumber> snapshotState() {
+	public HashMap<StreamShardMetadata, SequenceNumber> snapshotState() {
 		// this method assumes that the checkpoint lock is held
 		assert Thread.holdsLock(checkpointLock);
 
-		HashMap<KinesisStreamShardV2, SequenceNumber> stateSnapshot = new HashMap<>();
+		HashMap<StreamShardMetadata, SequenceNumber> stateSnapshot = new HashMap<>();
 		for (KinesisStreamShardState shardWithState : subscribedShardsState) {
-			stateSnapshot.put(shardWithState.getKinesisStreamShard(), shardWithState.getLastProcessedSequenceNum());
+			stateSnapshot.put(shardWithState.getStreamShardMetadata(), shardWithState.getLastProcessedSequenceNum());
 		}
 		return stateSnapshot;
 	}
@@ -588,56 +588,54 @@ public class KinesisDataFetcher<T> {
 	}
 
 	/**
-	 * Utility function to convert {@link StreamShardHandle} into {@link KinesisStreamShardV2}
+	 * Utility function to convert {@link StreamShardHandle} into {@link StreamShardMetadata}
 	 *
 	 * @param streamShardHandle the {@link StreamShardHandle} to be converted
-	 * @return a {@link KinesisStreamShardV2} object
+	 * @return a {@link StreamShardMetadata} object
 	 */
-	public static KinesisStreamShardV2 createKinesisStreamShardV2(StreamShardHandle streamShardHandle) {
-		KinesisStreamShardV2 kinesisStreamShardV2 = new KinesisStreamShardV2();
+	public static StreamShardMetadata convertToStreamShardMetadata(StreamShardHandle streamShardHandle) {
+		StreamShardMetadata streamShardMetadata = new StreamShardMetadata();
 
-		kinesisStreamShardV2.setStreamName(streamShardHandle.getStreamName());
-		kinesisStreamShardV2.setShardId(streamShardHandle.getShard().getShardId());
-		kinesisStreamShardV2.setParentShardId(streamShardHandle.getShard().getParentShardId());
-		kinesisStreamShardV2.setAdjacentParentShardId(streamShardHandle.getShard().getAdjacentParentShardId());
+		streamShardMetadata.setStreamName(streamShardHandle.getStreamName());
+		streamShardMetadata.setShardId(streamShardHandle.getShard().getShardId());
+		streamShardMetadata.setParentShardId(streamShardHandle.getShard().getParentShardId());
+		streamShardMetadata.setAdjacentParentShardId(streamShardHandle.getShard().getAdjacentParentShardId());
+
 		if (streamShardHandle.getShard().getHashKeyRange() != null) {
-			kinesisStreamShardV2.setStartingHashKey(streamShardHandle.getShard().getHashKeyRange().getStartingHashKey());
-			kinesisStreamShardV2.setEndingHashKey(streamShardHandle.getShard().getHashKeyRange().getEndingHashKey());
-		}
-		if (streamShardHandle.getShard().getSequenceNumberRange() != null) {
-			kinesisStreamShardV2.setStartingSequenceNumber(streamShardHandle.getShard().getSequenceNumberRange().getStartingSequenceNumber());
-			kinesisStreamShardV2.setEndingSequenceNumber(streamShardHandle.getShard().getSequenceNumberRange().getEndingSequenceNumber());
+			streamShardMetadata.setStartingHashKey(streamShardHandle.getShard().getHashKeyRange().getStartingHashKey());
+			streamShardMetadata.setEndingHashKey(streamShardHandle.getShard().getHashKeyRange().getEndingHashKey());
 		}
 
-		return kinesisStreamShardV2;
+		if (streamShardHandle.getShard().getSequenceNumberRange() != null) {
+			streamShardMetadata.setStartingSequenceNumber(streamShardHandle.getShard().getSequenceNumberRange().getStartingSequenceNumber());
+			streamShardMetadata.setEndingSequenceNumber(streamShardHandle.getShard().getSequenceNumberRange().getEndingSequenceNumber());
+		}
+
+		return streamShardMetadata;
 	}
 
 	/**
-	 * Utility function to convert {@link KinesisStreamShardV2} into {@link StreamShardHandle}
+	 * Utility function to convert {@link StreamShardMetadata} into {@link StreamShardHandle}
 	 *
-	 * @param kinesisStreamShard the {@link KinesisStreamShardV2} to be converted
+	 * @param streamShardMetadata the {@link StreamShardMetadata} to be converted
 	 * @return a {@link StreamShardHandle} object
 	 */
-	public static StreamShardHandle createStreamShardHandle(KinesisStreamShardV2 kinesisStreamShard) {
+	public static StreamShardHandle convertToStreamShardHandle(StreamShardMetadata streamShardMetadata) {
 		Shard shard = new Shard();
-		shard.withShardId(kinesisStreamShard.getShardId());
-		shard.withParentShardId(kinesisStreamShard.getParentShardId());
-		shard.withAdjacentParentShardId(kinesisStreamShard.getAdjacentParentShardId());
+		shard.withShardId(streamShardMetadata.getShardId());
+		shard.withParentShardId(streamShardMetadata.getParentShardId());
+		shard.withAdjacentParentShardId(streamShardMetadata.getAdjacentParentShardId());
 
-		if (kinesisStreamShard.getStartingHashKey() != null && kinesisStreamShard.getEndingHashKey() != null) {
-			HashKeyRange hashKeyRange = new HashKeyRange();
-			hashKeyRange.withStartingHashKey(kinesisStreamShard.getStartingHashKey());
-			hashKeyRange.withEndingHashKey(kinesisStreamShard.getEndingHashKey());
-			shard.withHashKeyRange(hashKeyRange);
-		}
+		HashKeyRange hashKeyRange = new HashKeyRange();
+		hashKeyRange.withStartingHashKey(streamShardMetadata.getStartingHashKey());
+		hashKeyRange.withEndingHashKey(streamShardMetadata.getEndingHashKey());
+		shard.withHashKeyRange(hashKeyRange);
 
-		if (kinesisStreamShard.getStartingSequenceNumber() != null && kinesisStreamShard.getEndingSequenceNumber() != null) {
-			SequenceNumberRange sequenceNumberRange = new SequenceNumberRange();
-			sequenceNumberRange.withStartingSequenceNumber(kinesisStreamShard.getStartingSequenceNumber());
-			sequenceNumberRange.withEndingSequenceNumber(kinesisStreamShard.getEndingSequenceNumber());
-			shard.withSequenceNumberRange(sequenceNumberRange);
-		}
+		SequenceNumberRange sequenceNumberRange = new SequenceNumberRange();
+		sequenceNumberRange.withStartingSequenceNumber(streamShardMetadata.getStartingSequenceNumber());
+		sequenceNumberRange.withEndingSequenceNumber(streamShardMetadata.getEndingSequenceNumber());
+		shard.withSequenceNumberRange(sequenceNumberRange);
 
-		return new StreamShardHandle(kinesisStreamShard.getStreamName(), shard);
+		return new StreamShardHandle(streamShardMetadata.getStreamName(), shard);
 	}
 }
