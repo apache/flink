@@ -22,6 +22,9 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+/**
+ * IT cases for lambda allreduce functions.
+ */
 public class AllGroupReduceITCase extends JavaProgramTestBase {
 
 	private static final String EXPECTED_RESULT = "aaabacad\n";

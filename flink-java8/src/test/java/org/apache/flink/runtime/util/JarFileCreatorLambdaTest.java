@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.util;
 
-
 import org.apache.flink.runtime.util.jartestprogram.FilterLambda1;
 import org.apache.flink.runtime.util.jartestprogram.FilterLambda2;
 import org.apache.flink.runtime.util.jartestprogram.FilterLambda3;
@@ -34,9 +33,12 @@ import java.util.Set;
 import java.util.jar.JarInputStream;
 import java.util.zip.ZipEntry;
 
+/**
+ * Tests for the {@link JarFileCreator}.
+ */
 public class JarFileCreatorLambdaTest {
 	@Test
-	public void TestFilterFunctionOnLambda1() throws Exception {
+	public void testFilterFunctionOnLambda1() throws Exception {
 		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(FilterLambda1.class)
@@ -51,7 +53,7 @@ public class JarFileCreatorLambdaTest {
 	}
 
 	@Test
-	public void TestFilterFunctionOnLambda2() throws Exception{
+	public void testFilterFunctionOnLambda2() throws Exception{
 		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(FilterLambda2.class)
@@ -66,7 +68,7 @@ public class JarFileCreatorLambdaTest {
 	}
 
 	@Test
-	public void TestFilterFunctionOnLambda3() throws Exception {
+	public void testFilterFunctionOnLambda3() throws Exception {
 		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(FilterLambda3.class)
@@ -82,7 +84,7 @@ public class JarFileCreatorLambdaTest {
 	}
 
 	@Test
-	public void TestFilterFunctionOnLambda4() throws Exception {
+	public void testFilterFunctionOnLambda4() throws Exception {
 		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(FilterLambda4.class)

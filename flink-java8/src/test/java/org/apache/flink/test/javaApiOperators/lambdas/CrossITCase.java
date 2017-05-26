@@ -23,6 +23,9 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+/**
+ * IT cases for lambda cross functions.
+ */
 public class CrossITCase extends JavaProgramTestBase {
 
 	private static final String EXPECTED_RESULT = "2,hello not\n" +
@@ -57,8 +60,8 @@ public class CrossITCase extends JavaProgramTestBase {
 				new Tuple2<Integer, String>(1, "much"),
 				new Tuple2<Integer, String>(2, "really")
 				);
-		DataSet<Tuple2<Integer,String>> joined = left.cross(right)
-				.with((t,s) -> new Tuple2<Integer, String> (t.f0 + s.f0, t.f1 + " " + s.f1));
+		DataSet<Tuple2<Integer, String>> joined = left.cross(right)
+				.with((t, s) -> new Tuple2<> (t.f0 + s.f0, t.f1 + " " + s.f1));
 		joined.writeAsCsv(resultPath);
 		env.execute();
 	}

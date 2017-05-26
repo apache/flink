@@ -22,9 +22,12 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+/**
+ * IT cases for lambda map functions.
+ */
 public class MapITCase extends JavaProgramTestBase {
 
-	public static class Trade {
+	private static class Trade {
 
 		public String v;
 
