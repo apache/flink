@@ -16,20 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.javaApiOperators.lambdas;
+package org.apache.flink.test.api.java.operators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 /**
- * IT cases for lambda groupreduce functions.
+ * IT cases for lambda allreduce functions.
  */
-public class GroupReduceITCase extends JavaProgramTestBase {
+public class AllGroupReduceITCase extends JavaProgramTestBase {
 
-	private static final String EXPECTED_RESULT = "abad\n" +
-			"aaac\n";
+	private static final String EXPECTED_RESULT = "aaabacad\n";
 
 	private String resultPath;
 
@@ -38,26 +36,18 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		resultPath = getTempDirPath("result");
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	protected void testProgram() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple2<Integer, String>> stringDs = env.fromElements(
-				new Tuple2<>(1, "aa"),
-				new Tuple2<>(2, "ab"),
-				new Tuple2<>(1, "ac"),
-				new Tuple2<>(2, "ad")
-				);
-		DataSet<String> concatDs = stringDs
-				.groupBy(0)
-				.reduceGroup((values, out) -> {
-					String conc = "";
-					for (Tuple2<Integer, String> next : values) {
-						conc = conc.concat(next.f1);
-					}
-					out.collect(conc);
-				});
+		DataSet<String> stringDs = env.fromElements("aa", "ab", "ac", "ad");
+		DataSet<String> concatDs = stringDs.reduceGroup((values, out) -> {
+			String conc = "";
+			for (String s : values) {
+				conc = conc.concat(s);
+			}
+			out.collect(conc);
+		});
 		concatDs.writeAsText(resultPath);
 		env.execute();
 	}
