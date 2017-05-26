@@ -25,32 +25,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-**Table API and SQL are experimental features**
+Apache Flink features two relational APIs - the Table API and SQL - for unified stream and batch processing. The Table API is a language-integrated query API for Scala and Java that allows the composition of queries from relational operators such as selection, filter, and join in a very intuitive way. Flink's SQL support is based on [Apache Calcite](https://calcite.apache.org) which implements the SQL standard. Queries specified in either interface have the same semantics and specify the same result regardless whether the input is a batch input (DataSet) or a stream input (DataStream).
 
-The Table API is a SQL-like expression language for relational stream and batch processing that can be easily embedded in Flink's DataSet and DataStream APIs (Java and Scala).
-The Table API and SQL interface operate on a relational `Table` abstraction, which can be created from external data sources, or existing DataSets and DataStreams. With the Table API, you can apply relational operators such as selection, aggregation, and joins on `Table`s.
+The Table API and the SQL interfaces are tightly integrated with each other as well as Flink's DataStream and DataSet APIs. You can easily switch between all APIs and libraries which build upon the APIs. For instance, you can extract patterns from a DataStream using the [CEP library]({{ site.baseurl }}/dev/libs/cep.html) and later use the Table API to analyze the patterns, or you might scan, filter, and aggregate a batch table using a SQL query before running a [Gelly graph algorithm]({{ site.baseurl }}/dev/libs/gelly) on the preprocessed data.
 
-`Table`s can also be queried with regular SQL, as long as they are registered (see [Registering Tables](#registering-tables)). The Table API and SQL offer equivalent functionality and can be mixed in the same program. When a `Table` is converted back into a `DataSet` or `DataStream`, the logical plan, which was defined by relational operators and SQL queries, is optimized using [Apache Calcite](https://calcite.apache.org/) and transformed into a `DataSet` or `DataStream` program.
-
-**TODO: Check, update, and add**
-
-* What are the Table API / SQL
-  * Relational APIs
-  * Unified APIs for batch and streaming
-    * Semantics are the same
-    * But not all operations can be efficiently mapped to streams
-  * Table API: language-integrated queries (LINQ) in Scala and Java
-  * SQL: Standard SQL
-
-**Please notice: Not all operations are supported by all four combinations of Stream/Batch and TableAPI/SQL.**
-
-* This will be replaced by the TOC
-{:toc}
+**Please note that the Table API and SQL are not yet feature complete and are being active developed. Not all operations are supported by every combination of \[Table API, SQL\] and \[stream, batch\] input.**
 
 Setup
 -----
 
-The Table API and SQL are part of the *flink-table* Maven project.
+The Table API and SQL are bundled in the `flink-table` Maven artifact. 
 The following dependency must be added to your project in order to use the Table API and SQL:
 
 {% highlight xml %}
@@ -61,21 +45,38 @@ The following dependency must be added to your project in order to use the Table
 </dependency>
 {% endhighlight %}
 
-*Note: The Table API is currently not part of the binary distribution. See linking with it for cluster execution [here]({{ site.baseurl }}/dev/linking.html).*
+In addition, you need to add a dependency for either Flink's Scala batch or streaming API. For a batch query you need to add:
 
-**TODO: Rework and add:**
-* Project dependencies (flink-table + flink-scala or flink-streaming-scala)
-* Copy `./opt/flink-table.jar` to `./lib`
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-scala{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+
+For a streaming query you need to add:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-streaming-scala{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+
+**Note:** Due to an issue in Apache Calcite, which prevents the user classloaders from being garbage-collected, we do *not* recommend building a fat-jar that includes the `flink-table` dependency. Instead, we recommend configuring Flink to include the `flink-table` dependency in the system classloader. This can be done by copying the `flink-table.jar` file from the `./opt` folder to the `./lib` folder. See [these instructions]({{ site.baseurl }}/dev/linking.html) for further details.
 
 {% top %}
 
 Where to go next?
 -----------------
 
-* [Concepts & Common API]({{ site.baseurl }}/dev/table/common.html): Share concepts and API of the Table API and SQL.
-* [Table API]({{ site.baseurl }}/dev/table/tableapi.html): Supported Operations and API for the Table API
-* [SQL]({{ site.baseurl }}/dev/table/sql.html): Supported Operations and Syntax for SQL
-* [Table Sources & Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html): Ingestion and emission of tables.
-* [User-Defined Functions]({{ site.baseurl }}/dev/table/udfs.html): Defintion and usage of user-defined functions.
+* [Concepts & Common API]({{ site.baseurl }}/dev/table/common.html): Shared concepts and APIs of the Table API and SQL.
+* [Streaming Table API & SQL]({{ site.baseurl }}/dev/table/streaming.html): Streaming-specific documentation for the Table API or SQL such as configuration of time attributes and handling of updating results.
+* [Table API]({{ site.baseurl }}/dev/table/tableapi.html): Supported operations and API for the Table API.
+* [SQL]({{ site.baseurl }}/dev/table/sql.html): Supported operations and syntax for SQL
+* [Table Sources & Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html): Reading tables from and emitting tables to external storage systems.
+* [User-Defined Functions]({{ site.baseurl }}/dev/table/udfs.html): Definition and usage of user-defined functions.
 
 {% top %}
