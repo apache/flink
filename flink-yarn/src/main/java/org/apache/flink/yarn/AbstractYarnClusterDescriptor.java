@@ -993,9 +993,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	private static class ClusterResourceDescription {
-	public final int totalFreeMemory;
-	public final int containerLimit;
-	public final int[] nodeManagersFree;
+		public final int totalFreeMemory;
+		public final int containerLimit;
+		public final int[] nodeManagersFree;
 
 		public ClusterResourceDescription(int totalFreeMemory, int containerLimit, int[] nodeManagersFree) {
 			this.totalFreeMemory = totalFreeMemory;

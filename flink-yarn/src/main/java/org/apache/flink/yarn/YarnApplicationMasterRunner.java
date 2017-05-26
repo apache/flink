@@ -485,9 +485,10 @@ public class YarnApplicationMasterRunner {
 	// ------------------------------------------------------------------------
 
 	/**
+	 * Reads the global configuration from the given directory and adds the given parameters to it.
 	 *
-	 * @param baseDirectory
-	 * @param additional
+	 * @param baseDirectory directory to load the configuration from
+	 * @param additional additional parameters to be included in the configuration
 	 *
 	 * @return The configuration to be used by the TaskManagers.
 	 */
