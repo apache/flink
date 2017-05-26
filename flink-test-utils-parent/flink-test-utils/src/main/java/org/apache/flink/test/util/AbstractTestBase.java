@@ -48,7 +48,7 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	protected int numTaskManagers = 1;
 
 	@ClassRule
-	protected static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
 	/** The mini cluster that runs the test programs. */
 	protected LocalFlinkMiniCluster executor;
