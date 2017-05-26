@@ -23,10 +23,10 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 /**
  * Skeleton for a Flink Batch Job.
  *
- * For a full example of a Flink Batch Job, see the WordCountJob.java file in the
+ * <p>For a full example of a Flink Batch Job, see the WordCountJob.java file in the
  * same package/directory or have a look at the website.
  *
- * You can also generate a .jar file that you can submit on your Flink
+ * <p>You can also generate a .jar file that you can submit on your Flink
  * cluster.
  * Just type
  * 		mvn clean package
@@ -36,9 +36,9 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * From the CLI you can then run
  * 		./bin/flink run -c ${package}.BatchJob target/${artifactId}-${version}.jar
  *
- * For more information on the CLI see:
+ * <p>For more information on the CLI see:
  *
- * http://flink.apache.org/docs/latest/apis/cli.html
+ * <p>http://flink.apache.org/docs/latest/apis/cli.html
  */
 public class BatchJob {
 

@@ -24,10 +24,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 /**
  * Skeleton for a Flink Streaming Job.
  *
- * For a full example of a Flink Streaming Job, see the SocketTextStreamWordCount.java
+ * <p>For a full example of a Flink Streaming Job, see the SocketTextStreamWordCount.java
  * file in the same package/directory or have a look at the website.
  *
- * You can also generate a .jar file that you can submit on your Flink
+ * <p>You can also generate a .jar file that you can submit on your Flink
  * cluster.
  * Just type
  * 		mvn clean package
@@ -37,9 +37,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * From the CLI you can then run
  * 		./bin/flink run -c ${package}.StreamingJob target/${artifactId}-${version}.jar
  *
- * For more information on the CLI see:
+ * <p>For more information on the CLI see:
  *
- * http://flink.apache.org/docs/latest/apis/cli.html
+ * <p>http://flink.apache.org/docs/latest/apis/cli.html
  */
 public class StreamingJob {
 
