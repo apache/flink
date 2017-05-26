@@ -62,6 +62,7 @@ import java.io.RandomAccessFile;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -112,6 +113,8 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 
 	/** Be default, we allow files to be cached for 5 minutes. */
 	private static final int HTTP_CACHE_SECONDS = 300;
+
+	private static final Object COPY_LOCK = new Object();
 
 	// ------------------------------------------------------------------------
 
@@ -235,8 +238,17 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 							if (!rootURI.relativize(requestedURI).equals(requestedURI)) {
 								logger.debug("Loading missing file from classloader: {}", requestPath);
 								// ensure that directory to file exists.
-								file.getParentFile().mkdirs();
-								Files.copy(resourceStream, file.toPath());
+								if (!file.getParentFile().mkdirs()) {
+									throw new IOException("Could not create directories for file " + file);
+								}
+								synchronized (COPY_LOCK) {
+									// prevent races between requests trying to write to the same file
+									try {
+										Files.copy(resourceStream, file.toPath());
+									} catch (FileAlreadyExistsException ignored) {
+										// a concurrent request may have created the file already
+									}
+								}
 
 								success = true;
 							}
