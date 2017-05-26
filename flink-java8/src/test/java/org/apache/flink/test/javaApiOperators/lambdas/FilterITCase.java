@@ -18,15 +18,18 @@
 
 package org.apache.flink.test.javaApiOperators.lambdas;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * IT cases for lambda filter funtions.
+ */
 public class FilterITCase extends JavaProgramTestBase {
 
 	private static final String EXPECTED_RESULT = "3,2,Hello world\n" +
@@ -35,27 +38,27 @@ public class FilterITCase extends JavaProgramTestBase {
 	public static DataSet<Tuple3<Integer, Long, String>> get3TupleDataSet(ExecutionEnvironment env) {
 
 		List<Tuple3<Integer, Long, String>> data = new ArrayList<Tuple3<Integer, Long, String>>();
-		data.add(new Tuple3<Integer, Long, String>(1,1l,"Hi"));
-		data.add(new Tuple3<Integer, Long, String>(2,2l,"Hello"));
-		data.add(new Tuple3<Integer, Long, String>(3,2l,"Hello world"));
-		data.add(new Tuple3<Integer, Long, String>(4,3l,"Hello world, how are you?"));
-		data.add(new Tuple3<Integer, Long, String>(5,3l,"I am fine."));
-		data.add(new Tuple3<Integer, Long, String>(6,3l,"Luke Skywalker"));
-		data.add(new Tuple3<Integer, Long, String>(7,4l,"Comment#1"));
-		data.add(new Tuple3<Integer, Long, String>(8,4l,"Comment#2"));
-		data.add(new Tuple3<Integer, Long, String>(9,4l,"Comment#3"));
-		data.add(new Tuple3<Integer, Long, String>(10,4l,"Comment#4"));
-		data.add(new Tuple3<Integer, Long, String>(11,5l,"Comment#5"));
-		data.add(new Tuple3<Integer, Long, String>(12,5l,"Comment#6"));
-		data.add(new Tuple3<Integer, Long, String>(13,5l,"Comment#7"));
-		data.add(new Tuple3<Integer, Long, String>(14,5l,"Comment#8"));
-		data.add(new Tuple3<Integer, Long, String>(15,5l,"Comment#9"));
-		data.add(new Tuple3<Integer, Long, String>(16,6l,"Comment#10"));
-		data.add(new Tuple3<Integer, Long, String>(17,6l,"Comment#11"));
-		data.add(new Tuple3<Integer, Long, String>(18,6l,"Comment#12"));
-		data.add(new Tuple3<Integer, Long, String>(19,6l,"Comment#13"));
-		data.add(new Tuple3<Integer, Long, String>(20,6l,"Comment#14"));
-		data.add(new Tuple3<Integer, Long, String>(21,6l,"Comment#15"));
+		data.add(new Tuple3<>(1, 1L, "Hi"));
+		data.add(new Tuple3<>(2, 2L, "Hello"));
+		data.add(new Tuple3<>(3, 2L, "Hello world"));
+		data.add(new Tuple3<>(4, 3L, "Hello world, how are you?"));
+		data.add(new Tuple3<>(5, 3L, "I am fine."));
+		data.add(new Tuple3<>(6, 3L, "Luke Skywalker"));
+		data.add(new Tuple3<>(7, 4L, "Comment#1"));
+		data.add(new Tuple3<>(8, 4L, "Comment#2"));
+		data.add(new Tuple3<>(9, 4L, "Comment#3"));
+		data.add(new Tuple3<>(10, 4L, "Comment#4"));
+		data.add(new Tuple3<>(11, 5L, "Comment#5"));
+		data.add(new Tuple3<>(12, 5L, "Comment#6"));
+		data.add(new Tuple3<>(13, 5L, "Comment#7"));
+		data.add(new Tuple3<>(14, 5L, "Comment#8"));
+		data.add(new Tuple3<>(15, 5L, "Comment#9"));
+		data.add(new Tuple3<>(16, 6L, "Comment#10"));
+		data.add(new Tuple3<>(17, 6L, "Comment#11"));
+		data.add(new Tuple3<>(18, 6L, "Comment#12"));
+		data.add(new Tuple3<>(19, 6L, "Comment#13"));
+		data.add(new Tuple3<>(20, 6L, "Comment#14"));
+		data.add(new Tuple3<>(21, 6L, "Comment#15"));
 
 		Collections.shuffle(data);
 

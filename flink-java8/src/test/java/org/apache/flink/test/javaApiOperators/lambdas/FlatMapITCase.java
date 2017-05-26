@@ -22,6 +22,9 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+/**
+ * IT cases for lambda flatmap functions.
+ */
 public class FlatMapITCase extends JavaProgramTestBase {
 
 	private static final String EXPECTED_RESULT = "bb\n" +
