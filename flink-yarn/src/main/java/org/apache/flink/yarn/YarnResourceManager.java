@@ -102,10 +102,14 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 	/** Client to communicate with the Node manager and launch TaskExecutor processes */
 	private NMClient nodeManagerClient;
 
-	/** The number of containers requested, but not yet granted */
-	private int numPendingContainerRequests;
+	/** The number of containers requested for each priority, but not yet granted */
+	private Map<Integer, Integer> numPendingContainerRequests = new HashMap<>();
 
+	/** Used for generating priority for a resource request */
 	final private Map<ResourceProfile, Integer> resourcePriorities = new HashMap<>();
+
+	/** Used for remove resource request after container allocated */
+	final private Map<Integer, Resource> orgPriorityResources = new HashMap<>();
 
 	public YarnResourceManager(
 			RpcService rpcService,
@@ -147,7 +151,6 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 					yarnHeartbeatIntervalMS, yarnExpiryIntervalMS);
 		}
 		yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMS;
-		numPendingContainerRequests = 0;
 	}
 
 	@Override
@@ -215,11 +218,14 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 	@Override
 	public void startNewWorker(ResourceProfile resourceProfile) {
 		// Priority for worker containers - priorities are intra-application
-		//TODO: set priority according to the resource allocated
 		Priority priority = Priority.newInstance(generatePriority(resourceProfile));
 		int mem = resourceProfile.getMemoryInMB() < 0 ? DEFAULT_TSK_EXECUTOR_MEMORY_SIZE : (int)resourceProfile.getMemoryInMB();
 		int vcore = resourceProfile.getCpuCores() < 1 ? 1 : (int)resourceProfile.getCpuCores();
 		Resource capability = Resource.newInstance(mem, vcore);
+
+		if (!orgPriorityResources.containsKey(priority.getPriority())) {
+			orgPriorityResources.put(priority.getPriority(), capability);
+		}
 		requestYarnContainer(capability, priority);
 	}
 
@@ -253,10 +259,26 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 	@Override
 	public void onContainersAllocated(List<Container> containers) {
 		for (Container container : containers) {
-			numPendingContainerRequests = Math.max(0, numPendingContainerRequests - 1);
-			LOG.info("Received new container: {} - Remaining pending container requests: {}",
-					container.getId(), numPendingContainerRequests);
+			Priority priority = container.getPriority();
+			// Yarn api say that it may give containers more than asked, so release the redundant ones
+			if (!numPendingContainerRequests.containsKey(priority.getPriority()) || 
+				numPendingContainerRequests.get(priority.getPriority()) <= 0) {
+				LOG.debug("Received more than asked containers, will release the {}, priority {}", 
+						container.getId(), priority.getPriority());
+				resourceManagerClient.releaseAssignedContainer(container.getId());
+				continue;
+			}
+			int orgNum = numPendingContainerRequests.get(priority.getPriority());
+			numPendingContainerRequests.put(priority.getPriority(), orgNum - 1);
+			LOG.info("Received new container: {} for priority: {} - Remaining pending container requests: {}",
+					container.getId(), priority.getPriority(), orgNum - 1);
+
 			try {
+				// Yarn will not clear the request automaticly,
+				// And the resource allocated may not equal to the resource requested
+				resourceManagerClient.removeContainerRequest(
+						new AMRMClient.ContainerRequest(orgPriorityResources.get(priority.getPriority()), null, null, priority));
+
 				/** Context information used to start a TaskExecutor Java process */
 				ContainerLaunchContext taskExecutorLaunchContext =
 						createTaskExecutorLaunchContext(container.getResource(), container.getId().toString(), container.getNodeId().getHost());
@@ -266,10 +288,14 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 				// failed to launch the container, will release the failed one and ask for a new one
 				LOG.error("Could not start TaskManager in container {},", container, t);
 				resourceManagerClient.releaseAssignedContainer(container.getId());
-				requestYarnContainer(container.getResource(), container.getPriority());
+				requestYarnContainer(container.getResource(), priority);
 			}
 		}
-		if (numPendingContainerRequests <= 0) {
+		int pendingRequest = 0;
+		for (int num : numPendingContainerRequests.values()) {
+			pendingRequest += num;
+		}
+		if (pendingRequest == 0) {
 			resourceManagerClient.setHeartbeatInterval(yarnHeartbeatIntervalMillis);
 		}
 	}
@@ -332,9 +358,13 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 		// make sure we transmit the request fast and receive fast news of granted allocations
 		resourceManagerClient.setHeartbeatInterval(FAST_YARN_HEARTBEAT_INTERVAL_MS);
 
-		numPendingContainerRequests++;
-		LOG.info("Requesting new TaskManager container pending requests: {}",
-				numPendingContainerRequests);
+		int requestNum = 1;
+		if (numPendingContainerRequests.containsKey(priority.getPriority())) {
+			requestNum = numPendingContainerRequests.get(priority.getPriority()) + 1;
+		}
+		numPendingContainerRequests.put(priority.getPriority(), requestNum);
+		LOG.info("Requesting new TaskManager container of priority {} pending requests: {}",
+				priority.getPriority(), requestNum);
 	}
 
 	private ContainerLaunchContext createTaskExecutorLaunchContext(Resource resource, String containerId, String host)
@@ -371,9 +401,6 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 		return taskExecutorLaunchContext;
 	}
 
-
-
-	
 	/**
 	 * Generate priority by given resource profile.
 	 * Priority is only used for distinguishing request of different resource.
