@@ -38,11 +38,9 @@ public class UserDefinedAggFunctions {
             return 1L;
         }
 
-        //Overloaded accumulate method
         public void accumulate(Accumulator0 accumulator, long iValue, int iWeight) {
         }
 
-        @Override
         public boolean requiresOver() {
             return true;
         }
