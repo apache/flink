@@ -129,4 +129,31 @@ public class KinesisStreamShard implements Serializable {
 		if (shardId == null) { return false; }
 		return shardId.matches("^shardId-\\d{12}");
 	}
+
+	/**
+	 * Utility function to convert {@link KinesisStreamShard} into the new {@link StreamShardMetadata} model.
+	 *
+	 * @param kinesisStreamShard the {@link KinesisStreamShard} to be converted
+	 * @return the converted {@link StreamShardMetadata}
+	 */
+	public static StreamShardMetadata convertToStreamShardMetadata(KinesisStreamShard kinesisStreamShard) {
+		StreamShardMetadata streamShardMetadata = new StreamShardMetadata();
+
+		streamShardMetadata.setStreamName(kinesisStreamShard.getStreamName());
+		streamShardMetadata.setShardId(kinesisStreamShard.getShard().getShardId());
+		streamShardMetadata.setParentShardId(kinesisStreamShard.getShard().getParentShardId());
+		streamShardMetadata.setAdjacentParentShardId(kinesisStreamShard.getShard().getAdjacentParentShardId());
+
+		if (kinesisStreamShard.getShard().getHashKeyRange() != null) {
+			streamShardMetadata.setStartingHashKey(kinesisStreamShard.getShard().getHashKeyRange().getStartingHashKey());
+			streamShardMetadata.setEndingHashKey(kinesisStreamShard.getShard().getHashKeyRange().getEndingHashKey());
+		}
+		
+		if (kinesisStreamShard.getShard().getSequenceNumberRange() != null) {
+			streamShardMetadata.setStartingSequenceNumber(kinesisStreamShard.getShard().getSequenceNumberRange().getStartingSequenceNumber());
+			streamShardMetadata.setEndingSequenceNumber(kinesisStreamShard.getShard().getSequenceNumberRange().getEndingSequenceNumber());
+		}
+
+		return streamShardMetadata;
+	}
 }

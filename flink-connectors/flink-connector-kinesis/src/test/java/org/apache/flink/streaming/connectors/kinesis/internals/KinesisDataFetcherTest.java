@@ -27,7 +27,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConsta
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
-import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardV2;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
@@ -205,7 +205,7 @@ public class KinesisDataFetcherTest {
 		for (Map.Entry<StreamShardHandle, String> restoredState : restoredStateUnderTest.entrySet()) {
 			fetcher.advanceLastDiscoveredShardOfStream(restoredState.getKey().getStreamName(), restoredState.getKey().getShard().getShardId());
 			fetcher.registerNewSubscribedShardState(
-				new KinesisStreamShardState(KinesisDataFetcher.createKinesisStreamShardV2(restoredState.getKey()),
+				new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(restoredState.getKey()),
 					restoredState.getKey(), new SequenceNumber(restoredState.getValue())));
 		}
 
@@ -296,7 +296,7 @@ public class KinesisDataFetcherTest {
 		for (Map.Entry<StreamShardHandle, String> restoredState : restoredStateUnderTest.entrySet()) {
 			fetcher.advanceLastDiscoveredShardOfStream(restoredState.getKey().getStreamName(), restoredState.getKey().getShard().getShardId());
 			fetcher.registerNewSubscribedShardState(
-				new KinesisStreamShardState(KinesisDataFetcher.createKinesisStreamShardV2(restoredState.getKey()),
+				new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(restoredState.getKey()),
 					restoredState.getKey(), new SequenceNumber(restoredState.getValue())));
 		}
 
@@ -391,7 +391,7 @@ public class KinesisDataFetcherTest {
 		for (Map.Entry<StreamShardHandle, String> restoredState : restoredStateUnderTest.entrySet()) {
 			fetcher.advanceLastDiscoveredShardOfStream(restoredState.getKey().getStreamName(), restoredState.getKey().getShard().getShardId());
 			fetcher.registerNewSubscribedShardState(
-				new KinesisStreamShardState(KinesisDataFetcher.createKinesisStreamShardV2(restoredState.getKey()),
+				new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(restoredState.getKey()),
 					restoredState.getKey(), new SequenceNumber(restoredState.getValue())));
 		}
 
@@ -487,7 +487,7 @@ public class KinesisDataFetcherTest {
 		for (Map.Entry<StreamShardHandle, String> restoredState : restoredStateUnderTest.entrySet()) {
 			fetcher.advanceLastDiscoveredShardOfStream(restoredState.getKey().getStreamName(), restoredState.getKey().getShard().getShardId());
 			fetcher.registerNewSubscribedShardState(
-				new KinesisStreamShardState(KinesisDataFetcher.createKinesisStreamShardV2(restoredState.getKey()),
+				new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(restoredState.getKey()),
 					restoredState.getKey(), new SequenceNumber(restoredState.getValue())));
 		}
 
@@ -521,7 +521,7 @@ public class KinesisDataFetcherTest {
 	}
 
 	@Test
-	public void testCreateFunctionToConvertBetweenKinesisStreamShardV2AndStreamShardHandle() {
+	public void testStreamShardMetadataAndHandleConversion() {
 		String streamName = "fakeStream1";
 		String shardId = "shard-000001";
 		String parentShardId = "shard-000002";
@@ -531,7 +531,7 @@ public class KinesisDataFetcherTest {
 		String startingSequenceNumber = "seq-0000021";
 		String endingSequenceNumber = "seq-00000031";
 
-		KinesisStreamShardV2 kinesisStreamShard = new KinesisStreamShardV2();
+		StreamShardMetadata kinesisStreamShard = new StreamShardMetadata();
 		kinesisStreamShard.setStreamName(streamName);
 		kinesisStreamShard.setShardId(shardId);
 		kinesisStreamShard.setParentShardId(parentShardId);
@@ -553,8 +553,8 @@ public class KinesisDataFetcherTest {
 				.withEndingSequenceNumber(endingSequenceNumber));
 		StreamShardHandle streamShardHandle = new StreamShardHandle(streamName, shard);
 
-		assertEquals(kinesisStreamShard, KinesisDataFetcher.createKinesisStreamShardV2(streamShardHandle));
-		assertEquals(streamShardHandle, KinesisDataFetcher.createStreamShardHandle(kinesisStreamShard));
+		assertEquals(kinesisStreamShard, KinesisDataFetcher.convertToStreamShardMetadata(streamShardHandle));
+		assertEquals(streamShardHandle, KinesisDataFetcher.convertToStreamShardHandle(kinesisStreamShard));
 	}
 
 	private static class DummyFlinkKafkaConsumer<T> extends FlinkKinesisConsumer<T> {
