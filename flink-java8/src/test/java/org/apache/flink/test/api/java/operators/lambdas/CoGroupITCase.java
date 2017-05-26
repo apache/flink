@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,35 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.javaApiOperators.lambdas;
+package org.apache.flink.test.api.java.operators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 /**
- * IT cases for lambda map functions.
+ * IT cases for lambda cogroup functions.
  */
-public class MapITCase extends JavaProgramTestBase {
+public class CoGroupITCase extends JavaProgramTestBase {
 
-	private static class Trade {
-
-		public String v;
-
-		public Trade(String v) {
-			this.v = v;
-		}
-
-		@Override
-		public String toString() {
-			return v;
-		}
-	}
-
-	private static final String EXPECTED_RESULT = "22\n" +
-			"22\n" +
-			"23\n" +
-			"24\n";
+	private static final String EXPECTED_RESULT = "6\n3\n";
 
 	private String resultPath;
 
@@ -53,17 +37,33 @@ public class MapITCase extends JavaProgramTestBase {
 		resultPath = getTempDirPath("result");
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	protected void testProgram() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Integer> stringDs = env.fromElements(11, 12, 13, 14);
-		DataSet<String> mappedDs = stringDs
-			.map(Object::toString)
-			.map (s -> s.replace("1", "2"))
-			.map(Trade::new)
-			.map(Trade::toString);
-		mappedDs.writeAsText(resultPath);
+		DataSet<Tuple2<Integer, String>> left = env.fromElements(
+			new Tuple2<Integer, String>(1, "hello"),
+			new Tuple2<Integer, String>(2, "what's"),
+			new Tuple2<Integer, String>(2, "up")
+		);
+		DataSet<Tuple2<Integer, String>> right = env.fromElements(
+			new Tuple2<Integer, String>(1, "not"),
+			new Tuple2<Integer, String>(1, "much"),
+			new Tuple2<Integer, String>(2, "really")
+		);
+		DataSet<Integer> joined = left.coGroup(right).where(0).equalTo(0)
+			.with((values1, values2, out) -> {
+				int sum = 0;
+				for (Tuple2<Integer, String> next : values1) {
+					sum += next.f0;
+				}
+				for (Tuple2<Integer, String> next : values2) {
+					sum += next.f0;
+				}
+				out.collect(sum);
+			});
+		joined.writeAsText(resultPath);
 		env.execute();
 	}
 
