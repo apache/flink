@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.java.io;
 
-import java.io.PrintStream;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.configuration.Configuration;
+
+import java.io.PrintStream;
 
 @PublicEvolving
 public class PrintingOutputFormat<T> extends RichOutputFormat<T> {

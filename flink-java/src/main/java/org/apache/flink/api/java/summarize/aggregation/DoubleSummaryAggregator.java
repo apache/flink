@@ -18,9 +18,9 @@
 
 package org.apache.flink.api.java.summarize.aggregation;
 
-import static org.apache.flink.api.java.summarize.aggregation.CompensatedSum.ZERO;
-
 import org.apache.flink.annotation.Internal;
+
+import static org.apache.flink.api.java.summarize.aggregation.CompensatedSum.ZERO;
 
 /**
  * Aggregator that can handle Double types

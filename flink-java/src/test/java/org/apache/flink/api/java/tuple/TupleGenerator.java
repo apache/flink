@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.java.tuple;
 
+import com.google.common.io.Files;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
-
-import com.google.common.io.Files;
 
 /**
  * Source code generator for tuple classes and classes which depend on the arity of tuples.

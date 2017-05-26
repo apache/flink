@@ -29,6 +29,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;

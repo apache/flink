@@ -18,10 +18,8 @@
 
 package org.apache.flink.api.java.operators;
 
-import java.util.Arrays;
-
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -34,6 +32,8 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Preconditions;
+
+import java.util.Arrays;
 
 /**
  * The DeltaIteration represents the start of a delta iteration. It is created from the DataSet that

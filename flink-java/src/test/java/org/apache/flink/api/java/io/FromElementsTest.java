@@ -18,6 +18,7 @@
 package org.apache.flink.api.java.io;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
+
 import org.junit.Test;
 
 public class FromElementsTest {

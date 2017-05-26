@@ -18,15 +18,16 @@
 
 package org.apache.flink.api.java.hadoop.mapred;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 import org.apache.hadoop.mapred.JobConf;
+
+import java.io.IOException;
 
 /**
  * Wrapper for using HadoopInputFormats (mapred-variant) with Flink.

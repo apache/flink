@@ -19,12 +19,12 @@
 
 package org.apache.flink.api.java.io;
 
-import java.io.Serializable;
-import java.util.Iterator;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
+
+import java.io.Serializable;
+import java.util.Iterator;
 
 /**
  * An input format that returns objects from an iterator.

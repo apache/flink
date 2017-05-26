@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.sca;
 
 import org.apache.flink.annotation.Internal;
+
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.JumpInsnNode;

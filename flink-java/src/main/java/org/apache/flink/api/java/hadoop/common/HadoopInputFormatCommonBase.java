@@ -20,6 +20,7 @@ package org.apache.flink.api.java.hadoop.common;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.core.io.InputSplit;
+
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 

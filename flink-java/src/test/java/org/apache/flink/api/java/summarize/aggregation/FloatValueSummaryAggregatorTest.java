@@ -20,6 +20,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.apache.flink.types.FloatValue;
+
 import org.junit.Assert;
 
 public class FloatValueSummaryAggregatorTest extends FloatSummaryAggregatorTest {

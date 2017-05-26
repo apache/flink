@@ -20,6 +20,7 @@
 package org.apache.flink.api.java.hadoop.mapred.wrapper;
 
 import org.apache.flink.annotation.PublicEvolving;
+
 import org.apache.hadoop.mapred.Counters.Counter;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.Reporter;

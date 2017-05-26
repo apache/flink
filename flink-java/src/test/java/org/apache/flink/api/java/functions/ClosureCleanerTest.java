@@ -20,6 +20,7 @@ package org.apache.flink.api.java.functions;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ClosureCleaner;
+
 import org.junit.Assert;
 import org.junit.Test;
 

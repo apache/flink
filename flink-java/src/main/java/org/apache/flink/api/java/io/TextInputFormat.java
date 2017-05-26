@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.java.io;
 
-import java.io.IOException;
-import java.nio.charset.Charset;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+
+import java.io.IOException;
+import java.nio.charset.Charset;
 
 @PublicEvolving
 public class TextInputFormat extends DelimitedInputFormat<String> {

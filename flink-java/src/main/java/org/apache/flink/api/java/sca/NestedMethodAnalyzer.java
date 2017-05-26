@@ -18,19 +18,9 @@
 
 package org.apache.flink.api.java.sca;
 
-import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.findMethodNode;
-import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.hasImportantDependencies;
-import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.isTagged;
-import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.mergeReturnValues;
-import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.removeUngroupedInputs;
-import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.tagged;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.sca.TaggedValue.Tag;
+
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.FieldInsnNode;
@@ -42,6 +32,17 @@ import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.analysis.AnalyzerException;
 import org.objectweb.asm.tree.analysis.BasicInterpreter;
 import org.objectweb.asm.tree.analysis.BasicValue;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.findMethodNode;
+import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.hasImportantDependencies;
+import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.isTagged;
+import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.mergeReturnValues;
+import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.removeUngroupedInputs;
+import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.tagged;
 
 /**
  * Extends ASM's BasicInterpreter. Instead of ASM's BasicValues, it introduces

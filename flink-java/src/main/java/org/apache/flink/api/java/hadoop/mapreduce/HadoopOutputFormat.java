@@ -18,11 +18,12 @@
 
 package org.apache.flink.api.java.hadoop.mapreduce;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.apache.hadoop.mapreduce.Job;
+
+import java.io.IOException;
 
 /**
  * OutputFormat implementation allowing to use Hadoop (mapreduce) OutputFormats with Flink.

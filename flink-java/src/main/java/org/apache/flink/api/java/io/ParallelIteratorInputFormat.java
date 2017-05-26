@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.java.io;
 
-import java.io.IOException;
-import java.util.Iterator;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.util.SplittableIterator;
+
+import java.io.IOException;
+import java.util.Iterator;
 
 
 /**

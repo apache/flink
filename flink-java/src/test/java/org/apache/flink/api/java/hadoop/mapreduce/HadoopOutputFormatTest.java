@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.hadoop.mapreduce;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;

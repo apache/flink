@@ -21,8 +21,8 @@ package org.apache.flink.api.java.utils;
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 

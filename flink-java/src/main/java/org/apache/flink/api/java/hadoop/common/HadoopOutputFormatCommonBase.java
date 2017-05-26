@@ -19,6 +19,7 @@ package org.apache.flink.api.java.hadoop.common;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.RichOutputFormat;
+
 import org.apache.hadoop.security.Credentials;
 
 import java.io.IOException;

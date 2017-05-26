@@ -17,10 +17,11 @@
  */
 package org.apache.flink.api.java.sampling;
 
-import org.apache.commons.math3.distribution.PoissonDistribution;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.XORShiftRandom;
+
+import org.apache.commons.math3.distribution.PoissonDistribution;
 
 import java.util.Iterator;
 import java.util.Random;

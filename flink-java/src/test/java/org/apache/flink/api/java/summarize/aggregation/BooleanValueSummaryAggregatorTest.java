@@ -20,6 +20,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.BooleanColumnSummary;
 import org.apache.flink.types.BooleanValue;
+
 import org.junit.Assert;
 
 public class BooleanValueSummaryAggregatorTest extends BooleanSummaryAggregatorTest {

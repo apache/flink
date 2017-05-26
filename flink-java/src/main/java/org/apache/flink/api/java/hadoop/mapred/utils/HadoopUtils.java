@@ -19,14 +19,10 @@
 
 package org.apache.flink.api.java.hadoop.mapred.utils;
 
-import java.io.File;
-import java.lang.reflect.Constructor;
-import java.util.Collection;
-import java.util.Map;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
@@ -39,6 +35,11 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.lang.reflect.Constructor;
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * Utility class to work with Apache Hadoop MapRed classes.

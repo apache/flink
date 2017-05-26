@@ -18,14 +18,13 @@
 
 package org.apache.flink.api.java.operators;
 
-import java.util.Map;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.operators.SemanticProperties;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.configuration.Configuration;
 
-import org.apache.flink.api.java.DataSet;
+import java.util.Map;
 
 /**
  * This interface marks operators as operators that execute user-defined functions (UDFs), such as
