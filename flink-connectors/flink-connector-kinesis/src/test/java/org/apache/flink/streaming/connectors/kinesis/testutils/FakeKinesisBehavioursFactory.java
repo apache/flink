@@ -22,7 +22,7 @@ import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 
@@ -55,7 +55,7 @@ public class FakeKinesisBehavioursFactory {
 			}
 
 			@Override
-			public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, Object startingMarker) {
+			public String getShardIterator(StreamShardHandle shard, String shardIteratorType, Object startingMarker) {
 				return null;
 			}
 
@@ -122,7 +122,7 @@ public class FakeKinesisBehavioursFactory {
 		}
 
 		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, Object startingMarker) {
+		public String getShardIterator(StreamShardHandle shard, String shardIteratorType, Object startingMarker) {
 			if (!expiredOnceAlready) {
 				// for the first call, just return the iterator of the first batch of records
 				return "0";
@@ -181,7 +181,7 @@ public class FakeKinesisBehavioursFactory {
 		}
 
 		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, Object startingMarker) {
+		public String getShardIterator(StreamShardHandle shard, String shardIteratorType, Object startingMarker) {
 			// this will be called only one time per ShardConsumer;
 			// so, simply return the iterator of the first batch of records
 			return "0";
@@ -209,7 +209,7 @@ public class FakeKinesisBehavioursFactory {
 
 	private static class NonReshardedStreamsKinesis implements KinesisProxyInterface {
 
-		private Map<String, List<KinesisStreamShard>> streamsWithListOfShards = new HashMap<>();
+		private Map<String, List<StreamShardHandle>> streamsWithListOfShards = new HashMap<>();
 
 		public NonReshardedStreamsKinesis(Map<String,Integer> streamsToShardCount) {
 			for (Map.Entry<String,Integer> streamToShardCount : streamsToShardCount.entrySet()) {
@@ -219,10 +219,10 @@ public class FakeKinesisBehavioursFactory {
 				if (shardCount == 0) {
 					// don't do anything
 				} else {
-					List<KinesisStreamShard> shardsOfStream = new ArrayList<>(shardCount);
+					List<StreamShardHandle> shardsOfStream = new ArrayList<>(shardCount);
 					for (int i=0; i < shardCount; i++) {
 						shardsOfStream.add(
-							new KinesisStreamShard(
+							new StreamShardHandle(
 								streamName,
 								new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(i))));
 					}
@@ -234,13 +234,13 @@ public class FakeKinesisBehavioursFactory {
 		@Override
 		public GetShardListResult getShardList(Map<String, String> streamNamesWithLastSeenShardIds) {
 			GetShardListResult result = new GetShardListResult();
-			for (Map.Entry<String, List<KinesisStreamShard>> streamsWithShards : streamsWithListOfShards.entrySet()) {
+			for (Map.Entry<String, List<StreamShardHandle>> streamsWithShards : streamsWithListOfShards.entrySet()) {
 				String streamName = streamsWithShards.getKey();
-				for (KinesisStreamShard shard : streamsWithShards.getValue()) {
+				for (StreamShardHandle shard : streamsWithShards.getValue()) {
 					if (streamNamesWithLastSeenShardIds.get(streamName) == null) {
 						result.addRetrievedShardToStream(streamName, shard);
 					} else {
-						if (KinesisStreamShard.compareShardIds(
+						if (StreamShardHandle.compareShardIds(
 							shard.getShard().getShardId(), streamNamesWithLastSeenShardIds.get(streamName)) > 0) {
 							result.addRetrievedShardToStream(streamName, shard);
 						}
@@ -251,7 +251,7 @@ public class FakeKinesisBehavioursFactory {
 		}
 
 		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, Object startingMarker) {
+		public String getShardIterator(StreamShardHandle shard, String shardIteratorType, Object startingMarker) {
 			return null;
 		}
 
