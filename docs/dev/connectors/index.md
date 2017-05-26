@@ -56,7 +56,7 @@ Further instructions can be found in the corresponding subsections.
 
 ## Connectors in Apache Bahir
 
-The [Apache Bahir](https://bahir.apache.org/) project provides some additional streaming connectors for Flink, including:
+Additional streaming connectors for Flink are being released through [Apache Bahir](https://bahir.apache.org/), including:
 
  * [Apache ActiveMQ](https://bahir.apache.org/docs/flink/current/flink-streaming-activemq/) (source/sink)
  * [Apache Flume](https://bahir.apache.org/docs/flink/current/flink-streaming-flume/) (sink)
