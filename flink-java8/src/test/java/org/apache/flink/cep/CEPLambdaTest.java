@@ -45,7 +45,7 @@ public class CEPLambdaTest extends TestLogger {
 	public static class EventA {}
 
 	/**
-	 * Test even class.
+	 * Test event class.
 	 */
 	public static class EventB {}
 
