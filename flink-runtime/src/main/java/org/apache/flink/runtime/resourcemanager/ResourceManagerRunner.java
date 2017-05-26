@@ -42,7 +42,7 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 
 	private final ResourceManagerRuntimeServices resourceManagerRuntimeServices;
 
-	private final ResourceManager<?> resourceManager;
+	private final ResourceManager<? extends ResourceManagerGateway, ?> resourceManager;
 
 	public ResourceManagerRunner(
 			final ResourceID resourceId,

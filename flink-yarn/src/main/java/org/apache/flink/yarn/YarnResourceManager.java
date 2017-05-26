@@ -63,7 +63,7 @@ import java.util.concurrent.TimeUnit;
  * The yarn implementation of the resource manager. Used when the system is started
  * via the resource framework YARN.
  */
-public class YarnResourceManager extends ResourceManager<ResourceID> implements AMRMClientAsync.CallbackHandler {
+public class YarnResourceManager extends ResourceManager<YarnResourceManagerGateway, ResourceID> implements AMRMClientAsync.CallbackHandler {
 	protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
 	/** The process environment variables */

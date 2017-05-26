@@ -83,8 +83,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     <li>{@link #requestSlot(UUID, UUID, SlotRequest)} requests a slot from the resource manager</li>
  * </ul>
  */
-public abstract class ResourceManager<WorkerType extends Serializable>
-		extends RpcEndpoint<ResourceManagerGateway>
+public abstract class ResourceManager<C extends ResourceManagerGateway, WorkerType extends Serializable>
+		extends RpcEndpoint<C>
 		implements LeaderContender {
 
 	public static final String RESOURCE_MANAGER_NAME = "resourcemanager";
@@ -419,6 +419,11 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 						}
 
 						WorkerType newWorker = workerStarted(taskExecutorResourceId);
+						if(newWorker == null) {
+							log.warn("Discard registration from TaskExecutor {} at ({}) because the framework did " +
+									"not recognize it", taskExecutorResourceId, taskExecutorAddress);
+							return new RegistrationResponse.Decline("unrecognized TaskExecutor");
+						}
 						WorkerRegistration<WorkerType> registration =
 							new WorkerRegistration<>(taskExecutorGateway, newWorker);
 
@@ -783,7 +788,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 *
 	 * @param t The exception describing the fatal error
 	 */
-	void onFatalError(Throwable t) {
+	protected void onFatalError(Throwable t) {
 		log.error("Fatal error occurred.", t);
 		fatalErrorHandler.onFatalError(t);
 	}
