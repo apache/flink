@@ -30,7 +30,7 @@ import static org.apache.flink.graph.asm.translate.Translate.translateEdgeIds;
 import static org.apache.flink.graph.asm.translate.Translate.translateVertexIds;
 
 /**
- * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link TranslateFunction}
+ * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link TranslateFunction}.
  *
  * @param <OLD> old graph ID type
  * @param <NEW> new graph ID type
@@ -47,7 +47,7 @@ extends GraphAlgorithmWrappingGraph<OLD, VV, EV, NEW, VV, EV> {
 	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
-	 * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link TranslateFunction}
+	 * Translate {@link Vertex} and {@link Edge} IDs of a {@link Graph} using the given {@link TranslateFunction}.
 	 *
 	 * @param translator implements conversion from {@code OLD} to {@code NEW}
 	 */
@@ -81,7 +81,7 @@ extends GraphAlgorithmWrappingGraph<OLD, VV, EV, NEW, VV, EV> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingGraph other) {
 		Preconditions.checkNotNull(other);
 
-		if (! TranslateGraphIds.class.isAssignableFrom(other.getClass())) {
+		if (!TranslateGraphIds.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 

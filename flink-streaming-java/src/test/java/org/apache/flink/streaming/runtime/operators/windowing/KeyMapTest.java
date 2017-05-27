@@ -24,8 +24,15 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link KeyMap}.
+ */
 public class KeyMapTest {
 
 	@Test
@@ -217,7 +224,6 @@ public class KeyMapTest {
 				totalNumElements += numCopies;
 				nextKeyValue += keyRnd.nextInt(maxStride) + 1;
 			}
-
 
 			// check that all maps contain the total number of elements
 			int numContained = 0;

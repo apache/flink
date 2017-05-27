@@ -28,16 +28,20 @@ import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
 
 import javax.annotation.Nullable;
+
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Executor;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests that when sources implement {@link WithMasterCheckpointHook} the hooks are properly
@@ -80,10 +84,15 @@ public class WithMasterCheckpointHookConfigTest {
 			.addSink(new DiscardingSink<String>());
 
 		final JobGraph jg = env.getStreamGraph().getJobGraph();
-		assertEquals(hooks.size(), jg.getCheckpointingSettings().getMasterHooks().length);
+
+		SerializedValue<Factory[]> serializedConfiguredHooks = jg.getCheckpointingSettings().getMasterHooks();
+		assertNotNull(serializedConfiguredHooks);
+
+		Factory[] configuredHooks = serializedConfiguredHooks.deserializeValue(getClass().getClassLoader());
+		assertEquals(hooks.size(), configuredHooks.length);
 
 		// check that all hooks are contained and exist exactly once
-		for (Factory f : jg.getCheckpointingSettings().getMasterHooks()) {
+		for (Factory f : configuredHooks) {
 			MasterTriggerRestoreHook<?> hook = f.create();
 			assertTrue(hooks.remove(hook));
 		}

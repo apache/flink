@@ -19,11 +19,15 @@
 package org.apache.flink.graph.drivers;
 
 import org.apache.flink.client.program.ProgramParametrizationException;
+
 import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+/**
+ * Tests for {@link GraphMetrics}.
+ */
 @RunWith(Parameterized.class)
 public class GraphMetricsITCase
 extends DriverBaseITCase {

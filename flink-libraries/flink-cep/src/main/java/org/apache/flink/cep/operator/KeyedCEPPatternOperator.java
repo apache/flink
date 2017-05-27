@@ -19,15 +19,14 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.OutputTag;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,42 +37,40 @@ import java.util.Map;
  * @param <IN> Type of the input events
  * @param <KEY> Type of the key
  */
-public class KeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPatternOperator<IN, KEY, Map<String, IN>> {
+public class KeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPatternOperator<IN, KEY, Map<String, List<IN>>> {
 	private static final long serialVersionUID = 5328573789532074581L;
 
 	public KeyedCEPPatternOperator(
 			TypeSerializer<IN> inputSerializer,
 			boolean isProcessingTime,
-			KeySelector<IN, KEY> keySelector,
 			TypeSerializer<KEY> keySerializer,
 			NFACompiler.NFAFactory<IN> nfaFactory,
-			OutputTag<IN> lateDataOutputTag,
 			boolean migratingFromOldKeyedOperator) {
 
-		super(inputSerializer, isProcessingTime, keySelector, keySerializer, nfaFactory, lateDataOutputTag, migratingFromOldKeyedOperator);
+		super(inputSerializer, isProcessingTime, keySerializer, nfaFactory, migratingFromOldKeyedOperator);
 	}
 
 	@Override
 	protected void processEvent(NFA<IN> nfa, IN event, long timestamp) {
-		Tuple2<Collection<Map<String, IN>>, Collection<Tuple2<Map<String, IN>, Long>>> patterns =
+		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
 			nfa.process(event, timestamp);
+
 		emitMatchedSequences(patterns.f0, timestamp);
 	}
 
 	@Override
 	protected void advanceTime(NFA<IN> nfa, long timestamp) {
-		Tuple2<Collection<Map<String, IN>>, Collection<Tuple2<Map<String, IN>, Long>>> patterns =
+		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
 			nfa.process(null, timestamp);
+
 		emitMatchedSequences(patterns.f0, timestamp);
 	}
 
-	private void emitMatchedSequences(Iterable<Map<String, IN>> matchedSequences, long timestamp) {
-		Iterator<Map<String, IN>> iterator = matchedSequences.iterator();
+	private void emitMatchedSequences(Iterable<Map<String, List<IN>>> matchedSequences, long timestamp) {
+		Iterator<Map<String, List<IN>>> iterator = matchedSequences.iterator();
 
 		if (iterator.hasNext()) {
-			StreamRecord<Map<String, IN>> streamRecord = new StreamRecord<Map<String, IN>>(
-				null,
-				timestamp);
+			StreamRecord<Map<String, List<IN>>> streamRecord = new StreamRecord<>(null, timestamp);
 
 			do {
 				streamRecord.replace(iterator.next());

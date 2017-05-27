@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -74,8 +75,8 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM / 2);
 		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 48L);
-		config.setString(ConfigConstants.DEFAULT_AKKA_LOOKUP_TIMEOUT, "60 s");
-		config.setString(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT, "60 s");
+		config.setString(AkkaOptions.LOOKUP_TIMEOUT, "60 s");
+		config.setString(AkkaOptions.ASK_TIMEOUT, "60 s");
 		cluster = new LocalFlinkMiniCluster(config, false);
 		cluster.start();
 

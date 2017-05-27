@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.OperatingSystem;
+
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
@@ -33,6 +35,9 @@ import java.io.FileOutputStream;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link HDFSCopyFromLocal} and {@link HDFSCopyToLocal}.
+ */
 public class HDFSCopyUtilitiesTest {
 
 	@Rule

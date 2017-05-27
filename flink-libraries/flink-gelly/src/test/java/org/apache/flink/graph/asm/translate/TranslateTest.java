@@ -27,6 +27,7 @@ import org.apache.flink.graph.asm.translate.translators.LongValueToStringValue;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -35,6 +36,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for translation of {@link Graph} IDs and values.
+ */
 public class TranslateTest {
 
 	private Graph<LongValue, LongValue, LongValue> graph;
@@ -72,10 +76,10 @@ public class TranslateTest {
 		List<Vertex<LongValue, LongValue>> vertexList = new LinkedList<>();
 		List<Edge<LongValue, LongValue>> edgeList = new LinkedList<>();
 
-		for (long l = 0 ; l < count ; l++) {
+		for (long l = 0; l < count; l++) {
 			LongValue lv0 = new LongValue(l);
-			LongValue lv1 = new LongValue(l+1);
-			LongValue lv2 = new LongValue(l+2);
+			LongValue lv1 = new LongValue(l + 1);
+			LongValue lv2 = new LongValue(l + 2);
 			vertexList.add(new Vertex<>(lv0, lv1));
 			edgeList.add(new Edge<>(lv0, lv1, lv2));
 		}

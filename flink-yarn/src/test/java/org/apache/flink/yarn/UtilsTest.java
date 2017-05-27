@@ -18,11 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.PoisonPill;
-import akka.actor.Props;
-import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -36,6 +31,12 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.messages.NotifyWhenResourcesRegistered;
 import org.apache.flink.yarn.messages.RequestNumberOfRegisteredResources;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.PoisonPill;
+import akka.actor.Props;
+import akka.testkit.JavaTestKit;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
@@ -53,11 +54,6 @@ import org.junit.Test;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import scala.Option;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -66,11 +62,20 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import scala.Option;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.FiniteDuration;
+
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link Utils}.
+ */
 public class UtilsTest extends TestLogger {
 
 	private static ActorSystem system;
@@ -99,7 +104,7 @@ public class UtilsTest extends TestLogger {
 			String applicationMasterHostName = "localhost";
 			String webInterfaceURL = "foobar";
 			ContaineredTaskManagerParameters taskManagerParameters = new ContaineredTaskManagerParameters(
-				1l, 1l, 1l, 1, new HashMap<String, String>());
+				1L, 1L, 1L, 1, new HashMap<String, String>());
 			ContainerLaunchContext taskManagerLaunchContext = mock(ContainerLaunchContext.class);
 			int yarnHeartbeatIntervalMillis = 1000;
 			int maxFailedContainers = 10;
@@ -203,7 +208,7 @@ public class UtilsTest extends TestLogger {
 					expectMsgClass(deadline.timeLeft(), Acknowledge.class);
 				}
 
-				Future<Object> numberOfRegisteredResourcesFuture = resourceManagerGateway.ask(RequestNumberOfRegisteredResources.Instance, deadline.timeLeft());
+				Future<Object> numberOfRegisteredResourcesFuture = resourceManagerGateway.ask(RequestNumberOfRegisteredResources.INSTANCE, deadline.timeLeft());
 
 				int numberOfRegisteredResources = (Integer) Await.result(numberOfRegisteredResourcesFuture, deadline.timeLeft());
 

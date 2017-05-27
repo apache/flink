@@ -18,10 +18,10 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import static java.util.Objects.requireNonNull;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.WrappingRuntimeException;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * A special exception that signifies that the cause exception came from a chained operator.

@@ -25,20 +25,24 @@ import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link AdamicAdar}.
+ */
 public class AdamicAdarTest
 extends AsmTestBase {
 
 	private float[] ilog = {
-		1.0f / (float)Math.log(2),
-		1.0f / (float)Math.log(3),
-		1.0f / (float)Math.log(3),
-		1.0f / (float)Math.log(4),
-		1.0f / (float)Math.log(1),
-		1.0f / (float)Math.log(1)
+		1.0f / (float) Math.log(2),
+		1.0f / (float) Math.log(3),
+		1.0f / (float) Math.log(3),
+		1.0f / (float) Math.log(4),
+		1.0f / (float) Math.log(1),
+		1.0f / (float) Math.log(1)
 	};
 
 	@Test
@@ -98,7 +102,7 @@ extends AsmTestBase {
 	@Test
 	public void testCompleteGraph()
 			throws Exception {
-		float expectedScore = (completeGraphVertexCount - 2) / (float)Math.log(completeGraphVertexCount - 1);
+		float expectedScore = (completeGraphVertexCount - 2) / (float) Math.log(completeGraphVertexCount - 1);
 
 		DataSet<Result<LongValue>> aa = completeGraph
 			.run(new AdamicAdar<LongValue, NullValue, NullValue>());

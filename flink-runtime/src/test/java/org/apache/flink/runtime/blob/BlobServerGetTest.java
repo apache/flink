@@ -18,35 +18,65 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.util.TestLogger;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.junit.Assert.*;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests how failing GET requests behave in the presence of failures.
  * Successful GET requests are tested in conjunction wit the PUT
  * requests.
  */
-public class BlobServerGetTest {
+public class BlobServerGetTest extends TestLogger {
 
 	private final Random rnd = new Random();
 
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	@Test
-	public void testGetFailsDuringLookup() {
+	public void testGetFailsDuringLookup() throws IOException {
 		BlobServer server = null;
 		BlobClient client = null;
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -66,37 +96,27 @@ public class BlobServerGetTest {
 			try {
 				client.get(key);
 				fail("This should not succeed.");
-			}
-			catch (IOException e) {
+			} catch (IOException e) {
 				// expected
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
+				client.close();
 			}
 			if (server != null) {
-				server.shutdown();
+				server.close();
 			}
 		}
 	}
 
 	@Test
-	public void testGetFailsDuringStreaming() {
+	public void testGetFailsDuringStreaming() throws IOException {
 		BlobServer server = null;
 		BlobClient client = null;
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, new VoidBlobStore());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -129,22 +149,96 @@ public class BlobServerGetTest {
 			catch (IOException e) {
 				// expected
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
+				client.close();
 			}
 			if (server != null) {
-				server.shutdown();
+				server.close();
 			}
+		}
+	}
+
+	/**
+	 * FLINK-6020
+	 *
+	 * Tests that concurrent get operations don't concurrently access the BlobStore to download a blob.
+	 */
+	@Test
+	public void testConcurrentGetOperations() throws IOException, ExecutionException, InterruptedException {
+		final Configuration configuration = new Configuration();
+
+		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+
+		final BlobStore blobStore = mock(BlobStore.class);
+
+		final int numberConcurrentGetOperations = 3;
+		final List<Future<InputStream>> getOperations = new ArrayList<>(numberConcurrentGetOperations);
+
+		final byte[] data = {1, 2, 3, 4, 99, 42};
+		final ByteArrayInputStream bais = new ByteArrayInputStream(data);
+
+		MessageDigest md = BlobUtils.createMessageDigest();
+
+		// create the correct blob key by hashing our input data
+		final BlobKey blobKey = new BlobKey(md.digest(data));
+
+		doAnswer(
+			new Answer() {
+				@Override
+				public Object answer(InvocationOnMock invocation) throws Throwable {
+					File targetFile = (File) invocation.getArguments()[1];
+
+					FileUtils.copyInputStreamToFile(bais, targetFile);
+
+					return null;
+				}
+			}
+		).when(blobStore).get(any(BlobKey.class), any(File.class));
+
+		final ExecutorService executor = Executors.newFixedThreadPool(numberConcurrentGetOperations);
+
+		try (final BlobServer blobServer = new BlobServer(configuration, blobStore)) {
+			for (int i = 0; i < numberConcurrentGetOperations; i++) {
+				Future<InputStream> getOperation = FlinkCompletableFuture.supplyAsync(new Callable<InputStream>() {
+					@Override
+					public InputStream call() throws Exception {
+						try (BlobClient blobClient = blobServer.createClient();
+							 InputStream inputStream = blobClient.get(blobKey)) {
+							byte[] buffer = new byte[data.length];
+
+							IOUtils.readFully(inputStream, buffer);
+
+							return new ByteArrayInputStream(buffer);
+						}
+					}
+				}, executor);
+
+				getOperations.add(getOperation);
+			}
+
+			Future<Collection<InputStream>> inputStreamsFuture = FutureUtils.combineAll(getOperations);
+
+			Collection<InputStream> inputStreams = inputStreamsFuture.get();
+
+			// check that we have read the right data
+			for (InputStream inputStream : inputStreams) {
+				ByteArrayOutputStream baos = new ByteArrayOutputStream(data.length);
+
+				IOUtils.copy(inputStream, baos);
+
+				baos.close();
+				byte[] input = baos.toByteArray();
+
+				assertArrayEquals(data, input);
+
+				inputStream.close();
+			}
+
+			// verify that we downloaded the requested blob exactly once from the BlobStore
+			verify(blobStore, times(1)).get(eq(blobKey), any(File.class));
+		} finally {
+			executor.shutdownNow();
 		}
 	}
 }

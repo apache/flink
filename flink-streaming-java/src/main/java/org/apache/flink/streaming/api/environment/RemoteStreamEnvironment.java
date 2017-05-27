@@ -17,15 +17,6 @@
 
 package org.apache.flink.streaming.api.environment;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -36,10 +27,19 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-
 import org.apache.flink.streaming.api.graph.StreamGraph;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * A {@link StreamExecutionEnvironment} for executing on a cluster.
@@ -252,7 +252,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	public int getPort() {
 		return port;
 	}
-
 
 	public Configuration getClientConfiguration() {
 		return clientConfiguration;

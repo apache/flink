@@ -118,12 +118,10 @@ public class State<T> implements Serializable {
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 
-		builder.append("State(").append(name).append(", ").append(stateType).append(", [\n");
-
+		builder.append(stateType).append(" State ").append(name).append(" [\n");
 		for (StateTransition<T> stateTransition: stateTransitions) {
-			builder.append(stateTransition).append(",\n");
+			builder.append("\t").append(stateTransition).append(",\n");
 		}
-
 		builder.append("])");
 
 		return builder.toString();
@@ -147,6 +145,8 @@ public class State<T> implements Serializable {
 		Normal, // the state is neither a start nor a final state
 		Stop
 	}
+
+	////////////////			Backwards Compatibility			////////////////////
 
 	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
 		ois.defaultReadObject();

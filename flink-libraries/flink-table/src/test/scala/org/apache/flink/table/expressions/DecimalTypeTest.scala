@@ -154,12 +154,12 @@ class DecimalTypeTest extends ExpressionTestBase {
     // to boolean (not SQL compliant)
     testTableApi(
       'f1.cast(Types.BOOLEAN),
-      "f1.cast(BOOL)",
+      "f1.cast(BOOLEAN)",
       "true")
 
     testTableApi(
       'f5.cast(Types.BOOLEAN),
-      "f5.cast(BOOL)",
+      "f5.cast(BOOLEAN)",
       "false")
 
     testTableApi(

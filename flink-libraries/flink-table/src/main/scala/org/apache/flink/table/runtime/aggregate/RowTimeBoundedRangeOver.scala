@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
@@ -42,8 +43,9 @@ class RowTimeBoundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
     aggregationStateType: RowTypeInfo,
     inputRowType: CRowTypeInfo,
-    precedingOffset: Long)
-  extends ProcessFunction[CRow, CRow]
+    precedingOffset: Long,
+    queryConfig: StreamQueryConfig)
+  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
   Preconditions.checkNotNull(aggregationStateType)
   Preconditions.checkNotNull(precedingOffset)
@@ -97,6 +99,8 @@ class RowTimeBoundedRangeOver(
         valueTypeInformation)
 
     dataState = getRuntimeContext.getMapState(mapStateDescriptor)
+
+    initCleanupTimeState("RowTimeBoundedRangeOverCleanupTime")
   }
 
   override def processElement(
@@ -105,6 +109,9 @@ class RowTimeBoundedRangeOver(
     out: Collector[CRow]): Unit = {
 
     val input = inputC.row
+
+    // register state-cleanup timer
+    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
 
     // triggering timestamp for trigger calculation
     val triggeringTs = ctx.timestamp
@@ -131,6 +138,34 @@ class RowTimeBoundedRangeOver(
     timestamp: Long,
     ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
     out: Collector[CRow]): Unit = {
+
+    if (isProcessingTimeTimer(ctx.asInstanceOf[OnTimerContext])) {
+      if (needToCleanupState(timestamp)) {
+
+        val keysIt = dataState.keys.iterator()
+        val lastProcessedTime = lastTriggeringTsState.value
+
+        // is data left which has not been processed yet?
+        var noRecordsToProcess = true
+        while (keysIt.hasNext && noRecordsToProcess) {
+          if (keysIt.next() > lastProcessedTime) {
+            noRecordsToProcess = false
+          }
+        }
+
+        if (noRecordsToProcess) {
+          // we clean the state
+          cleanupState(dataState, accumulatorState, lastTriggeringTsState)
+        } else {
+          // There are records left to process because a watermark has not been received yet.
+          // This would only happen if the input stream has stopped. So we don't need to clean up.
+          // We leave the state as it is and schedule a new cleanup timer
+          registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+        }
+      }
+      return
+    }
+
     // gets all window data from state for the calculation
     val inputs: JList[Row] = dataState.get(timestamp)
 
@@ -196,8 +231,11 @@ class RowTimeBoundedRangeOver(
 
       // update state
       accumulatorState.update(accumulators)
-      lastTriggeringTsState.update(timestamp)
     }
+    lastTriggeringTsState.update(timestamp)
+
+    // update cleanup timer
+    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
   }
 }
 

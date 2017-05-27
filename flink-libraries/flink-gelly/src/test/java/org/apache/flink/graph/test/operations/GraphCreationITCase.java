@@ -30,6 +30,7 @@ import org.apache.flink.graph.test.TestGraphUtils.DummyCustomParameterizedType;
 import org.apache.flink.graph.validation.InvalidVertexIdsValidator;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -37,6 +38,9 @@ import org.junit.runners.Parameterized;
 import java.util.LinkedList;
 import java.util.List;
 
+/**
+ * Test graph creation and validation from datasets and tuples.
+ */
 @RunWith(Parameterized.class)
 public class GraphCreationITCase extends MultipleProgramsTestBase {
 
@@ -122,7 +126,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 
 		//env.fromElements(result).writeAsText(resultPath);
 
-		String res = valid.toString();//env.fromElements(valid);
+		String res = valid.toString(); //env.fromElements(valid);
 		List<String> result = new LinkedList<>();
 		result.add(res);
 		expectedResult = "true";
@@ -142,7 +146,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
 		Boolean valid = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
 
-		String res = valid.toString();//env.fromElements(valid);
+		String res = valid.toString(); //env.fromElements(valid);
 		List<String> result = new LinkedList<>();
 		result.add(res);
 

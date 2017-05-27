@@ -100,39 +100,43 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
   // Serializer configuration snapshotting & compatibility
   // --------------------------------------------------------------------------------------------
 
-  override def snapshotConfiguration(): OptionSerializer.OptionSerializerConfigSnapshot = {
-    new OptionSerializer.OptionSerializerConfigSnapshot(elemSerializer.snapshotConfiguration())
+  override def snapshotConfiguration(): OptionSerializer.OptionSerializerConfigSnapshot[A] = {
+    new OptionSerializer.OptionSerializerConfigSnapshot(elemSerializer)
   }
 
   override def ensureCompatibility(
       configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[Option[A]] = {
     configSnapshot match {
-      case optionSerializerConfigSnapshot: OptionSerializer.OptionSerializerConfigSnapshot =>
-        val compatResult = elemSerializer.ensureCompatibility(
-          optionSerializerConfigSnapshot.getSingleNestedSerializerConfigSnapshot)
+      case optionSerializerConfigSnapshot
+          : OptionSerializer.OptionSerializerConfigSnapshot[A] =>
+        val compatResult = CompatibilityUtil.resolveCompatibilityResult(
+          optionSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f0,
+          classOf[UnloadableDummyTypeSerializer[_]],
+          optionSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f1,
+          elemSerializer)
 
-        if (compatResult.requiresMigration()) {
+        if (compatResult.isRequiresMigration) {
           if (compatResult.getConvertDeserializer != null) {
             CompatibilityResult.requiresMigration(
               new OptionSerializer[A](
                 new TypeDeserializerAdapter(compatResult.getConvertDeserializer)))
           } else {
-            CompatibilityResult.requiresMigration(null)
+            CompatibilityResult.requiresMigration()
           }
         } else {
           CompatibilityResult.compatible()
         }
 
-      case _ => CompatibilityResult.requiresMigration(null)
+      case _ => CompatibilityResult.requiresMigration()
     }
   }
 }
 
 object OptionSerializer {
 
-  class OptionSerializerConfigSnapshot(
-      private var elemSerializerConfigSnapshot: TypeSerializerConfigSnapshot)
-    extends CompositeTypeSerializerConfigSnapshot(elemSerializerConfigSnapshot) {
+  class OptionSerializerConfigSnapshot[A](
+      private val elemSerializer: TypeSerializer[A])
+    extends CompositeTypeSerializerConfigSnapshot(elemSerializer) {
 
     /** This empty nullary constructor is required for deserializing the configuration. */
     def this() = this(null)

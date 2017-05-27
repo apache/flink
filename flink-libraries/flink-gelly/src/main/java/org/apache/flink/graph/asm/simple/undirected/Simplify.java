@@ -49,7 +49,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 	 * Simplifies an undirected graph by adding reverse edges and removing
 	 * self-loops and duplicate edges.
 	 *
-	 * When clip-and-flip is set, edges where source < target are removed
+	 * <p>When clip-and-flip is set, edges where source < target are removed
 	 * before symmetrizing the graph.
 	 *
 	 * @param clipAndFlip method for generating simple graph
@@ -82,7 +82,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingGraph other) {
 		Preconditions.checkNotNull(other);
 
-		if (! Simplify.class.isAssignableFrom(other.getClass())) {
+		if (!Simplify.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 

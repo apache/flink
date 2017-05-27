@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.client.cli;
 
 import org.apache.commons.cli.CommandLine;
@@ -22,7 +23,7 @@ import org.apache.commons.cli.CommandLine;
 import static org.apache.flink.client.cli.CliFrontendParser.CANCEL_WITH_SAVEPOINT_OPTION;
 
 /**
- * Command line options for the CANCEL command
+ * Command line options for the CANCEL command.
  */
 public class CancelOptions extends CommandLineOptions {
 

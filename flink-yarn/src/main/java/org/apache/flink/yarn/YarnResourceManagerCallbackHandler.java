@@ -18,11 +18,11 @@
 
 package org.apache.flink.yarn;
 
-import akka.actor.ActorRef;
 import org.apache.flink.runtime.clusterframework.messages.FatalErrorOccurred;
 import org.apache.flink.yarn.messages.ContainersAllocated;
 import org.apache.flink.yarn.messages.ContainersComplete;
 
+import akka.actor.ActorRef;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeReport;
@@ -37,16 +37,16 @@ import java.util.List;
  */
 public class YarnResourceManagerCallbackHandler implements AMRMClientAsync.CallbackHandler {
 
-	/** The yarn master to which we report the callbacks */
+	/** The yarn master to which we report the callbacks. */
 	private ActorRef yarnFrameworkMaster;
 
-	/** The progress we report */
+	/** The progress we report. */
 	private float currentProgress;
 
 	public YarnResourceManagerCallbackHandler() {
 		this(null);
 	}
-	
+
 	public YarnResourceManagerCallbackHandler(ActorRef yarnFrameworkMaster) {
 		this.yarnFrameworkMaster = yarnFrameworkMaster;
 	}

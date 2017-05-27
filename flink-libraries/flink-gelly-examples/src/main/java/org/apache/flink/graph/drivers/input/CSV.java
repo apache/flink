@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.drivers.input;
 
-import org.apache.commons.lang3.text.WordUtils;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.client.program.ProgramParametrizationException;
@@ -32,6 +31,8 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.types.StringValue;
+
+import org.apache.commons.lang3.text.WordUtils;
 
 /**
  * Read a {@link Graph} from a CSV file using {@link IntValue},

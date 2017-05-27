@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.examples.iteration.util;
 
+/**
+ * Data for IterateExampleITCase.
+ */
 public class IterateExampleData {
 	public static final String INPUT_PAIRS = "(1,40)\n" + "(29,38)\n" + "(11,15)\n" + "(17,39)\n" + "(24,41)\n" +
 			"(7,33)\n" + "(20,2)\n" + "(11,5)\n" + "(3,16)\n" + "(23,36)\n" + "(15,23)\n" + "(28,13)\n" + "(1,1)\n" +

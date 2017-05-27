@@ -391,7 +391,7 @@ rotateLogFilesWithPrefix() {
     dir=$1
     prefix=$2
     while read -r log ; do
-        rotateLogFile $log
+        rotateLogFile "$log"
     # find distinct set of log file names, ignoring the rotation number (trailing dot and digit)
     done < <(find "$dir" ! -type d -path "${prefix}*" | sed -E s/\.[0-9]+$// | sort | uniq)
 }

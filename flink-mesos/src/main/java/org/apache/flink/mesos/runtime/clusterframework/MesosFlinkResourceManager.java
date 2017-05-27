@@ -18,20 +18,14 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-import akka.actor.ActorRef;
-import akka.actor.Props;
-import com.netflix.fenzo.TaskRequest;
-import com.netflix.fenzo.TaskScheduler;
-import com.netflix.fenzo.VirtualMachineLease;
-import com.netflix.fenzo.functions.Action1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.scheduler.ConnectionMonitor;
-import org.apache.flink.mesos.scheduler.LaunchableTask;
 import org.apache.flink.mesos.scheduler.LaunchCoordinator;
+import org.apache.flink.mesos.scheduler.LaunchableTask;
 import org.apache.flink.mesos.scheduler.ReconciliationCoordinator;
 import org.apache.flink.mesos.scheduler.SchedulerProxy;
 import org.apache.flink.mesos.scheduler.TaskMonitor;
@@ -48,23 +42,31 @@ import org.apache.flink.mesos.scheduler.messages.StatusUpdate;
 import org.apache.flink.mesos.util.MesosArtifactResolver;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.messages.FatalErrorOccurred;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+
+import akka.actor.ActorRef;
+import akka.actor.Props;
+import com.netflix.fenzo.TaskRequest;
+import com.netflix.fenzo.TaskScheduler;
+import com.netflix.fenzo.VirtualMachineLease;
+import com.netflix.fenzo.functions.Action1;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.FrameworkInfo;
 import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
-import scala.Option;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import scala.Option;
 
 import static java.util.Objects.requireNonNull;
 
@@ -73,25 +75,25 @@ import static java.util.Objects.requireNonNull;
  */
 public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMesosWorkerNode> {
 
-	/** The Mesos configuration (master and framework info) */
+	/** The Mesos configuration (master and framework info). */
 	private final MesosConfiguration mesosConfig;
 
-	/** The TaskManager container parameters (like container memory size) */
+	/** The TaskManager container parameters (like container memory size). */
 	private final MesosTaskManagerParameters taskManagerParameters;
 
-	/** Container specification for launching a TM */
+	/** Container specification for launching a TM. */
 	private final ContainerSpecification taskManagerContainerSpec;
 
-	/** Resolver for HTTP artifacts **/
+	/** Resolver for HTTP artifacts. **/
 	private final MesosArtifactResolver artifactResolver;
 
 	/** Number of failed Mesos tasks before stopping the application. -1 means infinite. */
 	private final int maxFailedTasks;
 
-	/** Callback handler for the asynchronous Mesos scheduler */
+	/** Callback handler for the asynchronous Mesos scheduler. */
 	private SchedulerProxy schedulerCallbackHandler;
 
-	/** Mesos scheduler driver */
+	/** Mesos scheduler driver. */
 	private SchedulerDriver schedulerDriver;
 
 	private ActorRef connectionMonitor;
@@ -104,12 +106,12 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 	private final MesosWorkerStore workerStore;
 
-	/** planning state related to workers - package private for unit test purposes */
+	/** planning state related to workers - package private for unit test purposes. */
 	final Map<ResourceID, MesosWorkerStore.Worker> workersInNew;
 	final Map<ResourceID, MesosWorkerStore.Worker> workersInLaunch;
 	final Map<ResourceID, MesosWorkerStore.Worker> workersBeingReturned;
 
-	/** The number of failed tasks since the master became active */
+	/** The number of failed tasks since the master became active. */
 	private int failedTasksSoFar;
 
 	public MesosFlinkResourceManager(
@@ -158,7 +160,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 			.setCheckpoint(true);
 
 		Option<Protos.FrameworkID> frameworkID = workerStore.getFrameworkID();
-		if(frameworkID.isEmpty()) {
+		if (frameworkID.isEmpty()) {
 			LOG.info("Registering as new framework.");
 		}
 		else {
@@ -248,7 +250,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 			TaskMonitor.TaskTerminated msg = (TaskMonitor.TaskTerminated) message;
 			taskTerminated(msg.taskID(), msg.status());
 
-		} else  {
+		} else {
 			// message handled by the generic resource master code
 			super.handleMessage(message);
 		}
@@ -267,15 +269,13 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 		try {
 			// unregister the framework, which implicitly removes all tasks.
 			schedulerDriver.stop(false);
-		}
-		catch(Exception ex) {
+		} catch (Exception ex) {
 			LOG.warn("unable to unregister the framework", ex);
 		}
 
 		try {
 			workerStore.stop(true);
-		}
-		catch(Exception ex) {
+		} catch (Exception ex) {
 			LOG.warn("unable to stop the worker state store", ex);
 		}
 
@@ -308,13 +308,13 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 		if (!tasksFromPreviousAttempts.isEmpty()) {
 			LOG.info("Retrieved {} TaskManagers from previous attempt", tasksFromPreviousAttempts.size());
 
-			List<Tuple2<TaskRequest,String>> toAssign = new ArrayList<>(tasksFromPreviousAttempts.size());
+			List<Tuple2<TaskRequest, String>> toAssign = new ArrayList<>(tasksFromPreviousAttempts.size());
 			List<LaunchableTask> toLaunch = new ArrayList<>(tasksFromPreviousAttempts.size());
 
 			for (final MesosWorkerStore.Worker worker : tasksFromPreviousAttempts) {
 				LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID());
 
-				switch(worker.state()) {
+				switch (worker.state()) {
 					case New:
 						workersInNew.put(extractResourceID(worker.taskID()), worker);
 						toLaunch.add(launchable);
@@ -331,11 +331,11 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 			}
 
 			// tell the launch coordinator about prior assignments
-			if(toAssign.size() >= 1) {
+			if (toAssign.size() >= 1) {
 				launchCoordinator.tell(new LaunchCoordinator.Assign(toAssign), self());
 			}
 			// tell the launch coordinator to launch any new tasks
-			if(toLaunch.size() >= 1) {
+			if (toLaunch.size() >= 1) {
 				launchCoordinator.tell(new LaunchCoordinator.Launch(toLaunch), self());
 			}
 		}
@@ -374,11 +374,10 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 			}
 
 			// tell the launch coordinator to launch the new tasks
-			if(toLaunch.size() >= 1) {
+			if (toLaunch.size() >= 1) {
 				launchCoordinator.tell(new LaunchCoordinator.Launch(toLaunch), self());
 			}
-		}
-		catch(Exception ex) {
+		} catch (Exception ex) {
 			fatalError("unable to request new workers", ex);
 		}
 	}
@@ -386,7 +385,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	/**
 	 * Accept offers as advised by the launch coordinator.
 	 *
-	 * Acceptance is routed through the RM to update the persistent state before
+	 * <p>Acceptance is routed through the RM to update the persistent state before
 	 * forwarding the message to Mesos.
 	 */
 	private void acceptOffers(AcceptOffers msg) {
@@ -421,15 +420,14 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 			// send the acceptance message to Mesos
 			schedulerDriver.acceptOffers(msg.offerIds(), msg.operations(), msg.filters());
-		}
-		catch(Exception ex) {
+		} catch (Exception ex) {
 			fatalError("unable to accept offers", ex);
 		}
 	}
 
 	/**
 	 * Handle a task status change.
-     */
+	 */
 	private void taskStatusUpdated(StatusUpdate message) {
 		taskRouter.tell(message, self());
 		reconciliationCoordinator.tell(message, self());
@@ -470,9 +468,8 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 			if (worker != null) {
 				LOG.info("Mesos worker consolidation recognizes TaskManager {}.", resourceID);
 				accepted.add(new RegisteredMesosWorkerNode(worker));
-			}
-			else {
-				if(isStarted(resourceID)) {
+			} else {
+				if (isStarted(resourceID)) {
 					LOG.info("TaskManager {} has already been registered at the resource manager.", resourceID);
 				}
 				else {
@@ -549,8 +546,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 		try {
 			workerStore.setFrameworkID(Option.apply(message.frameworkId()));
-		}
-		catch(Exception ex) {
+		} catch (Exception ex) {
 			fatalError("unable to store the assigned framework ID", ex);
 			return;
 		}
@@ -598,13 +594,12 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 		boolean existed;
 		try {
 			existed = workerStore.removeWorker(taskID);
-		}
-		catch(Exception ex) {
+		} catch (Exception ex) {
 			fatalError("unable to remove worker", ex);
 			return;
 		}
 
-		if(!existed) {
+		if (!existed) {
 			LOG.info("Received a termination notice for an unrecognized worker: {}", id);
 			return;
 		}
@@ -695,11 +690,15 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	 * @return goal state information for the {@Link TaskMonitor}.
 	 */
 	static TaskMonitor.TaskGoalState extractGoalState(MesosWorkerStore.Worker worker) {
-		switch(worker.state()) {
-			case New: return new TaskMonitor.New(worker.taskID());
-			case Launched: return new TaskMonitor.Launched(worker.taskID(), worker.slaveID().get());
-			case Released: return new TaskMonitor.Released(worker.taskID(), worker.slaveID().get());
-			default: throw new IllegalArgumentException("unsupported worker state");
+		switch (worker.state()) {
+			case New:
+				return new TaskMonitor.New(worker.taskID());
+			case Launched:
+				return new TaskMonitor.Launched(worker.taskID(), worker.slaveID().get());
+			case Released:
+				return new TaskMonitor.Released(worker.taskID(), worker.slaveID().get());
+			default:
+				throw new IllegalArgumentException("unsupported worker state");
 		}
 	}
 
@@ -727,7 +726,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	/**
 	 * Creates the props needed to instantiate this actor.
 	 *
-	 * Rather than extracting and validating parameters in the constructor, this factory method takes
+	 * <p>Rather than extracting and validating parameters in the constructor, this factory method takes
 	 * care of that. That way, errors occur synchronously, and are not swallowed simply in a
 	 * failed asynchronous attempt to start the actor.
 
@@ -746,7 +745,8 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 	 *
 	 * @return The Props object to instantiate the MesosFlinkResourceManager actor.
 	 */
-	public static Props createActorProps(Class<? extends MesosFlinkResourceManager> actorClass,
+	public static Props createActorProps(
+			Class<? extends MesosFlinkResourceManager> actorClass,
 			Configuration flinkConfig,
 			MesosConfiguration mesosConfig,
 			MesosWorkerStore workerStore,
@@ -754,8 +754,7 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 			MesosTaskManagerParameters taskManagerParameters,
 			ContainerSpecification taskManagerContainerSpec,
 			MesosArtifactResolver artifactResolver,
-			Logger log)
-	{
+			Logger log) {
 
 		final int numInitialTaskManagers = flinkConfig.getInteger(
 			ConfigConstants.MESOS_INITIAL_TASKS, 0);

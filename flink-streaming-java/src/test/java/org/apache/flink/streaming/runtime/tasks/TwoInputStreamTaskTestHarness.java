@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -35,13 +36,11 @@ import java.util.List;
 /**
  * Test harness for testing a {@link TwoInputStreamTask}.
  *
- * <p>
- * This mock Invokable provides the task with a basic runtime context and allows pushing elements
+ * <p>This mock Invokable provides the task with a basic runtime context and allows pushing elements
  * and watermarks into the task. {@link #getOutput()} can be used to get the emitted elements
  * and events. You are free to modify the retrieved list.
  *
- * <p>
- * After setting up everything the Task can be invoked using {@link #invoke()}. This will start
+ * <p>After setting up everything the Task can be invoked using {@link #invoke()}. This will start
  * a new Thread to execute the Task. Use {@link #waitForTaskCompletion()} to wait for the Task
  * thread to finish. Use {@link #processElement}
  * to send elements to the task. Use
@@ -49,8 +48,7 @@ import java.util.List;
  * Before waiting for the task to finish you must call {@link #endInput()} to signal to the task
  * that data entry is finished.
  *
- * <p>
- * When Elements or Events are offered to the Task they are put into a queue. The input gates
+ * <p>When Elements or Events are offered to the Task they are put into a queue. The input gates
  * of the Task read from this queue. Use {@link #waitForInputProcessing()} to wait until all
  * queues are empty. This must be used after entering some elements before checking the
  * desired output.

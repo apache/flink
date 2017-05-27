@@ -20,13 +20,15 @@ package org.apache.flink.runtime.webmonitor.files;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the MIME types map.
  */
 public class MimeTypesTest {
-	
+
 	@Test
 	public void testCompleteness() {
 		try {
@@ -51,14 +53,14 @@ public class MimeTypesTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testFileNameExtraction() {
 		try {
 			assertNotNull(MimeTypes.getMimeTypeForFileName("test.txt"));
 			assertNotNull(MimeTypes.getMimeTypeForFileName("t.txt"));
 			assertNotNull(MimeTypes.getMimeTypeForFileName("first.second.third.txt"));
-			
+
 			assertNull(MimeTypes.getMimeTypeForFileName(".txt"));
 			assertNull(MimeTypes.getMimeTypeForFileName("txt"));
 			assertNull(MimeTypes.getMimeTypeForFileName("test."));

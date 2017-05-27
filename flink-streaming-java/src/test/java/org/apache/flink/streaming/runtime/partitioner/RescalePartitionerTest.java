@@ -56,8 +56,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link RescalePartitioner}.
+ */
 @SuppressWarnings("serial")
 public class RescalePartitionerTest extends TestLogger {
 
@@ -161,10 +166,9 @@ public class RescalePartitionerTest extends TestLogger {
 			fail("Building ExecutionGraph failed: " + e.getMessage());
 		}
 
-
 		ExecutionJobVertex execSourceVertex = eg.getJobVertex(sourceVertex.getID());
-		ExecutionJobVertex execMapVertex= eg.getJobVertex(mapVertex.getID());
-		ExecutionJobVertex execSinkVertex= eg.getJobVertex(sinkVertex.getID());
+		ExecutionJobVertex execMapVertex = eg.getJobVertex(mapVertex.getID());
+		ExecutionJobVertex execSinkVertex = eg.getJobVertex(sinkVertex.getID());
 
 		assertEquals(0, execSourceVertex.getInputs().size());
 

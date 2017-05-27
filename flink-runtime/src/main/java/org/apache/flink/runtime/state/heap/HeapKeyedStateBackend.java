@@ -29,7 +29,9 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -270,8 +272,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 		}
 
-		final KeyedBackendSerializationProxy serializationProxy =
-				new KeyedBackendSerializationProxy(keySerializer, metaInfoSnapshots);
+		final KeyedBackendSerializationProxy<K> serializationProxy =
+				new KeyedBackendSerializationProxy<>(keySerializer, metaInfoSnapshots);
 
 		//--------------------------------------------------- this becomes the end of sync part
 
@@ -360,6 +362,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		int numRegisteredKvStates = 0;
 		stateTables.clear();
 
+		boolean keySerializerRestored = false;
+
 		for (KeyedStateHandle keyedStateHandle : state) {
 
 			if (keyedStateHandle == null) {
@@ -379,15 +383,48 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			try {
 				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(fsDataInputStream);
 
-				KeyedBackendSerializationProxy serializationProxy =
-						new KeyedBackendSerializationProxy(userCodeClassLoader);
+				KeyedBackendSerializationProxy<K> serializationProxy =
+						new KeyedBackendSerializationProxy<>(userCodeClassLoader);
 
 				serializationProxy.read(inView);
+
+				if (!keySerializerRestored) {
+					// check for key serializer compatibility; this also reconfigures the
+					// key serializer to be compatible, if it is required and is possible
+					if (CompatibilityUtil.resolveCompatibilityResult(
+							serializationProxy.getKeySerializer(),
+							UnloadableDummyTypeSerializer.class,
+							serializationProxy.getKeySerializerConfigSnapshot(),
+							keySerializer)
+						.isRequiresMigration()) {
+
+						// TODO replace with state migration; note that key hash codes need to remain the same after migration
+						throw new IllegalStateException("The new key serializer is not compatible to read previous keys. " +
+							"Aborting now since state migration is currently not available");
+					}
+
+					keySerializerRestored = true;
+				}
 
 				List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> restoredMetaInfos =
 						serializationProxy.getStateMetaInfoSnapshots();
 
 				for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> restoredMetaInfo : restoredMetaInfos) {
+
+					if (restoredMetaInfo.getStateSerializer() == null ||
+							restoredMetaInfo.getStateSerializer() instanceof UnloadableDummyTypeSerializer) {
+
+						// must fail now if the previous serializer cannot be restored because there is no serializer
+						// capable of reading previous state
+						// TODO when eager state registration is in place, we can try to get a convert deserializer
+						// TODO from the newly registered serializer instead of simply failing here
+
+						throw new IOException("Unable to restore keyed state [" + restoredMetaInfo.getName() + "]." +
+							" For memory-backed keyed state, the previous serializer of the keyed state must be" +
+							" present; the serializer could have been removed from the classpath, or its implementation" +
+							" have changed and could not be loaded. This is a temporary restriction that will be fixed" +
+							" in future versions.");
+					}
 
 					StateTable<K, ?, ?> stateTable = stateTables.get(restoredMetaInfo.getName());
 
@@ -431,7 +468,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						StateTableByKeyGroupReader keyGroupReader =
 								StateTableByKeyGroupReaders.readerForVersion(
 										stateTable,
-										serializationProxy.getRestoredVersion());
+										serializationProxy.getReadVersion());
 
 						keyGroupReader.readMappingsInKeyGroup(inView, keyGroupIndex);
 					}

@@ -18,17 +18,18 @@
 
 package org.apache.flink.graph.library.clustering.undirected;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.GraphAnalyticBase;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoefficient.Result;
 import org.apache.flink.types.CopyableValue;
+
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import java.io.IOException;
 
@@ -43,7 +44,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class AverageClusteringCoefficient<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-extends AbstractGraphAnalytic<K, VV, EV, Result> {
+extends GraphAnalyticBase<K, VV, EV, Result> {
 
 	private static final String VERTEX_COUNT = "vertexCount";
 
@@ -181,11 +182,19 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (obj == null) { return false; }
-			if (obj == this) { return true; }
-			if (obj.getClass() != getClass()) { return false; }
+			if (obj == null) {
+				return false;
+			}
 
-			Result rhs = (Result)obj;
+			if (obj == this) {
+				return true;
+			}
+
+			if (obj.getClass() != getClass()) {
+				return false;
+			}
+
+			Result rhs = (Result) obj;
 
 			return new EqualsBuilder()
 				.append(vertexCount, rhs.vertexCount)

@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
@@ -66,7 +67,7 @@ public class FlinkKinesisConsumerMigrationTest {
 		testHarness.setup();
 		// restore state from binary snapshot file using legacy method
 		testHarness.initializeStateFromLegacyCheckpoint(
-			getResourceFilename("kinesis-consumer-migration-test-flink1.1-snapshot-empty"));
+			getResourceFilename("kinesis-consumer-migration-test-flink1.1-empty-snapshot"));
 		testHarness.open();
 
 		// assert that no state was restored
@@ -101,9 +102,9 @@ public class FlinkKinesisConsumerMigrationTest {
 		testHarness.open();
 
 		// the expected state in "kafka-consumer-migration-test-flink1.1-snapshot"
-		final HashMap<KinesisStreamShard, SequenceNumber> expectedState = new HashMap<>();
-		expectedState.put(new KinesisStreamShard("fakeStream1",
-				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(0))),
+		final HashMap<StreamShardMetadata, SequenceNumber> expectedState = new HashMap<>();
+		expectedState.put(KinesisStreamShard.convertToStreamShardMetadata(new KinesisStreamShard("fakeStream1",
+				new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(0)))),
 			new SequenceNumber("987654321"));
 
 		// assert that state is correctly restored from legacy checkpoint

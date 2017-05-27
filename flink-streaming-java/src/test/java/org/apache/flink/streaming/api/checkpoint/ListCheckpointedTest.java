@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -29,6 +30,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Tests for {@link ListCheckpointed}.
+ */
 public class ListCheckpointedTest {
 
 	@Test

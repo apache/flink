@@ -18,11 +18,11 @@
 
 package org.apache.flink.graph;
 
-import java.io.Serializable;
-
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
 
 /**
  * Interface to be implemented by the function applied to a vertex neighborhood
@@ -39,16 +39,16 @@ public interface NeighborsFunction<K, VV, EV, O> extends Function, Serializable 
 	/**
 	 * This method is called per vertex and can iterate over all of its neighbors
 	 * with the specified direction.
-	 * <p>
-	 * If called with {@link EdgeDirection#OUT} the group will contain
+	 *
+	 * <p>If called with {@link EdgeDirection#OUT} the group will contain
 	 * the out-edges and neighboring vertices of the grouping vertex.
 	 * If called with {@link EdgeDirection#IN} the group will contain
 	 * the in-edges and neighboring vertices of the grouping vertex.
 	 * If called with {@link EdgeDirection#ALL} the group will contain
 	 * all edges and neighboring vertices of the grouping vertex.
-	 * <p>
-	 * The method can emit any number of output elements, including none.
-	 * 
+	 *
+	 * <p>The method can emit any number of output elements, including none.
+	 *
 	 * @param neighbors the neighbors of the grouping vertex.
 	 * The first filed of each Tuple3 is the ID of the grouping vertex.
 	 * The second field is the neighboring edge, and the third field is the neighboring vertex.

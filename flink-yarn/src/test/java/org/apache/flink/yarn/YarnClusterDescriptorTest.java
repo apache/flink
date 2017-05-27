@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.ConfigConstants;
@@ -22,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.junit.Before;
@@ -32,9 +34,12 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link YarnClusterDescriptor}.
+ */
 public class YarnClusterDescriptorTest {
 
 	@Rule
@@ -140,7 +145,7 @@ public class YarnClusterDescriptorTest {
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + " " + krb5 +// jvmOpts
+				" " + " " + krb5 + // jvmOpts
 				" " + // logging
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
@@ -159,7 +164,7 @@ public class YarnClusterDescriptorTest {
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + " " + krb5 +// jvmOpts
+				" " + " " + krb5 + // jvmOpts
 				" " + logfile + " " + logback +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
@@ -178,7 +183,7 @@ public class YarnClusterDescriptorTest {
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + " " + krb5 +// jvmOpts
+				" " + " " + krb5 + // jvmOpts
 				" " + logfile + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
@@ -197,7 +202,7 @@ public class YarnClusterDescriptorTest {
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + " " + krb5 +// jvmOpts
+				" " + " " + krb5 + // jvmOpts
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor
@@ -210,16 +215,16 @@ public class YarnClusterDescriptorTest {
 			java + " " + jvmmem +
 				" " + jvmOpts +
 				" " + logfile + " " + logback + " " + log4j +
-				" " + mainClass + " "  + args + " "+ redirects,
+				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(true, true, false)
 				.getCommands().get(0));
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + jvmOpts + " " + krb5 +// jvmOpts
+				" " + jvmOpts + " " + krb5 + // jvmOpts
 				" " + logfile + " " + logback + " " + log4j +
-				" " + mainClass + " "  + args + " "+ redirects,
+				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(true, true, true)
 				.getCommands().get(0));
@@ -230,16 +235,16 @@ public class YarnClusterDescriptorTest {
 			java + " " + jvmmem +
 				" " + jvmOpts + " " + jmJvmOpts +
 				" " + logfile + " " + logback + " " + log4j +
-				" " + mainClass + " "  + args + " "+ redirects,
+				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(true, true, false)
 				.getCommands().get(0));
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + jvmOpts + " " + jmJvmOpts + " " + krb5 +// jvmOpts
+				" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
 				" " + logfile + " " + logback + " " + log4j +
-				" " + mainClass + " "  + args + " "+ redirects,
+				" " + mainClass + " "  + args + " " + redirects,
 			clusterDescriptor
 				.setupApplicationMasterContainer(true, true, true)
 				.getCommands().get(0));

@@ -18,16 +18,19 @@
 
 package org.apache.flink.test.testdata;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+
+import org.junit.Assert;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 import java.util.regex.Pattern;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.junit.Assert;
-
-
+/**
+ * Test data for ConnectedComponents programs.
+ */
 public class ConnectedComponentsData {
 
 	public static final String getEnumeratingVertices(int num) {
@@ -107,7 +110,7 @@ public class ConnectedComponentsData {
 			}
 		}
 	}
-	
+
 	public static void checkOddEvenResult(List<Tuple2<Long, Long>> lines) throws IOException {
 		for (Tuple2<Long, Long> line : lines) {
 			try {

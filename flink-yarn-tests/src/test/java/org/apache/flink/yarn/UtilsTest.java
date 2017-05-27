@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.Level;
 import org.apache.log4j.spi.LoggingEvent;
@@ -33,6 +35,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Tests for various utilities.
+ */
 public class UtilsTest {
 	private static final Logger LOG = LoggerFactory.getLogger(UtilsTest.class);
 
@@ -60,8 +65,8 @@ public class UtilsTest {
 		conf.setDouble(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO, 0.15);
 		conf.setInteger(ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_MIN, 384);
 
-		Assert.assertEquals(616, Utils.calculateHeapSize(1000, conf) );
-		Assert.assertEquals(8500, Utils.calculateHeapSize(10000, conf) );
+		Assert.assertEquals(616, Utils.calculateHeapSize(1000, conf));
+		Assert.assertEquals(8500, Utils.calculateHeapSize(10000, conf));
 
 		// test different configuration
 		Assert.assertEquals(3400, Utils.calculateHeapSize(4000, conf));
@@ -81,8 +86,8 @@ public class UtilsTest {
 		conf.setDouble(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, 0.15);
 		conf.setInteger(ConfigConstants.YARN_HEAP_CUTOFF_MIN, 384);
 
-		Assert.assertEquals(616, Utils.calculateHeapSize(1000, conf) );
-		Assert.assertEquals(8500, Utils.calculateHeapSize(10000, conf) );
+		Assert.assertEquals(616, Utils.calculateHeapSize(1000, conf));
+		Assert.assertEquals(8500, Utils.calculateHeapSize(10000, conf));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -145,15 +150,15 @@ public class UtilsTest {
 
 	public static void checkForLogString(String expected) {
 		LoggingEvent found = getEventContainingString(expected);
-		if(found != null) {
-			LOG.info("Found expected string '"+expected+"' in log message "+found);
+		if (found != null) {
+			LOG.info("Found expected string '" + expected + "' in log message " + found);
 			return;
 		}
 		Assert.fail("Unable to find expected string '" + expected + "' in log messages");
 	}
 
 	public static LoggingEvent getEventContainingString(String expected) {
-		if(testAppender == null) {
+		if (testAppender == null) {
 			throw new NullPointerException("Initialize test appender first");
 		}
 		LoggingEvent found = null;
@@ -169,10 +174,16 @@ public class UtilsTest {
 		return found;
 	}
 
-	public static class TestAppender extends AppenderSkeleton {
+	private static class TestAppender extends AppenderSkeleton {
 		public final List<LoggingEvent> events = new ArrayList<>();
-		public void close() {}
-		public boolean requiresLayout() {return false;}
+
+		public void close() {
+		}
+
+		public boolean requiresLayout() {
+			return false;
+		}
+
 		@Override
 		protected void append(LoggingEvent event) {
 			synchronized (events){

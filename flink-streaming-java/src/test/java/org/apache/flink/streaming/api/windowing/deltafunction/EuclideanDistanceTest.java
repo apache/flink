@@ -17,11 +17,15 @@
 
 package org.apache.flink.streaming.api.windowing.deltafunction;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.streaming.api.functions.windowing.delta.EuclideanDistance;
+
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+
+/**
+ * Tests for {@link EuclideanDistance}.
+ */
 public class EuclideanDistanceTest {
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -29,18 +33,18 @@ public class EuclideanDistanceTest {
 	public void testEuclideanDistance() {
 
 		//Reference calculated using wolfram alpha
-		double[][][] testdata={
-				{{0,0,0},{0,0,0}},
-				{{0,0,0},{1,2,3}},
-				{{1,2,3},{0,0,0}},
-				{{1,2,3},{4,5,6}},
-				{{1,2,3},{-4,-5,-6}},
-				{{1,2,-3},{-4,5,-6}},
-				{{1,2,3,4},{5,6,7,8}},
-				{{1,2},{3,4}},
-				{{1},{2}},
+		double[][][] testdata = {
+				{{0, 0, 0}, {0, 0, 0}},
+				{{0, 0, 0}, {1, 2, 3}},
+				{{1, 2, 3}, {0, 0, 0}},
+				{{1, 2, 3}, {4, 5, 6}},
+				{{1, 2, 3}, {-4, -5, -6}},
+				{{1, 2, -3}, {-4, 5, -6}},
+				{{1, 2, 3, 4}, {5, 6, 7, 8}},
+				{{1, 2}, {3, 4}},
+				{{1}, {2}},
 			};
-		double[] referenceSolutions={
+		double[] referenceSolutions = {
 				0,
 				3.741657,
 				3.741657,
@@ -61,12 +65,15 @@ public class EuclideanDistanceTest {
 	}
 
 	private String arrayToString(double[] in){
-		if (in.length==0) return "{}";
-		String result="{";
-		for (double d:in){
-			result+=d+",";
+		if (in.length == 0) {
+			return "{}";
 		}
-		return result.substring(0, result.length()-1)+"}";
+
+		String result = "{";
+		for (double d:in){
+			result += d + ",";
+		}
+		return result.substring(0, result.length() - 1) + "}";
 	}
 
 }

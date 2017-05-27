@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
@@ -92,7 +93,7 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 		String failuresIntervalString = configuration.getString(
 				ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL, Duration.apply(1, TimeUnit.MINUTES).toString()
 		);
-		String timeoutString = configuration.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
+		String timeoutString = configuration.getString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL);
 		String delayString = configuration.getString(ConfigConstants.RESTART_STRATEGY_FAILURE_RATE_DELAY, timeoutString);
 
 		Duration failuresInterval = Duration.apply(failuresIntervalString);

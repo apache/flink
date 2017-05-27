@@ -77,63 +77,63 @@ case class UnresolvedException(msg: String) extends RuntimeException(msg)
 /**
   * Exception for an operation on a nonexistent table
   *
-  * @param db    database name
-  * @param table table name
-  * @param cause the cause
+  * @param catalog    catalog name
+  * @param table      table name
+  * @param cause      the cause
   */
 case class TableNotExistException(
-    db: String,
+    catalog: String,
     table: String,
     cause: Throwable)
-    extends RuntimeException(s"Table $db.$table does not exist.", cause) {
+    extends RuntimeException(s"Table $catalog.$table does not exist.", cause) {
 
-  def this(db: String, table: String) = this(db, table, null)
+  def this(catalog: String, table: String) = this(catalog, table, null)
 
 }
 
 /**
   * Exception for adding an already existent table
   *
-  * @param db    database name
-  * @param table table name
-  * @param cause the cause
+  * @param catalog    catalog name
+  * @param table      table name
+  * @param cause      the cause
   */
 case class TableAlreadyExistException(
-    db: String,
+    catalog: String,
     table: String,
     cause: Throwable)
-    extends RuntimeException(s"Table $db.$table already exists.", cause) {
+    extends RuntimeException(s"Table $catalog.$table already exists.", cause) {
 
-  def this(db: String, table: String) = this(db, table, null)
+  def this(catalog: String, table: String) = this(catalog, table, null)
 
 }
 
 /**
-  * Exception for operation on a nonexistent database
+  * Exception for operation on a nonexistent catalog
   *
-  * @param db database name
+  * @param catalog catalog name
   * @param cause the cause
   */
-case class DatabaseNotExistException(
-    db: String,
+case class CatalogNotExistException(
+    catalog: String,
     cause: Throwable)
-    extends RuntimeException(s"Database $db does not exist.", cause) {
+    extends RuntimeException(s"Catalog $catalog does not exist.", cause) {
 
-  def this(db: String) = this(db, null)
+  def this(catalog: String) = this(catalog, null)
 }
 
 /**
-  * Exception for adding an already existent database
+  * Exception for adding an already existent catalog
   *
-  * @param db database name
+  * @param catalog catalog name
   * @param cause the cause
   */
-case class DatabaseAlreadyExistException(
-    db: String,
+case class CatalogAlreadyExistException(
+    catalog: String,
     cause: Throwable)
-    extends RuntimeException(s"Database $db already exists.", cause) {
+    extends RuntimeException(s"Catalog $catalog already exists.", cause) {
 
-  def this(db: String) = this(db, null)
+  def this(catalog: String) = this(catalog, null)
 }
 
 /**

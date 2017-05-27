@@ -18,6 +18,9 @@
 
 package org.apache.flink.yarn.messages;
 
+/**
+ * Test message that causes the sender to be notified then a set number of resources were registered.
+ */
 public class NotifyWhenResourcesRegistered {
 
 	private final int numberResources;

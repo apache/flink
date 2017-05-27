@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import static java.util.Objects.requireNonNull;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.CoGroupFunction;
@@ -34,6 +32,8 @@ import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  *{@code JoinedStreams} represents two {@link DataStream DataStreams} that have been joined.

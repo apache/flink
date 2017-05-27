@@ -17,11 +17,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Stack;
-import java.util.UUID;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -71,6 +66,13 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Stack;
+import java.util.UUID;
 
 /**
  * A {@code KeyedStream} represents a {@link DataStream} on which operator state is
@@ -416,7 +418,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param initialValue
 	 *            The initialValue passed to the folders for each key.
 	 * @return The transformed DataStream.
+	 *
+	 * @deprecated will be removed in a future version
 	 */
+	@Deprecated
 	public <R> SingleOutputStreamOperator<R> fold(R initialValue, FoldFunction<T, R> folder) {
 
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(
@@ -748,8 +753,11 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param queryableStateName Name under which to the publish the queryable state instance
 	 * @param stateDescriptor State descriptor to create state instance from
 	 * @return Queryable state instance
+	 *
+	 * @deprecated will be removed in a future version
 	 */
 	@PublicEvolving
+	@Deprecated
 	public <ACC> QueryableStateStream<KEY, ACC> asQueryableState(
 			String queryableStateName,
 			FoldingStateDescriptor<T, ACC> stateDescriptor) {

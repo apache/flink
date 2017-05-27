@@ -18,9 +18,8 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.slf4j.Logger;
@@ -58,7 +57,7 @@ public final class BlobCache implements BlobService {
 	private final File storageDir;
 
 	/** Blob store for distributed file storage, e.g. in HA */
-	private final BlobStore blobStore;
+	private final BlobView blobView;
 
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
@@ -78,70 +77,33 @@ public final class BlobCache implements BlobService {
 	 * 		address of the {@link BlobServer} to use for fetching files from
 	 * @param blobClientConfig
 	 * 		global configuration
-	 *
-	 * @throws IOException
-	 * 		thrown if the (local or distributed) file storage cannot be created or
-	 * 		is not usable
-	 */
-	public BlobCache(InetSocketAddress serverAddress,
-			Configuration blobClientConfig) throws IOException {
-		this(serverAddress, blobClientConfig,
-			BlobUtils.createBlobStoreFromConfig(blobClientConfig));
-	}
-
-	/**
-	 * Instantiates a new BLOB cache.
-	 *
-	 * @param serverAddress
-	 * 		address of the {@link BlobServer} to use for fetching files from
-	 * @param blobClientConfig
-	 * 		global configuration
-	 * 	@param haServices
-	 * 		high availability services able to create a distributed blob store
-	 *
-	 * @throws IOException
-	 * 		thrown if the (local or distributed) file storage cannot be created or
-	 * 		is not usable
-	 */
-	public BlobCache(InetSocketAddress serverAddress,
-		Configuration blobClientConfig, HighAvailabilityServices haServices) throws IOException {
-		this(serverAddress, blobClientConfig, haServices.createBlobStore());
-	}
-
-	/**
-	 * Instantiates a new BLOB cache.
-	 *
-	 * @param serverAddress
-	 * 		address of the {@link BlobServer} to use for fetching files from
-	 * @param blobClientConfig
-	 * 		global configuration
-	 * @param blobStore
+	 * @param blobView
 	 * 		(distributed) blob store file system to retrieve files from first
 	 *
 	 * @throws IOException
 	 * 		thrown if the (local or distributed) file storage cannot be created or is not usable
 	 */
-	private BlobCache(
-			final InetSocketAddress serverAddress, final Configuration blobClientConfig,
-			final BlobStore blobStore) throws IOException {
+	public BlobCache(
+			final InetSocketAddress serverAddress,
+			final Configuration blobClientConfig,
+			final BlobView blobView) throws IOException {
 		this.serverAddress = checkNotNull(serverAddress);
 		this.blobClientConfig = checkNotNull(blobClientConfig);
-		this.blobStore = blobStore;
+		this.blobView = checkNotNull(blobView, "blobStore");
 
 		// configure and create the storage directory
-		String storageDirectory = blobClientConfig.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
+		String storageDirectory = blobClientConfig.getString(BlobServerOptions.STORAGE_DIRECTORY);
 		this.storageDir = BlobUtils.initStorageDirectory(storageDirectory);
 		LOG.info("Created BLOB cache storage directory " + storageDir);
 
 		// configure the number of fetch retries
-		final int fetchRetries = blobClientConfig.getInteger(
-			ConfigConstants.BLOB_FETCH_RETRIES_KEY, ConfigConstants.DEFAULT_BLOB_FETCH_RETRIES);
+		final int fetchRetries = blobClientConfig.getInteger(BlobServerOptions.FETCH_RETRIES);
 		if (fetchRetries >= 0) {
 			this.numFetchRetries = fetchRetries;
 		}
 		else {
 			LOG.warn("Invalid value for {}. System will attempt no retires on failed fetches of BLOBs.",
-				ConfigConstants.BLOB_FETCH_RETRIES_KEY);
+				BlobServerOptions.FETCH_RETRIES.key());
 			this.numFetchRetries = 0;
 		}
 
@@ -169,7 +131,7 @@ public final class BlobCache implements BlobService {
 
 		// first try the distributed blob store (if available)
 		try {
-			blobStore.get(requiredBlob, localJarFile);
+			blobView.get(requiredBlob, localJarFile);
 		} catch (Exception e) {
 			LOG.info("Failed to copy from blob store. Downloading from BLOB server instead.", e);
 		}
@@ -294,28 +256,23 @@ public final class BlobCache implements BlobService {
 	}
 
 	@Override
-	public void shutdown() {
+	public void close() throws IOException {
 		if (shutdownRequested.compareAndSet(false, true)) {
 			LOG.info("Shutting down BlobCache");
 
 			// Clean up the storage directory
 			try {
 				FileUtils.deleteDirectory(storageDir);
-			}
-			catch (IOException e) {
-				LOG.error("BLOB cache failed to properly clean up its storage directory.");
-			}
-
-			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the shutdown hook itself
-			if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
-				try {
-					Runtime.getRuntime().removeShutdownHook(shutdownHook);
-				}
-				catch (IllegalStateException e) {
-					// race, JVM is in shutdown already, we can safely ignore this
-				}
-				catch (Throwable t) {
-					LOG.warn("Exception while unregistering BLOB cache's cleanup shutdown hook.");
+			} finally {
+				// Remove shutdown hook to prevent resource leaks, unless this is invoked by the shutdown hook itself
+				if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
+					try {
+						Runtime.getRuntime().removeShutdownHook(shutdownHook);
+					} catch (IllegalStateException e) {
+						// race, JVM is in shutdown already, we can safely ignore this
+					} catch (Throwable t) {
+						LOG.warn("Exception while unregistering BLOB cache's cleanup shutdown hook.");
+					}
 				}
 			}
 		}

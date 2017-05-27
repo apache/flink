@@ -97,10 +97,9 @@ public class KeyedJob {
 			.map(new StatefulStringStoringMap(mode, "first"))
 			.setParallelism(4);
 
-		// TODO: re-enable this when generating the actual 1.2 savepoint
-		//if (mode == ExecutionMode.MIGRATE || mode == ExecutionMode.RESTORE) {
-		map.uid("first");
-		//}
+		if (mode == ExecutionMode.MIGRATE || mode == ExecutionMode.RESTORE) {
+			map.uid("first");
+		}
 
 		return map;
 	}
@@ -110,10 +109,9 @@ public class KeyedJob {
 			.map(new StatefulStringStoringMap(mode, "second"))
 			.setParallelism(4);
 
-		// TODO: re-enable this when generating the actual 1.2 savepoint
-		//if (mode == ExecutionMode.MIGRATE || mode == ExecutionMode.RESTORE) {
-		map.uid("second");
-		//}
+		if (mode == ExecutionMode.MIGRATE || mode == ExecutionMode.RESTORE) {
+			map.uid("second");
+		}
 
 		return map;
 	}

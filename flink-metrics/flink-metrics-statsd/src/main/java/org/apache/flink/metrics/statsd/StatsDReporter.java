@@ -42,20 +42,19 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
- * Largely based on the StatsDReporter class by ReadyTalk
- * https://github.com/ReadyTalk/metrics-statsd/blob/master/metrics3-statsd/src/main/java/com/readytalk/metrics/StatsDReporter.java
+ * Largely based on the StatsDReporter class by ReadyTalk.
  *
- * Ported since it was not present in maven central.
+ * <p>https://github.com/ReadyTalk/metrics-statsd/blob/master/metrics3-statsd/src/main/java/com/readytalk/metrics/StatsDReporter.java
+ *
+ * <p>Ported since it was not present in maven central.
  */
 @PublicEvolving
 public class StatsDReporter extends AbstractReporter implements Scheduled {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(StatsDReporter.class);
 
 	public static final String ARG_HOST = "host";
 	public static final String ARG_PORT = "port";
-//	public static final String ARG_CONVERSION_RATE = "rateConversion";
-//	public static final String ARG_CONVERSION_DURATION = "durationConversion";
 
 	private boolean closed = false;
 
@@ -72,11 +71,6 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 		}
 
 		this.address = new InetSocketAddress(host, port);
-
-//		String conversionRate = config.getString(ARG_CONVERSION_RATE, "SECONDS");
-//		String conversionDuration = config.getString(ARG_CONVERSION_DURATION, "MILLISECONDS");
-//		this.rateFactor = TimeUnit.valueOf(conversionRate).toSeconds(1);
-//		this.durationFactor = 1.0 / TimeUnit.valueOf(conversionDuration).toNanos(1);
 
 		try {
 			this.socket = new DatagramSocket(0);
@@ -131,7 +125,7 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	private void reportCounter(final String name, final Counter counter) {
 		send(name, String.valueOf(counter.getCount()));
 	}

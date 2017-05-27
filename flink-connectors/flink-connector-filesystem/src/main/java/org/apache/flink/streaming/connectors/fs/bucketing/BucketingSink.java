@@ -724,9 +724,7 @@ public class BucketingSink<T>
 
 			handlePendingFilesForPreviousCheckpoints(bucketState.pendingFilesPerCheckpoint);
 
-			synchronized (bucketState.pendingFilesPerCheckpoint) {
-				bucketState.pendingFilesPerCheckpoint.clear();
-			}
+			bucketState.pendingFilesPerCheckpoint.clear();
 		}
 	}
 
@@ -741,9 +739,7 @@ public class BucketingSink<T>
 
 		handlePendingFilesForPreviousCheckpoints(restoredState.pendingFilesPerCheckpoint);
 
-		synchronized (restoredState.pendingFilesPerCheckpoint) {
-			restoredState.pendingFilesPerCheckpoint.clear();
-		}
+		restoredState.pendingFilesPerCheckpoint.clear();
 	}
 
 	private void handlePendingInProgressFile(String file, long validLength) {

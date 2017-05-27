@@ -27,10 +27,10 @@ import java.util.Map;
 
 /**
  * Base class for request handlers whose response depends on a specific job vertex (defined
- * via the "vertexid" parameter) in a specific job, defined via (defined voa the "jobid" parameter).  
+ * via the "vertexid" parameter) in a specific job, defined via (defined voa the "jobid" parameter).
  */
 public abstract class AbstractJobVertexRequestHandler extends AbstractExecutionGraphRequestHandler {
-	
+
 	public AbstractJobVertexRequestHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
@@ -65,6 +65,6 @@ public abstract class AbstractJobVertexRequestHandler extends AbstractExecutionG
 			return null;
 		}
 	}
-	
+
 	public abstract String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception;
 }

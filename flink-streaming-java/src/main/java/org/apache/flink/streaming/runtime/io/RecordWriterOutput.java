@@ -17,9 +17,6 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-import java.io.IOException;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -34,6 +31,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.util.OutputTag;
+
+import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Implementation of {@link Output} that sends data using a {@link RecordWriter}.
@@ -144,7 +145,6 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 	public void broadcastEvent(AbstractEvent event) throws IOException, InterruptedException {
 		recordWriter.broadcastEvent(event);
 	}
-
 
 	public void flush() throws IOException {
 		recordWriter.flush();

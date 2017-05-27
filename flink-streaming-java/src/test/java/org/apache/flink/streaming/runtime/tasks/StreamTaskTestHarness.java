@@ -35,8 +35,8 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 
 import org.junit.Assert;
 
@@ -44,24 +44,20 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Test harness for testing a {@link StreamTask}.
  *
- * <p>
- * This mock Invokable provides the task with a basic runtime context and allows pushing elements
+ * <p>This mock Invokable provides the task with a basic runtime context and allows pushing elements
  * and watermarks into the task. {@link #getOutput()} can be used to get the emitted elements
  * and events. You are free to modify the retrieved list.
  *
- * <p>
- * After setting up everything the Task can be invoked using {@link #invoke()}. This will start
+ * <p>After setting up everything the Task can be invoked using {@link #invoke()}. This will start
  * a new Thread to execute the Task. Use {@link #waitForTaskCompletion()} to wait for the Task
  * thread to finish.
  *
- * <p>
- * When using this you need to add the following line to your test class to setup Powermock:
+ * <p>When using this you need to add the following line to your test class to setup Powermock:
  * {@code {@literal @}PrepareForTest({ResultPartitionWriter.class})}
  */
 public class StreamTaskTestHarness<OUT> {
@@ -135,7 +131,7 @@ public class StreamTaskTestHarness<OUT> {
 	 * if there will only be a single operator to be tested. The method will setup the
 	 * outgoing network connection for the operator.
 	 *
-	 * For more advanced test cases such as testing chains of multiple operators with the harness,
+	 * <p>For more advanced test cases such as testing chains of multiple operators with the harness,
 	 * please manually configure the stream config.
 	 */
 	public void setupOutputForSingletonOperatorChain() {

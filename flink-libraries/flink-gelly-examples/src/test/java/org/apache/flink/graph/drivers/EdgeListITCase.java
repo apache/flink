@@ -18,14 +18,18 @@
 
 package org.apache.flink.graph.drivers;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
+
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+/**
+ * Tests for {@link EdgeList}.
+ */
 @RunWith(Parameterized.class)
 public class EdgeListITCase
 extends DriverBaseITCase {
@@ -41,6 +45,50 @@ extends DriverBaseITCase {
 			"--output", output};
 
 		return ArrayUtils.addAll(parameters, additionalParameters);
+	}
+
+	@Test
+	public void testHashWithCirculantGraph() throws Exception {
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x0000000000344448L;
+				break;
+
+			case "long":
+				checksum = 0x0000000000a19d48L;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x000000000c47ca48L;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(
+			parameters("CirculantGraph", "hash", "--vertex_count", "42", "--range0", "13:4"),
+			168, checksum);
+	}
+
+	@Test
+	public void testPrintWithCirculantGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+
+		expectedOutputChecksum(
+			parameters("CirculantGraph", "print", "--vertex_count", "42", "--range0", "13:4"),
+			new Checksum(168, 0x0000004bdcc52cbcL));
 	}
 
 	@Test
@@ -142,10 +190,54 @@ extends DriverBaseITCase {
 	}
 
 	@Test
+	public void testHashWithEchoGraph() throws Exception {
+		long checksum;
+		switch (idType) {
+			case "byte":
+			case "nativeByte":
+			case "short":
+			case "nativeShort":
+			case "char":
+			case "nativeChar":
+			case "integer":
+			case "nativeInteger":
+			case "nativeLong":
+				checksum = 0x0000000000a9ddeaL;
+				break;
+
+			case "long":
+				checksum = 0x00000000020d3f2aL;
+				break;
+
+			case "string":
+			case "nativeString":
+				checksum = 0x0000000027e9516aL;
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unknown type: " + idType);
+		}
+
+		expectedChecksum(
+			parameters("EchoGraph", "hash", "--vertex_count", "42", "--vertex_degree", "13"),
+			546, checksum);
+	}
+
+	@Test
+	public void testPrintWithEchoGraph() throws Exception {
+		// skip 'char' since it is not printed as a number
+		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+
+		expectedOutputChecksum(
+			parameters("EchoGraph", "print", "--vertex_count", "42", "--vertex_degree", "13"),
+			new Checksum(546, 0x000000f7190b8fcaL));
+	}
+
+	@Test
 	public void testHashWithEmptyGraph() throws Exception {
 		expectedChecksum(
 			parameters("EmptyGraph", "hash", "--vertex_count", "42"),
-			0, 0x0000000000000000);
+			0, 0x0000000000000000L);
 	}
 
 	@Test

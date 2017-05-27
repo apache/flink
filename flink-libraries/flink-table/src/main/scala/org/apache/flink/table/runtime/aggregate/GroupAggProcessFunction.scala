@@ -26,9 +26,9 @@ import org.apache.flink.util.Collector
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.common.state.ValueState
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 import org.apache.flink.table.runtime.types.CRow
 
 /**
@@ -40,11 +40,12 @@ import org.apache.flink.table.runtime.types.CRow
 class GroupAggProcessFunction(
     private val genAggregations: GeneratedAggregationsFunction,
     private val aggregationStateType: RowTypeInfo,
-    private val generateRetraction: Boolean)
-  extends ProcessFunction[CRow, CRow]
+    private val generateRetraction: Boolean,
+    private val queryConfig: StreamQueryConfig)
+  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with Compiler[GeneratedAggregations] {
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  val LOG: Logger = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   private var newRow: CRow = _
@@ -74,12 +75,18 @@ class GroupAggProcessFunction(
     val inputCntDescriptor: ValueStateDescriptor[JLong] =
       new ValueStateDescriptor[JLong]("GroupAggregateInputCounter", Types.LONG)
     cntState = getRuntimeContext.getState(inputCntDescriptor)
+
+    initCleanupTimeState("GroupAggregateCleanupTime")
   }
 
   override def processElement(
       inputC: CRow,
       ctx: ProcessFunction[CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
+
+    val currentTime = ctx.timerService().currentProcessingTime()
+    // register state-cleanup timer
+    registerProcessingCleanupTimer(ctx, currentTime)
 
     val input = inputC.row
 
@@ -144,4 +151,15 @@ class GroupAggProcessFunction(
       cntState.clear()
     }
   }
+
+  override def onTimer(
+      timestamp: Long,
+      ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+      out: Collector[CRow]): Unit = {
+
+    if (needToCleanupState(timestamp)) {
+      cleanupState(state, cntState)
+    }
+  }
+
 }

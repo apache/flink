@@ -10,6 +10,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.streaming.util;
 
 import org.apache.flink.api.java.tuple.Tuple;
@@ -19,6 +20,9 @@ import org.apache.flink.python.api.types.CustomTypeWrapper;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
+/**
+ * Utility class containing serializers for all supported types.
+ */
 public class SerializationUtils {
 	public static final byte TYPE_BOOLEAN = 34;
 	public static final byte TYPE_BYTE = 33;
@@ -85,6 +89,14 @@ public class SerializationUtils {
 		return (Serializer<IN>) serializer;
 	}
 
+	/**
+	 * Super class for all serializers used to serialize data. These serializers are used to serialize values emitted
+	 * from java input formats.
+	 *
+	 * <p>These serializer smut be kept in sync with the python counterparts.
+	 *
+	 * @param <IN> input type
+	 */
 	public abstract static class Serializer<IN> {
 		private byte[] typeInfo = null;
 
@@ -109,6 +121,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for {@link CustomTypeWrapper CustomTypeWrappers}.
+	 */
 	public static class CustomTypeWrapperSerializer extends Serializer<CustomTypeWrapper> {
 		private final byte type;
 
@@ -129,6 +144,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for bytes.
+	 */
 	public static class ByteSerializer extends Serializer<Byte> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Byte value) {
@@ -141,6 +159,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for booleans.
+	 */
 	public static class BooleanSerializer extends Serializer<Boolean> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Boolean value) {
@@ -153,6 +174,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for ints.
+	 */
 	public static class IntSerializer extends Serializer<Integer> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Integer value) {
@@ -167,6 +191,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for longs.
+	 */
 	public static class LongSerializer extends Serializer<Long> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Long value) {
@@ -181,6 +208,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for strings.
+	 */
 	public static class StringSerializer extends Serializer<String> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(String value) {
@@ -196,6 +226,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for floats.
+	 */
 	public static class FloatSerializer extends Serializer<Float> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Float value) {
@@ -210,6 +243,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for doubles.
+	 */
 	public static class DoubleSerializer extends Serializer<Double> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Double value) {
@@ -224,6 +260,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for null.
+	 */
 	public static class NullSerializer extends Serializer<Object> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(Object value) {
@@ -236,6 +275,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for byte arrays.
+	 */
 	public static class BytesSerializer extends Serializer<byte[]> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(byte[] value) {
@@ -250,6 +292,9 @@ public class SerializationUtils {
 		}
 	}
 
+	/**
+	 * A serializer for tuples.
+	 */
 	public static class TupleSerializer extends Serializer<Tuple> {
 		private final Serializer<Object>[] serializer;
 

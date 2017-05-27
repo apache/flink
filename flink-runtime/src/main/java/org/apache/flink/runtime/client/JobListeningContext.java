@@ -134,7 +134,11 @@ public final class JobListeningContext {
 	public ClassLoader getClassLoader() throws JobRetrievalException {
 		if (classLoader == null) {
 			// lazily initializes the class loader when it is needed
-			classLoader = JobClient.retrieveClassLoader(jobID, getJobManager(), configuration);
+			classLoader = JobClient.retrieveClassLoader(
+				jobID,
+				getJobManager(),
+				configuration,
+				highAvailabilityServices);
 			LOG.info("Reconstructed class loader for Job {}", jobID);
 		}
 		return classLoader;

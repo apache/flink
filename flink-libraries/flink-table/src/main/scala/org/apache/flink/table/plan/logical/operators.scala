@@ -215,7 +215,7 @@ case class Aggregate(
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
-
+    implicit val relBuilder: RelBuilder = tableEnv.getRelBuilder
     val resolvedAggregate = super.validate(tableEnv).asInstanceOf[Aggregate]
     val groupingExprs = resolvedAggregate.groupingExpressions
     val aggregateExprs = resolvedAggregate.aggregateExpressions
@@ -223,6 +223,10 @@ case class Aggregate(
     groupingExprs.foreach(validateGroupingExpression)
 
     def validateAggregateExpression(expr: Expression): Unit = expr match {
+      // check aggregate function
+      case aggExpr: Aggregation
+        if aggExpr.getSqlAggFunction.requiresOver =>
+        failValidation(s"OVER clause is necessary for window functions: [${aggExpr.getClass}].")
       // check no nested aggregation exists.
       case aggExpr: Aggregation =>
         aggExpr.children.foreach { child =>
@@ -552,20 +556,38 @@ case class WindowAggregate(
   override def resolveReference(
       tableEnv: TableEnvironment,
       name: String)
-    : Option[NamedExpression] = window.aliasAttribute match {
+    : Option[NamedExpression] = {
+
+    def resolveAlias(alias: String) = {
+      // check if reference can already be resolved by input fields
+      val found = super.resolveReference(tableEnv, name)
+      if (found.isDefined) {
+        failValidation(s"Reference $name is ambiguous.")
+      } else {
+        // resolve type of window reference
+        val resolvedType = window.timeAttribute match {
+          case UnresolvedFieldReference(n) =>
+            super.resolveReference(tableEnv, n) match {
+              case Some(ResolvedFieldReference(_, tpe)) => Some(tpe)
+              case _ => None
+            }
+          case _ => None
+        }
+        // let validation phase throw an error if type could not be resolved
+        Some(WindowReference(name, resolvedType))
+      }
+    }
+
+    window.aliasAttribute match {
       // resolve reference to this window's name
       case UnresolvedFieldReference(alias) if name == alias =>
-        // check if reference can already be resolved by input fields
-        val found = super.resolveReference(tableEnv, name)
-        if (found.isDefined) {
-          failValidation(s"Reference $name is ambiguous.")
-        } else {
-          Some(WindowReference(name))
-        }
+        resolveAlias(alias)
+
       case _ =>
         // resolve references as usual
         super.resolveReference(tableEnv, name)
     }
+  }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     val flinkRelBuilder = relBuilder.asInstanceOf[FlinkRelBuilder]
@@ -574,7 +596,7 @@ case class WindowAggregate(
       window,
       relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
       propertyExpressions.map {
-        case Alias(prop: WindowProperty, name, _) => prop.toNamedWindowProperty(name)(relBuilder)
+        case Alias(prop: WindowProperty, name, _) => prop.toNamedWindowProperty(name)
         case _ => throw new RuntimeException("This should never happen.")
       },
       aggregateExpressions.map {
@@ -584,6 +606,7 @@ case class WindowAggregate(
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    implicit val relBuilder: RelBuilder = tableEnv.getRelBuilder
     val resolvedWindowAggregate = super.validate(tableEnv).asInstanceOf[WindowAggregate]
     val groupingExprs = resolvedWindowAggregate.groupingExpressions
     val aggregateExprs = resolvedWindowAggregate.aggregateExpressions
@@ -591,6 +614,10 @@ case class WindowAggregate(
     groupingExprs.foreach(validateGroupingExpression)
 
     def validateAggregateExpression(expr: Expression): Unit = expr match {
+      // check aggregate function
+      case aggExpr: Aggregation
+        if aggExpr.getSqlAggFunction.requiresOver =>
+        failValidation(s"OVER clause is necessary for window functions: [${aggExpr.getClass}].")
       // check no nested aggregation exists.
       case aggExpr: Aggregation =>
         aggExpr.children.foreach { child =>

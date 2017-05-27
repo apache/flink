@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.examples.java;
 
 import org.apache.flink.api.java.DataSet;
@@ -26,11 +27,10 @@ import org.apache.flink.table.api.java.BatchTableEnvironment;
 /**
  * Simple example that shows how the Batch SQL API is used in Java.
  *
- * This example shows how to:
+ * <p>This example shows how to:
  *  - Convert DataSets to Tables
  *  - Register a Table under a name
  *  - Run a SQL query on the registered Table
- *
  */
 public class WordCountSQL {
 
@@ -65,13 +65,12 @@ public class WordCountSQL {
 	//     USER DATA TYPES
 	// *************************************************************************
 
-	public static class WC {
+	private static class WC {
 		public String word;
 		public long frequency;
 
 		// public constructor to make it a Flink POJO
-		public WC() {
-		}
+		public WC() {}
 
 		public WC(String word, long frequency) {
 			this.word = word;
@@ -83,5 +82,4 @@ public class WordCountSQL {
 			return "WC " + word + " " + frequency;
 		}
 	}
-
 }

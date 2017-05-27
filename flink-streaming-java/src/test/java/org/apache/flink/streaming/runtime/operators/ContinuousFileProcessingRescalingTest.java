@@ -34,6 +34,7 @@ import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -41,6 +42,9 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
+/**
+ * Test processing files during rescaling.
+ */
 public class ContinuousFileProcessingRescalingTest {
 
 	@Test
@@ -82,7 +86,6 @@ public class ContinuousFileProcessingRescalingTest {
 		// we can compare their newly produced outputs with the merged one
 		testHarness1.getOutput().clear();
 		testHarness2.getOutput().clear();
-
 
 		// 2) and take the snapshots from the previous instances and merge them
 		// into a new one which will be then used to initialize a third instance

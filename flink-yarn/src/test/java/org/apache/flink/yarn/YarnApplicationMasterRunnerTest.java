@@ -18,11 +18,15 @@
 
 package org.apache.flink.yarn;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.util.OperatingSystem;
+
+import com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -35,7 +39,12 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.Map;
 
-import static org.apache.flink.yarn.YarnConfigKeys.*;
+import static org.apache.flink.yarn.YarnConfigKeys.ENV_APP_ID;
+import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_HOME_DIR;
+import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_SHIP_FILES;
+import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
+import static org.apache.flink.yarn.YarnConfigKeys.ENV_HADOOP_USER_NAME;
+import static org.apache.flink.yarn.YarnConfigKeys.FLINK_JAR_PATH;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyInt;
@@ -43,11 +52,19 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for the {@link YarnApplicationMasterRunner}.
+ */
 public class YarnApplicationMasterRunnerTest {
 	private static final Logger LOG = LoggerFactory.getLogger(YarnApplicationMasterRunnerTest.class);
 
 	@Rule
 	public TemporaryFolder folder = new TemporaryFolder();
+
+	@BeforeClass
+	public static void checkOS() {
+		Assume.assumeTrue(!OperatingSystem.isWindows());
+	}
 
 	@Test
 	public void testCreateTaskExecutorContext() throws Exception {
@@ -73,7 +90,7 @@ public class YarnApplicationMasterRunnerTest {
 			}
 		}).when(yarnConf).getStrings(anyString(), Mockito.<String> anyVararg());
 
-		Map<String, String> env = ImmutableMap. <String, String> builder()
+		Map<String, String> env = ImmutableMap.<String, String> builder()
 			.put(ENV_APP_ID, "foo")
 			.put(ENV_CLIENT_HOME_DIR, home.getAbsolutePath())
 			.put(ENV_CLIENT_SHIP_FILES, "")

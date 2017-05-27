@@ -47,6 +47,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link StreamingJobGraphGenerator}.
+ */
 @SuppressWarnings("serial")
 public class StreamingJobGraphGeneratorTest extends TestLogger {
 
@@ -158,7 +161,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 	/**
 	 * Verifies that the resources are merged correctly for chained operators (covers source and sink cases)
-	 * when generating job graph
+	 * when generating job graph.
 	 */
 	@Test
 	public void testResourcesForChainedSourceSink() throws Exception {
@@ -230,7 +233,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 	/**
 	 * Verifies that the resources are merged correctly for chained operators (covers middle chaining and iteration cases)
-	 * when generating job graph
+	 * when generating job graph.
 	 */
 	@Test
 	public void testResourcesForIteration() throws Exception {

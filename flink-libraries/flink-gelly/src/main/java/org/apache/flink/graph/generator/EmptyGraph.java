@@ -33,11 +33,11 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 
-/*
+/**
  * @see <a href="http://mathworld.wolfram.com/EmptyGraph.html">Empty Graph at Wolfram MathWorld</a>
  */
 public class EmptyGraph
-extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
+extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
 	public static final int MINIMUM_VERTEX_COUNT = 1;
 
@@ -71,7 +71,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 			ValueTypeInfo.LONG_VALUE_TYPE_INFO, ValueTypeInfo.LONG_VALUE_TYPE_INFO, ValueTypeInfo.NULL_VALUE_TYPE_INFO);
 
 		DataSource<Edge<LongValue, NullValue>> edges = env
-			.fromCollection(Collections.<Edge<LongValue ,NullValue>>emptyList(), typeInformation)
+			.fromCollection(Collections.<Edge<LongValue, NullValue>>emptyList(), typeInformation)
 				.setParallelism(parallelism)
 				.name("Empty edge set");
 

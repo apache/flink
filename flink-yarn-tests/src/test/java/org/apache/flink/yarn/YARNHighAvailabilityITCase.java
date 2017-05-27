@@ -18,10 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import akka.actor.ActorSystem;
-import akka.actor.PoisonPill;
-import akka.testkit.JavaTestKit;
-import org.apache.curator.test.TestingServer;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
@@ -37,6 +33,11 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+
+import akka.actor.ActorSystem;
+import akka.actor.PoisonPill;
+import akka.testkit.JavaTestKit;
+import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.AfterClass;
@@ -45,19 +46,23 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
+import scala.concurrent.duration.FiniteDuration;
+
+/**
+ * Tests that verify correct HA behavior.
+ */
 public class YARNHighAvailabilityITCase extends YarnTestBase {
 
-	protected static TestingServer zkServer;
+	private static TestingServer zkServer;
 
-	protected static ActorSystem actorSystem;
+	private static ActorSystem actorSystem;
 
-	protected static final int numberApplicationAttempts = 3;
+	private static final int numberApplicationAttempts = 3;
 
 	@Rule
 	public TemporaryFolder temp = new TemporaryFolder();
@@ -74,15 +79,15 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 			Assert.fail("Could not start ZooKeeper testing cluster.");
 		}
 
-		yarnConfiguration.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-ha");
-		yarnConfiguration.set(YarnConfiguration.RM_AM_MAX_ATTEMPTS, "" + numberApplicationAttempts);
+		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-ha");
+		YARN_CONFIGURATION.set(YarnConfiguration.RM_AM_MAX_ATTEMPTS, "" + numberApplicationAttempts);
 
-		startYARNWithConfig(yarnConfiguration);
+		startYARNWithConfig(YARN_CONFIGURATION);
 	}
 
 	@AfterClass
 	public static void teardown() throws Exception {
-		if(zkServer != null) {
+		if (zkServer != null) {
 			zkServer.stop();
 		}
 

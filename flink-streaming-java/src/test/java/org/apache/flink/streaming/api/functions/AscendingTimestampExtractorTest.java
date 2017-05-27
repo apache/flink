@@ -19,11 +19,15 @@
 package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link AscendingTimestampExtractor}.
+ */
 public class AscendingTimestampExtractorTest {
 
 	@Test
@@ -87,8 +91,6 @@ public class AscendingTimestampExtractorTest {
 		assertEquals(500L, extractor.extractTimestamp(500L, 0L));
 
 		assertEquals(Long.MAX_VALUE - 1, extractor.extractTimestamp(Long.MAX_VALUE - 1, 99999L));
-
-
 	}
 
 	private void runInvalidTest(AscendingTimestampExtractor<Long> extractor) {

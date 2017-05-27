@@ -25,13 +25,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 
 import java.net.URI;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -80,14 +82,14 @@ public final class WebMonitorUtils {
 			
 			if (logFilePath == null) {
 				LOG.warn("Log file environment variable '{}' is not set.", logEnv);
-				logFilePath = config.getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, null);
+				logFilePath = config.getString(JobManagerOptions.WEB_LOG_PATH);
 			}
 			
 			// not configured, cannot serve log files
 			if (logFilePath == null || logFilePath.length() < 4) {
 				LOG.warn("JobManager log files are unavailable in the web dashboard. " +
 					"Log file location not found in environment variable '{}' or configuration key '{}'.",
-					logEnv, ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY);
+					logEnv, JobManagerOptions.WEB_LOG_PATH.key());
 				return new LogFileLocation(null, null);
 			}
 			
@@ -117,12 +119,14 @@ public final class WebMonitorUtils {
 	 * Because failure to start the web runtime monitor is not considered fatal, this method does
 	 * not throw any exceptions, but only logs them.
 	 *
-	 * @param config                 The configuration for the runtime monitor.
-	 * @param leaderRetrievalService Leader retrieval service to get the leading JobManager
+	 * @param config The configuration for the runtime monitor.
+	 * @param highAvailabilityServices HighAvailabilityServices used to start the WebRuntimeMonitor
+	 * @param actorSystem ActorSystem used to connect to the JobManager
+	 *
 	 */
 	public static WebMonitor startWebRuntimeMonitor(
 			Configuration config,
-			LeaderRetrievalService leaderRetrievalService,
+			HighAvailabilityServices highAvailabilityServices,
 			ActorSystem actorSystem) {
 		// try to load and instantiate the class
 		try {
@@ -130,9 +134,14 @@ public final class WebMonitorUtils {
 			Class<? extends WebMonitor> clazz = Class.forName(classname).asSubclass(WebMonitor.class);
 			
 			Constructor<? extends WebMonitor> constructor = clazz.getConstructor(Configuration.class,
-					LeaderRetrievalService.class,
-					ActorSystem.class);
-			return constructor.newInstance(config, leaderRetrievalService, actorSystem);
+				LeaderRetrievalService.class,
+				BlobView.class,
+				ActorSystem.class);
+			return constructor.newInstance(
+				config,
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+				highAvailabilityServices.createBlobStore(),
+				actorSystem);
 		} catch (ClassNotFoundException e) {
 			LOG.error("Could not load web runtime monitor. " +
 					"Probably reason: flink-runtime-web is not in the classpath");

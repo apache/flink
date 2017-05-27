@@ -32,7 +32,7 @@ import java.util.Collection;
  * This class must be extended by functions that compute the state of the vertex depending on the old state and the
  * incoming messages. The central method is {@link #updateVertex(Vertex, MessageIterator)}, which is
  * invoked once per vertex per superstep.
- * 
+ *
  * {@code <K>} The vertex key type.
  * {@code <VV>} The vertex value type.
  * {@code <Message>} The message type.
@@ -81,24 +81,24 @@ public abstract class GatherFunction<K, VV, Message> implements Serializable {
 	 * This method is invoked once per vertex per superstep. It receives the current state of the vertex, as well as
 	 * the incoming messages. It may set a new vertex state via {@link #setNewVertexValue(Object)}. If the vertex
 	 * state is changed, it will trigger the sending of messages via the {@link ScatterFunction}.
-	 * 
+	 *
 	 * @param vertex The vertex.
 	 * @param inMessages The incoming messages to this vertex.
-	 * 
+	 *
 	 * @throws Exception The computation may throw exceptions, which causes the superstep to fail.
 	 */
 	public abstract void updateVertex(Vertex<K, VV> vertex, MessageIterator<Message> inMessages) throws Exception;
 
 	/**
 	 * This method is executed once per superstep before the gather function is invoked for each vertex.
-	 * 
+	 *
 	 * @throws Exception Exceptions in the pre-superstep phase cause the superstep to fail.
 	 */
 	public void preSuperstep() throws Exception {}
 
 	/**
 	 * This method is executed once per superstep after the gather function has been invoked for each vertex.
-	 * 
+	 *
 	 * @throws Exception Exceptions in the post-superstep phase cause the superstep to fail.
 	 */
 	public void postSuperstep() throws Exception {}
@@ -106,16 +106,16 @@ public abstract class GatherFunction<K, VV, Message> implements Serializable {
 	/**
 	 * Sets the new value of this vertex. Setting a new value triggers the sending of outgoing messages from this vertex.
 	 *
-	 * This should be called at most once per updateVertex.
-	 * 
+	 * <p>This should be called at most once per updateVertex.
+	 *
 	 * @param newValue The new vertex value.
 	 */
 	public void setNewVertexValue(VV newValue) {
-		if(setNewVertexValueCalled) {
+		if (setNewVertexValueCalled) {
 			throw new IllegalStateException("setNewVertexValue should only be called at most once per updateVertex");
 		}
 		setNewVertexValueCalled = true;
-		if(isOptDegrees()) {
+		if (isOptDegrees()) {
 			outValWithDegrees.f1.f0 = newValue;
 			outWithDegrees.collect(outValWithDegrees);
 		} else {
@@ -126,7 +126,7 @@ public abstract class GatherFunction<K, VV, Message> implements Serializable {
 
 	/**
 	 * Gets the number of the superstep, starting at <tt>1</tt>.
-	 * 
+	 *
 	 * @return The number of the current superstep.
 	 */
 	public int getSuperstepNumber() {
@@ -136,7 +136,7 @@ public abstract class GatherFunction<K, VV, Message> implements Serializable {
 	/**
 	 * Gets the iteration aggregator registered under the given name. The iteration aggregator combines
 	 * all aggregates globally once per superstep and makes them available in the next superstep.
-	 * 
+	 *
 	 * @param name The name of the aggregator.
 	 * @return The aggregator registered under this name, or null, if no aggregator was registered.
 	 */
@@ -146,7 +146,7 @@ public abstract class GatherFunction<K, VV, Message> implements Serializable {
 
 	/**
 	 * Get the aggregated value that an aggregator computed in the previous iteration.
-	 * 
+	 *
 	 * @param name The name of the aggregator.
 	 * @return The aggregated value of the previous iteration.
 	 */
@@ -158,7 +158,7 @@ public abstract class GatherFunction<K, VV, Message> implements Serializable {
 	 * Gets the broadcast data set registered under the given name. Broadcast data sets
 	 * are available on all parallel instances of a function. They can be registered via
 	 * {@link org.apache.flink.graph.spargel.ScatterGatherConfiguration#addBroadcastSetForGatherFunction(String, org.apache.flink.api.java.DataSet)}.
-	 * 
+	 *
 	 * @param name The name under which the broadcast set is registered.
 	 * @return The broadcast data set.
 	 */
@@ -232,7 +232,7 @@ public abstract class GatherFunction<K, VV, Message> implements Serializable {
 	 * In order to hide the Tuple3(actualValue, inDegree, OutDegree) vertex value from the user,
 	 * another function will be called from {@link org.apache.flink.graph.spargel.ScatterGatherIteration}.
 	 *
-	 * This function will retrieve the vertex from the vertexState and will set its degrees, afterwards calling
+	 * <p>This function will retrieve the vertex from the vertexState and will set its degrees, afterwards calling
 	 * the regular updateVertex function.
 	 *
 	 * @param vertexState

@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import java.util.ArrayList;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -27,6 +26,8 @@ import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
+
+import java.util.ArrayList;
 
 /**
  * Special window operator implementation for windows that fire at the same time for all keys with
@@ -41,7 +42,6 @@ public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
 		extends AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, ArrayList<IN>, InternalWindowFunction<Iterable<IN>, OUT, KEY, TimeWindow>> {
 
 	private static final long serialVersionUID = 7305948082830843475L;
-
 
 	public AccumulatingProcessingTimeWindowOperator(
 			InternalWindowFunction<Iterable<IN>, OUT, KEY, TimeWindow> function,

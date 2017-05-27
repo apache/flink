@@ -30,7 +30,7 @@ import java.io.IOException;
 /**
  * Specialized comparator for IntValueArray based on CopyableValueComparator.
  *
- * This can be used for grouping keys but not for sorting keys.
+ * <p>This can be used for grouping keys but not for sorting keys.
  */
 @Internal
 public class IntValueArrayComparator extends TypeComparator<IntValueArray> {

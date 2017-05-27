@@ -22,18 +22,17 @@ import java.util
 
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.scala.batch.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase}
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.types.Row
+import org.apache.flink.table.api.scala.batch.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase}
 import org.apache.flink.table.api.{TableEnvironment, TableException}
-import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.types.Row
+import org.junit.Assert.assertTrue
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.Assert.assertTrue
 
 import scala.collection.JavaConverters._
 

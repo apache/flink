@@ -105,7 +105,7 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 	}
 
 	/**
-	 * Computes the results of the gather-sum-apply iteration
+	 * Computes the results of the gather-sum-apply iteration.
 	 *
 	 * @return The resulting DataSet
 	 */
@@ -161,7 +161,7 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 		}
 
 		// Prepare the neighbors
-		if(this.configuration != null) {
+		if (this.configuration != null) {
 			direction = this.configuration.getDirection();
 		}
 		DataSet<Tuple2<K, Neighbor<VV, EV>>> neighbors;
@@ -246,7 +246,7 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 	}
 
 	/**
-	 * Creates a new gather-sum-apply iteration operator for graphs
+	 * Creates a new gather-sum-apply iteration operator for graphs.
 	 *
 	 * @param edges The edge DataSet
 	 *

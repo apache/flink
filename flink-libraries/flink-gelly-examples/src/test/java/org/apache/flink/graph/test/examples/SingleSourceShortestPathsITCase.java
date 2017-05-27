@@ -18,15 +18,15 @@
 
 package org.apache.flink.graph.test.examples;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
-
 import org.apache.flink.graph.examples.GSASingleSourceShortestPaths;
+import org.apache.flink.graph.examples.PregelSSSP;
 import org.apache.flink.graph.examples.SingleSourceShortestPaths;
 import org.apache.flink.graph.examples.data.SingleSourceShortestPathsData;
-import org.apache.flink.graph.examples.PregelSSSP;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
+
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -37,6 +37,9 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 
+/**
+ * Tests for {@link SingleSourceShortestPaths}.
+ */
 @RunWith(Parameterized.class)
 public class SingleSourceShortestPathsITCase extends MultipleProgramsTestBase {
 

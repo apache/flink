@@ -19,15 +19,14 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Either;
-import org.apache.flink.util.OutputTag;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,24 +37,22 @@ import java.util.Map;
  * @param <IN> Type of the input events
  * @param <KEY> Type of the key
  */
-public class TimeoutKeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPatternOperator<IN, KEY, Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>> {
+public class TimeoutKeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPatternOperator<IN, KEY, Either<Tuple2<Map<String, List<IN>>, Long>, Map<String, List<IN>>>> {
 	private static final long serialVersionUID = 3570542177814518158L;
 
 	public TimeoutKeyedCEPPatternOperator(
 			TypeSerializer<IN> inputSerializer,
 			boolean isProcessingTime,
-			KeySelector<IN, KEY> keySelector,
 			TypeSerializer<KEY> keySerializer,
 			NFACompiler.NFAFactory<IN> nfaFactory,
-			OutputTag<IN> lateDataOutputTag,
 			boolean migratingFromOldKeyedOperator) {
 
-		super(inputSerializer, isProcessingTime, keySelector, keySerializer, nfaFactory, lateDataOutputTag, migratingFromOldKeyedOperator);
+		super(inputSerializer, isProcessingTime, keySerializer, nfaFactory, migratingFromOldKeyedOperator);
 	}
 
 	@Override
 	protected void processEvent(NFA<IN> nfa, IN event, long timestamp) {
-		Tuple2<Collection<Map<String, IN>>, Collection<Tuple2<Map<String, IN>, Long>>> patterns =
+		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
 			nfa.process(event, timestamp);
 
 		emitMatchedSequences(patterns.f0, timestamp);
@@ -64,28 +61,28 @@ public class TimeoutKeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPat
 
 	@Override
 	protected void advanceTime(NFA<IN> nfa, long timestamp) {
-		Tuple2<Collection<Map<String, IN>>, Collection<Tuple2<Map<String, IN>, Long>>> patterns =
+		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
 			nfa.process(null, timestamp);
 
 		emitMatchedSequences(patterns.f0, timestamp);
 		emitTimedOutSequences(patterns.f1, timestamp);
 	}
 
-	private void emitTimedOutSequences(Iterable<Tuple2<Map<String, IN>, Long>> timedOutSequences, long timestamp) {
-		StreamRecord<Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>> streamRecord =
-			new StreamRecord<Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>>(null, timestamp);
+	private void emitTimedOutSequences(Iterable<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences, long timestamp) {
+		StreamRecord<Either<Tuple2<Map<String, List<IN>>, Long>, Map<String, List<IN>>>> streamRecord =
+			new StreamRecord<>(null, timestamp);
 
-		for (Tuple2<Map<String, IN>, Long> partialPattern: timedOutSequences) {
+		for (Tuple2<Map<String, List<IN>>, Long> partialPattern: timedOutSequences) {
 			streamRecord.replace(Either.Left(partialPattern));
 			output.collect(streamRecord);
 		}
 	}
 
-	protected void emitMatchedSequences(Iterable<Map<String, IN>> matchedSequences, long timestamp) {
-		StreamRecord<Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>> streamRecord =
-			new StreamRecord<Either<Tuple2<Map<String, IN>, Long>, Map<String, IN>>>(null, timestamp);
+	protected void emitMatchedSequences(Iterable<Map<String, List<IN>>> matchedSequences, long timestamp) {
+		StreamRecord<Either<Tuple2<Map<String, List<IN>>, Long>, Map<String, List<IN>>>> streamRecord =
+			new StreamRecord<>(null, timestamp);
 
-		for (Map<String, IN> matchedPattern : matchedSequences) {
+		for (Map<String, List<IN>> matchedPattern : matchedSequences) {
 			streamRecord.replace(Either.Right(matchedPattern));
 			output.collect(streamRecord);
 		}

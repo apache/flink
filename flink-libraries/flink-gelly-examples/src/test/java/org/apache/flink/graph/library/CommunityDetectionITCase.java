@@ -24,12 +24,16 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.examples.data.CommunityDetectionData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+/**
+ * Tests for {@link CommunityDetection}.
+ */
 @RunWith(Parameterized.class)
 public class CommunityDetectionITCase extends MultipleProgramsTestBase {
 

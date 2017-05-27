@@ -17,16 +17,19 @@
 
 package org.apache.flink.streaming.util;
 
-import java.io.Serializable;
-import java.util.Collection;
-
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 
+import java.io.IOException;
+import java.util.Collection;
+
+/**
+ * Mock {@link Output} for {@link StreamRecord}.
+ */
 public class MockOutput<T> implements Output<StreamRecord<T>> {
 	private Collection<T> outputs;
 
@@ -36,8 +39,13 @@ public class MockOutput<T> implements Output<StreamRecord<T>> {
 
 	@Override
 	public void collect(StreamRecord<T> record) {
-		T copied = SerializationUtils.deserialize(SerializationUtils.serialize((Serializable) record.getValue()));
-		outputs.add(copied);
+		try {
+			ClassLoader cl = record.getClass().getClassLoader();
+			T copied = InstantiationUtil.deserializeObject(InstantiationUtil.serializeObject(record.getValue()), cl);
+			outputs.add(copied);
+		} catch (IOException | ClassNotFoundException ex) {
+			throw new RuntimeException("Unable to deserialize record: " + record, ex);
+		}
 	}
 
 	@Override

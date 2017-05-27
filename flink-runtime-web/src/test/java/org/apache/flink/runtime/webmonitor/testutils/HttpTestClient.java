@@ -45,12 +45,13 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * A simple HTTP client.
@@ -65,7 +66,7 @@ import java.util.concurrent.TimeoutException;
  * assertTrue(response.getContent().contains("\"jobs-running\":0"));
  * </pre>
  *
- * This code is based on Netty's HttpSnoopClient.
+ * <p>This code is based on Netty's HttpSnoopClient.
  *
  * @see <a href="https://github.com/netty/netty/blob/master/example/src/main/java/io/netty/example/http/snoop/HttpSnoopClient.java">HttpSnoopClient</a>
  */
@@ -73,19 +74,19 @@ public class HttpTestClient implements AutoCloseable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HttpTestClient.class);
 
-	/** Target host */
+	/** Target host to connect to. */
 	private final String host;
 
-	/** Target port */
+	/** Target port to connect to. */
 	private final int port;
 
-	/** Netty's thread group for the client */
+	/** Netty's thread group for the client. */
 	private final EventLoopGroup group;
 
-	/** Client bootstrap */
+	/** Client bootstrap. */
 	private final Bootstrap bootstrap;
 
-	/** Responses received by the client */
+	/** Responses received by the client. */
 	private final BlockingQueue<SimpleHttpResponse> responses = new LinkedBlockingQueue<>();
 
 	/**

@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import java.util.ArrayDeque;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -29,8 +28,11 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayDeque;
 
 /**
  * The BarrierTracker keeps track of what checkpoint barriers have been received from
@@ -195,7 +197,6 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 			}
 		}
 	}
-
 
 	private void processCheckpointAbortBarrier(CancelCheckpointMarker barrier, int channelIndex) throws Exception {
 		final long checkpointId = barrier.getCheckpointId();

@@ -18,9 +18,6 @@
 
 package org.apache.flink.streaming.util.functions;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
@@ -35,6 +32,10 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.util.Preconditions;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Utility class that contains helper methods to work with Flink Streaming

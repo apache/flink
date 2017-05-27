@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -146,7 +147,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			timeout = Time.milliseconds(AkkaUtils.getTimeout(configuration).toMillis());
 		} catch (Exception e) {
 			throw new IllegalArgumentException(
-				"Invalid format for '" + ConfigConstants.AKKA_ASK_TIMEOUT +
+				"Invalid format for '" + AkkaOptions.ASK_TIMEOUT.key() +
 					"'.Use formats like '50 s' or '1 min' to specify the timeout.");
 		}
 

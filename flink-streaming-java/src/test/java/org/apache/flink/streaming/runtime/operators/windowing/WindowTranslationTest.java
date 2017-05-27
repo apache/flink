@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -124,7 +125,7 @@ public class WindowTranslationTest {
 		source
 				.keyBy(0)
 				.window(SlidingEventTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
-				.aggregate(new DummyRichAggregationFunction<Tuple2<String,Integer>>());
+				.aggregate(new DummyRichAggregationFunction<Tuple2<String, Integer>>());
 
 		fail("exception was not thrown");
 	}
@@ -998,14 +999,14 @@ public class WindowTranslationTest {
 							Iterable<Tuple3<String, String, Integer>> values,
 							Collector<Tuple3<String, String, Integer>> out) throws Exception {
 						for (Tuple3<String, String, Integer> in : values) {
-							out.collect(new Tuple3<>(in.f0, in. f1, in.f2));
+							out.collect(new Tuple3<>(in.f0, in.f1, in.f2));
 						}
 					}
 				});
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>> transform =
 				(OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>>) window.getTransformation();
-		OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String,String, Integer>> operator = transform.getOperator();
+		OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator = transform.getOperator();
 		Assert.assertTrue(operator instanceof WindowOperator);
 		WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator = (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
 		Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
@@ -1036,14 +1037,14 @@ public class WindowTranslationTest {
 							Iterable<Tuple3<String, String, Integer>> values,
 							Collector<Tuple3<String, String, Integer>> out) throws Exception {
 						for (Tuple3<String, String, Integer> in : values) {
-							out.collect(new Tuple3<>(in.f0, in. f1, in.f2));
+							out.collect(new Tuple3<>(in.f0, in.f1, in.f2));
 						}
 					}
 				});
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>> transform =
 				(OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>>) window.getTransformation();
-		OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String,String, Integer>> operator = transform.getOperator();
+		OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator = transform.getOperator();
 		Assert.assertTrue(operator instanceof WindowOperator);
 		WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator = (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
 		Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
@@ -1473,7 +1474,6 @@ public class WindowTranslationTest {
 				winOperator, winOperator.getKeySelector(), BasicTypeInfo.STRING_TYPE_INFO, new Tuple2<>("hello", 1));
 	}
 
-
 	@Test
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	public void testFoldWithEvictor() throws Exception {
@@ -1665,7 +1665,7 @@ public class WindowTranslationTest {
 	//  UDFs
 	// ------------------------------------------------------------------------
 
-	public static class DummyReducer implements ReduceFunction<Tuple2<String, Integer>> {
+	private static class DummyReducer implements ReduceFunction<Tuple2<String, Integer>> {
 
 		@Override
 		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2) throws Exception {
@@ -1757,7 +1757,6 @@ public class WindowTranslationTest {
 			}
 		}
 	}
-
 
 	private static class TupleKeySelector implements KeySelector<Tuple2<String, Integer>, String> {
 

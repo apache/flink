@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
@@ -31,7 +29,10 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.utils.MutableIOMetrics;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -45,7 +46,7 @@ import java.util.Map;
  */
 public class JobVertexDetailsHandler extends AbstractJobVertexRequestHandler {
 
-	private static String JOB_VERTEX_DETAILS_REST_PATH = "/jobs/:jobid/vertices/:vertexid";
+	private static final String JOB_VERTEX_DETAILS_REST_PATH = "/jobs/:jobid/vertices/:vertexid";
 
 	private final MetricFetcher fetcher;
 
@@ -64,6 +65,9 @@ public class JobVertexDetailsHandler extends AbstractJobVertexRequestHandler {
 		return createVertexDetailsJson(jobVertex, params.get("jobid"), fetcher);
 	}
 
+	/**
+	 * Archivist for the JobVertexDetailsHandler.
+	 */
 	public static class JobVertexDetailsJsonArchivist implements JsonArchivist {
 
 		@Override
@@ -85,9 +89,9 @@ public class JobVertexDetailsHandler extends AbstractJobVertexRequestHandler {
 			String jobID,
 			@Nullable MetricFetcher fetcher) throws IOException {
 		final long now = System.currentTimeMillis();
-		
+
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 		gen.writeStartObject();
 
@@ -100,7 +104,7 @@ public class JobVertexDetailsHandler extends AbstractJobVertexRequestHandler {
 		int num = 0;
 		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
 			final ExecutionState status = vertex.getExecutionState();
-			
+
 			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
 			String locationString = location == null ? "(unassigned)" : location.getHostname() + ":" + location.dataPort();
 
@@ -110,7 +114,7 @@ public class JobVertexDetailsHandler extends AbstractJobVertexRequestHandler {
 			}
 			long endTime = status.isTerminal() ? vertex.getStateTimestamp(status) : -1;
 			long duration = startTime > 0 ? ((endTime > 0 ? endTime : now) - startTime) : -1;
-			
+
 			gen.writeStartObject();
 			gen.writeNumberField("subtask", num);
 			gen.writeStringField("status", status.name());
@@ -130,13 +134,13 @@ public class JobVertexDetailsHandler extends AbstractJobVertexRequestHandler {
 			);
 
 			counts.writeIOMetricsAsJson(gen);
-			
+
 			gen.writeEndObject();
-			
+
 			num++;
 		}
 		gen.writeEndArray();
-		
+
 		gen.writeEndObject();
 
 		gen.close();

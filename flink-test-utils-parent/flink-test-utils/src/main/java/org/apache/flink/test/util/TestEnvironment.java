@@ -18,9 +18,9 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.api.common.CodeAnalysisMode;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.CodeAnalysisMode;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.core.fs.Path;
@@ -119,7 +119,6 @@ public class TestEnvironment extends ExecutionEnvironment {
 		return this.lastJobExecutionResult;
 	}
 
-
 	@Override
 	public String getExecutionPlan() throws Exception {
 		OptimizedPlan op = compileProgram("unused");
@@ -127,7 +126,6 @@ public class TestEnvironment extends ExecutionEnvironment {
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		return jsonGen.getOptimizerPlanAsJSON(op);
 	}
-
 
 	private OptimizedPlan compileProgram(String jobName) {
 		Plan p = createProgramPlan(jobName);
@@ -180,7 +178,6 @@ public class TestEnvironment extends ExecutionEnvironment {
 
 		initializeContextEnvironment(factory);
 	}
-
 
 	/**
 	 * Sets the current {@link ExecutionEnvironment} to be a {@link TestEnvironment}. The test

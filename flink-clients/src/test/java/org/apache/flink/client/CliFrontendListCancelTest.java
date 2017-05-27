@@ -18,17 +18,18 @@
 
 package org.apache.flink.client;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.Status;
-import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.actor.Status;
+import akka.testkit.JavaTestKit;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -41,6 +42,9 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the CANCEL and LIST commands.
+ */
 public class CliFrontendListCancelTest {
 
 	private static ActorSystem actorSystem;
@@ -56,12 +60,12 @@ public class CliFrontendListCancelTest {
 		JavaTestKit.shutdownActorSystem(actorSystem);
 		actorSystem = null;
 	}
-	
+
 	@BeforeClass
 	public static void init() {
 		CliFrontendTestUtils.pipeSystemOutToNull();
 	}
-	
+
 	@Test
 	public void testCancel() {
 		try {
@@ -72,7 +76,7 @@ public class CliFrontendListCancelTest {
 				int retCode = testFrontend.cancel(parameters);
 				assertTrue(retCode != 0);
 			}
-			
+
 			// test missing job id
 			{
 				String[] parameters = {};
@@ -80,7 +84,7 @@ public class CliFrontendListCancelTest {
 				int retCode = testFrontend.cancel(parameters);
 				assertTrue(retCode != 0);
 			}
-			
+
 			// test cancel properly
 			{
 				JobID jid = new JobID();
@@ -96,7 +100,7 @@ public class CliFrontendListCancelTest {
 				);
 
 				final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
-				
+
 				String[] parameters = { jidString };
 				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
 
@@ -205,7 +209,7 @@ public class CliFrontendListCancelTest {
 				int retCode = testFrontend.list(parameters);
 				assertTrue(retCode != 0);
 			}
-			
+
 			// test list properly
 			{
 				final UUID leaderSessionID = UUID.randomUUID();
@@ -230,8 +234,7 @@ public class CliFrontendListCancelTest {
 		}
 	}
 
-
-	protected static final class InfoListTestCliFrontend extends CliFrontend {
+	private static final class InfoListTestCliFrontend extends CliFrontend {
 
 		private ActorGateway jobManagerGateway;
 
@@ -246,7 +249,7 @@ public class CliFrontendListCancelTest {
 		}
 	}
 
-	protected static final class CliJobManager extends FlinkUntypedActor {
+	private static final class CliJobManager extends FlinkUntypedActor {
 		private final JobID jobID;
 		private final UUID leaderSessionID;
 		private final String targetDirectory;

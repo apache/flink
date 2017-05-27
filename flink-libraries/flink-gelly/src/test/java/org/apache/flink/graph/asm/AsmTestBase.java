@@ -28,16 +28,20 @@ import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Before;
 
 import java.util.LinkedList;
 import java.util.List;
 
+/**
+ * Simple graphs for testing graph assembly functions.
+ */
 public class AsmTestBase {
 
 	protected ExecutionEnvironment env;
 
-	protected final double ACCURACY = 0.000001;
+	protected static final double ACCURACY = 0.000001;
 
 	// simple graph
 	protected Graph<IntValue, NullValue, NullValue> directedSimpleGraph;
@@ -95,12 +99,14 @@ public class AsmTestBase {
 	 * scale=10 and edgeFactor=16 but algorithms generating very large DataSets
 	 * require smaller input graphs.
 	 *
-	 * The examples program can write this graph as a CSV file for verifying
+	 * <p>The examples program can write this graph as a CSV file for verifying
 	 * algorithm results with external libraries:
 	 *
+	 * <pre>
 	 * ./bin/flink run examples/flink-gelly-examples_*.jar --algorithm EdgeList \
 	 *     --input RMatGraph --type long --simplify directed --scale $SCALE --edge_factor $EDGE_FACTOR \
 	 *     --output csv --filename directedRMatGraph.csv
+	 * </pre>
 	 *
 	 * @param scale vertices are generated in the range [0, 2<sup>scale</sup>)
 	 * @param edgeFactor the edge count is {@code edgeFactor} * 2<sup>scale</sup>
@@ -122,12 +128,14 @@ public class AsmTestBase {
 	 * scale=10 and edgeFactor=16 but algorithms generating very large DataSets
 	 * require smaller input graphs.
 	 *
-	 * The examples program can write this graph as a CSV file for verifying
+	 * <p>The examples program can write this graph as a CSV file for verifying
 	 * algorithm results with external libraries:
 	 *
+	 * <pre>
 	 * ./bin/flink run examples/flink-gelly-examples_*.jar --algorithm EdgeList \
 	 *     --input RMatGraph --type long --simplify undirected --scale $SCALE --edge_factor $EDGE_FACTOR \
 	 *     --output csv --filename undirectedRMatGraph.csv
+	 * </pre>
 	 *
 	 * @param scale vertices are generated in the range [0, 2<sup>scale</sup>)
 	 * @param edgeFactor the edge count is {@code edgeFactor} * 2<sup>scale</sup>

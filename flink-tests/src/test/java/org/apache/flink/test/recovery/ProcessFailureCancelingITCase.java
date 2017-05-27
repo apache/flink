@@ -29,7 +29,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -101,10 +101,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			Tuple2<String, Object> localAddress = new Tuple2<String, Object>("localhost", jobManagerPort);
 
 			Configuration jmConfig = new Configuration();
-			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "5 s");
-			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2000 s");
-			jmConfig.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 10);
-			jmConfig.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
+			jmConfig.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "5 s");
+			jmConfig.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "2000 s");
+			jmConfig.setInteger(AkkaOptions.WATCH_THRESHOLD, 10);
+			jmConfig.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
 			jmConfig.setString(JobManagerOptions.ADDRESS, localAddress._1());
 			jmConfig.setInteger(JobManagerOptions.PORT, jobManagerPort);
 

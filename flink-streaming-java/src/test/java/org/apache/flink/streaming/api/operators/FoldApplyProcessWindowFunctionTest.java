@@ -53,12 +53,16 @@ import org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProces
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableProcessAllWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableProcessWindowFunction;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link FoldApplyProcessWindowFunction}.
+ */
 public class FoldApplyProcessWindowFunctionTest {
 
 	/**
@@ -290,7 +294,7 @@ public class FoldApplyProcessWindowFunctionTest {
 		Assert.assertEquals(expected, result);
 	}
 
-	public static class DummyKeyedStateStore implements KeyedStateStore {
+	private static class DummyKeyedStateStore implements KeyedStateStore {
 
 		@Override
 		public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
@@ -318,7 +322,7 @@ public class FoldApplyProcessWindowFunctionTest {
 		}
 	}
 
-	public static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
+	private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
 
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {

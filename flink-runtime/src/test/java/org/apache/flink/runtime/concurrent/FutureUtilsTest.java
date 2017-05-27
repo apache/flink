@@ -21,10 +21,15 @@ package org.apache.flink.runtime.concurrent;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 
+import org.apache.flink.util.TestLogger;
+import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 
@@ -33,17 +38,26 @@ import static org.junit.Assert.*;
 /**
  * Tests for the utility methods in {@link FutureUtils}
  */
-public class FutureUtilsTest {
+@RunWith(Parameterized.class)
+public class FutureUtilsTest extends TestLogger{
+
+	@Parameterized.Parameters
+	public static Collection<FutureFactory> parameters (){
+		return Arrays.asList(new ConjunctFutureFactory(), new WaitingFutureFactory());
+	}
+
+	@Parameterized.Parameter
+	public FutureFactory futureFactory;
 
 	@Test
 	public void testConjunctFutureFailsOnEmptyAndNull() throws Exception {
 		try {
-			FutureUtils.combineAll(null);
+			futureFactory.createFuture(null);
 			fail();
 		} catch (NullPointerException ignored) {}
 
 		try {
-			FutureUtils.combineAll(Arrays.asList(
+			futureFactory.createFuture(Arrays.asList(
 					new FlinkCompletableFuture<Object>(),
 					null,
 					new FlinkCompletableFuture<Object>()));
@@ -63,11 +77,11 @@ public class FutureUtilsTest {
 		future2.complete(new Object());
 
 		// build the conjunct future
-		ConjunctFuture result = FutureUtils.combineAll(Arrays.asList(future1, future2, future3, future4));
+		ConjunctFuture<?> result = futureFactory.createFuture(Arrays.asList(future1, future2, future3, future4));
 
-		Future<Void> resultMapped = result.thenAccept(new AcceptFunction<Void>() {
+		Future<?> resultMapped = result.thenAccept(new AcceptFunction<Object>() {
 			@Override
-			public void accept(Void value) {}
+			public void accept(Object value) {}
 		});
 
 		assertEquals(4, result.getNumFuturesTotal());
@@ -108,11 +122,11 @@ public class FutureUtilsTest {
 		CompletableFuture<Object> future4 = new FlinkCompletableFuture<>();
 
 		// build the conjunct future
-		ConjunctFuture result = FutureUtils.combineAll(Arrays.asList(future1, future2, future3, future4));
+		ConjunctFuture<?> result = futureFactory.createFuture(Arrays.asList(future1, future2, future3, future4));
 
-		Future<Void> resultMapped = result.thenAccept(new AcceptFunction<Void>() {
+		Future<?> resultMapped = result.thenAccept(new AcceptFunction<Object>() {
 			@Override
-			public void accept(Void value) {}
+			public void accept(Object value) {}
 		});
 
 		assertEquals(4, result.getNumFuturesTotal());
@@ -150,12 +164,12 @@ public class FutureUtilsTest {
 		CompletableFuture<Object> future4 = new FlinkCompletableFuture<>();
 
 		// build the conjunct future
-		ConjunctFuture result = FutureUtils.combineAll(Arrays.asList(future1, future2, future3, future4));
+		ConjunctFuture<?> result = futureFactory.createFuture(Arrays.asList(future1, future2, future3, future4));
 		assertEquals(4, result.getNumFuturesTotal());
 
-		Future<Void> resultMapped = result.thenAccept(new AcceptFunction<Void>() {
+		Future<?> resultMapped = result.thenAccept(new AcceptFunction<Object>() {
 			@Override
-			public void accept(Void value) {}
+			public void accept(Object value) {}
 		});
 
 		future1.complete(new Object());
@@ -183,12 +197,55 @@ public class FutureUtilsTest {
 		}
 	}
 
+	/**
+	 * Tests that the conjunct future returns upon completion the collection of all future values
+	 */
+	@Test
+	public void testConjunctFutureValue() throws ExecutionException, InterruptedException {
+		CompletableFuture<Integer> future1 = FlinkCompletableFuture.completed(1);
+		CompletableFuture<Long> future2 = FlinkCompletableFuture.completed(2L);
+		CompletableFuture<Double> future3 = new FlinkCompletableFuture<>();
+
+		ConjunctFuture<Collection<Number>> result = FutureUtils.<Number>combineAll(Arrays.asList(future1, future2, future3));
+
+		assertFalse(result.isDone());
+
+		future3.complete(.1);
+
+		assertTrue(result.isDone());
+
+		assertThat(result.get(), IsIterableContainingInAnyOrder.<Number>containsInAnyOrder(1, 2L, .1));
+	}
+
 	@Test
 	public void testConjunctOfNone() throws Exception {
-		final ConjunctFuture result = FutureUtils.combineAll(Collections.<Future<Object>>emptyList());
+		final ConjunctFuture<?> result = futureFactory.createFuture(Collections.<Future<Object>>emptyList());
 
 		assertEquals(0, result.getNumFuturesTotal());
 		assertEquals(0, result.getNumFuturesCompleted());
 		assertTrue(result.isDone());
+	}
+
+	/**
+	 * Factory to create {@link ConjunctFuture} for testing.
+	 */
+	private interface FutureFactory {
+		ConjunctFuture<?> createFuture(Collection<? extends Future<?>> futures);
+	}
+
+	private static class ConjunctFutureFactory implements FutureFactory {
+
+		@Override
+		public ConjunctFuture<?> createFuture(Collection<? extends Future<?>> futures) {
+			return FutureUtils.combineAll(futures);
+		}
+	}
+
+	private static class WaitingFutureFactory implements FutureFactory {
+
+		@Override
+		public ConjunctFuture<?> createFuture(Collection<? extends Future<?>> futures) {
+			return FutureUtils.waitForAll(futures);
+		}
 	}
 }

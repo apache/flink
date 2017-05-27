@@ -20,7 +20,6 @@ package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.io.VersionMismatchException;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.util.Preconditions;
 
@@ -51,22 +50,6 @@ public abstract class TypeSerializerConfigSnapshot extends VersionedIOReadableWr
 	/** The user code class loader; only relevant if this configuration instance was deserialized from binary form. */
 	private ClassLoader userCodeClassLoader;
 
-	/** The snapshot version of this configuration. */
-	private Integer snapshotVersion;
-
-	/**
-	 * Returns the version of the configuration at the time its snapshot was taken.
-	 *
-	 * @return the snapshot configuration's version.
-	 */
-	public int getSnapshotVersion() {
-		if (snapshotVersion == null) {
-			return getVersion();
-		} else {
-			return snapshotVersion;
-		}
-	}
-
 	/**
 	 * Set the user code class loader.
 	 * Only relevant if this configuration instance was deserialized from binary form.
@@ -89,12 +72,6 @@ public abstract class TypeSerializerConfigSnapshot extends VersionedIOReadableWr
 	@Internal
 	public final ClassLoader getUserCodeClassLoader() {
 		return userCodeClassLoader;
-	}
-
-	@Override
-	protected void resolveVersionRead(int foundVersion) throws VersionMismatchException {
-		super.resolveVersionRead(foundVersion);
-		this.snapshotVersion = foundVersion;
 	}
 
 	public abstract boolean equals(Object obj);

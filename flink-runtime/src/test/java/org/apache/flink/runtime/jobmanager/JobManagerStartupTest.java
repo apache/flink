@@ -30,7 +30,7 @@ import java.util.List;
 
 import com.google.common.io.Files;
 
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.StartupUtils;
 import org.apache.flink.util.NetUtils;
@@ -130,7 +130,7 @@ public class JobManagerStartupTest extends TestLogger {
 		}
 		Configuration failConfig = new Configuration();
 		String nonExistDirectory = new File(blobStorageDirectory, DOES_NOT_EXISTS_NO_SIR).getAbsolutePath();
-		failConfig.setString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, nonExistDirectory);
+		failConfig.setString(BlobServerOptions.STORAGE_DIRECTORY, nonExistDirectory);
 
 		try {
 			JobManager.runJobManager(failConfig, JobManagerMode.CLUSTER, "localhost", portNum);

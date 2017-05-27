@@ -25,7 +25,7 @@ import com.esotericsoftware.kryo.io.Output;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.junit.Test;
@@ -53,7 +53,7 @@ public class KryoSerializerCompatibilityTest {
 		TypeSerializerConfigSnapshot kryoSerializerConfigSnapshot = kryoSerializerForA.snapshotConfiguration();
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), kryoSerializerConfigSnapshot);
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), kryoSerializerConfigSnapshot);
 			serializedConfig = out.toByteArray();
 		}
 
@@ -61,12 +61,12 @@ public class KryoSerializerCompatibilityTest {
 
 		// read configuration again from bytes
 		try(ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			kryoSerializerConfigSnapshot = TypeSerializerUtil.readSerializerConfigSnapshot(
+			kryoSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
 		CompatibilityResult<TestClassB> compatResult = kryoSerializerForB.ensureCompatibility(kryoSerializerConfigSnapshot);
-		assertTrue(compatResult.requiresMigration());
+		assertTrue(compatResult.isRequiresMigration());
 	}
 
 	/**
@@ -91,7 +91,7 @@ public class KryoSerializerCompatibilityTest {
 		TypeSerializerConfigSnapshot kryoSerializerConfigSnapshot = kryoSerializer.snapshotConfiguration();
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), kryoSerializerConfigSnapshot);
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), kryoSerializerConfigSnapshot);
 			serializedConfig = out.toByteArray();
 		}
 
@@ -104,13 +104,13 @@ public class KryoSerializerCompatibilityTest {
 
 		// read configuration from bytes
 		try(ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			kryoSerializerConfigSnapshot = TypeSerializerUtil.readSerializerConfigSnapshot(
+			kryoSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
 		// reconfigure - check reconfiguration result and that registration id remains the same
 		CompatibilityResult<TestClass> compatResult = kryoSerializer.ensureCompatibility(kryoSerializerConfigSnapshot);
-		assertFalse(compatResult.requiresMigration());
+		assertFalse(compatResult.isRequiresMigration());
 		assertEquals(testClassId, kryoSerializer.getKryo().getRegistration(TestClass.class).getId());
 		assertEquals(testClassAId, kryoSerializer.getKryo().getRegistration(TestClassA.class).getId());
 		assertEquals(testClassBId, kryoSerializer.getKryo().getRegistration(TestClassB.class).getId());

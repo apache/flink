@@ -18,19 +18,23 @@
 
 package org.apache.flink.streaming.runtime.streamrecord;
 
-import static java.util.Objects.requireNonNull;
-
-import java.io.IOException;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+
+import java.io.IOException;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Serializer for {@link StreamRecord}, {@link Watermark}, {@link LatencyMarker}, and
@@ -54,7 +58,6 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 
 
 	private final TypeSerializer<T> typeSerializer;
-
 
 	public StreamElementSerializer(TypeSerializer<T> serializer) {
 		if (serializer instanceof StreamElementSerializer) {
@@ -277,16 +280,22 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 
 	@Override
 	public StreamElementSerializerConfigSnapshot snapshotConfiguration() {
-		return new StreamElementSerializerConfigSnapshot(typeSerializer.snapshotConfiguration());
+		return new StreamElementSerializerConfigSnapshot<>(typeSerializer);
 	}
 
 	@Override
 	public CompatibilityResult<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof StreamElementSerializerConfigSnapshot) {
-			CompatibilityResult<T> compatResult = typeSerializer.ensureCompatibility(
-				((StreamElementSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerConfigSnapshot());
+			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousTypeSerializerAndConfig =
+				((StreamElementSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
 
-			if (!compatResult.requiresMigration()) {
+			CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
+					previousTypeSerializerAndConfig.f0,
+					UnloadableDummyTypeSerializer.class,
+					previousTypeSerializerAndConfig.f1,
+					typeSerializer);
+
+			if (!compatResult.isRequiresMigration()) {
 				return CompatibilityResult.compatible();
 			} else if (compatResult.getConvertDeserializer() != null) {
 				return CompatibilityResult.requiresMigration(
@@ -295,21 +304,21 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 
 	/**
 	 * Configuration snapshot specific to the {@link StreamElementSerializer}.
 	 */
-	public static final class StreamElementSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+	public static final class StreamElementSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
 
 		private static final int VERSION = 1;
 
 		/** This empty nullary constructor is required for deserializing the configuration. */
 		public StreamElementSerializerConfigSnapshot() {}
 
-		public StreamElementSerializerConfigSnapshot(TypeSerializerConfigSnapshot typeSerializerConfigSnapshot) {
-			super(typeSerializerConfigSnapshot);
+		public StreamElementSerializerConfigSnapshot(TypeSerializer<T> typeSerializer) {
+			super(typeSerializer);
 		}
 
 		@Override

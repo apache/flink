@@ -19,18 +19,18 @@ package org.apache.flink.streaming.examples.sideoutput;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.util.OutputTag;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 
 /**
  * An example that illustrates the use of side outputs.
@@ -45,7 +45,7 @@ public class SideOutputExample {
 	 * We need to create an {@link OutputTag} so that we can reference it when emitting
 	 * data to a side output and also to retrieve the side output stream from an operation.
 	 */
-	static final OutputTag<String> rejectedWordsTag = new OutputTag<String>("rejected") {};
+	private static final OutputTag<String> rejectedWordsTag = new OutputTag<String>("rejected") {};
 
 	public static void main(String[] args) throws Exception {
 
@@ -75,7 +75,7 @@ public class SideOutputExample {
 		SingleOutputStreamOperator<Tuple2<String, Integer>> tokenized = text
 				.keyBy(new KeySelector<String, Integer>() {
 					private static final long serialVersionUID = 1L;
-					
+
 					@Override
 					public Integer getKey(String value) throws Exception {
 						return 0;

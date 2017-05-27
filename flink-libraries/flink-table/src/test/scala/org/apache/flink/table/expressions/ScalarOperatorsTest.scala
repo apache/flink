@@ -138,6 +138,25 @@ class ScalarOperatorsTest extends ExpressionTestBase {
 
   @Test
   def testOtherExpressions(): Unit = {
+    // boolean literals
+    testAllApis(
+      true,
+      "true",
+      "true",
+      "true")
+
+    testAllApis(
+      false,
+      "False",
+      "fAlse",
+      "false")
+
+    testAllApis(
+      true,
+      "TrUe",
+      "tRuE",
+      "true")
+
     // null
     testAllApis(Null(Types.INT), "Null(INT)", "CAST(NULL AS INT)", "null")
     testAllApis(

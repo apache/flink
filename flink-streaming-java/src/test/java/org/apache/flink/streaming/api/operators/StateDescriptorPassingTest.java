@@ -18,9 +18,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.serializers.JavaSerializer;
-
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -43,17 +40,19 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.util.Collector;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import org.junit.Test;
 
 import java.io.File;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Various tests around the proper passing of state descriptors to the operators
  * and their serialization.
  *
- * The tests use an arbitrary generic type to validate the behavior.
+ * <p>The tests use an arbitrary generic type to validate the behavior.
  */
 @SuppressWarnings("serial")
 public class StateDescriptorPassingTest {
@@ -266,7 +265,7 @@ public class StateDescriptorPassingTest {
 
 		assertTrue(descr instanceof ListStateDescriptor);
 
-		ListStateDescriptor<?> listDescr = (ListStateDescriptor<?>)descr;
+		ListStateDescriptor<?> listDescr = (ListStateDescriptor<?>) descr;
 
 		// this would be the first statement to fail if state descriptors were not properly initialized
 		TypeSerializer<?> serializer = listDescr.getSerializer();

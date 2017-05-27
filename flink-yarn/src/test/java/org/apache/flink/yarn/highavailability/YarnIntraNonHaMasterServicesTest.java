@@ -24,18 +24,18 @@ import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.StringUtils;
-
 import org.apache.flink.util.TestLogger;
-import org.apache.hadoop.hdfs.MiniDFSCluster;
 
+import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -51,6 +51,9 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for YarnIntraNonHaMasterServices.
+ */
 public class YarnIntraNonHaMasterServicesTest extends TestLogger {
 
 	private static final Random RND = new Random();
@@ -58,9 +61,9 @@ public class YarnIntraNonHaMasterServicesTest extends TestLogger {
 	@ClassRule
 	public static final TemporaryFolder TEMP_DIR = new TemporaryFolder();
 
-	private static MiniDFSCluster HDFS_CLUSTER;
+	private static MiniDFSCluster hdfsCluster;
 
-	private static Path HDFS_ROOT_PATH;
+	private static Path hdfsRootPath;
 
 	private org.apache.hadoop.conf.Configuration hadoopConfig;
 
@@ -70,29 +73,31 @@ public class YarnIntraNonHaMasterServicesTest extends TestLogger {
 
 	@BeforeClass
 	public static void createHDFS() throws Exception {
+		Assume.assumeTrue(!OperatingSystem.isWindows());
+
 		final File tempDir = TEMP_DIR.newFolder();
 
 		org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
 		hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tempDir.getAbsolutePath());
 
 		MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
-		HDFS_CLUSTER = builder.build();
-		HDFS_ROOT_PATH = new Path(HDFS_CLUSTER.getURI());
+		hdfsCluster = builder.build();
+		hdfsRootPath = new Path(hdfsCluster.getURI());
 	}
 
 	@AfterClass
 	public static void destroyHDFS() {
-		if (HDFS_CLUSTER != null) {
-			HDFS_CLUSTER.shutdown();
+		if (hdfsCluster != null) {
+			hdfsCluster.shutdown();
 		}
-		HDFS_CLUSTER = null;
-		HDFS_ROOT_PATH = null;
+		hdfsCluster = null;
+		hdfsRootPath = null;
 	}
 
 	@Before
 	public void initConfig() {
 		hadoopConfig = new org.apache.hadoop.conf.Configuration();
-		hadoopConfig.set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, HDFS_ROOT_PATH.toString());
+		hadoopConfig.set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, hdfsRootPath.toString());
 	}
 
 	// ------------------------------------------------------------------------

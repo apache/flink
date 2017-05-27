@@ -18,29 +18,27 @@
 
 package org.apache.flink.test.util;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
-
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
-
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
 
-import org.apache.flink.runtime.akka.AkkaUtils;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * A base class for tests that run test programs in a Flink mini cluster.
  */
 public abstract class AbstractTestBase extends TestBaseUtils {
-	
-	/** Configuration to start the testing cluster with */
+
+	/** Configuration to start the testing cluster with. */
 	protected final Configuration config;
 
 	private final FiniteDuration timeout;
@@ -50,12 +48,10 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	protected int numTaskManagers = 1;
 
 	@ClassRule
-	public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
+	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-
-	/** The mini cluster that runs the test programs */
+	/** The mini cluster that runs the test programs. */
 	protected LocalFlinkMiniCluster executor;
-	
 
 	public AbstractTestBase(Configuration config) {
 		this.config = Objects.requireNonNull(config);
@@ -100,7 +96,6 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 		this.numTaskManagers = numTaskManagers;
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 	//  Temporary File Utilities
 	// --------------------------------------------------------------------------------------------
@@ -122,6 +117,6 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	}
 
 	public File createAndRegisterTempFile(String fileName) throws IOException {
-		return new File(temporaryFolder.newFolder(), fileName);
+		return new File(TEMPORARY_FOLDER.newFolder(), fileName);
 	}
 }

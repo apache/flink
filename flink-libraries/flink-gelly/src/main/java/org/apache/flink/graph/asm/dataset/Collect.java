@@ -34,7 +34,7 @@ import java.util.List;
  * @param <T> element type
  */
 public class Collect<T>
-extends AbstractDataSetAnalytic<T, List<T>> {
+extends DataSetAnalyticBase<T, List<T>> {
 
 	private static final String COLLECT = "collect";
 

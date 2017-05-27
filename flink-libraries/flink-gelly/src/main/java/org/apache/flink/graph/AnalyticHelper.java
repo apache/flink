@@ -34,7 +34,7 @@ import java.io.Serializable;
  * Flink accumulators. This computation is cheaply performed in a terminating
  * {@link RichOutputFormat}.
  *
- * This class simplifies the creation of analytic helpers by providing pass-through
+ * <p>This class simplifies the creation of analytic helpers by providing pass-through
  * methods for adding and getting accumulators. Each accumulator name is prefixed
  * with a random string since Flink accumulators share a per-job global namespace.
  * This class also provides empty implementations of {@link RichOutputFormat#open}

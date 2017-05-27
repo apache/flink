@@ -63,6 +63,7 @@ import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable.HashMap
@@ -509,7 +510,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param sink The [[TableSink]] to write the [[Table]] to.
     * @tparam T The data type that the [[TableSink]] expects.
     */
-  private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit
+  private[flink] def writeToSink[T](table: Table, sink: TableSink[T], conf: QueryConfig): Unit
 
   /**
     * Registers a Calcite [[AbstractTable]] in the TableEnvironment's catalog.
@@ -677,6 +678,23 @@ abstract class TableEnvironment(val config: TableConfig) {
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
+      case r: RowTypeInfo => {
+        exprs.zipWithIndex flatMap {
+          case (UnresolvedFieldReference(name), idx) =>
+            Some((idx, name))
+          case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
+            val idx = r.getFieldIndex(origName)
+            if (idx < 0) {
+              throw new TableException(s"$origName is not a field of type $r")
+            }
+            Some((idx, name))
+          case (_: TimeAttribute, _) =>
+            None
+          case _ => throw new TableException(
+            "Field reference expression or alias on field expression expected.")
+        }
+        
+      }
       case tpe => throw new TableException(
         s"Source of type $tpe cannot be converted into Table.")
     }

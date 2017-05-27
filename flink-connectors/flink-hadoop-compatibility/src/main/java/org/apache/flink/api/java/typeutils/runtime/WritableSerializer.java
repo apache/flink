@@ -171,7 +171,7 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
 
 			return CompatibilityResult.compatible();
 		} else {
-			return CompatibilityResult.requiresMigration(null);
+			return CompatibilityResult.requiresMigration();
 		}
 	}
 

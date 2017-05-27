@@ -18,14 +18,15 @@
 
 package org.apache.flink.graph.utils.proxy;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.NoOpOperator;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
+
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -107,7 +108,7 @@ implements GraphAlgorithm<IN_K, IN_VV, IN_EV, Graph<OUT_K, OUT_VV, OUT_EV>> {
 			return true;
 		}
 
-		if (! GraphAlgorithmWrappingGraph.class.isAssignableFrom(obj.getClass())) {
+		if (!GraphAlgorithmWrappingGraph.class.isAssignableFrom(obj.getClass())) {
 			return false;
 		}
 

@@ -27,7 +27,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -73,6 +72,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Mock {@link Environment}.
+ */
 public class StreamMockEnvironment implements Environment {
 
 	private final TaskInfo taskInfo;
@@ -106,7 +108,7 @@ public class StreamMockEnvironment implements Environment {
 	private volatile boolean wasFailedExternally = false;
 
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, ExecutionConfig executionConfig,
-								 long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
+								long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this.taskInfo = new TaskInfo(
 			"", /* task name */
 			1, /* num key groups / max parallelism */
@@ -131,7 +133,7 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, long memorySize,
-								 MockInputSplitProvider inputSplitProvider, int bufferSize) {
+								MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this(jobConfig, taskConfig, new ExecutionConfig(), memorySize, inputSplitProvider, bufferSize);
 	}
 
@@ -182,7 +184,6 @@ public class StreamMockEnvironment implements Environment {
 					return null;
 				}
 			}).when(mockWriter).writeBufferToAllChannels(any(Buffer.class));
-
 
 			outputs.add(mockWriter);
 		}

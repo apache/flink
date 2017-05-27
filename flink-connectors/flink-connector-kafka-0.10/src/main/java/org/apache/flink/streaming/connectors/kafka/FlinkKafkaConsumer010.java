@@ -29,6 +29,7 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.util.PropertiesUtil;
 import org.apache.flink.util.SerializedValue;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 import java.util.Collections;
 import java.util.Map;
@@ -137,6 +138,12 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 			OffsetCommitMode offsetCommitMode) throws Exception {
 
 		boolean useMetrics = !PropertiesUtil.getBoolean(properties, KEY_DISABLE_METRICS, false);
+
+		// make sure that auto commit is disabled when our offset commit mode is ON_CHECKPOINTS;
+		// this overwrites whatever setting the user configured in the properties
+		if (offsetCommitMode == OffsetCommitMode.ON_CHECKPOINTS || offsetCommitMode == OffsetCommitMode.DISABLED) {
+			properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+		}
 
 		return new Kafka010Fetcher<>(
 				sourceContext,

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
@@ -72,8 +73,7 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 		int maxAttempts = configuration.getInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
 
 		String timeoutString = configuration.getString(
-			ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL,
-			ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
+			AkkaOptions.WATCH_HEARTBEAT_INTERVAL);
 
 		String delayString = configuration.getString(
 			ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY,
@@ -87,7 +87,7 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 		} catch (NumberFormatException nfe) {
 			if (delayString.equals(timeoutString)) {
 				throw new Exception("Invalid config value for " +
-						ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE + ": " + timeoutString +
+						AkkaOptions.WATCH_HEARTBEAT_PAUSE.key() + ": " + timeoutString +
 						". Value must be a valid duration (such as '10 s' or '1 min')");
 			} else {
 				throw new Exception("Invalid config value for " +

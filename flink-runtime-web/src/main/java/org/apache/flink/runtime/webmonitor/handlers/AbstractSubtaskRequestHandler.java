@@ -27,10 +27,10 @@ import java.util.Map;
 /**
  * Base class for request handlers whose response depends on a specific subtask (defined via the
  * "subtasknum" parameter) in a specific job vertex (defined via the "vertexid" parameter) in a
- * specific job, defined via (defined voa the "jobid" parameter).  
+ * specific job, defined via (defined voa the "jobid" parameter).
  */
 public abstract class AbstractSubtaskRequestHandler extends AbstractJobVertexRequestHandler {
-	
+
 	public AbstractSubtaskRequestHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
@@ -49,11 +49,11 @@ public abstract class AbstractSubtaskRequestHandler extends AbstractJobVertexReq
 		catch (NumberFormatException e) {
 			throw new RuntimeException("Invalid subtask number parameter");
 		}
-		
+
 		if (subtask < 0 || subtask >= jobVertex.getParallelism()) {
-			throw new RuntimeException("subtask does not exist: " + subtask); 
+			throw new RuntimeException("subtask does not exist: " + subtask);
 		}
-		
+
 		final AccessExecutionVertex vertex = jobVertex.getTaskVertices()[subtask];
 		return handleRequest(vertex, params);
 	}

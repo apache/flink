@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -26,6 +27,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,7 +48,13 @@ import java.util.Set;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests for {@link HeapInternalTimerService}.
@@ -111,7 +119,7 @@ public class HeapInternalTimerServiceTest {
 		for (int i = 0; i < totalNoOfTimers; i++) {
 
 			// create the timer to be registered
-			InternalTimer<Integer, String> timer = new InternalTimer<>(10 + i, i, "hello_world_"+ i);
+			InternalTimer<Integer, String> timer = new InternalTimer<>(10 + i, i, "hello_world_" + i);
 			int keyGroupIdx =  KeyGroupRangeAssignment.assignToKeyGroup(timer.getKey(), totalNoOfKeyGroups);
 
 			// add it in the adequate expected set of timers per keygroup
@@ -297,7 +305,6 @@ public class HeapInternalTimerServiceTest {
 		assertEquals(1, processingTimeService.getNumActiveTimers());
 		assertThat(processingTimeService.getActiveTimerTimestamps(), containsInAnyOrder(30L));
 	}
-
 
 	@Test
 	public void testCurrentProcessingTime() throws Exception {
@@ -673,7 +680,6 @@ public class HeapInternalTimerServiceTest {
 		@SuppressWarnings("unchecked")
 		Triggerable<Integer, String> mockTriggerable2 = mock(Triggerable.class);
 
-
 		TestKeyContext keyContext1 = new TestKeyContext();
 		TestKeyContext keyContext2 = new TestKeyContext();
 
@@ -695,7 +701,6 @@ public class HeapInternalTimerServiceTest {
 				processingTimeService2,
 				subKeyGroupRange2,
 				maxParallelism);
-
 
 		processingTimeService1.setCurrentTime(10);
 		timerService1.advanceWatermark(10);

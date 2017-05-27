@@ -23,7 +23,7 @@ import java.net.{InetAddress, InetSocketAddress}
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.util.NetUtils
 import org.junit.Assert._
@@ -122,7 +122,7 @@ class JobManagerConnectionTest {
 
   private def createConfigWithLowTimeout() : Configuration = {
     val config = new Configuration()
-    config.setString(ConfigConstants.AKKA_LOOKUP_TIMEOUT,
+    config.setString(AkkaOptions.LOOKUP_TIMEOUT,
                      Duration(timeout, TimeUnit.MILLISECONDS).toSeconds + " s")
     config
   }

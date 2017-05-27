@@ -17,10 +17,11 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import java.util.Iterator;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.SplittableIterator;
+
+import java.util.Iterator;
 
 /**
  * A {@link SourceFunction} that reads elements from an {@link SplittableIterator} and emits them.

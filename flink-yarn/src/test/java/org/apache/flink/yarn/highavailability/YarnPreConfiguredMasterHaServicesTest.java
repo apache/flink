@@ -24,12 +24,13 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -42,14 +43,17 @@ import java.io.FileNotFoundException;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for YarnPreConfiguredMasterNonHaServices.
+ */
 public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 
 	@ClassRule
 	public static final TemporaryFolder TEMP_DIR = new TemporaryFolder();
 
-	private static MiniDFSCluster HDFS_CLUSTER;
+	private static MiniDFSCluster hdfsCluster;
 
-	private static Path HDFS_ROOT_PATH;
+	private static Path hdfsRootPath;
 
 	private org.apache.hadoop.conf.Configuration hadoopConfig;
 
@@ -59,29 +63,31 @@ public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 
 	@BeforeClass
 	public static void createHDFS() throws Exception {
+		Assume.assumeTrue(!OperatingSystem.isWindows());
+
 		final File tempDir = TEMP_DIR.newFolder();
 
 		org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
 		hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tempDir.getAbsolutePath());
 
 		MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
-		HDFS_CLUSTER = builder.build();
-		HDFS_ROOT_PATH = new Path(HDFS_CLUSTER.getURI());
+		hdfsCluster = builder.build();
+		hdfsRootPath = new Path(hdfsCluster.getURI());
 	}
 
 	@AfterClass
 	public static void destroyHDFS() {
-		if (HDFS_CLUSTER != null) {
-			HDFS_CLUSTER.shutdown();
+		if (hdfsCluster != null) {
+			hdfsCluster.shutdown();
 		}
-		HDFS_CLUSTER = null;
-		HDFS_ROOT_PATH = null;
+		hdfsCluster = null;
+		hdfsRootPath = null;
 	}
 
 	@Before
 	public void initConfig() {
 		hadoopConfig = new org.apache.hadoop.conf.Configuration();
-		hadoopConfig.set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, HDFS_ROOT_PATH.toString());
+		hadoopConfig.set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, hdfsRootPath.toString());
 	}
 
 	// ------------------------------------------------------------------------
@@ -138,9 +144,9 @@ public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 		services.closeAndCleanupAllData();
 
-		final FileSystem fileSystem = HDFS_ROOT_PATH.getFileSystem();
-		final Path workDir = new Path(HDFS_CLUSTER.getFileSystem().getWorkingDirectory().toString());
-		
+		final FileSystem fileSystem = hdfsRootPath.getFileSystem();
+		final Path workDir = new Path(hdfsCluster.getFileSystem().getWorkingDirectory().toString());
+
 		try {
 			fileSystem.getFileStatus(new Path(workDir, YarnHighAvailabilityServices.FLINK_RECOVERY_DATA_DIR));
 			fail("Flink recovery data directory still exists");
@@ -176,7 +182,6 @@ public class YarnPreConfiguredMasterHaServicesTest extends TestLogger {
 			services.getSubmittedJobGraphStore();
 			fail();
 		} catch (UnsupportedOperationException ignored) {}
-
 
 		services.close();
 

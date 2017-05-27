@@ -24,12 +24,16 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link GridGraph}.
+ */
 public class GridGraphTest
-extends AbstractGraphTest {
+extends GraphGeneratorTestBase {
 
 	@Test
 	public void testGraph()
@@ -60,8 +64,8 @@ extends AbstractGraphTest {
 
 		// Each vertex is the source of one edge in the first dimension of size 2,
 		// and the source of two edges in each dimension of size greater than 2.
-		assertEquals(2*3*5*7, graph.numberOfVertices());
-		assertEquals(7 * 2*3*5*7, graph.numberOfEdges());
+		assertEquals(2 * 3 * 5 * 7, graph.numberOfVertices());
+		assertEquals(7 * 2 * 3 * 5 * 7, graph.numberOfEdges());
 
 		long minInDegree = graph.inDegrees().min(1).collect().get(0).f1.getValue();
 		long minOutDegree = graph.outDegrees().min(1).collect().get(0).f1.getValue();

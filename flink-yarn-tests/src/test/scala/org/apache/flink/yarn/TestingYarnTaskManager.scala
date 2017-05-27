@@ -19,9 +19,9 @@
 package org.apache.flink.yarn
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.metrics.MetricRegistry
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration
@@ -40,19 +40,19 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerLike
   * @param ioManager IOManager responsible for I/O
   * @param network NetworkEnvironment for this actor
   * @param numberOfSlots Number of slots for this TaskManager
-  * @param leaderRetrievalService [[LeaderRetrievalService]] to retrieve the current leading
-  *                              JobManager
+  * @param highAvailabilityServices [[HighAvailabilityServices]] to create a leader retrieval
+  *                                service for retrieving the leading JobManager
   */
 class TestingYarnTaskManager(
-                              config: TaskManagerConfiguration,
-                              resourceID: ResourceID,
-                              connectionInfo: TaskManagerLocation,
-                              memoryManager: MemoryManager,
-                              ioManager: IOManager,
-                              network: NetworkEnvironment,
-                              numberOfSlots: Int,
-                              leaderRetrievalService: LeaderRetrievalService,
-                              metricRegistry : MetricRegistry)
+    config: TaskManagerConfiguration,
+    resourceID: ResourceID,
+    connectionInfo: TaskManagerLocation,
+    memoryManager: MemoryManager,
+    ioManager: IOManager,
+    network: NetworkEnvironment,
+    numberOfSlots: Int,
+    highAvailabilityServices: HighAvailabilityServices,
+    metricRegistry : MetricRegistry)
   extends YarnTaskManager(
     config,
     resourceID,
@@ -61,7 +61,7 @@ class TestingYarnTaskManager(
     ioManager,
     network,
     numberOfSlots,
-    leaderRetrievalService,
+    highAvailabilityServices,
     metricRegistry)
   with TestingTaskManagerLike {
 
@@ -77,5 +77,4 @@ class TestingYarnTaskManager(
 
   }
 }
-
 

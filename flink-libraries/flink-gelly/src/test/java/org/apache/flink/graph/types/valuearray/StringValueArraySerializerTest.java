@@ -83,7 +83,7 @@ public class StringValueArraySerializerTest extends SerializerTestBase<StringVal
 
 		StringValueArray sva8 = new StringValueArray();
 		sva8.addAll(sva7);
-		for (int i = 0 ; i < 1.5 * defaultElements ; i++) {
+		for (int i = 0; i < 1.5 * defaultElements; i++) {
 			sva8.add(new StringValue(String.valueOf(i)));
 		}
 		sva8.addAll(sva8);

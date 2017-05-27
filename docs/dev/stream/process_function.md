@@ -42,11 +42,11 @@ For fault-tolerant state, the `ProcessFunction` gives access to Flink's [keyed s
 `RuntimeContext`, similar to the way other stateful functions can access keyed state.
 
 The timers allow applications to react to changes in processing time and in [event time](../event_time.html).
-Every call to the function `processElement(...)` gets a `Context` object with gives access to the element's
+Every call to the function `processElement(...)` gets a `Context` object which gives access to the element's
 event time timestamp, and to the *TimerService*. The `TimerService` can be used to register callbacks for future
 event-/processing-time instants. When a timer's particular time is reached, the `onTimer(...)` method is
 called. During that call, all states are again scoped to the key with which the timer was created, allowing
-timers to perform keyed state manipulation as well.
+timers to manipulate keyed state.
 
 <span class="label label-info">Note</span> If you want to access keyed state and timers you have
 to apply the `ProcessFunction` on a keyed stream:

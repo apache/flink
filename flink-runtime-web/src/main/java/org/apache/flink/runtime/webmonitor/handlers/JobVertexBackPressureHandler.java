@@ -18,17 +18,19 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.webmonitor.BackPressureStatsTracker;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.OperatorBackPressureStats;
-import scala.Option;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.StringWriter;
 import java.util.Map;
+
+import scala.Option;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -72,7 +74,7 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 		}
 		ExecutionJobVertex jobVertex = (ExecutionJobVertex) accessJobVertex;
 		try (StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer)) {
+				JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer)) {
 
 			gen.writeStartObject();
 

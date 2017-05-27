@@ -26,7 +26,7 @@ import org.apache.flink.graph.drivers.parameter.IterationConvergence.Value;
  * of iterations or a convergence threshold which stops computation when the
  * total change in scores is below a given delta.
  *
- * If the command-line configuration specifies neither a number of iterations
+ * <p>If the command-line configuration specifies neither a number of iterations
  * nor a convergence threshold then a default number of iterations is used
  * with an infinite convergence threshold. Otherwise, when either value is
  * configured then an unset value is set to infinity.

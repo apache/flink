@@ -24,8 +24,11 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskTestHarness;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link StreamIterationHead}.
+ */
 public class StreamIterationHeadTest {
 
 	@Test

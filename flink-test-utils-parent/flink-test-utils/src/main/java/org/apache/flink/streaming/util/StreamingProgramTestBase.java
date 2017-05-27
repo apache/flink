@@ -25,28 +25,30 @@ import org.junit.Test;
 
 import static org.junit.Assert.fail;
 
+/**
+ * Base class for unit tests that run a single test.
+ *
+ * <p>To write a unit test against this test base, simply extend it and implement the {@link #testProgram()} method.
+ */
 public abstract class StreamingProgramTestBase extends AbstractTestBase {
 
 	protected static final int DEFAULT_PARALLELISM = 4;
 
 	private int parallelism;
-	
-	
+
 	public StreamingProgramTestBase() {
 		super(new Configuration());
 		setParallelism(DEFAULT_PARALLELISM);
 	}
 
-
 	public void setParallelism(int parallelism) {
 		this.parallelism = parallelism;
 		setTaskManagerNumSlots(parallelism);
 	}
-	
+
 	public int getParallelism() {
 		return parallelism;
 	}
-	
 
 	// --------------------------------------------------------------------------------------------
 	//  Methods to create the test program and for pre- and post- test work
@@ -55,9 +57,9 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 	protected abstract void testProgram() throws Exception;
 
 	protected void preSubmit() throws Exception {}
-	
+
 	protected void postSubmit() throws Exception {}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Test entry point
 	// --------------------------------------------------------------------------------------------

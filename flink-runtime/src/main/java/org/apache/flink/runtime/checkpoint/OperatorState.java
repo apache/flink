@@ -126,13 +126,6 @@ public class OperatorState implements CompositeStateHandle {
 	}
 
 	@Override
-	public void unregisterSharedStates(SharedStateRegistry sharedStateRegistry) {
-		for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
-			operatorSubtaskState.unregisterSharedStates(sharedStateRegistry);
-		}
-	}
-
-	@Override
 	public long getStateSize() {
 		long result = 0L;
 

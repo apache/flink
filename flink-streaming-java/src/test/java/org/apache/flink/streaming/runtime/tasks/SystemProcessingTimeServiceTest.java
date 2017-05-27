@@ -37,6 +37,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link SystemProcessingTimeService}.
+ */
 public class SystemProcessingTimeServiceTest extends TestLogger {
 
 	@Test
@@ -74,7 +77,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the schedule at fixed rate callback is called under the given lock
+	 * Tests that the schedule at fixed rate callback is called under the given lock.
 	 */
 	@Test
 	public void testScheduleAtFixedRateHoldsLock() throws Exception {
@@ -123,7 +126,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 	 * Tests that SystemProcessingTimeService#scheduleAtFixedRate is actually triggered multiple
 	 * times.
 	 */
-	@Test(timeout=10000)
+	@Test(timeout = 10000)
 	public void testScheduleAtFixedRate() throws Exception {
 		final Object lock = new Object();
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
@@ -432,7 +435,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			}
 		},
 			0L,
-			100L	);
+			100L);
 
 		latch.await();
 		assertTrue(exceptionWasThrown.get());

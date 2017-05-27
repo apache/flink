@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import com.google.common.collect.Maps;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
@@ -30,6 +29,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.util.Preconditions;
+
+import com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +58,7 @@ public class StackTraceSampleCoordinator {
 
 	private final Object lock = new Object();
 
-	/** Executor used to run the futures */
+	/** Executor used to run the futures. */
 	private final Executor executor;
 
 	/** Time out after the expected sampling duration. */

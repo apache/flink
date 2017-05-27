@@ -15,15 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.yarn.cli;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.PosixParser;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.configuration.ConfigConstants;
@@ -38,6 +32,14 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterClient;
 import org.apache.flink.yarn.YarnClusterDescriptor;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.PosixParser;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.slf4j.Logger;
@@ -79,7 +81,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 	private static final int CLIENT_POLLING_INTERVALL = 3;
 
-	/** The id for the CommandLine interface */
+	/** The id for the CommandLine interface. */
 	private static final String ID = "yarn-cluster";
 
 	// YARN-session related constants
@@ -92,19 +94,19 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 	//------------------------------------ Command Line argument options -------------------------
 	// the prefix transformation is used by the CliFrontend static constructor.
-	private final Option QUERY;
+	private final Option query;
 	// --- or ---
-	private final Option APPLICATION_ID;
+	private final Option applicationId;
 	// --- or ---
-	private final Option QUEUE;
-	private final Option SHIP_PATH;
-	private final Option FLINK_JAR;
-	private final Option JM_MEMORY;
-	private final Option TM_MEMORY;
-	private final Option CONTAINER;
-	private final Option SLOTS;
-	private final Option DETACHED;
-	private final Option ZOOKEEPER_NAMESPACE;
+	private final Option queue;
+	private final Option shipPath;
+	private final Option flinkJar;
+	private final Option jmMemory;
+	private final Option tmMemory;
+	private final Option container;
+	private final Option slots;
+	private final Option detached;
+	private final Option zookeeperNamespace;
 
 	/**
 	 * @deprecated Streaming mode has been deprecated without replacement. Set the
@@ -112,16 +114,16 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	 * key to true to get the previous batch mode behaviour.
 	 */
 	@Deprecated
-	private final Option STREAMING;
-	private final Option NAME;
+	private final Option streaming;
+	private final Option name;
 
-	private final Options ALL_OPTIONS;
+	private final Options allOptions;
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.network.memory.min=536346624</tt>
+	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.network.memory.min=536346624</tt>.
 	 */
-	private final Option DYNAMIC_PROPERTIES;
+	private final Option dynamicproperties;
 
 	private final boolean acceptInteractiveInput;
 
@@ -136,41 +138,40 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	public FlinkYarnSessionCli(String shortPrefix, String longPrefix, boolean acceptInteractiveInput) {
 		this.acceptInteractiveInput = acceptInteractiveInput;
 
-		QUERY = new Option(shortPrefix + "q", longPrefix + "query", false, "Display available YARN resources (memory, cores)");
-		APPLICATION_ID = new Option(shortPrefix + "id", longPrefix + "applicationId", true, "Attach to running YARN session");
-		QUEUE = new Option(shortPrefix + "qu", longPrefix + "queue", true, "Specify YARN queue.");
-		SHIP_PATH = new Option(shortPrefix + "t", longPrefix + "ship", true, "Ship files in the specified directory (t for transfer)");
-		FLINK_JAR = new Option(shortPrefix + "j", longPrefix + "jar", true, "Path to Flink jar file");
-		JM_MEMORY = new Option(shortPrefix + "jm", longPrefix + "jobManagerMemory", true, "Memory for JobManager Container [in MB]");
-		TM_MEMORY = new Option(shortPrefix + "tm", longPrefix + "taskManagerMemory", true, "Memory per TaskManager Container [in MB]");
-		CONTAINER = new Option(shortPrefix + "n", longPrefix + "container", true, "Number of YARN container to allocate (=Number of Task Managers)");
-		SLOTS = new Option(shortPrefix + "s", longPrefix + "slots", true, "Number of slots per TaskManager");
-		DYNAMIC_PROPERTIES = new Option(shortPrefix + "D", true, "Dynamic properties");
-		DETACHED = new Option(shortPrefix + "d", longPrefix + "detached", false, "Start detached");
-		STREAMING = new Option(shortPrefix + "st", longPrefix + "streaming", false, "Start Flink in streaming mode");
-		NAME = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
-		ZOOKEEPER_NAMESPACE = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
+		query = new Option(shortPrefix + "q", longPrefix + "query", false, "Display available YARN resources (memory, cores)");
+		applicationId = new Option(shortPrefix + "id", longPrefix + "applicationId", true, "Attach to running YARN session");
+		queue = new Option(shortPrefix + "qu", longPrefix + "queue", true, "Specify YARN queue.");
+		shipPath = new Option(shortPrefix + "t", longPrefix + "ship", true, "Ship files in the specified directory (t for transfer)");
+		flinkJar = new Option(shortPrefix + "j", longPrefix + "jar", true, "Path to Flink jar file");
+		jmMemory = new Option(shortPrefix + "jm", longPrefix + "jobManagerMemory", true, "Memory for JobManager Container [in MB]");
+		tmMemory = new Option(shortPrefix + "tm", longPrefix + "taskManagerMemory", true, "Memory per TaskManager Container [in MB]");
+		container = new Option(shortPrefix + "n", longPrefix + "container", true, "Number of YARN container to allocate (=Number of Task Managers)");
+		slots = new Option(shortPrefix + "s", longPrefix + "slots", true, "Number of slots per TaskManager");
+		dynamicproperties = new Option(shortPrefix + "D", true, "Dynamic properties");
+		detached = new Option(shortPrefix + "d", longPrefix + "detached", false, "Start detached");
+		streaming = new Option(shortPrefix + "st", longPrefix + "streaming", false, "Start Flink in streaming mode");
+		name = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
+		zookeeperNamespace = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
 
-		ALL_OPTIONS = new Options();
-		ALL_OPTIONS.addOption(FLINK_JAR);
-		ALL_OPTIONS.addOption(JM_MEMORY);
-		ALL_OPTIONS.addOption(TM_MEMORY);
-		ALL_OPTIONS.addOption(CONTAINER);
-		ALL_OPTIONS.addOption(QUEUE);
-		ALL_OPTIONS.addOption(QUERY);
-		ALL_OPTIONS.addOption(SHIP_PATH);
-		ALL_OPTIONS.addOption(SLOTS);
-		ALL_OPTIONS.addOption(DYNAMIC_PROPERTIES);
-		ALL_OPTIONS.addOption(DETACHED);
-		ALL_OPTIONS.addOption(STREAMING);
-		ALL_OPTIONS.addOption(NAME);
-		ALL_OPTIONS.addOption(APPLICATION_ID);
-		ALL_OPTIONS.addOption(ZOOKEEPER_NAMESPACE);
+		allOptions = new Options();
+		allOptions.addOption(flinkJar);
+		allOptions.addOption(jmMemory);
+		allOptions.addOption(tmMemory);
+		allOptions.addOption(container);
+		allOptions.addOption(queue);
+		allOptions.addOption(query);
+		allOptions.addOption(shipPath);
+		allOptions.addOption(slots);
+		allOptions.addOption(dynamicproperties);
+		allOptions.addOption(detached);
+		allOptions.addOption(streaming);
+		allOptions.addOption(name);
+		allOptions.addOption(applicationId);
+		allOptions.addOption(zookeeperNamespace);
 	}
 
-
 	/**
-	 * Tries to load a Flink Yarn properties file and returns the Yarn application id if successful
+	 * Tries to load a Flink Yarn properties file and returns the Yarn application id if successful.
 	 * @param cmdLine The command-line parameters
 	 * @param flinkConfiguration The flink configuration
 	 * @return Yarn application id or null if none could be retrieved
@@ -184,8 +185,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		}
 
 		for (Option option : cmdLine.getOptions()) {
-			if (ALL_OPTIONS.hasOption(option.getOpt())) {
-				if (!option.getOpt().equals(DETACHED.getOpt())) {
+			if (allOptions.hasOption(option.getOpt())) {
+				if (!option.getOpt().equals(detached.getOpt())) {
 					// don't resume from properties file if yarn options have been specified
 					return null;
 				}
@@ -257,17 +258,17 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 		AbstractYarnClusterDescriptor yarnClusterDescriptor = getClusterDescriptor();
 
-		if (!cmd.hasOption(CONTAINER.getOpt())) { // number of containers is required option!
-			LOG.error("Missing required argument {}", CONTAINER.getOpt());
+		if (!cmd.hasOption(container.getOpt())) { // number of containers is required option!
+			LOG.error("Missing required argument {}", container.getOpt());
 			printUsage();
-			throw new IllegalArgumentException("Missing required argument " + CONTAINER.getOpt());
+			throw new IllegalArgumentException("Missing required argument " + container.getOpt());
 		}
-		yarnClusterDescriptor.setTaskManagerCount(Integer.valueOf(cmd.getOptionValue(CONTAINER.getOpt())));
+		yarnClusterDescriptor.setTaskManagerCount(Integer.valueOf(cmd.getOptionValue(container.getOpt())));
 
 		// Jar Path
 		Path localJarPath;
-		if (cmd.hasOption(FLINK_JAR.getOpt())) {
-			String userPath = cmd.getOptionValue(FLINK_JAR.getOpt());
+		if (cmd.hasOption(flinkJar.getOpt())) {
+			String userPath = cmd.getOptionValue(flinkJar.getOpt());
 			if (!userPath.startsWith("file://")) {
 				userPath = "file://" + userPath;
 			}
@@ -283,7 +284,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 				localJarPath = new Path(new File(decodedPath).toURI());
 			} catch (UnsupportedEncodingException e) {
 				throw new RuntimeException("Couldn't decode the encoded Flink dist jar path: " + encodedJarPath +
-					" Please supply a path manually via the -" + FLINK_JAR.getOpt() + " option.");
+					" Please supply a path manually via the -" + flinkJar.getOpt() + " option.");
 			}
 		}
 
@@ -291,8 +292,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 		List<File> shipFiles = new ArrayList<>();
 		// path to directory to ship
-		if (cmd.hasOption(SHIP_PATH.getOpt())) {
-			String shipPath = cmd.getOptionValue(SHIP_PATH.getOpt());
+		if (cmd.hasOption(shipPath.getOpt())) {
+			String shipPath = cmd.getOptionValue(this.shipPath.getOpt());
 			File shipDir = new File(shipPath);
 			if (shipDir.isDirectory()) {
 				shipFiles.add(shipDir);
@@ -304,51 +305,51 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		yarnClusterDescriptor.addShipFiles(shipFiles);
 
 		// queue
-		if (cmd.hasOption(QUEUE.getOpt())) {
-			yarnClusterDescriptor.setQueue(cmd.getOptionValue(QUEUE.getOpt()));
+		if (cmd.hasOption(queue.getOpt())) {
+			yarnClusterDescriptor.setQueue(cmd.getOptionValue(queue.getOpt()));
 		}
 
 		// JobManager Memory
-		if (cmd.hasOption(JM_MEMORY.getOpt())) {
-			int jmMemory = Integer.valueOf(cmd.getOptionValue(JM_MEMORY.getOpt()));
+		if (cmd.hasOption(jmMemory.getOpt())) {
+			int jmMemory = Integer.valueOf(cmd.getOptionValue(this.jmMemory.getOpt()));
 			yarnClusterDescriptor.setJobManagerMemory(jmMemory);
 		}
 
 		// Task Managers memory
-		if (cmd.hasOption(TM_MEMORY.getOpt())) {
-			int tmMemory = Integer.valueOf(cmd.getOptionValue(TM_MEMORY.getOpt()));
+		if (cmd.hasOption(tmMemory.getOpt())) {
+			int tmMemory = Integer.valueOf(cmd.getOptionValue(this.tmMemory.getOpt()));
 			yarnClusterDescriptor.setTaskManagerMemory(tmMemory);
 		}
 
-		if (cmd.hasOption(SLOTS.getOpt())) {
-			int slots = Integer.valueOf(cmd.getOptionValue(SLOTS.getOpt()));
+		if (cmd.hasOption(slots.getOpt())) {
+			int slots = Integer.valueOf(cmd.getOptionValue(this.slots.getOpt()));
 			yarnClusterDescriptor.setTaskManagerSlots(slots);
 		}
 
 		String[] dynamicProperties = null;
-		if (cmd.hasOption(DYNAMIC_PROPERTIES.getOpt())) {
-			dynamicProperties = cmd.getOptionValues(DYNAMIC_PROPERTIES.getOpt());
+		if (cmd.hasOption(dynamicproperties.getOpt())) {
+			dynamicProperties = cmd.getOptionValues(dynamicproperties.getOpt());
 		}
 		String dynamicPropertiesEncoded = StringUtils.join(dynamicProperties, YARN_DYNAMIC_PROPERTIES_SEPARATOR);
 
 		yarnClusterDescriptor.setDynamicPropertiesEncoded(dynamicPropertiesEncoded);
 
-		if (cmd.hasOption(DETACHED.getOpt()) || cmd.hasOption(CliFrontendParser.DETACHED_OPTION.getOpt())) {
+		if (cmd.hasOption(detached.getOpt()) || cmd.hasOption(CliFrontendParser.DETACHED_OPTION.getOpt())) {
 			this.detachedMode = true;
 			yarnClusterDescriptor.setDetachedMode(true);
 		}
 
-		if(cmd.hasOption(NAME.getOpt())) {
-			yarnClusterDescriptor.setName(cmd.getOptionValue(NAME.getOpt()));
+		if (cmd.hasOption(name.getOpt())) {
+			yarnClusterDescriptor.setName(cmd.getOptionValue(name.getOpt()));
 		} else {
 			// set the default application name, if none is specified
-			if(defaultApplicationName != null) {
+			if (defaultApplicationName != null) {
 				yarnClusterDescriptor.setName(defaultApplicationName);
 			}
 		}
 
-		if (cmd.hasOption(ZOOKEEPER_NAMESPACE.getOpt())) {
-			String zookeeperNamespace = cmd.getOptionValue(ZOOKEEPER_NAMESPACE.getOpt());
+		if (cmd.hasOption(zookeeperNamespace.getOpt())) {
+			String zookeeperNamespace = cmd.getOptionValue(this.zookeeperNamespace.getOpt());
 			yarnClusterDescriptor.setZookeeperNamespace(zookeeperNamespace);
 		}
 
@@ -368,7 +369,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			String message = "The YARN cluster has " + maxSlots + " slots available, " +
 				"but the user requested a parallelism of " + userParallelism + " on YARN. " +
 				"Each of the " + yarnClusterDescriptor.getTaskManagerCount() + " TaskManagers " +
-				"will get "+slotsPerTM+" slots.";
+				"will get " + slotsPerTM + " slots.";
 			logAndSysout(message);
 			yarnClusterDescriptor.setTaskManagerSlots(slotsPerTM);
 		}
@@ -383,7 +384,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		formatter.setLeftPadding(5);
 		formatter.setSyntaxPrefix("   Required");
 		Options req = new Options();
-		req.addOption(CONTAINER);
+		req.addOption(container);
 		formatter.printHelp(" ", req);
 
 		formatter.setSyntaxPrefix("   Optional");
@@ -403,7 +404,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	}
 
 	public static void runInteractiveCli(YarnClusterClient yarnCluster, boolean readConsoleInput) {
-		final String HELP = "Available commands:\n" +
+		final String help = "Available commands:\n" +
 				"help - show these commands\n" +
 				"stop - stop the YARN session";
 		int numTaskmanagers = 0;
@@ -413,14 +414,18 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			while (true) {
 				// ------------------ check if there are updates by the cluster -----------
 
-				GetClusterStatusResponse status = yarnCluster.getClusterStatus();
-				LOG.debug("Received status message: {}", status);
+				try {
+					GetClusterStatusResponse status = yarnCluster.getClusterStatus();
+					LOG.debug("Received status message: {}", status);
 
-				if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
-					System.err.println("Number of connected TaskManagers changed to " +
+					if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
+						System.err.println("Number of connected TaskManagers changed to " +
 							status.numRegisteredTaskManagers() + ". " +
-						"Slots available: " + status.totalNumberOfSlots());
-					numTaskmanagers = status.numRegisteredTaskManagers();
+							"Slots available: " + status.totalNumberOfSlots());
+						numTaskmanagers = status.numRegisteredTaskManagers();
+					}
+				} catch (Exception e) {
+					LOG.warn("Could not retrieve the current cluster status. Skipping current retrieval attempt ...", e);
 				}
 
 				List<String> messages = yarnCluster.getNewMessages();
@@ -439,8 +444,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 				// wait until CLIENT_POLLING_INTERVAL is over or the user entered something.
 				long startTime = System.currentTimeMillis();
 				while ((System.currentTimeMillis() - startTime) < CLIENT_POLLING_INTERVALL * 1000
-						&& (!readConsoleInput || !in.ready()))
-				{
+						&& (!readConsoleInput || !in.ready())) {
 					Thread.sleep(200);
 				}
 				//------------- handle interactive command by user. ----------------------
@@ -454,10 +458,10 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 							break label;
 
 						case "help":
-							System.err.println(HELP);
+							System.err.println(help);
 							break;
 						default:
-							System.err.println("Unknown command '" + command + "'. Showing help: \n" + HELP);
+							System.err.println("Unknown command '" + command + "'. Showing help: \n" + help);
 							break;
 					}
 				}
@@ -467,7 +471,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 					break;
 				}
 			}
-		} catch(Exception e) {
+		} catch (Exception e) {
 			LOG.warn("Exception while running the interactive command line interface", e);
 		}
 	}
@@ -489,7 +493,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	public boolean isActive(CommandLine commandLine, Configuration configuration) {
 		String jobManagerOption = commandLine.getOptionValue(ADDRESS_OPTION.getOpt(), null);
 		boolean yarnJobManager = ID.equals(jobManagerOption);
-		boolean yarnAppId = commandLine.hasOption(APPLICATION_ID.getOpt());
+		boolean yarnAppId = commandLine.hasOption(applicationId.getOpt());
 		return yarnJobManager || yarnAppId || loadYarnPropertiesFile(commandLine, configuration) != null;
 	}
 
@@ -500,14 +504,14 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 	@Override
 	public void addRunOptions(Options baseOptions) {
-		for (Object option : ALL_OPTIONS.getOptions()) {
+		for (Object option : allOptions.getOptions()) {
 			baseOptions.addOption((Option) option);
 		}
 	}
 
 	@Override
 	public void addGeneralOptions(Options baseOptions) {
-		baseOptions.addOption(APPLICATION_ID);
+		baseOptions.addOption(applicationId);
 	}
 
 	@Override
@@ -516,13 +520,13 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			Configuration config) throws UnsupportedOperationException {
 
 		// first check for an application id, then try to load from yarn properties
-		String applicationID = cmdLine.hasOption(APPLICATION_ID.getOpt()) ?
-				cmdLine.getOptionValue(APPLICATION_ID.getOpt())
+		String applicationID = cmdLine.hasOption(applicationId.getOpt()) ?
+				cmdLine.getOptionValue(applicationId.getOpt())
 				: loadYarnPropertiesFile(cmdLine, config);
 
-		if(null != applicationID) {
-			String zkNamespace = cmdLine.hasOption(ZOOKEEPER_NAMESPACE.getOpt()) ?
-					cmdLine.getOptionValue(ZOOKEEPER_NAMESPACE.getOpt())
+		if (null != applicationID) {
+			String zkNamespace = cmdLine.hasOption(zookeeperNamespace.getOpt()) ?
+					cmdLine.getOptionValue(zookeeperNamespace.getOpt())
 					: config.getString(HighAvailabilityOptions.HA_CLUSTER_ID, applicationID);
 			config.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
 
@@ -566,39 +570,39 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		CommandLine cmd;
 		try {
 			cmd = parser.parse(options, args);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			System.out.println(e.getMessage());
 			printUsage();
 			return 1;
 		}
 
 		// Query cluster for metrics
-		if (cmd.hasOption(QUERY.getOpt())) {
+		if (cmd.hasOption(query.getOpt())) {
 			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor();
 			String description;
 			try {
 				description = yarnDescriptor.getClusterDescription();
 			} catch (Exception e) {
-				System.err.println("Error while querying the YARN cluster for available resources: "+e.getMessage());
+				System.err.println("Error while querying the YARN cluster for available resources: " + e.getMessage());
 				e.printStackTrace(System.err);
 				return 1;
 			}
 			System.out.println(description);
 			return 0;
-		} else if (cmd.hasOption(APPLICATION_ID.getOpt())) {
+		} else if (cmd.hasOption(applicationId.getOpt())) {
 
 			AbstractYarnClusterDescriptor yarnDescriptor = getClusterDescriptor();
 
 			//configure ZK namespace depending on the value passed
-			String zkNamespace = cmd.hasOption(ZOOKEEPER_NAMESPACE.getOpt()) ?
-									cmd.getOptionValue(ZOOKEEPER_NAMESPACE.getOpt())
-									:yarnDescriptor.getFlinkConfiguration()
-									.getString(HA_ZOOKEEPER_NAMESPACE_KEY, cmd.getOptionValue(APPLICATION_ID.getOpt()));
+			String zkNamespace = cmd.hasOption(zookeeperNamespace.getOpt()) ?
+									cmd.getOptionValue(zookeeperNamespace.getOpt())
+									: yarnDescriptor.getFlinkConfiguration()
+									.getString(HA_ZOOKEEPER_NAMESPACE_KEY, cmd.getOptionValue(applicationId.getOpt()));
 			LOG.info("Going to use the ZK namespace: {}", zkNamespace);
 			yarnDescriptor.getFlinkConfiguration().setString(HA_ZOOKEEPER_NAMESPACE_KEY, zkNamespace);
 
 			try {
-				yarnCluster = yarnDescriptor.retrieve(cmd.getOptionValue(APPLICATION_ID.getOpt()));
+				yarnCluster = yarnDescriptor.retrieve(cmd.getOptionValue(applicationId.getOpt()));
 			} catch (Exception e) {
 				throw new RuntimeException("Could not retrieve existing Yarn application", e);
 			}
@@ -606,7 +610,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			if (detachedMode) {
 				LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
 					"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-					"yarn application -kill " + APPLICATION_ID.getOpt());
+					"yarn application -kill " + applicationId.getOpt());
 				yarnCluster.disconnect();
 			} else {
 				runInteractiveCli(yarnCluster, true);
@@ -625,7 +629,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 			try {
 				yarnCluster = yarnDescriptor.deploy();
 			} catch (Exception e) {
-				System.err.println("Error while deploying YARN cluster: "+e.getMessage());
+				System.err.println("Error while deploying YARN cluster: " + e.getMessage());
 				e.printStackTrace(System.err);
 				return 1;
 			}
@@ -660,9 +664,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 				// print info and quit:
 				LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
 						"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-						"yarn application -kill " + yarnCluster.getApplicationId() + System.lineSeparator() +
-						"Please also note that the temporary files of the YARN session in {} will not be removed.",
-						yarnDescriptor.getSessionFilesDir());
+						"yarn application -kill " + yarnCluster.getApplicationId());
 				yarnCluster.waitForClusterToBeReady();
 				yarnCluster.disconnect();
 			} else {
@@ -702,9 +704,15 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 					continue;
 				}
 
-				String[] kv = propLine.split("=");
-				if (kv.length >= 2 && kv[0] != null && kv[1] != null && kv[0].length() > 0) {
-					properties.put(kv[0], kv[1]);
+				int firstEquals = propLine.indexOf("=");
+
+				if (firstEquals >= 0) {
+					String key = propLine.substring(0, firstEquals).trim();
+					String value = propLine.substring(firstEquals + 1, propLine.length()).trim();
+
+					if (!key.isEmpty()) {
+						properties.put(key, value);
+					}
 				}
 			}
 			return properties;

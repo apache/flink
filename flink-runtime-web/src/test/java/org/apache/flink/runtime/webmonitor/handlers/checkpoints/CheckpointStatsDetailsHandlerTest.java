@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
@@ -36,7 +34,8 @@ import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
-
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -57,8 +56,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the CheckpointStatsDetailsHandler.
+ */
 public class CheckpointStatsDetailsHandlerTest {
-	
+
 	@Test
 	public void testArchiver() throws IOException {
 		JsonArchivist archivist = new CheckpointStatsDetailsHandler.CheckpointStatsDetailsJsonArchivist();
@@ -68,7 +70,7 @@ public class CheckpointStatsDetailsHandlerTest {
 		List<AbstractCheckpointStats> checkpoints = new ArrayList<>();
 		checkpoints.add(failedCheckpoint);
 		checkpoints.add(completedCheckpoint);
-		
+
 		CheckpointStatsHistory history = mock(CheckpointStatsHistory.class);
 		when(history.getCheckpoints()).thenReturn(checkpoints);
 		CheckpointStatsSnapshot snapshot = mock(CheckpointStatsSnapshot.class);
@@ -79,10 +81,10 @@ public class CheckpointStatsDetailsHandlerTest {
 		when(graph.getJobID()).thenReturn(new JobID());
 
 		ObjectMapper mapper = new ObjectMapper();
-		
+
 		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(graph);
 		Assert.assertEquals(2, archives.size());
-		
+
 		Iterator<ArchivedJson> iterator = archives.iterator();
 		ArchivedJson archive1 = iterator.next();
 		Assert.assertEquals(

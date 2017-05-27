@@ -16,6 +16,7 @@
  * limitations under the License.
  *
  */
+
 package org.apache.flink.annotation;
 
 import java.lang.annotation.Documented;

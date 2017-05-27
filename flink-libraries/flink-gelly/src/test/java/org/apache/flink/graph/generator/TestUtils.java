@@ -35,7 +35,12 @@ import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Utility methods for testing graph algorithms.
+ */
 public final class TestUtils {
+
+	private TestUtils() {}
 
 	/**
 	 * Compare graph vertices and edges against expected values.

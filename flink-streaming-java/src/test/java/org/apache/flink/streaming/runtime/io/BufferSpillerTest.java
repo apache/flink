@@ -31,7 +31,6 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,16 +39,23 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Random;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-import static org.junit.Assert.*;
-
+/**
+ * Tests for {@link BufferSpiller}.
+ */
 public class BufferSpillerTest {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BufferSpillerTest.class);
 
 	private static final int PAGE_SIZE = 4096;
 
-	private static IOManager IO_MANAGER;
+	private static IOManager ioManager;
 
 	private BufferSpiller spiller;
 
@@ -60,18 +66,18 @@ public class BufferSpillerTest {
 
 	@BeforeClass
 	public static void setupIOManager() {
-		IO_MANAGER = new IOManagerAsync();
+		ioManager = new IOManagerAsync();
 	}
 
 	@AfterClass
 	public static void shutdownIOManager() {
-		IO_MANAGER.shutdown();
+		ioManager.shutdown();
 	}
 
 	@Before
 	public void createSpiller() {
 		try {
-			spiller = new BufferSpiller(IO_MANAGER, PAGE_SIZE);
+			spiller = new BufferSpiller(ioManager, PAGE_SIZE);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -205,7 +211,7 @@ public class BufferSpillerTest {
 			int currentNumRecordAndEvents = 0;
 
 			// do multiple spilling / rolling over rounds
-			for (int round = 0; round < 2*sequences; round++) {
+			for (int round = 0; round < 2 * sequences; round++) {
 
 				if (round % 2 == 1) {
 					// make this an empty sequence
@@ -392,7 +398,7 @@ public class BufferSpillerTest {
 
 	private static void checkNoTempFilesRemain() {
 		// validate that all temp files have been removed
-		for (File dir : IO_MANAGER.getSpillingDirectories()) {
+		for (File dir : ioManager.getSpillingDirectories()) {
 			for (String file : dir.list()) {
 				if (file != null && !(file.equals(".") || file.equals(".."))) {
 					fail("barrier buffer did not clean up temp files. remaining file: " + file);

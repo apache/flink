@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.quickstart;
 
 /**

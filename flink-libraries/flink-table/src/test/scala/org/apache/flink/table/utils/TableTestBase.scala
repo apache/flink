@@ -24,11 +24,14 @@ import org.apache.flink.api.java.{DataSet => JDataSet}
 import org.apache.flink.table.api.{Table, TableEnvironment}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
+import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.scala.batch.utils.LogicalPlanFormatUtils
+import org.apache.flink.table.functions.AggregateFunction
 import org.junit.Assert.assertEquals
 import org.mockito.Mockito.{mock, when}
 
@@ -148,6 +151,12 @@ case class BatchTableTestUtil() extends TableTestUtil {
     tEnv.registerFunction(name, function)
   }
 
+  def addFunction[T:TypeInformation, ACC:TypeInformation](
+      name: String,
+      function: AggregateFunction[T, ACC]): Unit = {
+    tEnv.registerFunction(name, function)
+  }
+
   def verifySql(query: String, expected: String): Unit = {
     verifyTable(tEnv.sql(query), expected)
   }
@@ -174,7 +183,10 @@ case class BatchTableTestUtil() extends TableTestUtil {
 
 case class StreamTableTestUtil() extends TableTestUtil {
 
+  val javaEnv = mock(classOf[JStreamExecutionEnvironment])
+  when(javaEnv.getStreamTimeCharacteristic).thenReturn(TimeCharacteristic.EventTime)
   val env = mock(classOf[StreamExecutionEnvironment])
+  when(env.getWrappedStreamExecutionEnvironment).thenReturn(javaEnv)
   val tEnv = TableEnvironment.getTableEnvironment(env)
 
   def addTable[T: TypeInformation](
@@ -202,6 +214,12 @@ case class StreamTableTestUtil() extends TableTestUtil {
   }
 
   def addFunction(name: String, function: ScalarFunction): Unit = {
+    tEnv.registerFunction(name, function)
+  }
+
+  def addFunction[T:TypeInformation, ACC:TypeInformation](
+      name: String,
+      function: AggregateFunction[T, ACC]): Unit = {
     tEnv.registerFunction(name, function)
   }
 

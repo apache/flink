@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.client;
 
 import java.net.InetSocketAddress;
@@ -22,7 +23,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 /**
- * A class that provides some utility methods
+ * A class that provides some utility methods.
  */
 public class ClientUtils {
 	/**

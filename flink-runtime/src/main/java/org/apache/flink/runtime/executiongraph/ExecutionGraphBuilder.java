@@ -25,6 +25,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
+import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
@@ -50,6 +52,7 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.DynamicCodeLoadingException;
+import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -204,9 +207,7 @@ public class ExecutionGraphBuilder {
 			}
 
 			// Maximum number of remembered checkpoints
-			int historySize = jobManagerConfig.getInteger(
-					ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE,
-					ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE);
+			int historySize = jobManagerConfig.getInteger(JobManagerOptions.WEB_CHECKPOINTS_HISTORY_SIZE);
 
 			CheckpointStatsTracker checkpointStatsTracker = new CheckpointStatsTracker(
 					historySize,
@@ -241,16 +242,33 @@ public class ExecutionGraphBuilder {
 
 			// instantiate the user-defined checkpoint hooks
 
-			final MasterTriggerRestoreHook.Factory[] hookFactories = snapshotSettings.getMasterHooks();
+			final SerializedValue<MasterTriggerRestoreHook.Factory[]> serializedHooks = snapshotSettings.getMasterHooks();
 			final List<MasterTriggerRestoreHook<?>> hooks;
 
-			if (hookFactories == null || hookFactories.length == 0) {
+			if (serializedHooks == null) {
 				hooks = Collections.emptyList();
 			}
 			else {
-				hooks = new ArrayList<>(hookFactories.length);
-				for (MasterTriggerRestoreHook.Factory factory : hookFactories) {
-					hooks.add(factory.create());
+				final MasterTriggerRestoreHook.Factory[] hookFactories;
+				try {
+					hookFactories = serializedHooks.deserializeValue(classLoader);
+				}
+				catch (IOException | ClassNotFoundException e) {
+					throw new JobExecutionException(jobId, "Could not instantiate user-defined checkpoint hooks", e);
+				}
+
+				final Thread thread = Thread.currentThread();
+				final ClassLoader originalClassLoader = thread.getContextClassLoader();
+				thread.setContextClassLoader(classLoader);
+
+				try {
+					hooks = new ArrayList<>(hookFactories.length);
+					for (MasterTriggerRestoreHook.Factory factory : hookFactories) {
+						hooks.add(MasterHooks.wrapHook(factory.create(), classLoader));
+					}
+				}
+				finally {
+					thread.setContextClassLoader(originalClassLoader);
 				}
 			}
 

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.JobID;
@@ -36,9 +37,9 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.TestInternalTimerService;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
@@ -123,7 +124,7 @@ public class TriggerTestHarness<T, W extends Window> {
 
 	/**
 	 * Injects one element into the trigger for the given window and returns the result of
-	 * {@link Trigger#onElement(Object, long, Window, Trigger.TriggerContext)}
+	 * {@link Trigger#onElement(Object, long, Window, Trigger.TriggerContext)}.
 	 */
 	public TriggerResult processElement(StreamRecord<T> element, W window) throws Exception {
 		TestTriggerContext<Integer, W> triggerContext = new TestTriggerContext<>(

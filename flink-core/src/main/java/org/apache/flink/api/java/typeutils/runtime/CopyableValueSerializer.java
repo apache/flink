@@ -147,7 +147,7 @@ public final class CopyableValueSerializer<T extends CopyableValue<T>> extends T
 				&& valueClass.equals(((CopyableValueSerializerConfigSnapshot) configSnapshot).getTypeClass())) {
 			return CompatibilityResult.compatible();
 		} else {
-			return CompatibilityResult.requiresMigration(null);
+			return CompatibilityResult.requiresMigration();
 		}
 	}
 

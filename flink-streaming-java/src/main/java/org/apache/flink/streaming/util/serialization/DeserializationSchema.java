@@ -17,11 +17,11 @@
 
 package org.apache.flink.streaming.util.serialization;
 
-import java.io.IOException;
-import java.io.Serializable;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+
+import java.io.IOException;
+import java.io.Serializable;
 
 /**
  * The deserialization schema describes how to turn the byte messages delivered by certain

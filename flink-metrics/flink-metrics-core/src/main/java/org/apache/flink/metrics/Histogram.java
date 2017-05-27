@@ -21,7 +21,7 @@ package org.apache.flink.metrics;
 /**
  * Histogram interface to be used with Flink's metrics system.
  *
- * The histogram allows to record values, get the current count of recorded values and create
+ * <p>The histogram allows to record values, get the current count of recorded values and create
  * histogram statistics for the currently seen elements.
  */
 public interface Histogram extends Metric {

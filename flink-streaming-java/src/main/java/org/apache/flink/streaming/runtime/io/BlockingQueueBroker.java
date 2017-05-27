@@ -17,10 +17,10 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import java.util.concurrent.BlockingQueue;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.iterative.concurrent.Broker;
+
+import java.util.concurrent.BlockingQueue;
 
 /**
  * {@link Broker} for the {@link BlockingQueue} used in

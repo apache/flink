@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import akka.actor.ActorSystem;
-import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -40,14 +38,16 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
+import akka.actor.ActorSystem;
+import akka.testkit.JavaTestKit;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.concurrent.TimeUnit;
+
 import scala.concurrent.Await;
 import scala.concurrent.duration.FiniteDuration;
-
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.AllVerticesRunning;
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ExecutionGraphFound;

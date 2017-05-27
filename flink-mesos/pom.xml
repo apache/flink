@@ -27,49 +27,52 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 	
-	<artifactId>flink-mesos_2.10</artifactId>
+	<artifactId>flink-mesos_${scala.binary.version}</artifactId>
 	<name>flink-mesos</name>
 	<packaging>jar</packaging>
-
-    <properties>
-        <mesos.version>1.0.1</mesos.version>
-    </properties>
 	
-    <dependencies>
+	<properties>
+		<mesos.version>1.0.1</mesos.version>
+	</properties>
+
+	<dependencies>
+
+		<!--  set all Flink dependencies to provided, so they and their transitive  -->
+		<!-- dependencies do not get promoted to direct dependencies during shading -->
+		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_2.10</artifactId>
+			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_2.10</artifactId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop2</artifactId>
-			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-curator-recipes</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.data-artisans</groupId>
 			<artifactId>flakka-actor_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.data-artisans</groupId>
 			<artifactId>flakka-remote_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
 			<exclusions>
-				<!-- exclude protobuf here to allow the mesos library to provide it -->
+				<!-- exclude the lower/wrong version of Protobuf here -->
 				<exclusion>
 					<groupId>com.google.protobuf</groupId>
 					<artifactId>protobuf-java</artifactId>
@@ -80,7 +83,10 @@ under the License.
 		<dependency>
 			<groupId>com.data-artisans</groupId>
 			<artifactId>flakka-slf4j_${scala.binary.version}</artifactId>
+			<scope>provided</scope>
 		</dependency>
+
+		<!-- Mesos and Mesos Resource Manager dependencies -->
 
 		<dependency>
 			<groupId>org.apache.mesos</groupId>
@@ -104,7 +110,16 @@ under the License.
 		<dependency>
 			<groupId>tv.cntt</groupId>
 			<artifactId>netty-router</artifactId>
-			<version>1.10</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -130,7 +145,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_2.10</artifactId>
+			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -138,7 +153,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_2.10</artifactId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -282,6 +297,41 @@ under the License.
 								</relocation>
 							</relocations>
 						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.17</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>6.19</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<configLocation>/tools/maven/strict-checkstyle.xml</configLocation>
+					<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
+					<logViolationsToConsole>true</logViolationsToConsole>
+					<failOnViolation>true</failOnViolation>
+				</configuration>
+				<executions>
+					<!--
+					Execute checkstyle after compilation but before tests.
+
+					This ensures that any parsing or type checking errors are from
+					javac, so they look as expected. Beyond that, we want to
+					fail as early as possible.
+					-->
+					<execution>
+						<phase>test-compile</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
 					</execution>
 				</executions>
 			</plugin>

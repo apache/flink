@@ -20,23 +20,35 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests how DELETE requests behave.
  */
-public class BlobServerDeleteTest {
+public class BlobServerDeleteTest extends TestLogger {
 
 	private final Random rnd = new Random();
 
@@ -44,10 +56,11 @@ public class BlobServerDeleteTest {
 	public void testDeleteSingle() {
 		BlobServer server = null;
 		BlobClient client = null;
+		BlobStore blobStore = new VoidBlobStore();
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, blobStore);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -93,10 +106,11 @@ public class BlobServerDeleteTest {
 	public void testDeleteAll() {
 		BlobServer server = null;
 		BlobClient client = null;
+		BlobStore blobStore = new VoidBlobStore();
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, blobStore);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -156,10 +170,11 @@ public class BlobServerDeleteTest {
 	public void testDeleteAlreadyDeletedByBlobKey() {
 		BlobServer server = null;
 		BlobClient client = null;
+		BlobStore blobStore = new VoidBlobStore();
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, blobStore);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -195,10 +210,11 @@ public class BlobServerDeleteTest {
 	public void testDeleteAlreadyDeletedByName() {
 		BlobServer server = null;
 		BlobClient client = null;
+		BlobStore blobStore = new VoidBlobStore();
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, blobStore);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -237,10 +253,11 @@ public class BlobServerDeleteTest {
 
 		BlobServer server = null;
 		BlobClient client = null;
+		BlobStore blobStore = new VoidBlobStore();
 
 		try {
 			Configuration config = new Configuration();
-			server = new BlobServer(config);
+			server = new BlobServer(config, blobStore);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			client = new BlobClient(serverAddress, config);
@@ -280,6 +297,65 @@ public class BlobServerDeleteTest {
 		}
 	}
 
+	/**
+	 * FLINK-6020
+	 *
+	 * Tests that concurrent delete operations don't interfere with each other.
+	 *
+	 * Note: The test checks that there cannot be two threads which have checked whether a given blob file exist
+	 * and then one of them fails deleting it. Without the introduced lock, this situation should rarely happen
+	 * and make this test fail. Thus, if this test should become "unstable", then the delete atomicity is most likely
+	 * broken.
+	 */
+	@Test
+	public void testConcurrentDeleteOperations() throws IOException, ExecutionException, InterruptedException {
+		final Configuration configuration = new Configuration();
+		final BlobStore blobStore = mock(BlobStore.class);
+
+		final int concurrentDeleteOperations = 3;
+		final ExecutorService executor = Executors.newFixedThreadPool(concurrentDeleteOperations);
+
+		final List<Future<Void>> deleteFutures = new ArrayList<>(concurrentDeleteOperations);
+
+		final byte[] data = {1, 2, 3};
+
+		try (final BlobServer blobServer = new BlobServer(configuration, blobStore)) {
+
+			final BlobKey blobKey;
+
+			try (BlobClient client = blobServer.createClient()) {
+				blobKey = client.put(data);
+			}
+
+			assertTrue(blobServer.getStorageLocation(blobKey).exists());
+
+			for (int i = 0; i < concurrentDeleteOperations; i++) {
+				Future<Void> deleteFuture = FlinkCompletableFuture.supplyAsync(new Callable<Void>() {
+					@Override
+					public Void call() throws Exception {
+						try (BlobClient blobClient = blobServer.createClient()) {
+							blobClient.delete(blobKey);
+						}
+
+						return null;
+					}
+				}, executor);
+
+				deleteFutures.add(deleteFuture);
+			}
+
+			Future<Void> waitFuture = FutureUtils.waitForAll(deleteFutures);
+
+			// make sure all delete operation have completed successfully
+			// in case of no lock, one of the delete operations should eventually fail
+			waitFuture.get();
+
+			assertFalse(blobServer.getStorageLocation(blobKey).exists());
+		} finally {
+			executor.shutdownNow();
+		}
+	}
+
 	private void cleanup(BlobServer server, BlobClient client) {
 		if (client != null) {
 			try {
@@ -289,7 +365,11 @@ public class BlobServerDeleteTest {
 			}
 		}
 		if (server != null) {
-			server.shutdown();
+			try {
+				server.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 }

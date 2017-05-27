@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.functions.windowing;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
@@ -33,7 +33,7 @@ import org.apache.flink.util.Collector;
  * @param <W> The type of {@code Window} that this window function can be applied on.
  */
 @PublicEvolving
-public abstract class ProcessAllWindowFunction<IN, OUT, W extends Window> implements Function {
+public abstract class ProcessAllWindowFunction<IN, OUT, W extends Window> extends AbstractRichFunction {
 
 	private static final long serialVersionUID = 1L;
 

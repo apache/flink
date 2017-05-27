@@ -18,9 +18,10 @@
 
 package org.apache.flink.graph.asm.dataset;
 
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -29,6 +30,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertArrayEquals;
 
+/**
+ * Tests for {@link Collect}.
+ */
 public class CollectTest {
 
 	private ExecutionEnvironment env;

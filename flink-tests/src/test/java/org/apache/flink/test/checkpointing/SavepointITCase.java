@@ -68,7 +68,6 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ResponseS
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.ResponseSubmitTaskListener;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
@@ -143,7 +142,7 @@ public class SavepointITCase extends TestLogger {
 		final int numSlotsPerTaskManager = 2;
 		final int parallelism = numTaskManagers * numSlotsPerTaskManager;
 		final Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
-		final File testRoot = folder.newFolder();
+		final File testRoot = folder.getRoot();
 
 		TestingCluster flink = null;
 
@@ -424,7 +423,7 @@ public class SavepointITCase extends TestLogger {
 		// Test deadline
 		final Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
 
-		final File tmpDir = CommonTestUtils.createTempDirectory();
+		final File tmpDir = folder.getRoot();
 		final File savepointDir = new File(tmpDir, "savepoints");
 
 		TestingCluster flink = null;
@@ -494,7 +493,7 @@ public class SavepointITCase extends TestLogger {
 		// Test deadline
 		final Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
 
-		final File tmpDir = CommonTestUtils.createTempDirectory();
+		final File tmpDir = folder.getRoot();
 		final File savepointDir = new File(tmpDir, "savepoints");
 
 		TestingCluster flink = null;

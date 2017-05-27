@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.metrics;
 
 /**
  * An interface for metrics which should be updated in regular intervals by a background thread.
  */
 public interface View {
-	/** The interval in which metrics are updated */
+	/** The interval in which metrics are updated. */
 	int UPDATE_INTERVAL_SECONDS = 5;
 
 	/**

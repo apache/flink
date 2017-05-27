@@ -19,9 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
@@ -55,18 +53,14 @@ public class SlotManagerConfiguration {
 	}
 
 	public static SlotManagerConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
-		ConfigOption<String> timeoutOption = ConfigOptions
-			.key(ConfigConstants.AKKA_ASK_TIMEOUT)
-			.defaultValue(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
-
-		final String strTimeout = configuration.getString(timeoutOption);
+		final String strTimeout = configuration.getString(AkkaOptions.ASK_TIMEOUT);
 		final Time timeout;
 
 		try {
 			timeout = Time.milliseconds(Duration.apply(strTimeout).toMillis());
 		} catch (NumberFormatException e) {
 			throw new ConfigurationException("Could not parse the resource manager's timeout " +
-				"value " + timeoutOption + '.', e);
+				"value " + AkkaOptions.ASK_TIMEOUT + '.', e);
 		}
 
 		return new SlotManagerConfiguration(timeout, timeout, timeout);

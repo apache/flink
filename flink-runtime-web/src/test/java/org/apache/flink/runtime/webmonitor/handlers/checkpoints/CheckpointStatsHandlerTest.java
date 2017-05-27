@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
@@ -38,6 +36,8 @@ import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -54,6 +54,9 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the CheckpointStatsHandler.
+ */
 public class CheckpointStatsHandlerTest {
 
 	@Test
@@ -61,12 +64,12 @@ public class CheckpointStatsHandlerTest {
 		JsonArchivist archivist = new CheckpointStatsDetailsHandler.CheckpointStatsDetailsJsonArchivist();
 		TestCheckpointStats testCheckpointStats = createTestCheckpointStats();
 		when(testCheckpointStats.graph.getJobID()).thenReturn(new JobID());
-		
+
 		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(testCheckpointStats.graph);
 		Assert.assertEquals(3, archives.size());
 
 		ObjectMapper mapper = new ObjectMapper();
-		
+
 		Iterator<ArchivedJson> iterator = archives.iterator();
 		ArchivedJson archive1 = iterator.next();
 		Assert.assertEquals("/jobs/" + testCheckpointStats.graph.getJobID() + "/checkpoints/details/" + testCheckpointStats.inProgress.getCheckpointId(), archive1.getPath());
@@ -75,12 +78,11 @@ public class CheckpointStatsHandlerTest {
 		ArchivedJson archive2 = iterator.next();
 		Assert.assertEquals("/jobs/" + testCheckpointStats.graph.getJobID() + "/checkpoints/details/" + testCheckpointStats.completedSavepoint.getCheckpointId(), archive2.getPath());
 		compareCompletedSavepoint(testCheckpointStats.completedSavepoint, mapper.readTree(archive2.getJson()));
-		
+
 		ArchivedJson archive3 = iterator.next();
 		Assert.assertEquals("/jobs/" + testCheckpointStats.graph.getJobID() + "/checkpoints/details/" + testCheckpointStats.failed.getCheckpointId(), archive3.getPath());
 		compareFailedCheckpoint(testCheckpointStats.failed, mapper.readTree(archive3.getJson()));
 	}
-	
 
 	@Test
 	public void testGetPaths() {
@@ -235,7 +237,7 @@ public class CheckpointStatsHandlerTest {
 
 		return new TestCheckpointStats(
 			graph, counts, stateSizeSummary, durationSummary, alignmentBufferedSummary, summary,
-			latestCompleted, latestSavepoint, latestFailed, latestRestored, inProgress, 
+			latestCompleted, latestSavepoint, latestFailed, latestRestored, inProgress,
 			completedSavepoint, failed, history, snapshot
 		);
 	}
@@ -375,7 +377,7 @@ public class CheckpointStatsHandlerTest {
 		assertEquals(failed.getFailureTimestamp(), failedNode.get("failure_timestamp").asLong());
 		assertEquals(failed.getFailureMessage(), failedNode.get("failure_message").asText());
 	}
-	
+
 	private static class TestCheckpointStats {
 		public final AccessExecutionGraph graph;
 		public final CheckpointStatsCounts counts;

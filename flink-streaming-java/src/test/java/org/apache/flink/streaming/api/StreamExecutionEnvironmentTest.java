@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.SplittableIterator;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -45,6 +46,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link StreamExecutionEnvironment}.
+ */
 public class StreamExecutionEnvironmentTest {
 
 	@Test
@@ -143,7 +147,6 @@ public class StreamExecutionEnvironmentTest {
 			}
 		};
 
-
 		SingleOutputStreamOperator<Object> operator =
 				env.addSource(srcFun).flatMap(new FlatMapFunction<Integer, Object>() {
 
@@ -227,7 +230,6 @@ public class StreamExecutionEnvironmentTest {
 	// Utilities
 	/////////////////////////////////////////////////////////////
 
-
 	private static StreamOperator<?> getOperatorFromDataStream(DataStream<?> dataStream) {
 		StreamExecutionEnvironment env = dataStream.getExecutionEnvironment();
 		StreamGraph streamGraph = env.getStreamGraph();
@@ -242,7 +244,7 @@ public class StreamExecutionEnvironmentTest {
 		return (SourceFunction<T>) operator.getUserFunction();
 	}
 
-	public static class DummySplittableIterator<T> extends SplittableIterator<T> {
+	private static class DummySplittableIterator<T> extends SplittableIterator<T> {
 		private static final long serialVersionUID = 1312752876092210499L;
 
 		@SuppressWarnings("unchecked")
@@ -272,7 +274,7 @@ public class StreamExecutionEnvironmentTest {
 		}
 	}
 
-	public static class ParentClass {
+	private static class ParentClass {
 		int num;
 		String string;
 		public ParentClass(int num, String string) {
@@ -281,7 +283,7 @@ public class StreamExecutionEnvironmentTest {
 		}
 	}
 
-	public static class SubClass extends ParentClass{
+	private static class SubClass extends ParentClass{
 		public SubClass(int num, String string) {
 			super(num, string);
 		}

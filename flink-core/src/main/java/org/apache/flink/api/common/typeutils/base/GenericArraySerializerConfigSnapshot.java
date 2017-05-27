@@ -20,7 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
@@ -47,9 +47,9 @@ public final class GenericArraySerializerConfigSnapshot<C> extends CompositeType
 
 	public GenericArraySerializerConfigSnapshot(
 			Class<C> componentClass,
-			TypeSerializerConfigSnapshot componentSerializerConfigSnapshot) {
+			TypeSerializer<C> componentSerializer) {
 
-		super(componentSerializerConfigSnapshot);
+		super(componentSerializer);
 
 		this.componentClass = Preconditions.checkNotNull(componentClass);
 	}
@@ -58,15 +58,17 @@ public final class GenericArraySerializerConfigSnapshot<C> extends CompositeType
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
 
-		InstantiationUtil.serializeObject(new DataOutputViewStream(out), componentClass);
+		try (final DataOutputViewStream outViewWrapper = new DataOutputViewStream(out)) {
+			InstantiationUtil.serializeObject(outViewWrapper, componentClass);
+		}
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
-		try {
-			componentClass = InstantiationUtil.deserializeObject(new DataInputViewStream(in), getUserCodeClassLoader());
+		try (final DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
+			componentClass = InstantiationUtil.deserializeObject(inViewWrapper, getUserCodeClassLoader());
 		} catch (ClassNotFoundException e) {
 			throw new IOException("Could not find requested element class in classpath.", e);
 		}

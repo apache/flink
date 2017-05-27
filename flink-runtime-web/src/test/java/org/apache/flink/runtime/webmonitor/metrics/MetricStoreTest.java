@@ -15,17 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.metrics;
 
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for the MetricStore.
+ */
 public class MetricStoreTest extends TestLogger {
 	@Test
 	public void testAdd() throws IOException {
@@ -42,7 +47,7 @@ public class MetricStoreTest extends TestLogger {
 	public void testMalformedNameHandling() {
 		MetricStore store = new MetricStore();
 		//-----verify that no exceptions are thrown
-		
+
 		// null
 		store.add(null);
 		// empty name
@@ -77,7 +82,7 @@ public class MetricStoreTest extends TestLogger {
 		store.add(cd3);
 		store.add(cd4);
 		store.add(cd5);
-		
+
 		return store;
 	}
 }

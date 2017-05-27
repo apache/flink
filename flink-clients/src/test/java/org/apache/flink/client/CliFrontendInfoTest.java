@@ -23,10 +23,14 @@ import org.junit.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+/**
+ * Tests for the "info" command.
+ */
 public class CliFrontendInfoTest {
-	
+
 	private static PrintStream stdOut;
 	private static PrintStream capture;
 	private static ByteArrayOutputStream buffer;
@@ -41,7 +45,7 @@ public class CliFrontendInfoTest {
 				int retCode = testFrontend.cancel(parameters);
 				assertTrue(retCode != 0);
 			}
-			
+
 			// test missing options
 			{
 				String[] parameters = {};
@@ -55,7 +59,7 @@ public class CliFrontendInfoTest {
 			fail("Program caused an exception: " + e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testShowExecutionPlan() {
 		replaceStdOut();
@@ -74,7 +78,7 @@ public class CliFrontendInfoTest {
 			restoreStdOut();
 		}
 	}
-	
+
 	@Test
 	public void testShowExecutionPlanWithParallelism() {
 		replaceStdOut();

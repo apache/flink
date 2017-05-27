@@ -26,8 +26,8 @@ import java.io.Serializable;
  * Base interface for Translate functions. Translate functions take elements and transform them,
  * element wise. A Translate function always produces a single result element for each input element.
  * Typical applications are transcribing between data types or manipulating element values.
- * <p>
- * Translate functions are used within the Graph API and by translating GraphAlgorithms.
+ *
+ * <p>Translate functions are used within the Graph API and by translating GraphAlgorithms.
  *
  * @param <T> Type of the input elements.
  * @param <O> Type of the returned elements.

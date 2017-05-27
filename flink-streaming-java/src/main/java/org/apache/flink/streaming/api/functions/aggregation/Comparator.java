@@ -17,10 +17,10 @@
 
 package org.apache.flink.streaming.api.functions.aggregation;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
+
+import java.io.Serializable;
 
 /**
  * Internal comparator implementation, for use with {@link ComparableAggregator}.

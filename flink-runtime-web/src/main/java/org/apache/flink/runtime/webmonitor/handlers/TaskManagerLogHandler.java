@@ -26,6 +26,28 @@ package org.apache.flink.runtime.webmonitor.handlers;
  * https://github.com/netty/netty/blob/4.0/example/src/main/java/io/netty/example/http/file/HttpStaticFileServerHandler.java
  *****************************************************************************/
 
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobCache;
+import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobView;
+import org.apache.flink.runtime.concurrent.AcceptFunction;
+import org.apache.flink.runtime.concurrent.ApplyFunction;
+import org.apache.flink.runtime.concurrent.BiFunction;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandlerBase;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
+
 import akka.dispatch.Mapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -44,31 +66,8 @@ import io.netty.handler.codec.http.router.Routed;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedFile;
 import io.netty.util.concurrent.GenericFutureListener;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobCache;
-import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.runtime.concurrent.ApplyFunction;
-import org.apache.flink.runtime.concurrent.BiFunction;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
-import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandlerBase;
-import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.concurrent.ExecutionContextExecutor;
-import scala.concurrent.duration.FiniteDuration;
-import scala.reflect.ClassTag$;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -78,6 +77,11 @@ import java.net.InetSocketAddress;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
+
+import scala.Option;
+import scala.concurrent.ExecutionContextExecutor;
+import scala.concurrent.duration.FiniteDuration;
+import scala.reflect.ClassTag$;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
@@ -98,24 +102,27 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 	private static final String TASKMANAGER_LOG_REST_PATH = "/taskmanagers/:taskmanagerid/log";
 	private static final String TASKMANAGER_OUT_REST_PATH = "/taskmanagers/:taskmanagerid/stdout";
 
-	/** Keep track of last transmitted log, to clean up old ones */
+	/** Keep track of last transmitted log, to clean up old ones. */
 	private final HashMap<String, BlobKey> lastSubmittedLog = new HashMap<>();
 	private final HashMap<String, BlobKey> lastSubmittedStdout = new HashMap<>();
 
-	/** Keep track of request status, prevents multiple log requests for a single TM running concurrently */
+	/** Keep track of request status, prevents multiple log requests for a single TM running concurrently. */
 	private final ConcurrentHashMap<String, Boolean> lastRequestPending = new ConcurrentHashMap<>();
 	private final Configuration config;
 
-	/** Future of the blob cache */
+	/** Future of the blob cache. */
 	private Future<BlobCache> cache;
 
-	/** Indicates which log file should be displayed; true indicates .log, false indicates .out */
-	private boolean serveLogFile;
+	/** Indicates which log file should be displayed. */
+	private FileMode fileMode;
 
 	private final ExecutionContextExecutor executor;
 
 	private final Time timeTimeout;
 
+	private final BlobView blobView;
+
+	/** Used to control whether this handler serves the .log or .out file. */
 	public enum FileMode {
 		LOG,
 		STDOUT
@@ -128,29 +135,27 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 		FiniteDuration timeout,
 		FileMode fileMode,
 		Configuration config,
-		boolean httpsEnabled) {
+		boolean httpsEnabled,
+		BlobView blobView) {
 		super(retriever, localJobManagerAddressPromise, timeout, httpsEnabled);
 
 		this.executor = checkNotNull(executor);
 		this.config = config;
-		switch (fileMode) {
-			case LOG:
-				serveLogFile = true;
-				break;
-			case STDOUT:
-				serveLogFile = false;
-				break;
-		}
+		this.fileMode = fileMode;
+
+		this.blobView = Preconditions.checkNotNull(blobView, "blobView");
 
 		timeTimeout = Time.milliseconds(timeout.toMillis());
 	}
 
 	@Override
 	public String[] getPaths() {
-		if (serveLogFile) {
-			return new String[]{TASKMANAGER_LOG_REST_PATH};
-		} else {
-			return new String[]{TASKMANAGER_OUT_REST_PATH};
+		switch (fileMode) {
+			case LOG:
+				return new String[]{TASKMANAGER_LOG_REST_PATH};
+			case STDOUT:
+			default:
+				return new String[]{TASKMANAGER_OUT_REST_PATH};
 		}
 	}
 
@@ -167,7 +172,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 					Option<String> hostOption = jobManager.actor().path().address().host();
 					String host = hostOption.isDefined() ? hostOption.get() : "localhost";
 					int port = (int) result;
-					return new BlobCache(new InetSocketAddress(host, port), config);
+					return new BlobCache(new InetSocketAddress(host, port), config, blobView);
 				}
 			}, executor);
 
@@ -192,10 +197,12 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 					public Future<BlobKey> apply(JobManagerMessages.TaskManagerInstance value) {
 						Instance taskManager = value.instance().get();
 
-						if (serveLogFile) {
-							return taskManager.getTaskManagerGateway().requestTaskManagerLog(timeTimeout);
-						} else {
-							return taskManager.getTaskManagerGateway().requestTaskManagerStdout(timeTimeout);
+						switch (fileMode) {
+							case LOG:
+								return taskManager.getTaskManagerGateway().requestTaskManagerLog(timeTimeout);
+							case STDOUT:
+							default:
+								return taskManager.getTaskManagerGateway().requestTaskManagerStdout(timeTimeout);
 						}
 					}
 				});
@@ -216,7 +223,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 							final BlobCache blobCache = value.f1;
 
 							//delete previous log file, if it is different than the current one
-							HashMap<String, BlobKey> lastSubmittedFile = serveLogFile ? lastSubmittedLog : lastSubmittedStdout;
+							HashMap<String, BlobKey> lastSubmittedFile = fileMode == FileMode.LOG ? lastSubmittedLog : lastSubmittedStdout;
 							if (lastSubmittedFile.containsKey(taskManagerID)) {
 								if (!blobKey.equals(lastSubmittedFile.get(taskManagerID))) {
 									try {

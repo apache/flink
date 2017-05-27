@@ -23,7 +23,7 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.plan.nodes.CommonAggregate
@@ -31,6 +31,7 @@ import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.slf4j.LoggerFactory
 
 /**
   *
@@ -41,7 +42,6 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
   * @param traitSet        Trait set of the RelNode
   * @param inputNode       The input RelNode of aggregation
   * @param namedAggregates List of calls to aggregate functions and their output field names
-  * @param rowRelDataType  The type of the rows of the RelNode
   * @param inputSchema     The type of the rows consumed by this RelNode
   * @param schema          The type of the rows emitted by this RelNode
   * @param groupings       The position (in the input Row) of the grouping keys
@@ -51,13 +51,14 @@ class DataStreamGroupAggregate(
     traitSet: RelTraitSet,
     inputNode: RelNode,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    rowRelDataType: RelDataType,
     schema: RowSchema,
     inputSchema: RowSchema,
     groupings: Array[Int])
   extends SingleRel(cluster, traitSet, inputNode)
     with CommonAggregate
     with DataStreamRel {
+
+  private val LOG = LoggerFactory.getLogger(this.getClass)
 
   override def deriveRowType() = schema.logicalType
 
@@ -75,7 +76,6 @@ class DataStreamGroupAggregate(
       traitSet,
       inputs.get(0),
       namedAggregates,
-      getRowType,
       schema,
       inputSchema,
       groupings)
@@ -100,9 +100,18 @@ class DataStreamGroupAggregate(
         inputSchema.logicalType, groupings, getRowType, namedAggregates, Nil))
   }
 
-  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[CRow] = {
+  override def translateToPlan(
+      tableEnv: StreamTableEnvironment,
+      queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
-    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
+    if (groupings.length > 0 && queryConfig.getMinIdleStateRetentionTime < 0) {
+      LOG.warn(
+        "No state retention interval configured for a query which accumulates state. " +
+        "Please provide a query configuration with valid retention interval to prevent excessive " +
+        "state size. You may specify a retention time of 0 to not clean up the state.")
+    }
+
+    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
     val physicalNamedAggregates = namedAggregates.map { namedAggregate =>
       new CalcitePair[AggregateCall, String](
@@ -115,7 +124,7 @@ class DataStreamGroupAggregate(
     val generator = new CodeGenerator(
       tableEnv.getConfig,
       false,
-      inputDS.getType)
+      inputSchema.physicalTypeInfo)
 
     val aggString = aggregationToString(
       inputSchema.logicalType,
@@ -136,6 +145,7 @@ class DataStreamGroupAggregate(
       inputSchema.logicalType,
       inputSchema.physicalFieldTypeInfo,
       groupings,
+      queryConfig,
       DataStreamRetractionRules.isAccRetract(this),
       DataStreamRetractionRules.isAccRetract(getInput))
 

@@ -18,13 +18,14 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.util.MathUtils;
+
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.util.MathUtils;
 
 /**
  * A special Hash Map implementation that can be traversed efficiently in sync with other
@@ -582,7 +583,6 @@ public class KeyMap<K, V> implements Iterable<KeyMap.Entry<K, V>> {
 		static final CapacityDescendingComparator INSTANCE = new CapacityDescendingComparator();
 
 		private CapacityDescendingComparator() {}
-
 
 		@Override
 		public int compare(KeyMap<?, ?> o1, KeyMap<?, ?> o2) {

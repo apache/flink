@@ -25,7 +25,7 @@ import org.apache.commons.math3.random.RandomGenerator;
  * RandomGenerator. This allows pre-processing or discovery to be distributed
  * and performed in parallel by Flink tasks.
  *
- * A distributed PRNG is described by Matsumoto and Takuji in
+ * <p>A distributed PRNG is described by Matsumoto and Takuji in
  * "Dynamic Creation of Pseudorandom Number Generators".
  *
  * @param <T> the type of the {@code RandomGenerator}

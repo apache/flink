@@ -31,47 +31,47 @@
 	<files>
 		<!-- CEP -->
 		<file>
-			<source>../flink-libraries/flink-cep/target/flink-cep_2.10-${project.version}.jar</source>
+			<source>../flink-libraries/flink-cep/target/flink-cep_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-cep_2.10-${project.version}.jar</destName>
+			<destName>flink-cep_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
 		<file>
-			<source>../flink-libraries/flink-cep-scala/target/flink-cep-scala_2.10-${project.version}.jar</source>
+			<source>../flink-libraries/flink-cep-scala/target/flink-cep-scala_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-cep-scala_2.10-${project.version}.jar</destName>
+			<destName>flink-cep-scala_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
 		<!-- Gelly -->
 		<file>
-			<source>../flink-libraries/flink-gelly/target/flink-gelly_2.10-${project.version}.jar</source>
+			<source>../flink-libraries/flink-gelly/target/flink-gelly_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-gelly_2.10-${project.version}.jar</destName>
+			<destName>flink-gelly_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
 		<file>
-			<source>../flink-libraries/flink-gelly-scala/target/flink-gelly-scala_2.10-${project.version}-jar-with-dependencies.jar</source>
+			<source>../flink-libraries/flink-gelly-scala/target/flink-gelly-scala_${scala.binary.version}-${project.version}-jar-with-dependencies.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-gelly-scala_2.10-${project.version}.jar</destName>
+			<destName>flink-gelly-scala_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
 		<!-- TableAPI-->
 		<file>
-			<source>../flink-libraries/flink-table/target/flink-table_2.10-${project.version}.jar</source>
+			<source>../flink-libraries/flink-table/target/flink-table_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-table_2.10-${project.version}.jar</destName>
+			<destName>flink-table_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
 		<!-- ML -->
 		<file>
-			<source>../flink-libraries/flink-ml/target/flink-ml_2.10-${project.version}-jar-with-dependencies.jar</source>
+			<source>../flink-libraries/flink-ml/target/flink-ml_${scala.binary.version}-${project.version}-jar-with-dependencies.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-ml_2.10-${project.version}.jar</destName>
+			<destName>flink-ml_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
@@ -105,9 +105,9 @@
 		</file>
 
 		<file>
-			<source>../flink-shaded-hadoop/flink-shaded-hadoop2/target/flink-shaded-hadoop2-${project.version}.jar</source>
+			<source>../flink-metrics/flink-metrics-datadog/target/flink-metrics-datadog-${project.version}-shaded.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-shaded-hadoop2-${project.version}.jar</destName>
+			<destName>flink-metrics-datadog-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 	</files>

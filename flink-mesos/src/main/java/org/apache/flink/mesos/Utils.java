@@ -20,12 +20,17 @@ package org.apache.flink.mesos;
 
 import org.apache.flink.mesos.util.MesosArtifactResolver;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+
 import org.apache.mesos.Protos;
-import scala.Option;
 
 import java.net.URL;
 import java.util.Arrays;
 
+import scala.Option;
+
+/**
+ * Collection of utility methods.
+ */
 public class Utils {
 	/**
 	 * Construct a Mesos environment variable.
@@ -53,7 +58,7 @@ public class Utils {
 	 */
 	public static Protos.CommandInfo.URI uri(MesosArtifactResolver resolver, ContainerSpecification.Artifact artifact) {
 		Option<URL> url = resolver.resolve(artifact.dest);
-		if(url.isEmpty()) {
+		if (url.isEmpty()) {
 			throw new IllegalArgumentException("Unresolvable artifact: " + artifact.dest);
 		}
 

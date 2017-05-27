@@ -27,7 +27,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 	
-	<artifactId>flink-yarn_2.10</artifactId>
+	<artifactId>flink-yarn_${scala.binary.version}</artifactId>
 	<name>flink-yarn</name>
 	<packaging>jar</packaging>
 
@@ -37,7 +37,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_2.10</artifactId>
+			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
 				<exclusion>
@@ -49,7 +49,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_2.10</artifactId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -61,7 +61,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_2.10</artifactId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -98,7 +98,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_2.10</artifactId>
+			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -120,6 +120,40 @@ under the License.
 			<version>${hadoop.version}</version>
 		</dependency>
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<id>generate-config-docs</id>
+
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<version>1.7</version>
+						<executions>
+							<execution>
+								<phase>package</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<target>
+								<mkdir dir="${rootDir}/${generated.docs.dir}"/>
+								<java classname="org.apache.flink.configuration.ConfigOptionsDocGenerator" fork="true">
+									<classpath refid="maven.compile.classpath" />
+									<arg value="${rootDir}/${generated.docs.dir}/" />
+									<!--package with configuration classes-->
+									<arg value="org.apache.flink.yarn.configuration" />
+								</java>
+							</target>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>

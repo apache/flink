@@ -86,7 +86,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 	protected boolean mergeConfiguration(GraphAlgorithmWrappingDataSet other) {
 		Preconditions.checkNotNull(other);
 
-		if (! VertexOutDegree.class.isAssignableFrom(other.getClass())) {
+		if (!VertexOutDegree.class.isAssignableFrom(other.getClass())) {
 			return false;
 		}
 

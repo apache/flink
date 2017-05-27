@@ -18,9 +18,12 @@
 
 package org.apache.flink.test.testdata;
 
+/**
+ * Test data for EnumTriangle programs.
+ */
 public class EnumTriangleData {
 
-	public static final String EDGES = 
+	public static final String EDGES =
 			"1 2\n" +
 			"1 3\n" +
 			"1 4\n" +
@@ -33,13 +36,13 @@ public class EnumTriangleData {
 			"3 8\n" +
 			"7 8\n";
 
-	public static final String TRIANGLES_BY_ID = 
+	public static final String TRIANGLES_BY_ID =
 			"1,2,3\n" +
 			"1,3,4\n" +
 			"1,2,5\n" +
-			"3,7,8\n"; 
-	
-	public static final String TRIANGLES_BY_DEGREE = 
+			"3,7,8\n";
+
+	public static final String TRIANGLES_BY_DEGREE =
 			"2,1,3\n" +
 			"4,1,3\n" +
 			"2,1,5\n" +

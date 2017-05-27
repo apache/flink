@@ -18,19 +18,23 @@
 
 package org.apache.flink.streaming.util;
 
-import com.fasterxml.jackson.databind.util.JSONPObject;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.util.serialization.AbstractDeserializationSchema;
 
+import com.fasterxml.jackson.databind.util.JSONPObject;
 import org.junit.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link AbstractDeserializationSchema}.
+ */
 @SuppressWarnings("serial")
 public class AbstractDeserializationSchemaTest {
 

@@ -33,7 +33,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{StreamQueryConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
@@ -77,6 +77,7 @@ object AggregateUtil {
       inputType: RelDataType,
       inputTypeInfo: TypeInformation[Row],
       inputFieldTypeInfo: Seq[TypeInformation[_]],
+      queryConfig: StreamQueryConfig,
       isRowTimeType: Boolean,
       isPartitioned: Boolean,
       isRowsClause: Boolean)
@@ -117,23 +118,27 @@ object AggregateUtil {
         new RowTimeUnboundedRowsOver(
           genFunction,
           aggregationStateType,
-          CRowTypeInfo(inputTypeInfo))
+          CRowTypeInfo(inputTypeInfo),
+          queryConfig)
       } else {
         // RANGE unbounded over process function
         new RowTimeUnboundedRangeOver(
           genFunction,
           aggregationStateType,
-          CRowTypeInfo(inputTypeInfo))
+          CRowTypeInfo(inputTypeInfo),
+          queryConfig)
       }
     } else {
       if (isPartitioned) {
         new ProcTimeUnboundedPartitionedOver(
           genFunction,
-          aggregationStateType)
+          aggregationStateType,
+          queryConfig)
       } else {
         new ProcTimeUnboundedNonPartitionedOver(
           genFunction,
-          aggregationStateType)
+          aggregationStateType,
+          queryConfig)
       }
     }
   }
@@ -147,6 +152,9 @@ object AggregateUtil {
     * @param inputRowType    Input row type
     * @param inputFieldTypes Types of the physical input fields
     * @param groupings       the position (in the input Row) of the grouping keys
+    * @param queryConfig     The configuration of the query to generate.
+    * @param generateRetraction It is a tag that indicates whether generate retract record.
+    * @param consumeRetraction It is a tag that indicates whether consume the retract record.
     * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
     */
   private[flink] def createGroupAggregateFunction(
@@ -155,6 +163,7 @@ object AggregateUtil {
       inputRowType: RelDataType,
       inputFieldTypes: Seq[TypeInformation[_]],
       groupings: Array[Int],
+      queryConfig: StreamQueryConfig,
       generateRetraction: Boolean,
       consumeRetraction: Boolean): ProcessFunction[CRow, CRow] = {
 
@@ -190,7 +199,8 @@ object AggregateUtil {
     new GroupAggProcessFunction(
       genFunction,
       aggregationStateType,
-      generateRetraction)
+      generateRetraction,
+      queryConfig)
 
   }
 
@@ -215,6 +225,7 @@ object AggregateUtil {
       inputTypeInfo: TypeInformation[Row],
       inputFieldTypeInfo: Seq[TypeInformation[_]],
       precedingOffset: Long,
+      queryConfig: StreamQueryConfig,
       isRowsClause: Boolean,
       isRowTimeType: Boolean)
     : ProcessFunction[CRow, CRow] = {
@@ -256,15 +267,15 @@ object AggregateUtil {
           genFunction,
           aggregationStateType,
           inputRowType,
-          precedingOffset
-        )
+          precedingOffset,
+          queryConfig)
       } else {
         new RowTimeBoundedRangeOver(
           genFunction,
           aggregationStateType,
           inputRowType,
-          precedingOffset
-        )
+          precedingOffset,
+          queryConfig)
       }
     } else {
       if (isRowsClause) {
@@ -272,13 +283,15 @@ object AggregateUtil {
           genFunction,
           precedingOffset,
           aggregationStateType,
-          inputRowType)
+          inputRowType,
+          queryConfig)
       } else {
         new ProcTimeBoundedRangeOver(
           genFunction,
           precedingOffset,
           aggregationStateType,
-          inputRowType)
+          inputRowType,
+          queryConfig)
       }
     }
   }

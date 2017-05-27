@@ -24,6 +24,7 @@ import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex._
+import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.BatchTableEnvironment
@@ -46,7 +47,7 @@ class DataSetCalc(
     calcProgram: RexProgram,
     ruleDescription: String)
   extends Calc(cluster, traitSet, input, calcProgram)
-  with CommonCalc[Row]
+  with CommonCalc
   with DataSetRel {
 
   override def deriveRowType(): RelDataType = rowRelDataType
@@ -95,7 +96,8 @@ class DataSetCalc(
       new RowSchema(getInput.getRowType),
       new RowSchema(getRowType),
       calcProgram,
-      config)
+      config,
+      classOf[FlatMapFunction[Row, Row]])
 
     val runner = new FlatMapRunner(genFunction.name, genFunction.code, returnType)
 

@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.util.ExceptionUtils;
+
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -26,8 +29,6 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 
 /**
@@ -37,7 +38,7 @@ import org.slf4j.Logger;
 @ChannelHandler.Sharable
 public class PipelineErrorHandler extends SimpleChannelInboundHandler<Object> {
 
-	/** The logger to which the handler writes the log statements */
+	/** The logger to which the handler writes the log statements. */
 	private final Logger logger;
 
 	public PipelineErrorHandler(Logger logger) {

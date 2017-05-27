@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.api.windowing.assigners;
 
-import java.util.Collection;
-import java.util.Collections;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -28,6 +26,9 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * A {@link WindowAssigner} that windows elements into windows based on the timestamp of the
@@ -57,6 +58,7 @@ public class TumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow>
 		this.size = size;
 		this.offset = offset;
 	}
+
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		if (timestamp > Long.MIN_VALUE) {

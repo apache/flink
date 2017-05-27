@@ -118,9 +118,9 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	 * in the new graph will exist only if the original bipartite graph contains a bottom vertex they are both
 	 * connected to.
 	 *
-	 * The simple projection performs a single join and returns edges containing the bipartite edge values.
+	 * <p>The simple projection performs a single join and returns edges containing the bipartite edge values.
 	 *
-	 * Note: KT must override .equals(). This requirement may be removed in a future release.
+	 * <p>Note: KT must override .equals(). This requirement may be removed in a future release.
 	 *
 	 * @return simple top projection of the bipartite graph
 	 */
@@ -162,9 +162,9 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	 * vertices in the new graph will exist only if the original bipartite graph contains a top vertex they are both
 	 * connected to.
 	 *
-	 * The simple projection performs a single join and returns edges containing the bipartite edge values.
+	 * <p>The simple projection performs a single join and returns edges containing the bipartite edge values.
 	 *
-	 * Note: KB must override .equals(). This requirement may be removed in a future release.
+	 * <p>Note: KB must override .equals(). This requirement may be removed in a future release.
 	 *
 	 * @return simple bottom projection of the bipartite graph
 	 */
@@ -205,10 +205,10 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	 * Convert a bipartite graph into a graph that contains only top vertices. An edge between two vertices in the new
 	 * graph will exist only if the original bipartite graph contains at least one bottom vertex they both connect to.
 	 *
-	 * The full projection performs three joins and returns edges containing the the connecting vertex ID and value,
+	 * <p>The full projection performs three joins and returns edges containing the the connecting vertex ID and value,
 	 * both top vertex values, and both bipartite edge values.
 	 *
-	 * Note: KT must override .equals(). This requirement may be removed in a future release.
+	 * <p>Note: KT must override .equals(). This requirement may be removed in a future release.
 	 *
 	 * @return full top projection of the bipartite graph
 	 */
@@ -271,10 +271,10 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	 * Convert a bipartite graph into a graph that contains only bottom vertices. An edge between two vertices in the
 	 * new graph will exist only if the original bipartite graph contains at least one top vertex they both connect to.
 	 *
-	 * The full projection performs three joins and returns edges containing the the connecting vertex ID and value,
+	 * <p>The full projection performs three joins and returns edges containing the the connecting vertex ID and value,
 	 * both bottom vertex values, and both bipartite edge values.
 	 *
-	 * Note: KB must override .equals(). This requirement may be removed in a future release.
+	 * <p>Note: KB must override .equals(). This requirement may be removed in a future release.
 	 *
 	 * @return full bottom projection of the bipartite graph
 	 */

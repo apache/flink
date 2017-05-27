@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -1244,7 +1245,6 @@ public class AllWindowTranslationTest {
 
 	}
 
-
 	@Test
 	@SuppressWarnings("rawtypes")
 	public void testReduceWithCustomTrigger() throws Exception {
@@ -1461,7 +1461,7 @@ public class AllWindowTranslationTest {
 	//  UDFs
 	// ------------------------------------------------------------------------
 
-	public static class DummyReducer implements ReduceFunction<Tuple2<String, Integer>> {
+	private static class DummyReducer implements ReduceFunction<Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

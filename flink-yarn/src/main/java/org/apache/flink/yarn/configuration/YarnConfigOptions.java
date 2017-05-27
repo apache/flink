@@ -24,7 +24,8 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
  * This class holds configuration constants used by Flink's YARN runners.
- * These options are not expected to be ever configured by users explicitly. 
+ *
+ * <p>These options are not expected to be ever configured by users explicitly.
  */
 public class YarnConfigOptions {
 
@@ -42,8 +43,26 @@ public class YarnConfigOptions {
 			key("yarn.appmaster.rpc.port")
 			.defaultValue(-1);
 
+	/**
+	 * Defines whether user-jars are included in the system class path for per-job-clusters as well as their positioning
+	 * in the path. They can be positioned at the beginning ("FIRST"), at the end ("LAST"), or be positioned based on
+	 * their name ("ORDER").
+	 */
+	public static final ConfigOption<String> CLASSPATH_INCLUDE_USER_JAR =
+		key("yarn.per-job-cluster.include-user-jar")
+			.defaultValue("ORDER");
+
+
 	// ------------------------------------------------------------------------
 
-	/** This class is not meant to be instantiated */
+	/** This class is not meant to be instantiated. */
 	private YarnConfigOptions() {}
+
+	/** @see YarnConfigOptions#CLASSPATH_INCLUDE_USER_JAR */
+	public enum UserJarInclusion {
+		DISABLED,
+		FIRST,
+		LAST,
+		ORDER
+	}
 }

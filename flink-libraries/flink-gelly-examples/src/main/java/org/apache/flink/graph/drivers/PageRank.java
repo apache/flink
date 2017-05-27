@@ -18,17 +18,18 @@
 
 package org.apache.flink.graph.drivers;
 
-import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.drivers.output.CSV;
 import org.apache.flink.graph.drivers.output.Print;
 import org.apache.flink.graph.drivers.parameter.DoubleParameter;
 import org.apache.flink.graph.drivers.parameter.IterationConvergence;
-import org.apache.flink.graph.library.link_analysis.PageRank.Result;
+import org.apache.flink.graph.library.linkanalysis.PageRank.Result;
+
+import org.apache.commons.lang3.text.StrBuilder;
 
 /**
- * @see org.apache.flink.graph.library.link_analysis.PageRank
+ * @see org.apache.flink.graph.library.linkanalysis.PageRank
  */
 public class PageRank<K, VV, EV>
 extends SimpleDriver<K, VV, EV, Result<K>>
@@ -67,7 +68,7 @@ implements CSV, Print {
 	@Override
 	protected DataSet<Result<K>> simplePlan(Graph<K, VV, EV> graph) throws Exception {
 		return graph
-			.run(new org.apache.flink.graph.library.link_analysis.PageRank<K, VV, EV>(
+			.run(new org.apache.flink.graph.library.linkanalysis.PageRank<K, VV, EV>(
 				dampingFactor.getValue(),
 				iterationConvergence.getValue().iterations,
 				iterationConvergence.getValue().convergenceThreshold));

@@ -24,9 +24,8 @@ import java.io.Serializable;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A serializable representation of a AWS Kinesis Stream shard. It is basically a wrapper class around the information
- * provided along with {@link com.amazonaws.services.kinesis.model.Shard}, with some extra utility methods to
- * determine whether or not a shard is closed and whether or not the shard is a result of parent shard splits or merges.
+ * A legacy serializable representation of a AWS Kinesis Stream shard. It is basically a wrapper class around the information
+ * provided along with {@link com.amazonaws.services.kinesis.model.Shard}.
  */
 public class KinesisStreamShard implements Serializable {
 
@@ -129,5 +128,32 @@ public class KinesisStreamShard implements Serializable {
 	public static boolean isValidShardId(String shardId) {
 		if (shardId == null) { return false; }
 		return shardId.matches("^shardId-\\d{12}");
+	}
+
+	/**
+	 * Utility function to convert {@link KinesisStreamShard} into the new {@link StreamShardMetadata} model.
+	 *
+	 * @param kinesisStreamShard the {@link KinesisStreamShard} to be converted
+	 * @return the converted {@link StreamShardMetadata}
+	 */
+	public static StreamShardMetadata convertToStreamShardMetadata(KinesisStreamShard kinesisStreamShard) {
+		StreamShardMetadata streamShardMetadata = new StreamShardMetadata();
+
+		streamShardMetadata.setStreamName(kinesisStreamShard.getStreamName());
+		streamShardMetadata.setShardId(kinesisStreamShard.getShard().getShardId());
+		streamShardMetadata.setParentShardId(kinesisStreamShard.getShard().getParentShardId());
+		streamShardMetadata.setAdjacentParentShardId(kinesisStreamShard.getShard().getAdjacentParentShardId());
+
+		if (kinesisStreamShard.getShard().getHashKeyRange() != null) {
+			streamShardMetadata.setStartingHashKey(kinesisStreamShard.getShard().getHashKeyRange().getStartingHashKey());
+			streamShardMetadata.setEndingHashKey(kinesisStreamShard.getShard().getHashKeyRange().getEndingHashKey());
+		}
+		
+		if (kinesisStreamShard.getShard().getSequenceNumberRange() != null) {
+			streamShardMetadata.setStartingSequenceNumber(kinesisStreamShard.getShard().getSequenceNumberRange().getStartingSequenceNumber());
+			streamShardMetadata.setEndingSequenceNumber(kinesisStreamShard.getShard().getSequenceNumberRange().getEndingSequenceNumber());
+		}
+
+		return streamShardMetadata;
 	}
 }

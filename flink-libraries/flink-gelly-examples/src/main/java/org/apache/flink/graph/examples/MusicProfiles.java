@@ -18,9 +18,6 @@
 
 package org.apache.flink.graph.examples;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -43,6 +40,9 @@ import org.apache.flink.graph.library.LabelPropagation;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * This example demonstrates how to mix the DataSet Flink API with the Gelly API.
  * The input is a set &lt;userId - songId - playCount&gt; triplets and
@@ -57,14 +57,14 @@ import org.apache.flink.util.Collector;
  * Finally, we use the graph API to run the label propagation community detection algorithm on
  * the similarity graph.
  *
- * The triplets input is expected to be given as one triplet per line,
+ * <p>The triplets input is expected to be given as one triplet per line,
  * in the following format: "&lt;userID&gt;\t&lt;songID&gt;\t&lt;playcount&gt;".
  *
- * The mismatches input file is expected to contain one mismatch record per line,
+ * <p>The mismatches input file is expected to contain one mismatch record per line,
  * in the following format:
  * "ERROR: &lt;songID trackID&gt; song_title"
  *
- * If no arguments are provided, the example runs with default data from {@link MusicProfilesData}.
+ * <p>If no arguments are provided, the example runs with default data from {@link MusicProfilesData}.
  */
 @SuppressWarnings("serial")
 public class MusicProfiles implements ProgramDescription {
@@ -131,7 +131,7 @@ public class MusicProfiles implements ProgramDescription {
 		Graph<String, Long, NullValue> similarUsersGraph = Graph.fromDataSet(similarUsers,
 				new MapFunction<String, Long>() {
 					public Long map(String value) {
-						return 1l;
+						return 1L;
 					}
 				}, env).getUndirected();
 
@@ -167,7 +167,7 @@ public class MusicProfiles implements ProgramDescription {
 
 	}
 
-	public static final class ExtractMismatchSongIds implements MapFunction<String, Tuple1<String>> {
+	private static final class ExtractMismatchSongIds implements MapFunction<String, Tuple1<String>> {
 
 		public Tuple1<String> map(String value) {
 			String[] tokens = value.split("\\s+");
@@ -176,7 +176,7 @@ public class MusicProfiles implements ProgramDescription {
 		}
 	}
 
-	public static final class FilterOutMismatches implements CoGroupFunction<Tuple3<String, String, Integer>,
+	private static final class FilterOutMismatches implements CoGroupFunction<Tuple3<String, String, Integer>,
 		Tuple1<String>, Tuple3<String, String, Integer>> {
 
 		public void coGroup(Iterable<Tuple3<String, String, Integer>> triplets,
@@ -191,13 +191,13 @@ public class MusicProfiles implements ProgramDescription {
 		}
 	}
 
-	public static final class FilterSongNodes implements FilterFunction<Tuple2<String, String>> {
+	private static final class FilterSongNodes implements FilterFunction<Tuple2<String, String>> {
 		public boolean filter(Tuple2<String, String> value) throws Exception {
 			return !value.f1.equals("");
 		}
 	}
 
-	public static final class GetTopSongPerUser	implements EdgesFunctionWithVertexValue<String, NullValue, Integer,
+	private static final class GetTopSongPerUser	implements EdgesFunctionWithVertexValue<String, NullValue, Integer,
 		Tuple2<String, String>> {
 
 		public void iterateEdges(Vertex<String, NullValue> vertex,
@@ -215,7 +215,7 @@ public class MusicProfiles implements ProgramDescription {
 		}
 	}
 
-	public static final class CreateSimilarUserEdges implements GroupReduceFunction<Edge<String, Integer>,
+	private static final class CreateSimilarUserEdges implements GroupReduceFunction<Edge<String, Integer>,
 		Edge<String, NullValue>> {
 
 		public void reduce(Iterable<Edge<String, Integer>> edges, Collector<Edge<String, NullValue>> out) {
@@ -257,8 +257,8 @@ public class MusicProfiles implements ProgramDescription {
 
 	private static boolean parseParameters(String[] args) {
 
-		if(args.length > 0) {
-			if(args.length != 6) {
+		if (args.length > 0) {
+			if (args.length != 6) {
 				System.err.println("Usage: MusicProfiles <input user song triplets path>" +
 						" <input song mismatches path> <output top tracks path> "
 						+ "<playcount threshold> <output communities path> <num iterations>");

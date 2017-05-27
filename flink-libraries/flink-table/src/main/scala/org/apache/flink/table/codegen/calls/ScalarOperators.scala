@@ -21,7 +21,7 @@ import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{NumericTypeInfo, PrimitiveArrayTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
@@ -93,7 +93,8 @@ object ScalarOperators {
       generateComparison("==", nullCheck, left, right)
     }
     // array types
-    else if (isArray(left.resultType) && left.resultType == right.resultType) {
+    else if (isArray(left.resultType) &&
+        left.resultType.getTypeClass == right.resultType.getTypeClass) {
       generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
         (leftTerm, rightTerm) => s"java.util.Arrays.equals($leftTerm, $rightTerm)"
       }
@@ -133,7 +134,8 @@ object ScalarOperators {
       generateComparison("!=", nullCheck, left, right)
     }
     // array types
-    else if (isArray(left.resultType) && left.resultType == right.resultType) {
+    else if (isArray(left.resultType) &&
+        left.resultType.getTypeClass == right.resultType.getTypeClass) {
       generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
         (leftTerm, rightTerm) => s"!java.util.Arrays.equals($leftTerm, $rightTerm)"
       }
@@ -456,6 +458,11 @@ object ScalarOperators {
     case (fromTp, toTp) if fromTp == toTp =>
       operand
 
+    // array identity casting
+    // (e.g. for Integer[] that can be ObjectArrayTypeInfo or BasicArrayTypeInfo)
+    case (fromTp, toTp) if isArray(fromTp) && fromTp.getTypeClass == toTp.getTypeClass =>
+      operand
+
     // Date/Time/Timestamp -> String
     case (dtt: SqlTimeTypeInfo[_], STRING_TYPE_INFO) =>
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
@@ -479,13 +486,13 @@ object ScalarOperators {
       }
 
     // Object array -> String
-    case (_:ObjectArrayTypeInfo[_, _], STRING_TYPE_INFO) =>
+    case (_: ObjectArrayTypeInfo[_, _] | _: BasicArrayTypeInfo[_, _], STRING_TYPE_INFO) =>
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
         (operandTerm) => s"java.util.Arrays.deepToString($operandTerm)"
       }
 
     // Primitive array -> String
-    case (_:PrimitiveArrayTypeInfo[_], STRING_TYPE_INFO) =>
+    case (_: PrimitiveArrayTypeInfo[_], STRING_TYPE_INFO) =>
       generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
         (operandTerm) => s"java.util.Arrays.toString($operandTerm)"
       }
@@ -792,37 +799,45 @@ object ScalarOperators {
 
     val resultTerm = newName("result")
 
+    def unboxArrayElement(componentInfo: TypeInformation[_]): GeneratedExpression = {
+      // get boxed array element
+      val resultTypeTerm = boxedTypeTermForTypeInfo(componentInfo)
+
+      val arrayAccessCode = if (codeGenerator.nullCheck) {
+        s"""
+          |${array.code}
+          |${index.code}
+          |$resultTypeTerm $resultTerm = (${array.nullTerm} || ${index.nullTerm}) ?
+          |  null : ${array.resultTerm}[${index.resultTerm} - 1];
+          |""".stripMargin
+      } else {
+        s"""
+          |${array.code}
+          |${index.code}
+          |$resultTypeTerm $resultTerm = ${array.resultTerm}[${index.resultTerm} - 1];
+          |""".stripMargin
+      }
+
+      // generate unbox code
+      val unboxing = codeGenerator.generateInputFieldUnboxing(componentInfo, resultTerm)
+
+      unboxing.copy(code =
+        s"""
+          |$arrayAccessCode
+          |${unboxing.code}
+          |""".stripMargin
+      )
+    }
+
     array.resultType match {
 
       // unbox object array types
       case oati: ObjectArrayTypeInfo[_, _] =>
-        // get boxed array element
-        val resultTypeTerm = boxedTypeTermForTypeInfo(oati.getComponentInfo)
+        unboxArrayElement(oati.getComponentInfo)
 
-        val arrayAccessCode = if (codeGenerator.nullCheck) {
-          s"""
-            |${array.code}
-            |${index.code}
-            |$resultTypeTerm $resultTerm = (${array.nullTerm} || ${index.nullTerm}) ?
-            |  null : ${array.resultTerm}[${index.resultTerm} - 1];
-            |""".stripMargin
-        } else {
-          s"""
-            |${array.code}
-            |${index.code}
-            |$resultTypeTerm $resultTerm = ${array.resultTerm}[${index.resultTerm} - 1];
-            |""".stripMargin
-        }
-
-        // generate unbox code
-        val unboxing = codeGenerator.generateInputFieldUnboxing(oati.getComponentInfo, resultTerm)
-
-        unboxing.copy(code =
-          s"""
-            |$arrayAccessCode
-            |${unboxing.code}
-            |""".stripMargin
-        )
+      // unbox basic array types
+      case bati: BasicArrayTypeInfo[_, _] =>
+        unboxArrayElement(bati.getComponentInfo)
 
       // no unboxing necessary
       case pati: PrimitiveArrayTypeInfo[_] =>
@@ -841,6 +856,7 @@ object ScalarOperators {
     val resultTerm = newName("result")
     val resultType = array.resultType match {
       case oati: ObjectArrayTypeInfo[_, _] => oati.getComponentInfo
+      case bati: BasicArrayTypeInfo[_, _] => bati.getComponentInfo
       case pati: PrimitiveArrayTypeInfo[_] => pati.getComponentType
     }
     val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
@@ -852,31 +868,38 @@ object ScalarOperators {
       s"${array.resultTerm}.length"
     }
 
+    def unboxArrayElement(componentInfo: TypeInformation[_]): String = {
+      // generate unboxing code
+      val unboxing = codeGenerator.generateInputFieldUnboxing(
+        componentInfo,
+        s"${array.resultTerm}[0]")
+
+      s"""
+        |${array.code}
+        |${if (codeGenerator.nullCheck) s"boolean $nullTerm;" else "" }
+        |$resultTypeTerm $resultTerm;
+        |switch ($arrayLengthCode) {
+        |  case 0:
+        |    ${if (codeGenerator.nullCheck) s"$nullTerm = true;" else "" }
+        |    $resultTerm = $defaultValue;
+        |    break;
+        |  case 1:
+        |    ${unboxing.code}
+        |    ${if (codeGenerator.nullCheck) s"$nullTerm = ${unboxing.nullTerm};" else "" }
+        |    $resultTerm = ${unboxing.resultTerm};
+        |    break;
+        |  default:
+        |    throw new RuntimeException("Array has more than one element.");
+        |}
+        |""".stripMargin
+    }
+
     val arrayAccessCode = array.resultType match {
       case oati: ObjectArrayTypeInfo[_, _] =>
-        // generate unboxing code
-        val unboxing = codeGenerator.generateInputFieldUnboxing(
-          oati.getComponentInfo,
-          s"${array.resultTerm}[0]")
+        unboxArrayElement(oati.getComponentInfo)
 
-        s"""
-          |${array.code}
-          |${if (codeGenerator.nullCheck) s"boolean $nullTerm;" else "" }
-          |$resultTypeTerm $resultTerm;
-          |switch ($arrayLengthCode) {
-          |  case 0:
-          |    ${if (codeGenerator.nullCheck) s"$nullTerm = true;" else "" }
-          |    $resultTerm = $defaultValue;
-          |    break;
-          |  case 1:
-          |    ${unboxing.code}
-          |    ${if (codeGenerator.nullCheck) s"$nullTerm = ${unboxing.nullTerm};" else "" }
-          |    $resultTerm = ${unboxing.resultTerm};
-          |    break;
-          |  default:
-          |    throw new RuntimeException("Array has more than one element.");
-          |}
-          |""".stripMargin
+      case bati: BasicArrayTypeInfo[_, _] =>
+        unboxArrayElement(bati.getComponentInfo)
 
       case pati: PrimitiveArrayTypeInfo[_] =>
         s"""

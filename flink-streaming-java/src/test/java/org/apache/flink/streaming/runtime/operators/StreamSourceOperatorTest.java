@@ -37,11 +37,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
-
-import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.CollectorOutput;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -52,12 +52,15 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.*;
-
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link StreamSource} operators.
+ */
 @SuppressWarnings("serial")
 public class StreamSourceOperatorTest {
 
@@ -86,7 +89,6 @@ public class StreamSourceOperatorTest {
 		final StreamSource<String, InfiniteSource<String>> operator =
 				new StreamSource<>(new InfiniteSource<String>());
 
-
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 		operator.cancel();
 
@@ -105,7 +107,6 @@ public class StreamSourceOperatorTest {
 		// regular stream source operator
 		final StreamSource<String, InfiniteSource<String>> operator =
 				new StreamSource<>(new InfiniteSource<String>());
-
 
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 
@@ -139,7 +140,6 @@ public class StreamSourceOperatorTest {
 		final StoppableStreamSource<String, InfiniteSource<String>> operator =
 				new StoppableStreamSource<>(new InfiniteSource<String>());
 
-
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 		operator.stop();
 
@@ -157,7 +157,6 @@ public class StreamSourceOperatorTest {
 		// regular stream source operator
 		final StoppableStreamSource<String, InfiniteSource<String>> operator =
 				new StoppableStreamSource<>(new InfiniteSource<String>());
-
 
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
 
@@ -179,7 +178,7 @@ public class StreamSourceOperatorTest {
 	}
 
 	/**
-	 * Test that latency marks are emitted
+	 * Test that latency marks are emitted.
 	 */
 	@Test
 	public void testLatencyMarkEmission() throws Exception {

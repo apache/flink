@@ -18,21 +18,23 @@
 
 package org.apache.flink.test.testdata;
 
+import org.junit.Assert;
+
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.StringTokenizer;
 
-import org.junit.Assert;
-
-
+/**
+ * Test data for KMeans programs.
+ */
 public class KMeansData {
 
 	// --------------------------------------------------------------------------------------------
 	//  3-dimensional data
 	// --------------------------------------------------------------------------------------------
-	
-	public final static String DATAPOINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n"
+
+	public static final String DATAPOINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n"
 			+ "3|1.60|70.11|16.32|\n" + "4|2.43|19.81|89.56|\n" + "5|67.99|9.00|14.48|\n" + "6|87.80|84.49|55.83|\n"
 			+ "7|90.26|42.99|53.29|\n" + "8|51.36|6.16|9.35|\n" + "9|12.43|9.52|12.54|\n" + "10|80.01|8.78|29.74|\n"
 			+ "11|92.76|2.93|80.07|\n" + "12|46.32|100.00|22.98|\n" + "13|34.11|45.61|58.60|\n"
@@ -83,7 +85,6 @@ public class KMeansData {
 			"4|22.51|47.19|86.23|\n" +
 			"5|82.70|53.79|68.68|\n" +
 			"6|29.74|19.17|59.16|";
-	
 
 	public static final String CENTERS_AFTER_ONE_STEP_SINGLE_DIGIT =
 			"0|28.5|54.8|21.9|\n" +
@@ -93,8 +94,7 @@ public class KMeansData {
 			"4|22.5|47.2|86.2|\n" +
 			"5|82.7|53.8|68.7|\n" +
 			"6|29.7|19.2|59.2|";
-	
-	
+
 	public static final String CENTERS_AFTER_20_ITERATIONS_SINGLE_DIGIT =
 			"0|38.3|54.5|19.3|\n" +
 			"1|32.1|83.0|50.4|\n" +
@@ -103,7 +103,7 @@ public class KMeansData {
 			"4|24.9|29.2|77.6|\n" +
 			"5|78.7|66.1|70.8|\n" +
 			"6|39.5|14.0|18.7|\n";
-	
+
 	public static final String CENTERS_AFTER_20_ITERATIONS_DOUBLE_DIGIT =
 			"0|38.25|54.52|19.34|\n" +
 			"1|32.14|83.04|50.35|\n" +
@@ -112,15 +112,15 @@ public class KMeansData {
 			"4|24.93|29.25|77.56|\n" +
 			"5|78.67|66.07|70.82|\n" +
 			"6|39.51|14.04|18.74|\n";
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  2-dimensional data
 	// --------------------------------------------------------------------------------------------
-	
-	public final static String DATAPOINTS_2D = "0|50.90|16.20|\n" + "1|73.65|61.76|\n" + "2|61.73|49.95|\n"
+
+	public static final String DATAPOINTS_2D = "0|50.90|16.20|\n" + "1|73.65|61.76|\n" + "2|61.73|49.95|\n"
 			+ "3|1.60|70.11|\n"   + "4|2.43|19.81|\n"   + "5|67.99|9.00|\n" + "6|87.80|84.49|\n"
 			+ "7|90.26|42.99|\n"  + "8|51.36|6.16|\n"   + "9|12.43|9.52|\n" + "10|80.01|8.78|\n"
-			+ "11|92.76|2.93|\n"  + "12|46.32|100.00|\n"+ "13|34.11|45.61|\n"
+			+ "11|92.76|2.93|\n"  + "12|46.32|100.00|\n" + "13|34.11|45.61|\n"
 			+ "14|68.82|16.36|\n" + "15|81.47|76.45|\n" + "16|65.55|40.21|\n"
 			+ "17|84.22|88.56|\n" + "18|36.99|68.36|\n" + "19|28.87|37.69|\n"
 			+ "20|31.56|13.22|\n" + "21|18.49|34.45|\n" + "22|13.33|94.02|\n"
@@ -150,7 +150,7 @@ public class KMeansData {
 			+ "92|60.58|18.15|\n" + "93|50.11|33.25|\n" + "94|97.74|60.93|\n"
 			+ "95|76.31|52.50|\n" + "96|7.71|85.85|\n"  + "97|9.32|72.21|\n"
 			+ "98|71.29|51.88|\n" + "99|31.39|7.27|";
-	
+
 	public static final String INITIAL_CENTERS_2D =
 			"0|1.96|65.04|\n" +
 			"1|53.99|84.23|\n" +
@@ -168,7 +168,7 @@ public class KMeansData {
 			"4|26.94|46.34|\n" +
 			"5|88.39|48.64|\n" +
 			"6|23.20|16.71|";
-	
+
 	public static final String CENTERS_2D_AFTER_20_ITERATIONS_DOUBLE_DIGIT =
 			"0|15.80|79.42|\n" +
 			"1|43.11|78.20|\n" +
@@ -177,81 +177,80 @@ public class KMeansData {
 			"4|25.13|44.42|\n" +
 			"5|82.90|48.16|\n" +
 			"6|20.79|13.08|";
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  testing / verification
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static void checkResultsWithDelta(String expectedResults, List<String> resultLines, final double maxDelta) {
-		
+
 		Comparator<String> deltaComp = new Comparator<String>() {
 
 			@Override
 			public int compare(String o1, String o2) {
-				
+
 				StringTokenizer st1 = new StringTokenizer(o1, "|");
 				StringTokenizer st2 = new StringTokenizer(o2, "|");
-				
-				if(st1.countTokens() != st2.countTokens()) {
+
+				if (st1.countTokens() != st2.countTokens()) {
 					return st1.countTokens() - st2.countTokens();
 				}
-				
+
 				// first token is ID
 				String t1 = st1.nextToken();
 				String t2 = st2.nextToken();
-				if(!t1.equals(t2)) {
+				if (!t1.equals(t2)) {
 					return t1.compareTo(t2);
 				}
-				
-				while(st1.hasMoreTokens()) {
+
+				while (st1.hasMoreTokens()) {
 					t1 = st1.nextToken();
 					t2 = st2.nextToken();
-					
+
 					double d1 = Double.parseDouble(t1);
 					double d2 = Double.parseDouble(t2);
-					
-					if (Math.abs(d1-d2) > maxDelta) {
+
+					if (Math.abs(d1 - d2) > maxDelta) {
 						return d1 < d2 ? -1 : 1;
 					}
 				}
-				
+
 				return 0;
 			}
 		};
-		
+
 		// ------- Test results -----------
-		
+
 		Collections.sort(resultLines, deltaComp);
-		
+
 		final String[] should = expectedResults.split("\n");
 		final String[] is = (String[]) resultLines.toArray(new String[resultLines.size()]);
-		
+
 		Assert.assertEquals("Wrong number of result lines.", should.length, is.length);
-		
+
 		for (int i = 0; i < should.length; i++) {
 			StringTokenizer shouldRecord = new StringTokenizer(should[i], "|");
 			StringTokenizer isRecord = new StringTokenizer(is[i], "|");
-			
+
 			Assert.assertEquals("Records don't match.", shouldRecord.countTokens(), isRecord.countTokens());
-			
+
 			// first token is ID
 			String shouldToken = shouldRecord.nextToken();
 			String isToken = isRecord.nextToken();
-			
+
 			Assert.assertEquals("Records don't match.", shouldToken, isToken);
 
 			while (shouldRecord.hasMoreTokens()) {
 				shouldToken = shouldRecord.nextToken();
 				isToken = isRecord.nextToken();
-				
+
 				double shouldDouble = Double.parseDouble(shouldToken);
 				double isDouble = Double.parseDouble(isToken);
-				
+
 				Assert.assertTrue("Value " + isDouble + " is out of range of " + shouldDouble + " +/- " + maxDelta, shouldDouble - maxDelta <= isDouble && shouldDouble + maxDelta >= isDouble);
 			}
 		}
 	}
-	
-	
+
 	private KMeansData() {}
 }

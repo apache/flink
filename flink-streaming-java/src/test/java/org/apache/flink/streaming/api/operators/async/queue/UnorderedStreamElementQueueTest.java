@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.operators.async.OperatorActions;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -45,7 +46,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
- * {@link UnorderedStreamElementQueue} specific tests
+ * {@link UnorderedStreamElementQueue} specific tests.
  */
 public class UnorderedStreamElementQueueTest extends TestLogger {
 	private static final long timeout = 10000L;

@@ -17,10 +17,6 @@
 
 package org.apache.flink.streaming.util.keys;
 
-import static java.util.Objects.requireNonNull;
-
-import java.lang.reflect.Array;
-import java.util.Arrays;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -35,6 +31,11 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+
+import java.lang.reflect.Array;
+import java.util.Arrays;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Utility class that contains helper methods to manipulating {@link KeySelector} for streaming.
@@ -88,7 +89,6 @@ public final class KeySelectorUtil {
 
 		return new ArrayKeySelector<>(positions, new TupleTypeInfo<>(primitiveInfos));
 	}
-
 
 	public static <X, K> KeySelector<X, K> getSelectorForOneKey(
 			Keys<X> keys, Partitioner<K> partitioner, TypeInformation<X> typeInfo, ExecutionConfig executionConfig) {

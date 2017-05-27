@@ -67,7 +67,7 @@ trait UpsertStreamTableSink[T] extends TableSink[JTuple2[JBool, T]] {
     *
     * @param isAppendOnly true if the table is append-only, false otherwise.
     */
-  def setIsAppendOnly(isAppendOnly: Boolean): Unit
+  def setIsAppendOnly(isAppendOnly: JBool): Unit
 
   /** Returns the requested record type */
   def getRecordType: TypeInformation[T]

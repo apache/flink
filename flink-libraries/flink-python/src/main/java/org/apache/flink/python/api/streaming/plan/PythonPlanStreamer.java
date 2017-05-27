@@ -10,12 +10,14 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.streaming.plan;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.api.PythonOptions;
 import org.apache.flink.python.api.streaming.util.StreamPrinter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +42,7 @@ public class PythonPlanStreamer {
 	private Process process;
 	private ServerSocket server;
 	private Socket socket;
-	
+
 	public PythonPlanStreamer(Configuration config) {
 		this.config = config;
 	}
@@ -90,7 +92,7 @@ public class PythonPlanStreamer {
 			return false;
 		}
 		while (true) {
-			try {		
+			try {
 				socket = server.accept();
 				sender = new PythonPlanSender(socket.getOutputStream());
 				receiver = new PythonPlanReceiver(socket.getInputStream());
@@ -107,7 +109,7 @@ public class PythonPlanStreamer {
 			}
 		}
 	}
-	
+
 	public void finishPlanMode() {
 		try {
 			socket.close();
@@ -143,7 +145,7 @@ public class PythonPlanStreamer {
 			return ProcessState.RUNNING;
 		}
 	}
-	
+
 	private enum ProcessState {
 		RUNNING,
 		FAILED,

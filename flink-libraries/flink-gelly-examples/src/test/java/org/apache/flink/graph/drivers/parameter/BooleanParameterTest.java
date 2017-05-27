@@ -19,10 +19,14 @@
 package org.apache.flink.graph.drivers.parameter;
 
 import org.apache.flink.api.java.utils.ParameterTool;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+/**
+ * Tests for {@link BooleanParameter}.
+ */
 public class BooleanParameterTest
 extends ParameterTestBase {
 

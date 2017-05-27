@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.library.clustering.undirected;
 
-import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
@@ -28,12 +27,17 @@ import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+
+import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.junit.Test;
 
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link LocalClusteringCoefficient}.
+ */
 public class LocalClusteringCoefficientTest
 extends AsmTestBase {
 
@@ -58,7 +62,7 @@ extends AsmTestBase {
 	public void testCompleteGraph()
 			throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedTriangleCount = CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2);
+		long expectedTriangleCount = CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2);
 
 		DataSet<Result<LongValue>> cc = completeGraph
 			.run(new LocalClusteringCoefficient<LongValue, NullValue, NullValue>());

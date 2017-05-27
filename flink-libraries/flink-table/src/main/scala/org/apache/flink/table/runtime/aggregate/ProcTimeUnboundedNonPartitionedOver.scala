@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.util.Collector
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -37,8 +38,9 @@ import org.slf4j.LoggerFactory
   */
 class ProcTimeUnboundedNonPartitionedOver(
     genAggregations: GeneratedAggregationsFunction,
-    aggregationStateType: RowTypeInfo)
-  extends ProcessFunction[CRow, CRow]
+    aggregationStateType: RowTypeInfo,
+    queryConfig: StreamQueryConfig)
+  extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
     with CheckpointedFunction
     with Compiler[GeneratedAggregations] {
 
@@ -68,12 +70,16 @@ class ProcTimeUnboundedNonPartitionedOver(
         accumulators = function.createAccumulators()
       }
     }
+    initCleanupTimeState("ProcTimeUnboundedNonPartitionedOverCleanupTime")
   }
 
   override def processElement(
       inputC: CRow,
       ctx: ProcessFunction[CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
+    // register state-cleanup timer
+    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime())
+
 
     val input = inputC.row
 
@@ -83,6 +89,16 @@ class ProcTimeUnboundedNonPartitionedOver(
     function.setAggregationResults(accumulators, output.row)
 
     out.collect(output)
+  }
+
+  override def onTimer(
+    timestamp: Long,
+    ctx: ProcessFunction[CRow, CRow]#OnTimerContext,
+    out: Collector[CRow]): Unit = {
+
+    if (needToCleanupState(timestamp)) {
+      cleanupState(state)
+    }
   }
 
   override def snapshotState(context: FunctionSnapshotContext): Unit = {

@@ -38,6 +38,8 @@ import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
@@ -98,7 +100,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	private transient KinesisDataFetcher<T> fetcher;
 
 	/** The sequence numbers to restore to upon restore from failure */
-	private transient HashMap<KinesisStreamShard, SequenceNumber> sequenceNumsToRestore;
+	private transient HashMap<StreamShardMetadata, SequenceNumber> sequenceNumsToRestore;
 
 	private volatile boolean running = true;
 
@@ -109,7 +111,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	/** State name to access shard sequence number states; cannot be changed */
 	private static final String sequenceNumsStateStoreName = "Kinesis-Stream-Shard-State";
 
-	private transient ListState<Tuple2<KinesisStreamShard, SequenceNumber>> sequenceNumsStateForCheckpoint;
+	private transient ListState<Tuple2<StreamShardMetadata, SequenceNumber>> sequenceNumsStateForCheckpoint;
 
 	// ------------------------------------------------------------------------
 	//  Constructors
@@ -197,25 +199,26 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		KinesisDataFetcher<T> fetcher = createFetcher(streams, sourceContext, getRuntimeContext(), configProps, deserializer);
 
 		// initial discovery
-		List<KinesisStreamShard> allShards = fetcher.discoverNewShardsToSubscribe();
+		List<StreamShardHandle> allShards = fetcher.discoverNewShardsToSubscribe();
 
-		for (KinesisStreamShard shard : allShards) {
+		for (StreamShardHandle shard : allShards) {
+			StreamShardMetadata kinesisStreamShard = KinesisDataFetcher.convertToStreamShardMetadata(shard);
 			if (sequenceNumsToRestore != null) {
-				if (sequenceNumsToRestore.containsKey(shard)) {
+				if (sequenceNumsToRestore.containsKey(kinesisStreamShard)) {
 					// if the shard was already seen and is contained in the state,
 					// just use the sequence number stored in the state
 					fetcher.registerNewSubscribedShardState(
-						new KinesisStreamShardState(shard, sequenceNumsToRestore.get(shard)));
+						new KinesisStreamShardState(kinesisStreamShard, shard, sequenceNumsToRestore.get(kinesisStreamShard)));
 
 					if (LOG.isInfoEnabled()) {
 						LOG.info("Subtask {} is seeding the fetcher with restored shard {}," +
 								" starting state set to the restored sequence number {}",
-							getRuntimeContext().getIndexOfThisSubtask(), shard.toString(), sequenceNumsToRestore.get(shard));
+							getRuntimeContext().getIndexOfThisSubtask(), shard.toString(), sequenceNumsToRestore.get(kinesisStreamShard));
 					}
 				} else {
 					// the shard wasn't discovered in the previous run, therefore should be consumed from the beginning
 					fetcher.registerNewSubscribedShardState(
-						new KinesisStreamShardState(shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get()));
+						new KinesisStreamShardState(kinesisStreamShard, shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get()));
 
 					if (LOG.isInfoEnabled()) {
 						LOG.info("Subtask {} is seeding the fetcher with new discovered shard {}," +
@@ -231,7 +234,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 						ConsumerConfigConstants.DEFAULT_STREAM_INITIAL_POSITION)).toSentinelSequenceNumber();
 
 				fetcher.registerNewSubscribedShardState(
-					new KinesisStreamShardState(shard, startingSeqNum.get()));
+					new KinesisStreamShardState(kinesisStreamShard, shard, startingSeqNum.get()));
 
 				if (LOG.isInfoEnabled()) {
 					LOG.info("Subtask {} will be seeded with initial shard {}, starting state set as sequence number {}",
@@ -295,8 +298,8 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
-		TypeInformation<Tuple2<KinesisStreamShard, SequenceNumber>> shardsStateTypeInfo = new TupleTypeInfo<>(
-			TypeInformation.of(KinesisStreamShard.class),
+		TypeInformation<Tuple2<StreamShardMetadata, SequenceNumber>> shardsStateTypeInfo = new TupleTypeInfo<>(
+			TypeInformation.of(StreamShardMetadata.class),
 			TypeInformation.of(SequenceNumber.class));
 
 		sequenceNumsStateForCheckpoint = context.getOperatorStateStore().getUnionListState(
@@ -305,7 +308,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		if (context.isRestored()) {
 			if (sequenceNumsToRestore == null) {
 				sequenceNumsToRestore = new HashMap<>();
-				for (Tuple2<KinesisStreamShard, SequenceNumber> kinesisSequenceNumber : sequenceNumsStateForCheckpoint.get()) {
+				for (Tuple2<StreamShardMetadata, SequenceNumber> kinesisSequenceNumber : sequenceNumsStateForCheckpoint.get()) {
 					sequenceNumsToRestore.put(kinesisSequenceNumber.f0, kinesisSequenceNumber.f1);
 				}
 
@@ -330,12 +333,12 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 
 			if (fetcher == null) {
 				if (sequenceNumsToRestore != null) {
-					for (Map.Entry<KinesisStreamShard, SequenceNumber> entry : sequenceNumsToRestore.entrySet()) {
+					for (Map.Entry<StreamShardMetadata, SequenceNumber> entry : sequenceNumsToRestore.entrySet()) {
 						// sequenceNumsToRestore is the restored global union state;
 						// should only snapshot shards that actually belong to us
 
 						if (KinesisDataFetcher.isThisSubtaskShouldSubscribeTo(
-								entry.getKey(),
+								KinesisDataFetcher.convertToStreamShardHandle(entry.getKey()),
 								getRuntimeContext().getNumberOfParallelSubtasks(),
 								getRuntimeContext().getIndexOfThisSubtask())) {
 
@@ -344,14 +347,14 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 					}
 				}
 			} else {
-				HashMap<KinesisStreamShard, SequenceNumber> lastStateSnapshot = fetcher.snapshotState();
+				HashMap<StreamShardMetadata, SequenceNumber> lastStateSnapshot = fetcher.snapshotState();
 
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Snapshotted state, last processed sequence numbers: {}, checkpoint id: {}, timestamp: {}",
 						lastStateSnapshot.toString(), context.getCheckpointId(), context.getCheckpointTimestamp());
 				}
 
-				for (Map.Entry<KinesisStreamShard, SequenceNumber> entry : lastStateSnapshot.entrySet()) {
+				for (Map.Entry<StreamShardMetadata, SequenceNumber> entry : lastStateSnapshot.entrySet()) {
 					sequenceNumsStateForCheckpoint.add(Tuple2.of(entry.getKey(), entry.getValue()));
 				}
 			}
@@ -363,7 +366,16 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		LOG.info("Subtask {} restoring offsets from an older Flink version: {}",
 			getRuntimeContext().getIndexOfThisSubtask(), sequenceNumsToRestore);
 
-		sequenceNumsToRestore = restoredState.isEmpty() ? null : restoredState;
+		if (restoredState.isEmpty()) {
+			sequenceNumsToRestore = null;
+		} else {
+			sequenceNumsToRestore = new HashMap<>();
+			for (Map.Entry<KinesisStreamShard, SequenceNumber> stateEntry : restoredState.entrySet()) {
+				sequenceNumsToRestore.put(
+						KinesisStreamShard.convertToStreamShardMetadata(stateEntry.getKey()),
+						stateEntry.getValue());
+			}
+		}
 	}
 
 	/** This method is exposed for tests that need to mock the KinesisDataFetcher in the consumer. */
@@ -378,7 +390,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	}
 
 	@VisibleForTesting
-	HashMap<KinesisStreamShard, SequenceNumber> getRestoredState() {
+	HashMap<StreamShardMetadata, SequenceNumber> getRestoredState() {
 		return sequenceNumsToRestore;
 	}
 }

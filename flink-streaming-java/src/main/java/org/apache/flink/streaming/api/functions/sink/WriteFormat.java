@@ -17,9 +17,10 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.Serializable;
 import java.util.ArrayList;
-import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * Abstract class for formatting the output of the writeAsText and writeAsCsv

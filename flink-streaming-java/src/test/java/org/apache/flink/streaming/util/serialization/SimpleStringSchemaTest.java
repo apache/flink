@@ -19,12 +19,14 @@
 package org.apache.flink.streaming.util.serialization;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+
 import org.junit.Test;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for the {@link SimpleStringSchema}.

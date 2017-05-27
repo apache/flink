@@ -35,14 +35,14 @@ import java.util.Queue;
 
 /**
  * An implementation of an input format that dynamically assigns {@code FileCopyTask} to the mappers
- * that have finished previously assigned tasks
+ * that have finished previously assigned tasks.
  */
 public class FileCopyTaskInputFormat implements InputFormat<FileCopyTask, FileCopyTaskInputSplit> {
 
 	private static final long serialVersionUID = -644394866425221151L;
-	
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(FileCopyTaskInputFormat.class);
-	
+
 
 	private final List<FileCopyTask> tasks;
 

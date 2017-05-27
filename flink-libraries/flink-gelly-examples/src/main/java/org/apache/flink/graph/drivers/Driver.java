@@ -27,7 +27,7 @@ import org.apache.flink.graph.drivers.parameter.Parameterized;
  * A driver for one or more {@link GraphAlgorithm}s and/or
  * {@link GraphAnalytic}s.
  *
- * It is preferable to include multiple, overlapping algorithms/analytics in
+ * <p>It is preferable to include multiple, overlapping algorithms/analytics in
  * the same driver both for simplicity and since this examples module
  * demonstrates Flink capabilities rather than absolute performance.
  *
@@ -56,7 +56,7 @@ extends Parameterized {
 	 * "Run" algorithms and analytics on the input graph. The execution plan
 	 * is not finalized here but in the output methods.
 	 *
-	 * Drivers are first configured, next planned, and finally the chosen
+	 * <p>Drivers are first configured, next planned, and finally the chosen
 	 * output method is called.
 	 *
 	 * @param graph input graph

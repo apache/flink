@@ -24,7 +24,7 @@ import akka.dispatch.Mapper;
 import akka.dispatch.Recover;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.QueryableStateOptions;
@@ -114,13 +114,11 @@ public class QueryableStateClient {
 		LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
 
 		// Get the ask timeout
-		String askTimeoutString = config.getString(
-				ConfigConstants.AKKA_ASK_TIMEOUT,
-				ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
+		String askTimeoutString = config.getString(AkkaOptions.ASK_TIMEOUT);
 
 		Duration timeout = FiniteDuration.apply(askTimeoutString);
 		if (!timeout.isFinite()) {
-			throw new IllegalConfigurationException(ConfigConstants.AKKA_ASK_TIMEOUT
+			throw new IllegalConfigurationException(AkkaOptions.ASK_TIMEOUT.key()
 					+ " is not a finite timeout ('" + askTimeoutString + "')");
 		}
 

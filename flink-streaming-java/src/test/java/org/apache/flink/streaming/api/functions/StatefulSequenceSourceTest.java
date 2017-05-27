@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -35,6 +36,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Tests for {@link StatefulSequenceSource}.
+ */
 public class StatefulSequenceSourceTest {
 
 	@Test
@@ -190,7 +194,7 @@ public class StatefulSequenceSourceTest {
 		private final List<Long> localOutput;
 
 		public BlockingSourceContext(String name, OneShotLatch latchToTrigger, OneShotLatch latchToWait,
-									 ConcurrentHashMap<String, List<Long>> output, int elemToFire) {
+									ConcurrentHashMap<String, List<Long>> output, int elemToFire) {
 			this.name = name;
 			this.lock = new Object();
 			this.latchToTrigger = latchToTrigger;
@@ -224,7 +228,6 @@ public class StatefulSequenceSourceTest {
 				}
 			}
 		}
-
 
 		@Override
 		public void emitWatermark(Watermark mark) {

@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import static java.util.Objects.requireNonNull;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -36,6 +34,8 @@ import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * ConnectedStreams represent two connected streams of (possibly) different data types.

@@ -41,7 +41,7 @@ public class EuclideanGraphData {
 	public static DataSet<Vertex<Long, EuclideanGraphWeighing.Point>> getDefaultVertexDataSet(ExecutionEnvironment env) {
 
 		List<Vertex<Long, EuclideanGraphWeighing.Point>> vertices = new ArrayList<Vertex<Long, EuclideanGraphWeighing.Point>>();
-		for(int i=1; i<=NUM_VERTICES; i++) {
+		for (int i = 1; i <= NUM_VERTICES; i++) {
 			vertices.add(new Vertex<Long, EuclideanGraphWeighing.Point>(new Long(i),
 					new EuclideanGraphWeighing.Point(new Double(i), new Double(i))));
 		}

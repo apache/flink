@@ -22,13 +22,16 @@ import org.apache.flink.graph.GraphAlgorithm;
 
 /**
  * A multi-state boolean.
- * <p>
- * This class is used by {@link GraphAlgorithm} configuration options to set a
+ *
+ * <p>This class is used by {@link GraphAlgorithm} configuration options to set a
  * default value which can be overwritten. The default value is also used when
  * algorithm configurations are merged and conflict.
  */
 public class OptionalBoolean {
 
+	/**
+	 * States for {@link OptionalBoolean}.
+	 */
 	protected enum State {
 		UNSET,
 		FALSE,
@@ -114,10 +117,10 @@ public class OptionalBoolean {
 	}
 
 	/**
-	 * State transitions:
-	 *  if the states are the same then no change
-	 *  if either state is unset then change to the other state
-	 *  if the states are conflicting then set to the conflicting state
+	 * State transitions.
+	 * - if the states are the same then no change
+	 * - if either state is unset then change to the other state
+	 * - if the states are conflicting then set to the conflicting state
 	 *
 	 * @param other object from which to merge state
 	 */

@@ -38,6 +38,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -482,6 +483,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@SuppressWarnings("unchecked")
 	public void testKryoRegisteringRestoreResilienceWithDefaultSerializer() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		Environment env = new DummyEnvironment("test", 1, 0);
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
 
@@ -509,6 +511,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				streamFactory,
 				CheckpointOptions.forFullCheckpoint()));
 
+		snapshot.registerSharedStates(sharedStateRegistry);
 		backend.dispose();
 
 		// ========== restore snapshot - should use default serializer (ONLY SERIALIZATION) ==========
@@ -517,8 +520,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		env.getExecutionConfig().addDefaultKryoSerializer(TestPojo.class, (Class) CustomKryoTestSerializer.class);
 
 		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
-
-		snapshot.discardState();
 
 		// re-initialize to ensure that we create the KryoSerializer from scratch, otherwise
 		// initializeSerializerUnlessSet would not pick up our new config
@@ -535,6 +536,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				2,
 				streamFactory,
 				CheckpointOptions.forFullCheckpoint()));
+
+		snapshot2.registerSharedStates(sharedStateRegistry);
+
+		snapshot.discardState();
 
 		backend.dispose();
 
@@ -570,6 +575,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@Test
 	public void testKryoRegisteringRestoreResilienceWithRegisteredSerializer() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		Environment env = new DummyEnvironment("test", 1, 0);
 
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
@@ -597,6 +603,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				streamFactory,
 				CheckpointOptions.forFullCheckpoint()));
 
+		snapshot.registerSharedStates(sharedStateRegistry);
 		backend.dispose();
 
 		// ========== restore snapshot - should use specific serializer (ONLY SERIALIZATION) ==========
@@ -604,8 +611,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		env.getExecutionConfig().registerTypeWithKryoSerializer(TestPojo.class, CustomKryoTestSerializer.class);
 
 		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
-
-		snapshot.discardState();
 
 		// re-initialize to ensure that we create the KryoSerializer from scratch, otherwise
 		// initializeSerializerUnlessSet would not pick up our new config
@@ -622,6 +627,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				2,
 				streamFactory,
 				CheckpointOptions.forFullCheckpoint()));
+
+		snapshot2.registerSharedStates(sharedStateRegistry);
+
+		snapshot.discardState();
 
 		backend.dispose();
 
@@ -1795,6 +1804,47 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	}
 
 	@Test
+	public void testRestoreWithWrongKeySerializer() {
+		try {
+			CheckpointStreamFactory streamFactory = createStreamFactory();
+
+			// use an IntSerializer at first
+			AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
+
+			ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+			// write some state
+			backend.setCurrentKey(1);
+			state.update("1");
+			backend.setCurrentKey(2);
+			state.update("2");
+
+			// draw a snapshot
+			KeyedStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
+
+			backend.dispose();
+
+			// restore with the wrong key serializer
+			try {
+				restoreKeyedBackend(DoubleSerializer.INSTANCE, snapshot1);
+
+				fail("should recognize wrong key serializer");
+			} catch (RuntimeException e) {
+				if (!e.getMessage().contains("The new key serializer is not compatible")) {
+					fail("wrong exception " + e);
+				}
+				// expected
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
 	@SuppressWarnings("unchecked")
 	public void testValueStateRestoreWithWrongSerializers() {
 		try {
@@ -2508,7 +2558,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		}
 	}
 
-	private KeyedStateHandle runSnapshot(RunnableFuture<KeyedStateHandle> snapshotRunnableFuture) throws Exception {
+	protected KeyedStateHandle runSnapshot(RunnableFuture<KeyedStateHandle> snapshotRunnableFuture) throws Exception {
 		if(!snapshotRunnableFuture.isDone()) {
 			Thread runner = new Thread(snapshotRunnableFuture);
 			runner.start();

@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.runtime.operators.windowing;
 
+package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -26,18 +26,21 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import static org.apache.flink.streaming.runtime.operators.windowing.StreamRecordMatchers.timeWindow;
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 /**
- * Tests for {@link SlidingEventTimeWindows}
+ * Tests for {@link SlidingEventTimeWindows}.
  */
 public class SlidingEventTimeWindowsTest extends TestLogger {
 
@@ -147,7 +150,6 @@ public class SlidingEventTimeWindowsTest extends TestLogger {
 		} catch (IllegalArgumentException e) {
 			assertThat(e.toString(), containsString("0 <= offset < slide and size > 0"));
 		}
-
 
 		try {
 			SlidingEventTimeWindows.of(Time.seconds(20), Time.seconds(10), Time.seconds(-1));

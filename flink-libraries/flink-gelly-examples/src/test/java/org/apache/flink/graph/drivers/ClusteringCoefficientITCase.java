@@ -20,11 +20,15 @@ package org.apache.flink.graph.drivers;
 
 import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
+
 import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+/**
+ * Tests for {@link ClusteringCoefficient}.
+ */
 @RunWith(Parameterized.class)
 public class ClusteringCoefficientITCase
 extends CopyableValueDriverBaseITCase {
@@ -83,25 +87,25 @@ extends CopyableValueDriverBaseITCase {
 
 	@Test
 	public void testHashWithSmallUndirectedRMatGraph() throws Exception {
-		long directed_checksum;
-		long undirected_checksum;
+		long directedChecksum;
+		long undirectedChecksum;
 		switch (idType) {
 			case "byte":
 			case "short":
 			case "char":
 			case "integer":
-				directed_checksum = 0x0000003875b38c43L;
-				undirected_checksum = 0x0000003c20344c75L;
+				directedChecksum = 0x0000003875b38c43L;
+				undirectedChecksum = 0x0000003c20344c75L;
 				break;
 
 			case "long":
-				directed_checksum = 0x0000003671970c59L;
-				undirected_checksum = 0x0000003939645d8cL;
+				directedChecksum = 0x0000003671970c59L;
+				undirectedChecksum = 0x0000003939645d8cL;
 				break;
 
 			case "string":
-				directed_checksum = 0x0000003be109a770L;
-				undirected_checksum = 0x0000003b8c98d14aL;
+				directedChecksum = 0x0000003be109a770L;
+				undirectedChecksum = 0x0000003b8c98d14aL;
 				break;
 
 			default:
@@ -113,9 +117,9 @@ extends CopyableValueDriverBaseITCase {
 			"vertex count: 117, average clustering coefficient: 0.57438679[0-9]+\n";
 
 		expectedOutput(parameters(7, "directed", "undirected", "hash"),
-			"\n" + new Checksum(117, directed_checksum) + expected);
+			"\n" + new Checksum(117, directedChecksum) + expected);
 		expectedOutput(parameters(7, "undirected", "undirected", "hash"),
-			"\n" + new Checksum(117, undirected_checksum) + expected);
+			"\n" + new Checksum(117, undirectedChecksum) + expected);
 	}
 
 	@Test
@@ -159,8 +163,8 @@ extends CopyableValueDriverBaseITCase {
 		// computation is too large for collection mode
 		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
 
-		long directed_checksum;
-		long undirected_checksum;
+		long directedChecksum;
+		long undirectedChecksum;
 		switch (idType) {
 			case "byte":
 				return;
@@ -168,18 +172,18 @@ extends CopyableValueDriverBaseITCase {
 			case "short":
 			case "char":
 			case "integer":
-				directed_checksum = 0x00000681fad1587eL;
-				undirected_checksum = 0x0000068713b3b7f1L;
+				directedChecksum = 0x00000681fad1587eL;
+				undirectedChecksum = 0x0000068713b3b7f1L;
 				break;
 
 			case "long":
-				directed_checksum = 0x000006928a6301b1L;
-				undirected_checksum = 0x000006a399edf0e6L;
+				directedChecksum = 0x000006928a6301b1L;
+				undirectedChecksum = 0x000006a399edf0e6L;
 				break;
 
 			case "string":
-				directed_checksum = 0x000006749670a2f7L;
-				undirected_checksum = 0x0000067f19c6c4d5L;
+				directedChecksum = 0x000006749670a2f7L;
+				undirectedChecksum = 0x0000067f19c6c4d5L;
 				break;
 
 			default:
@@ -191,8 +195,8 @@ extends CopyableValueDriverBaseITCase {
 			"vertex count: 3349, average clustering coefficient: 0.33029442[0-9]+\n";
 
 		expectedOutput(parameters(12, "directed", "undirected", "hash"),
-			"\n" + new Checksum(3349, directed_checksum) + expected);
+			"\n" + new Checksum(3349, directedChecksum) + expected);
 		expectedOutput(parameters(12, "undirected", "undirected", "hash"),
-			"\n" + new Checksum(3349, undirected_checksum) + expected);
+			"\n" + new Checksum(3349, undirectedChecksum) + expected);
 	}
 }

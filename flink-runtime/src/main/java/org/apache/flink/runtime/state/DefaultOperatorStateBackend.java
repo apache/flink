@@ -24,6 +24,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -184,13 +185,18 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				new HashMap<>(registeredStates.size());
 
 		// eagerly create deep copies of the list states in the sync phase, so that we can use them in the async writing
-		for (Map.Entry<String, PartitionableListState<?>> entry : this.registeredStates.entrySet()) {
-
-			PartitionableListState<?> listState = entry.getValue();
-			if (null != listState) {
-				listState = listState.deepCopy();
+		ClassLoader snapshotClassLoader = Thread.currentThread().getContextClassLoader();
+		Thread.currentThread().setContextClassLoader(userClassloader);
+		try {
+			for (Map.Entry<String, PartitionableListState<?>> entry : this.registeredStates.entrySet()) {
+				PartitionableListState<?> listState = entry.getValue();
+				if (null != listState) {
+					listState = listState.deepCopy();
+				}
+				registeredStatesDeepCopies.put(entry.getKey(), listState);
 			}
-			registeredStatesDeepCopies.put(entry.getKey(), listState);
+		} finally {
+			Thread.currentThread().setContextClassLoader(snapshotClassLoader);
 		}
 
 		// implementation of the async IO operation, based on FutureTask
@@ -257,8 +263,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			task.run();
 		}
 
-		LOG.info("DefaultOperatorStateBackend snapshot (" + streamFactory + ", synchronous part) in thread " +
-				Thread.currentThread() + " took " + (System.currentTimeMillis() - syncStartTime) + " ms.");
+		LOG.info("DefaultOperatorStateBackend snapshot ({}, synchronous part) in thread {} took {} ms.",
+				streamFactory, Thread.currentThread(), (System.currentTimeMillis() - syncStartTime));
 
 		return task;
 	}
@@ -293,6 +299,21 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 				// Recreate all PartitionableListStates from the meta info
 				for (RegisteredOperatorBackendStateMetaInfo.Snapshot<?> restoredMetaInfo : restoredMetaInfoSnapshots) {
+
+					if (restoredMetaInfo.getPartitionStateSerializer() == null ||
+							restoredMetaInfo.getPartitionStateSerializer() instanceof UnloadableDummyTypeSerializer) {
+
+						// must fail now if the previous serializer cannot be restored because there is no serializer
+						// capable of reading previous state
+						// TODO when eager state registration is in place, we can try to get a convert deserializer
+						// TODO from the newly registered serializer instead of simply failing here
+
+						throw new IOException("Unable to restore operator state [" + restoredMetaInfo.getName() + "]." +
+							" The previous serializer of the operator state must be present; the serializer could" +
+							" have been removed from the classpath, or its implementation have changed and could" +
+							" not be loaded. This is a temporary restriction that will be fixed in future versions.");
+					}
+
 					PartitionableListState<?> listState = registeredStates.get(restoredMetaInfo.getName());
 
 					if (null == listState) {

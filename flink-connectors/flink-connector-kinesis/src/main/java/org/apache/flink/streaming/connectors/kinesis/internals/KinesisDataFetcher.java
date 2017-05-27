@@ -17,13 +17,17 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import com.amazonaws.services.kinesis.model.HashKeyRange;
+import com.amazonaws.services.kinesis.model.SequenceNumberRange;
+import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
@@ -259,7 +263,7 @@ public class KinesisDataFetcher<T> {
 
 				if (LOG.isInfoEnabled()) {
 					LOG.info("Subtask {} will start consuming seeded shard {} from sequence number {} with ShardConsumer {}",
-						indexOfThisConsumerSubtask, seededShardState.getKinesisStreamShard().toString(),
+						indexOfThisConsumerSubtask, seededShardState.getStreamShardHandle().toString(),
 						seededShardState.getLastProcessedSequenceNum(), seededStateIndex);
 					}
 
@@ -267,7 +271,7 @@ public class KinesisDataFetcher<T> {
 					new ShardConsumer<>(
 						this,
 						seededStateIndex,
-						subscribedShardsState.get(seededStateIndex).getKinesisStreamShard(),
+						subscribedShardsState.get(seededStateIndex).getStreamShardHandle(),
 						subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum()));
 			}
 		}
@@ -293,19 +297,19 @@ public class KinesisDataFetcher<T> {
 				LOG.debug("Subtask {} is trying to discover new shards that were created due to resharding ...",
 					indexOfThisConsumerSubtask);
 			}
-			List<KinesisStreamShard> newShardsDueToResharding = discoverNewShardsToSubscribe();
+			List<StreamShardHandle> newShardsDueToResharding = discoverNewShardsToSubscribe();
 
-			for (KinesisStreamShard shard : newShardsDueToResharding) {
+			for (StreamShardHandle shard : newShardsDueToResharding) {
 				// since there may be delay in discovering a new shard, all new shards due to
 				// resharding should be read starting from the earliest record possible
 				KinesisStreamShardState newShardState =
-					new KinesisStreamShardState(shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
+					new KinesisStreamShardState(convertToStreamShardMetadata(shard), shard, SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
 				int newStateIndex = registerNewSubscribedShardState(newShardState);
 
 				if (LOG.isInfoEnabled()) {
 					LOG.info("Subtask {} has discovered a new shard {} due to resharding, and will start consuming " +
 							"the shard from sequence number {} with ShardConsumer {}",
-						indexOfThisConsumerSubtask, newShardState.getKinesisStreamShard().toString(),
+						indexOfThisConsumerSubtask, newShardState.getStreamShardHandle().toString(),
 						newShardState.getLastProcessedSequenceNum(), newStateIndex);
 				}
 
@@ -313,7 +317,7 @@ public class KinesisDataFetcher<T> {
 					new ShardConsumer<>(
 						this,
 						newStateIndex,
-						newShardState.getKinesisStreamShard(),
+						newShardState.getStreamShardHandle(),
 						newShardState.getLastProcessedSequenceNum()));
 			}
 
@@ -349,13 +353,13 @@ public class KinesisDataFetcher<T> {
 	 *
 	 * @return state snapshot
 	 */
-	public HashMap<KinesisStreamShard, SequenceNumber> snapshotState() {
+	public HashMap<StreamShardMetadata, SequenceNumber> snapshotState() {
 		// this method assumes that the checkpoint lock is held
 		assert Thread.holdsLock(checkpointLock);
 
-		HashMap<KinesisStreamShard, SequenceNumber> stateSnapshot = new HashMap<>();
+		HashMap<StreamShardMetadata, SequenceNumber> stateSnapshot = new HashMap<>();
 		for (KinesisStreamShardState shardWithState : subscribedShardsState) {
-			stateSnapshot.put(shardWithState.getKinesisStreamShard(), shardWithState.getLastProcessedSequenceNum());
+			stateSnapshot.put(shardWithState.getStreamShardMetadata(), shardWithState.getLastProcessedSequenceNum());
 		}
 		return stateSnapshot;
 	}
@@ -405,7 +409,7 @@ public class KinesisDataFetcher<T> {
 		if (lastSeenShardIdOfStream == null) {
 			// if not previously set, simply put as the last seen shard id
 			this.subscribedStreamsToLastDiscoveredShardIds.put(stream, shardId);
-		} else if (KinesisStreamShard.compareShardIds(shardId, lastSeenShardIdOfStream) > 0) {
+		} else if (StreamShardHandle.compareShardIds(shardId, lastSeenShardIdOfStream) > 0) {
 			this.subscribedStreamsToLastDiscoveredShardIds.put(stream, shardId);
 		}
 	}
@@ -419,17 +423,17 @@ public class KinesisDataFetcher<T> {
 	 * 3. Update the subscribedStreamsToLastDiscoveredShardIds state so that we won't get shards
 	 *    that we have already seen before the next time this function is called
 	 */
-	public List<KinesisStreamShard> discoverNewShardsToSubscribe() throws InterruptedException {
+	public List<StreamShardHandle> discoverNewShardsToSubscribe() throws InterruptedException {
 
-		List<KinesisStreamShard> newShardsToSubscribe = new LinkedList<>();
+		List<StreamShardHandle> newShardsToSubscribe = new LinkedList<>();
 
 		GetShardListResult shardListResult = kinesis.getShardList(subscribedStreamsToLastDiscoveredShardIds);
 		if (shardListResult.hasRetrievedShards()) {
 			Set<String> streamsWithNewShards = shardListResult.getStreamsWithRetrievedShards();
 
 			for (String stream : streamsWithNewShards) {
-				List<KinesisStreamShard> newShardsOfStream = shardListResult.getRetrievedShardListOfStream(stream);
-				for (KinesisStreamShard newShard : newShardsOfStream) {
+				List<StreamShardHandle> newShardsOfStream = shardListResult.getRetrievedShardListOfStream(stream);
+				for (StreamShardHandle newShard : newShardsOfStream) {
 					if (isThisSubtaskShouldSubscribeTo(newShard, totalNumberOfConsumerSubtasks, indexOfThisConsumerSubtask)) {
 						newShardsToSubscribe.add(newShard);
 					}
@@ -502,7 +506,7 @@ public class KinesisDataFetcher<T> {
 			// we've finished reading the shard and should determine it to be non-active
 			if (lastSequenceNumber.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get())) {
 				LOG.info("Subtask {} has reached the end of subscribed shard: {}",
-					indexOfThisConsumerSubtask, subscribedShardsState.get(shardStateIndex).getKinesisStreamShard());
+					indexOfThisConsumerSubtask, subscribedShardsState.get(shardStateIndex).getStreamShardHandle());
 
 				// check if we need to mark the source as idle;
 				// note that on resharding, if registerNewSubscribedShardState was invoked for newly discovered shards
@@ -549,7 +553,7 @@ public class KinesisDataFetcher<T> {
 	 * @param totalNumberOfConsumerSubtasks total number of consumer subtasks
 	 * @param indexOfThisConsumerSubtask index of this consumer subtask
 	 */
-	public static boolean isThisSubtaskShouldSubscribeTo(KinesisStreamShard shard,
+	public static boolean isThisSubtaskShouldSubscribeTo(StreamShardHandle shard,
 														int totalNumberOfConsumerSubtasks,
 														int indexOfThisConsumerSubtask) {
 		return (Math.abs(shard.hashCode() % totalNumberOfConsumerSubtasks)) == indexOfThisConsumerSubtask;
@@ -581,5 +585,57 @@ public class KinesisDataFetcher<T> {
 			initial.put(stream, null);
 		}
 		return initial;
+	}
+
+	/**
+	 * Utility function to convert {@link StreamShardHandle} into {@link StreamShardMetadata}
+	 *
+	 * @param streamShardHandle the {@link StreamShardHandle} to be converted
+	 * @return a {@link StreamShardMetadata} object
+	 */
+	public static StreamShardMetadata convertToStreamShardMetadata(StreamShardHandle streamShardHandle) {
+		StreamShardMetadata streamShardMetadata = new StreamShardMetadata();
+
+		streamShardMetadata.setStreamName(streamShardHandle.getStreamName());
+		streamShardMetadata.setShardId(streamShardHandle.getShard().getShardId());
+		streamShardMetadata.setParentShardId(streamShardHandle.getShard().getParentShardId());
+		streamShardMetadata.setAdjacentParentShardId(streamShardHandle.getShard().getAdjacentParentShardId());
+
+		if (streamShardHandle.getShard().getHashKeyRange() != null) {
+			streamShardMetadata.setStartingHashKey(streamShardHandle.getShard().getHashKeyRange().getStartingHashKey());
+			streamShardMetadata.setEndingHashKey(streamShardHandle.getShard().getHashKeyRange().getEndingHashKey());
+		}
+
+		if (streamShardHandle.getShard().getSequenceNumberRange() != null) {
+			streamShardMetadata.setStartingSequenceNumber(streamShardHandle.getShard().getSequenceNumberRange().getStartingSequenceNumber());
+			streamShardMetadata.setEndingSequenceNumber(streamShardHandle.getShard().getSequenceNumberRange().getEndingSequenceNumber());
+		}
+
+		return streamShardMetadata;
+	}
+
+	/**
+	 * Utility function to convert {@link StreamShardMetadata} into {@link StreamShardHandle}
+	 *
+	 * @param streamShardMetadata the {@link StreamShardMetadata} to be converted
+	 * @return a {@link StreamShardHandle} object
+	 */
+	public static StreamShardHandle convertToStreamShardHandle(StreamShardMetadata streamShardMetadata) {
+		Shard shard = new Shard();
+		shard.withShardId(streamShardMetadata.getShardId());
+		shard.withParentShardId(streamShardMetadata.getParentShardId());
+		shard.withAdjacentParentShardId(streamShardMetadata.getAdjacentParentShardId());
+
+		HashKeyRange hashKeyRange = new HashKeyRange();
+		hashKeyRange.withStartingHashKey(streamShardMetadata.getStartingHashKey());
+		hashKeyRange.withEndingHashKey(streamShardMetadata.getEndingHashKey());
+		shard.withHashKeyRange(hashKeyRange);
+
+		SequenceNumberRange sequenceNumberRange = new SequenceNumberRange();
+		sequenceNumberRange.withStartingSequenceNumber(streamShardMetadata.getStartingSequenceNumber());
+		sequenceNumberRange.withEndingSequenceNumber(streamShardMetadata.getEndingSequenceNumber());
+		shard.withSequenceNumberRange(sequenceNumberRange);
+
+		return new StreamShardHandle(streamShardMetadata.getStreamName(), shard);
 	}
 }

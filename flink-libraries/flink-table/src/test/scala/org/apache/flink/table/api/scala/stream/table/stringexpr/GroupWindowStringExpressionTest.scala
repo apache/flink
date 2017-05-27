@@ -23,7 +23,7 @@ import org.apache.flink.table.api.java.{Slide => JSlide}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.utils.TableTestBase
-import org.junit.{Assert, Test}
+import org.junit.Test
 
 
 class GroupWindowStringExpressionTest extends TableTestBase {
@@ -47,7 +47,9 @@ class GroupWindowStringExpressionTest extends TableTestBase {
         myCountFun('string),
         'int.sum,
         weightAvgFun('long, 'int),
-        weightAvgFun('int, 'int) * 2)
+        weightAvgFun('int, 'int) * 2,
+        'w.start,
+        'w.end)
 
     // String / Java API
     val resJava = t
@@ -55,11 +57,13 @@ class GroupWindowStringExpressionTest extends TableTestBase {
       .groupBy("w, string")
       .select(
         "string, " +
-          "myCountFun(string), " +
-          "int.sum, " +
-          "weightAvgFun(long, int), " +
-          "weightAvgFun(int, int) * 2")
+        "myCountFun(string), " +
+        "int.sum, " +
+        "weightAvgFun(long, int), " +
+        "weightAvgFun(int, int) * 2, " +
+        "start(w)," +
+        "end(w)")
 
-    Assert.assertEquals("Logical Plans do not match", resJava.logicalPlan, resJava.logicalPlan)
+    verifyTableEquals(resJava, resScala)
   }
 }

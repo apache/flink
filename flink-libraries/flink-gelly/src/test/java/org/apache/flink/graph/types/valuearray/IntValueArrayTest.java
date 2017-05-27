@@ -19,12 +19,16 @@
 package org.apache.flink.graph.types.valuearray;
 
 import org.apache.flink.types.IntValue;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link IntValueArray}.
+ */
 public class IntValueArrayTest {
 
 	@Test
@@ -34,7 +38,7 @@ public class IntValueArrayTest {
 		ValueArray<IntValue> iva = new IntValueArray(IntValueArray.DEFAULT_CAPACITY_IN_BYTES);
 
 		// fill the array
-		for (int i = 0 ; i < count ; i++) {
+		for (int i = 0; i < count; i++) {
 			assertFalse(iva.isFull());
 			assertEquals(i, iva.size());
 
@@ -61,9 +65,9 @@ public class IntValueArrayTest {
 		assertEquals(iva, iva.copy());
 
 		// test copyTo
-		IntValueArray iva_to = new IntValueArray();
-		iva.copyTo(iva_to);
-		assertEquals(iva, iva_to);
+		IntValueArray ivaTo = new IntValueArray();
+		iva.copyTo(ivaTo);
+		assertEquals(iva, ivaTo);
 
 		// test clear
 		iva.clear();
@@ -77,7 +81,7 @@ public class IntValueArrayTest {
 		ValueArray<IntValue> iva = new IntValueArray();
 
 		// add several elements
-		for (int i = 0 ; i < count ; i++) {
+		for (int i = 0; i < count; i++) {
 			assertFalse(iva.isFull());
 			assertEquals(i, iva.size());
 
@@ -104,9 +108,9 @@ public class IntValueArrayTest {
 		assertEquals(iva, iva.copy());
 
 		// test copyTo
-		IntValueArray iva_to = new IntValueArray();
-		iva.copyTo(iva_to);
-		assertEquals(iva, iva_to);
+		IntValueArray ivaTo = new IntValueArray();
+		iva.copyTo(ivaTo);
+		assertEquals(iva, ivaTo);
 
 		// test mark/reset
 		int size = iva.size();

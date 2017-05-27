@@ -19,7 +19,6 @@
 package org.apache.flink.cep.nfa;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.google.common.primitives.Doubles;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.Event;
@@ -156,22 +155,11 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		List<Map<String, Event>> resultingPatterns = new ArrayList<>();
+		List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent: inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			resultingPatterns.addAll(patterns);
-		}
-
-		assertEquals(1, resultingPatterns.size());
-		Map<String, Event> patternMap = resultingPatterns.get(0);
-
-		assertEquals(startEvent, patternMap.get("start"));
-		assertEquals(middleEvent, patternMap.get("middle"));
-		assertEquals(endEvent, patternMap.get("end"));
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middleEvent, endEvent)
+		));
 	}
 
 	@Test
@@ -202,24 +190,11 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
-		List<Collection<Event>> allPatterns = new ArrayList<>();
+		List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-				allPatterns.add(foundPattern.values());
-			}
-		}
-
-		assertEquals(1, allPatterns.size());
-		assertEquals(Sets.<Set<Event>>newHashSet(
-			Sets.newHashSet(middleEvent1, end)
-		), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(middleEvent1, end)
+		));
 	}
 
 	@Test
@@ -252,19 +227,9 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
+		List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-			}
-		}
-
-		assertEquals(Sets.newHashSet(), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList());
 	}
 
 	/**
@@ -274,7 +239,6 @@ public class NFAITCase extends TestLogger {
 	@Test
 	public void testSimplePatternWithTimeWindowNFA() {
 		List<StreamRecord<Event>> events = new ArrayList<>();
-		List<Map<String, Event>> resultingPatterns = new ArrayList<>();
 
 		final Event startEvent;
 		final Event middleEvent;
@@ -313,21 +277,11 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		for (StreamRecord<Event> event: events) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-					event.getValue(),
-					event.getTimestamp()).f0;
+		List<List<Event>> resultingPatterns = feedNFA(events, nfa);
 
-			resultingPatterns.addAll(patterns);
-		}
-
-		assertEquals(1, resultingPatterns.size());
-
-		Map<String, Event> patternMap = resultingPatterns.get(0);
-
-		assertEquals(startEvent, patternMap.get("start"));
-		assertEquals(middleEvent, patternMap.get("middle"));
-		assertEquals(endEvent, patternMap.get("end"));
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middleEvent, endEvent)
+		));
 	}
 
 	/**
@@ -337,9 +291,9 @@ public class NFAITCase extends TestLogger {
 	@Test
 	public void testSimplePatternWithTimeoutHandling() {
 		List<StreamRecord<Event>> events = new ArrayList<>();
-		List<Map<String, Event>> resultingPatterns = new ArrayList<>();
-		Set<Tuple2<Map<String, Event>, Long>> resultingTimeoutPatterns = new HashSet<>();
-		Set<Tuple2<Map<String, Event>, Long>> expectedTimeoutPatterns = new HashSet<>();
+		List<Map<String, List<Event>>> resultingPatterns = new ArrayList<>();
+		Set<Tuple2<Map<String, List<Event>>, Long>> resultingTimeoutPatterns = new HashSet<>();
+		Set<Tuple2<Map<String, List<Event>>, Long>> expectedTimeoutPatterns = new HashSet<>();
 
 		events.add(new StreamRecord<>(new Event(1, "start", 1.0), 1));
 		events.add(new StreamRecord<>(new Event(2, "start", 1.0), 2));
@@ -348,19 +302,19 @@ public class NFAITCase extends TestLogger {
 		events.add(new StreamRecord<>(new Event(5, "end", 1.0), 11));
 		events.add(new StreamRecord<>(new Event(6, "end", 1.0), 13));
 
-		Map<String, Event> timeoutPattern1 = new HashMap<>();
-		timeoutPattern1.put("start", new Event(1, "start", 1.0));
-		timeoutPattern1.put("middle", new Event(3, "middle", 1.0));
+		Map<String, List<Event>> timeoutPattern1 = new HashMap<>();
+		timeoutPattern1.put("start", Collections.singletonList(new Event(1, "start", 1.0)));
+		timeoutPattern1.put("middle", Collections.singletonList(new Event(3, "middle", 1.0)));
 
-		Map<String, Event> timeoutPattern2 = new HashMap<>();
-		timeoutPattern2.put("start", new Event(2, "start", 1.0));
-		timeoutPattern2.put("middle", new Event(3, "middle", 1.0));
+		Map<String, List<Event>> timeoutPattern2 = new HashMap<>();
+		timeoutPattern2.put("start", Collections.singletonList(new Event(2, "start", 1.0)));
+		timeoutPattern2.put("middle", Collections.singletonList(new Event(3, "middle", 1.0)));
 
-		Map<String, Event> timeoutPattern3 = new HashMap<>();
-		timeoutPattern3.put("start", new Event(1, "start", 1.0));
+		Map<String, List<Event>> timeoutPattern3 = new HashMap<>();
+		timeoutPattern3.put("start", Collections.singletonList(new Event(1, "start", 1.0)));
 
-		Map<String, Event> timeoutPattern4 = new HashMap<>();
-		timeoutPattern4.put("start", new Event(2, "start", 1.0));
+		Map<String, List<Event>> timeoutPattern4 = new HashMap<>();
+		timeoutPattern4.put("start", Collections.singletonList(new Event(2, "start", 1.0)));
 
 		expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern1, 11L));
 		expectedTimeoutPatterns.add(Tuple2.of(timeoutPattern2, 13L));
@@ -393,10 +347,11 @@ public class NFAITCase extends TestLogger {
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), true);
 
 		for (StreamRecord<Event> event: events) {
-			final Tuple2<Collection<Map<String, Event>>, Collection<Tuple2<Map<String, Event>, Long>>> patterns = nfa.process(event.getValue(), event.getTimestamp());
+			Tuple2<Collection<Map<String, List<Event>>>, Collection<Tuple2<Map<String, List<Event>>, Long>>> patterns =
+					nfa.process(event.getValue(), event.getTimestamp());
 
-			Collection<Map<String, Event>> matchedPatterns = patterns.f0;
-			Collection<Tuple2<Map<String, Event>, Long>> timeoutPatterns = patterns.f1;
+			Collection<Map<String, List<Event>>> matchedPatterns = patterns.f0;
+			Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutPatterns = patterns.f1;
 
 			resultingPatterns.addAll(matchedPatterns);
 			resultingTimeoutPatterns.addAll(timeoutPatterns);
@@ -460,31 +415,16 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		List<Map<String, Event>> resultingPatterns = new ArrayList<>();
+		List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent: inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			resultingPatterns.addAll(patterns);
-		}
-
-		assertEquals(6, resultingPatterns.size());
-
-		final Set<Set<Event>> patterns = new HashSet<>();
-		for (Map<String, Event> resultingPattern : resultingPatterns) {
-			patterns.add(new HashSet<>(resultingPattern.values()));
-		}
-
-		assertEquals(Sets.newHashSet(
-			Sets.newHashSet(startEvent, middleEvent1, nextOne1, endEvent),
-			Sets.newHashSet(startEvent, middleEvent2, nextOne1, endEvent),
-			Sets.newHashSet(startEvent, middleEvent3, nextOne1, endEvent),
-			Sets.newHashSet(startEvent, middleEvent1, nextOne2, endEvent),
-			Sets.newHashSet(startEvent, middleEvent2, nextOne2, endEvent),
-			Sets.newHashSet(startEvent, middleEvent3, nextOne2, endEvent)
-		), patterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middleEvent1, nextOne1, endEvent),
+				Lists.newArrayList(startEvent, middleEvent2, nextOne1, endEvent),
+				Lists.newArrayList(startEvent, middleEvent3, nextOne1, endEvent),
+				Lists.newArrayList(startEvent, middleEvent1, nextOne2, endEvent),
+				Lists.newArrayList(startEvent, middleEvent2, nextOne2, endEvent),
+				Lists.newArrayList(startEvent, middleEvent3, nextOne2, endEvent)
+		));
 	}
 
 	@Test
@@ -548,39 +488,26 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
-		List<Collection<Event>> allPatterns = new ArrayList<>();
+		List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-				allPatterns.add(foundPattern.values());
-			}
-		}
-
-		assertEquals(16, allPatterns.size());
-		assertEquals(Sets.newHashSet(
-			Sets.newHashSet(startEvent, middleEvent1, middleEvent2, middleEvent3, end1, end2, end4),
-			Sets.newHashSet(startEvent, middleEvent1, middleEvent2, end1, end2, end4),
-			Sets.newHashSet(startEvent, middleEvent1, middleEvent3, end1, end2, end4),
-			Sets.newHashSet(startEvent, middleEvent2, middleEvent3, end1, end2, end4),
-			Sets.newHashSet(startEvent, middleEvent1, end1, end2, end4),
-			Sets.newHashSet(startEvent, middleEvent2, end1, end2, end4),
-			Sets.newHashSet(startEvent, middleEvent3, end1, end2, end4),
-			Sets.newHashSet(startEvent, end1, end2, end4),
-			Sets.newHashSet(startEvent, middleEvent1, middleEvent2, middleEvent3, end1, end3, end4),
-			Sets.newHashSet(startEvent, middleEvent1, middleEvent2, end1, end3, end4),
-			Sets.newHashSet(startEvent, middleEvent1, middleEvent3, end1, end3, end4),
-			Sets.newHashSet(startEvent, middleEvent2, middleEvent3, end1, end3, end4),
-			Sets.newHashSet(startEvent, middleEvent1, end1, end3, end4),
-			Sets.newHashSet(startEvent, middleEvent2, end1, end3, end4),
-			Sets.newHashSet(startEvent, middleEvent3, end1, end3, end4),
-			Sets.newHashSet(startEvent, end1, end3, end4)
-		), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, end1, end2, end4),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent2, end1, end2, end4),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent3, end1, end2, end4),
+				Lists.newArrayList(startEvent, middleEvent2, middleEvent3, end1, end2, end4),
+				Lists.newArrayList(startEvent, middleEvent1, end1, end2, end4),
+				Lists.newArrayList(startEvent, middleEvent2, end1, end2, end4),
+				Lists.newArrayList(startEvent, middleEvent3, end1, end2, end4),
+				Lists.newArrayList(startEvent, end1, end2, end4),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, end1, end3, end4),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent2, end1, end3, end4),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent3, end1, end3, end4),
+				Lists.newArrayList(startEvent, middleEvent2, middleEvent3, end1, end3, end4),
+				Lists.newArrayList(startEvent, middleEvent1, end1, end3, end4),
+				Lists.newArrayList(startEvent, middleEvent2, end1, end3, end4),
+				Lists.newArrayList(startEvent, middleEvent3, end1, end3, end4),
+				Lists.newArrayList(startEvent, end1, end3, end4)
+		));
 	}
 
 	@Test
@@ -674,27 +601,14 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
-		List<Collection<Event>> allPatterns = new ArrayList<>();
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-				allPatterns.add(foundPattern.values());
-			}
-		}
-
-		assertEquals(4, allPatterns.size());
-		assertEquals(Sets.newHashSet(
-			Sets.newHashSet(startEvent, middleEvent1, middleEvent2, middleEvent3, end1),
-			Sets.newHashSet(startEvent, middleEvent1, middleEvent2, end1),
-			Sets.newHashSet(startEvent, middleEvent1, end1),
-			Sets.newHashSet(startEvent, end1)
-		), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent2, end1),
+				Lists.newArrayList(startEvent, middleEvent1, end1),
+				Lists.newArrayList(startEvent, end1)
+		));
 	}
 
 	@Test
@@ -729,30 +643,17 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
-		List<Collection<Event>> allPatterns = new ArrayList<>();
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-				allPatterns.add(foundPattern.values());
-			}
-		}
-
-		assertEquals(7, allPatterns.size());
-		assertEquals(Sets.newHashSet(
-			Sets.newHashSet(middleEvent1, middleEvent2, middleEvent3, end),
-			Sets.newHashSet(middleEvent1, middleEvent2, end),
-			Sets.newHashSet(middleEvent2, middleEvent3, end),
-			Sets.newHashSet(middleEvent1, end),
-			Sets.newHashSet(middleEvent2, end),
-			Sets.newHashSet(middleEvent3, end),
-			Sets.newHashSet(end)
-		), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(middleEvent1, middleEvent2, middleEvent3, end),
+				Lists.newArrayList(middleEvent1, middleEvent2, end),
+				Lists.newArrayList(middleEvent2, middleEvent3, end),
+				Lists.newArrayList(middleEvent1, end),
+				Lists.newArrayList(middleEvent2, end),
+				Lists.newArrayList(middleEvent3, end),
+				Lists.newArrayList(end)
+		));
 	}
 
 	@Test
@@ -805,29 +706,16 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
-		List<Collection<Event>> allPatterns = new ArrayList<>();
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-				allPatterns.add(foundPattern.values());
-			}
-		}
-
-		assertEquals(6, allPatterns.size());
-		assertEquals(Sets.newHashSet(
-			Sets.newHashSet(startEvent, middleEvent1, middleEvent2, middleEvent3, end),
-			Sets.newHashSet(startEvent, middleEvent1, middleEvent2, end),
-			Sets.newHashSet(startEvent, middleEvent2, middleEvent3, end),
-			Sets.newHashSet(startEvent, middleEvent2, end),
-			Sets.newHashSet(startEvent, middleEvent1, end),
-			Sets.newHashSet(startEvent, end)
-		), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, end),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent2, end),
+				Lists.newArrayList(startEvent, middleEvent2, middleEvent3, end),
+				Lists.newArrayList(startEvent, middleEvent2, end),
+				Lists.newArrayList(startEvent, middleEvent1, end),
+				Lists.newArrayList(startEvent, end)
+		));
 	}
 
 	@Test
@@ -889,31 +777,18 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
-		List<Collection<Event>> allPatterns = new ArrayList<>();
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-				allPatterns.add(foundPattern.values());
-			}
-		}
-
-		assertEquals(8, allPatterns.size());
-		assertEquals(Sets.newHashSet(
-			Sets.newHashSet(startEvent, middleEvent1, merging, end),
-			Sets.newHashSet(startEvent, middleEvent1, merging, kleene1, end),
-			Sets.newHashSet(startEvent, middleEvent1, merging, kleene2, end),
-			Sets.newHashSet(startEvent, middleEvent1, merging, kleene1, kleene2, end),
-			Sets.newHashSet(startEvent, middleEvent2, merging, end),
-			Sets.newHashSet(startEvent, middleEvent2, merging, kleene1, end),
-			Sets.newHashSet(startEvent, middleEvent2, merging, kleene2, end),
-			Sets.newHashSet(startEvent, middleEvent2, merging, kleene1, kleene2, end)
-		), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middleEvent1, merging, end),
+				Lists.newArrayList(startEvent, middleEvent1, merging, kleene1, end),
+				Lists.newArrayList(startEvent, middleEvent1, merging, kleene2, end),
+				Lists.newArrayList(startEvent, middleEvent1, merging, kleene1, kleene2, end),
+				Lists.newArrayList(startEvent, middleEvent2, merging, end),
+				Lists.newArrayList(startEvent, middleEvent2, merging, kleene1, end),
+				Lists.newArrayList(startEvent, middleEvent2, merging, kleene2, end),
+				Lists.newArrayList(startEvent, middleEvent2, merging, kleene1, kleene2, end)
+		));
 	}
 
 	@Test
@@ -958,19 +833,9 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-			}
-		}
-
-		assertEquals(Sets.newHashSet(), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList());
 	}
 
 	@Test
@@ -1059,26 +924,13 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
-		List<Collection<Event>> allPatterns = new ArrayList<>();
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-				allPatterns.add(foundPattern.values());
-			}
-		}
-
-		assertEquals(3, allPatterns.size());
-		assertEquals(Sets.newHashSet(
-			Sets.newHashSet(startEvent, middleEvent1, middleEvent2, end1),
-			Sets.newHashSet(startEvent, middleEvent1, end1),
-			Sets.newHashSet(startEvent, middleEvent2, end1)
-		), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent2, end1),
+				Lists.newArrayList(startEvent, middleEvent1, end1),
+				Lists.newArrayList(startEvent, middleEvent2, end1)
+		));
 	}
 
 	@Test
@@ -1113,30 +965,17 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
-		List<Collection<Event>> allPatterns = new ArrayList<>();
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-				allPatterns.add(foundPattern.values());
-			}
-		}
-
-		assertEquals(7, allPatterns.size());
-		assertEquals(Sets.newHashSet(
-			Sets.newHashSet(startEvent1, startEvent2, startEvent3, end1),
-			Sets.newHashSet(startEvent1, startEvent2, end1),
-			Sets.newHashSet(startEvent1, startEvent3, end1),
-			Sets.newHashSet(startEvent2, startEvent3, end1),
-			Sets.newHashSet(startEvent1, end1),
-			Sets.newHashSet(startEvent2, end1),
-			Sets.newHashSet(startEvent3, end1)
-		), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent1, startEvent2, startEvent3, end1),
+				Lists.newArrayList(startEvent1, startEvent2, end1),
+				Lists.newArrayList(startEvent1, startEvent3, end1),
+				Lists.newArrayList(startEvent2, startEvent3, end1),
+				Lists.newArrayList(startEvent1, end1),
+				Lists.newArrayList(startEvent2, end1),
+				Lists.newArrayList(startEvent3, end1)
+		));
 	}
 
 	@Test
@@ -1181,24 +1020,11 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
-		List<Collection<Event>> allPatterns = new ArrayList<>();
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-				allPatterns.add(foundPattern.values());
-			}
-		}
-
-		assertEquals(1, allPatterns.size());
-		assertEquals(Sets.<Set<Event>>newHashSet(
-			Sets.newHashSet(startEvent, endEvent)
-		), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, endEvent)
+		));
 	}
 
 	@Test
@@ -1291,25 +1117,12 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
-		List<Collection<Event>> allPatterns = new ArrayList<>();
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-				allPatterns.add(foundPattern.values());
-			}
-		}
-
-		assertEquals(2, allPatterns.size());
-		assertEquals(Sets.newHashSet(
-			Sets.newHashSet(startEvent, middleEvent, end1),
-			Sets.newHashSet(startEvent, end1)
-		), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middleEvent, end1),
+				Lists.newArrayList(startEvent, end1)
+		));
 	}
 
 	@Test
@@ -1602,25 +1415,12 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
-		List<Collection<Event>> allPatterns = new ArrayList<>();
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-				allPatterns.add(foundPattern.values());
-			}
-		}
-
-		assertEquals(2, allPatterns.size());
-		assertEquals(Sets.newHashSet(
-			Sets.newHashSet(startEvent,  end1),
-			Sets.newHashSet(end1)
-		), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent,  end1),
+				Lists.newArrayList(end1)
+		));
 	}
 
 	@Test
@@ -1655,27 +1455,14 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
-		List<Collection<Event>> allPatterns = new ArrayList<>();
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-				allPatterns.add(foundPattern.values());
-			}
-		}
-
-		assertEquals(4, allPatterns.size());
-		assertEquals(Sets.newHashSet(
-			Sets.newHashSet(startEvent,  middleEvent1, middleEvent2, middleEvent3),
-			Sets.newHashSet(startEvent,  middleEvent1, middleEvent2),
-			Sets.newHashSet(startEvent,  middleEvent1),
-			Sets.newHashSet(startEvent)
-		), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent,  middleEvent1, middleEvent2, middleEvent3),
+				Lists.newArrayList(startEvent,  middleEvent1, middleEvent2),
+				Lists.newArrayList(startEvent,  middleEvent1),
+				Lists.newArrayList(startEvent)
+		));
 	}
 
 	@Test
@@ -1749,25 +1536,12 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		Set<Set<Event>> resultingPatterns = new HashSet<>();
-		List<Collection<Event>> allPatterns = new ArrayList<>();
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
-				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
-
-			for (Map<String, Event> foundPattern : patterns) {
-				resultingPatterns.add(new HashSet<>(foundPattern.values()));
-				allPatterns.add(foundPattern.values());
-			}
-		}
-
-		assertEquals(2, allPatterns.size());
-		assertEquals(Sets.newHashSet(
-			Sets.newHashSet(startEvent,  middleEvent1),
-			Sets.newHashSet(startEvent)
-		), resultingPatterns);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent,  middleEvent1),
+				Lists.newArrayList(startEvent)
+		));
 	}
 
 	@Test
@@ -1972,7 +1746,7 @@ public class NFAITCase extends TestLogger {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
-		}).times(2).consecutive().optional().followedBy("end1").where(new SimpleCondition<Event>() { // TODO: 4/4/17 also check order consecutive() vs optional()
+		}).times(2).consecutive().optional().followedBy("end1").where(new SimpleCondition<Event>() {
 			private static final long serialVersionUID = 5726188262756267490L;
 
 			@Override
@@ -2063,7 +1837,7 @@ public class NFAITCase extends TestLogger {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
-		}).times(2).consecutive().optional().followedBy("end1").where(new SimpleCondition<Event>() { // TODO: 4/4/17 also check order consecutive() vs optional()
+		}).times(2).consecutive().optional().followedBy("end1").where(new SimpleCondition<Event>() {
 			private static final long serialVersionUID = 5726188262756267490L;
 
 			@Override
@@ -2108,7 +1882,7 @@ public class NFAITCase extends TestLogger {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
-		}).times(2).allowCombinations().optional().followedBy("end1").where(new SimpleCondition<Event>() { // TODO: 4/4/17 also check order consecutive() vs optional()
+		}).times(2).allowCombinations().optional().followedBy("end1").where(new SimpleCondition<Event>() {
 			private static final long serialVersionUID = 5726188262756267490L;
 
 			@Override
@@ -3165,26 +2939,28 @@ public class NFAITCase extends TestLogger {
 		inputEvents.add(new StreamRecord<>(d, 5));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 5167288560432018992L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
 		}).notNext("notPattern").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 2242479288129905510L;
+
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("b");
 			}
 		}).followedByAny("middle").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 1404509325548220892L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("c");
 			}
 		}).followedBy("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -8907427230007830915L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -3219,26 +2995,28 @@ public class NFAITCase extends TestLogger {
 		inputEvents.add(new StreamRecord<>(d, 5));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -339500190577666439L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
 		}).notNext("notPattern").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = -6913980632538046451L;
+
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("b");
 			}
 		}).followedBy("middle").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 3332196998905139891L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("c");
 			}
 		}).followedBy("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 2086563479959018387L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -3270,27 +3048,29 @@ public class NFAITCase extends TestLogger {
 		inputEvents.add(new StreamRecord<>(b1, 5));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 1672995058886176627L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
 		}).followedByAny("middle").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 6003621617520261554L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("c");
 			}
 		}).followedByAny("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 887700237024758417L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("d");
 			}
 		}).notNext("notPattern").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5239529076086933032L;
+
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("b");
@@ -3321,26 +3101,28 @@ public class NFAITCase extends TestLogger {
 		inputEvents.add(new StreamRecord<>(d, 5));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -2641662468313191976L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
 		}).notFollowedBy("notPattern").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = -3632144132379494778L;
+
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("b");
 			}
 		}).followedByAny("middle").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 3818766882138348167L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("c");
 			}
 		}).followedBy("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 2033204730795451288L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -3374,26 +3156,28 @@ public class NFAITCase extends TestLogger {
 		inputEvents.add(new StreamRecord<>(d, 5));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -2454396370205097543L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
 		}).notFollowedBy("notPattern").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 2749547391611263290L;
+
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("b");
 			}
 		}).followedByAny("middle").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -4989511337298217255L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("c");
 			}
 		}).optional().followedBy("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -8466223836652936608L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -3427,26 +3211,28 @@ public class NFAITCase extends TestLogger {
 		inputEvents.add(new StreamRecord<>(d, 5));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -2568839911852184515L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
 		}).followedByAny("middle").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -3632232424064269636L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("b");
 			}
 		}).times(2).notFollowedBy("notPattern").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 3685596793523534611L;
+
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("c");
 			}
 		}).followedBy("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 1960758663575587243L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -3482,26 +3268,28 @@ public class NFAITCase extends TestLogger {
 		inputEvents.add(new StreamRecord<>(d2, 5));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 2814850350025111940L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
 		}).notFollowedBy("notPattern").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 4988756153568853834L;
+
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("b");
 			}
 		}).followedByAny("middle").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -225909103322018778L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("c");
 			}
 		}).times(2).optional().followedBy("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -924294627956373696L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -3539,26 +3327,28 @@ public class NFAITCase extends TestLogger {
 		inputEvents.add(new StreamRecord<>(d2, 5));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 6193105689601702341L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
 		}).followedByAny("middle").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 5195859580923169111L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("b");
 			}
 		}).times(2).notFollowedBy("notPattern").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 4973027956103783831L;
+
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("c");
 			}
 		}).followedBy("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 2724622546678984894L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -3588,19 +3378,21 @@ public class NFAITCase extends TestLogger {
 		inputEvents.add(new StreamRecord<>(c2, 4));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -4289351792573443294L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
 		}).notFollowedBy("notPattern").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = -4989574608417523507L;
+
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("b");
 			}
 		}).followedByAny("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -5940131818629290579L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -3635,26 +3427,28 @@ public class NFAITCase extends TestLogger {
 		inputEvents.add(new StreamRecord<>(d, 5));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -7885381452276160322L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
 		}).notFollowedBy("notPattern").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 3471511260235826653L;
+
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("b");
 			}
 		}).followedByAny("middle").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 9073793782452363833L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("c");
 			}
 		}).times(2).optional().followedBy("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 7972902718259767076L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -3690,26 +3484,28 @@ public class NFAITCase extends TestLogger {
 		inputEvents.add(new StreamRecord<>(d, 6));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -7866220136345465444L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
 		}).notFollowedBy("notPattern").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 4957837489028234932L;
+
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("b");
 			}
 		}).followedBy("middle").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = 5569569968862808007L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("c");
 			}
 		}).followedBy("end").where(new SimpleCondition<Event>() {
-			private static final long serialVersionUID = 5726188262756267490L;
+			private static final long serialVersionUID = -8579678167937416269L;
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -4119,18 +3915,468 @@ public class NFAITCase extends TestLogger {
 		return feedNFA(inputEvents, nfa);
 	}
 
+	@Test
+	public void testEagerZeroOrMoreSameElement() {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		Event startEvent = new Event(40, "c", 1.0);
+		Event middleEvent1 = new Event(41, "a", 2.0);
+		Event middleEvent2 = new Event(42, "a", 3.0);
+		Event middleEvent3 = new Event(43, "a", 4.0);
+		Event end1 = new Event(44, "b", 5.0);
+
+		inputEvents.add(new StreamRecord<>(startEvent, 1));
+		inputEvents.add(new StreamRecord<>(middleEvent1, 3));
+		inputEvents.add(new StreamRecord<>(middleEvent1, 3));
+		inputEvents.add(new StreamRecord<>(middleEvent1, 3));
+		inputEvents.add(new StreamRecord<>(middleEvent2, 4));
+		inputEvents.add(new StreamRecord<>(new Event(50, "d", 6.0), 5));
+		inputEvents.add(new StreamRecord<>(middleEvent3, 6));
+		inputEvents.add(new StreamRecord<>(middleEvent3, 6));
+		inputEvents.add(new StreamRecord<>(end1, 7));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedBy("middle").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).oneOrMore().optional().followedBy("end1").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("b");
+			}
+		});
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1, middleEvent1, middleEvent2, middleEvent3, middleEvent3, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1, middleEvent1, middleEvent2, middleEvent3, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1, middleEvent1, middleEvent2, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1, middleEvent1, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1, end1),
+				Lists.newArrayList(startEvent, middleEvent1, end1),
+				Lists.newArrayList(startEvent, end1)
+		));
+	}
+
+	@Test
+	public void testMultipleTakesVersionCollision() {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		Event startEvent = new Event(40, "c", 1.0);
+		Event middleEvent1 = new Event(41, "a", 2.0);
+		Event middleEvent2 = new Event(41, "a", 3.0);
+		Event middleEvent3 = new Event(41, "a", 4.0);
+		Event middleEvent4 = new Event(41, "a", 5.0);
+		Event middleEvent5 = new Event(41, "a", 6.0);
+		Event end = new Event(44, "b", 5.0);
+
+		inputEvents.add(new StreamRecord<>(startEvent, 1));
+		inputEvents.add(new StreamRecord<>(middleEvent1, 3));
+		inputEvents.add(new StreamRecord<>(middleEvent2, 4));
+		inputEvents.add(new StreamRecord<>(middleEvent3, 5));
+		inputEvents.add(new StreamRecord<>(middleEvent4, 6));
+		inputEvents.add(new StreamRecord<>(middleEvent5, 7));
+		inputEvents.add(new StreamRecord<>(end, 10));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedBy("middle1").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).oneOrMore().allowCombinations().followedBy("middle2").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).oneOrMore().allowCombinations().followedBy("end").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("b");
+			}
+		});
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, middleEvent4, middleEvent5, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, middleEvent4, middleEvent5, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, middleEvent4, middleEvent5, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, middleEvent4, middleEvent5, end),
+
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, middleEvent4, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent4, middleEvent5, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, middleEvent4, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, middleEvent5, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent3, middleEvent4, middleEvent5, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent3, middleEvent4, middleEvent5, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, middleEvent4, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, middleEvent5, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent4, middleEvent5, end),
+
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent3, middleEvent4, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent4, middleEvent5, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent4, end),
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent5, end),
+
+			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, end)
+			));
+	}
+
+	@Test
+	public void testZeroOrMoreSameElement() {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		Event startEvent = new Event(40, "c", 1.0);
+		Event middleEvent1 = new Event(41, "a", 2.0);
+		Event middleEvent1a = new Event(41, "a", 2.0);
+		Event middleEvent2 = new Event(42, "a", 3.0);
+		Event middleEvent3 = new Event(43, "a", 4.0);
+		Event middleEvent3a = new Event(43, "a", 4.0);
+		Event end1 = new Event(44, "b", 5.0);
+
+		inputEvents.add(new StreamRecord<>(startEvent, 1));
+		inputEvents.add(new StreamRecord<>(middleEvent1, 3));
+		inputEvents.add(new StreamRecord<>(middleEvent1a, 3));
+		inputEvents.add(new StreamRecord<>(middleEvent2, 4));
+		inputEvents.add(new StreamRecord<>(new Event(50, "d", 6.0), 5));
+		inputEvents.add(new StreamRecord<>(middleEvent3, 6));
+		inputEvents.add(new StreamRecord<>(middleEvent3a, 6));
+		inputEvents.add(new StreamRecord<>(end1, 7));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedByAny("middle").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).oneOrMore().optional().allowCombinations().followedByAny("end1").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("b");
+			}
+		});
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1a, middleEvent2, middleEvent3, middleEvent3a, end1),
+
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1a, middleEvent2, middleEvent3, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1a, middleEvent2, middleEvent3a, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1a, middleEvent3, middleEvent3a, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, middleEvent3a, end1),
+				Lists.newArrayList(startEvent, middleEvent1a, middleEvent2, middleEvent3, middleEvent3a, end1),
+
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1a, middleEvent2, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1a, middleEvent3, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1a, middleEvent3a, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent2, middleEvent3a, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent3, middleEvent3a, end1),
+				Lists.newArrayList(startEvent, middleEvent2, middleEvent3, middleEvent3a, end1),
+				Lists.newArrayList(startEvent, middleEvent1a, middleEvent2, middleEvent3, end1),
+				Lists.newArrayList(startEvent, middleEvent1a, middleEvent2, middleEvent3a, end1),
+				Lists.newArrayList(startEvent, middleEvent1a, middleEvent3, middleEvent3a, end1),
+
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent2, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent3, end1),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent3a, end1),
+				Lists.newArrayList(startEvent, middleEvent1a, middleEvent2, end1),
+				Lists.newArrayList(startEvent, middleEvent1a, middleEvent3, end1),
+				Lists.newArrayList(startEvent, middleEvent1a, middleEvent3a, end1),
+				Lists.newArrayList(startEvent, middleEvent2, middleEvent3, end1),
+				Lists.newArrayList(startEvent, middleEvent2, middleEvent3a, end1),
+				Lists.newArrayList(startEvent, middleEvent3, middleEvent3a, end1),
+
+				Lists.newArrayList(startEvent, middleEvent1, end1),
+				Lists.newArrayList(startEvent, middleEvent1a, end1),
+				Lists.newArrayList(startEvent, middleEvent2, end1),
+				Lists.newArrayList(startEvent, middleEvent3, end1),
+				Lists.newArrayList(startEvent, middleEvent3a, end1),
+
+				Lists.newArrayList(startEvent, end1)
+		));
+	}
+
+	@Test
+	public void testSimplePatternWSameElement() throws Exception {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		Event startEvent = new Event(40, "c", 1.0);
+		Event middleEvent1 = new Event(41, "a", 2.0);
+		Event end1 = new Event(44, "b", 5.0);
+
+		inputEvents.add(new StreamRecord<>(startEvent, 1));
+		inputEvents.add(new StreamRecord<>(middleEvent1, 3));
+		inputEvents.add(new StreamRecord<>(middleEvent1, 3));
+		inputEvents.add(new StreamRecord<>(end1, 7));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedByAny("middle").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).followedBy("end1").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("b");
+			}
+		});
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middleEvent1, end1),
+				Lists.newArrayList(startEvent, middleEvent1, end1)
+		));
+	}
+
+	@Test
+	public void testIterativeConditionWSameElement() throws Exception {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		Event startEvent = new Event(40, "c", 1.0);
+		Event middleEvent1 = new Event(41, "a", 2.0);
+		Event middleEvent1a = new Event(41, "a", 2.0);
+		Event middleEvent1b = new Event(41, "a", 2.0);
+		final Event end = new Event(44, "b", 5.0);
+
+		inputEvents.add(new StreamRecord<>(startEvent, 1));
+		inputEvents.add(new StreamRecord<>(middleEvent1, 3));
+		inputEvents.add(new StreamRecord<>(middleEvent1a, 3));
+		inputEvents.add(new StreamRecord<>(middleEvent1b, 3));
+		inputEvents.add(new StreamRecord<>(end, 7));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedByAny("middle").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).oneOrMore().optional().allowCombinations().followedBy("end").where(new IterativeCondition<Event>() {
+
+			private static final long serialVersionUID = -5566639743229703237L;
+
+			@Override
+			public boolean filter(Event value, Context<Event> ctx) throws Exception {
+				double sum = 0.0;
+				for (Event event: ctx.getEventsForPattern("middle")) {
+					sum += event.getPrice();
+				}
+				return Double.compare(sum, 4.0) == 0;
+			}
+
+		});
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1a, end),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1a, middleEvent1b),
+				Lists.newArrayList(startEvent, middleEvent1a, middleEvent1b, end)
+		));
+	}
+
+	@Test
+	public void testEndWLoopingWSameElement() throws Exception {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		Event startEvent = new Event(40, "c", 1.0);
+		Event middleEvent1 = new Event(41, "a", 2.0);
+		Event middleEvent1a = new Event(41, "a", 2.0);
+		Event middleEvent1b = new Event(41, "a", 2.0);
+		final Event end = new Event(44, "b", 5.0);
+
+		inputEvents.add(new StreamRecord<>(startEvent, 1));
+		inputEvents.add(new StreamRecord<>(middleEvent1, 3));
+		inputEvents.add(new StreamRecord<>(middleEvent1a, 3));
+		inputEvents.add(new StreamRecord<>(middleEvent1b, 3));
+		inputEvents.add(new StreamRecord<>(end, 7));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedByAny("middle").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).oneOrMore().optional();
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent),
+				Lists.newArrayList(startEvent, middleEvent1),
+				Lists.newArrayList(startEvent, middleEvent1a),
+				Lists.newArrayList(startEvent, middleEvent1b),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1a),
+				Lists.newArrayList(startEvent, middleEvent1a, middleEvent1b),
+				Lists.newArrayList(startEvent, middleEvent1, middleEvent1a, middleEvent1b)
+		));
+	}
+
+	@Test
+	public void testRepeatingPatternWSameElement() throws Exception {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		Event startEvent = new Event(40, "c", 1.0);
+		Event middle1Event1 = new Event(40, "a", 2.0);
+		Event middle1Event2 = new Event(40, "a", 3.0);
+		Event middle1Event3 = new Event(40, "a", 4.0);
+		Event middle2Event1 = new Event(40, "b", 5.0);
+
+		inputEvents.add(new StreamRecord<>(startEvent, 1));
+		inputEvents.add(new StreamRecord<>(middle1Event1, 3));
+		inputEvents.add(new StreamRecord<>(middle1Event1, 3));
+		inputEvents.add(new StreamRecord<>(middle1Event2, 3));
+		inputEvents.add(new StreamRecord<>(new Event(40, "d", 6.0), 5));
+		inputEvents.add(new StreamRecord<>(middle2Event1, 6));
+		inputEvents.add(new StreamRecord<>(middle1Event3, 7));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedBy("middle1").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).oneOrMore().optional().followedBy("middle2").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("b");
+			}
+		}).optional().followedBy("end").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		});
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+				Lists.newArrayList(startEvent, middle1Event1),
+
+				Lists.newArrayList(startEvent, middle1Event1, middle1Event1),
+				Lists.newArrayList(startEvent, middle2Event1, middle1Event3),
+
+				Lists.newArrayList(startEvent, middle1Event1, middle1Event1, middle1Event2),
+				Lists.newArrayList(startEvent, middle1Event1, middle2Event1, middle1Event3),
+
+				Lists.newArrayList(startEvent, middle1Event1, middle1Event1, middle1Event2, middle1Event3),
+				Lists.newArrayList(startEvent, middle1Event1, middle1Event1, middle2Event1, middle1Event3),
+
+				Lists.newArrayList(startEvent, middle1Event1, middle1Event1, middle1Event2, middle2Event1, middle1Event3)
+		));
+	}
+
 	/////////////////////////////////////////       Utility        /////////////////////////////////////////////////
 
 	private List<List<Event>> feedNFA(List<StreamRecord<Event>> inputEvents, NFA<Event> nfa) {
 		List<List<Event>> resultingPatterns = new ArrayList<>();
 
 		for (StreamRecord<Event> inputEvent : inputEvents) {
-			Collection<Map<String, Event>> patterns = nfa.process(
+			Collection<Map<String, List<Event>>> patterns = nfa.process(
 				inputEvent.getValue(),
 				inputEvent.getTimestamp()).f0;
 
-			for (Map<String, Event> p: patterns) {
-				resultingPatterns.add(new ArrayList<>(p.values()));
+			for (Map<String, List<Event>> p: patterns) {
+				List<Event> res = new ArrayList<>();
+				for (List<Event> le: p.values()) {
+					res.addAll(le);
+				}
+				resultingPatterns.add(res);
 			}
 		}
 		return resultingPatterns;

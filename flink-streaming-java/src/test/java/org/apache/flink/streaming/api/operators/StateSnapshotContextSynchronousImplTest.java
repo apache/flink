@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,6 +41,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.when;
 
+/**
+ * Tests for {@link StateSnapshotContextSynchronousImpl}.
+ */
 public class StateSnapshotContextSynchronousImplTest extends TestLogger {
 
 	private StateSnapshotContextSynchronousImpl snapshotContext;

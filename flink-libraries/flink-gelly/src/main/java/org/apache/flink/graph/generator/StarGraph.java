@@ -31,11 +31,11 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.LongValueSequenceIterator;
 import org.apache.flink.util.Preconditions;
 
-/*
+/**
  * @see <a href="http://mathworld.wolfram.com/StarGraph.html">Star Graph at Wolfram MathWorld</a>
  */
 public class StarGraph
-extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
+extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
 	public static final int MINIMUM_VERTEX_COUNT = 2;
 
@@ -46,7 +46,9 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	private long vertexCount;
 
 	/**
-	 * An undirected {@link Graph} containing a single central {@link Vertex} connected to all other leaf vertices.
+	 * An undirected {@Graph} with {@code n} vertices where the single central
+	 * node has degree {@code n-1}, connecting to the other {@code n-1}
+	 * vertices which have degree {@code 1}.
 	 *
 	 * @param env the Flink execution environment
 	 * @param vertexCount number of vertices
@@ -85,18 +87,18 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 		private LongValue center = new LongValue(0);
 
-		private Edge<LongValue, NullValue> center_to_leaf = new Edge<>(center, null, NullValue.getInstance());
+		private Edge<LongValue, NullValue> centerToLeaf = new Edge<>(center, null, NullValue.getInstance());
 
-		private Edge<LongValue, NullValue> leaf_to_center = new Edge<>(null, center, NullValue.getInstance());
+		private Edge<LongValue, NullValue> leafToCenter = new Edge<>(null, center, NullValue.getInstance());
 
 		@Override
 		public void flatMap(LongValue leaf, Collector<Edge<LongValue, NullValue>> out)
 				throws Exception {
-			center_to_leaf.f1 = leaf;
-			out.collect(center_to_leaf);
+			centerToLeaf.f1 = leaf;
+			out.collect(centerToLeaf);
 
-			leaf_to_center.f0 = leaf;
-			out.collect(leaf_to_center);
+			leafToCenter.f0 = leaf;
+			out.collect(leafToCenter);
 		}
 	}
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
@@ -26,12 +25,15 @@ import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import scala.concurrent.duration.FiniteDuration;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
+
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * This handler handles requests to fetch plan for a jar.
@@ -72,7 +74,7 @@ public class JarRunHandler extends JarActionHandler {
 			}
 
 			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 			gen.writeStartObject();
 			gen.writeStringField("jobid", graph.f0.getJobID().toString());
 			gen.writeEndObject();

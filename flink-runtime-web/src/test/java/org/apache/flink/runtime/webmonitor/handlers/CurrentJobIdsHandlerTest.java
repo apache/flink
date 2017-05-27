@@ -15,14 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.junit.Assert;
 import org.junit.Test;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.concurrent.TimeUnit;
 
+import scala.concurrent.duration.FiniteDuration;
+
+/**
+ * Tests for the CurrentJobIdsHandler.
+ */
 public class CurrentJobIdsHandlerTest {
 	@Test
 	public void testGetPaths() {

@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -42,7 +43,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class CoStreamMapTest implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private final static class MyCoMap implements CoMapFunction<Double, Integer, String> {
+	private static final class MyCoMap implements CoMapFunction<Double, Integer, String> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -55,7 +56,6 @@ public class CoStreamMapTest implements Serializable {
 			return value.toString();
 		}
 	}
-
 
 	@Test
 	public void testCoMap() throws Exception {

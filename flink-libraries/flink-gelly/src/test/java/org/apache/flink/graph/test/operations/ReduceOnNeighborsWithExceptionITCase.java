@@ -35,18 +35,21 @@ import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.fail;
 
+/**
+ * Test expected exceptions for {@link Graph#groupReduceOnNeighbors} and {@link Graph#reduceOnNeighbors}.
+ */
 public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 
 	private static final int PARALLELISM = 4;
 
 	private static LocalFlinkMiniCluster cluster;
-
 
 	@BeforeClass
 	public static void setupCluster() {
@@ -67,7 +70,7 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 
 	/**
 	 * Test groupReduceOnNeighbors() -NeighborsFunctionWithVertexValue-
-	 * with an edge having a srcId that does not exist in the vertex DataSet
+	 * with an edge having a srcId that does not exist in the vertex DataSet.
 	 */
 	@Test
 	public void testGroupReduceOnNeighborsWithVVInvalidEdgeSrcId() throws Exception {
@@ -94,7 +97,7 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 
 	/**
 	 * Test groupReduceOnNeighbors() -NeighborsFunctionWithVertexValue-
-	 * with an edge having a trgId that does not exist in the vertex DataSet
+	 * with an edge having a trgId that does not exist in the vertex DataSet.
 	 */
 	@Test
 	public void testGroupReduceOnNeighborsWithVVInvalidEdgeTrgId() throws Exception {
@@ -121,7 +124,7 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 
 	/**
 	 * Test groupReduceOnNeighbors() -NeighborsFunction-
-	 * with an edge having a srcId that does not exist in the vertex DataSet
+	 * with an edge having a srcId that does not exist in the vertex DataSet.
 	 */
 	@Test
 	public void testGroupReduceOnNeighborsInvalidEdgeSrcId() throws Exception {
@@ -146,7 +149,7 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 
 	/**
 	 * Test groupReduceOnNeighbors() -NeighborsFunction-
-	 * with an edge having a trgId that does not exist in the vertex DataSet
+	 * with an edge having a trgId that does not exist in the vertex DataSet.
 	 */
 	@Test
 	public void testGroupReduceOnNeighborsInvalidEdgeTrgId() throws Exception {
@@ -175,8 +178,8 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 
 		@Override
 		public void iterateNeighbors(Vertex<Long, Long> vertex,
-									 Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-									 Collector<Tuple2<Long, Long>> out) throws Exception {
+				Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
+				Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			long sum = 0;
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {

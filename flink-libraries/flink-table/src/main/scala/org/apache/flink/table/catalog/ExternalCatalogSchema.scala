@@ -22,18 +22,16 @@ import java.util.{Collections => JCollections, Collection => JCollection, Linked
 
 import org.apache.calcite.linq4j.tree.Expression
 import org.apache.calcite.schema._
-import org.apache.flink.table.api.{DatabaseNotExistException, TableNotExistException}
+import org.apache.flink.table.api.{CatalogNotExistException, TableNotExistException}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 
 /**
-  * This class is responsible for connect external catalog to calcite catalog.
-  * In this way, it is possible to look-up and access tables in SQL queries
-  * without registering tables in advance.
-  * The databases in the external catalog registers as calcite sub-Schemas of current schema.
-  * The tables in a given database registers as calcite tables
-  * of the [[ExternalCatalogDatabaseSchema]].
+  * This class is responsible to connect an external catalog to Calcite's catalog.
+  * This enables to look-up and access tables in SQL queries without registering tables in advance.
+  * The the external catalog and all included sub-catalogs and tables is registered as
+  * sub-schemas and tables in Calcite.
   *
   * @param catalogIdentifier external catalog name
   * @param catalog           external catalog
@@ -45,32 +43,47 @@ class ExternalCatalogSchema(
   private val LOG: Logger = LoggerFactory.getLogger(this.getClass)
 
   /**
-    * Looks up database by the given sub-schema name in the external catalog,
-    * returns it Wrapped in a [[ExternalCatalogDatabaseSchema]] with the given database name.
+    * Looks up a sub-schema by the given sub-schema name in the external catalog.
+    * Returns it wrapped in a [[ExternalCatalogSchema]] with the given database name.
     *
-    * @param name Sub-schema name
-    * @return Sub-schema with a given name, or null
+    * @param name Name of sub-schema to look up.
+    * @return Sub-schema with a given name, or null.
     */
   override def getSubSchema(name: String): Schema = {
     try {
-      val db = catalog.getDatabase(name)
-      new ExternalCatalogDatabaseSchema(db.dbName, catalog)
+      val db = catalog.getSubCatalog(name)
+      new ExternalCatalogSchema(name, db)
     } catch {
-      case e: DatabaseNotExistException =>
-        LOG.warn(s"Database $name does not exist in externalCatalog $catalogIdentifier")
+      case _: CatalogNotExistException =>
+        LOG.warn(s"Sub-catalog $name does not exist in externalCatalog $catalogIdentifier")
         null
     }
   }
 
   /**
-    * Lists the databases of the external catalog,
-    * returns the lists as the names of this schema's sub-schemas.
+    * Lists the sub-schemas of the external catalog.
+    * Returns a list of names of this schema's sub-schemas.
     *
     * @return names of this schema's child schemas
     */
-  override def getSubSchemaNames: JSet[String] = new JLinkedHashSet(catalog.listDatabases())
+  override def getSubSchemaNames: JSet[String] = new JLinkedHashSet(catalog.listSubCatalogs())
 
-  override def getTable(name: String): Table = null
+  /**
+    * Looks up and returns a table from this schema.
+    * Returns null if no table is found for the given name.
+    *
+    * @param name The name of the table to look up.
+    * @return The table or null if no table is found.
+    */
+  override def getTable(name: String): Table = try {
+    val externalCatalogTable = catalog.getTable(name)
+    ExternalTableSourceUtil.fromExternalCatalogTable(externalCatalogTable)
+  } catch {
+    case TableNotExistException(table, _, _) => {
+      LOG.warn(s"Table $table does not exist in externalCatalog $catalogIdentifier")
+      null
+    }
+  }
 
   override def isMutable: Boolean = true
 
@@ -91,46 +104,8 @@ class ExternalCatalogSchema(
     * @param plusOfThis
     */
   def registerSubSchemas(plusOfThis: SchemaPlus) {
-    catalog.listDatabases().asScala.foreach(db => plusOfThis.add(db, getSubSchema(db)))
+    catalog.listSubCatalogs().asScala.foreach(db => plusOfThis.add(db, getSubSchema(db)))
   }
-
-  private class ExternalCatalogDatabaseSchema(
-      schemaName: String,
-      flinkExternalCatalog: ExternalCatalog) extends Schema {
-
-    override def getTable(name: String): Table = {
-      try {
-        val externalCatalogTable = flinkExternalCatalog.getTable(schemaName, name)
-        ExternalTableSourceUtil.fromExternalCatalogTable(externalCatalogTable)
-      } catch {
-        case TableNotExistException(db, table, cause) => {
-          LOG.warn(s"Table $db.$table does not exist in externalCatalog $catalogIdentifier")
-          null
-        }
-      }
-    }
-
-    override def getTableNames: JSet[String] =
-      new JLinkedHashSet(flinkExternalCatalog.listTables(schemaName))
-
-    override def getSubSchema(name: String): Schema = null
-
-    override def getSubSchemaNames: JSet[String] = JCollections.emptySet[String]
-
-    override def isMutable: Boolean = true
-
-    override def getFunctions(name: String): JCollection[Function] =
-      JCollections.emptyList[Function]
-
-    override def getExpression(parentSchema: SchemaPlus, name: String): Expression =
-      Schemas.subSchemaExpression(parentSchema, name, getClass)
-
-    override def getFunctionNames: JSet[String] = JCollections.emptySet[String]
-
-    override def contentsHaveChangedSince(lastCheck: Long, now: Long): Boolean = true
-
-  }
-
 }
 
 object ExternalCatalogSchema {

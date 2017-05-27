@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.functions.FoldFunction;
@@ -28,8 +29,8 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingAlignedProcessingTimeWindows;
@@ -161,7 +162,7 @@ public class TimeWindowTranslationTest {
 
 		DataStream<Tuple2<String, Integer>> window1 = source
 				.keyBy(0)
-				.timeWindow(Time.of(1000, TimeUnit.MILLISECONDS),Time.of(100, TimeUnit.MILLISECONDS))
+				.timeWindow(Time.of(1000, TimeUnit.MILLISECONDS), Time.of(100, TimeUnit.MILLISECONDS))
 				.reduce(new DummyReducer());
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform1 = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window1.getTransformation();
@@ -185,7 +186,7 @@ public class TimeWindowTranslationTest {
 
 		DataStream<Tuple2<String, Integer>> window1 = source
 				.keyBy(0)
-				.timeWindow(Time.of(1000, TimeUnit.MILLISECONDS),Time.of(100, TimeUnit.MILLISECONDS))
+				.timeWindow(Time.of(1000, TimeUnit.MILLISECONDS), Time.of(100, TimeUnit.MILLISECONDS))
 				.fold(new Tuple2<>("", 1), new DummyFolder());
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform1 = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window1.getTransformation();
@@ -235,7 +236,7 @@ public class TimeWindowTranslationTest {
 	 * These tests ensure that the fast aligned time windows operator is used if the
 	 * conditions are right.
 	 *
-	 * TODO: update once the fast aligned time windows operator is in
+	 * <p>TODO: update once the fast aligned time windows operator is in
 	 */
 	@Ignore
 	@Test

@@ -29,6 +29,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link KeyMap}.
+ */
 public class KeyMapPutTest {
 
 	@Test
@@ -41,7 +44,7 @@ public class KeyMapPutTest {
 			for (int i = 0; i < numElements; i++) {
 				map.put(i, 2 * i + 1);
 
-				assertEquals(i+1, map.size());
+				assertEquals(i + 1, map.size());
 				assertTrue(map.getCurrentTableCapacity() > map.size());
 				assertTrue(map.getCurrentTableCapacity() > map.getRehashThreshold());
 				assertTrue(map.size() <= map.getRehashThreshold());
@@ -72,7 +75,6 @@ public class KeyMapPutTest {
 			assertEquals(numElements, numContained);
 			assertEquals(numElements, bitset.cardinality());
 
-
 			assertEquals(numElements, map.size());
 			assertEquals(numElements, map.traverseAndCountElements());
 			assertEquals(1 << 21, map.getCurrentTableCapacity());
@@ -91,18 +93,18 @@ public class KeyMapPutTest {
 			final int numElements = 1000000;
 
 			for (int i = 0; i < numElements; i++) {
-				Integer put = map.put(i, 2*i+1);
+				Integer put = map.put(i, 2 * i + 1);
 				assertNull(put);
 			}
 
 			for (int i = 0; i < numElements; i += 3) {
-				Integer put = map.put(i, 2*i);
+				Integer put = map.put(i, 2 * i);
 				assertNotNull(put);
-				assertEquals(2*i+1, put.intValue());
+				assertEquals(2 * i + 1, put.intValue());
 			}
 
 			for (int i = 0; i < numElements; i++) {
-				int expected = (i % 3 == 0) ? (2*i) : (2*i+1);
+				int expected = (i % 3 == 0) ? (2 * i) : (2 * i + 1);
 				assertEquals(expected, map.get(i).intValue());
 			}
 
@@ -111,14 +113,13 @@ public class KeyMapPutTest {
 			assertEquals(1 << 21, map.getCurrentTableCapacity());
 			assertTrue(map.getLongestChainLength() <= 7);
 
-
 			BitSet bitset = new BitSet();
 			int numContained = 0;
 			for (KeyMap.Entry<Integer, Integer> entry : map) {
 				numContained++;
 
 				int key = entry.getKey();
-				int expected = key % 3 == 0 ? (2*key) : (2*key+1);
+				int expected = key % 3 == 0 ? (2 * key) : (2 * key + 1);
 
 				assertEquals(expected, entry.getValue().intValue());
 				assertFalse(bitset.get(key));

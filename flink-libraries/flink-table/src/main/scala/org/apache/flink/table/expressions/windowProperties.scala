@@ -20,12 +20,22 @@ package org.apache.flink.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.calcite.FlinkRelBuilder
 import FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
 
-abstract class WindowProperty(child: Expression) extends UnaryExpression {
+trait WindowProperty {
+
+  def toNamedWindowProperty(name: String): NamedWindowProperty
+
+  def resultType: TypeInformation[_]
+
+}
+
+abstract class AbstractWindowProperty(child: Expression)
+  extends UnaryExpression
+  with WindowProperty {
 
   override def toString = s"WindowProperty($child)"
 
@@ -39,20 +49,19 @@ abstract class WindowProperty(child: Expression) extends UnaryExpression {
       ValidationFailure("Child must be a window reference.")
     }
 
-  private[flink] def toNamedWindowProperty(name: String)(implicit relBuilder: RelBuilder)
-    : NamedWindowProperty = NamedWindowProperty(name, this)
+  def toNamedWindowProperty(name: String): NamedWindowProperty = NamedWindowProperty(name, this)
 }
 
-case class WindowStart(child: Expression) extends WindowProperty(child) {
+case class WindowStart(child: Expression) extends AbstractWindowProperty(child) {
 
-  override private[flink] def resultType = SqlTimeTypeInfo.TIMESTAMP
+  override def resultType = SqlTimeTypeInfo.TIMESTAMP
 
   override def toString: String = s"start($child)"
 }
 
-case class WindowEnd(child: Expression) extends WindowProperty(child) {
+case class WindowEnd(child: Expression) extends AbstractWindowProperty(child) {
 
-  override private[flink] def resultType = SqlTimeTypeInfo.TIMESTAMP
+  override def resultType = SqlTimeTypeInfo.TIMESTAMP
 
   override def toString: String = s"end($child)"
 }

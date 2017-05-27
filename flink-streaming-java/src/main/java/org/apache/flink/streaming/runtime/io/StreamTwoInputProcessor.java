@@ -18,15 +18,12 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-import java.io.IOException;
-import java.util.Collection;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -38,6 +35,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
@@ -50,6 +48,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+
+import java.io.IOException;
+import java.util.Collection;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Input reader for {@link org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask}.
@@ -113,6 +116,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 
 	private long lastEmittedWatermark1;
 	private long lastEmittedWatermark2;
+
+	private Counter numRecordsIn;
 
 	private boolean isFinished;
 
@@ -195,6 +200,9 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		if (isFinished) {
 			return false;
 		}
+		if (numRecordsIn == null) {
+			numRecordsIn = ((OperatorMetricGroup) streamOperator.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
+		}
 
 		while (true) {
 			if (currentRecordDeserializer != null) {
@@ -230,6 +238,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 						else {
 							StreamRecord<IN1> record = recordOrWatermark.asRecord();
 							synchronized (lock) {
+								numRecordsIn.inc();
 								streamOperator.setKeyContextElement1(record);
 								streamOperator.processElement1(record);
 							}
@@ -256,6 +265,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 						else {
 							StreamRecord<IN2> record = recordOrWatermark.asRecord();
 							synchronized (lock) {
+								numRecordsIn.inc();
 								streamOperator.setKeyContextElement2(record);
 								streamOperator.processElement2(record);
 							}

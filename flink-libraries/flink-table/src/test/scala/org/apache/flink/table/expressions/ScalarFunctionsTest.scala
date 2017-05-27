@@ -1409,7 +1409,7 @@ class ScalarFunctionsTest extends ExpressionTestBase {
 
     testAllApis(
       temporalOverlaps("9:00:00".toTime, "9:30:00".toTime, "9:29:00".toTime, "9:31:00".toTime),
-      "temporalOverlaps('9:00:00'.toTime, '9:30:00'.toTime, '9:29:00'.toTime, '9:31:00'.toTime)",
+      "temporalOverlaps(toTime('9:00:00'), '9:30:00'.toTime, '9:29:00'.toTime, '9:31:00'.toTime)",
       "(TIME '9:00:00', TIME '9:30:00') OVERLAPS (TIME '9:29:00', TIME '9:31:00')",
       "true")
 
@@ -1421,14 +1421,14 @@ class ScalarFunctionsTest extends ExpressionTestBase {
 
     testAllApis(
       temporalOverlaps("2011-03-10".toDate, 10.days, "2011-03-19".toDate, 10.days),
-      "temporalOverlaps('2011-03-10'.toDate, 10.days, '2011-03-19'.toDate, 10.days)",
+      "temporalOverlaps(toDate('2011-03-10'), 10.days, '2011-03-19'.toDate, 10.days)",
       "(DATE '2011-03-10', INTERVAL '10' DAY) OVERLAPS (DATE '2011-03-19', INTERVAL '10' DAY)",
       "true")
 
     testAllApis(
       temporalOverlaps("2011-03-10 05:02:02".toTimestamp, 0.milli,
         "2011-03-10 05:02:02".toTimestamp, "2011-03-10 05:02:01".toTimestamp),
-      "temporalOverlaps('2011-03-10 05:02:02'.toTimestamp, 0.milli, " +
+      "temporalOverlaps(toTimestamp('2011-03-10 05:02:02'), 0.milli, " +
         "'2011-03-10 05:02:02'.toTimestamp, '2011-03-10 05:02:01'.toTimestamp)",
       "(TIMESTAMP '2011-03-10 05:02:02', INTERVAL '0' SECOND) OVERLAPS " +
         "(TIMESTAMP '2011-03-10 05:02:02', TIMESTAMP '2011-03-10 05:02:01')",

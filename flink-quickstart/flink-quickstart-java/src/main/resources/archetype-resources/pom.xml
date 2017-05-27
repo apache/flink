@@ -19,7 +19,7 @@ under the License.
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	
+
 	<groupId>${groupId}</groupId>
 	<artifactId>${artifactId}</artifactId>
 	<version>${version}</version>
@@ -33,6 +33,7 @@ under the License.
 		<flink.version>1.4-SNAPSHOT</flink.version>
 		<slf4j.version>1.7.7</slf4j.version>
 		<log4j.version>1.2.17</log4j.version>
+		<scala.binary.version>@scala.binary.version@</scala.binary.version>
 	</properties>
 
 	<repositories>
@@ -48,9 +49,9 @@ under the License.
 			</snapshots>
 		</repository>
 	</repositories>
-	
+
 	<!-- 
-		
+
 		Execute "mvn clean package -Pbuild-jar"
 		to build a jar file out of this project!
 
@@ -82,12 +83,12 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_2.10</artifactId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_2.10</artifactId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 
@@ -103,7 +104,6 @@ under the License.
 			<artifactId>log4j</artifactId>
 			<version>${log4j.version}</version>
 		</dependency>
-		
 	</dependencies>
 
 	<profiles>
@@ -124,13 +124,13 @@ under the License.
 				</dependency>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-streaming-java_2.10</artifactId>
+					<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-clients_2.10</artifactId>
+					<artifactId>flink-clients_${scala.binary.version}</artifactId>
 					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
@@ -201,20 +201,20 @@ under the License.
 									<exclude>org.apache.flink:flink-shaded-curator-recipes</exclude>
 									<exclude>org.apache.flink:flink-core</exclude>
 									<exclude>org.apache.flink:flink-java</exclude>
-									<exclude>org.apache.flink:flink-scala_2.10</exclude>
-									<exclude>org.apache.flink:flink-runtime_2.10</exclude>
-									<exclude>org.apache.flink:flink-optimizer_2.10</exclude>
-									<exclude>org.apache.flink:flink-clients_2.10</exclude>
-									<exclude>org.apache.flink:flink-avro_2.10</exclude>
-									<exclude>org.apache.flink:flink-examples-batch_2.10</exclude>
-									<exclude>org.apache.flink:flink-examples-streaming_2.10</exclude>
-									<exclude>org.apache.flink:flink-streaming-java_2.10</exclude>
-									<exclude>org.apache.flink:flink-streaming-scala_2.10</exclude>
-									<exclude>org.apache.flink:flink-scala-shell_2.10</exclude>
+									<exclude>org.apache.flink:flink-scala_${scala.binary.version}</exclude>
+									<exclude>org.apache.flink:flink-runtime_${scala.binary.version}</exclude>
+									<exclude>org.apache.flink:flink-optimizer_${scala.binary.version}</exclude>
+									<exclude>org.apache.flink:flink-clients_${scala.binary.version}</exclude>
+									<exclude>org.apache.flink:flink-avro_${scala.binary.version}</exclude>
+									<exclude>org.apache.flink:flink-examples-batch_${scala.binary.version}</exclude>
+									<exclude>org.apache.flink:flink-examples-streaming_${scala.binary.version}</exclude>
+									<exclude>org.apache.flink:flink-streaming-java_${scala.binary.version}</exclude>
+									<exclude>org.apache.flink:flink-streaming-scala_${scala.binary.version}</exclude>
+									<exclude>org.apache.flink:flink-scala-shell_${scala.binary.version}</exclude>
 									<exclude>org.apache.flink:flink-python</exclude>
 									<exclude>org.apache.flink:flink-metrics-core</exclude>
 									<exclude>org.apache.flink:flink-metrics-jmx</exclude>
-									<exclude>org.apache.flink:flink-statebackend-rocksdb_2.10</exclude>
+									<exclude>org.apache.flink:flink-statebackend-rocksdb_${scala.binary.version}</exclude>
 
 									<!-- Also exclude very big transitive dependencies of Flink
 
@@ -312,8 +312,7 @@ under the License.
 				</configuration>
 			</plugin>
 		</plugins>
-		
-			
+
 		<!-- If you want to use Java 8 Lambda Expressions uncomment the following lines -->
 		<!--
 		<pluginManagement>
@@ -333,7 +332,7 @@ under the License.
 						</dependency>
 					</dependencies>
 				</plugin>
-		
+
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
 					<artifactId>lifecycle-mapping</artifactId>
@@ -375,6 +374,5 @@ under the License.
 			</plugins>
 		</pluginManagement>
 		-->
-		
 	</build>
 </project>

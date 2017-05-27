@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -166,7 +167,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 	 * B (unchained): [ (src0) ] -> [ (map) -> (filter) -> (sink) ]
 	 * </pre>
 	 *
-	 * The hashes for the single vertex in A and the source vertex in B need to be different.
+	 * <p>The hashes for the single vertex in A and the source vertex in B need to be different.
 	 */
 	@Test
 	public void testNodeHashAfterSourceUnchaining() throws Exception {
@@ -208,7 +209,7 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 	 * B (unchained): [ (src0) ] -> [ (map) -> (filter) -> (sink) ]
 	 * </pre>
 	 *
-	 * The hashes for the single vertex in A and the source vertex in B need to be different.
+	 * <p>The hashes for the single vertex in A and the source vertex in B need to be different.
 	 */
 	@Test
 	public void testNodeHashAfterIntermediateUnchaining() throws Exception {

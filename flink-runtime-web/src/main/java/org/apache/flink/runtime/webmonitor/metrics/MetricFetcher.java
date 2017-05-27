@@ -15,7 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.metrics;
+
+import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
+import org.apache.flink.runtime.metrics.dump.MetricDump;
+import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
+import org.apache.flink.runtime.metrics.dump.MetricQueryService;
+import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
+import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -23,36 +37,25 @@ import akka.dispatch.OnFailure;
 import akka.dispatch.OnSuccess;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
-import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
-import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
-import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
-import org.apache.flink.runtime.metrics.dump.MetricQueryService;
-import org.apache.flink.runtime.metrics.dump.MetricDump;
-import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
-import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
 import scala.Option;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
 import static org.apache.flink.runtime.metrics.dump.MetricDumpSerialization.MetricDumpDeserializer;
 
 /**
  * The MetricFetcher can be used to fetch metrics from the JobManager and all registered TaskManagers.
  *
- * Metrics will only be fetched when {@link MetricFetcher#update()} is called, provided that a sufficient time since
+ * <p>Metrics will only be fetched when {@link MetricFetcher#update()} is called, provided that a sufficient time since
  * the last call has passed.
  */
 public class MetricFetcher {
@@ -61,7 +64,7 @@ public class MetricFetcher {
 	private final ActorSystem actorSystem;
 	private final JobManagerRetriever retriever;
 	private final ExecutionContext ctx;
-	private final FiniteDuration timeout = new FiniteDuration(Duration.create(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT).toMillis(), TimeUnit.MILLISECONDS);
+	private final FiniteDuration timeout = new FiniteDuration(Duration.create(AkkaOptions.ASK_TIMEOUT.defaultValue()).toMillis(), TimeUnit.MILLISECONDS);
 
 	private MetricStore metrics = new MetricStore();
 	private MetricDumpDeserializer deserializer = new MetricDumpDeserializer();
@@ -135,7 +138,7 @@ public class MetricFetcher {
 				 * We first request the list of all registered task managers from the job manager, and then
 				 * request the respective metric dump from each task manager.
 				 *
-				 * All stored metrics that do not belong to a registered task manager will be removed.
+				 * <p>All stored metrics that do not belong to a registered task manager will be removed.
 				 */
 				Future<Object> registeredTaskManagersFuture = jobManager.ask(JobManagerMessages.getRequestRegisteredTaskManagers(), timeout);
 				registeredTaskManagersFuture
@@ -169,7 +172,7 @@ public class MetricFetcher {
 		future.onFailure(new OnFailure() {
 			@Override
 			public void onFailure(Throwable failure) throws Throwable {
-				LOG.warn(message, failure);
+				LOG.debug(message, failure);
 			}
 		}, ctx);
 	}

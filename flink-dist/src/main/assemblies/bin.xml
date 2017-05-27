@@ -33,13 +33,13 @@ under the License.
 		<dependencySet>
 			<outputDirectory>lib</outputDirectory>
 			<unpack>false</unpack>
-			<useTransitiveDependencies>true</useTransitiveDependencies>
 			<useProjectArtifact>false</useProjectArtifact>
 			<useProjectAttachments>false</useProjectAttachments>
+			<useTransitiveDependencies>true</useTransitiveDependencies>
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 
 			<includes>
-				<include>org.apache.flink:flink-python_2.10</include>
+				<include>org.apache.flink:flink-python_${scala.binary.version}</include>
 				<include>org.slf4j:slf4j-log4j12</include>
 				<include>log4j:log4j</include>
 			</includes>
@@ -47,10 +47,18 @@ under the License.
 	</dependencySets>
 
 	<files>
-		<!-- copy fat jar -->
+		<!-- copy flink-dist fat jar -->
 		<file>
-			<source>target/flink-dist_2.10-${project.version}.jar</source>
+			<source>target/flink-dist_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>lib/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- copy the Hadoop uber jar -->
+		<file>
+			<source>../flink-shaded-hadoop/flink-shaded-hadoop2-uber/target/flink-shaded-hadoop2-uber-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-shaded-hadoop2-uber-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 

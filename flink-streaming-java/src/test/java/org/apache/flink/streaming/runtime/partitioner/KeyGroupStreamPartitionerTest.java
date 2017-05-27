@@ -17,17 +17,21 @@
 
 package org.apache.flink.streaming.runtime.partitioner;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+
+/**
+ * Tests for {@link KeyGroupStreamPartitioner}.
+ */
 public class KeyGroupStreamPartitionerTest extends TestLogger {
 
 	private KeyGroupStreamPartitioner<Tuple2<String, Integer>, String> keyGroupPartitioner;

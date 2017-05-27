@@ -23,7 +23,7 @@ import akka.actor.Props;
 import akka.actor.Status;
 import akka.dispatch.Futures;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobClientMessages;
@@ -114,7 +114,7 @@ public class JobAttachmentClientActor extends JobClientActor {
 					client.tell(
 						decorateMessage(new Status.Failure(
 							new JobClientActorRegistrationTimeoutException("Registration for Job at the JobManager " +
-								"timed out. " +	"You may increase '" + ConfigConstants.AKKA_CLIENT_TIMEOUT +
+								"timed out. " +	"You may increase '" + AkkaOptions.CLIENT_TIMEOUT.key() +
 								"' in case the JobManager needs more time to confirm the job client registration."))),
 						getSelf());
 				}

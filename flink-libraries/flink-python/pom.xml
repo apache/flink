@@ -27,7 +27,7 @@ under the License.
         <relativePath>..</relativePath>
     </parent>
 
-    <artifactId>flink-python_2.10</artifactId>
+    <artifactId>flink-python_${scala.binary.version}</artifactId>
     <name>flink-python</name>
     <packaging>jar</packaging>
 
@@ -48,8 +48,77 @@ under the License.
                     </archive>
                 </configuration>
             </plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.17</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>6.19</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<configLocation>/tools/maven/strict-checkstyle.xml</configLocation>
+					<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
+					<logViolationsToConsole>true</logViolationsToConsole>
+					<failOnViolation>true</failOnViolation>
+				</configuration>
+				<executions>
+					<!--
+					Execute checkstyle after compilation but before tests.
+
+					This ensures that any parsing or type checking errors are from
+					javac, so they look as expected. Beyond that, we want to
+					fail as early as possible.
+					-->
+					<execution>
+						<phase>test-compile</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
         </plugins>
     </build>
+
+	<profiles>
+		<profile>
+			<id>generate-config-docs</id>
+
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<version>1.7</version>
+						<executions>
+							<execution>
+								<phase>package</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<target>
+								<mkdir dir="${rootDir}/${generated.docs.dir}"/>
+								<java classname="org.apache.flink.configuration.ConfigOptionsDocGenerator" fork="true">
+									<classpath refid="maven.compile.classpath" />
+									<arg value="${rootDir}/${generated.docs.dir}/" />
+									<!--package with configuration classes-->
+									<arg value="org.apache.flink.python.api" />
+								</java>
+							</target>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
     <dependencies>
         
@@ -69,7 +138,7 @@ under the License.
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-runtime_2.10</artifactId>
+            <artifactId>flink-runtime_${scala.binary.version}</artifactId>
             <version>${project.version}</version>
 			<scope>provided</scope>
         </dependency>
@@ -78,7 +147,7 @@ under the License.
         
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-test-utils_2.10</artifactId>
+            <artifactId>flink-test-utils_${scala.binary.version}</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

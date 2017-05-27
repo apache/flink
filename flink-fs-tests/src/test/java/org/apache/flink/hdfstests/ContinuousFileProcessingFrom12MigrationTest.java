@@ -18,8 +18,6 @@
 
 package org.apache.flink.hdfstests;
 
-import java.io.FileOutputStream;
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -42,7 +40,8 @@ import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
-import org.apache.flink.util.Preconditions;
+
+import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -50,8 +49,12 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
+/**
+ * Tests that verify the migration from 1.2 snapshots.
+ */
 public class ContinuousFileProcessingFrom12MigrationTest {
 
 	private static final int LINES_PER_FILE = 10;
@@ -232,7 +235,7 @@ public class ContinuousFileProcessingFrom12MigrationTest {
 
 		OperatorSnapshotUtil.writeStateHandle(
 				snapshot,
-				"src/test/resources/monitoring-function-migration-test-" + fileModTime +"-flink1.2-snapshot");
+				"src/test/resources/monitoring-function-migration-test-" + fileModTime + "-flink1.2-snapshot");
 
 		monitoringFunction.cancel();
 		runner.join();
@@ -315,7 +318,7 @@ public class ContinuousFileProcessingFrom12MigrationTest {
 		}
 	}
 
-	private static abstract class DummySourceContext
+	private abstract static class DummySourceContext
 		implements SourceFunction.SourceContext<TimestampedFileInputSplit> {
 
 		private final Object lock = new Object();
@@ -352,7 +355,7 @@ public class ContinuousFileProcessingFrom12MigrationTest {
 		FileOutputStream stream = new FileOutputStream(tmp);
 		StringBuilder str = new StringBuilder();
 		for (int i = 0; i < LINES_PER_FILE; i++) {
-			String line = fileIdx +": "+ sampleLine + " " + i +"\n";
+			String line = fileIdx + ": " + sampleLine + " " + i + "\n";
 			str.append(line);
 			stream.write(line.getBytes());
 		}

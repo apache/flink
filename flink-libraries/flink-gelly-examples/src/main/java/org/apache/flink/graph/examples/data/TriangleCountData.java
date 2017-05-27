@@ -33,7 +33,15 @@ import java.util.List;
  */
 public class TriangleCountData {
 
-	public static final String EDGES = "1	2\n"+"1	3\n"+"2	3\n"+"2	6\n"+"3	4\n"+"3	5\n"+"3	6\n"+"4	5\n"+"6	7\n";
+	public static final String EDGES = "1	2\n" +
+		"1	3\n" +
+		"2	3\n" +
+		"2	6\n" +
+		"3	4\n" +
+		"3	5\n" +
+		"3	6\n" +
+		"4	5\n" +
+		"6	7\n";
 
 	public static DataSet<Edge<Long, NullValue>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 

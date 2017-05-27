@@ -18,9 +18,6 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import static java.util.Objects.requireNonNull;
-
-import org.apache.commons.math3.util.ArithmeticUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -36,6 +33,10 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.util.MathUtils;
+
+import org.apache.commons.math3.util.ArithmeticUtils;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Base class for special window operator implementation for windows that fire at the same time for
@@ -113,7 +114,6 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 		this.paneSize = paneSlide;
 		this.numPanesPerWindow = MathUtils.checkedDownCast(windowLength / paneSlide);
 	}
-
 
 	protected abstract AbstractKeyedTimePanes<IN, KEY, STATE, OUT> createPanes(
 			KeySelector<IN, KEY> keySelector, Function function);

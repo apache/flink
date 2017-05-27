@@ -20,6 +20,9 @@ package org.apache.flink.metrics.util;
 
 import org.apache.flink.metrics.Meter;
 
+/**
+ * A dummy {@link Meter} implementation.
+ */
 public class TestMeter implements Meter {
 
 	@Override

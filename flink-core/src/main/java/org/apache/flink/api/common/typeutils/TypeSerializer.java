@@ -201,14 +201,19 @@ public abstract class TypeSerializer<T> implements TypeDeserializer<T>, Serializ
 	 *     migration needs to be performed, because this serializer is not compatible, or cannot be reconfigured to be
 	 *     compatible, for previous data. Furthermore, in the case that the preceding serializer cannot be found or
 	 *     restored to read the previous data to perform the migration, the provided convert deserializer can be
-	 *     used (may be {@code null} if one cannot be provided).</li>
+	 *     used as a fallback resort.</li>
+	 *
+	 *     <li>{@link CompatibilityResult#requiresMigration()}: this signals Flink that migration needs to be
+	 *     performed, because this serializer is not compatible, or cannot be reconfigured to be compatible, for
+	 *     previous data. If the preceding serializer cannot be found (either its implementation changed or it was
+	 *     removed from the classpath) then the migration will fail due to incapability to read previous data.</li>
 	 * </ul>
 	 *
 	 * @see CompatibilityResult
 	 *
 	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
 	 *
-	 * @return the determined compatibility result.
+	 * @return the determined compatibility result (cannot be {@code null}).
 	 */
 	public abstract CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot);
 }

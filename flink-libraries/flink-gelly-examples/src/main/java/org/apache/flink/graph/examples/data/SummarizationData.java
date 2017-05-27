@@ -37,9 +37,9 @@ public class SummarizationData {
 	/**
 	 * Vertices of the input graph.
 	 *
-	 * Format:
+	 * <p>Format:
 	 *
-	 * "vertex-id;vertex-value"
+	 * <p>"vertex-id;vertex-value"
 	 */
 	private static final String[] INPUT_VERTICES = new String[] {
 		"0;1",
@@ -53,9 +53,9 @@ public class SummarizationData {
 	/**
 	 * Edges of the input graph.
 	 *
-	 * Format:
+	 * <p>Format:
 	 *
-	 * "source-id;target-id;edge-value
+	 * <p>"source-id;target-id;edge-value
 	 */
 	private static final String[] INPUT_EDGES = new String[] {
 		"0;1;1",
@@ -73,9 +73,9 @@ public class SummarizationData {
 	/**
 	 * The resulting vertex id can be any id of the vertices summarized by the single vertex.
 	 *
-	 * Format:
+	 * <p>Format:
 	 *
-	 * "possible-id[,possible-id];group-value,group-count"
+	 * <p>"possible-id[,possible-id];group-value,group-count"
 	 */
 	public static final String[] EXPECTED_VERTICES = new String[] {
 			"0,1;1,2",
@@ -84,9 +84,11 @@ public class SummarizationData {
 	};
 
 	/**
-	 * Format:
+	 * The expected output from the input edges.
 	 *
-	 * "possible-source-id[,possible-source-id];possible-target-id[,possible-target-id];group-value,group-count"
+	 * <p>Format:
+	 *
+	 * <p>"possible-source-id[,possible-source-id];possible-target-id[,possible-target-id];group-value,group-count"
 	 */
 	public static final String[] EXPECTED_EDGES_WITH_VALUES = new String[] {
 			"0,1;0,1;1,2",
@@ -98,9 +100,11 @@ public class SummarizationData {
 	};
 
 	/**
-	 * Format:
+	 * The expected output from the input edges translated to null values.
 	 *
-	 * "possible-source-id[,possible-source-id];possible-target-id[,possible-target-id];group-value,group-count"
+	 * <p>Format:
+	 *
+	 * <p>"possible-source-id[,possible-source-id];possible-target-id[,possible-target-id];group-value,group-count"
 	 */
 	public static final String[] EXPECTED_EDGES_ABSENT_VALUES = new String[] {
 			"0,1;0,1;(null),2",

@@ -21,7 +21,7 @@ package org.apache.flink.graph.types.valuearray;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.graph.utils.Murmur3_32;
+import org.apache.flink.graph.utils.MurmurHash;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Preconditions;
@@ -33,12 +33,12 @@ import java.util.Iterator;
 
 /**
  * An array of {@link StringValue}.
- * <p>
- * Strings are serialized to a byte array. Concatenating arrays is as simple
+ *
+ * <p>Strings are serialized to a byte array. Concatenating arrays is as simple
  * and fast as extending and copying byte arrays. Strings are serialized when
  * individually added to {@code StringValueArray}.
- * <p>
- * For each string added to the array the length is first serialized using a
+ *
+ * <p>For each string added to the array the length is first serialized using a
  * variable length integer. Then the string characters are serialized using a
  * variable length encoding where the lower 128 ASCII/UFT-8 characters are
  * encoded in a single byte. This ensures that common characters are serialized
@@ -74,7 +74,7 @@ implements ValueArray<StringValue> {
 	private transient int markPosition;
 
 	// hasher used to generate the normalized key
-	private Murmur3_32 hash = new Murmur3_32(0x19264330);
+	private MurmurHash hash = new MurmurHash(0x19264330);
 
 	// hash result stored as normalized key
 	private IntValue hashValue = new IntValue();
@@ -276,7 +276,7 @@ implements ValueArray<StringValue> {
 		hash.reset();
 
 		hash.hash(position);
-		for (int i = 0 ; i < position ; i++) {
+		for (int i = 0; i < position; i++) {
 			hash.hash(data[i]);
 		}
 
@@ -300,7 +300,7 @@ implements ValueArray<StringValue> {
 			return cmp;
 		}
 
-		for (int i = 0 ; i < position ; i++) {
+		for (int i = 0; i < position; i++) {
 			cmp = Byte.compare(data[i], other.data[i]);
 
 			if (cmp != 0) {
@@ -319,7 +319,7 @@ implements ValueArray<StringValue> {
 	public int hashCode() {
 		int hash = 1;
 
-		for (int i = 0 ; i < position ; i++) {
+		for (int i = 0; i < position; i++) {
 			hash = 31 * hash + data[i];
 		}
 
@@ -339,7 +339,7 @@ implements ValueArray<StringValue> {
 				return false;
 			}
 
-			for (int i = 0 ; i < position ; i++) {
+			for (int i = 0; i < position; i++) {
 				if (data[i] != other.data[i]) {
 					return false;
 				}

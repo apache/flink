@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api;
 
-
 import org.apache.flink.annotation.PublicEvolving;
 
 /**

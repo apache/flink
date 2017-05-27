@@ -19,11 +19,13 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerUtil;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Row;
@@ -31,6 +33,7 @@ import org.apache.flink.types.Row;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.readIntoAndCopyNullMask;
 import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.readIntoNullMask;
@@ -254,33 +257,41 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 	@Override
 	public RowSerializerConfigSnapshot snapshotConfiguration() {
-		return new RowSerializerConfigSnapshot(TypeSerializerUtil.snapshotConfigurations(fieldSerializers));
+		return new RowSerializerConfigSnapshot(fieldSerializers);
 	}
 
 	@Override
 	public CompatibilityResult<Row> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof RowSerializerConfigSnapshot) {
-			TypeSerializerConfigSnapshot[] fieldSerializerConfigSnapshots =
-				((RowSerializerConfigSnapshot) configSnapshot).getNestedSerializerConfigSnapshots();
+			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousFieldSerializersAndConfigs =
+				((RowSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
-			if (fieldSerializerConfigSnapshots.length == fieldSerializers.length) {
+			if (previousFieldSerializersAndConfigs.size() == fieldSerializers.length) {
 				boolean requireMigration = false;
 				TypeSerializer<?>[] convertDeserializers = new TypeSerializer<?>[fieldSerializers.length];
 
 				CompatibilityResult<?> compatResult;
-				for (int i = 0; i < fieldSerializers.length; i++) {
-					compatResult = fieldSerializers[i].ensureCompatibility(fieldSerializerConfigSnapshots[i]);
-					if (compatResult.requiresMigration()) {
+				int i = 0;
+				for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> f : previousFieldSerializersAndConfigs) {
+					compatResult = CompatibilityUtil.resolveCompatibilityResult(
+							f.f0,
+							UnloadableDummyTypeSerializer.class,
+							f.f1,
+							fieldSerializers[i]);
+
+					if (compatResult.isRequiresMigration()) {
 						requireMigration = true;
 
 						if (compatResult.getConvertDeserializer() == null) {
 							// one of the field serializers cannot provide a fallback deserializer
-							return CompatibilityResult.requiresMigration(null);
+							return CompatibilityResult.requiresMigration();
 						} else {
 							convertDeserializers[i] =
 								new TypeDeserializerAdapter<>(compatResult.getConvertDeserializer());
 						}
 					}
+
+					i++;
 				}
 
 				if (requireMigration) {
@@ -291,7 +302,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 			}
 		}
 
-		return CompatibilityResult.requiresMigration(null);
+		return CompatibilityResult.requiresMigration();
 	}
 
 	public static final class RowSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
@@ -301,8 +312,8 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		/** This empty nullary constructor is required for deserializing the configuration. */
 		public RowSerializerConfigSnapshot() {}
 
-		public RowSerializerConfigSnapshot(TypeSerializerConfigSnapshot[] fieldSerializerConfigSnapshots) {
-			super(fieldSerializerConfigSnapshots);
+		public RowSerializerConfigSnapshot(TypeSerializer[] fieldSerializers) {
+			super(fieldSerializers);
 		}
 
 		@Override

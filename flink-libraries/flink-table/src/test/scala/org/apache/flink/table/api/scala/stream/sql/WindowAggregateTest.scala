@@ -19,7 +19,7 @@ package org.apache.flink.table.api.scala.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.WeightedAvgWithMerge
+import org.apache.flink.table.api.java.utils.UserDefinedAggFunctions.{OverAgg0, WeightedAvgWithMerge}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.utils.TableTestUtil._
@@ -30,6 +30,17 @@ class WindowAggregateTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
   streamUtil.addTable[(Int, String, Long)](
     "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
+
+  /**
+    * OVER clause is necessary for [[OverAgg0]] window function.
+    */
+  @Test(expected = classOf[ValidationException])
+  def testOverAggregation(): Unit = {
+    streamUtil.addFunction("overAgg", new OverAgg0)
+
+    val sqlQuery = "SELECT overAgg(c, a) FROM MyTable"
+    streamUtil.tEnv.sql(sqlQuery)
+  }
 
   @Test
   def testGroupbyWithoutWindow() = {
@@ -70,7 +81,7 @@ class WindowAggregateTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "1970-01-01 00:00:00 AS $f0", "c", "a")
+          term("select", "rowtime", "c", "a")
         ),
         term("window", TumblingGroupWindow('w$, 'rowtime, 900000.millis)),
         term("select",
@@ -98,7 +109,7 @@ class WindowAggregateTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "1970-01-01 00:00:00 AS $f0", "c", "a")
+          term("select", "proctime", "c", "a")
         ),
         term("window", SlidingGroupWindow('w$, 'proctime, 3600000.millis, 900000.millis)),
         term("select",
@@ -127,7 +138,7 @@ class WindowAggregateTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "1970-01-01 00:00:00 AS $f0", "c", "a")
+          term("select", "proctime", "c", "a")
         ),
         term("window", SessionGroupWindow('w$, 'proctime, 900000.millis)),
         term("select",
@@ -136,6 +147,33 @@ class WindowAggregateTest extends TableTestBase {
             "start('w$) AS w$start, " +
             "end('w$) AS w$end")
       )
+    streamUtil.verifySql(sql, expected)
+  }
+
+  @Test
+  def testExpressionOnWindowAuxFunction() = {
+    val sql =
+      "SELECT " +
+        "  COUNT(*), " +
+        "  TUMBLE_END(rowtime, INTERVAL '15' MINUTE) + INTERVAL '1' MINUTE " +
+        "FROM MyTable " +
+        "GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)"
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupWindowAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "rowtime")
+          ),
+          term("window", TumblingGroupWindow('w$, 'rowtime, 900000.millis)),
+          term("select", "COUNT(*) AS EXPR$0", "start('w$) AS w$start", "end('w$) AS w$end")
+        ),
+        term("select", "EXPR$0", "DATETIME_PLUS(w$end, 60000) AS $f1")
+      )
+
     streamUtil.verifySql(sql, expected)
   }
 

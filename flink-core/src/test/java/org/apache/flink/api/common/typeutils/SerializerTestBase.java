@@ -55,7 +55,13 @@ import org.junit.Test;
 public abstract class SerializerTestBase<T> extends TestLogger {
 	
 	protected abstract TypeSerializer<T> createSerializer();
-	
+
+	/**
+	 * Gets the expected length for the serializer's {@link TypeSerializer#getLength()} method.
+	 * 
+	 * <p>The expected length should be positive, for fix-length data types, or {@code -1} for
+	 * variable-length types.
+	 */
 	protected abstract int getLength();
 	
 	protected abstract Class<T> getTypeClass();
@@ -103,30 +109,36 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerUtil.writeSerializerConfigSnapshot(
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
 				new DataOutputViewStreamWrapper(out), configSnapshot);
 			serializedConfig = out.toByteArray();
 		}
 
 		TypeSerializerConfigSnapshot restoredConfig;
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			restoredConfig = TypeSerializerUtil.readSerializerConfigSnapshot(
+			restoredConfig = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
 		CompatibilityResult strategy = getSerializer().ensureCompatibility(restoredConfig);
-		assertFalse(strategy.requiresMigration());
+		assertFalse(strategy.isRequiresMigration());
 
 		// also verify that the serializer's reconfigure implementation detects incompatibility
 		strategy = getSerializer().ensureCompatibility(new TestIncompatibleSerializerConfigSnapshot());
-		assertTrue(strategy.requiresMigration());
+		assertTrue(strategy.isRequiresMigration());
 	}
 	
 	@Test
 	public void testGetLength() {
+		final int len = getLength();
+
+		if (len == 0) {
+			fail("Broken serializer test base - zero length cannot be the expected length");
+		}
+
 		try {
 			TypeSerializer<T> serializer = getSerializer();
-			assertEquals(getLength(), serializer.getLength());
+			assertEquals(len, serializer.getLength());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

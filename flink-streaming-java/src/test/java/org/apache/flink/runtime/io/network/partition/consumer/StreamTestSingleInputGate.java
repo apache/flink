@@ -17,6 +17,7 @@
 */
 
 // We have it in this package because we could not mock the methods otherwise
+
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
+
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -91,7 +93,6 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 
 			inputQueues[channelIndex] = new ConcurrentLinkedQueue<InputValue<Object>>();
 			inputChannels[channelIndex] = new TestInputChannel(inputGate, i);
-
 
 			final Answer<BufferAndAvailability> answer = new Answer<BufferAndAvailability>() {
 				@Override
@@ -178,7 +179,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 		return true;
 	}
 
-	public static class InputValue<T> {
+	private static class InputValue<T> {
 		private Object elementOrEvent;
 		private boolean isStreamEnd;
 		private boolean isStreamRecord;

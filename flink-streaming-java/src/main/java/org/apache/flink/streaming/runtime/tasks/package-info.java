@@ -24,4 +24,5 @@
  * <p>The tasks merely set up the distributed stream coordination and the checkpointing.
  * Internally, the tasks create one or more operators, perform the stream transformations.
  */
+
 package org.apache.flink.streaming.runtime.tasks;

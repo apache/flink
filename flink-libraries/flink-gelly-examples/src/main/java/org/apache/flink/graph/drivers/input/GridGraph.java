@@ -54,7 +54,8 @@ extends GeneratedGraph<LongValue> {
 
 	@Override
 	public String getUsage() {
-		return "--dim0 size:wrap_endpoints [--dim1 size:wrap_endpoints [--dim2 ...]]" + super.getUsage();
+		return "--" + PREFIX + "0 size:wrap_endpoints [--" + PREFIX + " size:wrap_endpoints [--" + PREFIX + " ...]]"
+			+ super.getUsage();
 	}
 
 	@Override
@@ -133,7 +134,7 @@ extends GeneratedGraph<LongValue> {
 				"a colon to separate the integer size and boolean indicating whether the dimension endpoints are " +
 				"connected: '" + field + "'");
 
-			if (! field.contains(":")) {
+			if (!field.contains(":")) {
 				throw exception;
 			}
 
@@ -146,7 +147,7 @@ extends GeneratedGraph<LongValue> {
 			try {
 				size = Long.parseLong(parts[0]);
 				wrapEndpoints = Boolean.parseBoolean(parts[1]);
-			} catch(NumberFormatException ex) {
+			} catch (NumberFormatException ex) {
 				throw exception;
 			}
 		}

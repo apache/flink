@@ -18,16 +18,15 @@
 
 package org.apache.flink.graph.scala.examples
 
-import org.apache.flink.api.scala._
-import org.apache.flink.graph.scala._
-import org.apache.flink.graph.Edge
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.graph.spargel.{MessageIterator, ScatterFunction, GatherFunction}
-import org.apache.flink.graph.Vertex
+import org.apache.flink.api.scala._
 import org.apache.flink.graph.examples.data.SingleSourceShortestPathsData
+import org.apache.flink.graph.scala._
+import org.apache.flink.graph.scala.utils.Tuple3ToEdgeMap
+import org.apache.flink.graph.spargel.{GatherFunction, MessageIterator, ScatterFunction}
+import org.apache.flink.graph.{Edge, Vertex}
 
 import scala.collection.JavaConversions._
-import org.apache.flink.graph.scala.utils.Tuple3ToEdgeMap
 
 /**
  * This example shows how to use Gelly's scatter-gather iterations.

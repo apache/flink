@@ -25,6 +25,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -49,7 +50,7 @@ public class BlobCacheSuccessTest {
 	 * BlobServer.
 	 */
 	@Test
-	public void testBlobCache() {
+	public void testBlobCache() throws IOException {
 		Configuration config = new Configuration();
 		uploadFileGetTest(config, false, false);
 	}
@@ -60,7 +61,7 @@ public class BlobCacheSuccessTest {
 	 * BlobServer.
 	 */
 	@Test
-	public void testBlobCacheHa() {
+	public void testBlobCacheHa() throws IOException {
 		Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
@@ -73,7 +74,7 @@ public class BlobCacheSuccessTest {
 	 * file system and thus needs to download BLOBs from the BlobServer.
 	 */
 	@Test
-	public void testBlobCacheHaFallback() {
+	public void testBlobCacheHaFallback() throws IOException {
 		Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
@@ -82,17 +83,30 @@ public class BlobCacheSuccessTest {
 	}
 
 	private void uploadFileGetTest(final Configuration config, boolean cacheWorksWithoutServer,
-		boolean cacheHasAccessToFs) {
+		boolean cacheHasAccessToFs) throws IOException {
 		// First create two BLOBs and upload them to BLOB server
 		final byte[] buf = new byte[128];
 		final List<BlobKey> blobKeys = new ArrayList<BlobKey>(2);
 
 		BlobServer blobServer = null;
 		BlobCache blobCache = null;
+		BlobStoreService blobStoreService = null;
 		try {
+			final Configuration cacheConfig;
+			if (cacheHasAccessToFs) {
+				cacheConfig = config;
+			} else {
+				// just in case parameters are still read from the server,
+				// create a separate configuration object for the cache
+				cacheConfig = new Configuration(config);
+				cacheConfig.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+					temporaryFolder.getRoot().getPath() + "/does-not-exist");
+			}
+
+			blobStoreService = BlobUtils.createBlobStoreFromConfig(cacheConfig);
 
 			// Start the BLOB server
-			blobServer = new BlobServer(config);
+			blobServer = new BlobServer(config, blobStoreService);
 			final InetSocketAddress serverAddress = new InetSocketAddress(blobServer.getPort());
 
 			// Upload BLOBs
@@ -112,22 +126,11 @@ public class BlobCacheSuccessTest {
 
 			if (cacheWorksWithoutServer) {
 				// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
-				blobServer.shutdown();
+				blobServer.close();
 				blobServer = null;
 			}
 
-			final Configuration cacheConfig;
-			if (cacheHasAccessToFs) {
-				cacheConfig = config;
-			} else {
-				// just in case parameters are still read from the server,
-				// create a separate configuration object for the cache
-				cacheConfig = new Configuration(config);
-				cacheConfig.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
-					temporaryFolder.getRoot().getPath() + "/does-not-exist");
-			}
-
-			blobCache = new BlobCache(serverAddress, cacheConfig);
+			blobCache = new BlobCache(serverAddress, cacheConfig, blobStoreService);
 
 			for (BlobKey blobKey : blobKeys) {
 				blobCache.getURL(blobKey);
@@ -135,7 +138,7 @@ public class BlobCacheSuccessTest {
 
 			if (blobServer != null) {
 				// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
-				blobServer.shutdown();
+				blobServer.close();
 				blobServer = null;
 			}
 
@@ -162,18 +165,17 @@ public class BlobCacheSuccessTest {
 					fail(e.getMessage());
 				}
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
 			if (blobServer != null) {
-				blobServer.shutdown();
+				blobServer.close();
 			}
 
 			if(blobCache != null){
-				blobCache.shutdown();
+				blobCache.close();
+			}
+
+			if (blobStoreService != null) {
+				blobStoreService.closeAndCleanupAllData();
 			}
 		}
 	}

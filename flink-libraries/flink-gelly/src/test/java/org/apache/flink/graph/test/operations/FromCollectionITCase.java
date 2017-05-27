@@ -27,12 +27,16 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+/**
+ * Test creating graphs from collections.
+ */
 @RunWith(Parameterized.class)
 public class FromCollectionITCase extends MultipleProgramsTestBase {
 
@@ -73,7 +77,6 @@ public class FromCollectionITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, NullValue, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongEdges(),
 			env);
-
 
 		DataSet<Vertex<Long, NullValue>> data = graph.getVertices();
 		List<Vertex<Long, NullValue>> result = data.collect();

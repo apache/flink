@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.drivers.input;
 
-import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.drivers.parameter.BooleanParameter;
@@ -30,6 +29,8 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.types.StringValue;
+
+import org.apache.commons.math3.random.JDKRandomGenerator;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 

@@ -22,8 +22,8 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
@@ -31,6 +31,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.runtime.metrics.util.TestingHistogram;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import javax.management.MBeanAttributeInfo;
@@ -41,6 +42,7 @@ import javax.management.ObjectName;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
+
 import java.lang.management.ManagementFactory;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -51,6 +53,9 @@ import static org.apache.flink.metrics.jmx.JMXReporter.JMX_DOMAIN_PREFIX;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the JMXReporter.
+ */
 public class JMXReporterTest extends TestLogger {
 
 	@Test
@@ -140,7 +145,7 @@ public class JMXReporterTest extends TestLogger {
 
 		rep1.notifyOfRemovedMetric(g1, "rep1", null);
 		rep1.notifyOfRemovedMetric(g2, "rep2", null);
-		
+
 		mg.close();
 		reg.shutdown();
 	}
@@ -194,7 +199,7 @@ public class JMXReporterTest extends TestLogger {
 		ObjectName objectName1 = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager.rep1", JMXReporter.generateJmxTable(mg.getAllVariables()));
 		ObjectName objectName2 = new ObjectName(JMX_DOMAIN_PREFIX + "taskmanager.rep2", JMXReporter.generateJmxTable(mg.getAllVariables()));
 
-		JMXServiceURL url1 = new JMXServiceURL("service:jmx:rmi://localhost:" + ((JMXReporter)rep1).getPort() + "/jndi/rmi://localhost:" + ((JMXReporter)rep1).getPort() + "/jmxrmi");
+		JMXServiceURL url1 = new JMXServiceURL("service:jmx:rmi://localhost:" + ((JMXReporter) rep1).getPort() + "/jndi/rmi://localhost:" + ((JMXReporter) rep1).getPort() + "/jmxrmi");
 		JMXConnector jmxCon1 = JMXConnectorFactory.connect(url1);
 		MBeanServerConnection mCon1 = jmxCon1.getMBeanServerConnection();
 
@@ -203,7 +208,7 @@ public class JMXReporterTest extends TestLogger {
 
 		jmxCon1.close();
 
-		JMXServiceURL url2 = new JMXServiceURL("service:jmx:rmi://localhost:" + ((JMXReporter)rep2).getPort() + "/jndi/rmi://localhost:" + ((JMXReporter)rep2).getPort() + "/jmxrmi");
+		JMXServiceURL url2 = new JMXServiceURL("service:jmx:rmi://localhost:" + ((JMXReporter) rep2).getPort() + "/jndi/rmi://localhost:" + ((JMXReporter) rep2).getPort() + "/jmxrmi");
 		JMXConnector jmxCon2 = JMXConnectorFactory.connect(url2);
 		MBeanServerConnection mCon2 = jmxCon2.getMBeanServerConnection();
 

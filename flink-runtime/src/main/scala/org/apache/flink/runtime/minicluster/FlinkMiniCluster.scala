@@ -27,7 +27,7 @@ import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.Config
 import org.apache.flink.api.common.{JobExecutionResult, JobID, JobSubmissionResult}
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.{JobClient, JobExecutionException}
@@ -37,7 +37,7 @@ import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, High
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
 import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode
-import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService, StandaloneLeaderRetrievalService}
+import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.util.{ExecutorThreadFactory, Hardware}
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
@@ -265,9 +265,9 @@ abstract class FlinkMiniCluster(
     // https://docs.travis-ci.com/user/environment-variables#Default-Environment-Variables
     if (sys.env.contains("CI")) {
       // Only set if nothing specified in config
-      if (config.getString(ConfigConstants.AKKA_ASK_TIMEOUT, null) == null) {
-        val duration = Duration(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT) * 10
-        config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, s"${duration.toSeconds}s")
+      if (!config.contains(AkkaOptions.ASK_TIMEOUT)) {
+        val duration = Duration(AkkaOptions.ASK_TIMEOUT.defaultValue()) * 10
+        config.setString(AkkaOptions.ASK_TIMEOUT, s"${duration.toSeconds}s")
 
         LOG.info(s"Akka ask timeout set to ${duration.toSeconds}s")
       }
@@ -387,17 +387,13 @@ abstract class FlinkMiniCluster(
       config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false) &&
         config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
 
-      // TODO: Add support for HA: Make web server work independently from the JM
-      val leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(
-        HighAvailabilityServices.DEFAULT_JOB_ID)
-
       LOG.info("Starting JobManger web frontend")
       // start the new web frontend. we need to load this dynamically
       // because it is not in the same project/dependencies
       val webServer = Option(
         WebMonitorUtils.startWebRuntimeMonitor(
           config,
-          leaderRetrievalService,
+          highAvailabilityServices,
           actorSystem)
       )
 

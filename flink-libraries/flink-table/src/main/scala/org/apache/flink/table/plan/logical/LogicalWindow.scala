@@ -36,7 +36,7 @@ abstract class LogicalWindow(
   def resolveExpressions(resolver: (Expression) => Expression): LogicalWindow = this
 
   def validate(tableEnv: TableEnvironment): ValidationResult = aliasAttribute match {
-    case WindowReference(_) => ValidationSuccess
+    case WindowReference(_, _) => ValidationSuccess
     case _ => ValidationFailure("Window reference for window expected.")
   }
 

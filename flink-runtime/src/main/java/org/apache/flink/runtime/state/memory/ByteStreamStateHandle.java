@@ -91,6 +91,13 @@ public class ByteStreamStateHandle implements StreamStateHandle {
 		return 31 * handleName.hashCode();
 	}
 
+	@Override
+	public String toString() {
+		return "ByteStreamStateHandle{" +
+			"handleName='" + handleName + '\'' +
+			'}';
+	}
+
 	/**
 	 * An input stream view on a byte array.
 	 */

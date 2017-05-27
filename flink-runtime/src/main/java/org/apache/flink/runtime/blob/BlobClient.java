@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -92,8 +92,7 @@ public final class BlobClient implements Closeable {
 			// Check if ssl is enabled
 			SSLContext clientSSLContext = null;
 			if (clientConfig != null &&
-				clientConfig.getBoolean(ConfigConstants.BLOB_SERVICE_SSL_ENABLED,
-						ConfigConstants.DEFAULT_BLOB_SERVICE_SSL_ENABLED)) {
+				clientConfig.getBoolean(BlobServerOptions.SSL_ENABLED)) {
 
 				clientSSLContext = SSLUtils.createSSLClientContext(clientConfig);
 			}
@@ -538,7 +537,7 @@ public final class BlobClient implements Closeable {
 			throw new IOException("Server side error: " + cause.getMessage(), cause);
 		}
 		else {
-			throw new IOException("Unrecognized response");
+			throw new IOException("Unrecognized response: " + response + '.');
 		}
 	}
 

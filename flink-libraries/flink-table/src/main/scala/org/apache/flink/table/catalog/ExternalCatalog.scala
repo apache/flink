@@ -26,49 +26,41 @@ import org.apache.flink.table.api._
   * An [[ExternalCatalog]] is the connector between an external database catalog and Flink's
   * Table API.
   *
-  * It provides information about databases and tables such as names, schema, statistics, and
-  * access information.
+  * It provides information about catalogs, databases and tables such as names, schema, statistics,
+  * and access information.
   */
 trait ExternalCatalog {
 
   /**
-    * Get a table from the catalog
+    * Get a table from this catalog.
     *
-    * @param dbName    The name of the table's database.
     * @param tableName The name of the table.
-    * @throws DatabaseNotExistException thrown if the database does not exist in the catalog.
     * @throws TableNotExistException    thrown if the table does not exist in the catalog.
-    * @return the requested table
+    * @return The requested table.
     */
-  @throws[DatabaseNotExistException]
   @throws[TableNotExistException]
-  def getTable(dbName: String, tableName: String): ExternalCatalogTable
+  def getTable(tableName: String): ExternalCatalogTable
 
   /**
-    * Get a list of all table names of a database in the catalog.
+    * Gets the names of all tables registered in this catalog.
     *
-    * @param dbName The name of the database.
-    * @throws DatabaseNotExistException thrown if the database does not exist in the catalog
-    * @return The list of table names
+    * @return A list of the names of all registered tables.
     */
-  @throws[DatabaseNotExistException]
-  def listTables(dbName: String): JList[String]
+  def listTables(): JList[String]
 
   /**
-    * Gets a database from the catalog.
+    * Gets a sub catalog from this catalog.
     *
-    * @param dbName The name of the database.
-    * @throws DatabaseNotExistException thrown if the database does not exist in the catalog
-    * @return The requested database
+    * @return The requested sub catalog.
     */
-  @throws[DatabaseNotExistException]
-  def getDatabase(dbName: String): ExternalCatalogDatabase
+  @throws[CatalogNotExistException]
+  def getSubCatalog(dbName: String): ExternalCatalog
 
   /**
-    * Gets a list of all databases in the catalog.
+    * Gets the names of all sub catalogs registered in this catalog.
     *
-    * @return The list of database names
+    * @return The list of the names of all registered sub catalogs.
     */
-  def listDatabases(): JList[String]
+  def listSubCatalogs(): JList[String]
 
 }

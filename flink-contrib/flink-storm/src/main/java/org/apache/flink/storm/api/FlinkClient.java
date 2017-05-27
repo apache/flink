@@ -39,6 +39,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.StandaloneClusterClient;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -269,7 +270,7 @@ public class FlinkClient {
 	JobID getTopologyJobId(final String id) {
 		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		if (this.timeout != null) {
-			configuration.setString(ConfigConstants.AKKA_ASK_TIMEOUT, this.timeout);
+			configuration.setString(AkkaOptions.ASK_TIMEOUT, this.timeout);
 		}
 
 		try {
@@ -309,7 +310,7 @@ public class FlinkClient {
 	private FiniteDuration getTimeout() {
 		final Configuration configuration = GlobalConfiguration.loadConfiguration();
 		if (this.timeout != null) {
-			configuration.setString(ConfigConstants.AKKA_ASK_TIMEOUT, this.timeout);
+			configuration.setString(AkkaOptions.ASK_TIMEOUT, this.timeout);
 		}
 
 		return AkkaUtils.getClientTimeout(configuration);

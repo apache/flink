@@ -18,36 +18,28 @@
 
 package org.apache.flink.test.util;
 
-import akka.actor.ActorRef;
-import akka.dispatch.Futures;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
-
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
 
+import akka.actor.ActorRef;
+import akka.dispatch.Futures;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.fs.FileSystem;
-
 import org.junit.Assert;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import scala.concurrent.Await;
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -75,12 +67,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import scala.concurrent.Await;
+import scala.concurrent.ExecutionContext;
+import scala.concurrent.ExecutionContext$;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Utility class containing various methods for testing purposes.
+ */
 public class TestBaseUtils extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TestBaseUtils.class);
@@ -93,7 +93,7 @@ public class TestBaseUtils extends TestLogger {
 
 	protected static final String DEFAULT_AKKA_STARTUP_TIMEOUT = "60 s";
 
-	public static FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
+	public static final FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 
 	// ------------------------------------------------------------------------
 
@@ -108,7 +108,6 @@ public class TestBaseUtils extends TestLogger {
 		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
 	}
-
 
 	public static LocalFlinkMiniCluster startCluster(
 		int numTaskManagers,
@@ -145,11 +144,11 @@ public class TestBaseUtils extends TestLogger {
 		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, TASK_MANAGER_MEMORY_SIZE);
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 
-		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT + "s");
-		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
+		config.setString(AkkaOptions.ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT + "s");
+		config.setString(AkkaOptions.STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
 
-		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 8081);
-		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
+		config.setInteger(JobManagerOptions.WEB_PORT, 8081);
+		config.setString(JobManagerOptions.WEB_LOG_PATH, logFile.toString());
 
 		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.toString());
 
@@ -159,7 +158,6 @@ public class TestBaseUtils extends TestLogger {
 
 		return cluster;
 	}
-
 
 	public static void stopCluster(LocalFlinkMiniCluster executor, FiniteDuration timeout) throws Exception {
 		if (logDir != null) {
@@ -286,7 +284,7 @@ public class TestBaseUtils extends TestLogger {
 			String resultPath,
 			String[] excludePrefixes,
 			boolean inOrderOfFiles) throws IOException {
-		
+
 		checkArgument(resultPath != null, "resultPath cannot be be null");
 
 		final BufferedReader[] readers = getResultReader(resultPath, excludePrefixes, inOrderOfFiles);
@@ -327,8 +325,8 @@ public class TestBaseUtils extends TestLogger {
 			String msg = String.format(
 					"Different elements in arrays: expected %d elements and received %d\n" +
 					"files: %s\n expected: %s\n received: %s",
-					expected.length, result.length, 
-					Arrays.toString(getAllInvolvedFiles(resultPath, excludePrefixes)), 
+					expected.length, result.length,
+					Arrays.toString(getAllInvolvedFiles(resultPath, excludePrefixes)),
 					Arrays.toString(expected), Arrays.toString(result));
 			fail(msg);
 		}
@@ -586,7 +584,7 @@ public class TestBaseUtils extends TestLogger {
 		// we create test path that depends on class to prevent name clashes when two tests
 		// create temp files with the same name
 		String path = System.getProperty("java.io.tmpdir");
-		if (!(path.endsWith("/") || path.endsWith("\\")) ) {
+		if (!(path.endsWith("/") || path.endsWith("\\"))) {
 			path += System.getProperty("file.separator");
 		}
 		path += (forClass.getName() + "-" + folder);
@@ -603,12 +601,12 @@ public class TestBaseUtils extends TestLogger {
 
 	public static String getFromHTTP(String url) throws Exception {
 		URL u = new URL(url);
-		LOG.info("Accessing URL "+url+" as URL: "+u);
+		LOG.info("Accessing URL " + url + " as URL: " + u);
 		HttpURLConnection connection = (HttpURLConnection) u.openConnection();
 		connection.setConnectTimeout(100000);
 		connection.connect();
 		InputStream is;
-		if(connection.getResponseCode() >= 400) {
+		if (connection.getResponseCode() >= 400) {
 			// error!
 			LOG.warn("HTTP Response code when connecting to {} was {}", url, connection.getResponseCode());
 			is = connection.getErrorStream();
@@ -619,6 +617,10 @@ public class TestBaseUtils extends TestLogger {
 		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
 	}
 
+	/**
+	 * Comparator for comparable Tuples.
+	 * @param <T> tuple type
+	 */
 	public static class TupleComparator<T extends Tuple> implements Comparator<T> {
 
 		@Override

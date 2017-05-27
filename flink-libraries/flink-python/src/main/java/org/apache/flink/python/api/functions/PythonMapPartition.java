@@ -10,9 +10,9 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
+
 package org.apache.flink.python.api.functions;
 
-import java.io.IOException;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -20,6 +20,8 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.api.streaming.data.PythonSingleInputStreamer;
 import org.apache.flink.util.Collector;
+
+import java.io.IOException;
 
 /**
  * Multi-purpose class, usable by all operations using a python script with one input source and possibly differing

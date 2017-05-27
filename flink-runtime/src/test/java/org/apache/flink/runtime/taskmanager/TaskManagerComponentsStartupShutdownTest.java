@@ -27,6 +27,7 @@ import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
@@ -77,9 +78,9 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 		final int BUFFER_SIZE = 32 * 1024;
 
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "200 ms");
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "1 s");
-		config.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 1);
+		config.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "200 ms");
+		config.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "1 s");
+		config.setInteger(AkkaOptions.WATCH_THRESHOLD, 1);
 
 		ActorSystem actorSystem = null;
 
@@ -149,9 +150,6 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 
 			network.start();
 
-			LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(
-				HighAvailabilityServices.DEFAULT_JOB_ID);
-
 			MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
 
 			// create the task manager
@@ -164,7 +162,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				ioManager,
 				network,
 				numberOfSlots,
-				leaderRetrievalService,
+				highAvailabilityServices,
 				new MetricRegistry(metricRegistryConfiguration));
 
 			taskManager = actorSystem.actorOf(tmProps);

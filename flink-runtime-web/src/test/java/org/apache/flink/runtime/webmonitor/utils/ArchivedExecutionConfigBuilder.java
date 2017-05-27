@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.webmonitor.utils;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
@@ -23,6 +24,9 @@ import org.apache.flink.api.common.ExecutionMode;
 import java.util.Collections;
 import java.util.Map;
 
+/**
+ * Utility class for constructing an ArchivedExecutionConfig.
+ */
 public class ArchivedExecutionConfigBuilder {
 	private String executionMode;
 	private String restartStrategyDescription;

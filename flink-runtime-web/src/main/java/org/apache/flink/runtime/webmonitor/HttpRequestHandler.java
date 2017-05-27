@@ -26,6 +26,9 @@ package org.apache.flink.runtime.webmonitor;
  * https://github.com/netty/netty/blob/netty-4.0.31.Final/example/src/main/java/io/netty/example/http/upload/HttpUploadServerHandler.java
  *****************************************************************************/
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.util.ExceptionUtils;
+
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -48,8 +51,6 @@ import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder.EndOfDataDecoderException;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData.HttpDataType;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.util.ExceptionUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -67,7 +68,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 
 	private static final Charset ENCODING = ConfigConstants.DEFAULT_CHARSET;
 
-	/** A decoder factory that always stores POST chunks on disk */
+	/** A decoder factory that always stores POST chunks on disk. */
 	private static final HttpDataFactory DATA_FACTORY = new DefaultHttpDataFactory(true);
 
 	private final File tmpDir;
@@ -126,7 +127,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 						// IF SOMETHING EVER NEEDS POST PARAMETERS, THIS WILL BE THE PLACE TO HANDLE IT
 						// all fields values will be passed with type Attribute.
 
-						if (data.getHttpDataType() == HttpDataType.FileUpload) {
+						if (data.getHttpDataType() == HttpDataType.FileUpload && tmpDir != null) {
 							DiskFileUpload file = (DiskFileUpload) data;
 							if (file.isCompleted()) {
 								String name = file.getFilename();

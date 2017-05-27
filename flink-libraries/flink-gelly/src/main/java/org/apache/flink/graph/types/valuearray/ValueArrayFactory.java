@@ -31,7 +31,7 @@ import org.apache.flink.types.Value;
  * for creating a {@link ValueArray}. Algorithms must instantiate classes at
  * runtime when the type information has been erased.
  *
- * This mirrors creating {@link Value} using {@link CopyableValue#copy()}.
+ * <p>This mirrors creating {@link Value} using {@link CopyableValue#copy()}.
  */
 public class ValueArrayFactory {
 

@@ -24,7 +24,7 @@ import org.apache.calcite.rex.{RexBuilder, RexProgram, RexProgramBuilder}
 import org.apache.calcite.sql.SqlPostfixOperator
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.flink.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.utils.InputTypeBuilder.inputOf
 import org.apache.flink.table.validate.FunctionCatalog
 import org.hamcrest.CoreMatchers.is
@@ -253,8 +253,8 @@ class RexProgramExtractorTest extends RexProgramTestBase {
         functionCatalog)
 
     val expected: Array[Expression] = Array(
-      ExpressionParser.parseExpression("sum(amount) > 100"),
-      ExpressionParser.parseExpression("min(id) == 100")
+      GreaterThan(Sum(UnresolvedFieldReference("amount")), Literal(100)),
+      EqualTo(Min(UnresolvedFieldReference("id")), Literal(100))
     )
     assertExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)

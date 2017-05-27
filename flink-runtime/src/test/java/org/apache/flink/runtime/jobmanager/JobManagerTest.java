@@ -26,6 +26,7 @@ import akka.testkit.JavaTestKit;
 import akka.testkit.TestProbe;
 import com.typesafe.config.Config;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -601,7 +602,7 @@ public class JobManagerTest extends TestLogger {
 		Deadline deadline = new FiniteDuration(100, TimeUnit.SECONDS).fromNow();
 
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100ms");
+		config.setString(AkkaOptions.ASK_TIMEOUT, "100ms");
 
 		ActorRef jobManagerActor = JobManager.startJobManagerActors(
 			config,

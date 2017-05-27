@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+
+import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -34,10 +35,10 @@ import java.util.TimeZone;
  */
 public class DashboardConfigHandler extends AbstractJsonRequestHandler {
 
-	private static String DASHBOARD_CONFIG_REST_PATH = "/config";
-	
+	private static final String DASHBOARD_CONFIG_REST_PATH = "/config";
+
 	private final String configString;
-	
+
 	public DashboardConfigHandler(long refreshInterval) {
 		try {
 			this.configString = createConfigJson(refreshInterval);
@@ -52,7 +53,7 @@ public class DashboardConfigHandler extends AbstractJsonRequestHandler {
 	public String[] getPaths() {
 		return new String[]{DASHBOARD_CONFIG_REST_PATH};
 	}
-	
+
 	@Override
 	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		return this.configString;
@@ -60,8 +61,8 @@ public class DashboardConfigHandler extends AbstractJsonRequestHandler {
 
 	public static String createConfigJson(long refreshInterval) throws IOException {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-	
+		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+
 		TimeZone timeZone = TimeZone.getDefault();
 		String timeZoneName = timeZone.getDisplayName();
 		long timeZoneOffset = timeZone.getRawOffset();

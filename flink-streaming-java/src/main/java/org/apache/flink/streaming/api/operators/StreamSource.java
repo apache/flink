@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import java.util.concurrent.ScheduledFuture;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -27,6 +26,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+
+import java.util.concurrent.ScheduledFuture;
 
 /**
  * {@link StreamOperator} for streaming sources.
@@ -44,7 +45,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 	private transient volatile boolean canceledOrStopped = false;
 
-
 	public StreamSource(SRC sourceFunction) {
 		super(sourceFunction);
 
@@ -54,7 +54,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 	public void run(final Object lockingObject, final StreamStatusMaintainer streamStatusMaintainer) throws Exception {
 		run(lockingObject, streamStatusMaintainer, output);
 	}
-
 
 	public void run(final Object lockingObject,
 			final StreamStatusMaintainer streamStatusMaintainer,

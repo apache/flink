@@ -38,7 +38,6 @@ public class AggregatingProcessingTimeWindowOperator<KEY, IN>
 
 	private static final long serialVersionUID = 7305948082830843475L;
 
-
 	public AggregatingProcessingTimeWindowOperator(
 			ReduceFunction<IN> function,
 			KeySelector<IN, KEY> keySelector,

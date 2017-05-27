@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A {@code CompatibilityResult} contains information about whether or not data migration
@@ -41,7 +42,7 @@ public final class CompatibilityResult<T> {
 	private final TypeDeserializer<T> convertDeserializer;
 
 	/**
-	 * Returns a strategy that signals that the new serializer is compatible and no migration is required.
+	 * Returns a result that signals that the new serializer is compatible and no migration is required.
 	 *
 	 * @return a result that signals migration is not required for the new serializer
 	 */
@@ -50,19 +51,32 @@ public final class CompatibilityResult<T> {
 	}
 
 	/**
-	 * Returns a strategy that signals migration to be performed.
+	 * Returns a result that signals migration to be performed, and in the case that the preceding serializer
+	 * cannot be found or restored to read the previous data during migration, a provided convert deserializer
+	 * can be used.
 	 *
-	 * <p>Furthermore, in the case that the preceding serializer cannot be found or restored to read the
-	 * previous data during migration, a provided convert deserializer can be used (may be {@code null}
-	 * if one cannot be provided).
+	 * @param convertDeserializer the convert deserializer to use, in the case that the preceding serializer
+	 *                            cannot be found.
 	 *
-	 * <p>In the case that the preceding serializer cannot be found and a convert deserializer is not
-	 * provided, the migration will fail due to the incapability of reading previous data.
-	 *
-	 * @return a result that signals migration is necessary, possibly providing a convert deserializer.
+	 * @return a result that signals migration is necessary, also providing a convert deserializer.
 	 */
 	public static <T> CompatibilityResult<T> requiresMigration(TypeDeserializer<T> convertDeserializer) {
-		return new CompatibilityResult<>(true, convertDeserializer);
+		Preconditions.checkNotNull(convertDeserializer, "Convert deserializer cannot be null.");
+
+		return new CompatibilityResult<>(true, Preconditions.checkNotNull(convertDeserializer));
+	}
+
+	/**
+	 * Returns a result that signals migration to be performed. The migration will fail if the preceding
+	 * serializer for the previous data cannot be found.
+	 *
+	 * <p>You can also provide a convert deserializer using {@link #requiresMigration(TypeDeserializer)},
+	 * which will be used as a fallback resort in such cases.
+	 *
+	 * @return a result that signals migration is necessary, without providing a convert deserializer.
+	 */
+	public static <T> CompatibilityResult<T> requiresMigration() {
+		return new CompatibilityResult<>(true, null);
 	}
 
 	private CompatibilityResult(boolean requiresMigration, TypeDeserializer<T> convertDeserializer) {
@@ -74,7 +88,7 @@ public final class CompatibilityResult<T> {
 		return convertDeserializer;
 	}
 
-	public boolean requiresMigration() {
+	public boolean isRequiresMigration() {
 		return requiresMigration;
 	}
 }

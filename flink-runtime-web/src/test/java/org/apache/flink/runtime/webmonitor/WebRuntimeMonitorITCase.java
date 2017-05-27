@@ -18,14 +18,12 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.curator.test.TestingServer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -38,14 +36,15 @@ import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.curator.test.TestingServer;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.powermock.reflect.Whitebox;
-import scala.Some;
-import scala.Tuple2;
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -54,19 +53,27 @@ import java.util.Scanner;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import scala.Some;
+import scala.Tuple2;
+import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.FiniteDuration;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for the WebRuntimeMonitor.
+ */
 public class WebRuntimeMonitorITCase extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private final static FiniteDuration TestTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
+	private static final FiniteDuration TestTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
 
-	private final String MAIN_RESOURCES_PATH = getClass().getResource("/web").getPath();
+	private final String mainResourcesPath = getClass().getResource("/web").getPath();
 
 	/**
 	 * Tests operation of the monitor in standalone operation.
@@ -85,7 +92,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			webMonitor = startWebRuntimeMonitor(flink);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
-				String expected = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
+				String expected = new Scanner(new File(mainResourcesPath + "/index.html"))
 						.useDelimiter("\\A").next();
 
 				// Request the file from the web server
@@ -137,8 +144,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			Path logFile = Files.createFile(new File(logDir, "jobmanager.log").toPath());
 			Files.createFile(new File(logDir, "jobmanager.out").toPath());
 
-			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
-			config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
+			config.setInteger(JobManagerOptions.WEB_PORT, 0);
+			config.setString(JobManagerOptions.WEB_LOG_PATH, logFile.toString());
 
 			highAvailabilityServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
 				config,
@@ -153,6 +160,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				webMonitor[i] = new WebRuntimeMonitor(
 					config,
 					highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+					highAvailabilityServices.createBlobStore(),
 					jobManagerSystem[i]);
 			}
 
@@ -212,7 +220,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 					HttpTestClient followingClient = new HttpTestClient(
 							"localhost", followerWebMonitor.getServerPort())) {
 
-				String expected = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
+				String expected = new Scanner(new File(mainResourcesPath + "/index.html"))
 						.useDelimiter("\\A").next();
 
 				// Request the file from the leading web server
@@ -286,16 +294,18 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			Files.createFile(new File(logDir, "jobmanager.out").toPath());
 
 			final Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
-			config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
+			config.setInteger(JobManagerOptions.WEB_PORT, 0);
+			config.setString(JobManagerOptions.WEB_LOG_PATH, logFile.toString());
 			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 			config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeper.getConnectString());
 
 			actorSystem = AkkaUtils.createDefaultActorSystem();
 
-			LeaderRetrievalService leaderRetrievalService = mock(LeaderRetrievalService.class);
 			webRuntimeMonitor = new WebRuntimeMonitor(
-					config, leaderRetrievalService, actorSystem);
+				config,
+				mock(LeaderRetrievalService.class),
+				mock(BlobView.class),
+				actorSystem);
 
 			webRuntimeMonitor.start("akka://schmakka");
 
@@ -344,7 +354,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			webMonitor = startWebRuntimeMonitor(flink);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
-				String expectedIndex = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
+				String expectedIndex = new Scanner(new File(mainResourcesPath + "/index.html"))
 						.useDelimiter("\\A").next();
 
 				// 1) Request index.html from web server
@@ -406,7 +416,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			webMonitor = startWebRuntimeMonitor(flink);
 
 			try (HttpTestClient client = new HttpTestClient("localhost", webMonitor.getServerPort())) {
-				String expectedIndex = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
+				String expectedIndex = new Scanner(new File(mainResourcesPath + "/index.html"))
 						.useDelimiter("\\A").next();
 
 				// 1) Request index.html from web server
@@ -463,13 +473,15 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 		// Web frontend on random port
 		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
-		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
+		config.setInteger(JobManagerOptions.WEB_PORT, 0);
+		config.setString(JobManagerOptions.WEB_LOG_PATH, logFile.toString());
+
+		HighAvailabilityServices highAvailabilityServices = flink.highAvailabilityServices();
 
 		WebRuntimeMonitor webMonitor = new WebRuntimeMonitor(
 			config,
-			flink.highAvailabilityServices().getJobManagerLeaderRetriever(
-				HighAvailabilityServices.DEFAULT_JOB_ID),
+			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+			highAvailabilityServices.createBlobStore(),
 			jmActorSystem);
 
 		webMonitor.start(jobManagerAddress);
