@@ -178,7 +178,7 @@ object UserDefinedFunctionUtils {
           s"add a @scala.annotation.varargs annotation.")
     } else if (found.length > 1) {
       throw new ValidationException(
-        "Found multiple '${methodName}' methods which match the signature.")
+        s"Found multiple '${methodName}' methods which match the signature.")
     }
     found.headOption
   }

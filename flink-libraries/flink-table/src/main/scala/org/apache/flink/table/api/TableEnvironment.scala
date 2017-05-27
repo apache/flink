@@ -461,7 +461,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         return new Table(this, CatalogNode(tablePath, table.getRowType(typeFactory)))
       }
     }
-    throw new TableException(s"Table \'${tablePath.mkString(".")}\' was not found.")
+    throw new TableException(s"Table '${tablePath.mkString(".")}' was not found.")
   }
 
   private def getSchema(schemaPath: Array[String]): SchemaPlus = {
