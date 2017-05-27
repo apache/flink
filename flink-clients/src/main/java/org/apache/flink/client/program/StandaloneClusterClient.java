@@ -31,6 +31,8 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 
@@ -49,7 +51,11 @@ public class StandaloneClusterClient extends ClusterClient {
 	}
 
 	@Override
-	public void waitForClusterToBeReady() {}
+	public void waitForClusterToBeReady() {
+		GetClusterStatusResponse clusterStatus = getClusterStatus();
+		logAndSysout("Standalone cluster ready (TaskManagers:" + clusterStatus.numRegisteredTaskManagers()
+			+ ", Slots:" + clusterStatus.totalNumberOfSlots() + ")");
+	}
 
 	@Override
 	public String getWebInterfaceURL() {
@@ -70,6 +76,8 @@ public class StandaloneClusterClient extends ClusterClient {
 			} else {
 				throw new RuntimeException("Received the wrong reply " + result + " from cluster.");
 			}
+		} catch (FlinkRuntimeException | FlinkException e) {
+			throw new FlinkRuntimeException(e);
 		} catch (Exception e) {
 			throw new RuntimeException("Couldn't retrieve the cluster status.", e);
 		}

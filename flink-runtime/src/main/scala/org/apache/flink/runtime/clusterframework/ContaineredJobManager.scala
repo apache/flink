@@ -127,13 +127,6 @@ abstract class ContaineredJobManager(
 
       sender() ! decorateMessage(Acknowledge.get())
 
-    case msg: GetClusterStatus =>
-      sender() ! decorateMessage(
-        new GetClusterStatusResponse(
-          instanceManager.getNumberOfRegisteredTaskManagers,
-          instanceManager.getTotalNumberOfSlots)
-      )
-
     case jnf: JobNotFound =>
       log.debug(s"Job with ID ${jnf.jobID} not found in JobManager")
       if (stopWhenJobFinished == null) {

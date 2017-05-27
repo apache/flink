@@ -31,6 +31,7 @@ import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.minicluster.StandaloneMiniCluster;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -76,7 +77,7 @@ public class RemoteEnvironmentITCase extends TestLogger {
 	/**
 	 * Ensure that that Akka configuration parameters can be set.
 	 */
-	@Test(expected=FlinkException.class)
+	@Test(expected=FlinkRuntimeException.class)
 	public void testInvalidAkkaConfiguration() throws Throwable {
 		Configuration config = new Configuration();
 		config.setString(AkkaOptions.STARTUP_TIMEOUT, INVALID_STARTUP_TIMEOUT);
