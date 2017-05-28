@@ -24,4 +24,5 @@
  * The traversals are mostly implemented as a {@link org.apache.flink.util.Visitor} that
  * traversed the program flow.
  */
+
 package org.apache.flink.optimizer.traversals;

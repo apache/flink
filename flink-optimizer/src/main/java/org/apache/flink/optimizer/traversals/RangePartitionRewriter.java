@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.optimizer.traversals;
 
 import org.apache.flink.api.common.InvalidProgramException;
