@@ -22,11 +22,12 @@ package org.apache.flink.optimizer.plan;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.optimizer.dag.DataSourceNode;
+import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.optimizer.dag.DataSourceNode;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.apache.flink.api.java.io.TextInputFormat;
 
 public class ChannelTest {
 	

@@ -19,13 +19,13 @@
 
 package org.apache.flink.optimizer.costs;
 
-import java.util.Iterator;
-
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.EstimateProvider;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.PlanNode;
+
+import java.util.Iterator;
 
 /**
  * Abstract base class for a cost estimator. Defines cost estimation methods and implements the basic work

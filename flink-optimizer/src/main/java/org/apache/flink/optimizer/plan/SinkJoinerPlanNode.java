@@ -18,12 +18,12 @@
 
 package org.apache.flink.optimizer.plan;
 
-import java.util.List;
-
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.costs.Costs;
 import org.apache.flink.optimizer.dag.SinkJoiner;
 import org.apache.flink.runtime.operators.DriverStrategy;
+
+import java.util.List;
 
 
 /**

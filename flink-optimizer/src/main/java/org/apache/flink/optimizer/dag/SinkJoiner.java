@@ -18,10 +18,6 @@
 
 package org.apache.flink.optimizer.dag;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.optimizer.DataStatistics;
@@ -29,6 +25,10 @@ import org.apache.flink.optimizer.operators.OperatorDescriptorDual;
 import org.apache.flink.optimizer.operators.UtilSinkJoinOpDescriptor;
 import org.apache.flink.optimizer.util.NoOpBinaryUdfOp;
 import org.apache.flink.types.Nothing;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * This class represents a utility node that is not part of the actual plan.

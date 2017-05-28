@@ -19,10 +19,6 @@
 
 package org.apache.flink.optimizer.operators;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.optimizer.dag.TwoInputNode;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
 import org.apache.flink.optimizer.dataproperties.LocalProperties;
@@ -31,6 +27,10 @@ import org.apache.flink.optimizer.dataproperties.RequestedGlobalProperties;
 import org.apache.flink.optimizer.dataproperties.RequestedLocalProperties;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 
 public abstract class CartesianProductDescriptor extends OperatorDescriptorDual {

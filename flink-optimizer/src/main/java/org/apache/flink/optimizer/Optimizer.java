@@ -18,19 +18,10 @@
 
 package org.apache.flink.optimizer;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.optimizer.traversals.BinaryUnionReplacer;
-import org.apache.flink.optimizer.traversals.BranchesVisitor;
-import org.apache.flink.optimizer.traversals.GraphCreatingVisitor;
-import org.apache.flink.optimizer.traversals.IdAndEstimatesVisitor;
-import org.apache.flink.optimizer.traversals.InterestingPropertyVisitor;
-import org.apache.flink.optimizer.traversals.PlanFinalizer;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.costs.CostEstimator;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.dag.DataSinkNode;
@@ -41,12 +32,21 @@ import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.SinkJoinerPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.postpass.OptimizerPostPass;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.optimizer.traversals.BinaryUnionReplacer;
+import org.apache.flink.optimizer.traversals.BranchesVisitor;
+import org.apache.flink.optimizer.traversals.GraphCreatingVisitor;
+import org.apache.flink.optimizer.traversals.IdAndEstimatesVisitor;
+import org.apache.flink.optimizer.traversals.InterestingPropertyVisitor;
+import org.apache.flink.optimizer.traversals.PlanFinalizer;
 import org.apache.flink.optimizer.traversals.RangePartitionRewriter;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * The optimizer that takes the user specified program plan and creates an optimized plan that contains

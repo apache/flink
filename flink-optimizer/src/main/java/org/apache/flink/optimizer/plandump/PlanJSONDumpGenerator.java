@@ -18,7 +18,6 @@
 
 package org.apache.flink.optimizer.plandump;
 
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.flink.api.common.operators.CompilerHints;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.BinaryUnionNode;
@@ -41,6 +40,8 @@ import org.apache.flink.optimizer.util.Utils;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.StringUtils;
+
+import org.apache.commons.lang3.StringEscapeUtils;
 
 import java.io.File;
 import java.io.FileOutputStream;

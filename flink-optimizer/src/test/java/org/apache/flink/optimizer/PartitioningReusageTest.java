@@ -35,6 +35,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;

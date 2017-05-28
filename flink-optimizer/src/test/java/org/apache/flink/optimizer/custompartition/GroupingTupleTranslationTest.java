@@ -18,8 +18,6 @@
 
 package org.apache.flink.optimizer.custompartition;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -37,7 +35,11 @@ import org.apache.flink.optimizer.testfunctions.DummyReducer;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class GroupingTupleTranslationTest extends CompilerTestBase {

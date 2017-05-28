@@ -19,19 +19,19 @@
 
 package org.apache.flink.optimizer.util;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.util.Visitor;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Utility to get operator instances from plans via name.

@@ -18,15 +18,15 @@
 
 package org.apache.flink.optimizer.dag;
 
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.FilterOperatorBase;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.operators.FilterDescriptor;
 import org.apache.flink.optimizer.operators.OperatorDescriptorSingle;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * The optimizer's internal representation of a <i>Filter</i> operator node.

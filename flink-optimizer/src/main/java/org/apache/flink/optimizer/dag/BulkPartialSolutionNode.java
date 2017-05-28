@@ -18,9 +18,6 @@
 
 package org.apache.flink.optimizer.dag;
 
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
@@ -28,6 +25,9 @@ import org.apache.flink.optimizer.dataproperties.LocalProperties;
 import org.apache.flink.optimizer.plan.BulkPartialSolutionPlanNode;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.PlanNode;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * The optimizer's internal representation of the partial solution that is input to a bulk iteration.

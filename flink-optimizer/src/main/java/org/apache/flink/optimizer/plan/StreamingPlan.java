@@ -18,10 +18,10 @@
 
 package org.apache.flink.optimizer.plan;
 
+import org.apache.flink.runtime.jobgraph.JobGraph;
+
 import java.io.File;
 import java.io.IOException;
-
-import org.apache.flink.runtime.jobgraph.JobGraph;
 
 /**
  * Abstract class representing Flink Streaming plans

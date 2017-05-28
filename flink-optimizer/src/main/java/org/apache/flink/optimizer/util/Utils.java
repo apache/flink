@@ -19,8 +19,6 @@
 
 package org.apache.flink.optimizer.util;
 
-import java.util.Arrays;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
@@ -36,6 +34,8 @@ import org.apache.flink.api.java.typeutils.runtime.RuntimeComparatorFactory;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.PlanNode;
+
+import java.util.Arrays;
 
 
 /**

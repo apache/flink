@@ -19,8 +19,6 @@
 
 package org.apache.flink.optimizer.operators;
 
-import java.util.List;
-
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.dag.SingleInputNode;
@@ -30,6 +28,8 @@ import org.apache.flink.optimizer.dataproperties.RequestedGlobalProperties;
 import org.apache.flink.optimizer.dataproperties.RequestedLocalProperties;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
+
+import java.util.List;
 
 /**
  * Abstract base class for Operator descriptions which instantiates the node and sets the driver

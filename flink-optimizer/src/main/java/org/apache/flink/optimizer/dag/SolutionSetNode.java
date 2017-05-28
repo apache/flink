@@ -19,9 +19,6 @@
 
 package org.apache.flink.optimizer.dag;
 
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
@@ -29,6 +26,9 @@ import org.apache.flink.optimizer.dataproperties.LocalProperties;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.SolutionSetPlanNode;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * The optimizer's internal representation of the solution set of a workset iteration.
