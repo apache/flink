@@ -344,7 +344,6 @@ public class CoGroupOperatorTest {
 		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-
 		// should work
 		try {
 			ds1.coGroup(ds2)

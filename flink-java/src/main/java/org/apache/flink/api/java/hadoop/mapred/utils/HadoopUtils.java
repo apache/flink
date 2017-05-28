@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.hadoop.mapred.utils;
 
 import org.apache.flink.annotation.Internal;

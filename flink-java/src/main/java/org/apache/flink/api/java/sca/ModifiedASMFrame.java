@@ -41,6 +41,7 @@ public class ModifiedASMFrame extends Frame {
 	public ModifiedASMFrame(int nLocals, int nStack) {
 		super(nLocals, nStack);
 	}
+
 	public ModifiedASMFrame(Frame src) {
 		super(src);
 	}

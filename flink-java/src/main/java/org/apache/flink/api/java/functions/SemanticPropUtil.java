@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.functions;
 
 import org.apache.flink.annotation.Internal;
@@ -410,7 +409,6 @@ public final class SemanticPropUtil {
 		parseReadFields(result, readFieldsFirst, inType1, 0);
 		parseReadFields(result, readFieldsSecond, inType2, 1);
 	}
-
 
 	private static void parseForwardedFields(SemanticProperties sp, String[] forwardedStr,
 			TypeInformation<?> inType, TypeInformation<?> outType, int input, boolean skipIncompatibleTypes) {

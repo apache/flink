@@ -365,7 +365,6 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 		return this.splitOrdering;
 	}
 
-
 	/////////////////////// FLAT FIELD EXTRACTION METHODS
 
 	private int[] getAllFlatKeys(String[] fieldExpressions) {

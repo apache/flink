@@ -89,7 +89,6 @@ public class GroupReduceOperatorTest implements java.io.Serializable {
 					Integer>("foo", 3), new Tuple2<String, Integer>("bar", 2), new Tuple2<String,
 					Integer>("bar", 4)));
 
-
 			ExecutionConfig executionConfig = new ExecutionConfig();
 			executionConfig.disableObjectReuse();
 			List<Tuple2<String, Integer>> resultMutableSafe = op.executeOnCollections(input, null, executionConfig);
@@ -122,7 +121,6 @@ public class GroupReduceOperatorTest implements java.io.Serializable {
 			final RichGroupReduceFunction<Tuple2<String, Integer>, Tuple2<String,
 					Integer>> reducer = new RichGroupReduceFunction<Tuple2<String, Integer>,
 					Tuple2<String, Integer>>() {
-
 
 				@Override
 				public void reduce(Iterable<Tuple2<String, Integer>> values,
@@ -186,7 +184,6 @@ public class GroupReduceOperatorTest implements java.io.Serializable {
 							new HashMap<String, Accumulator<?, ?>>(),
 							new UnregisteredMetricsGroup()),
 					executionConfig);
-
 
 			Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<Tuple2<String, Integer>>(resultMutableSafe);
 			Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<Tuple2<String, Integer>>(resultRegular);

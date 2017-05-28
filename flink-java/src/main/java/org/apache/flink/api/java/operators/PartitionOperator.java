@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.operators;
 
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -53,7 +52,6 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 	private final Partitioner<?> customPartitioner;
 	private final DataDistribution distribution;
 	private Order[] orders;
-
 
 	public PartitionOperator(DataSet<T> input, PartitionMethod pMethod, Keys<T> pKeys, String partitionLocationName) {
 		this(input, pMethod, pKeys, null, null, null, partitionLocationName);
@@ -233,6 +231,5 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 
 		return KeyFunctions.appendKeyRemover(keyedPartitionedInput, keys);
 	}
-
 
 }

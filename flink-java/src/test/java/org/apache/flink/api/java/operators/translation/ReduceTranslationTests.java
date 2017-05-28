@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.operators.translation;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -129,7 +128,6 @@ public class ReduceTranslationTests implements java.io.Serializable {
 		}
 	}
 
-
 	@Test
 	public void translateGroupedReduceWithkeyExtractor() {
 		try {
@@ -154,7 +152,6 @@ public class ReduceTranslationTests implements java.io.Serializable {
 			Plan p = env.createProgramPlan();
 
 			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
-
 
 			MapOperatorBase<?, ?, ?> keyProjector = (MapOperatorBase<?, ?, ?>) sink.getInput();
 			PlanUnwrappingReduceOperator<?, ?> reducer = (PlanUnwrappingReduceOperator<?, ?>) keyProjector.getInput();

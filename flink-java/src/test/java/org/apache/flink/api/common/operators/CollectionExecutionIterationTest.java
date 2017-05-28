@@ -115,7 +115,6 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
 					new Tuple1<Integer>(3),
 					new Tuple1<Integer>(4));
 
-
 			// Perform a delta iteration where we add those values to the workset where
 			// the second tuple field is smaller than the first tuple field.
 			// At the end both tuple fields must be the same.
@@ -144,7 +143,6 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
 					}
 				}
 			});
-
 
 			List<Tuple2<Integer, Integer>> collected = new ArrayList<Tuple2<Integer, Integer>>();
 

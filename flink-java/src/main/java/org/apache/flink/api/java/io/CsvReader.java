@@ -70,7 +70,6 @@ public class CsvReader {
 
 	private final ExecutionEnvironment executionContext;
 
-
 	protected boolean[] includedMask;
 
 	protected String lineDelimiter = CsvInputFormat.DEFAULT_LINE_DELIMITER;

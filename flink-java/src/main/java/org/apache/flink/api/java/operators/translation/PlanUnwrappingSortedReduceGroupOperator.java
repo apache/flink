@@ -75,7 +75,6 @@ public class PlanUnwrappingSortedReduceGroupOperator<IN, OUT, K1, K2> extends Gr
 			this.coll = new Tuple3WrappingCollector<>(this.iter);
 		}
 
-
 		@Override
 		public void reduce(Iterable<Tuple3<K1, K2, IN>> values, Collector<OUT> out) throws Exception {
 			iter.set(values.iterator());
@@ -108,7 +107,6 @@ public class PlanUnwrappingSortedReduceGroupOperator<IN, OUT, K1, K2> extends Gr
 			super(wrapped);
 			this.iter = new Tuple3UnwrappingIterator<>();
 		}
-
 
 		@Override
 		public void reduce(Iterable<Tuple3<K1, K2, IN>> values, Collector<OUT> out) throws Exception {

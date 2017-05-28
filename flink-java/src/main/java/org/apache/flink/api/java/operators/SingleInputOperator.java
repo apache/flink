@@ -33,7 +33,6 @@ public abstract class SingleInputOperator<IN, OUT, O extends SingleInputOperator
 
 	private final DataSet<IN> input;
 
-
 	protected SingleInputOperator(DataSet<IN> input, TypeInformation<OUT> resultType) {
 		super(input.getExecutionEnvironment(), resultType);
 		this.input = input;

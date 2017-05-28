@@ -295,7 +295,6 @@ public final class DataSetUtils {
 	//  Summarize
 	// --------------------------------------------------------------------------------------------
 
-
 	/**
 	 * Summarize a DataSet of Tuples by collecting single pass statistics for all columns
 	 *
@@ -355,7 +354,6 @@ public final class DataSetUtils {
 		JobExecutionResult res = input.getExecutionEnvironment().execute();
 		return res.<Utils.ChecksumHashCode> getAccumulatorResult(id);
 	}
-
 
 	// *************************************************************************
 	//     UTIL METHODS

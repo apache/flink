@@ -58,7 +58,6 @@ public class Option {
 		return this;
 	}
 
-
 	/**
 	 * Define the type of the Option.
 	 *

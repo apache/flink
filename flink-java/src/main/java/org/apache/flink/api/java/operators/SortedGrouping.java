@@ -195,7 +195,6 @@ public class SortedGrouping<T> extends Grouping<T> {
 		return new GroupCombineOperator<>(this, resultType, inputDataSet.clean(combiner), Utils.getCallLocationName());
 	}
 
-
 	/**
 	 * Returns a new set containing the first n elements in this grouped and sorted {@link DataSet}.<br>
 	 * @param n The desired number of elements for each group.

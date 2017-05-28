@@ -156,7 +156,6 @@ public class HadoopInputFormatTest {
 		assertThat(tupleType, is(equalTo(expectedType)));
 	}
 
-
 	private HadoopInputFormat<String, Long> setupHadoopInputFormat(InputFormat<String, Long> inputFormat, Job job,
 																   RecordReader<String, Long> recordReader) {
 

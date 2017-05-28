@@ -36,12 +36,10 @@ public final class TwoKeyExtractingMapper<T, K1, K2> extends RichMapFunction<T, 
 
 	private final Tuple3<K1, K2, T> tuple = new Tuple3<K1, K2, T>();
 
-
 	public TwoKeyExtractingMapper(KeySelector<T, K1> keySelector1, KeySelector<T, K2> keySelector2) {
 		this.keySelector1 = keySelector1;
 		this.keySelector2 = keySelector2;
 	}
-
 
 	@Override
 	public Tuple3<K1, K2, T> map(T value) throws Exception {

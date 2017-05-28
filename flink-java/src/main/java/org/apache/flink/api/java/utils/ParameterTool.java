@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.utils;
 
 import org.apache.flink.annotation.Public;
@@ -48,7 +49,6 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	protected static final String NO_VALUE_KEY = "__NO_VALUE_KEY";
 	protected static final String DEFAULT_UNDEFINED = "<undefined>";
-
 
 	// ------------------ Constructors ------------------------
 
@@ -246,7 +246,6 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		}
 		return value;
 	}
-
 
 	/**
 	 * Returns the String value for the given key.
@@ -494,7 +493,6 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return props;
 	}
 
-
 	/**
 	 * Create a properties file with all the known parameters (call after the last get*() call).
 	 * Set the default value, if available.
@@ -535,8 +533,6 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	protected Object clone() throws CloneNotSupportedException {
 		return new ParameterTool(this.data);
 	}
-
-
 
 	// ------------------------- Interaction with other ParameterUtils -------------------------
 

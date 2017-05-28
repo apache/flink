@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.io;
 
 import org.apache.flink.configuration.Configuration;
@@ -184,7 +183,6 @@ public class TextInputFormatTest {
 
 			inputFormat.open(splits[0]);
 
-
 			String result = "";
 			if (  (delimiter.equals("\n") && (lineBreaker.equals("\n") || lineBreaker.equals("\r\n") ) )
 					|| (lineBreaker.equals(delimiter)) ){
@@ -205,7 +203,6 @@ public class TextInputFormatTest {
 				assertNotNull("Expecting first record here", result);
 				assertEquals(CONTENT, result);
 			}
-
 
 		}
 		catch (Throwable t) {

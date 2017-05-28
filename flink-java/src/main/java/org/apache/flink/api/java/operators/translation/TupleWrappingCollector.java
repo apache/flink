@@ -35,7 +35,6 @@ public class TupleWrappingCollector<IN, K> implements Collector<IN>, java.io.Ser
 
 	private Collector<Tuple2<K, IN>> wrappedCollector;
 
-
 	public TupleWrappingCollector(TupleUnwrappingIterator<IN, K> tui) {
 		this.tui = tui;
 		this.outTuple = new Tuple2<K, IN>();

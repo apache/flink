@@ -36,7 +36,6 @@ public abstract class TwoInputOperator<IN1, IN2, OUT, O extends TwoInputOperator
 	private final DataSet<IN1> input1;
 	private final DataSet<IN2> input2;
 
-
 	protected TwoInputOperator(DataSet<IN1> input1, DataSet<IN2> input2, TypeInformation<OUT> resultType) {
 		super(Preconditions.checkNotNull(input1, "input1 is null").getExecutionEnvironment(), resultType);
 		Preconditions.checkNotNull(input2, "input2 is null");

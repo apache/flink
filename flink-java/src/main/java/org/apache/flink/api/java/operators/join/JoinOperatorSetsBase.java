@@ -125,7 +125,6 @@ public class JoinOperatorSetsBase<I1, I2> {
 		return new JoinOperatorSetsPredicateBase(new Keys.SelectorFunctionKeys<>(keySelector, input1.getType(), keyType));
 	}
 
-
 	/**
 	 * Intermediate step of a Join transformation. <br>
 	 * To continue the Join transformation, select the join key of the second input {@link DataSet} by calling

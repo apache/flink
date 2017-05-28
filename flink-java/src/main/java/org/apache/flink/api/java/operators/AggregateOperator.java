@@ -121,7 +121,6 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 		this.grouping = input;
 	}
 
-
 	public AggregateOperator<IN> and(Aggregations function, int field) {
 		Preconditions.checkNotNull(function);
 
@@ -131,7 +130,6 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			throw new IllegalArgumentException("Aggregation field position is out of range.");
 		}
 
-
 		AggregationFunctionFactory factory = function.getFactory();
 		AggregationFunction<?> aggFunct = factory.createAggregationFunction(inType.getTypeAt(field).getTypeClass());
 
@@ -140,7 +138,6 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 
 		return this;
 	}
-
 
 	public AggregateOperator<IN> andSum (int field) {
 		return this.and(Aggregations.SUM, field);
@@ -153,7 +150,6 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	public AggregateOperator<IN> andMax (int field) {
 		return this.and(Aggregations.MAX, field);
 	}
-
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -179,10 +175,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 		genName.append(" at ").append(aggregateLocationName);
 		genName.setLength(genName.length()-1);
 
-
 		@SuppressWarnings("rawtypes")
 		RichGroupReduceFunction<IN, IN> function = new AggregatingUdf(aggFunctions, fields);
-
 
 		String name = getName() != null ? getName() : genName.toString();
 
@@ -259,7 +253,6 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 
 		private final AggregationFunction<Object>[] aggFunctions;
 
-
 		public AggregatingUdf(AggregationFunction<Object>[] aggFunctions, int[] fieldPositions) {
 			Preconditions.checkNotNull(aggFunctions);
 			Preconditions.checkNotNull(aggFunctions);
@@ -268,7 +261,6 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			this.aggFunctions = aggFunctions;
 			this.fieldPositions = fieldPositions;
 		}
-
 
 		@Override
 		public void open(Configuration parameters) throws Exception {

@@ -121,7 +121,6 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 						new BinaryOperatorInformation<I1, I2, OUT>(getInput1Type(), getInput2Type(), getResultType()),
 						name);
 
-
 		po.setFirstInput(input1);
 		po.setSecondInput(input2);
 		po.setParallelism(getParallelism());

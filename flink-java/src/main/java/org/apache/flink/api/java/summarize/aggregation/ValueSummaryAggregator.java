@@ -79,7 +79,6 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 	 */
 	protected abstract PT getValue(VT value);
 
-
 	// -----------------------------------------------------------------------------
 	// Implementations below
 	// -----------------------------------------------------------------------------

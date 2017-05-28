@@ -99,7 +99,6 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 		return this.parameters;
 	}
 
-
 	/**
 	 * Returns the {@link org.apache.flink.api.java.io.SplitDataProperties} for the
 	 * {@link org.apache.flink.core.io.InputSplit}s of this DataSource

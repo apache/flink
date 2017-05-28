@@ -151,12 +151,10 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		return false;
 	}
 
-
 	@Override
 	protected GroupReduceFunction<IN, OUT> getFunction() {
 		return function;
 	}
-
 
 	// --------------------------------------------------------------------------------------------
 	//  Properties
@@ -293,7 +291,6 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			throw new UnsupportedOperationException("Unrecognized key type.");
 		}
 	}
-
 
 	// --------------------------------------------------------------------------------------------
 

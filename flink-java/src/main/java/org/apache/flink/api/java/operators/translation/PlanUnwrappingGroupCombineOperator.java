@@ -57,7 +57,6 @@ public class PlanUnwrappingGroupCombineOperator<IN, OUT, K> extends GroupCombine
 			this.iter = new TupleUnwrappingIterator<IN, K>();
 		}
 
-
 		@Override
 		public void combine(Iterable<Tuple2<K, IN>> values, Collector<OUT> out) throws Exception {
 			iter.set(values.iterator());

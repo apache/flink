@@ -86,7 +86,6 @@ public class ClosureCleaner {
 						(func + " is not serializable.") :
 						("The implementation of the " + functionType + " is not serializable.");
 
-
 				if (closureAccessed) {
 					msg += " The implementation accesses fields of its enclosing class, which is " +
 							"a common reason for non-serializability. " +
@@ -151,7 +150,6 @@ public class ClosureCleaner {
 		}
 	}
 
-
 	private static String getSuperClassOrInterfaceName(Class<?> cls) {
 		Class<?> superclass = cls.getSuperclass();
 		if (superclass.getName().startsWith("org.apache.flink")) {
@@ -175,7 +173,6 @@ class This0AccessFinder extends ClassVisitor {
 
 	private final String this0Name;
 	private boolean isThis0Accessed;
-
 
 	public This0AccessFinder(String this0Name) {
 		super(Opcodes.ASM5);

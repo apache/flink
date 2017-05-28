@@ -42,7 +42,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-
 public class HadoopOutputFormatTest {
 
 	private static final String MAPRED_OUTPUT_PATH = "an/ignored/file/";
@@ -62,7 +61,6 @@ public class HadoopOutputFormatTest {
 
 	@Test
 	public void testOpen() throws Exception {
-
 
 		OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
 		OutputCommitter outputCommitter = setupOutputCommitter(true);

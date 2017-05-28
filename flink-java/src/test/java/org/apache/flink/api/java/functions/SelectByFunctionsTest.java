@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.functions;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -37,7 +38,6 @@ public class SelectByFunctionsTest {
 	//Special case where only the last value determines if bigger or smaller
 	private final Tuple5<Integer, Long, String, Long, Integer> specialCaseBigger = new Tuple5<Integer, Long, String, Long, Integer>(10, 100L, "HelloWorld", 200L, 17);
 	private final Tuple5<Integer, Long, String, Long, Integer> specialCaseSmaller = new Tuple5<Integer, Long, String, Long, Integer>(5, 50L, "Hello", 50L, 17);
-
 
 	/**
 	 * This test validates whether the order of tuples has any impact on the outcome and if the bigger tuple is returned.
@@ -180,6 +180,5 @@ public class SelectByFunctionsTest {
 			Assert.fail("No exception should be thrown while comparing both tuples");
 		}
 	}
-
 
 }

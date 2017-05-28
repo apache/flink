@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.io;
 
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.RichOutputFormat;
@@ -67,7 +66,6 @@ public class LocalCollectionOutputFormat<T> extends RichOutputFormat<T> implemen
 	@Override
 	public void configure(Configuration parameters) {}
 
-
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
 		this.taskResult = new ArrayList<T>();
@@ -79,7 +77,6 @@ public class LocalCollectionOutputFormat<T> extends RichOutputFormat<T> implemen
 		recordCopy = this.typeSerializer.copy(record, recordCopy);
 		this.taskResult.add(recordCopy);
 	}
-
 
 	@Override
 	public void close() throws IOException {

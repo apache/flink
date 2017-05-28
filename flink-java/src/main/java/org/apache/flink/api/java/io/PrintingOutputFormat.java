@@ -74,10 +74,8 @@ public class PrintingOutputFormat<T> extends RichOutputFormat<T> {
 		this.target = STD_ERR;
 	}
 
-
 	@Override
 	public void configure(Configuration parameters) {}
-
 
 	@Override
 	public void open(int taskNumber, int numTasks) {

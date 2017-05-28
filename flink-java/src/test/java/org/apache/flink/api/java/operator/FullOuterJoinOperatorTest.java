@@ -202,7 +202,6 @@ public class FullOuterJoinOperatorTest {
 		this.testFullOuterStrategies(JoinHint.BROADCAST_HASH_FIRST);
 	}
 
-
 	private void testFullOuterStrategies(JoinHint hint) {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -214,7 +213,6 @@ public class FullOuterJoinOperatorTest {
 				.where(0).equalTo(4)
 				.with(new DummyJoin());
 	}
-
 
 	/*
 	 * ####################################################################

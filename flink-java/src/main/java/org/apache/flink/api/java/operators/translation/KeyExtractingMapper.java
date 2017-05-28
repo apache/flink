@@ -34,11 +34,9 @@ public final class KeyExtractingMapper<T, K> extends RichMapFunction<T, Tuple2<K
 
 	private final Tuple2<K, T> tuple = new Tuple2<K, T>();
 
-
 	public KeyExtractingMapper(KeySelector<T, K> keySelector) {
 		this.keySelector = keySelector;
 	}
-
 
 	@Override
 	public Tuple2<K, T> map(T value) throws Exception {

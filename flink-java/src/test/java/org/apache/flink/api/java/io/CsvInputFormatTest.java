@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.io;
 
 import org.apache.flink.api.common.io.ParseException;
@@ -197,7 +196,6 @@ public class CsvInputFormatTest {
 			format.configure(parameters);
 			format.open(split);
 
-
 			Tuple3<String, Integer, Double> result = new Tuple3<String, Integer, Double>();
 			result = format.nextRecord(result);
 			assertNotNull(result);
@@ -275,7 +273,6 @@ public class CsvInputFormatTest {
 	@Test
 	public void ignoreMultiCharPrefixComments() {
 		try {
-
 
 			final String fileContent = "//description of the data\n" +
 									   "//successive commented line\n" +
@@ -806,7 +803,6 @@ public class CsvInputFormatTest {
 			assertThat(stringParser.getErrorState(), is(failure[1]));
 		}
 
-
 	}
 
 	// Test disabled becase we do not support double-quote escaped quotes right now.
@@ -919,8 +915,6 @@ public class CsvInputFormatTest {
 			Tuple1<String> result = inputFormat.nextRecord(new Tuple1<String>());
 
 			assertNotNull("Expecting to not return null", result);
-
-
 
 			assertEquals(FIRST_PART, result.f0);
 

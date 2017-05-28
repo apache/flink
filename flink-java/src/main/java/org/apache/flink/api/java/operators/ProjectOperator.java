@@ -92,6 +92,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 
 		return ppo;
 	}
+
 	/**
 	 * @deprecated Deprecated method only kept for compatibility.
 	 */
@@ -140,7 +141,6 @@ public class ProjectOperator<IN, OUT extends Tuple>
 			this.ds = ds;
 			this.fieldIndexes = fieldIndexes;
 		}
-
 
 		// --------------------------------------------------------------------------------------------
 		// The following lines are generated.
@@ -569,8 +569,6 @@ public class ProjectOperator<IN, OUT extends Tuple>
 
 		// END_OF_TUPLE_DEPENDENT_CODE
 		// -----------------------------------------------------------------------------------------
-
-
 
 		private TypeInformation<?>[] extractFieldTypes(int[] fields, TypeInformation<?> inType) {
 

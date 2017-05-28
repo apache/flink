@@ -148,7 +148,6 @@ public class CSVReaderTest {
 		}
 	}
 
-
 	@Test
 	public void testIncludeFieldsErrorWhenExcludingAll() {
 		CsvReader reader = getCsvReader();

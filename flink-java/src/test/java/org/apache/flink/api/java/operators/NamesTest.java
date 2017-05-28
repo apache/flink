@@ -51,7 +51,6 @@ public class NamesTest implements Serializable {
 
 		DataSet<String> strs = env.fromCollection(Arrays.asList("a", "b"));
 
-
 		// WARNING: The test will fail if this line is being moved down in the file (the line-number is hard-coded)
 		strs.filter(new FilterFunction<String>() {
 			private static final long serialVersionUID = 1L;
@@ -108,6 +107,7 @@ public class NamesTest implements Serializable {
 				}
 				return true;
 			}
+
 			@Override
 			public void postVisit(Operator<?> visitable) {}
 		});

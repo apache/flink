@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.io;
 
 import org.apache.flink.annotation.PublicEvolving;
@@ -35,7 +34,6 @@ public class IteratorInputFormat<T> extends GenericInputFormat<T> implements Non
 	private static final long serialVersionUID = 1L;
 
 	private Iterator<T> iterator; // input data as serializable iterator
-
 
 	public IteratorInputFormat(Iterator<T> iterator) {
 		if (!(iterator instanceof Serializable)) {

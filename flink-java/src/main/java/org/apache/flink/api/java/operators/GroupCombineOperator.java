@@ -187,7 +187,6 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 		}
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")

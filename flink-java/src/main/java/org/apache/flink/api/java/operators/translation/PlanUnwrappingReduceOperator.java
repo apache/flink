@@ -26,7 +26,6 @@ import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-
 /**
  * A reduce operator that takes 2-tuples (key-value pairs), and applies the reduce operation only
  * on the unwrapped values.
@@ -44,7 +43,6 @@ public class PlanUnwrappingReduceOperator<T, K> extends ReduceOperatorBase<Tuple
 		implements ReduceFunction<Tuple2<K, T>>
 	{
 		private static final long serialVersionUID = 1L;
-
 
 		private ReduceWrapper(ReduceFunction<T> wrapped) {
 			super(wrapped);

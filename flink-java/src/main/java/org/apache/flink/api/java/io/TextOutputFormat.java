@@ -54,7 +54,6 @@ public class TextOutputFormat<T> extends FileOutputFormat<T> {
 		this.charsetName = charset;
 	}
 
-
 	public String getCharsetName() {
 		return charsetName;
 	}

@@ -105,7 +105,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 	private Partitioner<?> customPartitioner;
 
-
 	protected JoinOperator(DataSet<I1> input1, DataSet<I2> input2,
 			Keys<I1> keys1, Keys<I2> keys2,
 			TypeInformation<OUT> returnType, JoinHint hint, JoinType type)
@@ -392,7 +391,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 			return builder.build();
 		}
-
 
 		private static final class JoinOperatorBaseBuilder<OUT> {
 
@@ -916,7 +914,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			return new JoinOperatorSetsPredicate(new SelectorFunctionKeys<>(input1.clean(keySelector), input1.getType(), keyType));
 		}
 
-
 		/**
 		 * Intermediate step of a Join transformation. <br>
 		 * To continue the Join transformation, select the join key of the second input {@link DataSet} by calling
@@ -982,7 +979,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			}
 		}
 	}
-
 
 	// --------------------------------------------------------------------------------------------
 	//  default join functions

@@ -41,7 +41,6 @@ public class TextInputFormat extends DelimitedInputFormat<String> {
 	 */
 	private static final byte NEW_LINE = (byte) '\n';
 
-
 	/**
 	 * The name of the charset to use for decoding.
 	 */

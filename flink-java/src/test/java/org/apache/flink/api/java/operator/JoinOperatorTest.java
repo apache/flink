@@ -92,7 +92,6 @@ public class JoinOperatorTest {
 
 	private static List<NestedCustomType> customNestedTypeData = new ArrayList<NestedCustomType>();
 
-
 	@BeforeClass
 	public static void insertCustomData() {
 		customTypeData.add(new CustomType());
@@ -199,8 +198,6 @@ public class JoinOperatorTest {
 			Assert.fail();
 		}
 	}
-
-
 
 	@Test(expected = InvalidProgramException.class)
 	public void testJoinKeyExpressions2() {
@@ -458,7 +455,6 @@ public class JoinOperatorTest {
 		ds1.join(ds2).where("nested.myNonExistent").equalTo("nested.myInt");
 	}
 
-
 	@Test
 	public void testJoinKeySelectors1() {
 
@@ -498,7 +494,6 @@ public class JoinOperatorTest {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-
 
 		// should work
 		try {
@@ -1178,7 +1173,10 @@ public class JoinOperatorTest {
 			return ""+myInt;
 		}
 	}
-	// a simple nested type (only basic types)
+
+	/**
+	 * Simple nested type (only basic types).
+ 	 */
 	public static class NestedCustomType implements Serializable {
 
 		private static final long serialVersionUID = 1L;
@@ -1230,7 +1228,6 @@ public class JoinOperatorTest {
 			return myInt+","+myLong+","+myString;
 		}
 	}
-
 
 	public static class CustomTypeWithTuple implements Serializable {
 

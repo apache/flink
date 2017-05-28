@@ -78,7 +78,6 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 		super(input, resultType);
 	}
 
-
 	protected abstract Function getFunction();
 
 	// --------------------------------------------------------------------------------------------

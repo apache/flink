@@ -66,7 +66,6 @@ public class PlanLeftUnwrappingCoGroupOperator<I1, I2, OUT, K>
 			this.iter1 = new TupleUnwrappingIterator<I1, K>();
 		}
 
-
 		@Override
 		public void coGroup(
 				Iterable<Tuple2<K, I1>> records1,

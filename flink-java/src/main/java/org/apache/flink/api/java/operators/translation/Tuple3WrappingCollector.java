@@ -35,7 +35,6 @@ public class Tuple3WrappingCollector<IN, K1, K2> implements Collector<IN>, java.
 
 	private Collector<Tuple3<K1, K2, IN>> wrappedCollector;
 
-
 	public Tuple3WrappingCollector(Tuple3UnwrappingIterator<IN, K1, K2> tui) {
 		this.tui = tui;
 		this.outTuple = new Tuple3<K1, K2, IN>();

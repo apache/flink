@@ -469,7 +469,6 @@ class TupleGenerator {
 		}
 	}
 
-
 	private static String HEADER =
 			"/*\n"
 			+ " * Licensed to the Apache Software Foundation (ASF) under one\n"

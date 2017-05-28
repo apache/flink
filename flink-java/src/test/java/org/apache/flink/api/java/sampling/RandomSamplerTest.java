@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.sampling;
 
 import org.apache.flink.testutils.junit.RetryOnFailure;
@@ -62,13 +63,11 @@ public class RandomSamplerTest {
 
 	private static final List<Double> source = new ArrayList<Double>(SOURCE_SIZE);
 
-
 	@Rule
 	public final RetryRule retryRule = new RetryRule();
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private final List<Double>[] sourcePartitions = new List[DEFAULT_PARTITION_NUMBER];
-
 
 	@BeforeClass
 	public static void init() {

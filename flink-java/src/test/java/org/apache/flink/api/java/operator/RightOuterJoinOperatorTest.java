@@ -202,7 +202,6 @@ public class RightOuterJoinOperatorTest {
 		this.testRightOuterStrategies(JoinHint.BROADCAST_HASH_FIRST);
 	}
 
-
 	private void testRightOuterStrategies(JoinHint hint) {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -214,7 +213,6 @@ public class RightOuterJoinOperatorTest {
 				.where(0).equalTo(4)
 				.with(new DummyJoin());
 	}
-
 
 	/*
 	 * ####################################################################

@@ -23,7 +23,6 @@ import org.apache.flink.api.java.summarize.BooleanColumnSummary;
 import org.junit.Assert;
 import org.junit.Test;
 
-
 public class BooleanSummaryAggregatorTest {
 
 	@Test

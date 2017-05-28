@@ -42,7 +42,6 @@ public class OperatorTranslation {
 	/** The already translated operations */
 	private Map<DataSet<?>, Operator<?>> translated = new HashMap<>();
 
-
 	public Plan translateToPlan(List<DataSink<?>> sinks, String jobName) {
 		List<GenericDataSinkBase<?>> planSinks = new ArrayList<>();
 
@@ -54,7 +53,6 @@ public class OperatorTranslation {
 		p.setJobName(jobName);
 		return p;
 	}
-
 
 	private <T> GenericDataSinkBase<T> translate(DataSink<T> sink) {
 
@@ -68,7 +66,6 @@ public class OperatorTranslation {
 
 		return translatedSink;
 	}
-
 
 	private <T> Operator<T> translate(DataSet<T> dataSet) {
 		while (dataSet instanceof NoOpOperator) {
@@ -134,7 +131,6 @@ public class OperatorTranslation {
 
 		return dataFlowOp;
 	}
-
 
 	private <I, O> org.apache.flink.api.common.operators.Operator<O> translateSingleInputOperator(SingleInputOperator<?, ?, ?> op) {
 
@@ -204,7 +200,6 @@ public class OperatorTranslation {
 
 		return dataFlowOp;
 	}
-
 
 	private <T> BulkIterationBase<T> translateBulkIteration(BulkIterationResultSet<?> untypedIterationEnd) {
 		@SuppressWarnings("unchecked")

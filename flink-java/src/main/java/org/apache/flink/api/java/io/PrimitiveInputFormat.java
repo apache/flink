@@ -44,7 +44,6 @@ public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 
 	private transient FieldParser<OT> parser;
 
-
 	public PrimitiveInputFormat(Path filePath, Class<OT> primitiveClass) {
 		super(filePath, null);
 		this.primitiveClass = primitiveClass;

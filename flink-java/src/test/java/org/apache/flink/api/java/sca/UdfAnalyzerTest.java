@@ -1176,7 +1176,6 @@ public class UdfAnalyzerTest {
 		}
 	}
 
-
 	public static class PutStaticMapper implements MapFunction<String, String> {
 		public static String test = "";
 

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.functions;
 
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
@@ -949,7 +948,6 @@ public class SemanticPropUtilTest {
 		SemanticPropUtil.getSemanticPropsSingleFromString(sp, null, nonForwardedFields, null, threeIntTupleType, threeIntTupleType);
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 	// Read Fields Annotation
 	// --------------------------------------------------------------------------------------------
@@ -1216,7 +1214,6 @@ public class SemanticPropUtilTest {
 		assertTrue(dsp.getForwardingTargetFields(1, 2).size() == 0);
 		assertTrue(dsp.getForwardingTargetFields(1, 3).contains(5));
 	}
-
 
 	@Test
 	public void testNonForwardedDual() {

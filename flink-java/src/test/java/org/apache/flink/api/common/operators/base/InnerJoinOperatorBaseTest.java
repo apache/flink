@@ -48,7 +48,6 @@ import static org.junit.Assert.fail;
 @SuppressWarnings({ "unchecked", "serial" })
 public class InnerJoinOperatorBaseTest implements Serializable {
 
-
 	@Test
 	public void testTupleBaseJoiner(){
 		final FlatJoinFunction<Tuple3<String, Double, Integer>, Tuple2<Integer, String>, Tuple2<Double, String>> joiner =

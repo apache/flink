@@ -17,6 +17,7 @@
  */
 
 package org.apache.flink.api.java.operators;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.operators.Keys;

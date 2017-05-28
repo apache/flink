@@ -37,7 +37,6 @@ public class PrimitiveInputFormatTest {
 
 	private static final Path PATH = new Path("an/ignored/file/");
 
-
 	@Test
 	public void testStringInput() {
 		try {
@@ -71,8 +70,6 @@ public class PrimitiveInputFormatTest {
 		}
 	}
 
-
-
 	@Test
 	public void testIntegerInput() throws IOException {
 		try {
@@ -99,7 +96,6 @@ public class PrimitiveInputFormatTest {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
 		}
 	}
-
 
 	@Test
 	public void testDoubleInputLinewise() throws IOException {

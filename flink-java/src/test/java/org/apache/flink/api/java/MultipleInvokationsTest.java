@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java;
 
 import org.apache.flink.api.common.Plan;

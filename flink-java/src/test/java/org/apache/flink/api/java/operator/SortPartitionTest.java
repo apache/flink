@@ -69,7 +69,6 @@ public class SortPartitionTest {
 	private final List<Tuple4<Integer, Long, CustomType, Long[]>> tupleWithCustomData =
 			new ArrayList<Tuple4<Integer, Long, CustomType, Long[]>>();
 
-
 	@Test
 	public void testSortPartitionPositionKeys1() {
 
@@ -257,6 +256,7 @@ public class SortPartitionTest {
 		public static class Nest {
 			public int myInt;
 		}
+
 		private static final long serialVersionUID = 1L;
 
 		public int myInt;

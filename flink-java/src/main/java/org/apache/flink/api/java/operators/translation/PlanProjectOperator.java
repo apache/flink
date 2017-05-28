@@ -42,7 +42,6 @@ public class PlanProjectOperator<T, R extends Tuple> extends MapOperatorBase<T, 
 		return (MapFunction<T, R>) new MapProjector<X, R>(fields);
 	}
 
-
 	public static final class MapProjector<T extends Tuple, R extends Tuple>
 			extends AbstractRichFunction implements MapFunction<T, R>
 	{

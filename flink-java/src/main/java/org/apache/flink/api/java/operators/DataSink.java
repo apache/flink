@@ -73,12 +73,10 @@ public class DataSink<T> {
 			throw new IllegalArgumentException("The data set must not be null.");
 		}
 
-
 		this.format = format;
 		this.data = data;
 		this.type = type;
 	}
-
 
 	@Internal
 	public OutputFormat<T> getFormat() {

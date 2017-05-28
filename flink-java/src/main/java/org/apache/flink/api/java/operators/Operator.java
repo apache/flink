@@ -43,7 +43,6 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 
 	protected ResourceSpec preferredResources = ResourceSpec.DEFAULT;
 
-
 	protected Operator(ExecutionEnvironment context, TypeInformation<OUT> resultType) {
 		super(context, resultType);
 	}

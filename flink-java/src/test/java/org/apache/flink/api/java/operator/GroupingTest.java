@@ -594,12 +594,12 @@ public class GroupingTest {
 		dataSet.groupBy("*");
 	}
 
-
 	public static class CustomType implements Serializable {
 
 		public static class Nest {
 			public int myInt;
 		}
+
 		private static final long serialVersionUID = 1L;
 
 		public int myInt;

@@ -129,7 +129,6 @@ public abstract class ExecutionEnvironment {
 	/** Flag to indicate whether sinks have been cleared in previous executions */
 	private boolean wasExecuted = false;
 
-
 	/**
 	 * Creates a new Execution Environment.
 	 */
@@ -779,7 +778,6 @@ public abstract class ExecutionEnvironment {
 		return new DataSource<>(this, new IteratorInputFormat<>(data), type, Utils.getCallLocationName());
 	}
 
-
 	/**
 	 * Creates a new data set that contains the given elements. The elements must all be of the same type,
 	 * for example, all of the {@link String} or {@link Integer}. The sequence of elements must not be empty.
@@ -848,7 +846,6 @@ public abstract class ExecutionEnvironment {
 
 		return fromCollection(Arrays.asList(data), typeInfo, Utils.getCallLocationName());
 	}
-
 
 	/**
 	 * Creates a new data set that contains elements in the iterator. The iterator is splittable, allowing the
@@ -1079,6 +1076,7 @@ public abstract class ExecutionEnvironment {
 					Serializers.recursivelyRegisterType(opInfo.getOutputType(), config, deduplicator);
 					return true;
 				}
+
 				@Override
 				public void postVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {}
 			});

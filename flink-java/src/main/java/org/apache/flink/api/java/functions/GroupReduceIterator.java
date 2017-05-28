@@ -29,9 +29,7 @@ public abstract class GroupReduceIterator<IN, OUT> extends RichGroupReduceFuncti
 
 	private static final long serialVersionUID = 1L;
 
-
 	public abstract Iterator<OUT> reduceGroup(Iterable<IN> values) throws Exception;
-
 
 	// -------------------------------------------------------------------------------------------
 

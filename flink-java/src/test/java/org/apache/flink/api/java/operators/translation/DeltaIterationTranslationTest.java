@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.operators.translation;
 
 import org.apache.flink.api.common.InvalidProgramException;
@@ -96,7 +95,6 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 				result.output(new DiscardingOutputFormat<Tuple3<Double, Long, String>>());
 				result.writeAsText("/dev/null");
 			}
-
 
 			Plan p = env.createProgramPlan(JOB_NAME);
 

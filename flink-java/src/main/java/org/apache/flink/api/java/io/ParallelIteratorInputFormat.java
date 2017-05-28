@@ -26,7 +26,6 @@ import org.apache.flink.util.SplittableIterator;
 import java.io.IOException;
 import java.util.Iterator;
 
-
 /**
  * An input format that generates data in parallel through a {@link SplittableIterator}.
  */
@@ -35,12 +34,9 @@ public class ParallelIteratorInputFormat<T> extends GenericInputFormat<T> {
 
 	private static final long serialVersionUID = 1L;
 
-
 	private final SplittableIterator<T> source;
 
 	private transient Iterator<T> splitIterator;
-
-
 
 	public ParallelIteratorInputFormat(SplittableIterator<T> iterator) {
 		this.source = iterator;

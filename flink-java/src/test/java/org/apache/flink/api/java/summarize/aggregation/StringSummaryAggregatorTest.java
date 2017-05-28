@@ -23,7 +23,6 @@ import org.apache.flink.api.java.summarize.StringColumnSummary;
 import org.junit.Assert;
 import org.junit.Test;
 
-
 public class StringSummaryAggregatorTest {
 
 	@Test

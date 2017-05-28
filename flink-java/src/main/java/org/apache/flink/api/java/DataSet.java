@@ -114,7 +114,6 @@ public abstract class DataSet<T> {
 
 	private boolean typeUsed = false;
 
-
 	protected DataSet(ExecutionEnvironment context, TypeInformation<T> typeInfo) {
 		if (context == null) {
 			throw new NullPointerException("context is null");
@@ -216,8 +215,6 @@ public abstract class DataSet<T> {
 		return new MapOperator<>(this, resultType, clean(mapper), callLocation);
 	}
 
-
-
 	/**
 	 * Applies a Map-style operation to the entire partition of the data.
 	 * The function is called once per parallel partition of the data,
@@ -286,7 +283,6 @@ public abstract class DataSet<T> {
 		}
 		return new FilterOperator<>(this, clean(filter), Utils.getCallLocationName());
 	}
-
 
 	// --------------------------------------------------------------------------------------------
 	//  Projections
@@ -394,7 +390,6 @@ public abstract class DataSet<T> {
 		JobExecutionResult res = getExecutionEnvironment().execute();
 		return res.<Long> getAccumulatorResult(id);
 	}
-
 
 	/**
 	 * Convenience method to get the elements of a DataSet as a List.
@@ -951,7 +946,6 @@ public abstract class DataSet<T> {
 		}
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 	//  Co-Grouping
 	// --------------------------------------------------------------------------------------------
@@ -1179,7 +1173,6 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	//  Custom Operators
 	// -------------------------------------------------------------------------------------------
-
 
 	/**
 	 * Runs a {@link CustomUnaryOperation} on the data set. Custom operations are typically complex
@@ -1753,6 +1746,5 @@ public abstract class DataSet<T> {
 			throw new IllegalArgumentException("The two inputs have different execution contexts.");
 		}
 	}
-
 
 }

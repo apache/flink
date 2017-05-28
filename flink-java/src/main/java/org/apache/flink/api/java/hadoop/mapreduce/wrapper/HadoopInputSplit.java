@@ -37,11 +37,9 @@ public class HadoopInputSplit extends LocatableInputSplit {
 
 	private static final long serialVersionUID = 6119153593707857235L;
 
-
 	private final Class<? extends org.apache.hadoop.mapreduce.InputSplit> splitType;
 
 	private transient org.apache.hadoop.mapreduce.InputSplit mapreduceInputSplit;
-
 
 	public HadoopInputSplit(int splitNumber, org.apache.hadoop.mapreduce.InputSplit mapreduceInputSplit, JobContext jobContext) {
 		super(splitNumber, (String) null);

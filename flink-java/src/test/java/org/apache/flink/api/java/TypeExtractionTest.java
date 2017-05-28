@@ -111,6 +111,7 @@ public class TypeExtractionTest {
 		public VertexTyped(Long l, Double d) {
 			super(l, d);
 		}
+
 		public VertexTyped() {
 		}
 	}
