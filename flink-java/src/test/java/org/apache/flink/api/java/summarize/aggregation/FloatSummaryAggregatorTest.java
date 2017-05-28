@@ -28,9 +28,9 @@ public class FloatSummaryAggregatorTest {
 	/**
 	 * Use some values from Anscombe's Quartet for testing.
 	 *
-	 * There was no particular reason to use these except they have known means and variance.
+	 * <p>There was no particular reason to use these except they have known means and variance.
 	 *
-	 * https://en.wikipedia.org/wiki/Anscombe%27s_quartet
+	 * <p>https://en.wikipedia.org/wiki/Anscombe%27s_quartet
 	 */
 	@Test
 	public void testAnscomesQuartetXValues() throws Exception {
@@ -55,9 +55,9 @@ public class FloatSummaryAggregatorTest {
 	/**
 	 * Use some values from Anscombe's Quartet for testing.
 	 *
-	 * There was no particular reason to use these except they have known means and variance.
+	 * <p>There was no particular reason to use these except they have known means and variance.
 	 *
-	 * https://en.wikipedia.org/wiki/Anscombe%27s_quartet
+	 * <p>https://en.wikipedia.org/wiki/Anscombe%27s_quartet
 	 */
 	@Test
 	public void testAnscomesQuartetYValues() throws Exception {
@@ -144,7 +144,7 @@ public class FloatSummaryAggregatorTest {
 	/**
 	 * Helper method for summarizing a list of values.
 	 *
-	 * This method breaks the rule of "testing only one thing" by aggregating
+	 * <p>This method breaks the rule of "testing only one thing" by aggregating
 	 * and combining a bunch of different ways.
 	 */
 	protected NumericColumnSummary<Float> summarize(Float... values) {

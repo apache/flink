@@ -46,7 +46,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Utility class to work with {@link UdfAnalyzer}
+ * Utility class to work with {@link UdfAnalyzer}.
  */
 @Internal
 public final class UdfAnalyzerUtils {

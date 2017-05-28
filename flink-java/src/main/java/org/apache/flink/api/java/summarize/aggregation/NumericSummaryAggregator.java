@@ -26,11 +26,11 @@ import static org.apache.flink.api.java.summarize.aggregation.CompensatedSum.ZER
 /**
  * Generic aggregator for all numeric types creates a summary of a column of numbers.
  *
- * Uses the Kahan summation algorithm to avoid numeric instability when computing variance.
+ * <p>Uses the Kahan summation algorithm to avoid numeric instability when computing variance.
  * The algorithm is described in: "Scalable and Numerically Stable Descriptive Statistics in SystemML",
  * Tian et al, International Conference on Data Engineering 2012
  *
- * Implementation that couldn't be generic for all numbers was pushed to subclasses.
+ * <p>Implementation that couldn't be generic for all numbers was pushed to subclasses.
  * For example, there isn't a generic way to calculate min, max, sum, isNan, isInfinite
  * for all numeric types so subclasses must implement these.
  *
@@ -55,13 +55,13 @@ public abstract class NumericSummaryAggregator<T extends Number> implements Aggr
 	/**
 	 * Sum of squares of differences from the current mean (used to calculate variance).
 	 *
-	 * The algorithm is described in: "Scalable and Numerically Stable Descriptive Statistics in SystemML",
+	 * <p>The algorithm is described in: "Scalable and Numerically Stable Descriptive Statistics in SystemML",
 	 * Tian et al, International Conference on Data Engineering 2012
 	 */
 	private CompensatedSum m2 = ZERO;
 
 	/**
-	 * Add a value to the current aggregation
+	 * Add a value to the current aggregation.
 	 */
 	@Override
 	public void aggregate(T value) {
@@ -90,7 +90,7 @@ public abstract class NumericSummaryAggregator<T extends Number> implements Aggr
 	}
 
 	/**
-	 * combine two aggregations
+	 * combine two aggregations.
 	 */
 	@Override
 	public void combine(Aggregator<T, NumericColumnSummary<T>> otherSameType) {

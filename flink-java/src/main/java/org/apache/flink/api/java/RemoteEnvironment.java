@@ -48,25 +48,25 @@ import java.util.List;
 @Public
 public class RemoteEnvironment extends ExecutionEnvironment {
 
-	/** The hostname of the JobManager */
+	/** The hostname of the JobManager. */
 	protected final String host;
 
-	/** The port of the JobManager main actor system */
+	/** The port of the JobManager main actor system. */
 	protected final int port;
 
-	/** The jar files that need to be attached to each job */
+	/** The jar files that need to be attached to each job. */
 	protected final List<URL> jarFiles;
 
-	/** The configuration used by the client that connects to the cluster */
+	/** The configuration used by the client that connects to the cluster. */
 	protected Configuration clientConfiguration;
 
-	/** The remote executor lazily created upon first use */
+	/** The remote executor lazily created upon first use. */
 	protected PlanExecutor executor;
 
-	/** Optional shutdown hook, used in session mode to eagerly terminate the last session */
+	/** Optional shutdown hook, used in session mode to eagerly terminate the last session. */
 	private Thread shutdownHook;
 
-	/** The classpaths that need to be attached to each job */
+	/** The classpaths that need to be attached to each job. */
 	protected final List<URL> globalClasspaths;
 
 	/**

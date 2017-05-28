@@ -42,10 +42,10 @@ import org.apache.flink.configuration.Configuration;
 @Public
 public class LocalEnvironment extends ExecutionEnvironment {
 
-	/** The user-defined configuration for the local execution */
+	/** The user-defined configuration for the local execution. */
 	private final Configuration configuration;
 
-	/** Create lazily upon first use */
+	/** Create lazily upon first use. */
 	private PlanExecutor executor;
 
 	/** In case we keep the executor alive for sessions, this reaper shuts it down eventually.

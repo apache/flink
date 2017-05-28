@@ -194,7 +194,7 @@ public class CsvReader {
 	}
 
 	/**
-	 * Sets the charset of the reader
+	 * Sets the charset of the reader.
 	 *
 	 * @param charset The character set to set.
 	 */
@@ -274,8 +274,8 @@ public class CsvReader {
 	 * non-zero bit.
 	 * The parser will skip over all fields where the character at the corresponding bit is zero, and
 	 * include the fields where the corresponding bit is one.
-	 * <p>
-	 * Examples:
+	 *
+	 * <p>Examples:
 	 * <ul>
 	 *   <li>A mask of {@code 0x7} would include the first three fields.</li>
 	 *   <li>A mask of {@code 0x26} (binary {@code 100110} would skip the first fields, include fields

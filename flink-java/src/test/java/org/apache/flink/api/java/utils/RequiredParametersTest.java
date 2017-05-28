@@ -31,7 +31,7 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for RequiredParameter class and its interactions with ParameterTool
+ * Tests for RequiredParameter class and its interactions with ParameterTool.
  */
 public class RequiredParametersTest {
 

@@ -169,8 +169,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	 * Sets a custom partitioner for the CoGroup operation. The partitioner will be called on the join keys to determine
 	 * the partition a key should be assigned to. The partitioner is evaluated on both inputs in the
 	 * same way.
-	 * <p>
-	 * NOTE: A custom partitioner can only be used with single-field CoGroup keys, not with composite CoGroup keys.
+	 *
+	 * <p>NOTE: A custom partitioner can only be used with single-field CoGroup keys, not with composite CoGroup keys.
 	 *
 	 * @param partitioner The custom partitioner to be used.
 	 * @return This CoGroup operator, to allow for function chaining.
@@ -574,8 +574,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				 * Sets a custom partitioner for the CoGroup operation. The partitioner will be called on the join keys to determine
 				 * the partition a key should be assigned to. The partitioner is evaluated on both inputs in the
 				 * same way.
-				 * <p>
-				 * NOTE: A custom partitioner can only be used with single-field CoGroup keys, not with composite CoGroup keys.
+				 *
+				 * <p>NOTE: A custom partitioner can only be used with single-field CoGroup keys, not with composite CoGroup keys.
 				 *
 				 * @param partitioner The custom partitioner to be used.
 				 * @return This CoGroup operator, to allow for function chaining.

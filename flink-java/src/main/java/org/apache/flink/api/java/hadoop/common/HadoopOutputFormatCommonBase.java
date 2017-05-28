@@ -30,7 +30,7 @@ import java.io.ObjectOutputStream;
 /**
  * A common base for both "mapred" and "mapreduce" Hadoop output formats.
  *
- * The base is taking care of handling (serializing) security credentials.
+ * <p>The base is taking care of handling (serializing) security credentials.
  */
 @Internal
 public abstract class HadoopOutputFormatCommonBase<T> extends RichOutputFormat<T> {

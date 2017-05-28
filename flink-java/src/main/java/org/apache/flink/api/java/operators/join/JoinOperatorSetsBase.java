@@ -153,7 +153,7 @@ public class JoinOperatorSetsBase<I1, I2> {
 		 * {@link DataSet} that should be used as join keys.<br>
 		 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br>
 		 *
-		 * The resulting {@link JoinFunctionAssigner} needs to be finished by providing a
+		 * <p>The resulting {@link JoinFunctionAssigner} needs to be finished by providing a
 		 * {@link JoinFunction} by calling {@link JoinFunctionAssigner#with(JoinFunction)}
 		 *
 		 * @param fields The indexes of the Tuple fields of the second join DataSet that should be used as keys.
@@ -167,7 +167,7 @@ public class JoinOperatorSetsBase<I1, I2> {
 		 * Continues a Join transformation and defines the fields of the second join
 		 * {@link DataSet} that should be used as join keys.<br>
 		 *
-		 * The resulting {@link JoinFunctionAssigner} needs to be finished by providing a
+		 * <p>The resulting {@link JoinFunctionAssigner} needs to be finished by providing a
 		 * {@link JoinFunction} by calling {@link JoinFunctionAssigner#with(JoinFunction)}
 		 *
 		 * @param fields The fields of the second join DataSet that should be used as keys.
@@ -182,7 +182,7 @@ public class JoinOperatorSetsBase<I1, I2> {
 		 * The KeySelector function is called for each element of the second DataSet and extracts a single
 		 * key value on which the DataSet is joined. <br>
 		 *
-		 * The resulting {@link JoinFunctionAssigner} needs to be finished by providing a
+		 * <p>The resulting {@link JoinFunctionAssigner} needs to be finished by providing a
 		 * {@link JoinFunction} by calling {@link JoinFunctionAssigner#with(JoinFunction)}
 		 *
 		 * @param keySelector The KeySelector function which extracts the key values from the second DataSet on which it is joined.

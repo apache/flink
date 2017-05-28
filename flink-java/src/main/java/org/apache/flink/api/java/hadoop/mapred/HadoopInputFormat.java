@@ -32,7 +32,7 @@ import java.io.IOException;
 /**
  * Wrapper for using HadoopInputFormats (mapred-variant) with Flink.
  *
- * The IF is returning a {@code Tuple2<K,V>}.
+ * <p>The IF is returning a {@code Tuple2<K,V>}.
  *
  * @param <K> Type of the key
  * @param <V> Type of the value.

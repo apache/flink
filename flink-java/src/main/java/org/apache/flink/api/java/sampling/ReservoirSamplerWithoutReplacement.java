@@ -36,7 +36,7 @@ import java.util.Random;
  * select top K elements as the output of each partitions. In the second phase, we select top K
  * elements from all the outputs of the first phase.
  *
- * This implementation refers to the algorithm described in <a href="researcher.ibm.com/files/us-dpwoodru/tw11.pdf">
+ * <p>This implementation refers to the algorithm described in <a href="researcher.ibm.com/files/us-dpwoodru/tw11.pdf">
  * "Optimal Random Sampling from Distributed Streams Revisited"</a>.
  *
  * @param <T> The type of the sampler.

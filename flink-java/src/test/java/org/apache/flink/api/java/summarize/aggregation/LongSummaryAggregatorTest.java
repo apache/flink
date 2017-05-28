@@ -84,7 +84,7 @@ public class LongSummaryAggregatorTest {
 	}
 
 	/**
-	 * Helper method for summarizing a list of values
+	 * Helper method for summarizing a list of values.
 	 */
 	protected NumericColumnSummary<Long> summarize(Long... values) {
 		return new AggregateCombineHarness<Long,NumericColumnSummary<Long>,LongSummaryAggregator>() {

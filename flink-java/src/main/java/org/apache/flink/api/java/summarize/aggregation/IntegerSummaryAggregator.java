@@ -21,7 +21,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Aggregator that can handle Integer types
+ * Aggregator that can handle Integer types.
  */
 @Internal
 public class IntegerSummaryAggregator extends NumericSummaryAggregator<Integer> {

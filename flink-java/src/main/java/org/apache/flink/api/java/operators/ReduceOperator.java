@@ -56,7 +56,6 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	private CombineHint hint;
 
 	/**
-	 *
 	 * This is the case for a reduce-all case (in contrast to the reduce-per-group case).
 	 *
 	 * @param input
@@ -163,7 +162,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	/**
 	 * Sets the strategy to use for the combine phase of the reduce.
 	 *
-	 * If this method is not called, then the default hint will be used.
+	 * <p>If this method is not called, then the default hint will be used.
 	 * ({@link org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint#OPTIMIZER_CHOOSES})
 	 *
 	 * @param strategy The hint to use.

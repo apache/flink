@@ -23,7 +23,7 @@ import org.apache.flink.annotation.Internal;
 import static org.apache.flink.api.java.summarize.aggregation.CompensatedSum.ZERO;
 
 /**
- * Aggregator that can handle Double types
+ * Aggregator that can handle Double types.
  */
 @Internal
 public class DoubleSummaryAggregator extends NumericSummaryAggregator<Double> {

@@ -46,8 +46,8 @@ import static java.util.Objects.requireNonNull;
  * user-defined functions (UDFs). The UDFs encapsulated by this operator are naturally UDFs that
  * have two inputs (such as {@link org.apache.flink.api.common.functions.RichJoinFunction} or
  * {@link org.apache.flink.api.common.functions.RichCoGroupFunction}).
- * <p>
- * This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization
+ *
+ * <p>This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization
  * through configuration objects, and semantic properties.
  *
  * @param <IN1> The data type of the first input data set.
@@ -117,41 +117,41 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	}
 
 	/**
-	 * <p>
-	 * Adds semantic information about forwarded fields of the first input of the user-defined function.
+	 *
+	 * <p>Adds semantic information about forwarded fields of the first input of the user-defined function.
 	 * The forwarded fields information declares fields which are never modified by the function and
 	 * which are forwarded at the same position to the output or unchanged copied to another position in the output.
 	 * </p>
 	 *
-	 * <p>
-	 * Fields that are forwarded at the same position are specified by their position.
+	 *
+	 * <p>Fields that are forwarded at the same position are specified by their position.
 	 * The specified position must be valid for the input and output data type and have the same type.
 	 * For example <code>withForwardedFieldsFirst("f2")</code> declares that the third field of a Java input tuple
 	 * from the first input is copied to the third field of an output tuple.
 	 * </p>
 	 *
-	 * <p>
-	 * Fields which are unchanged copied from the first input to another position in the output are declared
+	 *
+	 * <p>Fields which are unchanged copied from the first input to another position in the output are declared
 	 * by specifying the source field reference in the first input and the target field reference in the output.
 	 * {@code withForwardedFieldsFirst("f0->f2")} denotes that the first field of the first input Java tuple is
 	 * unchanged copied to the third field of the Java output tuple. When using a wildcard ("*") ensure that
 	 * the number of declared fields and their types in first input and output type match.
 	 * </p>
 	 *
-	 * <p>
-	 * Multiple forwarded fields can be annotated in one ({@code withForwardedFieldsFirst("f2; f3->f0; f4")})
+	 *
+	 * <p>Multiple forwarded fields can be annotated in one ({@code withForwardedFieldsFirst("f2; f3->f0; f4")})
 	 * or separate Strings ({@code withForwardedFieldsFirst("f2", "f3->f0", "f4")}).
 	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
 	 * details on field references such as nested fields and wildcard.
 	 * </p>
 	 *
-	 * <p>
-	 * It is not possible to override existing semantic information about forwarded fields of the first input which was
+	 *
+	 * <p>It is not possible to override existing semantic information about forwarded fields of the first input which was
 	 * for example added by a {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst} class annotation.
 	 * </p>
 	 *
-	 * <p>
-	 * <b>NOTE: Adding semantic information for functions is optional!
+	 *
+	 * <p><b>NOTE: Adding semantic information for functions is optional!
 	 * If used correctly, semantic information can help the Flink optimizer to generate more efficient execution plans.
 	 * However, incorrect semantic information can cause the optimizer to generate incorrect execution plans which compute wrong results!
 	 * So be careful when adding semantic information.
@@ -192,41 +192,41 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	}
 
 	/**
-	 * <p>
-	 * Adds semantic information about forwarded fields of the second input of the user-defined function.
+	 *
+	 * <p>Adds semantic information about forwarded fields of the second input of the user-defined function.
 	 * The forwarded fields information declares fields which are never modified by the function and
 	 * which are forwarded at the same position to the output or unchanged copied to another position in the output.
 	 * </p>
 	 *
-	 * <p>
-	 * Fields that are forwarded at the same position are specified by their position.
+	 *
+	 * <p>Fields that are forwarded at the same position are specified by their position.
 	 * The specified position must be valid for the input and output data type and have the same type.
 	 * For example <code>withForwardedFieldsSecond("f2")</code> declares that the third field of a Java input tuple
 	 * from the second input is copied to the third field of an output tuple.
 	 * </p>
 	 *
-	 * <p>
-	 * Fields which are unchanged copied from the second input to another position in the output are declared
+	 *
+	 * <p>Fields which are unchanged copied from the second input to another position in the output are declared
 	 * by specifying the source field reference in the second input and the target field reference in the output.
 	 * {@code withForwardedFieldsSecond("f0->f2")} denotes that the first field of the second input Java tuple is
 	 * unchanged copied to the third field of the Java output tuple. When using a wildcard ("*") ensure that
 	 * the number of declared fields and their types in second input and output type match.
 	 * </p>
 	 *
-	 * <p>
-	 * Multiple forwarded fields can be annotated in one ({@code withForwardedFieldsSecond("f2; f3->f0; f4")})
+	 *
+	 * <p>Multiple forwarded fields can be annotated in one ({@code withForwardedFieldsSecond("f2; f3->f0; f4")})
 	 * or separate Strings ({@code withForwardedFieldsSecond("f2", "f3->f0", "f4")}).
 	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
 	 * details on field references such as nested fields and wildcard.
 	 * </p>
 	 *
-	 * <p>
-	 * It is not possible to override existing semantic information about forwarded fields of the second input which was
+	 *
+	 * <p>It is not possible to override existing semantic information about forwarded fields of the second input which was
 	 * for example added by a {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond} class annotation.
 	 * </p>
 	 *
-	 * <p>
-	 * <b>NOTE: Adding semantic information for functions is optional!
+	 *
+	 * <p><b>NOTE: Adding semantic information for functions is optional!
 	 * If used correctly, semantic information can help the Flink optimizer to generate more efficient execution plans.
 	 * However, incorrect semantic information can cause the optimizer to generate incorrect execution plans which compute wrong results!
 	 * So be careful when adding semantic information.
@@ -357,12 +357,12 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	/**
 	 * Adds a type information hint about the return type of this operator.
 	 *
-	 * <p>
-	 * Type hints are important in cases where the Java compiler
+	 *
+	 * <p>Type hints are important in cases where the Java compiler
 	 * throws away generic type information necessary for efficient execution.
 	 *
-	 * <p>
-	 * This method takes a type information string that will be parsed. A type information string can contain the following
+	 *
+	 * <p>This method takes a type information string that will be parsed. A type information string can contain the following
 	 * types:
 	 *
 	 * <ul>
@@ -382,7 +382,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 * <li>Enum types such as <code>Enum&lt;org.my.CustomEnum&gt;</code></li>
 	 * </ul>
 	 *
-	 * Example:
+	 * <p>Example:
 	 * <code>"Tuple2&lt;String,Tuple2&lt;Integer,org.my.MyJob$Pojo&lt;word=String&gt;&gt;&gt;"</code>
 	 *
 	 * @param typeInfoString

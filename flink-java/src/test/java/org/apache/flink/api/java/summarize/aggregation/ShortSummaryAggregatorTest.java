@@ -86,7 +86,7 @@ public class ShortSummaryAggregatorTest {
 	}
 
 	/**
-	 * Helper method for summarizing a list of values
+	 * Helper method for summarizing a list of values.
 	 */
 	protected NumericColumnSummary<Short> summarize(Integer... values) {
 

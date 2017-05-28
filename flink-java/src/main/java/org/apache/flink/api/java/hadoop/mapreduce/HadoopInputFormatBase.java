@@ -52,7 +52,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Base class shared between the Java and Scala API of Flink
+ * Base class shared between the Java and Scala API of Flink.
  */
 @Internal
 public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCommonBase<T, HadoopInputSplit> {

@@ -84,7 +84,7 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 	}
 
 	/**
-	 * Pass a configuration to the InputFormat
+	 * Pass a configuration to the InputFormat.
 	 * @param parameters Configuration parameters
 	 */
 	public DataSource<OUT> withParameters(Configuration parameters) {
@@ -104,7 +104,7 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 	 * {@link org.apache.flink.core.io.InputSplit}s of this DataSource
 	 * for configurations.
 	 *
-	 * SplitDataProperties can help to generate more efficient execution plans.
+	 * <p>SplitDataProperties can help to generate more efficient execution plans.
 	 * <br>
 	 * <b>
 	 *     IMPORTANT: Incorrect configuration of SplitDataProperties can cause wrong results!

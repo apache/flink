@@ -150,7 +150,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 
 		/**
 		 * Chooses a projectTupleX according to the length of
-		 * {@link org.apache.flink.api.java.operators.ProjectOperator.Projection#fieldIndexes}
+		 * {@link org.apache.flink.api.java.operators.ProjectOperator.Projection#fieldIndexes}.
 		 *
 		 * @return The projected DataSet.
 		 *

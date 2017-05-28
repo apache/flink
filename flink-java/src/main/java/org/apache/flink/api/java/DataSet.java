@@ -222,7 +222,7 @@ public abstract class DataSet<T> {
 	 * The number of elements that each instance of the MapPartition function
 	 * sees is non deterministic and depends on the parallelism of the operation.
 	 *
-	 * This function is intended for operations that cannot transform individual elements,
+	 * <p>This function is intended for operations that cannot transform individual elements,
 	 * requires no grouping of elements. To transform individual elements,
 	 * the use of {@code map()} and {@code flatMap()} is preferable.
 	 *
@@ -333,7 +333,7 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Syntactic sugar for aggregate (SUM, field)
+	 * Syntactic sugar for aggregate (SUM, field).
 	 * @param field The index of the Tuple field on which the aggregation function is applied.
 	 * @return An AggregateOperator that represents the summed DataSet.
 	 *
@@ -346,8 +346,8 @@ public abstract class DataSet<T> {
 	/**
 	 * Syntactic sugar for {@link #aggregate(Aggregations, int)} using {@link Aggregations#MAX} as
 	 * the aggregation function.
-	 * <p>
-	 * <strong>Note:</strong> This operation is not to be confused with {@link #maxBy(int...)},
+	 *
+	 * <p><strong>Note:</strong> This operation is not to be confused with {@link #maxBy(int...)},
 	 * which selects one element with maximum value at the specified field positions.
 	 *
 	 * @param field The index of the Tuple field on which the aggregation function is applied.
@@ -363,8 +363,8 @@ public abstract class DataSet<T> {
 	/**
 	 * Syntactic sugar for {@link #aggregate(Aggregations, int)} using {@link Aggregations#MIN} as
 	 * the aggregation function.
-	 * <p>
-	 * <strong>Note:</strong> This operation is not to be confused with {@link #minBy(int...)},
+	 *
+	 * <p><strong>Note:</strong> This operation is not to be confused with {@link #minBy(int...)},
 	 * which selects one element with the minimum value at the specified field positions.
 	 *
 	 * @param field The index of the Tuple field on which the aggregation function is applied.
@@ -485,26 +485,26 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Selects an element with minimum value.
-	 * <p>
-	 * The minimum is computed over the specified fields in lexicographical order.
-	 * <p>
-	 * <strong>Example 1</strong>: Given a data set with elements <code>[0, 1], [1, 0]</code>, the
+	 *
+	 * <p>The minimum is computed over the specified fields in lexicographical order.
+	 *
+	 * <p><strong>Example 1</strong>: Given a data set with elements <code>[0, 1], [1, 0]</code>, the
 	 * results will be:
 	 * <ul>
 	 * <li><code>minBy(0)</code>: <code>[0, 1]</code></li>
 	 * <li><code>minBy(1)</code>: <code>[1, 0]</code></li>
 	 * </ul>
-	 * <p>
-	 * <strong>Example 2</strong>: Given a data set with elements <code>[0, 0], [0, 1]</code>, the
+	 *
+	 * <p><strong>Example 2</strong>: Given a data set with elements <code>[0, 0], [0, 1]</code>, the
 	 * results will be:
 	 * <ul>
 	 * <li><code>minBy(0, 1)</code>: <code>[0, 0]</code></li>
 	 * </ul>
-	 * <p>
-	 * If multiple values with minimum value at the specified fields exist, a random one will be
+	 *
+	 * <p>If multiple values with minimum value at the specified fields exist, a random one will be
 	 * picked.
-	 * <p>
-	 * Internally, this operation is implemented as a {@link ReduceFunction}.
+	 *
+	 * <p>Internally, this operation is implemented as a {@link ReduceFunction}.
 	 *
 	 * @param fields Field positions to compute the minimum over
 	 * @return A {@link ReduceOperator} representing the minimum
@@ -521,26 +521,26 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Selects an element with maximum value.
-	 * <p>
-	 * The maximum is computed over the specified fields in lexicographical order.
-	 * <p>
-	 * <strong>Example 1</strong>: Given a data set with elements <code>[0, 1], [1, 0]</code>, the
+	 *
+	 * <p>The maximum is computed over the specified fields in lexicographical order.
+	 *
+	 * <p><strong>Example 1</strong>: Given a data set with elements <code>[0, 1], [1, 0]</code>, the
 	 * results will be:
 	 * <ul>
 	 * <li><code>maxBy(0)</code>: <code>[1, 0]</code></li>
 	 * <li><code>maxBy(1)</code>: <code>[0, 1]</code></li>
 	 * </ul>
-	 * <p>
-	 * <strong>Example 2</strong>: Given a data set with elements <code>[0, 0], [0, 1]</code>, the
+	 *
+	 * <p><strong>Example 2</strong>: Given a data set with elements <code>[0, 0], [0, 1]</code>, the
 	 * results will be:
 	 * <ul>
 	 * <li><code>maxBy(0, 1)</code>: <code>[0, 1]</code></li>
 	 * </ul>
-	 * <p>
-	 * If multiple values with maximum value at the specified fields exist, a random one will be
+	 *
+	 * <p>If multiple values with maximum value at the specified fields exist, a random one will be
 	 * picked.
-	 * <p>
-	 * Internally, this operation is implemented as a {@link ReduceFunction}.
+	 *
+	 * <p>Internally, this operation is implemented as a {@link ReduceFunction}.
 	 *
 	 * @param fields Field positions to compute the maximum over
 	 * @return A {@link ReduceOperator} representing the maximum
@@ -574,8 +574,8 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Returns a distinct set of a {@link DataSet} using a {@link KeySelector} function.
-	 * <p>
-	 * The KeySelector function is called for each element of the DataSet and extracts a single key value on which the
+	 *
+	 * <p>The KeySelector function is called for each element of the DataSet and extracts a single key value on which the
 	 * decision is made if two items are distinct or not.
 	 *
 	 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet on which the
@@ -589,11 +589,11 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using field position keys.
-	 * <p>
-	 * The field position keys specify the fields of Tuples on which the decision is made if two Tuples are distinct or
+	 *
+	 * <p>The field position keys specify the fields of Tuples on which the decision is made if two Tuples are distinct or
 	 * not.
-	 * <p>
-	 * Note: Field position keys can only be specified for Tuple DataSets.
+	 *
+	 * <p>Note: Field position keys can only be specified for Tuple DataSets.
 	 *
 	 * @param fields One or more field positions on which the distinction of the DataSet is decided.
 	 * @return A DistinctOperator that represents the distinct DataSet.
@@ -604,8 +604,8 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Returns a distinct set of a {@link DataSet} using expression keys.
-	 * <p>
-	 * The field expression keys specify the fields of a {@link org.apache.flink.api.common.typeutils.CompositeType}
+	 *
+	 * <p>The field expression keys specify the fields of a {@link org.apache.flink.api.common.typeutils.CompositeType}
 	 * (e.g., Tuple or Pojo type) on which the decision is made if two elements are distinct or not.
 	 * In case of a {@link org.apache.flink.api.common.typeinfo.AtomicType}, only the wildcard expression ("*") is valid.
 	 *
@@ -618,8 +618,8 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Returns a distinct set of a {@link DataSet}.
-	 * <p>
-	 * If the input is a {@link org.apache.flink.api.common.typeutils.CompositeType} (Tuple or Pojo type),
+	 *
+	 * <p>If the input is a {@link org.apache.flink.api.common.typeutils.CompositeType} (Tuple or Pojo type),
 	 * distinct is performed on all fields and each field must be a key type
 	 *
 	 * @return A DistinctOperator that represents the distinct DataSet.
@@ -724,7 +724,7 @@ public abstract class DataSet<T> {
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine
 	 *   joining elements into one DataSet.<br>
 	 *
-	 * This method returns a {@link JoinOperatorSets} on which one of the {@code where} methods
+	 * <p>This method returns a {@link JoinOperatorSets} on which one of the {@code where} methods
 	 * can be called to define the join key of the first joining (i.e., this) DataSet.
 	 *
 	 * @param other The other DataSet with which this DataSet is joined.
@@ -743,7 +743,7 @@ public abstract class DataSet<T> {
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine
 	 *   joining elements into one DataSet.<br>
 	 *
-	 * This method returns a {@link JoinOperatorSets} on which one of the {@code where} methods
+	 * <p>This method returns a {@link JoinOperatorSets} on which one of the {@code where} methods
 	 * can be called to define the join key of the first joining (i.e., this) DataSet.
 	 *
 	 * @param other The other DataSet with which this DataSet is joined.
@@ -982,7 +982,7 @@ public abstract class DataSet<T> {
 	 * {@link DataSet} that should be used as join keys.<br>
 	 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br>
 	 *
-	 * The resulting {@link DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with
+	 * <p>The resulting {@link DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with
 	 * the element of the first input being the first field of the tuple and the element of the
 	 * second input being the second field of the tuple.
 	 *
@@ -996,13 +996,13 @@ public abstract class DataSet<T> {
 	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of
 	 *   both DataSets, i.e., it builds a Cartesian product.
 	 *
-	 * <p>
-	 * The resulting {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with
+	 *
+	 * <p>The resulting {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with
 	 * the element of the first input being the first field of the tuple and the element of the
 	 * second input being the second field of the tuple.
 	 *
-	 * <p>
-	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
+	 *
+	 * <p>Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
 	 * {@link org.apache.flink.api.common.functions.CrossFunction} which is called for
 	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.<br>
 	 *
@@ -1026,13 +1026,13 @@ public abstract class DataSet<T> {
 	 * This method also gives the hint to the optimizer that the second DataSet to cross is much
 	 *   smaller than the first one.
 	 *
-	 * <p>
-	 * The resulting {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with
+	 *
+	 * <p>The resulting {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with
 	 * the element of the first input being the first field of the tuple and the element of the
 	 * second input being the second field of the tuple.
 	 *
-	 * <p>
-	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
+	 *
+	 * <p>Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
 	 * {@link org.apache.flink.api.common.functions.CrossFunction} which is called for
 	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.<br>
 	 *
@@ -1056,13 +1056,13 @@ public abstract class DataSet<T> {
 	 * This method also gives the hint to the optimizer that the second DataSet to cross is much
 	 *   larger than the first one.
 	 *
-	 * <p>
-	 * The resulting {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with
+	 *
+	 * <p>The resulting {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with
 	 * the element of the first input being the first field of the tuple and the element of the
 	 * second input being the second field of the tuple.
 	 *
-	 * <p>
-	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
+	 *
+	 * <p>Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
 	 * {@link org.apache.flink.api.common.functions.CrossFunction} which is called for
 	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.<br>
 	 *
@@ -1088,8 +1088,8 @@ public abstract class DataSet<T> {
 	 * given to the {@code closeWith(DataSet)} method is the data set that will be fed back and used as the input
 	 * to the next iteration. The return value of the {@code closeWith(DataSet)} method is the resulting
 	 * data set after the iteration has terminated.
-	 * <p>
-	 * An example of an iterative computation is as follows:
+	 *
+	 * <p>An example of an iterative computation is as follows:
 	 *
 	 * <pre>
 	 * {@code
@@ -1102,8 +1102,8 @@ public abstract class DataSet<T> {
 	 * DataSet<Double> result = startOfIteration.closeWith(toBeFedBack);
 	 * }
 	 * </pre>
-	 * <p>
-	 * The iteration has a maximum number of times that it executes. A dynamic termination can be realized by using a
+	 *
+	 * <p>The iteration has a maximum number of times that it executes. A dynamic termination can be realized by using a
 	 * termination criterion (see {@link org.apache.flink.api.java.operators.IterativeDataSet#closeWith(DataSet, DataSet)}).
 	 *
 	 * @param maxIterations The maximum number of times that the iteration is executed.
@@ -1124,20 +1124,20 @@ public abstract class DataSet<T> {
 	 * can be obtained via {@link org.apache.flink.api.java.operators.DeltaIteration#getWorkset()}.
 	 * The solution set is updated by producing a delta for it, which is merged into the solution set at the end of each
 	 * iteration step.
-	 * <p>
-	 * The delta iteration must be closed by calling {@link org.apache.flink.api.java.operators.DeltaIteration#closeWith(DataSet, DataSet)}. The two
+	 *
+	 * <p>The delta iteration must be closed by calling {@link org.apache.flink.api.java.operators.DeltaIteration#closeWith(DataSet, DataSet)}. The two
 	 * parameters are the delta for the solution set and the new workset (the data set that will be fed back).
 	 * The return value of the {@code closeWith(DataSet, DataSet)} method is the resulting
 	 * data set after the iteration has terminated. Delta iterations terminate when the feed back data set
 	 * (the workset) is empty. In addition, a maximum number of steps is given as a fall back termination guard.
-	 * <p>
-	 * Elements in the solution set are uniquely identified by a key. When merging the solution set delta, contained elements
+	 *
+	 * <p>Elements in the solution set are uniquely identified by a key. When merging the solution set delta, contained elements
 	 * with the same key are replaced.
-	 * <p>
-	 * <b>NOTE:</b> Delta iterations currently support only tuple valued data types. This restriction
+	 *
+	 * <p><b>NOTE:</b> Delta iterations currently support only tuple valued data types. This restriction
 	 * will be removed in the future. The key is specified by the tuple position.
-	 * <p>
-	 * A code example for a delta iteration is as follows
+	 *
+	 * <p>A code example for a delta iteration is as follows
 	 * <pre>
 	 * {@code
 	 * DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
@@ -1207,8 +1207,8 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Hash-partitions a DataSet on the specified key fields.
-	 * <p>
-	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 *
+	 * <p><b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
 	 *
 	 * @param fields The field indexes on which the DataSet is hash-partitioned.
 	 * @return The partitioned DataSet.
@@ -1219,8 +1219,8 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Hash-partitions a DataSet on the specified key fields.
-	 * <p>
-	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 *
+	 * <p><b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
 	 *
 	 * @param fields The field expressions on which the DataSet is hash-partitioned.
 	 * @return The partitioned DataSet.
@@ -1231,8 +1231,8 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Partitions a DataSet using the specified KeySelector.
-	 * <p>
-	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 *
+	 * <p><b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
 	 *
 	 * @param keyExtractor The KeyExtractor with which the DataSet is hash-partitioned.
 	 * @return The partitioned DataSet.
@@ -1246,8 +1246,8 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Range-partitions a DataSet on the specified key fields.
-	 * <p>
-	 * <b>Important:</b>This operation requires an extra pass over the DataSet to compute the range boundaries and
+	 *
+	 * <p><b>Important:</b>This operation requires an extra pass over the DataSet to compute the range boundaries and
 	 * shuffles the whole DataSet over the network. This can take significant amount of time.
 	 *
 	 * @param fields The field indexes on which the DataSet is range-partitioned.
@@ -1259,8 +1259,8 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Range-partitions a DataSet on the specified key fields.
-	 * <p>
-	 * <b>Important:</b>This operation requires an extra pass over the DataSet to compute the range boundaries and
+	 *
+	 * <p><b>Important:</b>This operation requires an extra pass over the DataSet to compute the range boundaries and
 	 * shuffles the whole DataSet over the network. This can take significant amount of time.
 	 *
 	 * @param fields The field expressions on which the DataSet is range-partitioned.
@@ -1272,8 +1272,8 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Range-partitions a DataSet using the specified KeySelector.
-	 * <p>
-	 * <b>Important:</b>This operation requires an extra pass over the DataSet to compute the range boundaries and
+	 *
+	 * <p><b>Important:</b>This operation requires an extra pass over the DataSet to compute the range boundaries and
 	 * shuffles the whole DataSet over the network. This can take significant amount of time.
 	 *
 	 * @param keyExtractor The KeyExtractor with which the DataSet is range-partitioned.
@@ -1289,8 +1289,8 @@ public abstract class DataSet<T> {
 	/**
 	 * Partitions a tuple DataSet on the specified key fields using a custom partitioner.
 	 * This method takes the key position to partition on, and a partitioner that accepts the key type.
-	 * <p>
-	 * Note: This method works only on single field keys.
+	 *
+	 * <p>Note: This method works only on single field keys.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
 	 * @param field The field index on which the DataSet is to partitioned.
@@ -1303,8 +1303,8 @@ public abstract class DataSet<T> {
 	/**
 	 * Partitions a POJO DataSet on the specified key fields using a custom partitioner.
 	 * This method takes the key expression to partition on, and a partitioner that accepts the key type.
-	 * <p>
-	 * Note: This method works only on single field keys.
+	 *
+	 * <p>Note: This method works only on single field keys.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
 	 * @param field The field index on which the DataSet is to partitioned.
@@ -1318,8 +1318,8 @@ public abstract class DataSet<T> {
 	 * Partitions a DataSet on the key returned by the selector, using a custom partitioner.
 	 * This method takes the key selector to get the key to partition on, and a partitioner that
 	 * accepts the key type.
-	 * <p>
-	 * Note: This method works only on single field keys, i.e. the selector cannot return tuples
+	 *
+	 * <p>Note: This method works only on single field keys, i.e. the selector cannot return tuples
 	 * of fields.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
@@ -1336,8 +1336,8 @@ public abstract class DataSet<T> {
 	/**
 	 * Enforces a re-balancing of the DataSet, i.e., the DataSet is evenly distributed over all parallel instances of the
 	 * following task. This can help to improve performance in case of heavy data skew and compute intensive operations.
-	 * <p>
-	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 *
+	 * <p><b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
 	 *
 	 * @return The re-balanced DataSet.
 	 */
@@ -1377,7 +1377,7 @@ public abstract class DataSet<T> {
 	 * Locally sorts the partitions of the DataSet on the extracted key in the specified order.
 	 * The DataSet can be sorted on multiple values by returning a tuple from the KeySelector.
 	 *
-	 * Note that no additional sort keys can be appended to a KeySelector sort keys. To sort
+	 * <p>Note that no additional sort keys can be appended to a KeySelector sort keys. To sort
 	 * the partitions by multiple values using KeySelector, the KeySelector must return a tuple
 	 * consisting of the values.
 	 *

@@ -37,7 +37,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests the precedence of semantic properties: annotation > API > static code analyzer
+ * Tests the precedence of semantic properties: annotation > API > static code analyzer.
  */
 public class SemanticPropertiesPrecedenceTest {
 

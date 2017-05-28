@@ -122,8 +122,8 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 	/**
 	 * Configures the format to either allow null values (writing an empty field),
 	 * or to throw an exception when encountering a null field.
-	 * <p>
-	 * by default, null values are disallowed.
+	 *
+	 * <p>by default, null values are disallowed.
 	 *
 	 * @param allowNulls Flag to indicate whether the output format should accept null values.
 	 */
@@ -145,8 +145,8 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 	 * Configures whether the output format should quote string values. String values are fields
 	 * of type {@link java.lang.String} and {@link org.apache.flink.types.StringValue}, as well as
 	 * all subclasses of the latter.
-	 * <p>
-	 * By default, strings are not quoted.
+	 *
+	 * <p>By default, strings are not quoted.
 	 *
 	 * @param quoteStrings Flag indicating whether string fields should be quoted.
 	 */
@@ -216,7 +216,6 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 	}
 
     /**
-	 *
 	 * The purpose of this method is solely to check whether the data type to be processed
 	 * is in fact a tuple type.
 	 */

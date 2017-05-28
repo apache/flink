@@ -26,7 +26,7 @@ public class CompensatedSumTest {
 	/**
 	 * When adding a series of numbers the order of the numbers should not impact the results.
 	 *
-	 * This test shows that a naive summation comes up with a different result than Kahan
+	 * <p>This test shows that a naive summation comes up with a different result than Kahan
 	 * Summation when you start with either a smaller or larger number in some cases and
 	 * helps prove our Kahan Summation is working.
 	 */

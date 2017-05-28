@@ -27,8 +27,8 @@ import java.util.Iterator;
 /**
  * A convenience variant of the {@link org.apache.flink.api.common.functions.RichFlatMapFunction} that returns elements through an iterator, rather then
  * through a collector. In all other respects, it behaves exactly like the FlatMapFunction.
- * <p>
- * The function needs to be serializable, as defined in {@link java.io.Serializable}.
+ *
+ * <p>The function needs to be serializable, as defined in {@link java.io.Serializable}.
  *
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.

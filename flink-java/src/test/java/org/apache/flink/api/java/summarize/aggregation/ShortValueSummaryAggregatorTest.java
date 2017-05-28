@@ -26,7 +26,7 @@ import org.junit.Assert;
 public class ShortValueSummaryAggregatorTest extends ShortSummaryAggregatorTest {
 
 	/**
-	 * Helper method for summarizing a list of values
+	 * Helper method for summarizing a list of values.
 	 */
 	protected NumericColumnSummary<Short> summarize(Integer... values) {
 

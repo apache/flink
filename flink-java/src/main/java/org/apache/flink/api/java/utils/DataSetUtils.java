@@ -141,7 +141,7 @@ public final class DataSetUtils {
 	 *  <li> c is shifted by n bits where n = log2(number of parallel tasks)
 	 * 	<li> to create a unique ID among all tasks, the task id is added to the counter
 	 * 	<li> for each record, the resulting counter is collected
-	 * </ul>
+	 * </ul>.
 	 *
 	 * @param input the input data set
 	 * @return a data set of tuple 2 consisting of ids and initial values.
@@ -221,8 +221,8 @@ public final class DataSetUtils {
 
 	/**
 	 * Generate a sample of DataSet which contains fixed size elements.
-	 * <p>
-	 * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
+	 *
+	 * <p><strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
 	 * fraction unless you need exact precision.
 	 * </p>
 	 *
@@ -240,8 +240,8 @@ public final class DataSetUtils {
 
 	/**
 	 * Generate a sample of DataSet which contains fixed size elements.
-	 * <p>
-	 * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
+	 *
+	 * <p><strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
 	 * fraction unless you need exact precision.
 	 * </p>
 	 *
@@ -296,9 +296,9 @@ public final class DataSetUtils {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Summarize a DataSet of Tuples by collecting single pass statistics for all columns
+	 * Summarize a DataSet of Tuples by collecting single pass statistics for all columns.
 	 *
-	 * Example usage:
+	 * <p>Example usage:
 	 * <pre>
 	 * {@code
 	 * Dataset<Tuple3<Double, String, Boolean>> input = // [...]

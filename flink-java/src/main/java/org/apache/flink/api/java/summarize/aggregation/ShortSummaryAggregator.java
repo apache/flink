@@ -21,7 +21,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Aggregator that can handle Short types
+ * Aggregator that can handle Short types.
  */
 @Internal
 public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
@@ -29,14 +29,14 @@ public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Like Math.min() except for shorts
+	 * Like Math.min() except for shorts.
 	 */
 	public static Short min(Short a, Short b) {
 		return a <= b ? a : b;
 	}
 
 	/**
-	 * Like Math.max() except for shorts
+	 * Like Math.max() except for shorts.
 	 */
 	public static Short max(Short a, Short b) {
 		return a >= b ? a : b;

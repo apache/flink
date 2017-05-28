@@ -89,7 +89,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	}
 
 	/**
-	 * Syntactic sugar for aggregate (SUM, field)
+	 * Syntactic sugar for aggregate (SUM, field).
 	 * @param field The index of the Tuple field on which the aggregation function is applied.
 	 * @return An AggregateOperator that represents the summed DataSet.
 	 *
@@ -100,7 +100,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	}
 
 	/**
-	 * Syntactic sugar for aggregate (MAX, field)
+	 * Syntactic sugar for aggregate (MAX, field).
 	 * @param field The index of the Tuple field on which the aggregation function is applied.
 	 * @return An AggregateOperator that represents the max'ed DataSet.
 	 *
@@ -111,7 +111,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	}
 
 	/**
-	 * Syntactic sugar for aggregate (MIN, field)
+	 * Syntactic sugar for aggregate (MIN, field).
 	 * @param field The index of the Tuple field on which the aggregation function is applied.
 	 * @return An AggregateOperator that represents the min'ed DataSet.
 	 *

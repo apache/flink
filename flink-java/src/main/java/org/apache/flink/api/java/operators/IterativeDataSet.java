@@ -67,8 +67,8 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	/**
 	 * Closes the iteration and specifies a termination criterion. This method defines the end of
 	 * the iterative program part.
-	 * <p>
-	 * The termination criterion is a means of dynamically signaling the iteration to halt. It is expressed via a data
+	 *
+	 * <p>The termination criterion is a means of dynamically signaling the iteration to halt. It is expressed via a data
 	 * set that will trigger to halt the loop as soon as the data set is empty. A typical way of using the termination
 	 * criterion is to have a filter that filters out all elements that are considered non-converged. As soon as no more
 	 * such elements exist, the iteration finishes.
@@ -97,8 +97,8 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	 * iteration, such as number of elements processed. The aggregators compute global aggregates: After each iteration step,
 	 * the values are globally aggregated to produce one aggregate that represents statistics across all parallel instances.
 	 * The value of an aggregator can be accessed in the next iteration.
-	 * <p>
-	 * Aggregators can be accessed inside a function via the
+	 *
+	 * <p>Aggregators can be accessed inside a function via the
 	 * {@link org.apache.flink.api.common.functions.AbstractRichFunction#getIterationRuntimeContext()} method.
 	 *
 	 * @param name The name under which the aggregator is registered.

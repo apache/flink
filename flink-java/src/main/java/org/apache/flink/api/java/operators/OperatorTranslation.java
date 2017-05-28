@@ -39,7 +39,7 @@ import java.util.Map;
 @Internal
 public class OperatorTranslation {
 
-	/** The already translated operations */
+	/** The already translated operations. */
 	private Map<DataSet<?>, Operator<?>> translated = new HashMap<>();
 
 	public Plan translateToPlan(List<DataSink<?>> sinks, String jobName) {

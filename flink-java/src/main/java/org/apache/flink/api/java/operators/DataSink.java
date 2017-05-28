@@ -94,7 +94,7 @@ public class DataSink<T> {
 	}
 
 	/**
-	 * Pass a configuration to the OutputFormat
+	 * Pass a configuration to the OutputFormat.
 	 * @param parameters Configuration parameters
 	 */
 	public DataSink<T> withParameters(Configuration parameters) {

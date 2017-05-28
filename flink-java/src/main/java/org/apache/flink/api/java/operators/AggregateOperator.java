@@ -60,8 +60,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	private final String aggregateLocationName;
 
 	/**
-	 * <p>
-	 * Non grouped aggregation
+	 * Non grouped aggregation.
 	 */
 	public AggregateOperator(DataSet<IN> input, Aggregations function, int field, String aggregateLocationName) {
 		super(Preconditions.checkNotNull(input), input.getType());
@@ -89,8 +88,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	}
 
 	/**
-	 *
-	 * Grouped aggregation
+	 * Grouped aggregation.
 	 *
 	 * @param input
 	 * @param function

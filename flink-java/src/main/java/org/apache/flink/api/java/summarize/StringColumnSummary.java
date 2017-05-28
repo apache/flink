@@ -21,7 +21,7 @@ package org.apache.flink.api.java.summarize;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Summary for a column of Strings
+ * Summary for a column of Strings.
  */
 @PublicEvolving
 public class StringColumnSummary extends ColumnSummary {
@@ -53,21 +53,21 @@ public class StringColumnSummary extends ColumnSummary {
 	}
 
 	/**
-	 * Number of empty strings e.g. java.lang.String.isEmpty()
+	 * Number of empty strings e.g. java.lang.String.isEmpty().
 	 */
 	public long getEmptyCount() {
 		return emptyCount;
 	}
 
 	/**
-	 * Shortest String length
+	 * Shortest String length.
 	 */
 	public Integer getMinLength() {
 		return minLength;
 	}
 
 	/**
-	 * Longest String length
+	 * Longest String length.
 	 */
 	public Integer getMaxLength() {
 		return maxLength;

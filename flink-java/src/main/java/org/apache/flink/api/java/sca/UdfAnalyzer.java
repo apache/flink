@@ -59,7 +59,7 @@ import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.removeUngroupedInpu
  * constants are tagged such that a tracking of atomic input fields through the
  * entire UDF (until the function returns or calls collect()) is possible.
  *
- * The implementation is as conservative as possible meaning that for cases
+ * <p>The implementation is as conservative as possible meaning that for cases
  * or bytecode instructions that haven't been considered the analyzer
  * will fallback to the ASM library (which removes TaggedValues).
  */

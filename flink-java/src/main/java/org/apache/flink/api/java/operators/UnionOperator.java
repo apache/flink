@@ -25,7 +25,7 @@ import org.apache.flink.api.common.operators.Union;
 import org.apache.flink.api.java.DataSet;
 
 /**
- * Java API operator for union of two data sets
+ * Java API operator for union of two data sets.
  *
  * @param <T> The type of the two input data sets and the result data set
  */

@@ -33,7 +33,7 @@ import java.util.Random;
  * difference is that, in the first phase, we generate weights for each element K times, so that
  * each element can get selected multiple times.
  *
- * This implementation refers to the algorithm described in <a href="researcher.ibm.com/files/us-dpwoodru/tw11.pdf">
+ * <p>This implementation refers to the algorithm described in <a href="researcher.ibm.com/files/us-dpwoodru/tw11.pdf">
  * "Optimal Random Sampling from Distributed Streams Revisited"</a>.
  *
  * @param <T> The type of sample.

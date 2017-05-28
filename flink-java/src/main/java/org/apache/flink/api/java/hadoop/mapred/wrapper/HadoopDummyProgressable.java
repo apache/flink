@@ -23,7 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.hadoop.util.Progressable;
 
 /**
- * This is a dummy progress
+ * This is a dummy progress.
  *
  */
 @PublicEvolving

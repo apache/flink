@@ -23,7 +23,7 @@ import org.apache.flink.annotation.Internal;
 import static org.apache.flink.api.java.summarize.aggregation.CompensatedSum.ZERO;
 
 /**
- * Aggregator that can handle Float types
+ * Aggregator that can handle Float types.
  */
 @Internal
 public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {

@@ -25,7 +25,7 @@ import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.Reporter;
 
 /**
- * This is a dummy progress monitor / reporter
+ * This is a dummy progress monitor / reporter.
  *
  */
 @PublicEvolving

@@ -142,7 +142,7 @@ public class TextInputFormatTest {
 	}
 
 	/**
-	 * This tests cases when line ends with \r\n and \n is used as delimiter, the last \r should be removed
+	 * This tests cases when line ends with \r\n and \n is used as delimiter, the last \r should be removed.
 	 */
 	@Test
 	public void testRemovingTrailingCR() {

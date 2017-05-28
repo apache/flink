@@ -21,7 +21,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Aggregator that can handle Long types
+ * Aggregator that can handle Long types.
  */
 @Internal
 public class LongSummaryAggregator extends NumericSummaryAggregator<Long> {

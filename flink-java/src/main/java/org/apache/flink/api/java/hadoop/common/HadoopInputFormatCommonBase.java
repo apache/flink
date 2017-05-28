@@ -55,7 +55,7 @@ public abstract class HadoopInputFormatCommonBase<T, SPITTYPE extends InputSplit
 	 * This method only exists because there is no UserGroupInformation.getCredentials() method
 	 * in Hadoop 1.x
 	 *
-	 * Note that this method returns "null" in Hadoop 1.x environments.
+	 * <p>Note that this method returns "null" in Hadoop 1.x environments.
 	 *
 	 * @param ugi The user information
 	 * @return new credentials object from the user information. MAY RETURN NULL!

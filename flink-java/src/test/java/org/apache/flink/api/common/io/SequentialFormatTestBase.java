@@ -75,7 +75,7 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 	}
 
 	/**
-	 * Count how many bytes would be written if all records were directly serialized
+	 * Count how many bytes would be written if all records were directly serialized.
 	 */
 	@Before
 	public void calcRawDataSize() throws IOException {
@@ -92,7 +92,7 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 	}
 
 	/**
-	 * Checks if the expected input splits were created
+	 * Checks if the expected input splits were created.
 	 */
 	@Test
 	public void checkInputSplits() throws IOException {
@@ -125,7 +125,7 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 	}
 
 	/**
-	 * Tests if the expected sequence and amount of data can be read
+	 * Tests if the expected sequence and amount of data can be read.
 	 */
 	@Test
 	public void checkRead() throws Exception {
@@ -243,7 +243,7 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 	abstract protected int getInfoSize();
 
 	/**
-	 * Returns the record to write at the given position
+	 * Returns the record to write at the given position.
 	 */
 	abstract protected T getRecord(int index);
 
@@ -252,7 +252,7 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 	abstract protected void writeRecord(T record, DataOutputView outputView) throws IOException;
 
 	/**
-	 * Checks if both records are equal
+	 * Checks if both records are equal.
 	 */
 	abstract protected void checkEquals(T expected, T actual);
 

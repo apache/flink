@@ -98,8 +98,8 @@ public class DeltaIteration<ST, WT> {
 
 	/**
 	 * Gets the initial solution set. This is the data set on which the delta iteration was started.
-	 * <p>
-	 * Consider the following example:
+	 *
+	 * <p>Consider the following example:
 	 * <pre>
 	 * {@code
 	 * DataSet<MyType> solutionSetData = ...;
@@ -119,8 +119,8 @@ public class DeltaIteration<ST, WT> {
 	/**
 	 * Gets the initial workset. This is the data set passed to the method that starts the delta
 	 * iteration.
-	 * <p>
-	 * Consider the following example:
+	 *
+	 * <p>Consider the following example:
 	 * <pre>
 	 * {@code
 	 * DataSet<MyType> solutionSetData = ...;
@@ -266,8 +266,8 @@ public class DeltaIteration<ST, WT> {
 	 * iteration, such as number of elements processed. The aggregators compute global aggregates: After each iteration step,
 	 * the values are globally aggregated to produce one aggregate that represents statistics across all parallel instances.
 	 * The value of an aggregator can be accessed in the next iteration.
-	 * <p>
-	 * Aggregators can be accessed inside a function via the
+	 *
+	 * <p>Aggregators can be accessed inside a function via the
 	 * {@link org.apache.flink.api.common.functions.AbstractRichFunction#getIterationRuntimeContext()} method.
 	 *
 	 * @param name The name under which the aggregator is registered.

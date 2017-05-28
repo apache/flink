@@ -45,7 +45,7 @@ import java.io.ObjectOutputStream;
 import static org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase.getCredentialsFromUGI;
 
 /**
- * Base class shared between the Java and Scala API of Flink
+ * Base class shared between the Java and Scala API of Flink.
  */
 @Internal
 public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormatCommonBase<T> implements FinalizeOnMaster {
