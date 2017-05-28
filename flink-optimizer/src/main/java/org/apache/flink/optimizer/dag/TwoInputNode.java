@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
 
 import org.apache.flink.api.common.ExecutionMode;
@@ -154,7 +153,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 		inputs.add(input2);
 		return inputs;
 	}
-
 
 	@Override
 	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode, ExecutionMode defaultExecutionMode) {

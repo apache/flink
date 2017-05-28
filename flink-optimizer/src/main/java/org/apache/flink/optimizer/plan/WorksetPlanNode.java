@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.plan;
 
 import org.apache.flink.optimizer.costs.Costs;
@@ -47,8 +46,7 @@ public class WorksetPlanNode extends PlanNode {
 	private final Channel initialInput;
 	
 	public Object postPassHelper;
-	
-	
+
 	public WorksetPlanNode(WorksetNode template, String nodeName,
 			GlobalProperties gProps, LocalProperties lProps,
 			Channel initialInput)
@@ -87,7 +85,6 @@ public class WorksetPlanNode extends PlanNode {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
 
 	@Override
 	public void accept(Visitor<PlanNode> visitor) {
@@ -96,18 +93,15 @@ public class WorksetPlanNode extends PlanNode {
 		}
 	}
 
-
 	@Override
 	public Iterable<PlanNode> getPredecessors() {
 		return Collections.<PlanNode>emptyList();
 	}
 
-
 	@Override
 	public Iterable<Channel> getInputs() {
 		return Collections.<Channel>emptyList();
 	}
-
 
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {

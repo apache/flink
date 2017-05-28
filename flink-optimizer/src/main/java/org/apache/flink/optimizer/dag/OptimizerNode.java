@@ -218,8 +218,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * no matter if there have been more branches to different paths in the meantime.
 	 */
 	public abstract void computeUnclosedBranchStack();
-	
-	
+
 	protected List<UnclosedBranchDescriptor> computeUnclosedBranchStackForBroadcastInputs(
 															List<UnclosedBranchDescriptor> branchesSoFar)
 	{
@@ -791,8 +790,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		
 		final PlanNode[][] toKeep = new PlanNode[gps.length][];
 		final PlanNode[] cheapestForGlobal = new PlanNode[gps.length];
-		
-		
+
 		PlanNode cheapest = null; // the overall cheapest plan
 
 		// go over all plans from the list
@@ -863,8 +861,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			}
 		}
 	}
-	
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                       Handling of branches
 	// --------------------------------------------------------------------------------------------
@@ -880,7 +877,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public List<UnclosedBranchDescriptor> getOpenBranches() {
 		return this.openBranches;
 	}
-
 
 	protected List<UnclosedBranchDescriptor> getBranchesForParent(DagConnection toParent) {
 		if (this.outgoingConnections.size() == 1) {
@@ -921,7 +917,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		}
 	}
 
-	
 	protected void removeClosedBranches(List<UnclosedBranchDescriptor> openList) {
 		if (openList == null || openList.isEmpty() || this.closedBranchingNodes == null || this.closedBranchingNodes.isEmpty()) {
 			return;

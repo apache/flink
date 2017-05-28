@@ -44,8 +44,7 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 	private final Ordering ordering2;		// ordering on the second input 
 	
 	private Partitioner<?> customPartitioner;
-	
-	
+
 	public CoGroupDescriptor(FieldList keys1, FieldList keys2) {
 		this(keys1, keys2, null, null);
 	}

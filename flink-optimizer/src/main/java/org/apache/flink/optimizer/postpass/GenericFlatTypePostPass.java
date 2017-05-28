@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.postpass;
 
 import org.apache.flink.api.common.operators.SemanticProperties;
@@ -52,8 +51,7 @@ import java.util.Map;
 public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> implements OptimizerPostPass {
 	
 	private boolean propagateParentSchemaDown = true;
-	
-	
+
 	public boolean isPropagateParentSchemaDown() {
 		return propagateParentSchemaDown;
 	}

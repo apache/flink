@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.operators;
 
 import org.apache.flink.api.common.operators.util.FieldList;
@@ -44,8 +43,7 @@ public abstract class OperatorDescriptorSingle implements AbstractOperatorDescri
 
 	private List<RequestedGlobalProperties> globalProps;
 	private List<RequestedLocalProperties> localProps;
-	
-	
+
 	protected OperatorDescriptorSingle() {
 		this(null);
 	}
@@ -54,7 +52,6 @@ public abstract class OperatorDescriptorSingle implements AbstractOperatorDescri
 		this.keys = keys;
 		this.keyList = keys == null ? null : keys.toFieldList();
 	}
-
 
 	public List<RequestedGlobalProperties> getPossibleGlobalProperties() {
 		if (this.globalProps == null) {

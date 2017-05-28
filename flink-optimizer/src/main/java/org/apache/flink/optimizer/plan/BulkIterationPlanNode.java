@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.plan;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -85,7 +84,6 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	
 	// --------------------------------------------------------------------------------------------
 
-	
 	public TypeSerializerFactory<?> getSerializerForIterationChannel() {
 		return serializerForIterationChannel;
 	}
@@ -110,7 +108,6 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	public int getMemoryConsumerWeight() {
 		return 1;
 	}
-	
 
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {

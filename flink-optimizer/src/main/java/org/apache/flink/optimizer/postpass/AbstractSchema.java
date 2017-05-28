@@ -23,8 +23,7 @@ import java.util.Map;
 public abstract class AbstractSchema<X> implements Iterable<Map.Entry<Integer, X>> {
 
 	private int numConnectionsThatContributed;
-	
-	
+
 	public int getNumConnectionsThatContributed() {
 		return this.numConnectionsThatContributed;
 	}

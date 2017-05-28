@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.operators;
 
 import org.apache.flink.optimizer.dag.SingleInputNode;
@@ -31,7 +30,6 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import java.util.Collections;
 import java.util.List;
 
-
 public class NoOpDescriptor extends OperatorDescriptorSingle {
 
 	@Override
@@ -44,24 +42,20 @@ public class NoOpDescriptor extends OperatorDescriptorSingle {
 		return new SingleInputPlanNode(node, "Pipe", in, DriverStrategy.UNARY_NO_OP);
 	}
 
-
 	@Override
 	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
 		return Collections.singletonList(new RequestedGlobalProperties());
 	}
 
-
 	@Override
 	protected List<RequestedLocalProperties> createPossibleLocalProperties() {
 		return Collections.singletonList(new RequestedLocalProperties());
 	}
-	
 
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
 		return gProps;
 	}
-	
 
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {

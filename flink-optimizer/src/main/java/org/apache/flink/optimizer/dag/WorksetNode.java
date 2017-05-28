@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
 
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
@@ -36,8 +35,7 @@ import java.util.List;
 public class WorksetNode extends AbstractPartialSolutionNode {
 	
 	private final WorksetIterationNode iterationNode;
-	
-	
+
 	public WorksetNode(WorksetPlaceHolder<?> psph, WorksetIterationNode iterationNode) {
 		super(psph);
 		this.iterationNode = iterationNode;

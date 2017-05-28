@@ -75,8 +75,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 						@Override
 						public Tuple2<Long, Long> map(Long value){ return null; }
 					});
-					
-					
+
 			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iter = input.iterateDelta(input, 100, 0);
 			iter.closeWith(iter.getWorkset(), iter.getWorkset())
 				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
@@ -142,8 +141,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 						@Override
 						public Tuple2<Long, Long> map(Long value){ return null; }
 					});
-					
-					
+
 			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iter = input.iterateDelta(input, 100, 0);
 			iter.closeWith(
 					iter.getWorkset().map(new IdentityMapper<Tuple2<Long,Long>>())

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer;
 
 import org.apache.flink.api.common.Plan;
@@ -42,7 +41,6 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
 
 /**
 * Tests that validate optimizer choices when using operators that are requesting certain specific execution
@@ -140,8 +138,7 @@ public class WorksetIterationsRecordApiCompilerTest extends CompilerTestBase {
 		// verify reducer
 		assertEquals(ShipStrategyType.PARTITION_HASH, worksetReducer.getInput().getShipStrategy());
 		assertEquals(list0, worksetReducer.getKeys(0));
-		
-		
+
 		// verify solution delta
 		assertEquals(2, joinWithSolutionSetNode.getOutgoingChannels().size());
 		assertEquals(ShipStrategyType.PARTITION_HASH, joinWithSolutionSetNode.getOutgoingChannels().get(0).getShipStrategy());
@@ -184,8 +181,7 @@ public class WorksetIterationsRecordApiCompilerTest extends CompilerTestBase {
 		// verify reducer
 		assertEquals(ShipStrategyType.FORWARD, worksetReducer.getInput().getShipStrategy());
 		assertEquals(list0, worksetReducer.getKeys(0));
-		
-		
+
 		// verify solution delta
 		assertEquals(1, joinWithSolutionSetNode.getOutgoingChannels().size());
 		assertEquals(ShipStrategyType.FORWARD, joinWithSolutionSetNode.getOutgoingChannels().get(0).getShipStrategy());

@@ -20,7 +20,6 @@ package org.apache.flink.optimizer.plandump;
 
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
-
 /**
  *
  */

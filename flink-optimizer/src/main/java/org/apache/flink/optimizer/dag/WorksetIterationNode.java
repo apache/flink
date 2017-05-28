@@ -65,8 +65,7 @@ import java.util.Set;
 public class WorksetIterationNode extends TwoInputNode implements IterationNode {
 	
 	private static final int DEFAULT_COST_WEIGHT = 20;
-	
-	
+
 	private final FieldList solutionSetKeyFields;
 	
 	private final GlobalProperties partitionedProperties;

@@ -479,8 +479,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			}
 			
 			final JobVertex targetVertex = this.vertices.get(node);
-			
-			
+
 			// --------- Main Path: Translation of channels ----------
 			// 
 			// There are two paths of translation: One for chained tasks (or merged tasks in general),
@@ -557,8 +556,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			}
 			
 			// -------- Here, we translate non-chained tasks -------------
-			
-			
+
 			if (this.currentIteration != null) {
 				JobVertex head = this.iterations.get(this.currentIteration).getHeadTask();
 				// Exclude static code paths from the co-location constraint, because otherwise
@@ -567,8 +565,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 					targetVertex.setStrictlyCoLocatedWith(head);
 				}
 			}
-			
-			
+
 			// create the config that will contain all the description of the inputs
 			final TaskConfig targetVertexConfig = new TaskConfig(targetVertex.getConfiguration());
 						
@@ -1334,15 +1331,13 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			
 			tailConfig.setOutputSerializer(bulkNode.getSerializerForIterationChannel());
 		}
-		
-		
+
 		// create the fake output task for termination criterion, if needed
 		final TaskConfig tailConfigOfTerminationCriterion;
 		// If we have a termination criterion and it is not an intermediate node
 		if(rootOfTerminationCriterion != null && rootOfTerminationCriterion.getOutgoingChannels().isEmpty()) {
 			JobVertex rootOfTerminationCriterionVertex = this.vertices.get(rootOfTerminationCriterion);
-			
-			
+
 			if (rootOfTerminationCriterionVertex == null) {
 				// last op is chained
 				final TaskInChain taskInChain = this.chainedTasks.get(rootOfTerminationCriterion);
@@ -1707,7 +1702,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			this.taskConfig = taskConfig;
 			this.taskName = taskName;
 		}
-
 
 		public PlanNode getPlanNode() {
 			return planNode;

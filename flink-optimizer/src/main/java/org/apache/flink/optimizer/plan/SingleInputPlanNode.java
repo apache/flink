@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.plan;
 
 import org.apache.flink.api.common.operators.util.FieldList;
@@ -191,7 +190,6 @@ public class SingleInputPlanNode extends PlanNode {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
 
 	@Override
 	public void accept(Visitor<PlanNode> visitor) {
@@ -205,7 +203,6 @@ public class SingleInputPlanNode extends PlanNode {
 			visitor.postVisit(this);
 		}
 	}
-
 
 	@Override
 	public Iterable<PlanNode> getPredecessors() {
@@ -223,7 +220,6 @@ public class SingleInputPlanNode extends PlanNode {
 			return preds;
 		}
 	}
-
 
 	@Override
 	public Iterable<Channel> getInputs() {

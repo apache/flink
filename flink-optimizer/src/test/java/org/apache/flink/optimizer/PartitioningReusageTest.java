@@ -224,7 +224,6 @@ public class PartitioningReusageTest extends CompilerTestBase {
 		checkValidJoinInputProperties(join);
 	}
 
-
 	@Test
 	public void reuseBothPartitioningJoin2() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -374,7 +373,6 @@ public class PartitioningReusageTest extends CompilerTestBase {
 
 		checkValidJoinInputProperties(join);
 	}
-
 
 	@Test
 	public void noPreviousPartitioningCoGroup1() {
@@ -553,7 +551,6 @@ public class PartitioningReusageTest extends CompilerTestBase {
 		checkValidCoGroupInputProperties(coGroup);
 	}
 
-
 	@Test
 	public void reuseBothPartitioningCoGroup2() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -699,7 +696,6 @@ public class PartitioningReusageTest extends CompilerTestBase {
 	}
 
 
-
 	private void checkValidJoinInputProperties(DualInputPlanNode join) {
 
 		GlobalProperties inProps1 = join.getInput1().getGlobalProperties();
@@ -815,7 +811,6 @@ public class PartitioningReusageTest extends CompilerTestBase {
 		}
 
 	}
-
 
 
 	public static class MockMapper implements MapFunction<Tuple3<Integer, Integer, Integer>, Tuple3<Integer, Integer, Integer>> {

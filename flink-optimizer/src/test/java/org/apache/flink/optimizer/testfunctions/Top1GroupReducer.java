@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;
 
-
 public class Top1GroupReducer<T>
 	implements GroupReduceFunction<T, T>, GroupCombineFunction<T, T> {
 

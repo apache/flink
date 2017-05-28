@@ -81,7 +81,6 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			traverse(sink);
 		}
 	}
-	
 
 	protected void traverse(PlanNode node) {
 		if (!alreadyDone.add(node)) {
@@ -236,7 +235,6 @@ public class JavaApiPostPass implements OptimizerPostPass {
 
 		TypeInformation<?> type = javaOp.getOperatorInfo().getOutputType();
 
-
 		if(javaOp instanceof GroupReduceOperatorBase &&
 				(source.getDriverStrategy() == DriverStrategy.SORTED_GROUP_COMBINE || source.getDriverStrategy() == DriverStrategy.ALL_GROUP_REDUCE_COMBINE)) {
 			GroupReduceOperatorBase<?, ?, ?> groupNode = (GroupReduceOperatorBase<?, ?, ?>) javaOp;
@@ -266,8 +264,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		// descend to the channel's source
 		traverse(channel.getSource());
 	}
-	
-	
+
 	@SuppressWarnings("unchecked")
 	private static <T> TypeInformation<T> getTypeInfoFromSource(SourcePlanNode node) {
 		Operator<?> op = node.getOptimizerNode().getOperator();

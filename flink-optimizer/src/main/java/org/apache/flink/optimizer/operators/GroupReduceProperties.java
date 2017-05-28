@@ -40,8 +40,7 @@ public final class GroupReduceProperties extends OperatorDescriptorSingle {
 	private final Ordering ordering;		// ordering that we need to use if an additional ordering is requested 
 
 	private final Partitioner<?> customPartitioner;
-	
-	
+
 	public GroupReduceProperties(FieldSet keys) {
 		this(keys, null, null);
 	}

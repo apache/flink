@@ -268,7 +268,6 @@ public class BinaryUnionNode extends TwoInputNode {
 						}
 					}
 
-
 					instantiate(operator, c1, c2, broadcastPlanChannels, outputPlans, estimator, igps, igps, noLocalProps, noLocalProps);
 				}
 			}

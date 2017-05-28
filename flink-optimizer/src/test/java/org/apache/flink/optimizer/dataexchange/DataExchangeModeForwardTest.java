@@ -48,7 +48,6 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public class DataExchangeModeForwardTest extends CompilerTestBase {
 
-
 	@Test
 	public void testPipelinedForced() {
 		// PIPELINED_FORCED should result in pipelining all the way

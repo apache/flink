@@ -52,8 +52,7 @@ public final class AllGroupReduceProperties extends OperatorDescriptorSingle {
 	protected List<RequestedLocalProperties> createPossibleLocalProperties() {
 		return Collections.singletonList(new RequestedLocalProperties());
 	}
-	
-	
+
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
 		if (gProps.getUniqueFieldCombination() != null && gProps.getUniqueFieldCombination().size() > 0 &&
@@ -64,7 +63,6 @@ public final class AllGroupReduceProperties extends OperatorDescriptorSingle {
 		gProps.clearUniqueFieldCombinations();
 		return gProps;
 	}
-	
 
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {

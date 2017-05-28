@@ -50,8 +50,7 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 	private final Ordering ordering;		// ordering that we need to use if an additional ordering is requested 
 	
 	private final Partitioner<?> customPartitioner;
-	
-	
+
 	public GroupReduceWithCombineProperties(FieldSet groupKeys) {
 		this(groupKeys, null, null);
 	}

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer;
 
 import org.apache.flink.api.common.Plan;
@@ -44,7 +43,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Iterator;
-
 
 @SuppressWarnings({"serial"})
 public class UnionPropertyPropagationTest extends CompilerTestBase {

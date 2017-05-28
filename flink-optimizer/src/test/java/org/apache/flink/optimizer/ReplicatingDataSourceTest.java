@@ -460,7 +460,6 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 		OptimizedPlan oPlan = compileNoStats(plan);
 	}
 
-
 	public static class IdMap<T> implements MapFunction<T,T> {
 
 		@Override
@@ -503,7 +502,5 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 		}
 	}
 
-
 }
-
 

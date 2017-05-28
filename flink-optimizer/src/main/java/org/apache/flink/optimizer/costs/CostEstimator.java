@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.costs;
 
 import org.apache.flink.optimizer.CompilerException;

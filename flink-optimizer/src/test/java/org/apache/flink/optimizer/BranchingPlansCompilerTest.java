@@ -59,8 +59,7 @@ import static org.junit.Assert.fail;
 
 @SuppressWarnings({"serial"})
 public class BranchingPlansCompilerTest extends CompilerTestBase {
-	
-	
+
 	@Test
 	public void testCostComputationWithMultipleDataSinks() {
 		final int SINKS = 5;
@@ -89,7 +88,6 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			fail(e.getMessage());
 		}
 	}
-
 
 	/**
 	 * 
@@ -143,7 +141,6 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			fail(e.getMessage());
 		}
 	}
-	
 
 	/**
 	 * <pre>
@@ -214,7 +211,6 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 
 			DataSet<Tuple2<Long, Long>> joined10 = mapped.join(joined9).where(0).equalTo(0)
 					.with(new DummyFlatJoinFunction<Tuple2<Long, Long>>());
-
 
 			joined5.coGroup(joined10)
 					.where(1).equalTo(1)
@@ -368,7 +364,6 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			Assert.fail(e.getMessage());
 		}
 	}
-	
 
 	@Test
 	public void testBranchingUnion() {
@@ -765,11 +760,9 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		DataSet<String> reduced = input
 				.map(new IdentityMapper<String>())
 				.reduceGroup(new Top1GroupReducer<String>());
-		
-		
+
 		DataSet<String> initialSolution = input.map(new IdentityMapper<String>()).withBroadcastSet(reduced, "bc");
-		
-		
+
 		IterativeDataSet<String> iteration = initialSolution.iterate(100);
 		
 		iteration.closeWith(iteration.map(new IdentityMapper<String>()).withBroadcastSet(reduced, "red"))
@@ -827,8 +820,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		IterativeDataSet<String> iteration1 = input.iterate(100);
 		IterativeDataSet<String> iteration2 = input.iterate(20);
 		IterativeDataSet<String> iteration3 = input.iterate(17);
-		
-		
+
 		iteration1.closeWith(iteration1.map(new IdentityMapper<String>()))
 				.output(new DiscardingOutputFormat<String>());
 		iteration2.closeWith(iteration2.reduceGroup(new Top1GroupReducer<String>()))

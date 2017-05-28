@@ -31,7 +31,6 @@ import org.junit.Test;
 
 import static org.junit.Assert.fail;
 
-
 @SuppressWarnings({"serial", "unchecked"})
 public class DeltaIterationDependenciesTest extends CompilerTestBase {
 

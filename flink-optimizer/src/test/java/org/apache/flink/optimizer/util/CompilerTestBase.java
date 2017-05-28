@@ -109,7 +109,6 @@ public abstract class CompilerTestBase extends TestLogger implements java.io.Ser
 		source.setStatisticsKey(key);
 	}
 
-
 	public static OptimizerPlanNodeResolver getOptimizerPlanNodeResolver(OptimizedPlan plan) {
 		return new OptimizerPlanNodeResolver(plan);
 	}
@@ -162,7 +161,6 @@ public abstract class CompilerTestBase extends TestLogger implements java.io.Ser
 
 			this.map = map;
 		}
-
 
 		@SuppressWarnings("unchecked")
 		public <T extends PlanNode> T getNode(String name) {

@@ -60,8 +60,7 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 	private static final String SINK = "Result";
 	
 	private final FieldList set0 = new FieldList(0);
-	
-	
+
 	@Test
 	public void testWorksetConnectedComponents() {
 		Plan plan = getConnectedComponentsPlan(DEFAULT_PARALLELISM, 100, false);
@@ -214,8 +213,7 @@ public class ConnectedComponentsTest extends CompilerTestBase {
 		JobGraphGenerator jgg = new JobGraphGenerator();
 		jgg.compileJobGraph(optPlan);
 	}
-	
-	
+
 	private static Plan getConnectedComponentsPlan(int parallelism, int iterations, boolean solutionSetFirst) {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();

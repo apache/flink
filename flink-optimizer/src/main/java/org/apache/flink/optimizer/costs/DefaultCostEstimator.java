@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.costs;
 
 import org.apache.flink.optimizer.dag.EstimateProvider;
@@ -49,8 +48,7 @@ public class DefaultCostEstimator extends CostEstimator {
 	private static final float HASHING_CPU_FACTOR = 4;
 	
 	private static final float SORTING_CPU_FACTOR = 9;
-	
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Shipping Strategy Cost
 	// --------------------------------------------------------------------------------------------

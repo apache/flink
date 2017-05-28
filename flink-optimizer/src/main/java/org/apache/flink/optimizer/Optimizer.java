@@ -202,7 +202,6 @@ public class Optimizer {
 	 */
 	public static final String HINT_LOCAL_STRATEGY_MERGE = "LOCAL_STRATEGY_MERGE";
 
-	
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>hash based</b> local strategy.
 	 * For example, a <i>Match</i> operator will use a hybrid-hash-join strategy to find pairs of
@@ -291,7 +290,6 @@ public class Optimizer {
 	 * The default parallelism for jobs compiled by this compiler.
 	 */
 	private int defaultParallelism;
-
 
 	// ------------------------------------------------------------------------
 	// Constructor & Setup
@@ -536,7 +534,6 @@ public class Optimizer {
 		program.accept(graphCreator);
 		return graphCreator.getSinks();
 	}
-
 
 	// ------------------------------------------------------------------------
 	// Miscellaneous

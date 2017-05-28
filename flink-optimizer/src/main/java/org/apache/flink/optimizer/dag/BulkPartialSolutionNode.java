@@ -35,8 +35,7 @@ import java.util.List;
 public class BulkPartialSolutionNode extends AbstractPartialSolutionNode {
 	
 	private final BulkIterationNode iterationNode;
-	
-	
+
 	public BulkPartialSolutionNode(PartialSolutionPlaceHolder<?> psph, BulkIterationNode iterationNode) {
 		super(psph);
 		this.iterationNode = iterationNode;

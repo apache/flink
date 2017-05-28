@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
 
 import org.apache.flink.api.common.ExecutionMode;
@@ -142,7 +141,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 	public List<DagConnection> getIncomingConnections() {
 		return Collections.singletonList(this.inConn);
 	}
-	
 
 	@Override
 	public SemanticProperties getSemanticProperties() {
@@ -241,7 +239,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 			conn.setInterestingProperties(new InterestingProperties());
 		}
 	}
-	
 
 	@Override
 	public List<PlanNode> getAlternativePlans(CostEstimator estimator) {

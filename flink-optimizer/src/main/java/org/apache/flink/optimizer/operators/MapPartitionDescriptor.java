@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.operators;
 
 import org.apache.flink.optimizer.dag.SingleInputNode;
@@ -30,7 +29,6 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 
 import java.util.Collections;
 import java.util.List;
-
 
 public class MapPartitionDescriptor extends OperatorDescriptorSingle {
 

@@ -35,8 +35,7 @@ public enum TempMode {
 	private final boolean cached;
 	
 	private final boolean breaksPipeline;
-	
-	
+
 	private TempMode(boolean cached, boolean breaksPipeline) {
 		this.cached = cached;
 		this.breaksPipeline = breaksPipeline;
@@ -69,8 +68,7 @@ public enum TempMode {
 			return this;
 		}
 	}
-	
-	
+
 	public TempMode makeNonCached() {
 		if (this == CACHED) {
 			return NONE;

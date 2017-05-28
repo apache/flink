@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import java.util.List;
 
-
 public class NoOpBinaryUdfOp<OUT> extends DualInputOperator<OUT, OUT, OUT, NoOpFunction> {
 
 	public NoOpBinaryUdfOp(TypeInformation<OUT> type) {

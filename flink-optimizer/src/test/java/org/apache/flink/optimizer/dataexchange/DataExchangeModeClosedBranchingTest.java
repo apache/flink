@@ -190,7 +190,6 @@ public class DataExchangeModeClosedBranchingTest extends CompilerTestBase {
 					.with(new DummyCoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>())
 					.output(new DiscardingOutputFormat<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>>()).name("cgSink");
 
-
 			OptimizedPlan optPlan = compileNoStats(env.createProgramPlan());
 
 			SinkPlanNode reduceSink = findSink(optPlan.getDataSinks(), "reduceSink");

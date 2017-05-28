@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.plan;
 
 import org.apache.flink.optimizer.costs.Costs;
@@ -47,8 +46,7 @@ public class BulkPartialSolutionPlanNode extends PlanNode {
 	private Channel initialInput;
 	
 	public Object postPassHelper;
-	
-	
+
 	public BulkPartialSolutionPlanNode(BulkPartialSolutionNode template, String nodeName,
 			GlobalProperties gProps, LocalProperties lProps,
 			Channel initialInput)

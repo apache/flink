@@ -79,7 +79,6 @@ public class SourcePlanNode extends PlanNode {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
 
 	@Override
 	public void accept(Visitor<PlanNode> visitor) {
@@ -88,18 +87,15 @@ public class SourcePlanNode extends PlanNode {
 		}
 	}
 
-
 	@Override
 	public Iterable<PlanNode> getPredecessors() {
 		return Collections.<PlanNode>emptyList();
 	}
 
-
 	@Override
 	public Iterable<Channel> getInputs() {
 		return Collections.<Channel>emptyList();
 	}
-
 
 	@Override
 	public SourceAndDamReport hasDamOnPathDownTo(PlanNode source) {

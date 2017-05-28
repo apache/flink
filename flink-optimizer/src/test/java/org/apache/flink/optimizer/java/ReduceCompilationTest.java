@@ -63,8 +63,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			OptimizedPlan op = compileNoStats(p);
 			
 			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
-			
-			
+
 			// the all-reduce has no combiner, when the parallelism of the input is one
 			
 			SourcePlanNode sourceNode = resolver.getNode("source");

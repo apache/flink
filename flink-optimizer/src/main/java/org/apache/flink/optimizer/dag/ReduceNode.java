@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
 
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
@@ -37,7 +36,6 @@ public class ReduceNode extends SingleInputNode {
 	private final List<OperatorDescriptorSingle> possibleProperties;
 	
 	private ReduceNode preReduceUtilityNode;
-	
 
 	public ReduceNode(ReduceOperatorBase<?, ?> operator) {
 		super(operator);

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.costs;
 
 /**
@@ -393,7 +392,6 @@ public class Costs implements Comparable<Costs>, Cloneable {
 		this.heuristicDiskCost = this.heuristicDiskCost < 0 ? -1 : this.heuristicDiskCost / factor;
 		this.heuristicCpuCost = this.heuristicCpuCost < 0 ? -1 : this.heuristicCpuCost / factor;
 	}
-
 
 	// --------------------------------------------------------------------------------------------
 

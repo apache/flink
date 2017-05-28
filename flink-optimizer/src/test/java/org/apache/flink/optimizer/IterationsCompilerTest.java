@@ -472,8 +472,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 		// close the bulk iteration
 		return iteration.closeWith(changes);
 	}
-				
-		
+
 	public static DataSet<Tuple2<Long, Long>> doDeltaIteration(DataSet<Tuple2<Long, Long>> vertices, DataSet<Tuple2<Long, Long>> edges) {
 
 		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> depIteration = vertices.iterateDelta(vertices, 100, 0);

@@ -109,8 +109,7 @@ public class UnionBetweenDynamicAndStaticPathTest extends CompilerTestBase {
 			
 			iterResult.output(new DiscardingOutputFormat<Long>());
 			iterResult.output(new DiscardingOutputFormat<Long>());
-			
-			
+
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
 			

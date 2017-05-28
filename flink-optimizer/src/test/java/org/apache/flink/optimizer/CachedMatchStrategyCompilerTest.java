@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer;
 
 import org.apache.flink.api.common.Plan;
@@ -182,8 +181,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 					this.setSourceStatistics(s, 100, 100);
 				}
 			}
-			
-			
+
 			OptimizedPlan oPlan = compileNoStats(plan);
 	
 			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(oPlan);

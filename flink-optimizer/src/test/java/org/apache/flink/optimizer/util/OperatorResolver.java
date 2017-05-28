@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.util;
 
 import org.apache.flink.api.common.Plan;
@@ -48,8 +47,7 @@ public class OperatorResolver implements Visitor<Operator<?>> {
 		p.accept(this);
 		this.seen = null;
 	}
-	
-	
+
 	@SuppressWarnings("unchecked")
 	public <T extends Operator<?>> T getNode(String name) {
 		List<Operator<?>> nodes = this.map.get(name);

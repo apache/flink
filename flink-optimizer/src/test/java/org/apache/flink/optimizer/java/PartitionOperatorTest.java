@@ -151,7 +151,6 @@ public class PartitionOperatorTest extends CompilerTestBase {
 				})
 				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 
-
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
 

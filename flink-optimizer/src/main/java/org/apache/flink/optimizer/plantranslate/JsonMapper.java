@@ -259,7 +259,6 @@ public class JsonMapper {
 				gen.writeEndArray();
 			}
 
-
 			// compiler hints
 			if (optNode.getOperator().getCompilerHints() != null) {
 				CompilerHints hints = optNode.getOperator().getCompilerHints();
@@ -283,8 +282,7 @@ public class JsonMapper {
 				
 				gen.writeEndArray();
 			}
-			
-			
+
 			gen.writeEndObject();
 			
 			gen.close();
@@ -294,8 +292,7 @@ public class JsonMapper {
 			return "{}";
 		}
 	}
-	
-	
+
 	private static void addProperty(JsonGenerator gen, String name, String value) throws IOException {
 		gen.writeStartObject();
 		gen.writeStringField("name", name);

@@ -381,7 +381,6 @@ public class GlobalProperties implements Cloneable {
 		return gp;
 	}
 
-
 	public void parameterizeChannel(Channel channel, boolean globalDopChange,
 									ExecutionMode exchangeMode, boolean breakPipeline) {
 

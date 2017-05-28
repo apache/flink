@@ -375,7 +375,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	// --------------------------------------------------------------------------------------------
 	//                                Statistic Estimates
 	// --------------------------------------------------------------------------------------------
-	
 
 	@Override
 	public long getEstimatedOutputSize() {
@@ -397,7 +396,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	// --------------------------------------------------------------------------------------------
 	//                                Data Property Handling
 	// --------------------------------------------------------------------------------------------
-	
 
 	public RequestedGlobalProperties getRequiredGlobalProps() {
 		return requiredGlobalProps;

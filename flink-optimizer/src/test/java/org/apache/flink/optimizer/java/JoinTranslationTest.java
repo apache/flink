@@ -128,8 +128,7 @@ public class JoinTranslationTest extends CompilerTestBase {
 			fail(e.getClass().getSimpleName() + ": " + e.getMessage());
 		}
 	}
-	
-	
+
 	private DualInputPlanNode createPlanAndGetJoinNode(JoinHint hint) {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
@@ -160,9 +159,7 @@ public class JoinTranslationTest extends CompilerTestBase {
 		
 		return (DualInputPlanNode) ((SinkPlanNode) op.getDataSinks().iterator().next()).getInput().getSource();
 	}
-	
-	
-	
+
 	private static final class IdentityKeySelector<T> implements KeySelector<T, T> {
 		
 		@Override

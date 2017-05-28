@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.operators;
 
 import org.apache.flink.optimizer.dag.TwoInputNode;
@@ -32,13 +31,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-
 public abstract class CartesianProductDescriptor extends OperatorDescriptorDual {
 	
 	private final boolean allowBroadcastFirst;
 	private final boolean allowBroadcastSecond;
-	
-	
+
 	protected CartesianProductDescriptor(boolean allowBroadcastFirst, boolean allowBroadcastSecond) {
 		if (!(allowBroadcastFirst | allowBroadcastSecond)) {
 			throw new IllegalArgumentException();
@@ -47,8 +44,7 @@ public abstract class CartesianProductDescriptor extends OperatorDescriptorDual 
 		this.allowBroadcastFirst = allowBroadcastFirst;
 		this.allowBroadcastSecond = allowBroadcastSecond;
 	}
-	
-	
+
 	@Override
 	protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
 		ArrayList<GlobalPropertiesPair> pairs = new ArrayList<GlobalPropertiesPair>();

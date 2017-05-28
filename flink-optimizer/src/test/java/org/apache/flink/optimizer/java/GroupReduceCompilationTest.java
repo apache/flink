@@ -62,8 +62,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			OptimizedPlan op = compileNoStats(p);
 			
 			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
-			
-			
+
 			// the all-reduce has no combiner, when the parallelism of the input is one
 			
 			SourcePlanNode sourceNode = resolver.getNode("source");
@@ -135,8 +134,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
 		}
 	}
-	
-	
+
 	@Test
 	public void testGroupedReduceWithFieldPositionKeyNonCombinable() {
 		try {

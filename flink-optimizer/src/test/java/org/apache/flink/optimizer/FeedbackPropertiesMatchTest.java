@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -62,7 +61,6 @@ import static org.apache.flink.optimizer.plan.PlanNode.FeedbackPropertiesMeetReq
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
 
 public class FeedbackPropertiesMatchTest {
 
@@ -686,8 +684,7 @@ public class FeedbackPropertiesMatchTest {
 				
 				toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.NONE);
-				
-				
+
 				toMap1.setRequiredGlobalProps(null);
 				toMap1.setRequiredLocalProps(null);
 				
@@ -712,8 +709,7 @@ public class FeedbackPropertiesMatchTest {
 				
 				toMap2.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(2, 5), DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.NONE);
-				
-				
+
 				toMap1.setRequiredGlobalProps(reqGp);
 				toMap1.setRequiredLocalProps(null);
 				
@@ -763,8 +759,7 @@ public class FeedbackPropertiesMatchTest {
 				
 				toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.SORT, new FieldList(5, 7), new boolean[] {false, false});
-				
-				
+
 				toMap1.setRequiredGlobalProps(null);
 				toMap1.setRequiredLocalProps(reqLp);
 				
@@ -996,8 +991,7 @@ public class FeedbackPropertiesMatchTest {
 				FeedbackPropertiesMeetRequirementsReport report = join.checkPartialSolutionPropertiesMet(target, gp, lp);
 				assertTrue(report != null && report != NO_PARTIAL_SOLUTION && report != NOT_MET);
 			}
-			
-			
+
 			// produced properties match relevant input
 			{
 				GlobalProperties gp = new GlobalProperties();
@@ -1405,8 +1399,7 @@ public class FeedbackPropertiesMatchTest {
 				
 				RequestedGlobalProperties rgp = new RequestedGlobalProperties();
 				rgp.setHashPartitioned(new FieldList(3));
-				
-				
+
 				toJoin1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toJoin1.setLocalStrategy(LocalStrategy.SORT, new FieldList(3), new boolean[] { false });
 				

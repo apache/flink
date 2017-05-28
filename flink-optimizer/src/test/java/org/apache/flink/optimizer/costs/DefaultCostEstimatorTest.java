@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.costs;
 
 import org.apache.flink.optimizer.dag.EstimateProvider;
@@ -266,8 +265,7 @@ public class DefaultCostEstimatorTest {
 		costEstimator.addLocalSortCost(BIG_ESTIMATES, mergeBothLarge);
 		costEstimator.addLocalSortCost(BIG_ESTIMATES, mergeBothLarge);
 		costEstimator.addLocalMergeCost(BIG_ESTIMATES, BIG_ESTIMATES, mergeBothLarge, 1);
-		
-		
+
 		assertTrue(mergeBothSmall.compareTo(mergeSmallFirst) < 0);
 		assertTrue(mergeBothSmall.compareTo(mergeSmallSecond) < 0);
 		assertTrue(mergeSmallFirst.compareTo(mergeSmallSecond) == 0);
@@ -377,8 +375,7 @@ public class DefaultCostEstimatorTest {
 		// a weight of one makes the caching the same as the non-cached variant
 		assertTrue(hashLargeSmall1.compareTo(hashLargeSmallCached1) == 0);
 	}
-	
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Estimate providers
 	// --------------------------------------------------------------------------------------------

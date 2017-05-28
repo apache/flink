@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.plan;
 
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
@@ -73,8 +72,7 @@ public class ChannelTest {
 		Assert.assertEquals(SIZE * REPLICATION, channel.getEstimatedOutputSize());
 		Assert.assertEquals(NUM_RECORD * REPLICATION, channel.getEstimatedNumRecords());
 	}
-	
-	
+
 //	private static final OptimizerNode getSingleInputNode() {
 //		return new MapNode(new MapOperatorBase<String, String, GenericMap<String,String>>(
 //				new IdentityMapper<String>(),

@@ -244,8 +244,7 @@ public class CoGroupCustomPartitioningTest extends CompilerTestBase {
 					public int partition(Long key, int numPartitions) { return 0; }
 				}, 0)
 				.map(new IdentityMapper<Tuple3<Long,Long,Long>>()).withForwardedFields("0", "1", "2");
-				
-			
+
 			DataSet<Tuple3<Long, Long, Long>> grouped = partitioned
 				.distinct(0, 1)
 				.groupBy(1)

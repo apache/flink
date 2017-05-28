@@ -88,8 +88,7 @@ public abstract class AbstractJoinDescriptor extends OperatorDescriptorDual {
 
 				return Collections.singletonList(new GlobalPropertiesPair(partitioned_left, partitioned_right));
 			}
-			
-			
+
 			RequestedGlobalProperties partitioned1 = new RequestedGlobalProperties();
 			if (customPartitioner == null) {
 				partitioned1.setAnyPartitioning(this.keys1);

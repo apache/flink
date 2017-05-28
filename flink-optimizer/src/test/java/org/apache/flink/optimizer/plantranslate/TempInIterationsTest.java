@@ -58,7 +58,6 @@ public class TempInIterationsTest {
 		iteration.closeWith(update, update)
 				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 
-
 		Plan plan = env.createProgramPlan();
 		OptimizedPlan oPlan = (new Optimizer(new Configuration())).compile(plan);
 

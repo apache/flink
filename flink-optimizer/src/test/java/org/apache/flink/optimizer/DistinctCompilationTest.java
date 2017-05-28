@@ -39,7 +39,6 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-
 @SuppressWarnings("serial")
 public class DistinctCompilationTest extends CompilerTestBase implements java.io.Serializable {
 

@@ -202,7 +202,6 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 	@Override
 	protected void mergeBranchPlanMaps(Map<OptimizerNode, PlanNode> branchPlan1, Map<OptimizerNode,PlanNode> branchPlan2) {}
 
-	
 	protected void mergeBranchPlanMaps() {
 		Map<OptimizerNode, PlanNode> branchPlan1 = input1.getSource().branchPlan;
 		Map<OptimizerNode, PlanNode> branchPlan2 = input2.getSource().branchPlan;

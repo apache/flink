@@ -64,8 +64,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 											.withBroadcastSet(source, "bc");
 			
 			result.output(new DiscardingOutputFormat<Long>());
-			
-			
+
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
 			
@@ -150,8 +149,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 			
 			DataSet<Long> initialSource = env.generateSequence(1, 10);
 			IterativeDataSet<Long> iteration = initialSource.iterate(100);
-			
-			
+
 			DataSet<Long> sourceWithMapper = env.generateSequence(1, 10).map(new IdentityMapper<Long>());
 			
 			DataSet<Long> bcInput1 = sourceWithMapper
@@ -162,8 +160,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 					.map(new IdentityMapper<Long>())
 							.withBroadcastSet(iteration, "bc2")
 							.withBroadcastSet(bcInput1, "bc1");
-							
-			
+
 			iteration.closeWith(result).output(new DiscardingOutputFormat<Long>());
 			
 			Plan p = env.createProgramPlan();
@@ -222,8 +219,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 					.map(new IdentityMapper<Long>())
 					.cross(initialSource).withParameters(conf)
 					.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
-				
-				
+
 				Plan p = env.createProgramPlan();
 				OptimizedPlan op = compileNoStats(p);
 				
@@ -249,8 +245,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 					.map(new IdentityMapper<Long>())
 					.cross(initialSource).withParameters(conf)
 					.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
-				
-				
+
 				Plan p = env.createProgramPlan();
 				OptimizedPlan op = compileNoStats(p);
 				
@@ -276,8 +271,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 					.map(new IdentityMapper<Long>())
 					.cross(initialSource).withParameters(conf)
 					.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
-				
-				
+
 				Plan p = env.createProgramPlan();
 				OptimizedPlan op = compileNoStats(p);
 				
