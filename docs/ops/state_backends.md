@@ -56,6 +56,13 @@ that store the values, triggers, etc.
 Upon checkpoints, this state backend will snapshot the state and send it as part of the checkpoint acknowledgement messages to the
 JobManager (master), which stores it on its heap as well.
 
+The MemoryStateBackend can be configured to use asynchronous snapshots. While we strongly encourage the use of asynchronous snapshots to avoid blocking pipelines, please note that this is a new feature and currently not enabled 
+by default. To enable this feature, users can instantiate a `MemoryStateBackend` with the corresponding boolean flag in the constructor set to `true`, e.g.:
+
+{% highlight java %}
+    new MemoryStateBackend(MAX_MEM_STATE_SIZE, true);
+{% endhighlight %}
+
 Limitations of the MemoryStateBackend:
 
   - The size of each individual state is by default limited to 5 MB. This value can be increased in the constructor of the MemoryStateBackend.
@@ -74,6 +81,13 @@ The *FsStateBackend* is configured with a file system URL (type, address, path),
 
 The FsStateBackend holds in-flight data in the TaskManager's memory. Upon checkpointing, it writes state snapshots into files in the configured file system and directory. Minimal metadata is stored in the JobManager's memory (or, in high-availability mode, in the metadata checkpoint).
 
+The FsStateBackend can be configured to use asynchronous snapshots. While we strongly encourage the use of asynchronous snapshots to avoid blocking pipelines, please note that this is a new feature and currently not enabled 
+by default. To enable this feature, users can instantiate a `FsStateBackend` with the corresponding boolean flag in the constructor set to `true`, e.g.:
+
+{% highlight java %}
+    new FsStateBackend(path, true);
+{% endhighlight %}
+
 The FsStateBackend is encouraged for:
 
   - Jobs with large state, long windows, large key/value states.
@@ -88,6 +102,13 @@ that is (per default) stored in the TaskManager data directories. Upon checkpoin
 RocksDB data base will be checkpointed into the configured file system and directory. Minimal
 metadata is stored in the JobManager's memory (or, in high-availability mode, in the metadata checkpoint).
 
+The RocksDBStateBackend always performs asynchronous snapshots.
+
+Limitations of the RocksDBStateBackend:
+
+  - As RocksDB's JNI bridge API is based on byte[], the maximum supported size per key and per value is 2^31 bytes each. 
+  IMPORTANT: states that use merge operations in RocksDB (e.g. ListState) can silently accumulate value sizes > 2^31 bytes and will then fail on their next retrieval. This is currently a limitation of RocksDB JNI.
+
 The RocksDBStateBackend is encouraged for:
 
   - Jobs with very large state, long windows, large key/value states.
@@ -97,6 +118,8 @@ Note that the amount of state that you can keep is only limited by the amount of
 This allows keeping very large state, compared to the FsStateBackend that keeps state in memory.
 This also means, however, that the maximum throughput that can be achieved will be lower with
 this state backend.
+
+RocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here]({{ site.baseurl }}/monitoring/large_state_tuning.html)). 
 
 ## Configuring a State Backend
 
