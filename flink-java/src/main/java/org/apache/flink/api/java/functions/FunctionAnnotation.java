@@ -51,7 +51,6 @@ import java.util.Set;
  * <p>All annotations take Strings with expressions that refer to (nested) value fields of the input and output types of a function.
  * Field expressions for of composite data types (tuples, POJOs, Scala case classes) can be expressed in
  * different ways, depending on the data type they refer to.
- *</p>
  *
  * <ul>
  *     <li>Java tuple data types (such as {@link org.apache.flink.api.java.tuple.Tuple3}): A tuple field can be addressed using
@@ -70,7 +69,6 @@ import java.util.Set;
  * that is stored at the second field of a Java tuple. In order to refer to all fields of a composite type (or the composite type itself)
  * such as a tuple, POJO, or case class type, a <code>"*"</code> wildcard can be used, e.g., <code>f2.*</code> or <code>f2</code> reference all fields
  * of a composite type at the third position of a Java tuple.
- * </p>
  *
  * <p><b>NOTE: The use of semantic annotation is optional!
  * If used correctly, semantic annotations can help the Flink optimizer to generate more efficient execution plans.

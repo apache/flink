@@ -114,46 +114,34 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	}
 
 	/**
-	 *
-	 * <p>Adds semantic information about forwarded fields of the user-defined function.
+	 * Adds semantic information about forwarded fields of the user-defined function.
 	 * The forwarded fields information declares fields which are never modified by the function and
 	 * which are forwarded at the same position to the output or unchanged copied to another position in the output.
-	 * </p>
-	 *
 	 *
 	 * <p>Fields that are forwarded at the same position are specified by their position.
 	 * The specified position must be valid for the input and output data type and have the same type.
 	 * For example <code>withForwardedFields("f2")</code> declares that the third field of a Java input tuple is
 	 * copied to the third field of an output tuple.
-	 * </p>
-	 *
 	 *
 	 * <p>Fields which are unchanged copied to another position in the output are declared by specifying the
 	 * source field reference in the input and the target field reference in the output.
 	 * {@code withForwardedFields("f0->f2")} denotes that the first field of the Java input tuple is
 	 * unchanged copied to the third field of the Java output tuple. When using a wildcard ("*") ensure that
 	 * the number of declared fields and their types in input and output type match.
-	 * </p>
-	 *
 	 *
 	 * <p>Multiple forwarded fields can be annotated in one ({@code withForwardedFields("f2; f3->f0; f4")})
 	 * or separate Strings ({@code withForwardedFields("f2", "f3->f0", "f4")}).
 	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
 	 * details on field references such as nested fields and wildcard.
-	 * </p>
-	 *
 	 *
 	 * <p>It is not possible to override existing semantic information about forwarded fields which was
 	 * for example added by a {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields} class annotation.
-	 * </p>
-	 *
 	 *
 	 * <p><b>NOTE: Adding semantic information for functions is optional!
 	 * If used correctly, semantic information can help the Flink optimizer to generate more efficient execution plans.
 	 * However, incorrect semantic information can cause the optimizer to generate incorrect execution plans which compute wrong results!
 	 * So be careful when adding semantic information.
 	 * </b>
-	 * </p>
 	 *
 	 * @param forwardedFields A list of field forward expressions.
 	 * @return This operator with annotated forwarded field information.

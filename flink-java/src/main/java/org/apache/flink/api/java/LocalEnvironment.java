@@ -150,7 +150,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	 * This thread shuts down the local executor.
 	 *
 	 * <p><b>IMPORTANT:</b> This must be a static inner class to hold no reference to the outer class.
-	 * Otherwise, the outer class could never become garbage collectible while this thread runs.</p>
+	 * Otherwise, the outer class could never become garbage collectible while this thread runs.
 	 */
 	private static class ShutdownThread extends Thread {
 

@@ -33,7 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- *  An output format that writes record into collection.
+ *  An output format that adds records to a collection.
  */
 @PublicEvolving
 public class LocalCollectionOutputFormat<T> extends RichOutputFormat<T> implements InputTypeConfigurable {

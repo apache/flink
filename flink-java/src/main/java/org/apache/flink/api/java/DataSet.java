@@ -1586,10 +1586,10 @@ public abstract class DataSet<T> {
 	 * the print() method. For programs that are executed in a cluster, this method needs
 	 * to gather the contents of the DataSet back to the client, to print it there.
 	 *
-	 * <p>The string written for each element is defined by the {@link Object#toString()} method.</p>
+	 * <p>The string written for each element is defined by the {@link Object#toString()} method.
 	 *
 	 * <p>This method immediately triggers the program execution, similar to the
-	 * {@link #collect()} and {@link #count()} methods.</p>
+	 * {@link #collect()} and {@link #count()} methods.
 	 *
 	 * @see #printToErr()
 	 * @see #printOnTaskManager(String)
@@ -1606,10 +1606,10 @@ public abstract class DataSet<T> {
 	 * the print() method. For programs that are executed in a cluster, this method needs
 	 * to gather the contents of the DataSet back to the client, to print it there.
 	 *
-	 * <p>The string written for each element is defined by the {@link Object#toString()} method.</p>
+	 * <p>The string written for each element is defined by the {@link Object#toString()} method.
 	 *
 	 * <p>This method immediately triggers the program execution, similar to the
-	 * {@link #collect()} and {@link #count()} methods.</p>
+	 * {@link #collect()} and {@link #count()} methods.
 	 *
 	 * @see #print()
 	 * @see #printOnTaskManager(String)
@@ -1627,9 +1627,9 @@ public abstract class DataSet<T> {
 	 * data will appear in the TaskManagers' <i>.out</i> files.
 	 *
 	 * <p>To print the data to the console or stdout stream of the client process instead, use the
-	 * {@link #print()} method.</p>
+	 * {@link #print()} method.
 	 *
-	 * <p>For each element of the DataSet the result of {@link Object#toString()} is written.</p>
+	 * <p>For each element of the DataSet the result of {@link Object#toString()} is written.
 	 *
 	 * @param prefix The string to prefix each line of the output with. This helps identifying outputs
 	 *               from different printing sinks.
@@ -1644,7 +1644,7 @@ public abstract class DataSet<T> {
 	/**
 	 * Writes a DataSet to the standard output stream (stdout).
 	 *
-	 * <p>For each element of the DataSet the result of {@link Object#toString()} is written.</p>
+	 * <p>For each element of the DataSet the result of {@link Object#toString()} is written.
 	 *
 	 * @param sinkIdentifier The string to prefix the output with.
 	 * @return The DataSink that writes the DataSet.
@@ -1660,7 +1660,7 @@ public abstract class DataSet<T> {
 	/**
 	 * Writes a DataSet to the standard error stream (stderr).
 	 *
-	 * <p>For each element of the DataSet the result of {@link Object#toString()} is written.</p>
+	 * <p>For each element of the DataSet the result of {@link Object#toString()} is written.
 	 *
 	 * @param sinkIdentifier The string to prefix the output with.
 	 * @return The DataSink that writes the DataSet.

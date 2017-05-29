@@ -134,14 +134,14 @@ public final class DataSetUtils {
 	}
 
 	/**
-	 * Method that assigns a unique {@link Long} value to all elements in the input data set in the following way:
+	 * Method that assigns a unique {@link Long} value to all elements in the input data set as described below.
 	 * <ul>
 	 *  <li> a map function is applied to the input data set
 	 *  <li> each map task holds a counter c which is increased for each record
 	 *  <li> c is shifted by n bits where n = log2(number of parallel tasks)
 	 * 	<li> to create a unique ID among all tasks, the task id is added to the counter
 	 * 	<li> for each record, the resulting counter is collected
-	 * </ul>.
+	 * </ul>
 	 *
 	 * @param input the input data set
 	 * @return a data set of tuple 2 consisting of ids and initial values.
@@ -224,7 +224,6 @@ public final class DataSetUtils {
 	 *
 	 * <p><strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
 	 * fraction unless you need exact precision.
-	 * </p>
 	 *
 	 * @param withReplacement Whether element can be selected more than once.
 	 * @param numSamples       The expected sample size.
@@ -243,7 +242,6 @@ public final class DataSetUtils {
 	 *
 	 * <p><strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
 	 * fraction unless you need exact precision.
-	 * </p>
 	 *
 	 * @param withReplacement Whether element can be selected more than once.
 	 * @param numSamples       The expected sample size.
