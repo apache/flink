@@ -198,11 +198,12 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     tEnv.registerTable("T1", t1)
 
-    val sqlQuery = "SELECT " +
+    val sqlQuery = "SELECT c, cnt1 from " +
+      "(SELECT " +
       "c, " +
       "count(a) " +
-      " OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW)" +
-      "from T1"
+      " OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
+      "as cnt1 from T1)"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink)
@@ -776,9 +777,6 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "6,8,Hello world,43,8,5,9,1")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
-
-//  <<<<<<< HEAD
-
 
   /** test sliding event-time unbounded window with partition by **/
   @Test
