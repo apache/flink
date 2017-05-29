@@ -157,7 +157,7 @@ public class SemanticPropertiesPrecedenceTest {
 	// --------------------------------------------------------------------------------------------
 
 	@FunctionAnnotation.ForwardedFields("f0")
-	public static class WildcardForwardedMapperWithForwardAnnotation<T> implements MapFunction<T, T> {
+	private static class WildcardForwardedMapperWithForwardAnnotation<T> implements MapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {
@@ -166,7 +166,7 @@ public class SemanticPropertiesPrecedenceTest {
 	}
 
 	@FunctionAnnotation.SkipCodeAnalysis
-	public static class WildcardForwardedMapperWithSkipAnnotation<T> implements MapFunction<T, T> {
+	private static class WildcardForwardedMapperWithSkipAnnotation<T> implements MapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {
@@ -174,7 +174,7 @@ public class SemanticPropertiesPrecedenceTest {
 		}
 	}
 
-	public static class WildcardForwardedMapper<T> implements MapFunction<T, T> {
+	private static class WildcardForwardedMapper<T> implements MapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {

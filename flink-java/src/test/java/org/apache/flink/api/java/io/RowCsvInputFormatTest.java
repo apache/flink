@@ -50,6 +50,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link RowCsvInputFormat}.
+ */
 public class RowCsvInputFormatTest {
 
 	private static Path PATH = new Path("an/ignored/file/");

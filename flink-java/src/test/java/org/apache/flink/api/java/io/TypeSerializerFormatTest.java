@@ -39,6 +39,9 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 
+/**
+ * Tests for type serialization format.
+ */
 @RunWith(Parameterized.class)
 public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<Integer, String>> {
 

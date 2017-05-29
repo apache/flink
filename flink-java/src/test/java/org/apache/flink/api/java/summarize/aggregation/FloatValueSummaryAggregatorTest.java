@@ -23,6 +23,9 @@ import org.apache.flink.types.FloatValue;
 
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.FloatValueSummaryAggregator}.
+ */
 public class FloatValueSummaryAggregatorTest extends FloatSummaryAggregatorTest {
 
 	/**

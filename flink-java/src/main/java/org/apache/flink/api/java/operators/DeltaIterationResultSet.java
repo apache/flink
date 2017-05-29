@@ -25,6 +25,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
+/**
+ * Resulting {@link DataSet} of a delta iteration operation.
+ * @param <ST>
+ * @param <WT>
+ */
 @Public
 public class DeltaIterationResultSet<ST, WT> extends DataSet<ST> {
 

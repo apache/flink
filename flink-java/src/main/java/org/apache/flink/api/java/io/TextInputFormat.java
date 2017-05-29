@@ -26,6 +26,9 @@ import org.apache.flink.core.fs.Path;
 import java.io.IOException;
 import java.nio.charset.Charset;
 
+/**
+ * Input Format that reads text files. Each line results in another element.
+ */
 @PublicEvolving
 public class TextInputFormat extends DelimitedInputFormat<String> {
 

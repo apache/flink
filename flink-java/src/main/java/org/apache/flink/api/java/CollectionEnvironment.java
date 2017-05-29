@@ -23,6 +23,9 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.CollectionExecutor;
 
+/**
+ * Version of {@link ExecutionEnvironment} that allows serial, local, collection-based executions of Flink programs.
+ */
 @PublicEvolving
 public class CollectionEnvironment extends ExecutionEnvironment {
 

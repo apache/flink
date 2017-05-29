@@ -22,6 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.ResettableValue;
 
+/**
+ * Implementation of {@link AggregationFunction} for max operation.
+ */
 @Internal
 public abstract class MaxAggregationFunction<T extends Comparable<T>> extends AggregationFunction<T> {
 	private static final long serialVersionUID = 1L;
@@ -33,7 +36,7 @@ public abstract class MaxAggregationFunction<T extends Comparable<T>> extends Ag
 
 	// --------------------------------------------------------------------------------------------
 
-	public static final class ImmutableMaxAgg<U extends Comparable<U>> extends MaxAggregationFunction<U> {
+	private static final class ImmutableMaxAgg<U extends Comparable<U>> extends MaxAggregationFunction<U> {
 		private static final long serialVersionUID = 1L;
 
 		private U value;
@@ -61,7 +64,7 @@ public abstract class MaxAggregationFunction<T extends Comparable<T>> extends Ag
 
 	// --------------------------------------------------------------------------------------------
 
-	public static final class MutableMaxAgg<U extends Comparable<U> & ResettableValue<U> & CopyableValue<U>> extends MaxAggregationFunction<U> {
+	private static final class MutableMaxAgg<U extends Comparable<U> & ResettableValue<U> & CopyableValue<U>> extends MaxAggregationFunction<U> {
 		private static final long serialVersionUID = 1L;
 
 		private U value;
@@ -91,6 +94,9 @@ public abstract class MaxAggregationFunction<T extends Comparable<T>> extends Ag
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Factory for {@link MaxAggregationFunction}.
+	 */
 	public static final class MaxAggregationFunctionFactory implements AggregationFunctionFactory {
 		private static final long serialVersionUID = 1L;
 

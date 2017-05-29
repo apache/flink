@@ -150,7 +150,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 	}
 
 	@Internal
-	public static final class DistinctFunction<T> implements ReduceFunction<T> {
+	private static final class DistinctFunction<T> implements ReduceFunction<T> {
 
 		private static final long serialVersionUID = 1L;
 

@@ -38,6 +38,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#groupBy(int...)}.
+ */
 public class GroupingTest {
 
 	// TUPLE DATA
@@ -594,8 +597,14 @@ public class GroupingTest {
 		dataSet.groupBy("*");
 	}
 
+	/**
+	 * Custom data type, for testing purposes.
+	 */
 	public static class CustomType implements Serializable {
 
+		/**
+		 * Custom nested data type, for testing purposes.
+		 */
 		public static class Nest {
 			public int myInt;
 		}
@@ -621,6 +630,9 @@ public class GroupingTest {
 		}
 	}
 
+	/**
+	 * Another custom data type, for testing purposes.
+	 */
 	public static class CustomType2 implements Serializable {
 
 		public int myInt;

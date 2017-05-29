@@ -33,6 +33,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link PrimitiveInputFormat}.
+ */
 public class PrimitiveInputFormatTest {
 
 	private static final Path PATH = new Path("an/ignored/file/");

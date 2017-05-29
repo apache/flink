@@ -39,6 +39,9 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link CollectionExecutor} with iterations.
+ */
 @SuppressWarnings("serial")
 public class CollectionExecutionIterationTest implements java.io.Serializable {
 
@@ -162,7 +165,7 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
 		}
 	}
 
-	public static class AddSuperstepNumberMapper extends RichMapFunction<Integer, Integer> {
+	private static class AddSuperstepNumberMapper extends RichMapFunction<Integer, Integer> {
 
 		@Override
 		public Integer map(Integer value) {

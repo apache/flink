@@ -27,6 +27,11 @@ import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 
+/**
+ *
+ * @param <T>
+ * @param <R>
+ */
 @Internal
 public class PlanProjectOperator<T, R extends Tuple> extends MapOperatorBase<T, R, MapFunction<T, R>> {
 
@@ -42,7 +47,7 @@ public class PlanProjectOperator<T, R extends Tuple> extends MapOperatorBase<T, 
 		return (MapFunction<T, R>) new MapProjector<X, R>(fields);
 	}
 
-	public static final class MapProjector<T extends Tuple, R extends Tuple>
+	private static final class MapProjector<T extends Tuple, R extends Tuple>
 			extends AbstractRichFunction implements MapFunction<T, R>
 	{
 		private static final long serialVersionUID = 1L;

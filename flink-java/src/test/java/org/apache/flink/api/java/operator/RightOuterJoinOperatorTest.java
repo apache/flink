@@ -34,6 +34,9 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#rightOuterJoin(DataSet)}.
+ */
 public class RightOuterJoinOperatorTest {
 
 	// TUPLE DATA
@@ -219,7 +222,7 @@ public class RightOuterJoinOperatorTest {
 	 */
 
 	@SuppressWarnings("serial")
-	public static class DummyJoin implements
+	private static class DummyJoin implements
 			JoinFunction<Tuple5<Integer, Long, String, Long, Integer>, Tuple5<Integer, Long, String, Long, Integer>, Long> {
 
 		@Override
@@ -229,7 +232,7 @@ public class RightOuterJoinOperatorTest {
 	}
 
 	@SuppressWarnings("serial")
-	public static class IntKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Integer> {
+	private static class IntKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Integer> {
 
 		@Override
 		public Integer getKey(Tuple5<Integer, Long, String, Long, Integer> v) throws Exception {
@@ -238,7 +241,7 @@ public class RightOuterJoinOperatorTest {
 	}
 
 	@SuppressWarnings("serial")
-	public static class LongKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Long> {
+	private static class LongKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Long> {
 
 		@Override
 		public Long getKey(Tuple5<Integer, Long, String, Long, Integer> v) throws Exception {

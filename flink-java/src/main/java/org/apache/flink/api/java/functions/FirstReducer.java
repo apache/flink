@@ -23,6 +23,10 @@ import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;
 
+/**
+ * Reducer that collects provided number of elements in a group.
+ * @param <T>
+ */
 @Internal
 public class FirstReducer<T> implements GroupReduceFunction<T, T>, GroupCombineFunction<T, T> {
 	private static final long serialVersionUID = 1L;

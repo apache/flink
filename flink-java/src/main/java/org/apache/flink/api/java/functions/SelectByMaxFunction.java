@@ -23,6 +23,10 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
+/**
+ * Function that enables selection by maximal value of a field.
+ * @param <T>
+ */
 @Internal
 public class SelectByMaxFunction<T extends Tuple> implements ReduceFunction<T> {
 	private static final long serialVersionUID = 1L;

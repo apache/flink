@@ -27,6 +27,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
+/**
+ * A co group operator that applies the operation only on the unwrapped values on the right.
+ */
 @Internal
 public class PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, K>
 		extends CoGroupOperatorBase<I1, Tuple2<K, I2>, OUT, CoGroupFunction<I1, Tuple2<K, I2>, OUT>>
@@ -52,7 +55,7 @@ public class PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, K>
 				name);
 	}
 
-	public static final class TupleRightUnwrappingCoGrouper<I1, I2, OUT, K>
+	private static final class TupleRightUnwrappingCoGrouper<I1, I2, OUT, K>
 			extends WrappingFunction<CoGroupFunction<I1, I2, OUT>>
 			implements CoGroupFunction<I1, Tuple2<K, I2>, OUT> {
 

@@ -33,6 +33,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#maxBy(int...)}.
+ */
 public class MaxByOperatorTest {
 
 	// TUPLE DATA

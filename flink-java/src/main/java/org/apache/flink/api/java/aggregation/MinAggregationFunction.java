@@ -22,6 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.ResettableValue;
 
+/**
+ * Implementations of {@link AggregationFunction} for min operation.
+ * @param <T> aggregating type
+ */
 @Internal
 public abstract class MinAggregationFunction<T extends Comparable<T>> extends AggregationFunction<T> {
 	private static final long serialVersionUID = 1L;
@@ -33,7 +37,7 @@ public abstract class MinAggregationFunction<T extends Comparable<T>> extends Ag
 
 	// --------------------------------------------------------------------------------------------
 
-	public static final class ImmutableMinAgg<U extends Comparable<U>> extends MinAggregationFunction<U> {
+	private static final class ImmutableMinAgg<U extends Comparable<U>> extends MinAggregationFunction<U> {
 		private static final long serialVersionUID = 1L;
 
 		private U value;
@@ -61,7 +65,7 @@ public abstract class MinAggregationFunction<T extends Comparable<T>> extends Ag
 
 	// --------------------------------------------------------------------------------------------
 
-	public static final class MutableMinAgg<U extends Comparable<U> & ResettableValue<U> & CopyableValue<U>> extends MinAggregationFunction<U> {
+	private static final class MutableMinAgg<U extends Comparable<U> & ResettableValue<U> & CopyableValue<U>> extends MinAggregationFunction<U> {
 		private static final long serialVersionUID = 1L;
 
 		private U value;
@@ -91,6 +95,9 @@ public abstract class MinAggregationFunction<T extends Comparable<T>> extends Ag
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Factory for {@link MinAggregationFunction}.
+	 */
 	public static final class MinAggregationFunctionFactory implements AggregationFunctionFactory {
 		private static final long serialVersionUID = 1L;
 

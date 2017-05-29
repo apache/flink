@@ -31,8 +31,14 @@ import org.junit.Test;
 
 import java.io.Serializable;
 
+/**
+ * Tests for partitioning.
+ */
 public class PartitionOperatorTest {
 
+	/**
+	 * Custom data type, for testing purposes.
+	 */
     public static class CustomPojo implements Serializable, Comparable<CustomPojo> {
         private Integer number;
         private String name;
@@ -68,6 +74,9 @@ public class PartitionOperatorTest {
         }
     }
 
+	/**
+	 * Custom data type with nested type, for testing purposes.
+	 */
     public static class NestedPojo implements Serializable {
         private CustomPojo nested;
         private Long outer;

@@ -47,6 +47,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link ReduceFunction}.
+ */
 @SuppressWarnings({"serial", "unchecked"})
 public class ReduceOperatorTest implements java.io.Serializable {
 

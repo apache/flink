@@ -35,6 +35,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#writeAsText(String)}.
+ */
 public class DataSinkTest {
 
 	// TUPLE DATA

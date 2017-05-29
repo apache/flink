@@ -33,6 +33,9 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 
+/**
+ * Tests for serialized formats.
+ */
 @RunWith(Parameterized.class)
 public class SerializedFormatTest extends SequentialFormatTestBase<Record> {
 

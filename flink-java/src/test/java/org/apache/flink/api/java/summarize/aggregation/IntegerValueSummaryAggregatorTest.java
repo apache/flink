@@ -23,6 +23,9 @@ import org.apache.flink.types.IntValue;
 
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.IntegerValueSummaryAggregator}.
+ */
 public class IntegerValueSummaryAggregatorTest extends IntegerSummaryAggregatorTest {
 
 	@Override

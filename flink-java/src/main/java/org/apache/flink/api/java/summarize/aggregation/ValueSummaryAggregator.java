@@ -83,6 +83,9 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 	// Implementations below
 	// -----------------------------------------------------------------------------
 
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link Short}.
+	 */
 	public static class ShortValueSummaryAggregator extends ValueSummaryAggregator<ShortValue,Short,NumericColumnSummary<Short>,ShortSummaryAggregator> {
 
 		@Override
@@ -96,6 +99,9 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 		}
 	}
 
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link Integer}.
+	 */
 	public static class IntegerValueSummaryAggregator extends ValueSummaryAggregator<IntValue,Integer,NumericColumnSummary<Integer>,IntegerSummaryAggregator> {
 
 		@Override
@@ -109,6 +115,9 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 		}
 	}
 
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link Long}.
+	 */
 	public static class LongValueSummaryAggregator extends ValueSummaryAggregator<LongValue,Long,NumericColumnSummary<Long>,LongSummaryAggregator> {
 
 		@Override
@@ -122,6 +131,9 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 		}
 	}
 
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link Float}.
+	 */
 	public static class FloatValueSummaryAggregator extends ValueSummaryAggregator<FloatValue,Float,NumericColumnSummary<Float>,FloatSummaryAggregator> {
 
 		@Override
@@ -135,6 +147,9 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 		}
 	}
 
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link Double}.
+	 */
 	public static class DoubleValueSummaryAggregator extends ValueSummaryAggregator<DoubleValue,Double,NumericColumnSummary<Double>,DoubleSummaryAggregator> {
 
 		@Override
@@ -148,6 +163,9 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 		}
 	}
 
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link Boolean}.
+	 */
 	public static class BooleanValueSummaryAggregator extends ValueSummaryAggregator<BooleanValue,Boolean,BooleanColumnSummary,BooleanSummaryAggregator> {
 
 		@Override
@@ -161,6 +179,9 @@ public abstract class ValueSummaryAggregator<VT extends Value,PT,R, A extends Ag
 		}
 	}
 
+	/**
+	 * A {@link ValueSummaryAggregator} for {@link String}.
+	 */
 	public static class StringValueSummaryAggregator extends ValueSummaryAggregator<StringValue,String,StringColumnSummary,StringSummaryAggregator> {
 
 		@Override

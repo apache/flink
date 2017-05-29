@@ -42,6 +42,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link HadoopOutputFormat}.
+ */
 public class HadoopOutputFormatTest {
 
 	private static final String MAPRED_OUTPUT_PATH = "an/ignored/file/";

@@ -31,6 +31,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link CollectionExecutor} with accumulators.
+ */
 public class CollectionExecutionAccumulatorsTest {
 
 	private static final String ACCUMULATOR_NAME = "TEST ACC";
@@ -59,7 +62,7 @@ public class CollectionExecutionAccumulatorsTest {
 	}
 
 	@SuppressWarnings("serial")
-	public static class CountingMapper extends RichMapFunction<Long, Long> {
+	private static class CountingMapper extends RichMapFunction<Long, Long> {
 
 		private IntCounter accumulator;
 

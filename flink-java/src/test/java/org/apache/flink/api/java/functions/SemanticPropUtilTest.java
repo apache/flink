@@ -36,6 +36,9 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for semantic properties utils.
+ */
 public class SemanticPropUtilTest {
 
 	private final TypeInformation<?> threeIntTupleType = new TupleTypeInfo<Tuple3<Integer, Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO,
@@ -1436,6 +1439,9 @@ public class SemanticPropUtilTest {
 	// Pojo Type Classes
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Sample test pojo.
+	 */
 	public static class TestPojo {
 
 		public int int1;
@@ -1444,6 +1450,9 @@ public class SemanticPropUtilTest {
 		public String string1;
 	}
 
+	/**
+	 * Sample test pojo.
+	 */
 	public static class TestPojo2 {
 
 		public int myInt1;
@@ -1452,6 +1461,9 @@ public class SemanticPropUtilTest {
 		public String myString1;
 	}
 
+	/**
+	 * Sample test pojo with nested type.
+	 */
 	public static class NestedTestPojo{
 
 		public int int1;

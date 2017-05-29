@@ -30,6 +30,9 @@ public class DoubleSummaryAggregator extends NumericSummaryAggregator<Double> {
 
 	// Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
 
+	/**
+	 * Aggregator for min operation.
+	 */
 	public static class MinDoubleAggregator implements Aggregator<Double,Double> {
 
 		private double min = Double.MAX_VALUE;
@@ -50,6 +53,9 @@ public class DoubleSummaryAggregator extends NumericSummaryAggregator<Double> {
 		}
 	}
 
+	/**
+	 * Aggregator for max operation.
+	 */
 	public static class MaxDoubleAggregator implements Aggregator<Double,Double> {
 
 		private double max = Double.MIN_VALUE;
@@ -70,6 +76,9 @@ public class DoubleSummaryAggregator extends NumericSummaryAggregator<Double> {
 		}
 	}
 
+	/**
+	 * Aggregator for sum operation.
+	 */
 	public static class SumDoubleAggregator implements Aggregator<Double,Double> {
 
 		private CompensatedSum sum = ZERO;

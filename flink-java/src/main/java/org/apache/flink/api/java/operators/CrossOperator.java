@@ -361,6 +361,12 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 	}
 
+	/**
+	 * @see ProjectCross
+	 * @param <T1>
+	 * @param <T2>
+	 * @param <R>
+	 */
 	@Internal
 	public static final class ProjectCrossFunction<T1, T2, R extends Tuple> implements CrossFunction<T1, T2, R> {
 
@@ -419,6 +425,11 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 
 	}
 
+	/**
+	 * @see ProjectCross
+	 * @param <I1>
+	 * @param <I2>
+	 */
 	@Internal
 	public static final class CrossProjection<I1, I2> {
 
@@ -1105,7 +1116,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	// --------------------------------------------------------------------------------------------
 
 	@Internal
-	public static final class DefaultCrossFunction<T1, T2> implements CrossFunction<T1, T2, Tuple2<T1, T2>> {
+	private static final class DefaultCrossFunction<T1, T2> implements CrossFunction<T1, T2, Tuple2<T1, T2>> {
 
 		private static final long serialVersionUID = 1L;
 

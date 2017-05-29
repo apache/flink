@@ -39,6 +39,10 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
 
+/**
+ * An operation that allows storing data results.
+ * @param <T>
+ */
 @Public
 public class DataSink<T> {
 

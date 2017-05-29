@@ -46,6 +46,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for translation of distinct operation.
+ */
 @SuppressWarnings("serial")
 public class DistinctTranslationTest {
 
@@ -257,6 +260,9 @@ public class DistinctTranslationTest {
 		return env.fromCollection(data);
 	}
 
+	/**
+	 * Custom data type, for testing purposes.
+	 */
 	public static class CustomType implements Serializable {
 
 		private static final long serialVersionUID = 1L;

@@ -23,6 +23,9 @@ import org.apache.flink.api.java.summarize.StringColumnSummary;
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Tests for {@link StringSummaryAggregator}.
+ */
 public class StringSummaryAggregatorTest {
 
 	@Test

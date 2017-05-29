@@ -28,6 +28,10 @@ import org.apache.flink.util.StringUtils;
 
 import java.io.IOException;
 
+/**
+ * InputFormat thar reads csv files.
+ * @param <OUT>
+ */
 @Internal
 public abstract class CsvInputFormat<OUT> extends GenericCsvInputFormat<OUT> {
 

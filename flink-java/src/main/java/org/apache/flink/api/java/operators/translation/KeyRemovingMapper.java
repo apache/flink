@@ -23,6 +23,11 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple2;
 
+/**
+ * Mapper that removes keys.
+ * @param <T> type of values
+ * @param <K> type of keys
+ */
 @Internal
 @ForwardedFields("1->*")
 public final class KeyRemovingMapper<T, K> extends RichMapFunction<Tuple2<K, T>, T> {

@@ -46,7 +46,7 @@ public class SummaryAggregatorFactory {
 	}
 
 	/**
-	 * Create an SummaryAggregator for the supplied type.
+	 * Create a SummaryAggregator for the supplied type.
 	 * @param <T> the type to aggregate
 	 * @param <R> the result type of the aggregation
 	 */

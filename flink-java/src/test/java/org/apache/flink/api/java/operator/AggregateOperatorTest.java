@@ -33,6 +33,9 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#aggregate(Aggregations, int)}.
+ */
 public class AggregateOperatorTest {
 
 	// TUPLE DATA

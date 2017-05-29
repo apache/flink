@@ -21,6 +21,9 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.summarize.StringColumnSummary;
 
+/**
+ * {@link Aggregator} that calculates statistics for {@link String} values.
+ */
 @Internal
 public class StringSummaryAggregator implements Aggregator<String,StringColumnSummary> {
 

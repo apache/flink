@@ -32,6 +32,9 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#first(int)}.
+ */
 public class FirstNOperatorTest {
 
 	// TUPLE DATA

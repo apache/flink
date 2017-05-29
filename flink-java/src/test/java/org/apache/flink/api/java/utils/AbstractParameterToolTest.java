@@ -29,6 +29,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
 
+/**
+ * Base class for tests for {@link ParameterTool}.
+ */
 public abstract class AbstractParameterToolTest {
 
 	@Rule

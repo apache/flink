@@ -23,6 +23,9 @@ import org.apache.flink.types.BooleanValue;
 
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.BooleanValueSummaryAggregator}.
+ */
 public class BooleanValueSummaryAggregatorTest extends BooleanSummaryAggregatorTest {
 
 	/**

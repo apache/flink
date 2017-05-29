@@ -579,7 +579,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 
 		@Internal
-		public static class WrappingFlatJoinFunction<IN1, IN2, OUT> extends WrappingFunction<JoinFunction<IN1,IN2,OUT>> implements FlatJoinFunction<IN1, IN2, OUT> {
+		private static class WrappingFlatJoinFunction<IN1, IN2, OUT> extends WrappingFunction<JoinFunction<IN1,IN2,OUT>> implements FlatJoinFunction<IN1, IN2, OUT> {
 
 			private static final long serialVersionUID = 1L;
 
@@ -987,7 +987,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	@ForwardedFieldsFirst("*->0")
 	@ForwardedFieldsSecond("*->1")
 	@Internal
-	public static final class DefaultFlatJoinFunction<T1, T2> extends RichFlatJoinFunction<T1, T2, Tuple2<T1, T2>> {
+	private static final class DefaultFlatJoinFunction<T1, T2> extends RichFlatJoinFunction<T1, T2, Tuple2<T1, T2>> {
 
 		private static final long serialVersionUID = 1L;
 		private final Tuple2<T1, T2> outTuple = new Tuple2<>();
@@ -1001,7 +1001,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	}
 
 	@Internal
-	public static final class ProjectFlatJoinFunction<T1, T2, R extends Tuple> extends RichFlatJoinFunction<T1, T2, R> {
+	private static final class ProjectFlatJoinFunction<T1, T2, R extends Tuple> extends RichFlatJoinFunction<T1, T2, R> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -1058,7 +1058,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	}
 
 	@Internal
-	public static final class JoinProjection<I1, I2> {
+	private static final class JoinProjection<I1, I2> {
 
 		private final DataSet<I1> ds1;
 		private final DataSet<I2> ds2;

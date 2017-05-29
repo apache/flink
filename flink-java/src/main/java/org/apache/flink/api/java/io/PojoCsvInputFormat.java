@@ -30,6 +30,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Input format that reads csv into POJOs.
+ * @param <OUT> resulting POJO type
+ */
 @Internal
 public class PojoCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 

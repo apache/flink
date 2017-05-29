@@ -23,6 +23,9 @@ import org.apache.flink.types.ShortValue;
 
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.ShortValueSummaryAggregator}.
+ */
 public class ShortValueSummaryAggregatorTest extends ShortSummaryAggregatorTest {
 
 	/**

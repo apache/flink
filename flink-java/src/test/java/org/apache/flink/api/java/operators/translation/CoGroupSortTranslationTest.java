@@ -36,6 +36,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for translation of co-group sort.
+ */
 @SuppressWarnings({"serial", "unchecked"})
 public class CoGroupSortTranslationTest implements java.io.Serializable {
 
@@ -128,6 +131,9 @@ public class CoGroupSortTranslationTest implements java.io.Serializable {
 		}
 	}
 
+	/**
+	 * Sample test pojo.
+	 */
 	public static class TestPoJo {
 		public long a;
 		public long b;

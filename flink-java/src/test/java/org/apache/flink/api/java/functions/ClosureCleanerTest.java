@@ -27,6 +27,9 @@ import org.junit.Test;
 
 import java.io.Serializable;
 
+/**
+ * Tests for {@link ClosureCleaner}.
+ */
 public class ClosureCleanerTest {
 
 	@Test(expected = InvalidProgramException.class)

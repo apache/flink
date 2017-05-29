@@ -42,6 +42,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link DataSet#coGroup(DataSet)}.
+ */
 @SuppressWarnings("serial")
 public class CoGroupOperatorTest {
 
@@ -517,7 +520,7 @@ public class CoGroupOperatorTest {
 		assertTrue(semProps.getReadFields(1) == null);
 	}
 
-	public static class DummyTestKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Tuple2<Long, Integer>> {
+	private static class DummyTestKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Tuple2<Long, Integer>> {
 		@Override
 		public Tuple2<Long, Integer> getKey(Tuple5<Integer, Long, String, Long, Integer> value) throws Exception {
 			return new Tuple2<Long, Integer>();
@@ -528,7 +531,7 @@ public class CoGroupOperatorTest {
 	@FunctionAnnotation.ForwardedFieldsSecond("2;4->0")
 	@FunctionAnnotation.ReadFieldsFirst("0;2;4")
 	@FunctionAnnotation.ReadFieldsSecond("1;3")
-	public static class DummyTestCoGroupFunction1
+	private static class DummyTestCoGroupFunction1
 			implements CoGroupFunction<Tuple5<Integer, Long, String, Long, Integer>,
 						Tuple5<Integer, Long, String, Long, Integer>,
 						Tuple5<Integer, Long, String, Long, Integer>> {
@@ -541,7 +544,7 @@ public class CoGroupOperatorTest {
 	}
 
 	@FunctionAnnotation.ReadFieldsFirst("0;1;2")
-	public static class DummyTestCoGroupFunction2
+	private static class DummyTestCoGroupFunction2
 			implements CoGroupFunction<Tuple5<Integer, Long, String, Long, Integer>,
 			Tuple5<Integer, Long, String, Long, Integer>,
 			Tuple5<Integer, Long, String, Long, Integer>> {

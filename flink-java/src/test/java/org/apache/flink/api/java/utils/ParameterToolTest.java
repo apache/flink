@@ -28,6 +28,9 @@ import java.io.OutputStream;
 import java.util.Map;
 import java.util.Properties;
 
+/**
+ * Tests for {@link ParameterTool}.
+ */
 public class ParameterToolTest extends AbstractParameterToolTest {
 
 	// ----- Parser tests -----------------

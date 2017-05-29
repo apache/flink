@@ -24,6 +24,11 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 
+/**
+ * Mapper that extracts keys.
+ * @param <T> type of value
+ * @param <K> type of key
+ */
 @Internal
 @ForwardedFields("*->1")
 public final class KeyExtractingMapper<T, K> extends RichMapFunction<T, Tuple2<K, T>> {

@@ -44,6 +44,9 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for translation of delta iterations.
+ */
 @SuppressWarnings("serial")
 public class DeltaIterationTranslationTest implements java.io.Serializable {
 
@@ -221,21 +224,21 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static class SolutionWorksetJoin extends RichJoinFunction<Tuple2<Double, String>, Tuple3<Double, Long, String>, Tuple3<Double, Long, String>> {
+	private static class SolutionWorksetJoin extends RichJoinFunction<Tuple2<Double, String>, Tuple3<Double, Long, String>, Tuple3<Double, Long, String>> {
 		@Override
 		public Tuple3<Double, Long, String> join(Tuple2<Double, String> first, Tuple3<Double, Long, String> second){
 			return null;
 		}
 	}
 
-	public static class NextWorksetMapper extends RichMapFunction<Tuple3<Double, Long, String>, Tuple2<Double, String>> {
+	private static class NextWorksetMapper extends RichMapFunction<Tuple3<Double, Long, String>, Tuple2<Double, String>> {
 		@Override
 		public Tuple2<Double, String> map(Tuple3<Double, Long, String> value) {
 			return null;
 		}
 	}
 
-	public static class IdentityMapper<T> extends RichMapFunction<T, T> {
+	private static class IdentityMapper<T> extends RichMapFunction<T, T> {
 
 		@Override
 		public T map(T value) throws Exception {
@@ -243,7 +246,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 		}
 	}
 
-	public static class SolutionWorksetCoGroup1 extends RichCoGroupFunction<Tuple2<Double, String>, Tuple3<Double, Long, String>, Tuple3<Double, Long, String>> {
+	private static class SolutionWorksetCoGroup1 extends RichCoGroupFunction<Tuple2<Double, String>, Tuple3<Double, Long, String>, Tuple3<Double, Long, String>> {
 
 		@Override
 		public void coGroup(Iterable<Tuple2<Double, String>> first, Iterable<Tuple3<Double, Long, String>> second,
@@ -251,7 +254,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 		}
 	}
 
-	public static class SolutionWorksetCoGroup2 extends RichCoGroupFunction<Tuple3<Double, Long, String>, Tuple2<Double, String>, Tuple3<Double, Long, String>> {
+	private static class SolutionWorksetCoGroup2 extends RichCoGroupFunction<Tuple3<Double, Long, String>, Tuple2<Double, String>, Tuple3<Double, Long, String>> {
 
 		@Override
 		public void coGroup(Iterable<Tuple3<Double, Long, String>> second, Iterable<Tuple2<Double, String>> first,

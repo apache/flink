@@ -40,6 +40,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link TextInputFormat}.
+ */
 public class TextInputFormatTest {
 	@Test
 	public void testSimpleRead() {

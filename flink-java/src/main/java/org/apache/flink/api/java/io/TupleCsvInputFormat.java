@@ -24,6 +24,9 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
 import org.apache.flink.core.fs.Path;
 
+/**
+ * Input format that reads csv into tuples.
+ */
 @Internal
 public class TupleCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 

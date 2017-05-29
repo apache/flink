@@ -44,6 +44,9 @@ public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
 
 	// Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
 
+	/**
+	 * Aggregator for min operation.
+	 */
 	public static class MinShortAggregator implements Aggregator<Short,Short> {
 
 		private short min = Short.MAX_VALUE;
@@ -64,6 +67,9 @@ public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
 		}
 	}
 
+	/**
+	 * Aggregator for max operation.
+	 */
 	public static class MaxShortAggregator implements Aggregator<Short,Short> {
 
 		private short max = Short.MIN_VALUE;
@@ -84,6 +90,9 @@ public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
 		}
 	}
 
+	/**
+	 * Aggregator for sum operation.
+	 */
 	public static class SumShortAggregator implements Aggregator<Short,Short> {
 
 		private short sum = 0;

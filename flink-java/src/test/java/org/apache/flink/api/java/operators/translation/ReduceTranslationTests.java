@@ -44,6 +44,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for translation of reduce operation.
+ */
 @SuppressWarnings("serial")
 public class ReduceTranslationTests implements java.io.Serializable {
 

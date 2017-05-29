@@ -25,6 +25,9 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Tests for {@link SelectByMaxFunction} and {@link SelectByMinFunction}.
+ */
 public class SelectByFunctionsTest {
 
 	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = new TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>>(

@@ -37,6 +37,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link DataSet#reduce(ReduceFunction)}.
+ */
 @SuppressWarnings("serial")
 public class ReduceOperatorTest {
 
@@ -191,7 +194,7 @@ public class ReduceOperatorTest {
 		assertTrue(semProps.getReadFields(0) == null);
 	}
 
-	public static class DummyTestKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Tuple2<Long, Integer>> {
+	private static class DummyTestKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Tuple2<Long, Integer>> {
 		@Override
 		public Tuple2<Long, Integer> getKey(Tuple5<Integer, Long, String, Long, Integer> value) throws Exception {
 			return new Tuple2<Long, Integer>();
@@ -200,7 +203,7 @@ public class ReduceOperatorTest {
 
 	@FunctionAnnotation.ForwardedFields("0->4;1;1->3;2")
 	@FunctionAnnotation.ReadFields("0;3;4")
-	public static class DummyReduceFunction1 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
+	private static class DummyReduceFunction1 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
 		@Override
 		public Tuple5<Integer, Long, String, Long, Integer> reduce(Tuple5<Integer, Long, String, Long, Integer> v1,
 																	Tuple5<Integer, Long, String, Long, Integer> v2) throws Exception {
@@ -209,7 +212,7 @@ public class ReduceOperatorTest {
 	}
 
 	@FunctionAnnotation.ReadFields("0;3;4")
-	public static class DummyReduceFunction2 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
+	private static class DummyReduceFunction2 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
 		@Override
 		public Tuple5<Integer, Long, String, Long, Integer> reduce(Tuple5<Integer, Long, String, Long, Integer> v1,
 																   Tuple5<Integer, Long, String, Long, Integer> v2) throws Exception {
@@ -217,7 +220,7 @@ public class ReduceOperatorTest {
 		}
 	}
 
-	public static class DummyReduceFunction3 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
+	private static class DummyReduceFunction3 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
 		@Override
 		public Tuple5<Integer, Long, String, Long, Integer> reduce(Tuple5<Integer, Long, String, Long, Integer> v1,
 																   Tuple5<Integer, Long, String, Long, Integer> v2) throws Exception {
@@ -226,7 +229,7 @@ public class ReduceOperatorTest {
 	}
 
 	@FunctionAnnotation.NonForwardedFields("2;4")
-	public static class DummyReduceFunction4 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
+	private static class DummyReduceFunction4 implements ReduceFunction<Tuple5<Integer, Long, String, Long, Integer>> {
 		@Override
 		public Tuple5<Integer, Long, String, Long, Integer> reduce(Tuple5<Integer, Long, String, Long, Integer> v1,
 																   Tuple5<Integer, Long, String, Long, Integer> v2) throws Exception {

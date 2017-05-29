@@ -24,6 +24,10 @@ import org.apache.flink.configuration.Configuration;
 
 import java.io.PrintStream;
 
+/**
+ * Output format that prints results into underlying {@link PrintStream}.
+ * @param <T>
+ */
 @PublicEvolving
 public class PrintingOutputFormat<T> extends RichOutputFormat<T> {
 

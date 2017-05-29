@@ -24,6 +24,11 @@ import org.apache.flink.util.Collector;
 
 import java.util.Iterator;
 
+/**
+ * Base class that simplifies reducing all values provided as {@link Iterable}.
+ * @param <IN>
+ * @param <OUT>
+ */
 @PublicEvolving
 public abstract class GroupReduceIterator<IN, OUT> extends RichGroupReduceFunction<IN, OUT> {
 

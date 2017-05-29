@@ -31,6 +31,9 @@ import org.junit.Test;
 
 import java.util.List;
 
+/**
+ * Tests for {@link SummaryAggregatorFactory}.
+ */
 public class SummaryAggregatorFactoryTest {
 
 	@Test

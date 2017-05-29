@@ -33,6 +33,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#distinct()}.
+ */
 public class DistinctOperatorTest {
 
 	// TUPLE DATA
@@ -207,6 +210,9 @@ public class DistinctOperatorTest {
 		public List<Integer> myInts;
 	}
 
+	/**
+	 * Custom data type, for testing purposes.
+	 */
 	public static class CustomType implements Serializable {
 
 		private static final long serialVersionUID = 1L;

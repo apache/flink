@@ -46,6 +46,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
 
+/**
+ * Tests for {@link CoGroupOperatorBase} on collections.
+ */
 @SuppressWarnings("serial")
 public class CoGroupOperatorCollectionTest implements Serializable {
 

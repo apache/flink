@@ -114,6 +114,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		return (ProjectOperator<IN, R>) this;
 	}
 
+	/**
+	 * A projection of {@link DataSet}.
+	 * @param <T>
+	 */
 	@Internal
 	public static class Projection<T> {
 

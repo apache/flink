@@ -23,6 +23,9 @@ import org.apache.flink.types.LongValue;
 
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.LongValueSummaryAggregator}.
+ */
 public class LongValueSummaryAggregatorTest extends LongSummaryAggregatorTest {
 
 	/**

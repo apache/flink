@@ -23,6 +23,9 @@ import org.apache.flink.types.DoubleValue;
 
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.DoubleValueSummaryAggregator}.
+ */
 public class DoubleValueSummaryAggregatorTest extends DoubleSummaryAggregatorTest {
 
 	/**

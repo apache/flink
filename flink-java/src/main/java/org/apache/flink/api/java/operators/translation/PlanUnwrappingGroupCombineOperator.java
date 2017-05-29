@@ -44,7 +44,7 @@ public class PlanUnwrappingGroupCombineOperator<IN, OUT, K> extends GroupCombine
 
 	// --------------------------------------------------------------------------------------------
 
-	public static final class TupleUnwrappingGroupCombiner<IN, OUT, K> extends WrappingFunction<GroupCombineFunction<IN, OUT>>
+	private static final class TupleUnwrappingGroupCombiner<IN, OUT, K> extends WrappingFunction<GroupCombineFunction<IN, OUT>>
 		implements GroupCombineFunction<Tuple2<K, IN>, OUT>
 	{
 

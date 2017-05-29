@@ -23,6 +23,9 @@ import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Tests for {@link DoubleSummaryAggregator}.
+ */
 public class DoubleSummaryAggregatorTest {
 
 	/**

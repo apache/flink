@@ -32,6 +32,9 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+/**
+ * Input format that reads text files.
+ */
 @PublicEvolving
 public class TextValueInputFormat extends DelimitedInputFormat<StringValue> {
 

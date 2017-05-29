@@ -28,6 +28,10 @@ import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
 
+/**
+ * {@link FileOutputFormat} that stores values by calling {@link Object#toString()} method.
+ * @param <T> type of elements
+ */
 @PublicEvolving
 public class TextOutputFormat<T> extends FileOutputFormat<T> {
 
@@ -41,6 +45,11 @@ public class TextOutputFormat<T> extends FileOutputFormat<T> {
 
 	// --------------------------------------------------------------------------------------------
 
+
+	/**
+	 * Formatter that transforms values into its {@link String} representations.
+	 * @param <IN> type of input elements
+	 */
 	public static interface TextFormatter<IN> extends Serializable {
 		public String format(IN value);
 	}

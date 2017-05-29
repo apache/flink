@@ -39,7 +39,7 @@ public class PlanUnwrappingReduceOperator<T, K> extends ReduceOperatorBase<Tuple
 		super(new ReduceWrapper<T, K>(udf), new UnaryOperatorInformation<Tuple2<K, T>, Tuple2<K, T>>(typeInfoWithKey, typeInfoWithKey), key.computeLogicalKeyPositions(), name);
 	}
 
-	public static final class ReduceWrapper<T, K> extends WrappingFunction<ReduceFunction<T>>
+	private static final class ReduceWrapper<T, K> extends WrappingFunction<ReduceFunction<T>>
 		implements ReduceFunction<Tuple2<K, T>>
 	{
 		private static final long serialVersionUID = 1L;

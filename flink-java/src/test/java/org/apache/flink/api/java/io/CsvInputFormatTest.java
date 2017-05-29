@@ -53,6 +53,9 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link CsvInputFormat}.
+ */
 public class CsvInputFormatTest {
 
 	private static final Path PATH = new Path("an/ignored/file/");
@@ -1248,6 +1251,9 @@ public class CsvInputFormatTest {
 	// Custom types for testing
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Sample test pojo.
+	 */
 	public static class PojoItem {
 		public int field1;
 		public String field2;
@@ -1255,6 +1261,9 @@ public class CsvInputFormatTest {
 		public String field4;
 	}
 
+	/**
+	 * Sample test pojo with private fields.
+	 */
 	public static class PrivatePojoItem {
 		private int field1;
 		private String field2;
@@ -1294,6 +1303,9 @@ public class CsvInputFormatTest {
 		}
 	}
 
+	/**
+	 * Sample test pojo.
+	 */
 	public static class POJO {
 		public String table;
 		public String time;
@@ -1318,6 +1330,9 @@ public class CsvInputFormatTest {
 		}
 	}
 
+	/**
+	 * Sample test pojo representing tweets.
+	 */
 	public static class TwitterPOJO extends POJO {
 		public String tweet;
 

@@ -62,6 +62,11 @@ public class TypeExtractionTest {
 	//  Test types
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Representation of Vertex with maximum of 2 keys and a value.
+	 * @param <K> keys type
+	 * @param <V> value type
+	 */
 	public static class Vertex<K, V> {
 
 		private K key1;
@@ -107,6 +112,9 @@ public class TypeExtractionTest {
 		}
 	}
 
+	/**
+	 * A {@link Vertex} with {@link Long} as key and {@link Double} as value.
+	 */
 	public static class VertexTyped extends Vertex<Long, Double>{
 		public VertexTyped(Long l, Double d) {
 			super(l, d);

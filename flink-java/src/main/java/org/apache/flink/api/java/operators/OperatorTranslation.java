@@ -36,6 +36,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Used for translating data sets into corresponding operators.
+ */
 @Internal
 public class OperatorTranslation {
 

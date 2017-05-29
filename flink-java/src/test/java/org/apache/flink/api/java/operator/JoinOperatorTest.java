@@ -46,6 +46,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for {@link DataSet#join(DataSet)}.
+ */
 @SuppressWarnings("serial")
 public class JoinOperatorTest {
 
@@ -1156,6 +1159,9 @@ public class JoinOperatorTest {
 	 * ####################################################################
 	 */
 
+	/**
+	 * Custom type for testing.
+	 */
 	public static class Nested implements Serializable {
 
 		private static final long serialVersionUID = 1L;
@@ -1200,6 +1206,9 @@ public class JoinOperatorTest {
 		}
 	}
 
+	/**
+	 * Custom type for testing.
+	 */
 	public static class CustomType implements Serializable {
 
 		private static final long serialVersionUID = 1L;
@@ -1229,6 +1238,9 @@ public class JoinOperatorTest {
 		}
 	}
 
+	/**
+	 * Custom type for testing.
+	 */
 	public static class CustomTypeWithTuple implements Serializable {
 
 		private static final long serialVersionUID = 1L;
@@ -1255,7 +1267,7 @@ public class JoinOperatorTest {
 		}
 	}
 
-	public static class DummyTestKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Tuple2<Long, Integer>> {
+	private static class DummyTestKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Tuple2<Long, Integer>> {
 		@Override
 		public Tuple2<Long, Integer> getKey(Tuple5<Integer, Long, String, Long, Integer> value) throws Exception {
 			return new Tuple2<Long, Integer>();
@@ -1266,7 +1278,7 @@ public class JoinOperatorTest {
 	@FunctionAnnotation.ForwardedFieldsSecond("2;4->0")
 	@FunctionAnnotation.ReadFieldsFirst("0;2;4")
 	@FunctionAnnotation.ReadFieldsSecond("1;3")
-	public static class DummyTestJoinFunction1
+	private static class DummyTestJoinFunction1
 			implements JoinFunction<Tuple5<Integer, Long, String, Long, Integer>,
 									Tuple5<Integer, Long, String, Long, Integer>,
 									Tuple5<Integer, Long, String, Long, Integer>> {
@@ -1279,7 +1291,7 @@ public class JoinOperatorTest {
 	}
 
 	@FunctionAnnotation.ReadFieldsFirst("0;1;2")
-	public static class DummyTestJoinFunction2
+	private static class DummyTestJoinFunction2
 			implements JoinFunction<Tuple5<Integer, Long, String, Long, Integer>,
 			Tuple5<Integer, Long, String, Long, Integer>,
 			Tuple5<Integer, Long, String, Long, Integer>> {

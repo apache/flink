@@ -241,7 +241,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	// --------------------------------------------------------------------------------------------
 
 	@Internal
-	public static final class AggregatingUdf<T extends Tuple>
+	private static final class AggregatingUdf<T extends Tuple>
 		extends RichGroupReduceFunction<T, T>
 		implements GroupCombineFunction<T, T> {
 

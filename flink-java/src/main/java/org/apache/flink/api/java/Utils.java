@@ -143,6 +143,9 @@ public final class Utils {
 		}
 	}
 
+	/**
+	 * Accumulator of {@link ChecksumHashCode}.
+	 */
 	public static class ChecksumHashCode implements SimpleAccumulator<ChecksumHashCode> {
 
 		private static final long serialVersionUID = 1L;
@@ -213,6 +216,10 @@ public final class Utils {
 		}
 	}
 
+	/**
+	 * {@link RichOutputFormat} for {@link ChecksumHashCode}.
+	 * @param <T>
+	 */
 	@SkipCodeAnalysis
 	public static class ChecksumHashCodeHelper<T> extends RichOutputFormat<T> {
 

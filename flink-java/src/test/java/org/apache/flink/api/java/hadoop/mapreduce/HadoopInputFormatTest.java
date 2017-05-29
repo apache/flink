@@ -49,6 +49,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link HadoopInputFormat}.
+ */
 public class HadoopInputFormatTest {
 
 	@Rule
@@ -166,7 +169,7 @@ public class HadoopInputFormatTest {
 		return hadoopInputFormat;
 	}
 
-	public class DummyVoidKeyInputFormat<T> extends FileInputFormat<Void, T> {
+	private class DummyVoidKeyInputFormat<T> extends FileInputFormat<Void, T> {
 
 		public DummyVoidKeyInputFormat() {}
 
@@ -176,7 +179,7 @@ public class HadoopInputFormatTest {
 		}
 	}
 
-	public class DummyRecordReader extends RecordReader<String, Long> {
+	private class DummyRecordReader extends RecordReader<String, Long> {
 
 		@Override
 		public void initialize(InputSplit inputSplit, TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
@@ -209,7 +212,7 @@ public class HadoopInputFormatTest {
 		}
 	}
 
-	public class DummyInputFormat extends InputFormat<String, Long> {
+	private class DummyInputFormat extends InputFormat<String, Long> {
 
 		@Override
 		public List<InputSplit> getSplits(JobContext jobContext) throws IOException, InterruptedException {
@@ -222,7 +225,7 @@ public class HadoopInputFormatTest {
 		}
 	}
 
-	public class ConfigurableDummyInputFormat extends DummyInputFormat implements Configurable {
+	private class ConfigurableDummyInputFormat extends DummyInputFormat implements Configurable {
 
 		@Override
 		public void setConf(Configuration configuration) {}

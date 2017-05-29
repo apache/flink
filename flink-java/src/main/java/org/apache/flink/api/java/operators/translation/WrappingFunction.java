@@ -25,6 +25,10 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 
+/**
+ * Wrapper around {@link Function}.
+ * @param <T>
+ */
 @Internal
 public abstract class WrappingFunction<T extends Function> extends AbstractRichFunction {
 

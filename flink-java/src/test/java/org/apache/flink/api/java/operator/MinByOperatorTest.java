@@ -33,6 +33,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Tests for {@link DataSet#minBy(int...)}.
+ */
 public class MinByOperatorTest {
 
 	// TUPLE DATA

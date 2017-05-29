@@ -46,7 +46,7 @@ import java.util.List;
  */
 public abstract class SequentialFormatTestBase<T> extends TestLogger {
 
-	public class InputSplitSorter implements Comparator<FileInputSplit> {
+	private class InputSplitSorter implements Comparator<FileInputSplit> {
 		@Override
 		public int compare(FileInputSplit o1, FileInputSplit o2) {
 			int pathOrder = o1.getPath().getName().compareTo(o2.getPath().getName());

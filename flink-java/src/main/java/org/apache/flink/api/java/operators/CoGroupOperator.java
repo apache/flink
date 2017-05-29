@@ -547,6 +547,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 			// ------------------------------------------------------------------------------------
 
+			/**
+			 * An intermediate {@link CoGroupOperator} without {@link CoGroupFunction} applied yet.
+			 */
 			public final class CoGroupOperatorWithoutFunction {
 
 				private final Keys<I2> keys2;

@@ -34,6 +34,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link CollectionExecutor} with broadcasted variables.
+ */
 @SuppressWarnings("serial")
 public class CollectionExecutionWithBroadcastVariableTest {
 
@@ -94,7 +97,7 @@ public class CollectionExecutionWithBroadcastVariableTest {
 		}
 	}
 
-	public static final class SuffixAppender extends RichMapFunction<String, String> {
+	private static final class SuffixAppender extends RichMapFunction<String, String> {
 
 		private String suffix;
 
@@ -109,7 +112,7 @@ public class CollectionExecutionWithBroadcastVariableTest {
 		}
 	}
 
-	public static final class SuffixCross extends RichCrossFunction<String, String, String> {
+	private static final class SuffixCross extends RichCrossFunction<String, String, String> {
 
 		private String suffix;
 

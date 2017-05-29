@@ -48,9 +48,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for {@link CollectionInputFormat}.
+ */
 public class CollectionInputFormatTest {
 
-	public static class ElementType {
+	private static class ElementType {
 		private final int id;
 
 		public ElementType(){

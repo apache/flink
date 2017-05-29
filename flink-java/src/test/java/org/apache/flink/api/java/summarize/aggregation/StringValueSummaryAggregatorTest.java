@@ -23,6 +23,9 @@ import org.apache.flink.types.StringValue;
 
 import org.junit.Assert;
 
+/**
+ * Tests for {@link ValueSummaryAggregator.StringValueSummaryAggregator}.
+ */
 public class StringValueSummaryAggregatorTest extends StringSummaryAggregatorTest {
 
 	/**

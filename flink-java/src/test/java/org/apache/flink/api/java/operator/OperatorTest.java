@@ -30,6 +30,9 @@ import java.lang.reflect.Method;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link Operator}.
+ */
 public class OperatorTest {
 
 	@Test

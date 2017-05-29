@@ -38,6 +38,10 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.util.Preconditions;
 
+/**
+ * A {@link Grouping} that is unsorted.
+ * @param <T> type of elements
+ */
 @Public
 public class UnsortedGrouping<T> extends Grouping<T> {
 
