@@ -67,13 +67,13 @@ public class TypeSerializerSerializationUtilTest {
 
 		byte[] serialized;
 		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
-			TypeSerializerSerializationUtil.writeSerializer(new DataOutputViewStreamWrapper(out), serializer);
+			TypeSerializerSerializationUtil.writeSerializerWithResilience(new DataOutputViewStreamWrapper(out), serializer);
 			serialized = out.toByteArray();
 		}
 
 		TypeSerializer<?> deserializedSerializer;
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
-			deserializedSerializer = TypeSerializerSerializationUtil.tryReadSerializer(
+			deserializedSerializer = TypeSerializerSerializationUtil.tryReadSerializerWithResilience(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
@@ -91,20 +91,20 @@ public class TypeSerializerSerializationUtilTest {
 
 		byte[] serialized;
 		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
-			TypeSerializerSerializationUtil.writeSerializer(new DataOutputViewStreamWrapper(out), serializer);
+			TypeSerializerSerializationUtil.writeSerializerWithResilience(new DataOutputViewStreamWrapper(out), serializer);
 			serialized = out.toByteArray();
 		}
 
 		TypeSerializer<?> deserializedSerializer;
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
-			deserializedSerializer = TypeSerializerSerializationUtil.tryReadSerializer(
+			deserializedSerializer = TypeSerializerSerializationUtil.tryReadSerializerWithResilience(
 				new DataInputViewStreamWrapper(in), new URLClassLoader(new URL[0], null));
 		}
 		Assert.assertEquals(null, deserializedSerializer);
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
-			deserializedSerializer = TypeSerializerSerializationUtil.tryReadSerializer(
+			deserializedSerializer = TypeSerializerSerializationUtil.tryReadSerializerWithResilience(
 				new DataInputViewStreamWrapper(in), new URLClassLoader(new URL[0], null), true);
 		}
 		Assert.assertTrue(deserializedSerializer instanceof UnloadableDummyTypeSerializer);
@@ -125,7 +125,7 @@ public class TypeSerializerSerializationUtilTest {
 
 		byte[] serialized;
 		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
-			TypeSerializerSerializationUtil.writeSerializer(new DataOutputViewStreamWrapper(out), serializer);
+			TypeSerializerSerializationUtil.writeSerializerWithResilience(new DataOutputViewStreamWrapper(out), serializer);
 			serialized = out.toByteArray();
 		}
 
@@ -138,7 +138,7 @@ public class TypeSerializerSerializationUtilTest {
 		PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
-			deserializedSerializer = TypeSerializerSerializationUtil.tryReadSerializer(
+			deserializedSerializer = TypeSerializerSerializationUtil.tryReadSerializerWithResilience(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 		Assert.assertEquals(null, deserializedSerializer);
