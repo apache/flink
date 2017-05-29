@@ -31,19 +31,19 @@ import java.util.Iterator;
 public abstract class RandomSampler<T> {
 
 	protected final static double EPSILON = 1e-5;
-	
+
 	protected final Iterator<T> EMPTY_ITERABLE = new SampledIterator<T>() {
 		@Override
 		public boolean hasNext() {
 			return false;
 		}
-		
+
 		@Override
 		public T next() {
 			return null;
 		}
 	};
-	
+
 	/**
 	 * Randomly sample the elements from input in sequence, and return the result iterator.
 	 *

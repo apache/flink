@@ -35,24 +35,24 @@ import org.apache.flink.api.java.DataSet;
  * </ul>
  *
  * @param <T> The type of the elements of the grouped DataSet.
- * 
+ *
  * @see DataSet
  */
 @Public
 public abstract class Grouping<T> {
-	
+
 	protected final DataSet<T> inputDataSet;
-	
+
 	protected final Keys<T> keys;
-	
+
 	protected Partitioner<?> customPartitioner;
 
-	
+
 	public Grouping(DataSet<T> set, Keys<T> keys) {
 		if (set == null || keys == null) {
 			throw new NullPointerException();
 		}
-		
+
 		if (keys.isEmpty()) {
 			throw new InvalidProgramException("The grouping keys must not be empty.");
 		}
@@ -60,7 +60,7 @@ public abstract class Grouping<T> {
 		this.inputDataSet = set;
 		this.keys = keys;
 	}
-	
+
 	/**
 	 * Returns the input DataSet of a grouping operation, that is the one before the grouping. This means that
 	 * if it is applied directly to the result of a grouping operation, it will cancel its effect. As an example, in the
@@ -81,11 +81,11 @@ public abstract class Grouping<T> {
 	public Keys<T> getKeys() {
 		return this.keys;
 	}
-	
+
 	/**
 	 * Gets the custom partitioner to be used for this grouping, or {@code null}, if
 	 * none was defined.
-	 * 
+	 *
 	 * @return The custom partitioner to be used for this grouping.
 	 */
 	@Internal

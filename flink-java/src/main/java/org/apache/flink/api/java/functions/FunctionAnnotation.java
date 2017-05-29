@@ -404,7 +404,7 @@ public class FunctionAnnotation {
 
 	/**
 	 * Reads the annotations of a user defined function with one input and returns semantic properties according to the forwarded fields annotated.
-	 * 
+	 *
 	 * @param udfClass The user defined function, represented by its class.
 	 * @return	The DualInputSemanticProperties containing the forwarded fields.
 	 */

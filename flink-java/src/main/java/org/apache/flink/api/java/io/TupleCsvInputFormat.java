@@ -59,7 +59,7 @@ public class TupleCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 		super(filePath);
 		configure(lineDelimiter, fieldDelimiter, tupleTypeInfo, includedFieldsMask);
 	}
-	
+
 	private void configure(String lineDelimiter, String fieldDelimiter,
 			TupleTypeInfoBase<OUT> tupleTypeInfo, boolean[] includedFieldsMask) {
 

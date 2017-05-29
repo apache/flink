@@ -32,31 +32,31 @@ public class MultipleInvokationsTest {
 	public void testMultipleInvocationsGetPlan() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
+
 			// ----------- Execution 1 ---------------
-			
+
 			DataSet<String> data = env.fromElements("Some", "test", "data").name("source1");
 			//data.print();
 			data.output(new DiscardingOutputFormat<String>()).name("print1");
 			data.output(new DiscardingOutputFormat<String>()).name("output1");
-			
+
 			{
 				Plan p = env.createProgramPlan();
-				
+
 				assertEquals(2, p.getDataSinks().size());
 				for (GenericDataSinkBase<?> sink : p.getDataSinks()) {
 					assertTrue(sink.getName().equals("print1") || sink.getName().equals("output1"));
 					assertEquals("source1", sink.getInput().getName());
 				}
 			}
-			
+
 			// ----------- Execution 2 ---------------
-			
+
 			data.writeAsText("/some/file/path").name("textsink");
-			
+
 			{
 				Plan p = env.createProgramPlan();
-			
+
 				assertEquals(1, p.getDataSinks().size());
 				GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
 				assertEquals("textsink", sink.getName());

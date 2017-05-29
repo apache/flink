@@ -123,7 +123,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 
 		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
 				(FileBaseStatistics) cachedStats : null;
-				
+
 		try {
 			final org.apache.hadoop.fs.Path[] paths = FileInputFormat.getInputPaths(jobContext);
 			return getFileStats(cachedFileStats, paths, new ArrayList<FileStatus>(1));
@@ -238,7 +238,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 	//  Helper methods
 	// --------------------------------------------------------------------------------------------
 
-	private FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, org.apache.hadoop.fs.Path[] hadoopFilePaths, 
+	private FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, org.apache.hadoop.fs.Path[] hadoopFilePaths,
 											ArrayList<FileStatus> files) throws IOException {
 
 		long latestModTime = 0L;

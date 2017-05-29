@@ -26,15 +26,15 @@ import org.apache.flink.util.Collector;
 
 @PublicEvolving
 public abstract class GroupReduceIterator<IN, OUT> extends RichGroupReduceFunction<IN, OUT> {
-	
+
 	private static final long serialVersionUID = 1L;
 
 
 	public abstract Iterator<OUT> reduceGroup(Iterable<IN> values) throws Exception;
-	
-	
+
+
 	// -------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public final void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception {
 		for (Iterator<OUT> iter = reduceGroup(values); iter.hasNext(); ) {

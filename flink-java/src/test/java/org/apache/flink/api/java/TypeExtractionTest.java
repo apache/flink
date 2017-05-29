@@ -31,11 +31,11 @@ import static org.junit.Assert.assertEquals;
  */
 @SuppressWarnings("serial")
 public class TypeExtractionTest {
-	
+
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Test
 	public void testFunctionWithMissingGenericsAndReturns() {
-		
+
 		RichMapFunction function = new RichMapFunction() {
 			private static final long serialVersionUID = 1L;
 
@@ -57,7 +57,7 @@ public class TypeExtractionTest {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.fromElements(new VertexTyped(0L, 3.0), new VertexTyped(1L, 1.0));
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Test types
 	// ------------------------------------------------------------------------

@@ -214,7 +214,7 @@ public class FullOuterJoinOperatorTest {
 				.with(new DummyJoin());
 	}
 
-	
+
 	/*
 	 * ####################################################################
 	 */

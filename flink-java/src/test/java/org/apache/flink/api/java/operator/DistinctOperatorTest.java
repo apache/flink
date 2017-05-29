@@ -35,10 +35,10 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 public class DistinctOperatorTest {
 
 	// TUPLE DATA
-	private final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData = 
+	private final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData =
 			new ArrayList<Tuple5<Integer, Long, String, Long, Integer>>();
-	
-	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = new 
+
+	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = new
 			TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>>(
 					BasicTypeInfo.INT_TYPE_INFO,
 					BasicTypeInfo.LONG_TYPE_INFO,
@@ -46,15 +46,15 @@ public class DistinctOperatorTest {
 					BasicTypeInfo.LONG_TYPE_INFO,
 					BasicTypeInfo.INT_TYPE_INFO
 			);
-	
+
 	// LONG DATA
 	private final List<Long> emptyLongData = new ArrayList<Long>();
-	
+
 	private final List<CustomType> customTypeData = new ArrayList<CustomType>();
-	
-	@Test  
+
+	@Test
 	public void testDistinctByKeyFields1() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
@@ -65,33 +65,33 @@ public class DistinctOperatorTest {
 			Assert.fail();
 		}
 	}
-	
-	@Test(expected = InvalidProgramException.class)  
+
+	@Test(expected = InvalidProgramException.class)
 	public void testDistinctByKeyFields2() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
 		// should not work: distinct on basic type
 		longDs.distinct(0);
 	}
-	
-	@Test(expected = InvalidProgramException.class)  
+
+	@Test(expected = InvalidProgramException.class)
 	public void testDistinctByKeyFields3() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		this.customTypeData.add(new CustomType());
-		
+
 		DataSet<CustomType> customDs = env.fromCollection(customTypeData);
 		// should not work: distinct on custom type
 		customDs.distinct(0);
-		
+
 	}
-	
+
 	@Test
 	public void testDistinctByKeyFields4() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
@@ -101,17 +101,17 @@ public class DistinctOperatorTest {
 
 	@Test
 	public void testDistinctByKeyFields5() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		this.customTypeData.add(new CustomType());
-		
+
 		DataSet<CustomType> customDs = env.fromCollection(customTypeData);
 
 		// should work
 		customDs.distinct();
 	}
-	
+
 	@Test(expected = IndexOutOfBoundsException.class)
 	public void testDistinctByKeyFields6() {
 
@@ -134,20 +134,20 @@ public class DistinctOperatorTest {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	@SuppressWarnings("serial")
 	public void testDistinctByKeySelector1() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		this.customTypeData.add(new CustomType());
-		
+
 		try {
 			DataSet<CustomType> customDs = env.fromCollection(customTypeData);
 			// should work
 			customDs.distinct(
 					new KeySelector<DistinctOperatorTest.CustomType, Long>() {
-	
+
 						@Override
 						public Long getKey(CustomType value) {
 							return value.myLong;
@@ -156,7 +156,7 @@ public class DistinctOperatorTest {
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 	}
 
 	@Test
@@ -207,13 +207,13 @@ public class DistinctOperatorTest {
 	}
 
 	public static class CustomType implements Serializable {
-		
+
 		private static final long serialVersionUID = 1L;
-		
+
 		public int myInt;
 		public long myLong;
 		public String myString;
-		
+
 		public CustomType() {}
 
 		public CustomType(int i, long l, String s) {
@@ -221,11 +221,11 @@ public class DistinctOperatorTest {
 			myLong = l;
 			myString = s;
 		}
-		
+
 		@Override
 		public String toString() {
 			return myInt+","+myLong+","+myString;
 		}
 	}
-	
+
 }

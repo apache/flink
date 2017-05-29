@@ -42,7 +42,7 @@ public class MaxByOperatorTest {
 			BasicTypeInfo.INT_TYPE_INFO);
 
 	/**
-	 * This test validates that no exceptions is thrown when an empty dataset 
+	 * This test validates that no exceptions is thrown when an empty dataset
 	 * calls maxBy().
 	 */
 	@Test
@@ -62,23 +62,23 @@ public class MaxByOperatorTest {
 	}
 
 	private final List<CustomType> customTypeData = new ArrayList<CustomType>();
-	
+
 	/**
-	 * This test validates that an InvalidProgrammException is thrown when maxBy 
+	 * This test validates that an InvalidProgrammException is thrown when maxBy
 	 * is used on a custom data type.
 	 */
 	@Test(expected = InvalidProgramException.class)
 	public void testCustomKeyFieldsDataset() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		this.customTypeData.add(new CustomType());
-		
+
 		DataSet<CustomType> customDs = env.fromCollection(customTypeData);
 		// should not work: groups on custom type
 		customDs.maxBy(0);
 	}
-	
+
 	/**
 	 * This test validates that an index which is out of bounds throws an
 	 * IndexOutOfBOundsExcpetion.
@@ -92,7 +92,7 @@ public class MaxByOperatorTest {
 		// should not work, key out of tuple bounds
 		tupleDs.maxBy(5);
 	}
-	
+
 	/**
 	 * This test validates that an index which is out of bounds throws an
 	 * IndexOutOfBOundsExcpetion.
@@ -106,7 +106,7 @@ public class MaxByOperatorTest {
 		// should not work, key out of tuple bounds
 		tupleDs.maxBy(-1);
 	}
-	
+
 	/**
 	 * This test validates that an index which is out of bounds throws an
 	 * IndexOutOfBOundsExcpetion.
@@ -120,11 +120,11 @@ public class MaxByOperatorTest {
 		// should not work, key out of tuple bounds
 		tupleDs.maxBy(1,2,3,4,-1);
 	}
-	
+
 	//---------------------------- GROUPING TESTS BELOW --------------------------------------
-	
+
 	/**
-	 * This test validates that no exceptions is thrown when an empty grouping 
+	 * This test validates that no exceptions is thrown when an empty grouping
 	 * calls maxBy().
 	 */
 	@Test
@@ -142,21 +142,21 @@ public class MaxByOperatorTest {
 	}
 
 	/**
-	 * This test validates that an InvalidProgrammException is thrown when maxBy 
+	 * This test validates that an InvalidProgrammException is thrown when maxBy
 	 * is used on a custom data type.
 	 */
 	@Test(expected = InvalidProgramException.class)
 	public void testCustomKeyFieldsGrouping() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		this.customTypeData.add(new CustomType());
-		
+
 		UnsortedGrouping<CustomType> groupDs = env.fromCollection(customTypeData).groupBy(0);
 		// should not work: groups on custom type
 		groupDs.maxBy(0);
 	}
-	
+
 	/**
 	 * This test validates that an index which is out of bounds throws an
 	 * IndexOutOfBOundsExcpetion.
@@ -170,7 +170,7 @@ public class MaxByOperatorTest {
 		// should not work, key out of tuple bounds
 		groupDs.maxBy(5);
 	}
-	
+
 	/**
 	 * This test validates that an index which is out of bounds throws an
 	 * IndexOutOfBOundsExcpetion.
@@ -184,7 +184,7 @@ public class MaxByOperatorTest {
 		// should not work, key out of tuple bounds
 		groupDs.maxBy(-1);
 	}
-	
+
 	/**
 	 * This test validates that an index which is out of bounds throws an
 	 * IndexOutOfBOundsExcpetion.

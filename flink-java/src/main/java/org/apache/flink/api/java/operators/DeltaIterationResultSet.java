@@ -30,13 +30,13 @@ public class DeltaIterationResultSet<ST, WT> extends DataSet<ST> {
 	private DeltaIteration<ST, WT> iterationHead;
 
 	private DataSet<ST> nextSolutionSet;
-	
+
 	private DataSet<WT> nextWorkset;
-	
+
 	private Keys<ST> keys;
-	
+
 	private int maxIterations;
-	
+
 	private TypeInformation<WT> typeWS;
 
 	DeltaIterationResultSet(ExecutionEnvironment context,
@@ -60,7 +60,7 @@ public class DeltaIterationResultSet<ST, WT> extends DataSet<ST> {
 	public DeltaIteration<ST, WT> getIterationHead() {
 		return iterationHead;
 	}
-	
+
 	public DataSet<ST> getNextSolutionSet() {
 		return nextSolutionSet;
 	}
@@ -78,7 +78,7 @@ public class DeltaIterationResultSet<ST, WT> extends DataSet<ST> {
 	public int getMaxIterations() {
 		return maxIterations;
 	}
-	
+
 	public TypeInformation<WT> getWorksetType() {
 		return typeWS;
 	}

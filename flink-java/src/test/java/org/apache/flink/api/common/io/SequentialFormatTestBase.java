@@ -83,7 +83,7 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 			ByteCounter byteCounter = new ByteCounter();
 
 			for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++) {
-				writeRecord(this.getRecord(recordIndex), 
+				writeRecord(this.getRecord(recordIndex),
 					new DataOutputViewStreamWrapper(byteCounter));
 			}
 			this.rawDataSizes[fileIndex] = byteCounter.getLength();
@@ -278,14 +278,14 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 
 	/**
 	 * Counts the bytes that would be written.
-	 * 
+	 *
 	 */
 	private static final class ByteCounter extends OutputStream {
 		int length = 0;
 
 		/**
 		 * Returns the length.
-		 * 
+		 *
 		 * @return the length
 		 */
 		public int getLength() {

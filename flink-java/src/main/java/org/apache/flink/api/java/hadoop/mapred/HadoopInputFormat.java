@@ -38,7 +38,7 @@ import org.apache.hadoop.mapred.JobConf;
  */
 @Public
 public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<K,V>> implements ResultTypeQueryable<Tuple2<K,V>> {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	public HadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value, JobConf job) {
@@ -48,7 +48,7 @@ public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<
 	public HadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value) {
 		super(mapredInputFormat, key, value, new JobConf());
 	}
-	
+
 	@Override
 	public Tuple2<K, V> nextRecord(Tuple2<K, V> record) throws IOException {
 		if(!fetched) {
@@ -62,7 +62,7 @@ public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<
 		fetched = false;
 		return record;
 	}
-	
+
 	@Override
 	public TypeInformation<Tuple2<K,V>> getProducedType() {
 		return new TupleTypeInfo<>(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));

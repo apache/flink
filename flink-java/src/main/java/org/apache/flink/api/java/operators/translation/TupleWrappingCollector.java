@@ -27,24 +27,24 @@ import org.apache.flink.util.Collector;
  */
 @Internal
 public class TupleWrappingCollector<IN, K> implements Collector<IN>, java.io.Serializable {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	private final TupleUnwrappingIterator<IN, K> tui;
 	private final Tuple2<K, IN> outTuple;
-	
+
 	private Collector<Tuple2<K, IN>> wrappedCollector;
-	
-	
+
+
 	public TupleWrappingCollector(TupleUnwrappingIterator<IN, K> tui) {
 		this.tui = tui;
 		this.outTuple = new Tuple2<K, IN>();
 	}
-	
+
 	public void set(Collector<Tuple2<K, IN>> wrappedCollector) {
 			this.wrappedCollector = wrappedCollector;
 	}
-		
+
 	@Override
 	public void close() {
 		this.wrappedCollector.close();

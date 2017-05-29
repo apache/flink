@@ -43,16 +43,16 @@ import org.apache.flink.util.Preconditions;
  * <ul>
  * 	<li>{@link SortedGrouping#reduceGroup(org.apache.flink.api.common.functions.GroupReduceFunction)},</li>
  * </ul>
- * 
+ *
  * @param <T> The type of the elements of the sorted and grouped DataSet.
  */
 @Public
 public class SortedGrouping<T> extends Grouping<T> {
-	
+
 	private int[] groupSortKeyPositions;
 	private Order[] groupSortOrders;
 	private Keys.SelectorFunctionKeys<T, ?> groupSortSelectorFunctionKey = null;
-	
+
 	/*
 	 * int sorting keys for tuples
 	 */
@@ -70,7 +70,7 @@ public class SortedGrouping<T> extends Grouping<T> {
 		this.groupSortOrders = new Order[groupSortKeyPositions.length];
 		Arrays.fill(this.groupSortOrders, order);
 	}
-	
+
 	/*
 	 * String sorting for Pojos and tuples
 	 */
@@ -112,13 +112,13 @@ public class SortedGrouping<T> extends Grouping<T> {
 		this.groupSortOrders = new Order[groupSortKeyPositions.length];
 		Arrays.fill(this.groupSortOrders, order);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	protected int[] getGroupSortKeyPositions() {
 		return this.groupSortKeyPositions;
 	}
-	
+
 	protected Order[] getGroupSortOrders() {
 		return this.groupSortOrders;
 	}
@@ -132,18 +132,18 @@ public class SortedGrouping<T> extends Grouping<T> {
 
 		return o;
 	}
-	
+
 	/**
 	 * Uses a custom partitioner for the grouping.
-	 * 
+	 *
 	 * @param partitioner The custom partitioner.
 	 * @return The grouping object itself, to allow for method chaining.
 	 */
 	public SortedGrouping<T> withPartitioner(Partitioner<?> partitioner) {
 		Preconditions.checkNotNull(partitioner);
-		
+
 		getKeys().validateCustomPartitioner(partitioner, null);
-		
+
 		this.customPartitioner = partitioner;
 		return this;
 	}
@@ -157,10 +157,10 @@ public class SortedGrouping<T> extends Grouping<T> {
 	 * The transformation calls a {@link org.apache.flink.api.common.functions.RichGroupReduceFunction} for each group of the DataSet.
 	 * A GroupReduceFunction can iterate over all elements of a group and emit any
 	 *   number of output elements including none.
-	 * 
+	 *
 	 * @param reducer The GroupReduceFunction that is applied on each group of the DataSet.
 	 * @return A GroupReduceOperator that represents the reduced DataSet.
-	 * 
+	 *
 	 * @see org.apache.flink.api.common.functions.RichGroupReduceFunction
 	 * @see GroupReduceOperator
 	 * @see DataSet
@@ -196,7 +196,7 @@ public class SortedGrouping<T> extends Grouping<T> {
 		return new GroupCombineOperator<>(this, resultType, inputDataSet.clean(combiner), Utils.getCallLocationName());
 	}
 
-	
+
 	/**
 	 * Returns a new set containing the first n elements in this grouped and sorted {@link DataSet}.<br>
 	 * @param n The desired number of elements for each group.
@@ -206,23 +206,23 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if(n < 1) {
 			throw new InvalidProgramException("Parameter n of first(n) must be at least 1.");
 		}
-		
+
 		return reduceGroup(new FirstReducer<T>(n));
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Group Operations
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Sorts {@link org.apache.flink.api.java.tuple.Tuple} elements within a group on the specified field in the specified {@link Order}.<br>
 	 * <b>Note: Only groups of Tuple or Pojo elements can be sorted.</b><br>
 	 * Groups can be sorted by multiple fields by chaining {@link #sortGroup(int, Order)} calls.
-	 * 
+	 *
 	 * @param field The Tuple field on which the group is sorted.
 	 * @param order The Order in which the specified Tuple field is sorted.
 	 * @return A SortedGrouping with specified order of group element.
-	 * 
+	 *
 	 * @see org.apache.flink.api.java.tuple.Tuple
 	 * @see Order
 	 */
@@ -265,11 +265,11 @@ public class SortedGrouping<T> extends Grouping<T> {
 		addSortGroupInternal(ek, order);
 		return this;
 	}
-	
+
 	private void addSortGroupInternal(ExpressionKeys<T> ek, Order order) {
 		Preconditions.checkArgument(order != null, "Order can not be null");
 		int[] additionalKeyPositions = ek.computeLogicalKeyPositions();
-		
+
 		int newLength = this.groupSortKeyPositions.length + additionalKeyPositions.length;
 		this.groupSortKeyPositions = Arrays.copyOf(this.groupSortKeyPositions, newLength);
 		this.groupSortOrders = Arrays.copyOf(this.groupSortOrders, newLength);

@@ -335,7 +335,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 				return (AggregationFunction<T>) new ShortValueSumAgg();
 			}
 			else {
-				throw new UnsupportedAggregationTypeException("The type " + type.getName() + 
+				throw new UnsupportedAggregationTypeException("The type " + type.getName() +
 					" is currently not supported for built-in sum aggregations.");
 			}
 		}

@@ -27,26 +27,26 @@ import org.apache.flink.api.java.tuple.Tuple2;
 @Internal
 @ForwardedFields("*->1")
 public final class KeyExtractingMapper<T, K> extends RichMapFunction<T, Tuple2<K, T>> {
-	
+
 	private static final long serialVersionUID = 1L;
-	
+
 	private final KeySelector<T, K> keySelector;
-	
+
 	private final Tuple2<K, T> tuple = new Tuple2<K, T>();
-	
-	
+
+
 	public KeyExtractingMapper(KeySelector<T, K> keySelector) {
 		this.keySelector = keySelector;
 	}
-	
-	
+
+
 	@Override
 	public Tuple2<K, T> map(T value) throws Exception {
-		
+
 		K key = keySelector.getKey(value);
 		tuple.f0 = key;
 		tuple.f1 = value;
-		
+
 		return tuple;
 	}
 }

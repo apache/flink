@@ -215,7 +215,7 @@ public class LeftOuterJoinOperatorTest {
 				.with(new DummyJoin());
 	}
 
-	
+
 	/*
 	 * ####################################################################
 	 */

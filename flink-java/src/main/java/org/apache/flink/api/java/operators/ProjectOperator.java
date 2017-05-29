@@ -41,19 +41,19 @@ import org.apache.flink.api.java.tuple.*;
 /**
  * This operator represents the application of a projection operation on a data set, and the
  * result data set produced by the function.
- * 
+ *
  * @param <IN> The type of the data set projected by the operator.
  * @param <OUT> The type of data set that is the result of the projection.
  */
 @Public
-public class ProjectOperator<IN, OUT extends Tuple> 
+public class ProjectOperator<IN, OUT extends Tuple>
 	extends SingleInputOperator<IN, OUT, ProjectOperator<IN, OUT>> {
-	
+
 	protected final int[] fields;
 
 	public ProjectOperator(DataSet<IN> input, int[] fields, TupleTypeInfo<OUT> returnType) {
 		super(input, returnType);
-	
+
 		this.fields = fields;
 	}
 
@@ -93,45 +93,45 @@ public class ProjectOperator<IN, OUT extends Tuple>
 
 	@Internal
 	public static class Projection<T> {
-		
+
 		private final DataSet<T> ds;
 		private int[] fieldIndexes;
-		
+
 		public Projection(DataSet<T> ds, int[] fieldIndexes) {
-			
+
 			if(!(ds.getType() instanceof TupleTypeInfo)) {
 				throw new UnsupportedOperationException("project() can only be applied to DataSets of Tuples.");
 			}
-			
+
 			if(fieldIndexes.length == 0) {
 				throw new IllegalArgumentException("project() needs to select at least one (1) field.");
 			} else if(fieldIndexes.length > Tuple.MAX_ARITY - 1) {
 				throw new IllegalArgumentException(
 						"project() may select only up to (" + (Tuple.MAX_ARITY - 1) + ") fields.");
 			}
-			
+
 			int maxFieldIndex = ds.getType().getArity();
 			for (int fieldIndexe : fieldIndexes) {
 				Preconditions.checkElementIndex(fieldIndexe, maxFieldIndex);
 			}
-			
+
 			this.ds = ds;
 			this.fieldIndexes = fieldIndexes;
 		}
-		
-		
-		// --------------------------------------------------------------------------------------------	
+
+
+		// --------------------------------------------------------------------------------------------
 		// The following lines are generated.
-		// --------------------------------------------------------------------------------------------	
-		// BEGIN_OF_TUPLE_DEPENDENT_CODE	
+		// --------------------------------------------------------------------------------------------
+		// BEGIN_OF_TUPLE_DEPENDENT_CODE
 	// GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 
 		/**
 		 * Chooses a projectTupleX according to the length of
-		 * {@link org.apache.flink.api.java.operators.ProjectOperator.Projection#fieldIndexes} 
-		 * 
+		 * {@link org.apache.flink.api.java.operators.ProjectOperator.Projection#fieldIndexes}
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see org.apache.flink.api.java.operators.ProjectOperator.Projection
 		 */
 		@SuppressWarnings("unchecked")
@@ -171,10 +171,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -186,10 +186,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -201,10 +201,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -216,10 +216,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -231,10 +231,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -246,10 +246,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -261,10 +261,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -276,10 +276,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -291,10 +291,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -306,10 +306,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -321,10 +321,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -336,10 +336,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -351,10 +351,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -366,10 +366,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -381,10 +381,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -396,10 +396,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -411,10 +411,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -426,10 +426,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -441,10 +441,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -456,10 +456,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -471,10 +471,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -486,10 +486,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -501,10 +501,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -516,10 +516,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -531,10 +531,10 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		}
 
 		/**
-		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. 
-		 * 
+		 * Projects a {@link Tuple} {@link DataSet} to the previously selected fields.
+		 *
 		 * @return The projected DataSet.
-		 * 
+		 *
 		 * @see Tuple
 		 * @see DataSet
 		 */
@@ -547,20 +547,20 @@ public class ProjectOperator<IN, OUT extends Tuple>
 
 		// END_OF_TUPLE_DEPENDENT_CODE
 		// -----------------------------------------------------------------------------------------
-		
-		
-		
+
+
+
 		private TypeInformation<?>[] extractFieldTypes(int[] fields, TypeInformation<?> inType) {
-			
+
 			TupleTypeInfo<?> inTupleType = (TupleTypeInfo<?>) inType;
 			TypeInformation<?>[] fieldTypes = new TypeInformation[fields.length];
-					
-			for(int i=0; i<fields.length; i++) {					
+
+			for(int i=0; i<fields.length; i++) {
 				fieldTypes[i] = inTupleType.getTypeAt(fields[i]);
 			}
-			
+
 			return fieldTypes;
 		}
-		
+
 	}
 }

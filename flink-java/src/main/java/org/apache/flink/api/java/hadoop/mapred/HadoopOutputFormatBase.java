@@ -162,31 +162,31 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 			}
 		}
 	}
-	
+
 	@Override
 	public void finalizeGlobal(int parallelism) throws IOException {
 
 		try {
 			JobContext jobContext = HadoopUtils.instantiateJobContext(this.jobConf, new JobID());
 			OutputCommitter outputCommitter = this.jobConf.getOutputCommitter();
-			
+
 			// finalize HDFS output format
 			outputCommitter.commitJob(jobContext);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Custom serialization methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		super.write(out);
 		out.writeUTF(mapredOutputFormat.getClass().getName());
 		jobConf.write(out);
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		super.read(in);

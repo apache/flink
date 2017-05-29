@@ -32,13 +32,13 @@ import org.apache.hadoop.mapreduce.Job;
  */
 @Public
 public class HadoopOutputFormat<K, V> extends HadoopOutputFormatBase<K, V, Tuple2<K, V>> {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	public HadoopOutputFormat(org.apache.hadoop.mapreduce.OutputFormat<K,V> mapreduceOutputFormat, Job job) {
 		super(mapreduceOutputFormat, job);
 	}
-	
+
 	@Override
 	public void writeRecord(Tuple2<K, V> record) throws IOException {
 		try {

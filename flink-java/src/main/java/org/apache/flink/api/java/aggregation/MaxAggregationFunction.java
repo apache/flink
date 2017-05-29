@@ -58,7 +58,7 @@ public abstract class MaxAggregationFunction<T extends Comparable<T>> extends Ag
 			return value;
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	public static final class MutableMaxAgg<U extends Comparable<U> & ResettableValue<U> & CopyableValue<U>> extends MaxAggregationFunction<U> {
@@ -88,12 +88,12 @@ public abstract class MaxAggregationFunction<T extends Comparable<T>> extends Ag
 			return value;
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static final class MaxAggregationFunctionFactory implements AggregationFunctionFactory {
 		private static final long serialVersionUID = 1L;
-		
+
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		@Override
 		public <T> AggregationFunction<T> createAggregationFunction(Class<T> type) {
@@ -104,7 +104,7 @@ public abstract class MaxAggregationFunction<T extends Comparable<T>> extends Ag
 					return (AggregationFunction<T>) new ImmutableMaxAgg();
 				}
 			} else {
-				throw new UnsupportedAggregationTypeException("The type " + type.getName() + 
+				throw new UnsupportedAggregationTypeException("The type " + type.getName() +
 					" is not supported for maximum aggregation. " +
 					"Maximum aggregatable types must implement the Comparable interface.");
 			}

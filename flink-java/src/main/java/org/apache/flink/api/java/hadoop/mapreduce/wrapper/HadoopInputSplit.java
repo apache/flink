@@ -36,13 +36,13 @@ import org.apache.hadoop.mapreduce.JobContext;
 public class HadoopInputSplit extends LocatableInputSplit {
 
 	private static final long serialVersionUID = 6119153593707857235L;
-	
-	
+
+
 	private final Class<? extends org.apache.hadoop.mapreduce.InputSplit> splitType;
-	
+
 	private transient org.apache.hadoop.mapreduce.InputSplit mapreduceInputSplit;
-	
-	
+
+
 	public HadoopInputSplit(int splitNumber, org.apache.hadoop.mapreduce.InputSplit mapreduceInputSplit, JobContext jobContext) {
 		super(splitNumber, (String) null);
 
@@ -93,12 +93,12 @@ public class HadoopInputSplit extends LocatableInputSplit {
 		try {
 			Class<? extends Writable> writableSplit = splitType.asSubclass(Writable.class);
 			mapreduceInputSplit = (org.apache.hadoop.mapreduce.InputSplit) WritableFactories.newInstance(writableSplit);
-		} 
-		
+		}
+
 		catch (Exception e) {
 			throw new RuntimeException("Unable to instantiate the Hadoop InputSplit", e);
 		}
-		
+
 		((Writable) mapreduceInputSplit).readFields(in);
 	}
 }

@@ -34,11 +34,11 @@ import org.junit.Test;
 public class FirstNOperatorTest {
 
 	// TUPLE DATA
-	
-	private final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData = 
+
+	private final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData =
 			new ArrayList<Tuple5<Integer, Long, String, Long, Integer>>();
-	
-	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = new 
+
+	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = new
 			TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>>(
 					BasicTypeInfo.INT_TYPE_INFO,
 					BasicTypeInfo.LONG_TYPE_INFO,
@@ -46,10 +46,10 @@ public class FirstNOperatorTest {
 					BasicTypeInfo.LONG_TYPE_INFO,
 					BasicTypeInfo.INT_TYPE_INFO
 			);
-	
+
 	@Test
 	public void testUngroupedFirstN() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
@@ -59,14 +59,14 @@ public class FirstNOperatorTest {
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 		// should work
 		try {
 			tupleDs.first(10);
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 		// should not work n == 0
 		try {
 			tupleDs.first(0);
@@ -76,7 +76,7 @@ public class FirstNOperatorTest {
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 		// should not work n == -1
 		try {
 			tupleDs.first(-1);
@@ -86,12 +86,12 @@ public class FirstNOperatorTest {
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 	}
-	
+
 	@Test
 	public void testGroupedFirstN() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
@@ -101,14 +101,14 @@ public class FirstNOperatorTest {
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 		// should work
 		try {
 			tupleDs.groupBy(1,3).first(10);
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 		// should not work n == 0
 		try {
 			tupleDs.groupBy(0).first(0);
@@ -118,7 +118,7 @@ public class FirstNOperatorTest {
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 		// should not work n == -1
 		try {
 			tupleDs.groupBy(2).first(-1);
@@ -129,10 +129,10 @@ public class FirstNOperatorTest {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	public void testGroupedSortedFirstN() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
@@ -142,14 +142,14 @@ public class FirstNOperatorTest {
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 		// should work
 		try {
 			tupleDs.groupBy(1,3).sortGroup(4, Order.ASCENDING).first(10);
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 		// should not work n == 0
 		try {
 			tupleDs.groupBy(0).sortGroup(4, Order.ASCENDING).first(0);
@@ -159,7 +159,7 @@ public class FirstNOperatorTest {
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 		// should not work n == -1
 		try {
 			tupleDs.groupBy(2).sortGroup(4, Order.ASCENDING).first(-1);

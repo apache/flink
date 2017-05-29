@@ -48,7 +48,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class CollectionInputFormatTest {
-	
+
 	public static class ElementType {
 		private final int id;
 
@@ -73,7 +73,7 @@ public class CollectionInputFormatTest {
 				return false;
 			}
 		}
-		
+
 		@Override
 		public int hashCode() {
 			return id;
@@ -98,10 +98,10 @@ public class CollectionInputFormatTest {
 			inputCollection.add(element1);
 			inputCollection.add(element2);
 			inputCollection.add(element3);
-	
+
 			@SuppressWarnings("unchecked")
 			TypeInformation<ElementType> info = (TypeInformation<ElementType>) TypeExtractor.createTypeInfo(ElementType.class);
-	
+
 			CollectionInputFormat<ElementType> inputFormat = new CollectionInputFormat<ElementType>(inputCollection,
 					info.createSerializer(new ExecutionConfig()));
 
@@ -134,10 +134,10 @@ public class CollectionInputFormatTest {
 		}
 
 	}
-	
+
 	@Test
 	public void testSerializabilityStrings() {
-		
+
 		final String[] data = new String[] {
 				"To be, or not to be,--that is the question:--",
 				"Whether 'tis nobler in the mind to suffer",
@@ -175,33 +175,33 @@ public class CollectionInputFormatTest {
 				"The fair Ophelia!--Nymph, in thy orisons",
 				"Be all my sins remember'd."
 		};
-		
+
 		try {
 			List<String> inputCollection = Arrays.asList(data);
 			CollectionInputFormat<String> inputFormat = new CollectionInputFormat<String>(inputCollection, BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()));
-			
+
 			// serialize
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			ObjectOutputStream oos = new ObjectOutputStream(baos);
 			oos.writeObject(inputFormat);
 			oos.close();
-			
+
 			// deserialize
 			ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
 			ObjectInputStream ois = new ObjectInputStream(bais);
 			Object result = ois.readObject();
-			
+
 			assertTrue(result instanceof CollectionInputFormat);
-			
+
 			int i = 0;
 			@SuppressWarnings("unchecked")
 			CollectionInputFormat<String> in = (CollectionInputFormat<String>) result;
 			in.open(new GenericInputSplit(0, 1));
-			
+
 			while (!in.reachedEnd()) {
 				assertEquals(data[i++], in.nextRecord(""));
 			}
-			
+
 			assertEquals(data.length, i);
 		}
 		catch (Exception e) {
@@ -209,7 +209,7 @@ public class CollectionInputFormatTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testSerializationFailure() {
 		try (ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -217,7 +217,7 @@ public class CollectionInputFormatTest {
 			// a mock serializer that fails when writing
 			CollectionInputFormat<ElementType> inFormat = new CollectionInputFormat<ElementType>(
 					Collections.singleton(new ElementType()), new TestSerializer(false, true));
-			
+
 			try {
 				out.writeObject(inFormat);
 				fail("should throw an exception");
@@ -234,7 +234,7 @@ public class CollectionInputFormatTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testDeserializationFailure() {
 		try (ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -245,10 +245,10 @@ public class CollectionInputFormatTest {
 
 			out.writeObject(inFormat);
 			out.close();
-			
+
 			ByteArrayInputStream bais = new ByteArrayInputStream(buffer.toByteArray());
 			ObjectInputStream in = new ObjectInputStream(bais);
-			
+
 			try {
 				in.readObject();
 				fail("should throw an exception");
@@ -296,14 +296,14 @@ public class CollectionInputFormatTest {
 	private static class TestException extends IOException{
 		private static final long serialVersionUID = 1L;
 	}
-	
+
 	private static class TestSerializer extends TypeSerializer<ElementType> {
 
 		private static final long serialVersionUID = 1L;
-		
+
 		private final boolean failOnRead;
 		private final boolean failOnWrite;
-		
+
 		public TestSerializer(boolean failOnRead, boolean failOnWrite) {
 			this.failOnRead = failOnRead;
 			this.failOnWrite = failOnWrite;

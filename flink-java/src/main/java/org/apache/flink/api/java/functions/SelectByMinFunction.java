@@ -25,10 +25,10 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 @Internal
 public class SelectByMinFunction<T extends Tuple> implements ReduceFunction<T> {
 	private static final long serialVersionUID = 1L;
-	
+
 	// Fields which are used as KEYS
 	private int[] fields;
-	
+
 	/**
 	 * Constructor which is overwriting the default constructor.
 	 * @param type Types of tuple whether to check if given fields are key types.
@@ -38,7 +38,7 @@ public class SelectByMinFunction<T extends Tuple> implements ReduceFunction<T> {
 	 */
 	public SelectByMinFunction(TupleTypeInfo<T> type, int... fields) {
 		this.fields = fields;
-		
+
 		// Check correctness of each position
 		for (int field : fields) {
 			// Is field inside array
@@ -55,14 +55,14 @@ public class SelectByMinFunction<T extends Tuple> implements ReduceFunction<T> {
 
 		}
 	}
-	
+
 	/**
-	 * Reduce implementation, returns smaller tuple or value1 if both tuples are 
+	 * Reduce implementation, returns smaller tuple or value1 if both tuples are
 	 * equal. Comparison highly depends on the order and amount of fields chosen
 	 * as indices. All given fields (at construction time) are checked in the same
-	 * order as defined (at construction time). If both tuples are equal in one 
+	 * order as defined (at construction time). If both tuples are equal in one
 	 * index, the next index is compared. Or if no next index is available value1
-	 * is returned. 
+	 * is returned.
 	 * The tuple which has a smaller value at one index will be returned.
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })

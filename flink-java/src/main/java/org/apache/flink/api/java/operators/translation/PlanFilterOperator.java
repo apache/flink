@@ -30,7 +30,7 @@ import org.apache.flink.util.Collector;
 @Internal
 @ForwardedFields("*")
 public class PlanFilterOperator<T> extends FilterOperatorBase<T, FlatMapFunction<T, T>> {
-	
+
 	public PlanFilterOperator(FilterFunction<T> udf, String name, TypeInformation<T> type) {
 		super(new FlatMapFilter<T>(udf), new UnaryOperatorInformation<T, T>(type, type), name);
 	}
@@ -40,7 +40,7 @@ public class PlanFilterOperator<T> extends FilterOperatorBase<T, FlatMapFunction
 	{
 
 		private static final long serialVersionUID = 1L;
-		
+
 		private FlatMapFilter(FilterFunction<T> wrapped) {
 			super(wrapped);
 		}

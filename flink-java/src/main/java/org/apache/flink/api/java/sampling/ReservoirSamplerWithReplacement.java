@@ -50,7 +50,7 @@ public class ReservoirSamplerWithReplacement<T> extends DistributedRandomSampler
 	public ReservoirSamplerWithReplacement(int numSamples) {
 		this(numSamples, new XORShiftRandom());
 	}
-	
+
 	/**
 	 * Create a sampler with fixed sample size and random number generator seed.
 	 *
@@ -60,7 +60,7 @@ public class ReservoirSamplerWithReplacement<T> extends DistributedRandomSampler
 	public ReservoirSamplerWithReplacement(int numSamples, long seed) {
 		this(numSamples, new XORShiftRandom(seed));
 	}
-	
+
 	/**
 	 * Create a sampler with fixed sample size and random number generator.
 	 *

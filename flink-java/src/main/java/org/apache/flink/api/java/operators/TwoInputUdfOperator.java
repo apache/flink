@@ -104,7 +104,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 		if (name == null) {
 			throw new IllegalArgumentException("Broadcast variable name must not be null.");
 		}
-		
+
 		if (this.broadcastVariables == null) {
 			this.broadcastVariables = new HashMap<String, DataSet<?>>();
 		}
@@ -282,7 +282,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 *
 	 * <p>Use this method the following way:
 	 * <pre>{@code
-	 *     DataSet<String[]> result = 
+	 *     DataSet<String[]> result =
 	 *         data1.join(data2).where("id").equalTo("fieldX")
 	 *              .with(new JoinFunctionWithNonInferrableReturnType())
 	 *              .returns(String[].class);
@@ -312,7 +312,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 *
 	 * <p>Use this method the following way:
 	 * <pre>{@code
-	 *     DataSet<Tuple2<String, Double>> result = 
+	 *     DataSet<Tuple2<String, Double>> result =
 	 *         data1.join(data2).where("id").equalTo("fieldX")
 	 *              .with(new JoinFunctionWithNonInferrableReturnType())
 	 *              .returns(new TypeHint<Tuple2<String, Double>>(){});
@@ -355,7 +355,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	}
 
 	/**
-	 * Adds a type information hint about the return type of this operator. 
+	 * Adds a type information hint about the return type of this operator.
 	 *
 	 * <p>
 	 * Type hints are important in cases where the Java compiler

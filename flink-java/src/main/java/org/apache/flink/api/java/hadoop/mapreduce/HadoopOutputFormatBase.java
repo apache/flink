@@ -213,29 +213,29 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 			this.outputCommitter.commitJob(jobContext);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Custom serialization methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		super.write(out);
 		out.writeUTF(this.mapreduceOutputFormat.getClass().getName());
 		this.configuration.write(out);
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		super.read(in);
 		String hadoopOutputFormatClassName = in.readUTF();
-		
+
 		org.apache.hadoop.conf.Configuration configuration = new org.apache.hadoop.conf.Configuration();
 		configuration.readFields(in);
-		
+
 		if(this.configuration == null) {
 			this.configuration = configuration;
 		}
-		
+
 		try {
 			this.mapreduceOutputFormat = (org.apache.hadoop.mapreduce.OutputFormat<K,V>) Class.forName(hadoopOutputFormatClassName, true, Thread.currentThread().getContextClassLoader()).newInstance();
 		} catch (Exception e) {

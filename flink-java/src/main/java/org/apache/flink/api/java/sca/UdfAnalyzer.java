@@ -271,7 +271,7 @@ public class UdfAnalyzer {
 		if (state == STATE_END_OF_ANALYZING) {
 			throw new IllegalStateException("Analyzing is already done.");
 		}
-		
+
 		boolean discardReturnValues = false;
 
 		if (isIterableInput) {

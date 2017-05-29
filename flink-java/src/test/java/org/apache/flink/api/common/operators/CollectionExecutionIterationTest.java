@@ -45,16 +45,16 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
 	public void testBulkIteration() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
-			
+
 			IterativeDataSet<Integer> iteration = env.fromElements(1).iterate(10);
-			
+
 			DataSet<Integer> result = iteration.closeWith(iteration.map(new AddSuperstepNumberMapper()));
-			
+
 			List<Integer> collected = new ArrayList<Integer>();
 			result.output(new LocalCollectionOutputFormat<Integer>(collected));
-			
+
 			env.execute();
-			
+
 			assertEquals(1, collected.size());
 			assertEquals(56, collected.get(0).intValue());
 		}
@@ -63,14 +63,14 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testBulkIterationWithTerminationCriterion() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
-			
+
 			IterativeDataSet<Integer> iteration = env.fromElements(1).iterate(100);
-			
+
 			DataSet<Integer> iterationResult = iteration.map(new AddSuperstepNumberMapper());
 
 			DataSet<Integer> terminationCriterion = iterationResult.filter(new FilterFunction<Integer>() {
@@ -78,14 +78,14 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
 					return value < 50;
 				}
 			});
-			
+
 			List<Integer> collected = new ArrayList<Integer>();
-			
+
 			iteration.closeWith(iterationResult, terminationCriterion)
 					.output(new LocalCollectionOutputFormat<Integer>(collected));
-			
+
 			env.execute();
-			
+
 			assertEquals(1, collected.size());
 			assertEquals(56, collected.get(0).intValue());
 		}
@@ -106,7 +106,7 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
 					new Tuple2<Integer, Integer>(2, 0),
 					new Tuple2<Integer, Integer>(3, 0),
 					new Tuple2<Integer, Integer>(4, 0));
-			
+
 			@SuppressWarnings("unchecked")
 			DataSet<Tuple1<Integer>> workInput = env.fromElements(
 					new Tuple1<Integer>(1),
@@ -162,9 +162,9 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	public static class AddSuperstepNumberMapper extends RichMapFunction<Integer, Integer> {
-		
+
 		@Override
 		public Integer map(Integer value) {
 			int superstep = getIterationRuntimeContext().getSuperstepNumber();

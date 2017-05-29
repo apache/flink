@@ -145,7 +145,7 @@ public final class UdfAnalyzerUtils {
 			if (stream != null) {
 				try {
 					stream.close();
-				} catch (IOException e) { 
+				} catch (IOException e) {
 					// best effort cleanup
 				}
 			}

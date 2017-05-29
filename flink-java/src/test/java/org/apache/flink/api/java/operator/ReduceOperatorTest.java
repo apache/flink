@@ -41,8 +41,8 @@ public class ReduceOperatorTest {
 
 	private final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData =
 			new ArrayList<Tuple5<Integer, Long, String, Long, Integer>>();
-	
-	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = new 
+
+	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = new
 			TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>>(
 					BasicTypeInfo.INT_TYPE_INFO,
 					BasicTypeInfo.LONG_TYPE_INFO,
@@ -50,10 +50,10 @@ public class ReduceOperatorTest {
 					BasicTypeInfo.LONG_TYPE_INFO,
 					BasicTypeInfo.INT_TYPE_INFO
 			);
-	
+
 	@Test
 	public void testSemanticPropsWithKeySelector1() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 

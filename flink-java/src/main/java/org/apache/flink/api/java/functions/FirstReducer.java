@@ -39,14 +39,14 @@ public class FirstReducer<T> implements GroupReduceFunction<T, T>, GroupCombineF
 		int emitCnt = 0;
 		for(T val : values) {
 			out.collect(val);
-			
+
 			emitCnt++;
 			if(emitCnt == count) {
 				break;
 			}
 		}
 	}
-	
+
 	@Override
 	public void combine(Iterable<T> values, Collector<T> out) throws Exception {
 		reduce(values, out);

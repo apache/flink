@@ -687,9 +687,9 @@ public abstract class ExecutionEnvironment {
 
 		return this.createInput(hadoopInputFormat);
 	}
-	
+
 	// ----------------------------------- Collection ---------------------------------------
-	
+
 	/**
 	 * Creates a DataSet from the given non-empty collection. The type of the data set is that
 	 * of the elements in the collection.
@@ -700,10 +700,10 @@ public abstract class ExecutionEnvironment {
 	 * <p>
 	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
 	 * a parallelism of one.
-	 * 
+	 *
 	 * @param data The collection of elements to create the data set from.
 	 * @return A DataSet representing the given collection.
-	 * 
+	 *
 	 * @see #fromCollection(Collection, TypeInformation)
 	 */
 	public <X> DataSource<X> fromCollection(Collection<X> data) {
@@ -713,35 +713,35 @@ public abstract class ExecutionEnvironment {
 		if (data.size() == 0) {
 			throw new IllegalArgumentException("The size of the collection must not be empty.");
 		}
-		
+
 		X firstValue = data.iterator().next();
-		
+
 		TypeInformation<X> type = TypeExtractor.getForObject(firstValue);
 		CollectionInputFormat.checkCollection(data, type.getTypeClass());
 		return new DataSource<>(this, new CollectionInputFormat<>(data, type.createSerializer(config)), type, Utils.getCallLocationName());
 	}
-	
+
 	/**
 	 * Creates a DataSet from the given non-empty collection. Note that this operation will result
 	 * in a non-parallel data source, i.e. a data source with a parallelism of one.
 	 * <p>
 	 * The returned DataSet is typed to the given TypeInformation.
-	 *  
+	 *
 	 * @param data The collection of elements to create the data set from.
 	 * @param type The TypeInformation for the produced data set.
 	 * @return A DataSet representing the given collection.
-	 * 
+	 *
 	 * @see #fromCollection(Collection)
 	 */
 	public <X> DataSource<X> fromCollection(Collection<X> data, TypeInformation<X> type) {
 		return fromCollection(data, type, Utils.getCallLocationName());
 	}
-	
+
 	private <X> DataSource<X> fromCollection(Collection<X> data, TypeInformation<X> type, String callLocationName) {
 		CollectionInputFormat.checkCollection(data, type.getTypeClass());
 		return new DataSource<>(this, new CollectionInputFormat<>(data, type.createSerializer(config)), type, callLocationName);
 	}
-	
+
 	/**
 	 * Creates a DataSet from the given iterator. Because the iterator will remain unmodified until
 	 * the actual execution happens, the type of data returned by the iterator must be given
@@ -750,17 +750,17 @@ public abstract class ExecutionEnvironment {
 	 * <p>
 	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
 	 * a parallelism of one.
-	 * 
+	 *
 	 * @param data The collection of elements to create the data set from.
 	 * @param type The class of the data produced by the iterator. Must not be a generic class.
 	 * @return A DataSet representing the elements in the iterator.
-	 * 
+	 *
 	 * @see #fromCollection(Iterator, TypeInformation)
 	 */
 	public <X> DataSource<X> fromCollection(Iterator<X> data, Class<X> type) {
 		return fromCollection(data, TypeExtractor.getForClass(type));
 	}
-	
+
 	/**
 	 * Creates a DataSet from the given iterator. Because the iterator will remain unmodified until
 	 * the actual execution happens, the type of data returned by the iterator must be given
@@ -770,18 +770,18 @@ public abstract class ExecutionEnvironment {
 	 * <p>
 	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
 	 * a parallelism of one.
-	 * 
+	 *
 	 * @param data The collection of elements to create the data set from.
 	 * @param type The TypeInformation for the produced data set.
 	 * @return A DataSet representing the elements in the iterator.
-	 * 
+	 *
 	 * @see #fromCollection(Iterator, Class)
 	 */
 	public <X> DataSource<X> fromCollection(Iterator<X> data, TypeInformation<X> type) {
 		return new DataSource<>(this, new IteratorInputFormat<>(data), type, Utils.getCallLocationName());
 	}
-	
-	
+
+
 	/**
 	 * Creates a new data set that contains the given elements. The elements must all be of the same type,
 	 * for example, all of the {@link String} or {@link Integer}. The sequence of elements must not be empty.
@@ -792,7 +792,7 @@ public abstract class ExecutionEnvironment {
 	 * <p>
 	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
 	 * a parallelism of one.
-	 * 
+	 *
 	 * @param data The elements to make up the data set.
 	 * @return A DataSet representing the given list of elements.
 	 */
@@ -804,7 +804,7 @@ public abstract class ExecutionEnvironment {
 		if (data.length == 0) {
 			throw new IllegalArgumentException("The number of elements must not be zero.");
 		}
-		
+
 		TypeInformation<X> typeInfo;
 		try {
 			typeInfo = TypeExtractor.getForObject(data[0]);
@@ -817,10 +817,10 @@ public abstract class ExecutionEnvironment {
 
 		return fromCollection(Arrays.asList(data), typeInfo, Utils.getCallLocationName());
 	}
-	
+
 	/**
-	 * Creates a new data set that contains the given elements. The framework will determine the type according to the 
-	 * based type user supplied. The elements should be the same or be the subclass to the based type. 
+	 * Creates a new data set that contains the given elements. The framework will determine the type according to the
+	 * based type user supplied. The elements should be the same or be the subclass to the based type.
 	 * The sequence of elements must not be empty.
 	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
 	 * a parallelism of one.
@@ -837,7 +837,7 @@ public abstract class ExecutionEnvironment {
 		if (data.length == 0) {
 			throw new IllegalArgumentException("The number of elements must not be zero.");
 		}
-		
+
 		TypeInformation<X> typeInfo;
 		try {
 			typeInfo = TypeExtractor.getForClass(type);
@@ -850,8 +850,8 @@ public abstract class ExecutionEnvironment {
 
 		return fromCollection(Arrays.asList(data), typeInfo, Utils.getCallLocationName());
 	}
-	
-	
+
+
 	/**
 	 * Creates a new data set that contains elements in the iterator. The iterator is splittable, allowing the
 	 * framework to create a parallel data source that returns the elements in the iterator.
@@ -859,17 +859,17 @@ public abstract class ExecutionEnvironment {
 	 * Because the iterator will remain unmodified until the actual execution happens, the type of data
 	 * returned by the iterator must be given explicitly in the form of the type class (this is due to the
 	 * fact that the Java compiler erases the generic type information).
-	 * 
+	 *
 	 * @param iterator The iterator that produces the elements of the data set.
 	 * @param type The class of the data produced by the iterator. Must not be a generic class.
 	 * @return A DataSet representing the elements in the iterator.
-	 * 
+	 *
 	 * @see #fromParallelCollection(SplittableIterator, TypeInformation)
 	 */
 	public <X> DataSource<X> fromParallelCollection(SplittableIterator<X> iterator, Class<X> type) {
 		return fromParallelCollection(iterator, TypeExtractor.getForClass(type));
 	}
-	
+
 	/**
 	 * Creates a new data set that contains elements in the iterator. The iterator is splittable, allowing the
 	 * framework to create a parallel data source that returns the elements in the iterator.
@@ -878,38 +878,38 @@ public abstract class ExecutionEnvironment {
 	 * returned by the iterator must be given explicitly in the form of the type information.
 	 * This method is useful for cases where the type is generic. In that case, the type class
 	 * (as given in {@link #fromParallelCollection(SplittableIterator, Class)} does not supply all type information.
-	 * 
+	 *
 	 * @param iterator The iterator that produces the elements of the data set.
 	 * @param type The TypeInformation for the produced data set.
 	 * @return A DataSet representing the elements in the iterator.
-	 * 
+	 *
 	 * @see #fromParallelCollection(SplittableIterator, Class)
 	 */
 	public <X> DataSource<X> fromParallelCollection(SplittableIterator<X> iterator, TypeInformation<X> type) {
 		return fromParallelCollection(iterator, type, Utils.getCallLocationName());
 	}
-	
+
 	// private helper for passing different call location names
 	private <X> DataSource<X> fromParallelCollection(SplittableIterator<X> iterator, TypeInformation<X> type, String callLocationName) {
 		return new DataSource<>(this, new ParallelIteratorInputFormat<>(iterator), type, callLocationName);
 	}
-	
+
 	/**
 	 * Creates a new data set that contains a sequence of numbers. The data set will be created in parallel,
 	 * so there is no guarantee about the order of the elements.
-	 * 
+	 *
 	 * @param from The number to start at (inclusive).
 	 * @param to The number to stop at (inclusive).
 	 * @return A DataSet, containing all number in the {@code [from, to]} interval.
 	 */
 	public DataSource<Long> generateSequence(long from, long to) {
 		return fromParallelCollection(new NumberSequenceIterator(from, to), BasicTypeInfo.LONG_TYPE_INFO, Utils.getCallLocationName());
-	}	
-	
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Executing
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Triggers the program execution. The environment will execute all parts of the program that have
 	 * resulted in a "sink" operation. Sink operations are for example printing results ({@link DataSet#print()},
@@ -918,14 +918,14 @@ public abstract class ExecutionEnvironment {
 	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
 	 * <p>
 	 * The program execution will be logged and displayed with a generated default name.
-	 * 
+	 *
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
 	public JobExecutionResult execute() throws Exception {
 		return execute(getDefaultName());
 	}
-	
+
 	/**
 	 * Triggers the program execution. The environment will execute all parts of the program that have
 	 * resulted in a "sink" operation. Sink operations are for example printing results ({@link DataSet#print()},
@@ -934,23 +934,23 @@ public abstract class ExecutionEnvironment {
 	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
 	 * <p>
 	 * The program execution will be logged and displayed with the given job name.
-	 * 
+	 *
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
 	public abstract JobExecutionResult execute(String jobName) throws Exception;
 
 	/**
-	 * Creates the plan with which the system will execute the program, and returns it as 
+	 * Creates the plan with which the system will execute the program, and returns it as
 	 * a String using a JSON representation of the execution data flow graph.
 	 * Note that this needs to be called, before the plan is executed.
-	 * 
+	 *
 	 * @return The execution plan of the program, as a JSON String.
 	 * @throws Exception Thrown, if the compiler could not be instantiated, or the master could not
 	 *                   be contacted to retrieve information relevant to the execution planning.
 	 */
 	public abstract String getExecutionPlan() throws Exception;
-	
+
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
 	 * from any user-defined function in the (distributed) runtime under a local path. Files
@@ -959,27 +959,27 @@ public abstract class ExecutionEnvironment {
 	 * <p>
 	 * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
 	 * {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and provides access
-	 * {@link org.apache.flink.api.common.cache.DistributedCache} via 
+	 * {@link org.apache.flink.api.common.cache.DistributedCache} via
 	 * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
-	 * 
+	 *
 	 * @param filePath The path of the file, as a URI (e.g. "file:///some/path" or "hdfs://host:port/and/path")
 	 * @param name The name under which the file is registered.
 	 */
 	public void registerCachedFile(String filePath, String name){
 		registerCachedFile(filePath, name, false);
 	}
-	
+
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
 	 * from any user-defined function in the (distributed) runtime under a local path. Files
-	 * may be local files (as long as all relevant workers have access to it), or files in a distributed file system. 
+	 * may be local files (as long as all relevant workers have access to it), or files in a distributed file system.
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 * <p>
 	 * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
 	 * {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and provides access
-	 * {@link org.apache.flink.api.common.cache.DistributedCache} via 
+	 * {@link org.apache.flink.api.common.cache.DistributedCache} via
 	 * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
-	 * 
+	 *
 	 * @param filePath The path of the file, as a URI (e.g. "file:///some/path" or "hdfs://host:port/and/path")
 	 * @param name The name under which the file is registered.
 	 * @param executable flag indicating whether the file should be executable
@@ -987,11 +987,11 @@ public abstract class ExecutionEnvironment {
 	public void registerCachedFile(String filePath, String name, boolean executable){
 		this.cacheFile.add(new Tuple2<>(name, new DistributedCacheEntry(filePath, executable)));
 	}
-	
+
 	/**
 	 * Registers all files that were registered at this execution environment's cache registry of the
 	 * given plan's cache registry.
-	 * 
+	 *
 	 * @param p The plan to register files at.
 	 * @throws IOException Thrown if checks for existence and sanity fail.
 	 */
@@ -1000,7 +1000,7 @@ public abstract class ExecutionEnvironment {
 			p.registerCachedFile(entry.f0, entry.f1);
 		}
 	}
-	
+
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
 	 * and operations and how they interact, as an isolated unit that can be executed with a
@@ -1008,14 +1008,14 @@ public abstract class ExecutionEnvironment {
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
-	 * 
+	 *
 	 * @return The program's plan.
 	 */
 	@Internal
 	public Plan createProgramPlan() {
 		return createProgramPlan(null);
 	}
-	
+
 	/**
 	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
 	 * and operations and how they interact, as an isolated unit that can be executed with a
@@ -1023,7 +1023,7 @@ public abstract class ExecutionEnvironment {
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
 	 * This automatically starts a new stage of execution.
-	 * 
+	 *
 	 * @param jobName The name attached to the plan (displayed in logs and monitoring).
 	 * @return The program's plan.
 	 */
@@ -1056,11 +1056,11 @@ public abstract class ExecutionEnvironment {
 						"Examples are writing the data set or printing it.");
 			}
 		}
-		
+
 		if (jobName == null) {
 			jobName = getDefaultName();
 		}
-		
+
 		OperatorTranslation translator = new OperatorTranslation();
 		Plan plan = translator.translateToPlan(this.sinks, jobName);
 
@@ -1068,13 +1068,13 @@ public abstract class ExecutionEnvironment {
 			plan.setDefaultParallelism(getParallelism());
 		}
 		plan.setExecutionConfig(getConfig());
-		
+
 		// Check plan for GenericTypeInfo's and register the types at the serializers.
 		if (!config.isAutoTypeRegistrationDisabled()) {
 			plan.accept(new Visitor<org.apache.flink.api.common.operators.Operator<?>>() {
-				
+
 				private final HashSet<Class<?>> deduplicator = new HashSet<>();
-				
+
 				@Override
 				public boolean preVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {
 					OperatorInformation<?> opInfo = visitable.getOperatorInfo();
@@ -1091,7 +1091,7 @@ public abstract class ExecutionEnvironment {
 		} catch (Exception e) {
 			throw new RuntimeException("Error while registering cached files: " + e.getMessage(), e);
 		}
-		
+
 		// clear all the sinks such that the next execution does not redo everything
 		if (clearSinks) {
 			this.sinks.clear();
@@ -1131,27 +1131,27 @@ public abstract class ExecutionEnvironment {
 
 		return plan;
 	}
-	
+
 	/**
 	 * Adds the given sink to this environment. Only sinks that have been added will be executed once
 	 * the {@link #execute()} or {@link #execute(String)} method is called.
-	 * 
+	 *
 	 * @param sink The sink to add for execution.
 	 */
 	@Internal
 	void registerDataSink(DataSink<?> sink) {
 		this.sinks.add(sink);
 	}
-	
+
 	/**
 	 * Gets a default job name, based on the timestamp when this method is invoked.
-	 * 
+	 *
 	 * @return A default job name.
 	 */
 	private static String getDefaultName() {
 		return "Flink Java Job at " + Calendar.getInstance().getTime();
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Instantiation of Execution Contexts
 	// --------------------------------------------------------------------------------------------
@@ -1161,11 +1161,11 @@ public abstract class ExecutionEnvironment {
 	 * If the program is invoked standalone, this method returns a local execution environment, as returned by
 	 * {@link #createLocalEnvironment()}. If the program is invoked from within the command line client to be
 	 * submitted to a cluster, this method returns the execution environment of this cluster.
-	 * 
+	 *
 	 * @return The execution environment of the context in which the program is executed.
 	 */
 	public static ExecutionEnvironment getExecutionEnvironment() {
-		return contextEnvironmentFactory == null ? 
+		return contextEnvironmentFactory == null ?
 				createLocalEnvironment() : contextEnvironmentFactory.createExecutionEnvironment();
 	}
 
@@ -1187,18 +1187,18 @@ public abstract class ExecutionEnvironment {
 	 * multi-threaded fashion in the same JVM as the environment was created in. The default
 	 * parallelism of the local environment is the number of hardware contexts (CPU cores / threads),
 	 * unless it was specified differently by {@link #setDefaultLocalParallelism(int)}.
-	 * 
+	 *
 	 * @return A local execution environment.
 	 */
 	public static LocalEnvironment createLocalEnvironment() {
 		return createLocalEnvironment(defaultLocalDop);
 	}
-	
+
 	/**
 	 * Creates a {@link LocalEnvironment}. The local execution environment will run the program in a
 	 * multi-threaded fashion in the same JVM as the environment was created in. It will use the
 	 * parallelism specified in the parameter.
-	 * 
+	 *
 	 * @param parallelism The parallelism for the local environment.
 	 * @return A local execution environment with the specified parallelism.
 	 */
@@ -1244,13 +1244,13 @@ public abstract class ExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program 
+	 * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program
 	 * to a cluster for execution. Note that all file paths used in the program must be accessible from the
 	 * cluster. The execution will use the cluster's default parallelism, unless the parallelism is
 	 * set explicitly via {@link ExecutionEnvironment#setParallelism(int)}.
-	 * 
+	 *
 	 * @param host The host name or address of the master (JobManager), where the program should be executed.
-	 * @param port The port of the master (JobManager), where the program should be executed. 
+	 * @param port The port of the master (JobManager), where the program should be executed.
 	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
 	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
 	 *                 provided in the JAR files.
@@ -1282,12 +1282,12 @@ public abstract class ExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program 
+	 * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program
 	 * to a cluster for execution. Note that all file paths used in the program must be accessible from the
 	 * cluster. The execution will use the specified parallelism.
-	 * 
+	 *
 	 * @param host The host name or address of the master (JobManager), where the program should be executed.
-	 * @param port The port of the master (JobManager), where the program should be executed. 
+	 * @param port The port of the master (JobManager), where the program should be executed.
 	 * @param parallelism The parallelism to use during the execution.
 	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
 	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
@@ -1307,7 +1307,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Gets the default parallelism that will be used for the local execution environment created by
 	 * {@link #createLocalEnvironment()}.
-	 * 
+	 *
 	 * @return The default local parallelism
 	 */
 	public static int getDefaultLocalParallelism() {
@@ -1317,7 +1317,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Sets the default parallelism that will be used for the local execution environment created by
 	 * {@link #createLocalEnvironment()}.
-	 * 
+	 *
 	 * @param parallelism The parallelism to use as the default local parallelism.
 	 */
 	public static void setDefaultLocalParallelism(int parallelism) {
@@ -1333,9 +1333,9 @@ public abstract class ExecutionEnvironment {
 	 * Sets a context environment factory, that creates the context environment for running programs
 	 * with pre-configured environments. Examples are running programs from the command line, and
 	 * running programs in the Scala shell.
-	 * 
+	 *
 	 * <p>When the context environment factory is set, no other environments can be explicitly used.
-	 * 
+	 *
 	 * @param ctx The context environment factory.
 	 */
 	protected static void initializeContextEnvironment(ExecutionEnvironmentFactory ctx) {
@@ -1354,7 +1354,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Checks whether it is currently permitted to explicitly instantiate a LocalEnvironment
 	 * or a RemoteEnvironment.
-	 * 
+	 *
 	 * @return True, if it is possible to explicitly instantiate a LocalEnvironment or a
 	 *         RemoteEnvironment, false otherwise.
 	 */

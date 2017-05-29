@@ -58,7 +58,7 @@ public class SerializedFormatTest extends SequentialFormatTestBase<Record> {
 		return inputFormat;
 	}
 
-	
+
 	@Override
 	protected BinaryOutputFormat<Record> createOutputFormat(String path, Configuration configuration)
 			throws IOException

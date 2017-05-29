@@ -77,8 +77,8 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	protected SingleInputUdfOperator(DataSet<IN> input, TypeInformation<OUT> resultType) {
 		super(input, resultType);
 	}
-	
-	
+
+
 	protected abstract Function getFunction();
 
 	// --------------------------------------------------------------------------------------------
@@ -102,7 +102,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 		if (name == null) {
 			throw new IllegalArgumentException("Broadcast variable name must not be null.");
 		}
-		
+
 		if (this.broadcastVariables == null) {
 			this.broadcastVariables = new HashMap<String, DataSet<?>>();
 		}
@@ -202,7 +202,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 * <p>Classes can be used as type hints for non-generic types (classes without generic parameters),
 	 * but not for generic types like for example Tuples. For those generic types, please
 	 * use the {@link #returns(TypeHint)} method.
-	 * 
+	 *
 	 * <p>Use this method the following way:
 	 * <pre>{@code
 	 *     DataSet<String[]> result =
@@ -215,7 +215,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 */
 	public O returns(Class<OUT> typeClass) {
 		requireNonNull(typeClass, "type class must not be null");
-		
+
 		try {
 			return returns(TypeInformation.of(typeClass));
 		}
@@ -225,7 +225,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 					"please use the 'returns(TypeHint)' method instead.", e);
 		}
 	}
-	
+
 	/**
 	 * Adds a type information hint about the return type of this operator. This method
 	 * can be used in cases where Flink cannot determine automatically what the produced
@@ -244,7 +244,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 */
 	public O returns(TypeHint<OUT> typeHint) {
 		requireNonNull(typeHint, "TypeHint must not be null");
-	
+
 		try {
 			return returns(TypeInformation.of(typeHint));
 		}
@@ -259,7 +259,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 * can be used in cases where Flink cannot determine automatically what the produced
 	 * type of a function is. That can be the case if the function uses generic type variables
 	 * in the return type that cannot be inferred from the input type.
-	 * 
+	 *
 	 * <p>In most cases, the methods {@link #returns(Class)} and {@link #returns(TypeHint)}
 	 * are preferable.
 	 *
@@ -268,20 +268,20 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 */
 	public O returns(TypeInformation<OUT> typeInfo) {
 		requireNonNull(typeInfo, "TypeInformation must not be null");
-		
+
 		fillInType(typeInfo);
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;
 	}
-	
+
 	/**
-	 * Adds a type information hint about the return type of this operator. 
-	 * 
+	 * Adds a type information hint about the return type of this operator.
+	 *
 	 * <p>
 	 * Type hints are important in cases where the Java compiler
 	 * throws away generic type information necessary for efficient execution.
-	 * 
+	 *
 	 * <p>
 	 * This method takes a type information string that will be parsed. A type information string can contain the following
 	 * types:
@@ -309,7 +309,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 * @param typeInfoString
 	 *            type information string to be parsed
 	 * @return This operator with a given return type hint.
-	 * 
+	 *
 	 * @deprecated Please use {@link #returns(Class)} or {@link #returns(TypeHint)} instead.
 	 */
 	@Deprecated
@@ -320,7 +320,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 		}
 		return returns(TypeInfoParser.<OUT>parse(typeInfoString));
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Accessors
 	// --------------------------------------------------------------------------------------------

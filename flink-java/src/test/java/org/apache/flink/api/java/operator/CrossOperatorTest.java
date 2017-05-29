@@ -68,7 +68,7 @@ public class CrossOperatorTest {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	public void testCrossProjection21() {
 
@@ -100,7 +100,7 @@ public class CrossOperatorTest {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	public void testCrossProjection22() {
 
@@ -133,7 +133,7 @@ public class CrossOperatorTest {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	public void testCrossProjection23() {
 
@@ -169,7 +169,7 @@ public class CrossOperatorTest {
 		}
 
 	}
-	
+
 	@Test
 	public void testCrossProjection24() {
 
@@ -206,7 +206,7 @@ public class CrossOperatorTest {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	public void testCrossProjection25() {
 
@@ -241,7 +241,7 @@ public class CrossOperatorTest {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	public void testCrossProjection26() {
 
@@ -275,7 +275,7 @@ public class CrossOperatorTest {
 			Assert.fail();
 		}
 	}
-	
+
 	@Test
 	public void testCrossProjection27() {
 
@@ -304,7 +304,7 @@ public class CrossOperatorTest {
 		ds1.cross(ds2)
 			.projectFirst(5);
 	}
-	
+
 	@Test(expected=IndexOutOfBoundsException.class)
 	public void testCrossProjection28() {
 
@@ -351,7 +351,7 @@ public class CrossOperatorTest {
 		ds1.cross(ds2)
 			.projectFirst(2);
 	}
-	
+
 	@Test(expected=IndexOutOfBoundsException.class)
 	public void testCrossProjection30() {
 
@@ -386,7 +386,7 @@ public class CrossOperatorTest {
 		ds1.cross(ds2)
 			.projectSecond(-1);
 	}
-	
+
 	public void testCrossProjection12() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -398,7 +398,7 @@ public class CrossOperatorTest {
 			.projectSecond(2)
 			.projectFirst(1);
 	}
-	
+
 	@Test(expected=IndexOutOfBoundsException.class)
 	public void testCrossProjection32() {
 
@@ -437,7 +437,7 @@ public class CrossOperatorTest {
 			.projectFirst(0)
 			.projectSecond(5);
 	}
-	
+
 	/*
 	 * ####################################################################
 	 */

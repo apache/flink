@@ -39,15 +39,15 @@ import org.apache.hadoop.mapred.JobConfigurable;
 public class HadoopInputSplit extends LocatableInputSplit {
 
 	private static final long serialVersionUID = -6990336376163226160L;
-	
-	
+
+
 	private final Class<? extends org.apache.hadoop.mapred.InputSplit> splitType;
-	
+
 	private transient JobConf jobConf;
 
 	private transient org.apache.hadoop.mapred.InputSplit hadoopInputSplit;
-	
-	
+
+
 	public HadoopInputSplit(int splitNumber, org.apache.hadoop.mapred.InputSplit hInputSplit, JobConf jobconf) {
 		super(splitNumber, (String) null);
 
@@ -57,7 +57,7 @@ public class HadoopInputSplit extends LocatableInputSplit {
 		if (jobconf == null) {
 			throw new NullPointerException("Hadoop JobConf must not be null");
 		}
-		
+
 		this.splitType = hInputSplit.getClass();
 
 		this.jobConf = jobconf;
@@ -77,7 +77,7 @@ public class HadoopInputSplit extends LocatableInputSplit {
 			return new String[0];
 		}
 	}
-	
+
 	public org.apache.hadoop.mapred.InputSplit getHadoopInputSplit() {
 		return hadoopInputSplit;
 	}
@@ -96,7 +96,7 @@ public class HadoopInputSplit extends LocatableInputSplit {
 
 		// the job conf knows how to serialize itself
 		jobConf.write(out);
-		
+
 		// write the input split
 		hadoopInputSplit.write(out);
 	}
@@ -108,8 +108,8 @@ public class HadoopInputSplit extends LocatableInputSplit {
 		// the job conf knows how to deserialize itself
 		jobConf = new JobConf();
 		jobConf.readFields(in);
-		
-		
+
+
 		try {
 			hadoopInputSplit = (org.apache.hadoop.mapred.InputSplit) WritableFactories.newInstance(splitType);
 		}

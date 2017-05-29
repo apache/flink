@@ -45,40 +45,40 @@ public class TextInputFormatTest {
 	public void testSimpleRead() {
 		final String FIRST = "First line";
 		final String SECOND = "Second line";
-		
+
 		try {
 			// create input file
 			File tempFile = File.createTempFile("TextInputFormatTest", "tmp");
 			tempFile.deleteOnExit();
 			tempFile.setWritable(true);
-			
+
 			PrintStream ps = new  PrintStream(tempFile);
 			ps.println(FIRST);
 			ps.println(SECOND);
 			ps.close();
-			
+
 			TextInputFormat inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
-			
-			Configuration parameters = new Configuration(); 
+
+			Configuration parameters = new Configuration();
 			inputFormat.configure(parameters);
-			
+
 			FileInputSplit[] splits = inputFormat.createInputSplits(1);
 			assertTrue("expected at least one input split", splits.length >= 1);
-			
+
 			inputFormat.open(splits[0]);
-			
+
 			String result = "";
-			
+
 			assertFalse(inputFormat.reachedEnd());
 			result = inputFormat.nextRecord("");
 			assertNotNull("Expecting first record here", result);
 			assertEquals(FIRST, result);
-			
+
 			assertFalse(inputFormat.reachedEnd());
 			result = inputFormat.nextRecord(result);
 			assertNotNull("Expecting second record here", result);
 			assertEquals(SECOND, result);
-			
+
 			assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
 		}
 		catch (Throwable t) {
@@ -146,66 +146,66 @@ public class TextInputFormatTest {
 	 */
 	@Test
 	public void testRemovingTrailingCR() {
-		
+
 		testRemovingTrailingCR("\n","\n");
 		testRemovingTrailingCR("\r\n","\n");
-		
+
 		testRemovingTrailingCR("|","|");
 		testRemovingTrailingCR("|","\n");
 	}
-	
+
 	private void testRemovingTrailingCR(String lineBreaker,String delimiter) {
 		File tempFile=null;
-		
+
 		String FIRST = "First line";
 		String SECOND = "Second line";
 		String CONTENT = FIRST + lineBreaker + SECOND + lineBreaker;
-		
+
 		try {
 			// create input file
 			tempFile = File.createTempFile("TextInputFormatTest", "tmp");
 			tempFile.deleteOnExit();
 			tempFile.setWritable(true);
-			
+
 			OutputStreamWriter wrt = new OutputStreamWriter(new FileOutputStream(tempFile));
 			wrt.write(CONTENT);
 			wrt.close();
-			
+
 			TextInputFormat inputFormat = new TextInputFormat(new Path(tempFile.toURI().toString()));
 			inputFormat.setFilePath(tempFile.toURI().toString());
-			
-			Configuration parameters = new Configuration(); 
+
+			Configuration parameters = new Configuration();
 			inputFormat.configure(parameters);
-			
+
 			inputFormat.setDelimiter(delimiter);
-			
+
 			FileInputSplit[] splits = inputFormat.createInputSplits(1);
-						
+
 			inputFormat.open(splits[0]);
-			
+
 
 			String result = "";
-			if (  (delimiter.equals("\n") && (lineBreaker.equals("\n") || lineBreaker.equals("\r\n") ) ) 
+			if (  (delimiter.equals("\n") && (lineBreaker.equals("\n") || lineBreaker.equals("\r\n") ) )
 					|| (lineBreaker.equals(delimiter)) ){
-				
+
 				result = inputFormat.nextRecord("");
 				assertNotNull("Expecting first record here", result);
 				assertEquals(FIRST, result);
-				
+
 				result = inputFormat.nextRecord(result);
 				assertNotNull("Expecting second record here", result);
 				assertEquals(SECOND, result);
-				
+
 				result = inputFormat.nextRecord(result);
 				assertNull("The input file is over", result);
-				
+
 			} else {
 				result = inputFormat.nextRecord("");
 				assertNotNull("Expecting first record here", result);
 				assertEquals(CONTENT, result);
 			}
-			
-			
+
+
 		}
 		catch (Throwable t) {
 			System.err.println("test failed with exception: " + t.getMessage());

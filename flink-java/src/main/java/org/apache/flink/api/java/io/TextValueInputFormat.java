@@ -34,53 +34,53 @@ import org.apache.flink.types.StringValue;
 
 @PublicEvolving
 public class TextValueInputFormat extends DelimitedInputFormat<StringValue> {
-	
+
 	private static final long serialVersionUID = 1L;
-	
+
 	private String charsetName = "UTF-8";
-	
+
 	private boolean skipInvalidLines;
-	
+
 	private transient CharsetDecoder decoder;
-	
+
 	private transient ByteBuffer byteWrapper;
-	
+
 	private transient boolean ascii;
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public TextValueInputFormat(Path filePath) {
 		super(filePath, null);
 	}
-	
-	// --------------------------------------------------------------------------------------------	
-	
+
+	// --------------------------------------------------------------------------------------------
+
 	public String getCharsetName() {
 		return charsetName;
 	}
-	
+
 	public void setCharsetName(String charsetName) {
 		if (charsetName == null) {
 			throw new IllegalArgumentException("The charset name may not be null.");
 		}
-		
+
 		this.charsetName = charsetName;
 	}
-	
+
 	public boolean isSkipInvalidLines() {
 		return skipInvalidLines;
 	}
-	
+
 	public void setSkipInvalidLines(boolean skipInvalidLines) {
 		this.skipInvalidLines = skipInvalidLines;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void configure(Configuration parameters) {
 		super.configure(parameters);
-		
+
 		if (charsetName == null || !Charset.isSupported(charsetName)) {
 			throw new RuntimeException("Unsupported charset: " + charsetName);
 		}
@@ -88,7 +88,7 @@ public class TextValueInputFormat extends DelimitedInputFormat<StringValue> {
 		if (charsetName.equalsIgnoreCase(StandardCharsets.US_ASCII.name())) {
 			ascii = true;
 		}
-		
+
 		this.decoder = Charset.forName(charsetName).newDecoder();
 		this.byteWrapper = ByteBuffer.allocate(1);
 	}
@@ -109,7 +109,7 @@ public class TextValueInputFormat extends DelimitedInputFormat<StringValue> {
 			}
 			byteWrapper.limit(offset + numBytes);
 			byteWrapper.position(offset);
-				
+
 			try {
 				CharBuffer result = this.decoder.decode(byteWrapper);
 				reuse.setValue(result);
@@ -126,9 +126,9 @@ public class TextValueInputFormat extends DelimitedInputFormat<StringValue> {
 			}
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return "TextValueInputFormat (" + getFilePath() + ") - " + this.charsetName + (this.skipInvalidLines ? "(skipping invalid lines)" : "");

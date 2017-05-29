@@ -61,12 +61,12 @@ public final class HadoopUtils {
 			}
 		}
 	}
-	
+
 	public static JobContext instantiateJobContext(JobConf jobConf, JobID jobId) throws Exception {
 		try {
 			// for Hadoop 1.xx
 			Class<?> clazz = null;
-			if(!TaskAttemptContext.class.isInterface()) { 
+			if(!TaskAttemptContext.class.isInterface()) {
 				clazz = Class.forName("org.apache.hadoop.mapred.JobContext", true, Thread.currentThread().getContextClassLoader());
 			}
 			// for Hadoop 2.xx
@@ -77,18 +77,18 @@ public final class HadoopUtils {
 			// for Hadoop 1.xx
 			constructor.setAccessible(true);
 			JobContext context = (JobContext) constructor.newInstance(jobConf, jobId);
-			
+
 			return context;
 		} catch(Exception e) {
 			throw new Exception("Could not create instance of JobContext.", e);
 		}
 	}
-	
+
 	public static TaskAttemptContext instantiateTaskAttemptContext(JobConf jobConf,  TaskAttemptID taskAttemptID) throws Exception {
 		try {
 			// for Hadoop 1.xx
 			Class<?> clazz = null;
-			if(!TaskAttemptContext.class.isInterface()) { 
+			if(!TaskAttemptContext.class.isInterface()) {
 				clazz = Class.forName("org.apache.hadoop.mapred.TaskAttemptContext", true, Thread.currentThread().getContextClassLoader());
 			}
 			// for Hadoop 2.xx

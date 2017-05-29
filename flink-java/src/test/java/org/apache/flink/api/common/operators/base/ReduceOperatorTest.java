@@ -83,7 +83,7 @@ public class ReduceOperatorTest implements java.io.Serializable {
 			List<Tuple2<String, Integer>> resultMutableSafe = op.executeOnCollections(input, null, executionConfig);
 			executionConfig.enableObjectReuse();
 			List<Tuple2<String, Integer>> resultRegular = op.executeOnCollections(input, null, executionConfig);
-			
+
 			Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<Tuple2<String, Integer>>(resultMutableSafe);
 			Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<Tuple2<String, Integer>>(resultRegular);
 
@@ -148,7 +148,7 @@ public class ReduceOperatorTest implements java.io.Serializable {
 			final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
 
 			ExecutionConfig executionConfig = new ExecutionConfig();
-			
+
 			executionConfig.disableObjectReuse();
 			List<Tuple2<String, Integer>> resultMutableSafe = op.executeOnCollections(input,
 					new RuntimeUDFContext(taskInfo, null, executionConfig,
@@ -156,7 +156,7 @@ public class ReduceOperatorTest implements java.io.Serializable {
 							new HashMap<String, Accumulator<?, ?>>(),
 							new UnregisteredMetricsGroup()),
 					executionConfig);
-			
+
 			executionConfig.enableObjectReuse();
 			List<Tuple2<String, Integer>> resultRegular = op.executeOnCollections(input,
 					new RuntimeUDFContext(taskInfo, null, executionConfig,

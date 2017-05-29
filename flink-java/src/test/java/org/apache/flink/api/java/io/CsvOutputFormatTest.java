@@ -80,7 +80,7 @@ public class CsvOutputFormatTest {
 			} catch (RuntimeException e) {
 				// expected
 			}
-			
+
 		}
 		finally {
 			csvOutputFormat.close();

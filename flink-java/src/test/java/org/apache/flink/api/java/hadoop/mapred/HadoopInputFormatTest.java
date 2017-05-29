@@ -161,7 +161,7 @@ public class HadoopInputFormatTest {
 		assertThat(hadoopInputFormat.hasNext, is(true));
 		assertThat(hadoopInputFormat.fetched, is(true));
 	}
-	
+
 	@Test
 	public void checkTypeInformation() throws Exception {
 		HadoopInputFormat<Void, Long> hadoopInputFormat = new HadoopInputFormat<>(

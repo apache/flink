@@ -214,7 +214,7 @@ public class RightOuterJoinOperatorTest {
 				.with(new DummyJoin());
 	}
 
-	
+
 	/*
 	 * ####################################################################
 	 */

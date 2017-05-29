@@ -35,13 +35,13 @@ public class IteratorInputFormat<T> extends GenericInputFormat<T> implements Non
 	private static final long serialVersionUID = 1L;
 
 	private Iterator<T> iterator; // input data as serializable iterator
-	
-	
+
+
 	public IteratorInputFormat(Iterator<T> iterator) {
 		if (!(iterator instanceof Serializable)) {
 			throw new IllegalArgumentException("The data source iterator must be serializable.");
 		}
-		
+
 		this.iterator = iterator;
 	}
 

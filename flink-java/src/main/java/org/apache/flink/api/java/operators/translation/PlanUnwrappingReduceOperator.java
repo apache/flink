@@ -44,7 +44,7 @@ public class PlanUnwrappingReduceOperator<T, K> extends ReduceOperatorBase<Tuple
 		implements ReduceFunction<Tuple2<K, T>>
 	{
 		private static final long serialVersionUID = 1L;
-		
+
 
 		private ReduceWrapper(ReduceFunction<T> wrapped) {
 			super(wrapped);

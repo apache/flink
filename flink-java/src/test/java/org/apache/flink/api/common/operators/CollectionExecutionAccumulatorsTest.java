@@ -31,20 +31,20 @@ import org.junit.Test;
 public class CollectionExecutionAccumulatorsTest {
 
 	private static final String ACCUMULATOR_NAME = "TEST ACC";
-	
+
 	@Test
 	public void testAccumulator() {
 		try {
 			final int NUM_ELEMENTS = 100;
-			
+
 			ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
-			
+
 			env.generateSequence(1, NUM_ELEMENTS)
 				.map(new CountingMapper())
 				.output(new DiscardingOutputFormat<Long>());
-			
+
 			JobExecutionResult result = env.execute();
-			
+
 			assertTrue(result.getNetRuntime() >= 0);
 
 			assertEquals(NUM_ELEMENTS, (int) result.getAccumulatorResult(ACCUMULATOR_NAME));
@@ -54,17 +54,17 @@ public class CollectionExecutionAccumulatorsTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@SuppressWarnings("serial")
 	public static class CountingMapper extends RichMapFunction<Long, Long> {
-		
+
 		private IntCounter accumulator;
-		
+
 		@Override
 		public void open(Configuration parameters) {
 			accumulator = getRuntimeContext().getIntCounter(ACCUMULATOR_NAME);
 		}
-		
+
 		@Override
 		public Long map(Long value) {
 			accumulator.add(1);

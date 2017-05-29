@@ -252,17 +252,17 @@ public class SortPartitionTest {
 	}
 
 	public static class CustomType implements Serializable {
-		
+
 		public static class Nest {
 			public int myInt;
 		}
 		private static final long serialVersionUID = 1L;
-		
+
 		public int myInt;
 		public long myLong;
 		public String myString;
 		public Nest nested;
-		
+
 		public CustomType() {}
 
 		public CustomType(int i, long l, String s) {
@@ -270,7 +270,7 @@ public class SortPartitionTest {
 			myLong = l;
 			myString = s;
 		}
-		
+
 		@Override
 		public String toString() {
 			return myInt+","+myLong+","+myString;

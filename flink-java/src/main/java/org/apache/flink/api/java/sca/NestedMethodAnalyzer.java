@@ -76,7 +76,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 		this.owner = owner;
 		this.methodNode = methodNode;
 		this.argumentValues = argumentValues;
-		
+
 		this.remainingNesting = remainingNesting;
 		if (remainingNesting < 0) {
 			throw new CodeAnalyzerException("Maximum nesting level reached.");
@@ -301,7 +301,7 @@ public class NestedMethodAnalyzer extends BasicInterpreter {
 				return new TaggedValue(Type.getObjectType("null"), Tag.NULL);
 			case NEW:
 				analyzer.incrNewOperationCounters(topLevelMethod);
-				// make new objects a tagged value to have possibility to tag an 
+				// make new objects a tagged value to have possibility to tag an
 				// input container later
 				return new TaggedValue(Type.getObjectType(((TypeInsnNode) insn).desc));
 			// tag "int"-like constants

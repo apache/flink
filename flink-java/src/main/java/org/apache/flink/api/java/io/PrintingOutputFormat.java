@@ -37,19 +37,19 @@ public class PrintingOutputFormat<T> extends RichOutputFormat<T> {
 	private boolean target;
 
 	private transient PrintStream stream;
-	
+
 	private transient String prefix;
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Instantiates a printing output format that prints to standard out.
 	 */
 	public PrintingOutputFormat() {}
-	
+
 	/**
 	 * Instantiates a printing output format that prints to standard out.
-	 * 
+	 *
 	 * @param stdErr True, if the format should print to standard error instead of standard out.
 	 */
 	public PrintingOutputFormat(boolean stdErr) {
@@ -65,16 +65,16 @@ public class PrintingOutputFormat<T> extends RichOutputFormat<T> {
 		this(stdErr);
 		this.sinkIdentifier = sinkIdentifier;
 	}
-	
+
 	public void setTargetToStandardOut() {
 		this.target = STD_OUT;
 	}
-	
+
 	public void setTargetToStandardErr() {
 		this.target = STD_ERR;
 	}
-	
-	
+
+
 	@Override
 	public void configure(Configuration parameters) {}
 
@@ -116,9 +116,9 @@ public class PrintingOutputFormat<T> extends RichOutputFormat<T> {
 		this.prefix = null;
 		this.sinkIdentifier = null;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return "Print to " + (target == STD_OUT ? "System.out" : "System.err");

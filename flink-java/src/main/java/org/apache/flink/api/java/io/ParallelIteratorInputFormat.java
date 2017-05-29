@@ -34,25 +34,25 @@ import org.apache.flink.util.SplittableIterator;
 public class ParallelIteratorInputFormat<T> extends GenericInputFormat<T> {
 
 	private static final long serialVersionUID = 1L;
-	
-	
+
+
 	private final SplittableIterator<T> source;
-	
+
 	private transient Iterator<T> splitIterator;
-	
-	
-	
+
+
+
 	public ParallelIteratorInputFormat(SplittableIterator<T> iterator) {
 		this.source = iterator;
 	}
-	
+
 	@Override
 	public void open(GenericInputSplit split) throws IOException {
 		super.open(split);
-		
+
 		this.splitIterator = this.source.getSplit(split.getSplitNumber(), split.getTotalNumberOfSplits());
 	}
-	
+
 	@Override
 	public boolean reachedEnd() {
 		return !this.splitIterator.hasNext();

@@ -35,11 +35,11 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 public class AggregateOperatorTest {
 
 	// TUPLE DATA
-	
-	private final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData = 
+
+	private final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData =
 			new ArrayList<Tuple5<Integer, Long, String, Long, Integer>>();
-	
-	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = new 
+
+	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = new
 			TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>>(
 					BasicTypeInfo.INT_TYPE_INFO,
 					BasicTypeInfo.LONG_TYPE_INFO,
@@ -47,14 +47,14 @@ public class AggregateOperatorTest {
 					BasicTypeInfo.LONG_TYPE_INFO,
 					BasicTypeInfo.INT_TYPE_INFO
 			);
-	
+
 	// LONG DATA
-	
+
 	private final List<Long> emptyLongData = new ArrayList<Long>();
-	
+
 	@Test
 	public void testFieldsAggregate() {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
@@ -64,7 +64,7 @@ public class AggregateOperatorTest {
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 		// should not work: index out of bounds
 		try {
 			tupleDs.aggregate(Aggregations.SUM, 10);
@@ -74,7 +74,7 @@ public class AggregateOperatorTest {
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 		// should not work: not applied to tuple dataset
 		DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
 		try {
@@ -85,21 +85,21 @@ public class AggregateOperatorTest {
 		} catch(Exception e) {
 			Assert.fail();
 		}
-		
+
 	}
-	
+
 	@Test
 	public void testAggregationTypes() {
 		try {
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
-			
+
 			// should work: multiple aggregates
 			tupleDs.aggregate(Aggregations.SUM, 0).and(Aggregations.MIN, 4);
 
 			// should work: nested aggregates
 			tupleDs.aggregate(Aggregations.MIN, 2).aggregate(Aggregations.SUM, 1);
-			
+
 			// should not work: average on string
 			try {
 				tupleDs.aggregate(Aggregations.SUM, 2);

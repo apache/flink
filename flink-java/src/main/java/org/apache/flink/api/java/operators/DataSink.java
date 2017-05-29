@@ -41,15 +41,15 @@ import java.util.Arrays;
 
 @Public
 public class DataSink<T> {
-	
+
 	private final OutputFormat<T> format;
-	
+
 	private final TypeInformation<T> type;
-	
+
 	private final DataSet<T> data;
-	
+
 	private String name;
-	
+
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
 	private ResourceSpec minResources = ResourceSpec.DEFAULT;
@@ -72,8 +72,8 @@ public class DataSink<T> {
 		if (data == null) {
 			throw new IllegalArgumentException("The data set must not be null.");
 		}
-		
-		
+
+
 		this.format = format;
 		this.data = data;
 		this.type = type;
@@ -214,16 +214,16 @@ public class DataSink<T> {
 	public Configuration getParameters() {
 		return this.parameters;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public DataSink<T> name(String name) {
 		this.name = name;
 		return this;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	protected GenericDataSinkBase<T> translateToDataFlow(Operator<T> input) {
 		// select the name (or create a default one)
 		String name = this.name != null ? this.name : this.format.toString();
@@ -251,26 +251,26 @@ public class DataSink<T> {
 			}
 			sink.setLocalOrder(ordering);
 		}
-		
+
 		return sink;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return "DataSink '" + (this.name == null ? "<unnamed>" : this.name) + "' (" + this.format.toString() + ")";
 	}
-	
+
 	/**
 	 * Returns the parallelism of this data sink.
-	 * 
+	 *
 	 * @return The parallelism of this data sink.
 	 */
 	public int getParallelism() {
 		return this.parallelism;
 	}
-	
+
 	/**
 	 * Sets the parallelism for this data sink.
 	 * The degree must be 1 or more.

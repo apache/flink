@@ -38,7 +38,7 @@ public abstract class CsvInputFormat<OUT> extends GenericCsvInputFormat<OUT> {
 	public static final String DEFAULT_FIELD_DELIMITER = ",";
 
 	protected transient Object[] parsedValues;
-	
+
 	protected CsvInputFormat(Path filePath) {
 		super(filePath);
 	}
@@ -154,5 +154,5 @@ public abstract class CsvInputFormat<OUT> extends GenericCsvInputFormat<OUT> {
 	public String toString() {
 		return "CSV Input (" + StringUtils.showControlCharacters(String.valueOf(getFieldDelimiter())) + ") " + getFilePath();
 	}
-	
+
 }

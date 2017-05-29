@@ -88,12 +88,12 @@ public abstract class MinAggregationFunction<T extends Comparable<T>> extends Ag
 			return value;
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static final class MinAggregationFunctionFactory implements AggregationFunctionFactory {
 		private static final long serialVersionUID = 1L;
-		
+
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		@Override
 		public <T> AggregationFunction<T> createAggregationFunction(Class<T> type) {
@@ -104,7 +104,7 @@ public abstract class MinAggregationFunction<T extends Comparable<T>> extends Ag
 					return (AggregationFunction<T>) new ImmutableMinAgg();
 				}
 			} else {
-				throw new UnsupportedAggregationTypeException("The type " + type.getName() + 
+				throw new UnsupportedAggregationTypeException("The type " + type.getName() +
 					" is not supported for minimum aggregation. " +
 					"Minimum aggregatable types must implement the Comparable interface.");
 			}

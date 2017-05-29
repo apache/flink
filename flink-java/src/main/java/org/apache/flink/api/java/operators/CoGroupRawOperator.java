@@ -30,12 +30,12 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.common.operators.Keys.IncompatibleKeysException;
 
 /**
- * A {@link DataSet} that is the result of a CoGroup transformation. 
- * 
+ * A {@link DataSet} that is the result of a CoGroup transformation.
+ *
  * @param <I1> The type of the first input DataSet of the CoGroup transformation.
  * @param <I2> The type of the second input DataSet of the CoGroup transformation.
  * @param <OUT> The type of the result of the CoGroup transformation.
- * 
+ *
  * @see DataSet
  */
 @Internal
@@ -97,7 +97,7 @@ public class CoGroupRawOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2,
 
 			CoGroupRawOperatorBase<I1, I2, OUT, CoGroupFunction<I1, I2, OUT>> po
 					= new CoGroupRawOperatorBase<I1, I2, OUT, CoGroupFunction<I1, I2, OUT>>(
-							function, new BinaryOperatorInformation<I1, I2, OUT>(getInput1Type(), getInput2Type(), 
+							function, new BinaryOperatorInformation<I1, I2, OUT>(getInput1Type(), getInput2Type(),
 									getResultType()), logicalKeyPositions1, logicalKeyPositions2, name);
 
 			// set inputs

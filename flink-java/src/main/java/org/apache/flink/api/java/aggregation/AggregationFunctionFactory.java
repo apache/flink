@@ -24,5 +24,5 @@ import org.apache.flink.annotation.Internal;
 public interface AggregationFunctionFactory extends java.io.Serializable {
 
 	<T> AggregationFunction<T> createAggregationFunction(Class<T> type);
-	
+
 }

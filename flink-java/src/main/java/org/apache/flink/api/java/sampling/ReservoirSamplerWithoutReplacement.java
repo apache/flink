@@ -42,7 +42,7 @@ import java.util.Random;
  */
 @Internal
 public class ReservoirSamplerWithoutReplacement<T> extends DistributedRandomSampler<T> {
-	
+
 	private final Random random;
 
 	/**
@@ -56,7 +56,7 @@ public class ReservoirSamplerWithoutReplacement<T> extends DistributedRandomSamp
 		Preconditions.checkArgument(numSamples >= 0, "numSamples should be non-negative.");
 		this.random = random;
 	}
-	
+
 	/**
 	 * Create a new sampler with reservoir size and a default random number generator.
 	 *
@@ -65,7 +65,7 @@ public class ReservoirSamplerWithoutReplacement<T> extends DistributedRandomSamp
 	public ReservoirSamplerWithoutReplacement(int numSamples) {
 		this(numSamples, new XORShiftRandom());
 	}
-	
+
 	/**
 	 * Create a new sampler with reservoir size and the seed for random number generator.
 	 *
@@ -73,10 +73,10 @@ public class ReservoirSamplerWithoutReplacement<T> extends DistributedRandomSamp
 	 * @param seed       Random number generator seed.
 	 */
 	public ReservoirSamplerWithoutReplacement(int numSamples, long seed) {
-		
+
 		this(numSamples, new XORShiftRandom(seed));
 	}
-	
+
 	@Override
 	public Iterator<IntermediateSampleData<T>> sampleInPartition(Iterator<T> input) {
 		if (numSamples == 0) {

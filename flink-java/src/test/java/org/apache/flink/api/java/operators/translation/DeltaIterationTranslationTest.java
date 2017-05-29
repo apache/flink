@@ -52,57 +52,57 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 		try {
 			final String JOB_NAME = "Test JobName";
 			final String ITERATION_NAME = "Test Name";
-			
+
 			final String BEFORE_NEXT_WORKSET_MAP = "Some Mapper";
-			
+
 			final String AGGREGATOR_NAME = "AggregatorName";
-			
+
 			final int[] ITERATION_KEYS = new int[] {2};
 			final int NUM_ITERATIONS = 13;
-			
+
 			final int DEFAULT_parallelism= 133;
 			final int ITERATION_parallelism = 77;
-			
+
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
+
 			// ------------ construct the test program ------------------
 			{
 				env.setParallelism(DEFAULT_parallelism);
-				
+
 				@SuppressWarnings("unchecked")
 				DataSet<Tuple3<Double, Long, String>> initialSolutionSet = env.fromElements(new Tuple3<Double, Long, String>(3.44, 5L, "abc"));
-	
+
 				@SuppressWarnings("unchecked")
 				DataSet<Tuple2<Double, String>> initialWorkSet = env.fromElements(new Tuple2<Double, String>(1.23, "abc"));
-				
+
 				DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration = initialSolutionSet.iterateDelta(initialWorkSet, NUM_ITERATIONS, ITERATION_KEYS);
 				iteration.name(ITERATION_NAME).parallelism(ITERATION_parallelism);
-				
+
 				iteration.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
-				
+
 				// test that multiple workset consumers are supported
-				DataSet<Tuple2<Double, String>> worksetSelfJoin = 
+				DataSet<Tuple2<Double, String>> worksetSelfJoin =
 					iteration.getWorkset()
 						.map(new IdentityMapper<Tuple2<Double,String>>())
 						.join(iteration.getWorkset()).where(1).equalTo(1).projectFirst(0, 1);
-				
+
 				DataSet<Tuple3<Double, Long, String>> joined = worksetSelfJoin.join(iteration.getSolutionSet()).where(1).equalTo(2).with(new SolutionWorksetJoin());
 
 				DataSet<Tuple3<Double, Long, String>> result = iteration.closeWith(
 						joined,
 						joined.map(new NextWorksetMapper()).name(BEFORE_NEXT_WORKSET_MAP));
-				
+
 				result.output(new DiscardingOutputFormat<Tuple3<Double, Long, String>>());
 				result.writeAsText("/dev/null");
 			}
-			
-			
+
+
 			Plan p = env.createProgramPlan(JOB_NAME);
-			
+
 			// ------------- validate the plan ----------------
 			assertEquals(JOB_NAME, p.getJobName());
 			assertEquals(DEFAULT_parallelism, p.getDefaultParallelism());
-			
+
 			// validate the iteration
 			GenericDataSinkBase<?> sink1, sink2;
 			{
@@ -110,23 +110,23 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 				sink1 = sinks.next();
 				sink2 = sinks.next();
 			}
-			
+
 			DeltaIterationBase<?, ?> iteration = (DeltaIterationBase<?, ?>) sink1.getInput();
-			
+
 			// check that multi consumer translation works for iterations
 			assertEquals(iteration, sink2.getInput());
-			
+
 			// check the basic iteration properties
 			assertEquals(NUM_ITERATIONS, iteration.getMaximumNumberOfIterations());
 			assertArrayEquals(ITERATION_KEYS, iteration.getSolutionSetKeyFields());
 			assertEquals(ITERATION_parallelism, iteration.getParallelism());
 			assertEquals(ITERATION_NAME, iteration.getName());
-			
+
 			MapOperatorBase<?, ?, ?> nextWorksetMapper = (MapOperatorBase<?, ?, ?>) iteration.getNextWorkset();
 			InnerJoinOperatorBase<?, ?, ?, ?> solutionSetJoin = (InnerJoinOperatorBase<?, ?, ?, ?>) iteration.getSolutionSetDelta();
 			InnerJoinOperatorBase<?, ?, ?, ?> worksetSelfJoin = (InnerJoinOperatorBase<?, ?, ?, ?>) solutionSetJoin.getFirstInput();
 			MapOperatorBase<?, ?, ?> worksetMapper = (MapOperatorBase<?, ?, ?>) worksetSelfJoin.getFirstInput();
-			
+
 			assertEquals(IdentityMapper.class, worksetMapper.getUserCodeWrapper().getUserCodeClass());
 			assertEquals(NextWorksetMapper.class, nextWorksetMapper.getUserCodeWrapper().getUserCodeClass());
 			if (solutionSetJoin.getUserCodeWrapper().getUserCodeObject() instanceof WrappingFunction) {
@@ -138,7 +138,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			}
 
 			assertEquals(BEFORE_NEXT_WORKSET_MAP, nextWorksetMapper.getName());
-			
+
 			assertEquals(AGGREGATOR_NAME, iteration.getAggregators().getAllRegisteredAggregators().iterator().next().getName());
 		}
 		catch (Exception e) {
@@ -147,20 +147,20 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testRejectWhenSolutionSetKeysDontMatchJoin() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
+
 			@SuppressWarnings("unchecked")
 			DataSet<Tuple3<Double, Long, String>> initialSolutionSet = env.fromElements(new Tuple3<Double, Long, String>(3.44, 5L, "abc"));
 
 			@SuppressWarnings("unchecked")
 			DataSet<Tuple2<Double, String>> initialWorkSet = env.fromElements(new Tuple2<Double, String>(1.23, "abc"));
-			
+
 			DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration = initialSolutionSet.iterateDelta(initialWorkSet, 10, 1);
-			
+
 			try {
 				iteration.getWorkset().join(iteration.getSolutionSet()).where(1).equalTo(2);
 				fail("Accepted invalid program.");
@@ -168,7 +168,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			catch (InvalidProgramException e) {
 				// all good!
 			}
-			
+
 			try {
 				iteration.getSolutionSet().join(iteration.getWorkset()).where(2).equalTo(1);
 				fail("Accepted invalid program.");
@@ -183,20 +183,20 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testRejectWhenSolutionSetKeysDontMatchCoGroup() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
+
 			@SuppressWarnings("unchecked")
 			DataSet<Tuple3<Double, Long, String>> initialSolutionSet = env.fromElements(new Tuple3<Double, Long, String>(3.44, 5L, "abc"));
 
 			@SuppressWarnings("unchecked")
 			DataSet<Tuple2<Double, String>> initialWorkSet = env.fromElements(new Tuple2<Double, String>(1.23, "abc"));
-			
+
 			DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration = initialSolutionSet.iterateDelta(initialWorkSet, 10, 1);
-			
+
 			try {
 				iteration.getWorkset().coGroup(iteration.getSolutionSet()).where(1).equalTo(2).with(new SolutionWorksetCoGroup1());
 				fail("Accepted invalid program.");
@@ -204,7 +204,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			catch (InvalidProgramException e) {
 				// all good!
 			}
-			
+
 			try {
 				iteration.getSolutionSet().coGroup(iteration.getWorkset()).where(2).equalTo(1).with(new SolutionWorksetCoGroup2());
 				fail("Accepted invalid program.");
@@ -219,23 +219,23 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static class SolutionWorksetJoin extends RichJoinFunction<Tuple2<Double, String>, Tuple3<Double, Long, String>, Tuple3<Double, Long, String>> {
 		@Override
 		public Tuple3<Double, Long, String> join(Tuple2<Double, String> first, Tuple3<Double, Long, String> second){
 			return null;
 		}
 	}
-	
+
 	public static class NextWorksetMapper extends RichMapFunction<Tuple3<Double, Long, String>, Tuple2<Double, String>> {
 		@Override
 		public Tuple2<Double, String> map(Tuple3<Double, Long, String> value) {
 			return null;
 		}
 	}
-	
+
 	public static class IdentityMapper<T> extends RichMapFunction<T, T> {
 
 		@Override
@@ -243,7 +243,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			return value;
 		}
 	}
-	
+
 	public static class SolutionWorksetCoGroup1 extends RichCoGroupFunction<Tuple2<Double, String>, Tuple3<Double, Long, String>, Tuple3<Double, Long, String>> {
 
 		@Override
@@ -251,7 +251,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 				Collector<Tuple3<Double, Long, String>> out) {
 		}
 	}
-	
+
 	public static class SolutionWorksetCoGroup2 extends RichCoGroupFunction<Tuple3<Double, Long, String>, Tuple2<Double, String>, Tuple3<Double, Long, String>> {
 
 		@Override

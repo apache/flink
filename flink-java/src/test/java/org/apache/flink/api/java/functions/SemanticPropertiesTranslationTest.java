@@ -49,7 +49,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  */
 @SuppressWarnings("serial")
 public class SemanticPropertiesTranslationTest {
-	
+
 	@Test
 	public void testUnaryFunctionWildcardForwardedAnnotation() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -74,7 +74,7 @@ public class SemanticPropertiesTranslationTest {
 		assertTrue(fw2.contains(1));
 		assertTrue(fw3.contains(2));
 	}
-	
+
 	@Test
 	public void testUnaryFunctionInPlaceForwardedAnnotation() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -532,7 +532,7 @@ public class SemanticPropertiesTranslationTest {
 			return value;
 		}
 	}
-	
+
 	@ForwardedFields("*")
 	public static class WildcardForwardedMapper<T> implements MapFunction<T, T> {
 
@@ -541,7 +541,7 @@ public class SemanticPropertiesTranslationTest {
 			return value;
 		}
 	}
-	
+
 	@ForwardedFields("0;2")
 	public static class IndividualForwardedMapper<X, Y, Z> implements MapFunction<Tuple3<X, Y, Z>, Tuple3<X, Y, Z>> {
 

@@ -29,36 +29,36 @@ import org.apache.flink.api.java.DataSet;
 /**
  * This operator represents the application of a "map" function on a data set, and the
  * result data set produced by the function.
- * 
+ *
  * @param <IN> The type of the data set consumed by the operator.
  * @param <OUT> The type of the data set created by the operator.
- * 
+ *
  * @see org.apache.flink.api.common.functions.MapFunction
  */
 @Public
 public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOperator<IN, OUT>> {
-	
+
 	protected final MapFunction<IN, OUT> function;
-	
+
 	protected final String defaultName;
 
 	public MapOperator(DataSet<IN> input, TypeInformation<OUT> resultType, MapFunction<IN, OUT> function, String defaultName) {
 		super(input, resultType);
-		
+
 		this.defaultName = defaultName;
 		this.function = function;
 
 		UdfOperatorUtils.analyzeSingleInputUdf(this, MapFunction.class, defaultName, function, null);
 	}
-	
+
 	@Override
 	protected MapFunction<IN, OUT> getFunction() {
 		return function;
 	}
-	
+
 	@Override
 	protected MapOperatorBase<IN, OUT, MapFunction<IN, OUT>> translateToDataFlow(Operator<IN> input) {
-		
+
 		String name = getName() != null ? getName() : "Map at "+defaultName;
 		// create operator
 		MapOperatorBase<IN, OUT, MapFunction<IN, OUT>> po = new MapOperatorBase<IN, OUT, MapFunction<IN, OUT>>(function,
@@ -73,8 +73,8 @@ public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOpe
 			// if no parallelism has been specified, use parallelism of input operator to enable chaining
 			po.setParallelism(input.getParallelism());
 		}
-		
+
 		return po;
 	}
-	
+
 }

@@ -57,12 +57,12 @@ public class PlanLeftUnwrappingCoGroupOperator<I1, I2, OUT, K>
 			implements CoGroupFunction<Tuple2<K, I1>, I2, OUT> {
 
 		private static final long serialVersionUID = 1L;
-		
+
 		private final TupleUnwrappingIterator<I1, K> iter1;
 
 		private TupleLeftUnwrappingCoGrouper(CoGroupFunction<I1, I2, OUT> wrapped) {
 			super(wrapped);
-			
+
 			this.iter1 = new TupleUnwrappingIterator<I1, K>();
 		}
 

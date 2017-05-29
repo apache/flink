@@ -39,7 +39,7 @@ public class PlanUnwrappingSortedGroupCombineOperator<IN, OUT, K1, K2> extends G
 	{
 		super(new TupleUnwrappingGroupReducer<IN, OUT, K1, K2>(udf),
 				new UnaryOperatorInformation<Tuple3<K1, K2, IN>, OUT>(typeInfoWithKey, outType),
-				groupingKey.computeLogicalKeyPositions(), 
+				groupingKey.computeLogicalKeyPositions(),
 				name);
 
 	}

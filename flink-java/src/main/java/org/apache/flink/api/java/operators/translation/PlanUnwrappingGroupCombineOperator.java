@@ -39,31 +39,31 @@ public class PlanUnwrappingGroupCombineOperator<IN, OUT, K> extends GroupCombine
 	{
 		super(new TupleUnwrappingGroupCombiner<IN, OUT, K>(udf),
 				new UnaryOperatorInformation<Tuple2<K, IN>, OUT>(typeInfoWithKey, outType), key.computeLogicalKeyPositions(), name);
-		
+
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static final class TupleUnwrappingGroupCombiner<IN, OUT, K> extends WrappingFunction<GroupCombineFunction<IN, OUT>>
 		implements GroupCombineFunction<Tuple2<K, IN>, OUT>
 	{
-	
+
 		private static final long serialVersionUID = 1L;
-		
-		private final TupleUnwrappingIterator<IN, K> iter; 
-		
+
+		private final TupleUnwrappingIterator<IN, K> iter;
+
 		private TupleUnwrappingGroupCombiner(GroupCombineFunction<IN, OUT> wrapped) {
 			super(wrapped);
 			this.iter = new TupleUnwrappingIterator<IN, K>();
 		}
-	
-	
+
+
 		@Override
 		public void combine(Iterable<Tuple2<K, IN>> values, Collector<OUT> out) throws Exception {
 			iter.set(values.iterator());
 			this.wrappedFunction.combine(iter, out);
 		}
-		
+
 		@Override
 		public String toString() {
 			return this.wrappedFunction.toString();

@@ -37,7 +37,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertTrue;
 
 public class SemanticPropUtilTest {
-	
+
 	private final TypeInformation<?> threeIntTupleType = new TupleTypeInfo<Tuple3<Integer, Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 
@@ -405,7 +405,7 @@ public class SemanticPropUtilTest {
 		assertTrue(sp.getForwardingTargetFields(0, 0).contains(0));
 		assertTrue(sp.getForwardingTargetFields(0, 1).contains(2));
 	}
-	
+
 	@Test
 	public void testForwardedMixedOneString() {
 		String[] forwardedFields = {"f2;f3;f0->f4;f4->f0"};
@@ -766,7 +766,7 @@ public class SemanticPropUtilTest {
 		SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsSingleFromString(sp, forwardedFields, null, null, threeIntTupleType, threeIntTupleType);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Non-Forwarded Fields Annotation
 	// --------------------------------------------------------------------------------------------
@@ -947,8 +947,8 @@ public class SemanticPropUtilTest {
 		SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsSingleFromString(sp, null, nonForwardedFields, null, threeIntTupleType, threeIntTupleType);
 	}
-	
-	
+
+
 	// --------------------------------------------------------------------------------------------
 	// Read Fields Annotation
 	// --------------------------------------------------------------------------------------------
@@ -964,7 +964,7 @@ public class SemanticPropUtilTest {
 		assertTrue(fs.contains(2));
 		assertTrue(fs.contains(1));
 	}
-	
+
 	@Test
 	public void testReadFieldsOneString() {
 		String[] readFields = { "f1;f2" };
@@ -1144,11 +1144,11 @@ public class SemanticPropUtilTest {
 		SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
 		SemanticPropUtil.getSemanticPropsSingleFromString(sp, null, null, readFields, threeIntTupleType, threeIntTupleType);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Two Inputs
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Test
 	public void testForwardedDual() {
 		String[] forwardedFieldsFirst = { "f1->f2; f2->f3" };
