@@ -63,8 +63,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val sqlQuery = "SELECT " +
       "c, " +
-      "count(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding) as cnt1, " +
-      "sum(a) OVER (PARTITION BY b ORDER BY proctime RANGE UNBOUNDED preceding) as cnt2 " +
+      "count(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding), " +
+      "sum(a) OVER (PARTITION BY b ORDER BY proctime RANGE UNBOUNDED preceding) " +
       "from T1"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
@@ -87,9 +87,9 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val sqlQuery = "SELECT a, " +
       "  SUM(c) OVER (" +
-      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS sumC, " +
+      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), " +
       "  MIN(c) OVER (" +
-      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS minC " +
+      "    PARTITION BY a ORDER BY proctime ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) " +
       "FROM MyTable"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
@@ -130,9 +130,9 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val sqlQuery = "SELECT a, " +
       "  SUM(c) OVER (" +
-      "    ORDER BY proctime ROWS BETWEEN 10 PRECEDING AND CURRENT ROW) AS sumC , " +
+      "    ORDER BY proctime ROWS BETWEEN 10 PRECEDING AND CURRENT ROW), " +
       "  MIN(c) OVER (" +
-      "    ORDER BY proctime ROWS BETWEEN 10 PRECEDING AND CURRENT ROW) AS minC " +
+      "    ORDER BY proctime ROWS BETWEEN 10 PRECEDING AND CURRENT ROW) " +
       "FROM MyTable"
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink)
@@ -173,8 +173,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val sqlQuery = "SELECT " +
       "c, " +
-      "count(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding) as cnt1, " +
-      "sum(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding) as cnt2 " +
+      "count(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding), " +
+      "sum(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding) " +
       "from T1"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
@@ -198,11 +198,12 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     tEnv.registerTable("T1", t1)
 
-    val sqlQuery = "SELECT " +
+    val sqlQuery = "SELECT c, cnt1 from " +
+      "(SELECT " +
       "c, " +
       "count(a) " +
-      " OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW)" +
-      "from T1"
+      " OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
+      "as cnt1 from T1)"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink)
@@ -230,8 +231,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val sqlQuery = "SELECT " +
       "c, " +
-      "count(a) OVER (ORDER BY proctime  RANGE UNBOUNDED preceding) as cnt1, " +
-      "sum(a) OVER (ORDER BY proctime RANGE UNBOUNDED preceding) as cnt2 " +
+      "count(a) OVER (ORDER BY proctime  RANGE UNBOUNDED preceding), " +
+      "sum(a) OVER (ORDER BY proctime RANGE UNBOUNDED preceding) " +
       "from T1"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
@@ -256,7 +257,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("T1", t1)
 
     val sqlQuery = "SELECT " +
-      "count(a) OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW)" +
+      "count(a) OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
       "from T1"
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
@@ -776,9 +777,6 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       "6,8,Hello world,43,8,5,9,1")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
-
-//  <<<<<<< HEAD
-
 
   /** test sliding event-time unbounded window with partition by **/
   @Test

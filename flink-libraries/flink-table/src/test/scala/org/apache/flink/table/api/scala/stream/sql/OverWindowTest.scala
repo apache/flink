@@ -35,7 +35,9 @@ class OverWindowTest extends TableTestBase {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 preceding AND " +
-      "CURRENT ROW) as cnt1 " +
+      "CURRENT ROW) as cnt1, " +
+      "sum(a) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 preceding AND " +
+      "CURRENT ROW) as sum1 " +
       "from MyTable"
 
     val expected =
@@ -51,9 +53,9 @@ class OverWindowTest extends TableTestBase {
           term("partitionBy", "c"),
           term("orderBy", "proctime"),
           term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0")
+          term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1")
         ),
-        term("select", "c", "w0$o0 AS $1")
+        term("select", "c", "w0$o0 AS cnt1, CASE(>(w0$o0, 0), CAST(w0$o1), null) AS sum1")
       )
     streamUtil.verifySql(sql, expected)
   }
@@ -101,8 +103,8 @@ class OverWindowTest extends TableTestBase {
     val sqlQuery =
       "SELECT a, " +
         "  COUNT(c) OVER (ORDER BY proctime " +
-        "    RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) AS countA " +
-      "FROM MyTable"
+        "    RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) " +
+        "FROM MyTable"
 
     val expected =
       unaryNode(
@@ -129,7 +131,7 @@ class OverWindowTest extends TableTestBase {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (ORDER BY proctime ROWS BETWEEN 2 preceding AND " +
-      "CURRENT ROW) as cnt1 " +
+      "CURRENT ROW)" +
       "from MyTable"
 
     val expected =
@@ -185,7 +187,7 @@ class OverWindowTest extends TableTestBase {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND " +
-      "CURRENT ROW) as cnt1 " +
+      "CURRENT ROW) " +
       "from MyTable"
 
     val expected =
@@ -236,7 +238,7 @@ class OverWindowTest extends TableTestBase {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND " +
-      "CURRENT ROW) as cnt1 " +
+      "CURRENT ROW) " +
       "from MyTable"
 
     val expected =
@@ -259,7 +261,7 @@ class OverWindowTest extends TableTestBase {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY rowtime ROWS BETWEEN 5 preceding AND " +
-      "CURRENT ROW) as cnt1 " +
+      "CURRENT ROW) " +
       "from MyTable"
 
     val expected =
@@ -287,7 +289,7 @@ class OverWindowTest extends TableTestBase {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY rowtime " +
-      "RANGE BETWEEN INTERVAL '1' SECOND  preceding AND CURRENT ROW) as cnt1 " +
+      "RANGE BETWEEN INTERVAL '1' SECOND  preceding AND CURRENT ROW) " +
       "from MyTable"
 
     val expected =
@@ -315,7 +317,7 @@ class OverWindowTest extends TableTestBase {
     val sql = "SELECT " +
       "c, " +
       "count(a) OVER (ORDER BY rowtime ROWS BETWEEN 5 preceding AND " +
-      "CURRENT ROW) as cnt1 " +
+      "CURRENT ROW) " +
       "from MyTable"
 
     val expected =
@@ -499,5 +501,4 @@ class OverWindowTest extends TableTestBase {
       )
     streamUtil.verifySql(sql, expected)
   }
-
 }
