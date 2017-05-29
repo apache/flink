@@ -581,8 +581,15 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			return new EquiJoin<>(getInput1(), getInput2(), getKeys1(), getKeys2(), generatedFunction, function, returnType, getJoinHint(), Utils.getCallLocationName(), joinType);
 		}
 
+		/**
+		 * Wrapper around {@link JoinFunction}.
+		 *
+		 * @param <IN1> type of elements of first collection
+		 * @param <IN2> type of elements of second collection
+		 * @param <OUT> type of elements of resulting elements
+		 */
 		@Internal
-		private static class WrappingFlatJoinFunction<IN1, IN2, OUT> extends WrappingFunction<JoinFunction<IN1,IN2,OUT>> implements FlatJoinFunction<IN1, IN2, OUT> {
+		public static class WrappingFlatJoinFunction<IN1, IN2, OUT> extends WrappingFunction<JoinFunction<IN1,IN2,OUT>> implements FlatJoinFunction<IN1, IN2, OUT> {
 
 			private static final long serialVersionUID = 1L;
 
