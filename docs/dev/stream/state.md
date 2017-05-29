@@ -431,7 +431,7 @@ Some operators might need the information when a checkpoint is fully acknowledge
 
 ## Custom Serialization for Managed State
 
-This section is targeted as a guideline for users who require using custom serialization for their state, covering how
+This section is targeted as a guideline for users who require the use of custom serialization for their state, covering how
 to provide a custom serializer and how to handle upgrades to the serializer for compatibility. If you're simply using
 Flink's own serializers, this section is irrelevant and can be skipped. 
 
@@ -472,9 +472,9 @@ public abstract CompatibilityResult ensureCompatibility(TypeSerializerConfigSnap
 Briefly speaking, every time a checkpoint is performed, the `snapshotConfiguration` method is called to create a
 point-in-time view of the state serializer's configuration. The returned configuration snapshot is stored along with the
 checkpoint as the state's metadata. When the checkpoint is used to restore a job, that serializer configuration snapshot
-will be used to confront the _new_ serializer of the same state via the counterpart method, `ensureCompatibility`. This
-method serves as a check for whether or not the new serializer is compatible, as well as a hook to possibly reconfigure
-the new serializer in the case that it is incompatible.
+will be provided to the _new_ serializer of the same state via the counterpart method, `ensureCompatibility`, to verify
+compatibility of the new serializer. This method serves as a check for whether or not the new serializer is compatible,
+as well as a hook to possibly reconfigure the new serializer in the case that it is incompatible.
 
 Note that Flink's own serializers are implemented such that they are at least compatible with themselves, i.e. when the
 same serializer is used for the state in the restored job, the serializer's will reconfigure themselves to be compatible
@@ -512,12 +512,12 @@ may change over time. By default, configuration snapshots are only compatible wi
 method to return more version values. When reading from the checkpoint, you can use the `getReadVersion` method to
 determine the version of the written configuration and adapt the read logic to the specific version.
 
-<span class="label label-danger">Attention</span> Do not mistaken the version of the serializer's configuration snapshot
-to be related with upgrading the serializer. The exact same serializer can have different implementations of its
+<span class="label label-danger">Attention</span> The version of the serializer's configuration snapshot is **not**
+related to upgrading the serializer. The exact same serializer can have different implementations of its
 configuration snapshot, for example when more information is added to the configuration to allow more comprehensive
 compatibility checks in the future.
 
-One limitation of implementing a `TyoeSerializerConfigSnapshot` is that an empty constructor must be present. The empty
+One limitation of implementing a `TypeSerializerConfigSnapshot` is that an empty constructor must be present. The empty
 constructor is required when reading the configuration snapshot from checkpoints.
 
 #### Implementing the `ensureCompatibility` method
@@ -525,8 +525,8 @@ constructor is required when reading the configuration snapshot from checkpoints
 The `ensureCompatibility` method should contain logic that performs checks against the information about the previous
 serializer carried over via the provided `TypeSerializerConfigSnapshot`, basically doing one of the following:
 
-  * Check whether the serializer is compatible, while possibly reconfiguring itself (if required) with previous
-    configuration so that it may be compatible. Afterwards, acknowledge with Flink that the serializer is compatible.
+  * Check whether the serializer is compatible, while possibly reconfiguring itself (if required) so that it may be
+    compatible. Afterwards, acknowledge with Flink that the serializer is compatible.
 
   * Acknowledge that the serializer is incompatible and that state migration is required before Flink can proceed with
     using the new serializer.
