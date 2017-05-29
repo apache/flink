@@ -159,20 +159,51 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'proctime.proctime)
     val func = new TableFunc
 
-    val t = table.join(func('rowtime, 'proctime) as 's).select('rowtime, 's)
+    val t = table.join(func('rowtime, 'proctime, 'string) as 's).select('rowtime, 's)
 
     val results = t.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink)
     env.execute()
 
     val expected = Seq(
-      "1970-01-01 00:00:00.001,1true",
-      "1970-01-01 00:00:00.002,2true",
-      "1970-01-01 00:00:00.003,3true",
-      "1970-01-01 00:00:00.004,4true",
-      "1970-01-01 00:00:00.007,7true",
-      "1970-01-01 00:00:00.008,8true",
-      "1970-01-01 00:00:00.016,16true")
+      "1970-01-01 00:00:00.001,1trueHi",
+      "1970-01-01 00:00:00.002,2trueHallo",
+      "1970-01-01 00:00:00.003,3trueHello",
+      "1970-01-01 00:00:00.004,4trueHello",
+      "1970-01-01 00:00:00.007,7trueHello",
+      "1970-01-01 00:00:00.008,8trueHello world",
+      "1970-01-01 00:00:00.016,16trueHello world")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testWindowAfterTableFunction(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+    val table = stream.toTable(
+      tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'proctime.proctime)
+    val func = new TableFunc
+
+    val t = table
+      .join(func('rowtime, 'proctime, 'string) as 's)
+      .window(Tumble over 5.millis on 'rowtime as 'w)
+      .groupBy('w)
+      .select('w.rowtime, 's.count)
+
+    val results = t.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = Seq(
+      "1970-01-01 00:00:00.004,4",
+      "1970-01-01 00:00:00.009,2",
+      "1970-01-01 00:00:00.019,1")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
