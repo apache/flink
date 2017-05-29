@@ -31,13 +31,14 @@ import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
-import org.rocksdb.StringAppendOperator;
 import org.rocksdb.WriteOptions;
 import sun.misc.Unsafe;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+
+import static org.apache.flink.contrib.streaming.state.PredefinedOptions.MERGE_OPERATOR_NAME;
 
 /**
  * Test that validates that the performance of RocksDB is as expected.
@@ -74,9 +75,8 @@ public class RocksDBPerformanceTest extends TestLogger {
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
-					.setDisableDataSync(true)
 					.setCreateIfMissing(true)
-					.setMergeOperator(new StringAppendOperator());
+					.setMergeOperatorName(MERGE_OPERATOR_NAME);
 
 			final WriteOptions write_options = new WriteOptions()
 					.setSync(false)
@@ -152,9 +152,8 @@ public class RocksDBPerformanceTest extends TestLogger {
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
-					.setDisableDataSync(true)
 					.setCreateIfMissing(true)
-					.setMergeOperator(new StringAppendOperator());
+					.setMergeOperatorName(MERGE_OPERATOR_NAME);
 
 			final WriteOptions write_options = new WriteOptions()
 					.setSync(false)
