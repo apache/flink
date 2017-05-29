@@ -24,7 +24,7 @@ import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
 
 /**
- * Mapper that formats value into {@link String} representation.
+ * Mapper that converts values to strings using a {@link TextFormatter}.
  * @param <T>
  */
 @Internal

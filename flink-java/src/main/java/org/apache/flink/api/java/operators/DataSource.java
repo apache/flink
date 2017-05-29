@@ -105,8 +105,9 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 	 * for configurations.
 	 *
 	 * <p>SplitDataProperties can help to generate more efficient execution plans.
-	 * <br>
-	 * <b>
+	 *
+	 *
+	 * <p><b>
 	 *     IMPORTANT: Incorrect configuration of SplitDataProperties can cause wrong results!
 	 * </b>
 	 *

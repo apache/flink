@@ -90,8 +90,9 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	/**
 	 * Defines that data is partitioned across input splits on the fields defined by field positions.
 	 * All records sharing the same key (combination) must be contained in a single input split.
-	 * <br>
-	 * <b>
+	 *
+	 *
+	 * <p><b>
 	 *     IMPORTANT: Providing wrong information with SplitDataProperties can cause wrong results!
 	 * </b>
 	 *
@@ -106,8 +107,9 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 * Defines that data is partitioned using a specific partitioning method
 	 * across input splits on the fields defined by field positions.
 	 * All records sharing the same key (combination) must be contained in a single input split.
-	 * <br>
-	 * <b>
+	 *
+	 *
+	 * <p><b>
 	 *     IMPORTANT: Providing wrong information with SplitDataProperties can cause wrong results!
 	 * </b>
 	 *
@@ -137,8 +139,9 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 * Defines that data is partitioned across input splits on the fields defined by field expressions.
  	 * Multiple field expressions must be separated by the semicolon ';' character.
 	 * All records sharing the same key (combination) must be contained in a single input split.
-	 * <br>
-	 * <b>
+	 *
+	 *
+	 * <p><b>
 	 *     IMPORTANT: Providing wrong information with SplitDataProperties can cause wrong results!
 	 * </b>
 	 *
@@ -154,8 +157,9 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 * across input splits on the fields defined by field expressions.
 	 * Multiple field expressions must be separated by the semicolon ';' character.
 	 * All records sharing the same key (combination) must be contained in a single input split.
-	 * <br>
-	 * <b>
+	 *
+	 *
+	 * <p><b>
 	 *     IMPORTANT: Providing wrong information with SplitDataProperties can cause wrong results!
 	 * </b>
 	 *
@@ -189,8 +193,9 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 * Defines that the data within an input split is grouped on the fields defined by the field positions.
 	 * All records sharing the same key (combination) must be subsequently emitted by the input
 	 * format for each input split.
-	 * <br>
-	 * <b>
+	 *
+	 *
+	 * <p><b>
 	 *     IMPORTANT: Providing wrong information with SplitDataProperties can cause wrong results!
 	 * </b>
 	 *
@@ -219,8 +224,9 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 * Multiple field expressions must be separated by the semicolon ';' character.
 	 * All records sharing the same key (combination) must be subsequently emitted by the input
 	 * format for each input split.
-	 * <br>
-	 * <b>
+	 *
+	 *
+	 * <p><b>
 	 *     IMPORTANT: Providing wrong information with SplitDataProperties can cause wrong results!
 	 * </b>
 	 *
@@ -251,8 +257,9 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 * Defines that the data within an input split is sorted on the fields defined by the field positions
 	 * in the specified orders.
 	 * All records of an input split must be emitted by the input format in the defined order.
-	 * <br>
-	 * <b>
+	 *
+	 *
+	 * <p><b>
 	 *     IMPORTANT: Providing wrong information with SplitDataProperties can cause wrong results!
 	 * </b>
 	 *
@@ -300,8 +307,9 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 * Defines that the data within an input split is sorted on the fields defined by the field expressions
 	 * in the specified orders. Multiple field expressions must be separated by the semicolon ';' character.
 	 * All records of an input split must be emitted by the input format in the defined order.
-	 * <br>
-	 * <b>
+	 *
+	 *
+	 * <p><b>
 	 *     IMPORTANT: Providing wrong information with SplitDataProperties can cause wrong results!
 	 * </b>
 	 *

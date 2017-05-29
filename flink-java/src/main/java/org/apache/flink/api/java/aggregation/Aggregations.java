@@ -21,7 +21,7 @@ package org.apache.flink.api.java.aggregation;
 import org.apache.flink.annotation.Public;
 
 /**
- * Shortcuts for Aggregations factories.
+ * Shortcuts for Aggregation factories.
  */
 @Public
 public enum Aggregations {

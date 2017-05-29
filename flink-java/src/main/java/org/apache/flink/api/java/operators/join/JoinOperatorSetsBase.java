@@ -34,8 +34,9 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 /**
- * Intermediate step of an Outer Join transformation. <br>
- * To continue the Join transformation, select the join key of the first input {@link DataSet} by calling
+ * Intermediate step of an Outer Join transformation.
+ *
+ * <p>To continue the Join transformation, select the join key of the first input {@link DataSet} by calling
  * {@link JoinOperatorSetsBase#where(int...)} or
  * {@link JoinOperatorSetsBase#where(KeySelector)}.
  *
@@ -71,9 +72,11 @@ public class JoinOperatorSetsBase<I1, I2> {
 	}
 
 	/**
-	 * Continues a Join transformation. <br>
-	 * Defines the {@link Tuple} fields of the first join {@link DataSet} that should be used as join keys.<br>
-	 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br>
+	 * Continues a Join transformation.
+	 *
+	 * <p>Defines the {@link Tuple} fields of the first join {@link DataSet} that should be used as join keys.
+	 *
+	 * <p><b>Note: Fields can only be selected as join keys on Tuple DataSets.</b>
 	 *
 	 * @param fields The indexes of the other Tuple fields of the first join DataSets that should be used as keys.
 	 * @return An incomplete Join transformation.
@@ -89,8 +92,9 @@ public class JoinOperatorSetsBase<I1, I2> {
 	}
 
 	/**
-	 * Continues a Join transformation. <br>
-	 * Defines the fields of the first join {@link DataSet} that should be used as grouping keys. Fields
+	 * Continues a Join transformation.
+	 *
+	 * <p>Defines the fields of the first join {@link DataSet} that should be used as grouping keys. Fields
 	 * are the names of member fields of the underlying type of the data set.
 	 *
 	 * @param fields The  fields of the first join DataSets that should be used as keys.
@@ -107,9 +111,10 @@ public class JoinOperatorSetsBase<I1, I2> {
 	}
 
 	/**
-	 * Continues a Join transformation and defines a {@link KeySelector} function for the first join {@link DataSet}.<br>
-	 * The KeySelector function is called for each element of the first DataSet and extracts a single
-	 * key value on which the DataSet is joined. <br>
+	 * Continues a Join transformation and defines a {@link KeySelector} function for the first join {@link DataSet}.
+	 *
+	 * <p>The KeySelector function is called for each element of the first DataSet and extracts a single
+	 * key value on which the DataSet is joined.
 	 *
 	 * @param keySelector The KeySelector function which extracts the key values from the DataSet on which it is joined.
 	 * @return An incomplete Join transformation.
@@ -126,8 +131,9 @@ public class JoinOperatorSetsBase<I1, I2> {
 	}
 
 	/**
-	 * Intermediate step of a Join transformation. <br>
-	 * To continue the Join transformation, select the join key of the second input {@link DataSet} by calling
+	 * Intermediate step of a Join transformation.
+	 *
+	 * <p>To continue the Join transformation, select the join key of the second input {@link DataSet} by calling
 	 * {@link org.apache.flink.api.java.operators.join.JoinOperatorSetsBase.JoinOperatorSetsPredicateBase#equalTo(int...)} or
 	 * {@link org.apache.flink.api.java.operators.join.JoinOperatorSetsBase.JoinOperatorSetsPredicateBase#equalTo(KeySelector)}.
 	 *
@@ -150,8 +156,9 @@ public class JoinOperatorSetsBase<I1, I2> {
 
 		/**
 		 * Continues a Join transformation and defines the {@link Tuple} fields of the second join
-		 * {@link DataSet} that should be used as join keys.<br>
-		 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br>
+		 * {@link DataSet} that should be used as join keys.
+		 *
+		 * <p><b>Note: Fields can only be selected as join keys on Tuple DataSets.</b>
 		 *
 		 * <p>The resulting {@link JoinFunctionAssigner} needs to be finished by providing a
 		 * {@link JoinFunction} by calling {@link JoinFunctionAssigner#with(JoinFunction)}
@@ -165,7 +172,7 @@ public class JoinOperatorSetsBase<I1, I2> {
 
 		/**
 		 * Continues a Join transformation and defines the fields of the second join
-		 * {@link DataSet} that should be used as join keys.<br>
+		 * {@link DataSet} that should be used as join keys.
 		 *
 		 * <p>The resulting {@link JoinFunctionAssigner} needs to be finished by providing a
 		 * {@link JoinFunction} by calling {@link JoinFunctionAssigner#with(JoinFunction)}
@@ -178,9 +185,10 @@ public class JoinOperatorSetsBase<I1, I2> {
 		}
 
 		/**
-		 * Continues a Join transformation and defines a {@link KeySelector} function for the second join {@link DataSet}.<br>
-		 * The KeySelector function is called for each element of the second DataSet and extracts a single
-		 * key value on which the DataSet is joined. <br>
+		 * Continues a Join transformation and defines a {@link KeySelector} function for the second join {@link DataSet}.
+		 *
+		 * <p>The KeySelector function is called for each element of the second DataSet and extracts a single
+		 * key value on which the DataSet is joined.
 		 *
 		 * <p>The resulting {@link JoinFunctionAssigner} needs to be finished by providing a
 		 * {@link JoinFunction} by calling {@link JoinFunctionAssigner#with(JoinFunction)}

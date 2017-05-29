@@ -37,7 +37,7 @@ import org.apache.flink.types.Value;
  *
  * @param <VT> the "Value Type" to aggregate, e.g. DoubleValue, StringValue
  * @param <PT> the "Primitive Type" that "Value Type" can be naturally converted to, e.g. DoubleValue converts to Double
- * @param <R> the result type of the aggregation, e.g. NumericColumnSummary<Double>
+ * @param <R> the result type of the aggregation, e.g. NumericColumnSummary&lt;Double&gt;
  * @param <A> the underlying primitive Aggregator that does the actual work, e.g. DoubleSummaryAggregator
  */
 @Internal

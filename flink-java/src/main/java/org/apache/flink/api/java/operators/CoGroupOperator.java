@@ -385,8 +385,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Intermediate step of a CoGroup transformation. <br>
-	 * To continue the CoGroup transformation, select the grouping key of the first input {@link DataSet} by calling
+	 * Intermediate step of a CoGroup transformation.
+	 *
+	 * <p>To continue the CoGroup transformation, select the grouping key of the first input {@link DataSet} by calling
 	 * {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets#where(int...)} or {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets#where(KeySelector)}.
 	 *
 	 * @param <I1> The type of the first input DataSet of the CoGroup transformation.
@@ -407,9 +408,11 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		}
 
 		/**
-		 * Continues a CoGroup transformation. <br>
-		 * Defines the {@link Tuple} fields of the first co-grouped {@link DataSet} that should be used as grouping keys.<br>
-		 * <b>Note: Fields can only be selected as grouping keys on Tuple DataSets.</b><br>
+		 * Continues a CoGroup transformation.
+		 *
+		 * <p>Defines the {@link Tuple} fields of the first co-grouped {@link DataSet} that should be used as grouping keys.
+		 *
+		 * <p><b>Note: Fields can only be selected as grouping keys on Tuple DataSets.</b>
 		 *
 		 *
 		 * @param fields The indexes of the Tuple fields of the first co-grouped DataSets that should be used as keys.
@@ -424,10 +427,10 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		}
 
 		/**
-		 * Continues a CoGroup transformation. <br>
-		 * Defines the fields of the first co-grouped {@link DataSet} that should be used as grouping keys. Fields
-		 * are the names of member fields of the underlying type of the data set.
+		 * Continues a CoGroup transformation.
 		 *
+		 * <p>Defines the fields of the first co-grouped {@link DataSet} that should be used as grouping keys. Fields
+		 * are the names of member fields of the underlying type of the data set.
 		 *
 		 * @param fields The  fields of the first co-grouped DataSets that should be used as keys.
 		 * @return An incomplete CoGroup transformation.
@@ -441,9 +444,10 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		}
 
 		/**
-		 * Continues a CoGroup transformation and defines a {@link KeySelector} function for the first co-grouped {@link DataSet}.<br>
-		 * The KeySelector function is called for each element of the first DataSet and extracts a single
-		 * key value on which the DataSet is grouped. <br>
+		 * Continues a CoGroup transformation and defines a {@link KeySelector} function for the first co-grouped {@link DataSet}.
+		 *
+		 * <p>The KeySelector function is called for each element of the first DataSet and extracts a single
+		 * key value on which the DataSet is grouped.
 		 *
 		 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet on which it is grouped.
 		 * @return An incomplete CoGroup transformation.
@@ -460,8 +464,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		// ----------------------------------------------------------------------------------------
 
 		/**
-		 * Intermediate step of a CoGroup transformation. <br>
-		 * To continue the CoGroup transformation, select the grouping key of the second input {@link DataSet} by calling
+		 * Intermediate step of a CoGroup transformation.
+		 *
+		 * <p>To continue the CoGroup transformation, select the grouping key of the second input {@link DataSet} by calling
 		 * {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate#equalTo(int...)} or {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate#equalTo(KeySelector)}.
 		 *
 		 */
@@ -483,9 +488,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 			/**
 			 * Continues a CoGroup transformation and defines the {@link Tuple} fields of the second co-grouped
-			 * {@link DataSet} that should be used as grouping keys.<br>
-			 * <b>Note: Fields can only be selected as grouping keys on Tuple DataSets.</b><br>
+			 * {@link DataSet} that should be used as grouping keys.
 			 *
+			 * <p><b>Note: Fields can only be selected as grouping keys on Tuple DataSets.</b>
 			 *
 			 * @param fields The indexes of the Tuple fields of the second co-grouped DataSet that should be used as keys.
 			 * @return An incomplete CoGroup transformation.
@@ -497,8 +502,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 			/**
 			 * Continues a CoGroup transformation and defines the fields of the second co-grouped
-			 * {@link DataSet} that should be used as grouping keys.<br>
-			 *
+			 * {@link DataSet} that should be used as grouping keys.
 			 *
 			 * @param fields The  fields of the first co-grouped DataSets that should be used as keys.
 			 * @return An incomplete CoGroup transformation.
@@ -509,9 +513,10 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			}
 
 			/**
-			 * Continues a CoGroup transformation and defines a {@link KeySelector} function for the second co-grouped {@link DataSet}.<br>
-			 * The KeySelector function is called for each element of the second DataSet and extracts a single
-			 * key value on which the DataSet is grouped. <br>
+			 * Continues a CoGroup transformation and defines a {@link KeySelector} function for the second co-grouped {@link DataSet}.
+			 *
+			 * <p>The KeySelector function is called for each element of the second DataSet and extracts a single
+			 * key value on which the DataSet is grouped.
 			 *
 			 * @param keyExtractor The KeySelector function which extracts the key values from the second DataSet on which it is grouped.
 			 * @return An incomplete CoGroup transformation.
@@ -523,8 +528,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			}
 
 			/**
-			 * Intermediate step of a CoGroup transformation. <br>
-			 * To continue the CoGroup transformation, provide a {@link org.apache.flink.api.common.functions.RichCoGroupFunction} by calling
+			 * Intermediate step of a CoGroup transformation.
+			 *
+			 * <p>To continue the CoGroup transformation, provide a {@link org.apache.flink.api.common.functions.RichCoGroupFunction} by calling
 			 * {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate.CoGroupOperatorWithoutFunction#with(org.apache.flink.api.common.functions.CoGroupFunction)}.
 			 *
 			 */
@@ -602,8 +608,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				}
 
 				/**
-				 * Finalizes a CoGroup transformation by applying a {@link org.apache.flink.api.common.functions.RichCoGroupFunction} to groups of elements with identical keys.<br>
-				 * Each CoGroupFunction call returns an arbitrary number of keys.
+				 * Finalizes a CoGroup transformation by applying a {@link org.apache.flink.api.common.functions.RichCoGroupFunction} to groups of elements with identical keys.
+				 *
+				 * <p>Each CoGroupFunction call returns an arbitrary number of keys.
 				 *
 				 * @param function The CoGroupFunction that is called for all groups of elements with identical keys.
 				 * @return An CoGroupOperator that represents the co-grouped result DataSet.
@@ -629,9 +636,11 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 				/**
 				 * Sorts {@link org.apache.flink.api.java.tuple.Tuple} elements within a group in the first input on the
-				 * specified field in the specified {@link Order}.<br>
-				 * <b>Note: Only groups of Tuple elements and Pojos can be sorted.</b><br>
-				 * Groups can be sorted by multiple fields by chaining {@link #sortFirstGroup(int, Order)} calls.
+				 * specified field in the specified {@link Order}.
+				 *
+				 * <p><b>Note: Only groups of Tuple elements and Pojos can be sorted.</b>
+				 *
+				 * <p>Groups can be sorted by multiple fields by chaining {@link #sortFirstGroup(int, Order)} calls.
 				 *
 				 * @param field The Tuple field on which the group is sorted.
 				 * @param order The Order in which the specified Tuple field is sorted.
@@ -654,9 +663,11 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 				/**
 				 * Sorts {@link org.apache.flink.api.java.tuple.Tuple} elements within a group in the second input on the
-				 * specified field in the specified {@link Order}.<br>
-				 * <b>Note: Only groups of Tuple elements and Pojos can be sorted.</b><br>
-				 * Groups can be sorted by multiple fields by chaining {@link #sortSecondGroup(int, Order)} calls.
+				 * specified field in the specified {@link Order}.
+				 *
+				 * <p><b>Note: Only groups of Tuple elements and Pojos can be sorted.</b>
+				 *
+				 * <p>Groups can be sorted by multiple fields by chaining {@link #sortSecondGroup(int, Order)} calls.
 				 *
 				 * @param field The Tuple field on which the group is sorted.
 				 * @param order The Order in which the specified Tuple field is sorted.
@@ -679,8 +690,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 				/**
 				 * Sorts Pojo or {@link org.apache.flink.api.java.tuple.Tuple} elements within a group in the first input on the
-				 * specified field in the specified {@link Order}.<br>
-				 * Groups can be sorted by multiple fields by chaining {@link #sortFirstGroup(String, Order)} calls.
+				 * specified field in the specified {@link Order}.
+				 *
+				 * <p>Groups can be sorted by multiple fields by chaining {@link #sortFirstGroup(String, Order)} calls.
 				 *
 				 * @param fieldExpression The expression to the field on which the group is to be sorted.
 				 * @param order The Order in which the specified Tuple field is sorted.
@@ -702,8 +714,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 				/**
 				 * Sorts Pojo or {@link org.apache.flink.api.java.tuple.Tuple} elements within a group in the second input on the
-				 * specified field in the specified {@link Order}.<br>
-				 * Groups can be sorted by multiple fields by chaining {@link #sortSecondGroup(String, Order)} calls.
+				 * specified field in the specified {@link Order}.
+				 *
+				 * <p>Groups can be sorted by multiple fields by chaining {@link #sortSecondGroup(String, Order)} calls.
 				 *
 				 * @param fieldExpression The expression to the field on which the group is to be sorted.
 				 * @param order The Order in which the specified Tuple field is sorted.

@@ -27,7 +27,7 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
 
 /**
- * Definitions of sum function for different numerical types.
+ * Definitions of sum functions for different numerical types.
  * @param <T> type of elements being summed
  */
 @Internal

@@ -26,8 +26,9 @@ import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.java.DataSet;
 
 /**
- * Grouping is an intermediate step for a transformation on a grouped DataSet.<br>
- * The following transformation can be applied on Grouping:
+ * Grouping is an intermediate step for a transformation on a grouped DataSet.
+ *
+ * <p>The following transformation can be applied on Grouping:
  * <ul>
  * <li>{@link UnsortedGrouping#reduce(org.apache.flink.api.common.functions.ReduceFunction)},</li>
  * <li>{@link UnsortedGrouping#reduceGroup(org.apache.flink.api.common.functions.GroupReduceFunction)}, and</li>
@@ -67,7 +68,7 @@ public abstract class Grouping<T> {
 	 * <pre><code>
 	 * DataSet<X> notGrouped = input.groupBy().getDataSet();
 	 * DataSet<Y> allReduced = notGrouped.reduce()
-	 * </pre></code>
+	 * </code></pre>
 	 * the <code>groupBy()</code> is as if it never happened, as the <code>notGrouped</code> DataSet corresponds
 	 * to the input of the <code>groupBy()</code> (because of the <code>getDataset()</code>).
 	 * */

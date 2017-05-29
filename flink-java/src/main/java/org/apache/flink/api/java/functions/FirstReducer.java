@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;
 
 /**
- * Reducer that collects provided number of elements in a group.
+ * Reducer that only emits the first N elements in a group.
  * @param <T>
  */
 @Internal
