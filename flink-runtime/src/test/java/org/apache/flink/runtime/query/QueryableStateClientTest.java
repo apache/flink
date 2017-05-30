@@ -108,7 +108,7 @@ public class QueryableStateClientTest {
 			when(lookupService.getKvStateLookupInfo(eq(jobId), eq(query1)))
 					.thenReturn(unknownKvStateLocation);
 
-			Future<byte[]> result = client.getKvState(
+			Future<byte[]> result = client.requestKvState(
 					jobId,
 					query1,
 					0,
@@ -134,7 +134,7 @@ public class QueryableStateClientTest {
 			when(lookupService.getKvStateLookupInfo(eq(jobId), eq(query2)))
 					.thenReturn(unknownKeyGroupLocation);
 
-			result = client.getKvState(jobId, query2, 0, new byte[0]);
+			result = client.requestKvState(jobId, query2, 0, new byte[0]);
 
 			try {
 				Await.result(result, timeout);
@@ -164,7 +164,7 @@ public class QueryableStateClientTest {
 			when(networkClient.getKvState(eq(serverAddress), eq(kvStateId), any(byte[].class)))
 					.thenReturn(unknownKvStateId);
 
-			result = client.getKvState(jobId, query3, 0, new byte[0]);
+			result = client.requestKvState(jobId, query3, 0, new byte[0]);
 
 			try {
 				Await.result(result, timeout);
@@ -194,7 +194,7 @@ public class QueryableStateClientTest {
 			when(networkClient.getKvState(eq(serverAddress), eq(kvStateId), any(byte[].class)))
 					.thenReturn(connectException);
 
-			result = client.getKvState(jobId, query4, 0, new byte[0]);
+			result = client.requestKvState(jobId, query4, 0, new byte[0]);
 
 			try {
 				Await.result(result, timeout);
@@ -213,7 +213,7 @@ public class QueryableStateClientTest {
 			when(lookupService.getKvStateLookupInfo(eq(jobId), eq(query5)))
 					.thenReturn(exception);
 
-			client.getKvState(jobId, query5, 0, new byte[0]);
+			client.requestKvState(jobId, query5, 0, new byte[0]);
 
 			verify(lookupService, times(1)).getKvStateLookupInfo(eq(jobId), eq(query5));
 		} finally {
@@ -330,7 +330,7 @@ public class QueryableStateClientTest {
 						VoidNamespace.INSTANCE,
 						VoidNamespaceSerializer.INSTANCE);
 
-				futures.add(client.getKvState(jobId, "choco", key, serializedKeyAndNamespace));
+				futures.add(client.requestKvState(jobId, "choco", key, serializedKeyAndNamespace));
 			}
 
 			// Verify results
@@ -413,8 +413,8 @@ public class QueryableStateClientTest {
 
 		// Query ies with same name, but different job IDs should lead to a
 		// single lookup per query and job ID.
-		client.getKvState(jobId1, name, 0, new byte[0]);
-		client.getKvState(jobId2, name, 0, new byte[0]);
+		client.requestKvState(jobId1, name, 0, new byte[0]);
+		client.requestKvState(jobId2, name, 0, new byte[0]);
 
 		verify(lookupService, times(1)).getKvStateLookupInfo(eq(jobId1), eq(name));
 		verify(lookupService, times(1)).getKvStateLookupInfo(eq(jobId2), eq(name));

@@ -504,7 +504,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			long expected = numElements;
 
 			// query once
-			client.getKvState(jobId, queryableState.getQueryableStateName(), 0,
+			client.requestKvState(jobId, queryableState.getQueryableStateName(), 0,
 				KvStateRequestSerializer.serializeKeyAndNamespace(
 					0,
 					queryableState.getKeySerializer(),
@@ -926,7 +926,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			final FiniteDuration retryDelay,
 			final boolean failForUknownKeyOrNamespace) {
 
-		return client.getKvState(jobId, queryName, key, serializedKey)
+		return client.requestKvState(jobId, queryName, key, serializedKey)
 				.recoverWith(new Recover<Future<byte[]>>() {
 					@Override
 					public Future<byte[]> recover(Throwable failure) throws Throwable {
