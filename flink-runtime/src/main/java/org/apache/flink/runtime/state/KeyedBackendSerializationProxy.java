@@ -47,13 +47,16 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
 	private ClassLoader userCodeClassLoader;
 
+	private boolean excludeSerializers;
+
 	public KeyedBackendSerializationProxy(ClassLoader userCodeClassLoader) {
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 	}
 
 	public KeyedBackendSerializationProxy(
 			TypeSerializer<K> keySerializer,
-			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots) {
+			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots,
+			boolean excludeSerializers) {
 
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.keySerializerConfigSnapshot = Preconditions.checkNotNull(keySerializer.snapshotConfiguration());
@@ -61,6 +64,8 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		Preconditions.checkNotNull(stateMetaInfoSnapshots);
 		Preconditions.checkArgument(stateMetaInfoSnapshots.size() <= Short.MAX_VALUE);
 		this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
+
+		this.excludeSerializers = excludeSerializers;
 	}
 
 	public List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> getStateMetaInfoSnapshots() {
@@ -90,18 +95,21 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
 
+		out.writeBoolean(excludeSerializers);
+
 		// write in a way to be fault tolerant of read failures when deserializing the key serializer
 		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
 				out,
 				Collections.singletonList(
-					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(keySerializer, keySerializerConfigSnapshot)));
+					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(keySerializer, keySerializerConfigSnapshot)),
+				excludeSerializers);
 
 		// write individual registered keyed state metainfos
 		out.writeShort(stateMetaInfoSnapshots.size());
 		for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> metaInfo : stateMetaInfoSnapshots) {
 			KeyedBackendStateMetaInfoSnapshotReaderWriters
 				.getWriterForVersion(VERSION, metaInfo)
-				.writeStateMetaInfo(out);
+				.writeStateMetaInfo(out, excludeSerializers);
 		}
 	}
 
@@ -112,11 +120,17 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
 		// only starting from version 3, we have the key serializer and its config snapshot written
 		if (getReadVersion() >= 3) {
+			excludeSerializers = in.readBoolean();
+
 			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndConfig =
-					TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader).get(0);
+					TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
+						in, userCodeClassLoader, excludeSerializers).get(0);
+
 			this.keySerializer = (TypeSerializer<K>) keySerializerAndConfig.f0;
 			this.keySerializerConfigSnapshot = keySerializerAndConfig.f1;
 		} else {
+			excludeSerializers = false;
+
 			this.keySerializer = TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader);
 			this.keySerializerConfigSnapshot = null;
 		}
@@ -127,7 +141,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 			stateMetaInfoSnapshots.add(
 				KeyedBackendStateMetaInfoSnapshotReaderWriters
 					.getReaderForVersion(getReadVersion(), userCodeClassLoader)
-					.readStateMetaInfo(in));
+					.readStateMetaInfo(in, excludeSerializers));
 		}
 	}
 }

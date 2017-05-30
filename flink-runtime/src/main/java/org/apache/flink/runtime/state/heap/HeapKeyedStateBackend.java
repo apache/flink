@@ -273,7 +273,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		final KeyedBackendSerializationProxy<K> serializationProxy =
-				new KeyedBackendSerializationProxy<>(keySerializer, metaInfoSnapshots);
+				new KeyedBackendSerializationProxy<>(
+						keySerializer,
+						metaInfoSnapshots,
+						false); // TODO make this configurable
 
 		//--------------------------------------------------- this becomes the end of sync part
 

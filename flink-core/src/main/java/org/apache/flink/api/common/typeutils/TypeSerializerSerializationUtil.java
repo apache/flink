@@ -216,7 +216,7 @@ public class TypeSerializerSerializationUtil {
 	/**
 	 * Write a list of serializers and their corresponding config snapshots to the provided
 	 * data output view. This method writes in a fault tolerant way, so that when read again
-	 * using {@link #readSerializersAndConfigsWithResilience(DataInputView, ClassLoader)}, if
+	 * using {@link #readSerializersAndConfigsWithResilience(DataInputView, ClassLoader, boolean)}, if
 	 * deserialization of the serializer fails, its configuration snapshot will remain intact.
 	 *
 	 * <p>Specifically, all written serializers and their config snapshots are indexed by their
@@ -234,18 +234,21 @@ public class TypeSerializerSerializationUtil {
 	 */
 	public static void writeSerializersAndConfigsWithResilience(
 			DataOutputView out,
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs) throws IOException {
+			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs,
+			boolean excludeSerializers) throws IOException {
 
 		out.writeInt(serializersAndConfigs.size());
 		for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> serAndConfSnapshot : serializersAndConfigs) {
-			writeSerializerWithResilience(out, serAndConfSnapshot.f0);
+			if (!excludeSerializers) {
+				writeSerializerWithResilience(out, serAndConfSnapshot.f0);
+			}
 			writeSerializerConfigSnapshot(out, serAndConfSnapshot.f1);
 		}
 	}
 
 	/**
 	 * Reads from a data input view a list of serializers and their corresponding config snapshots
-	 * written using {@link #writeSerializersAndConfigsWithResilience(DataOutputView, List)}.
+	 * written using {@link #writeSerializersAndConfigsWithResilience(DataOutputView, List, boolean)}.
 	 * This is fault tolerant to any failures when deserializing the serializers. Serializers which
 	 * were not successfully deserialized will be replaced by {@code null}.
 	 *
@@ -258,18 +261,27 @@ public class TypeSerializerSerializationUtil {
 	 */
 	public static List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> readSerializersAndConfigsWithResilience(
 			DataInputView in,
-			ClassLoader userCodeClassLoader) throws IOException {
+			ClassLoader userCodeClassLoader,
+			boolean excludeSerializers) throws IOException {
 
 		int numSerializersAndConfigSnapshots = in.readInt();
 
 		List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigSnapshots =
 			new ArrayList<>(numSerializersAndConfigSnapshots);
 
+		TypeSerializer<?> serializer;
+		TypeSerializerConfigSnapshot serializerConfigSnapshot;
 		for (int i = 0; i < numSerializersAndConfigSnapshots; i++) {
-			serializersAndConfigSnapshots.add(new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
-				tryReadSerializerWithResilience(in, userCodeClassLoader),
-				readSerializerConfigSnapshot(in, userCodeClassLoader))
-			);
+			serializer = excludeSerializers
+				? null
+				: tryReadSerializerWithResilience(in, userCodeClassLoader);
+
+			serializerConfigSnapshot = readSerializerConfigSnapshot(in, userCodeClassLoader);
+
+			serializersAndConfigSnapshots.add(
+				new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
+					serializer,
+					serializerConfigSnapshot));
 		}
 
 		return serializersAndConfigSnapshots;

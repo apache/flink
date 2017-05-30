@@ -42,6 +42,13 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 
 	private List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> nestedSerializersAndConfigs;
 
+	/**
+	 * Flag indicating whether or not serializers should be excluded from the configuration snapshot.
+	 *
+	 * TODO this is currently a placeholder flag; the behaviour is not yet externally configurable.
+	 */
+	private boolean excludeSerializers = false;
+
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public CompositeTypeSerializerConfigSnapshot() {}
 
@@ -61,14 +68,20 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
-		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(out, nestedSerializersAndConfigs);
+
+		out.writeBoolean(excludeSerializers);
+
+		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(out, nestedSerializersAndConfigs, excludeSerializers);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
+
+		excludeSerializers = in.readBoolean();
+
 		this.nestedSerializersAndConfigs =
-			TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, getUserCodeClassLoader());
+			TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, getUserCodeClassLoader(), excludeSerializers);
 	}
 
 	public List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getNestedSerializersAndConfigs() {

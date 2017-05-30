@@ -225,7 +225,9 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 					DataOutputView dov = new DataOutputViewStreamWrapper(out);
 
 					OperatorBackendSerializationProxy backendSerializationProxy =
-						new OperatorBackendSerializationProxy(metaInfoSnapshots);
+						new OperatorBackendSerializationProxy(
+							metaInfoSnapshots,
+							false); // TODO make this configurable
 
 					backendSerializationProxy.write(dov);
 

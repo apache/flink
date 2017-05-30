@@ -213,7 +213,7 @@ public class TypeSerializerSerializationUtilTest {
 		byte[] serializedSerializersAndConfigs;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 			TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
-					new DataOutputViewStreamWrapper(out), serializersAndConfigs);
+					new DataOutputViewStreamWrapper(out), serializersAndConfigs, false);
 			serializedSerializersAndConfigs = out.toByteArray();
 		}
 
@@ -226,7 +226,7 @@ public class TypeSerializerSerializationUtilTest {
 		List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> restored;
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedSerializersAndConfigs)) {
 			restored = TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
-				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader(), false);
 		}
 
 		Assert.assertEquals(2, restored.size());
