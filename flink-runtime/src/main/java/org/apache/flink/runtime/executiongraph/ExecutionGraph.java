@@ -207,6 +207,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	/** Checkpoint stats tracker separate from the coordinator in order to be
 	 * available after archiving. */
+	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private CheckpointStatsTracker checkpointStatsTracker;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
