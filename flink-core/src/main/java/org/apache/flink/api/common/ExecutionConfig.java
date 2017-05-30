@@ -118,6 +118,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private boolean forceAvro = false;
 
+	/** Flag to indicate whether or not serializers should be written into checkpoints */
+	private boolean excludeSerializersFromCheckpoints = false;
+
 	private CodeAnalysisMode codeAnalysisMode = CodeAnalysisMode.DISABLE;
 
 	/** If set to true, progress updates are printed to System.out during execution */
@@ -579,6 +582,27 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	public boolean isForceAvroEnabled() {
 		return forceAvro;
+	}
+
+	/**
+	 * Include serializers in checkpoints. Both serializers and their configuration snapshots will be written.
+	 */
+	public void includeSerializersInCheckpoints() {
+		excludeSerializersFromCheckpoints = false;
+	}
+
+	/**
+	 * Exclude serializers from checkpoints. Only the serializer's configuration snapshots will be written.
+	 */
+	public void excludeSerializersFromCheckpoints() {
+		excludeSerializersFromCheckpoints = true;
+	}
+
+	/**
+	 * Returns whether serializers should be excluded from checkpoints.
+	 */
+	public boolean isExcludeSerializersFromCheckpoints() {
+		return excludeSerializersFromCheckpoints;
 	}
 
 	/**
