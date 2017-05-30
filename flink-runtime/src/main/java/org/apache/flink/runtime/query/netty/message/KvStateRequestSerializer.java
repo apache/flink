@@ -350,7 +350,6 @@ public final class KvStateRequestSerializer {
 		DataOutputSerializer dos = new DataOutputSerializer(32);
 
 		keySerializer.serialize(key, dos);
-		dos.writeByte(42);
 		namespaceSerializer.serialize(namespace, dos);
 
 		return dos.getCopyOfBuffer();
@@ -379,10 +378,6 @@ public final class KvStateRequestSerializer {
 
 		try {
 			K key = keySerializer.deserialize(dis);
-			byte magicNumber = dis.readByte();
-			if (magicNumber != 42) {
-				throw new IOException("Unexpected magic number " + magicNumber + ".");
-			}
 			N namespace = namespaceSerializer.deserialize(dis);
 
 			if (dis.available() > 0) {
