@@ -18,14 +18,6 @@
 
 package org.apache.flink.test.manual;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.Random;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -42,12 +34,24 @@ import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.Assert;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Random;
+
+/**
+ * Test {@link UnilateralSortMerger} on a large set of {@link StringValue}.
+ */
 public class MassiveStringValueSorting {
 
 	private static final long SEED = 347569784659278346L;
-	
+
 	public void testStringValueSorting() {
 		File input = null;
 		File sorted = null;
@@ -55,12 +59,12 @@ public class MassiveStringValueSorting {
 		try {
 			// the source file
 			input = generateFileWithStrings(300000, "http://some-uri.com/that/is/a/common/prefix/to/all");
-			
+
 			// the sorted file
 			sorted = File.createTempFile("sorted_strings", "txt");
-			
-			String[] command = {"/bin/bash","-c","export LC_ALL=\"C\" && cat \"" + input.getAbsolutePath() + "\" | sort > \"" + sorted.getAbsolutePath() + "\""};
-			
+
+			String[] command = {"/bin/bash", "-c", "export LC_ALL=\"C\" && cat \"" + input.getAbsolutePath() + "\" | sort > \"" + sorted.getAbsolutePath() + "\""};
+
 			Process p = null;
 			try {
 				p = Runtime.getRuntime().exec(command);
@@ -74,38 +78,38 @@ public class MassiveStringValueSorting {
 					p.destroy();
 				}
 			}
-			
+
 			// sort the data
 			UnilateralSortMerger<StringValue> sorter = null;
 			BufferedReader reader = null;
 			BufferedReader verifyReader = null;
-			
+
 			try {
 				MemoryManager mm = new MemoryManager(1024 * 1024, 1);
 				IOManager ioMan = new IOManagerAsync();
-					
+
 				TypeSerializer<StringValue> serializer = new CopyableValueSerializer<StringValue>(StringValue.class);
 				TypeComparator<StringValue> comparator = new CopyableValueComparator<StringValue>(true, StringValue.class);
-				
+
 				reader = new BufferedReader(new FileReader(input));
 				MutableObjectIterator<StringValue> inputIterator = new StringValueReaderMutableObjectIterator(reader);
-				
+
 				sorter = new UnilateralSortMerger<StringValue>(mm, ioMan, inputIterator, new DummyInvokable(),
 						new RuntimeSerializerFactory<StringValue>(serializer, StringValue.class), comparator, 1.0, 4, 0.8f,
 						true /* use large record handler */, true);
 
 				MutableObjectIterator<StringValue> sortedData = sorter.getIterator();
-				
+
 				reader.close();
-				
+
 				// verify
 				verifyReader = new BufferedReader(new FileReader(sorted));
 				String nextVerify;
 				StringValue nextFromFlinkSort = new StringValue();
-				
+
 				while ((nextVerify = verifyReader.readLine()) != null) {
 					nextFromFlinkSort = sortedData.next(nextFromFlinkSort);
-					
+
 					Assert.assertNotNull(nextFromFlinkSort);
 					Assert.assertEquals(nextVerify, nextFromFlinkSort.getValue());
 				}
@@ -138,23 +142,23 @@ public class MassiveStringValueSorting {
 			}
 		}
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	public void testStringValueTuplesSorting() {
-		final int NUM_STRINGS = 300000;
-		
+		final int numStrings = 300000;
+
 		File input = null;
 		File sorted = null;
 
 		try {
 			// the source file
-			input = generateFileWithStringTuples(NUM_STRINGS, "http://some-uri.com/that/is/a/common/prefix/to/all");
-			
+			input = generateFileWithStringTuples(numStrings, "http://some-uri.com/that/is/a/common/prefix/to/all");
+
 			// the sorted file
 			sorted = File.createTempFile("sorted_strings", "txt");
-			
-			String[] command = {"/bin/bash","-c","export LC_ALL=\"C\" && cat \"" + input.getAbsolutePath() + "\" | sort > \"" + sorted.getAbsolutePath() + "\""};
-			
+
+			String[] command = {"/bin/bash", "-c", "export LC_ALL=\"C\" && cat \"" + input.getAbsolutePath() + "\" | sort > \"" + sorted.getAbsolutePath() + "\""};
+
 			Process p = null;
 			try {
 				p = Runtime.getRuntime().exec(command);
@@ -168,33 +172,31 @@ public class MassiveStringValueSorting {
 					p.destroy();
 				}
 			}
-			
+
 			// sort the data
 			UnilateralSortMerger<Tuple2<StringValue, StringValue[]>> sorter = null;
 			BufferedReader reader = null;
 			BufferedReader verifyReader = null;
-			
+
 			try {
 				MemoryManager mm = new MemoryManager(1024 * 1024, 1);
 				IOManager ioMan = new IOManagerAsync();
-					
+
 				TupleTypeInfo<Tuple2<StringValue, StringValue[]>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, StringValue[]>>)
 						TypeInfoParser.<Tuple2<StringValue, StringValue[]>>parse("Tuple2<org.apache.flink.types.StringValue, org.apache.flink.types.StringValue[]>");
 
 				TypeSerializer<Tuple2<StringValue, StringValue[]>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 				TypeComparator<Tuple2<StringValue, StringValue[]>> comparator = typeInfo.createComparator(new int[] { 0 }, new boolean[] { true }, 0, new ExecutionConfig());
-				
+
 				reader = new BufferedReader(new FileReader(input));
 				MutableObjectIterator<Tuple2<StringValue, StringValue[]>> inputIterator = new StringValueTupleReaderMutableObjectIterator(reader);
-				
+
 				sorter = new UnilateralSortMerger<Tuple2<StringValue, StringValue[]>>(mm, ioMan, inputIterator, new DummyInvokable(),
 						new RuntimeSerializerFactory<Tuple2<StringValue, StringValue[]>>(serializer, (Class<Tuple2<StringValue, StringValue[]>>) (Class<?>) Tuple2.class), comparator, 1.0, 4, 0.8f,
 						true /* use large record handler */, false);
 
-				
-				
 				// use this part to verify that all if good when sorting in memory
-				
+
 //				List<MemorySegment> memory = mm.allocatePages(new DummyInvokable(), mm.computeNumberOfPages(1024*1024*1024));
 //				NormalizedKeySorter<Tuple2<String, String[]>> nks = new NormalizedKeySorter<Tuple2<String,String[]>>(serializer, comparator, memory);
 //
@@ -203,36 +205,36 @@ public class MassiveStringValueSorting {
 //					while ((wi = inputIterator.next(wi)) != null) {
 //						Assert.assertTrue(nks.write(wi));
 //					}
-//					
+//
 //					new QuickSort().sort(nks);
 //				}
-//				
+//
 //				MutableObjectIterator<Tuple2<String, String[]>> sortedData = nks.getIterator();
-				
+
 				MutableObjectIterator<Tuple2<StringValue, StringValue[]>> sortedData = sorter.getIterator();
 				reader.close();
-				
+
 				// verify
 				verifyReader = new BufferedReader(new FileReader(sorted));
 				MutableObjectIterator<Tuple2<StringValue, StringValue[]>> verifyIterator = new StringValueTupleReaderMutableObjectIterator(verifyReader);
-				
+
 				Tuple2<StringValue, StringValue[]> nextVerify = new Tuple2<StringValue, StringValue[]>(new StringValue(), new StringValue[0]);
 				Tuple2<StringValue, StringValue[]> nextFromFlinkSort = new Tuple2<StringValue, StringValue[]>(new StringValue(), new StringValue[0]);
-				
+
 				int num = 0;
-				
+
 				while ((nextVerify = verifyIterator.next(nextVerify)) != null) {
 					num++;
-					
+
 					nextFromFlinkSort = sortedData.next(nextFromFlinkSort);
 					Assert.assertNotNull(nextFromFlinkSort);
-					
+
 					Assert.assertEquals(nextVerify.f0, nextFromFlinkSort.f0);
 					Assert.assertArrayEquals(nextVerify.f1, nextFromFlinkSort.f1);
 				}
-				
+
 				Assert.assertNull(sortedData.next(nextFromFlinkSort));
-				Assert.assertEquals(NUM_STRINGS, num);
+				Assert.assertEquals(numStrings, num);
 
 			}
 			finally {
@@ -265,23 +267,23 @@ public class MassiveStringValueSorting {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	private static final class StringValueReaderMutableObjectIterator implements MutableObjectIterator<StringValue> {
-		
+
 		private final BufferedReader reader;
 
 		public StringValueReaderMutableObjectIterator(BufferedReader reader) {
 			this.reader = reader;
 		}
-		
+
 		@Override
 		public StringValue next(StringValue reuse) throws IOException {
 			String line = reader.readLine();
-			
+
 			if (line == null) {
 				return null;
 			}
-			
+
 			reuse.setValue(line);
 			return reuse;
 		}
@@ -291,30 +293,30 @@ public class MassiveStringValueSorting {
 			return next(new StringValue());
 		}
 	}
-	
+
 	private static final class StringValueTupleReaderMutableObjectIterator implements MutableObjectIterator<Tuple2<StringValue, StringValue[]>> {
-		
+
 		private final BufferedReader reader;
 
 		public StringValueTupleReaderMutableObjectIterator(BufferedReader reader) {
 			this.reader = reader;
 		}
-		
+
 		@Override
 		public Tuple2<StringValue, StringValue[]> next(Tuple2<StringValue, StringValue[]> reuse) throws IOException {
 			String line = reader.readLine();
 			if (line == null) {
 				return null;
 			}
-			
+
 			String[] parts = line.split(" ");
 			reuse.f0.setValue(parts[0]);
 			reuse.f1 = new StringValue[parts.length];
-			
+
 			for (int i = 0; i < parts.length; i++) {
 				reuse.f1[i] = new StringValue(parts[i]);
 			}
-			
+
 			return reuse;
 		}
 
@@ -323,31 +325,31 @@ public class MassiveStringValueSorting {
 			return next(new Tuple2<StringValue, StringValue[]>(new StringValue(), new StringValue[0]));
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	private File generateFileWithStrings(int numStrings, String prefix) throws IOException {
 		final Random rnd = new Random(SEED);
-		
+
 		final StringBuilder bld = new StringBuilder();
 		final int resetValue = prefix.length();
-		
+
 		bld.append(prefix);
-		
+
 		File f = File.createTempFile("strings", "txt");
 		BufferedWriter wrt = null;
 		try {
 			wrt = new BufferedWriter(new FileWriter(f));
-		
-			for (int i = 0 ; i < numStrings; i++) {
+
+			for (int i = 0; i < numStrings; i++) {
 				bld.setLength(resetValue);
-				
+
 				int len = rnd.nextInt(20) + 300;
 				for (int k = 0; k < len; k++) {
 					char c = (char) (rnd.nextInt(80) + 40);
 					bld.append(c);
 				}
-				
+
 				String str = bld.toString();
 				wrt.write(str);
 				wrt.newLine();
@@ -357,40 +359,40 @@ public class MassiveStringValueSorting {
 				wrt.close();
 			}
 		}
-		
+
 		return f;
 	}
-	
+
 	private File generateFileWithStringTuples(int numStrings, String prefix) throws IOException {
 		final Random rnd = new Random(SEED);
-		
+
 		final StringBuilder bld = new StringBuilder();
 
 		File f = File.createTempFile("strings", "txt");
 		BufferedWriter wrt = null;
 		try {
 			wrt = new BufferedWriter(new FileWriter(f));
-		
-			for (int i = 0 ; i < numStrings; i++) {
+
+			for (int i = 0; i < numStrings; i++) {
 				bld.setLength(0);
-				
+
 				int numComps = rnd.nextInt(5) + 1;
-				
+
 				for (int z = 0; z < numComps; z++) {
 					if (z > 0) {
 						bld.append(' ');
 					}
 					bld.append(prefix);
-				
+
 					int len = rnd.nextInt(20) + 10;
 					for (int k = 0; k < len; k++) {
 						char c = (char) (rnd.nextInt(80) + 40);
 						bld.append(c);
 					}
 				}
-				
+
 				String str = bld.toString();
-				
+
 				wrt.write(str);
 				wrt.newLine();
 			}
@@ -399,12 +401,12 @@ public class MassiveStringValueSorting {
 				wrt.close();
 			}
 		}
-		
+
 		return f;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static void main(String[] args) {
 		new MassiveStringValueSorting().testStringValueSorting();
 		new MassiveStringValueSorting().testStringValueTuplesSorting();

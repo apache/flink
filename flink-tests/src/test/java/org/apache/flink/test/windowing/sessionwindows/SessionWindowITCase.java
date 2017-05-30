@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -44,7 +45,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * ITCase for Session Windows
+ * ITCase for Session Windows.
  */
 public class SessionWindowITCase extends StreamingMultipleProgramsTestBase {
 
@@ -100,11 +101,10 @@ public class SessionWindowITCase extends StreamingMultipleProgramsTestBase {
 			WindowFunction<SessionEvent<Integer, TestEventPayload>,
 					String, Tuple, TimeWindow> windowFunction) throws Exception {
 
-
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		WindowedStream<SessionEvent<Integer, TestEventPayload>, Tuple, TimeWindow> windowedStream
-				= env.addSource(dataSource).keyBy("sessionKey")
+		WindowedStream<SessionEvent<Integer, TestEventPayload>, Tuple, TimeWindow> windowedStream =
+				env.addSource(dataSource).keyBy("sessionKey")
 				.window(EventTimeSessionWindows.withGap(Time.milliseconds(MAX_SESSION_EVENT_GAP_MS)));
 
 		if (ALLOWED_LATENESS_MS != Long.MAX_VALUE) {
@@ -129,7 +129,7 @@ public class SessionWindowITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 	/**
-	 * Window function that performs correctness checks for this test case
+	 * Window function that performs correctness checks for this test case.
 	 */
 	private static final class ValidatingWindowFunction extends RichWindowFunction<SessionEvent<Integer,
 			TestEventPayload>, String, Tuple, TimeWindow> {
@@ -200,7 +200,7 @@ public class SessionWindowITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 	/**
-	 * A data source that is fed from a ParallelSessionsEventGenerator
+	 * A data source that is fed from a ParallelSessionsEventGenerator.
 	 */
 	private static final class SessionEventGeneratorDataSource
 			implements SourceFunction<SessionEvent<Integer, TestEventPayload>> {

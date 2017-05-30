@@ -23,6 +23,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.test.util.JavaProgramTestBase;
+
 import org.junit.Rule;
 import org.junit.rules.Timeout;
 
@@ -60,7 +61,7 @@ public class JoinDeadlockITCase extends JavaProgramTestBase {
 		env.execute();
 	}
 
-	public static class TupleWrapper implements MapFunction<Long, Tuple1<Long>> {
+	private static class TupleWrapper implements MapFunction<Long, Tuple1<Long>> {
 
 		@Override
 		public Tuple1<Long> map(Long l) throws Exception {

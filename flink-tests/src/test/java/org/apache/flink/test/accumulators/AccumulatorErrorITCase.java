@@ -24,7 +24,6 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -32,18 +31,18 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-
 import static org.junit.Assert.fail;
 
 /**
- * Tests cases where Accumulator are
+ * Tests cases where accumulators:
  *  a) throw errors during runtime
- *  b) is not compatible with existing accumulator
+ *  b) are not compatible with existing accumulator.
  */
 public class AccumulatorErrorITCase extends TestLogger {
 
@@ -90,7 +89,6 @@ public class AccumulatorErrorITCase extends TestLogger {
 					e.getCause() instanceof CustomException);
 		}
 	}
-
 
 	@Test
 	public void testInvalidTypeAccumulator() throws Exception {

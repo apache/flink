@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.manual;
 
 import org.apache.flink.types.parser.FieldParserTest;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 import org.reflections.Reflections;
 import org.reflections.scanners.MemberUsageScanner;
 import org.reflections.util.ClasspathHelper;
@@ -40,7 +40,7 @@ import static org.junit.Assert.assertEquals;
 
 /**
  * Tests via reflection that certain methods are not called in Flink.
- * 
+ *
  * <p>Forbidden calls include:
  *   - Byte / String conversions that do not specify an explicit charset
  *     because they produce different results in different locales
@@ -116,11 +116,10 @@ public class CheckForbiddenMethodsUsage {
 			.addUrls(ClasspathHelper.forPackage("org.apache.flink"))
 			.addScanners(new MemberUsageScanner()));
 
-
 		for (ForbiddenCall forbiddenCall : forbiddenCalls) {
 			final Set<Member> methodUsages = forbiddenCall.getUsages(reflections);
 			methodUsages.removeAll(forbiddenCall.getExclusions());
-			assertEquals("Unexpected calls: " + methodUsages,0, methodUsages.size());
+			assertEquals("Unexpected calls: " + methodUsages, 0, methodUsages.size());
 		}
 	}
 }

@@ -35,6 +35,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -42,6 +43,9 @@ import java.io.IOException;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Integration tests for {@link OperatorStateBackend}.
+ */
 public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 
 	/**
@@ -58,10 +62,9 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		see.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		see.setStateBackend(new FailingStateBackend());
 
-
 		see.fromElements(new Tuple2<>("Hello", 1))
 			.keyBy(0)
-			.map(new RichMapFunction<Tuple2<String,Integer>, String>() {
+			.map(new RichMapFunction<Tuple2<String, Integer>, String>() {
 				private static final long serialVersionUID = 1L;
 
 				@Override
@@ -87,7 +90,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	public static class FailingStateBackend extends AbstractStateBackend {
+	private static class FailingStateBackend extends AbstractStateBackend {
 		private static final long serialVersionUID = 1L;
 
 		@Override

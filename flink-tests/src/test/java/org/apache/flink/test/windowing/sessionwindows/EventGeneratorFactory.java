@@ -23,9 +23,8 @@ import org.apache.flink.util.Preconditions;
 import java.util.HashMap;
 import java.util.Map;
 
-
 /**
- * Produces the session event generators
+ * Produces the session event generators.
  *
  * @param <K> type of session keys
  */

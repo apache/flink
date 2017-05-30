@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.state.operator.restore.keyed;
 
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -22,6 +23,9 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 
+/**
+ * Test state restoration for a keyed operator restore tests.
+ */
 public class KeyedComplexChainTest extends AbstractKeyedOperatorRestoreTestBase {
 
 	public KeyedComplexChainTest(String savepointPath) {

@@ -18,9 +18,6 @@
 
 package org.apache.flink.test.iterative;
 
-import java.io.BufferedReader;
-
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.aggregation.Aggregations;
@@ -33,22 +30,24 @@ import org.apache.flink.examples.java.graph.ConnectedComponents.UndirectEdge;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+import java.io.BufferedReader;
+
+/**
+ * Delta iteration test implementing the connected components algorithm with an object map.
+ */
 @SuppressWarnings("serial")
 public class ConnectedComponentsWithObjectMapITCase extends JavaProgramTestBase {
-	
+
 	private static final long SEED = 0xBADC0FFEEBEEFL;
-	
+
 	private static final int NUM_VERTICES = 1000;
-	
+
 	private static final int NUM_EDGES = 10000;
 
-	
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
 
-	
-	
 	@Override
 	protected void preSubmit() throws Exception {
 		verticesPath = createTempFile("vertices.txt", ConnectedComponentsData.getEnumeratingVertices(NUM_VERTICES));
@@ -63,26 +62,25 @@ public class ConnectedComponentsWithObjectMapITCase extends JavaProgramTestBase 
 		}
 	}
 
-	
 	@Override
 	protected void testProgram() throws Exception {
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
+
 		// read vertex and edge data
 		DataSet<Tuple1<Long>> vertices = env.readCsvFile(verticesPath).types(Long.class);
-		
+
 		DataSet<Tuple2<Long, Long>> edges = env.readCsvFile(edgesPath).fieldDelimiter(" ").types(Long.class, Long.class)
 												.flatMap(new UndirectEdge());
-				
+
 		// assign the initial components (equal to the vertex id)
 		DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices.map(new ConnectedComponentsITCase.DuplicateValue<Long>());
-						
+
 		// open a delta iteration
 		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
 				verticesWithInitialId.iterateDelta(verticesWithInitialId, 100, 0);
 		iteration.setSolutionSetUnManaged(true);
-				
+
 		// apply the step logic: join with the edges, select the minimum neighbor, update if the component of the candidate is smaller
 		DataSet<Tuple2<Long, Long>> changes = iteration.getWorkset().join(edges).where(0).equalTo(0).with(new NeighborWithComponentIDJoin())
 				.groupBy(0).aggregate(Aggregations.MIN, 1)
@@ -91,11 +89,11 @@ public class ConnectedComponentsWithObjectMapITCase extends JavaProgramTestBase 
 
 		// close the delta iteration (delta and new workset are identical)
 		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
-				
+
 		result.writeAsCsv(resultPath, "\n", " ");
-		
+
 		// execute program
 		env.execute("Connected Components Example");
 	}
-	
+
 }

@@ -33,7 +33,7 @@ import java.util.Collection;
 /**
  * This class belongs to the {@link org.apache.flink.test.classloading.ClassLoaderITCase} test.
  *
- * It tests dynamic class loading for:
+ * <p>It tests dynamic class loading for:
  * <ul>
  *     <li>Custom Functions</li>
  *     <li>Custom Data Types</li>
@@ -41,8 +41,7 @@ import java.util.Collection;
  *     <li>Custom Types in collect()</li>
  * </ul>
  *
- * <p>
- * It's removed by Maven from classpath, so other tests must not depend on it.
+ * <p>It's removed by Maven from classpath, so other tests must not depend on it.
  */
 @SuppressWarnings("serial")
 public class KMeansForTest {
@@ -124,7 +123,7 @@ public class KMeansForTest {
 		}
 
 		public double euclideanDistance(Point other) {
-			return Math.sqrt((x-other.x)*(x-other.x) + (y-other.y)*(y-other.y));
+			return Math.sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y));
 		}
 
 		public void clear() {
@@ -147,7 +146,7 @@ public class KMeansForTest {
 		public Centroid() {}
 
 		public Centroid(int id, double x, double y) {
-			super(x,y);
+			super(x, y);
 			this.id = id;
 		}
 
@@ -166,7 +165,9 @@ public class KMeansForTest {
 	//     USER FUNCTIONS
 	// *************************************************************************
 
-	/** Converts a Tuple2<Double,Double> into a Point. */
+	/**
+	 * Converts a {@code Tuple2<Double, Double>} into a {@link Point}.
+	 */
 	public static final class TuplePointConverter extends RichMapFunction<String, Point> {
 
 		@Override
@@ -176,7 +177,9 @@ public class KMeansForTest {
 		}
 	}
 
-	/** Converts a Tuple3<Integer, Double,Double> into a Centroid. */
+	/**
+	 * Converts a {@code Tuple3<Integer, Double, Double>} into a {@link Centroid}.
+	 */
 	public static final class TupleCentroidConverter extends RichMapFunction<String, Centroid> {
 
 		@Override
@@ -186,7 +189,9 @@ public class KMeansForTest {
 		}
 	}
 
-	/** Determines the closest cluster center for a data point. */
+	/**
+	 * Determines the closest cluster center for a data point.
+	 */
 	public static final class SelectNearestCenter extends RichMapFunction<Point, Tuple2<Integer, Point>> {
 
 		private Collection<Centroid> centroids;
@@ -197,7 +202,7 @@ public class KMeansForTest {
 		public void open(Configuration parameters) throws Exception {
 			this.centroids = getRuntimeContext().getBroadcastVariable("centroids");
 			this.acc = new CustomAccumulator();
-			 getRuntimeContext().addAccumulator("myAcc", this.acc);
+			getRuntimeContext().addAccumulator("myAcc", this.acc);
 		}
 
 		@Override
@@ -224,7 +229,9 @@ public class KMeansForTest {
 		}
 	}
 
-	// Use this so that we can check whether POJOs and the POJO comparator also work
+	/**
+	 * 	Use this so that we can check whether POJOs and the POJO comparator also work.
+	 */
 	public static final class DummyTuple3IntPointLong {
 		public Integer field0;
 		public Point field1;
@@ -239,7 +246,9 @@ public class KMeansForTest {
 		}
 	}
 
-	/** Appends a count variable to the tuple. */
+	/**
+	 * Appends a count variable to the tuple.
+	 */
 	public static final class CountAppender extends RichMapFunction<Tuple2<Integer, Point>, DummyTuple3IntPointLong> {
 
 		@Override
@@ -248,7 +257,9 @@ public class KMeansForTest {
 		}
 	}
 
-	/** Sums and counts point coordinates. */
+	/**
+	 * Sums and counts point coordinates.
+	 */
 	public static final class CentroidAccumulator extends RichReduceFunction<DummyTuple3IntPointLong> {
 
 		@Override
@@ -257,7 +268,9 @@ public class KMeansForTest {
 		}
 	}
 
-	/** Computes new centroid from coordinate sum and count of points. */
+	/**
+	 * Computes new centroid from coordinate sum and count of points.
+	 */
 	public static final class CentroidAverager extends RichMapFunction<DummyTuple3IntPointLong, Centroid> {
 
 		@Override
@@ -266,7 +279,7 @@ public class KMeansForTest {
 		}
 	}
 
-	public static class CustomAccumulator implements SimpleAccumulator<Long> {
+	private static class CustomAccumulator implements SimpleAccumulator<Long> {
 
 		private long value;
 

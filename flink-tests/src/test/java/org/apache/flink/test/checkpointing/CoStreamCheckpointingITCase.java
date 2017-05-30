@@ -50,12 +50,10 @@ import static org.junit.Assert.assertTrue;
  * {@link org.apache.flink.test.checkpointing.StreamCheckpointingITCase} in that it contains
  * a TwoInput (or co-) Task.
  *
- * <p>
- * This checks whether checkpoint barriers correctly trigger TwoInputTasks and also whether
+ * <p>This checks whether checkpoint barriers correctly trigger TwoInputTasks and also whether
  * this barriers are correctly forwarded.
  *
- * <p>
- * The test triggers a failure after a while and verifies that, after completion, the
+ * <p>The test triggers a failure after a while and verifies that, after completion, the
  * state reflects the "exactly once" semantics.
  */
 @SuppressWarnings({"serial", "deprecation"})
@@ -65,8 +63,7 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 	private static final int PARALLELISM = 4;
 
 	/**
-	 * Runs the following program:
-	 *
+	 * Runs the following program.
 	 * <pre>
 	 *     [ (source)->(filter)->(map) ] -> [ (co-map) ] -> [ (map) ] -> [ (groupBy/reduce)->(sink) ]
 	 * </pre>
@@ -136,7 +133,6 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 		assertEquals(NUM_STRINGS, countSum);
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 	//  Custom Functions
 	// --------------------------------------------------------------------------------------------
@@ -145,7 +141,7 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 	 * A generating source that is slow before the first two checkpoints went through
 	 * and will indefinitely stall at a certain point to allow the checkpoint to complete.
 	 *
-	 * After the checkpoints are through, it continues with full speed.
+	 * <p>After the checkpoints are through, it continues with full speed.
 	 */
 	private static class StringGeneratingSourceFunction extends RichParallelSourceFunction<String>
 			implements ListCheckpointed<Integer>, CheckpointListener {
@@ -174,7 +170,7 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 			final int step = getRuntimeContext().getNumberOfParallelSubtasks();
 			if (index < 0) {
 				// not been restored, so initialize
-				index =getRuntimeContext().getIndexOfThisSubtask();
+				index = getRuntimeContext().getIndexOfThisSubtask();
 			}
 
 			while (isRunning && index < numElements) {
@@ -243,11 +239,11 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 		}
 	}
 
-	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount> 
+	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount>
 			implements ListCheckpointed<Long> {
 
-		static final long[] counts = new long[PARALLELISM];
-		
+		static long[] counts = new long[PARALLELISM];
+
 		private long count;
 
 		@Override
@@ -312,7 +308,7 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 
 	private static class StringRichFilterFunction extends RichFilterFunction<String> implements ListCheckpointed<Long> {
 
-		static final long[] counts = new long[PARALLELISM];
+		static long[] counts = new long[PARALLELISM];
 
 		private long count = 0L;
 
@@ -342,8 +338,8 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 	}
 
 	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount> implements ListCheckpointed<Long> {
-		
-		static final long[] counts = new long[PARALLELISM];
+
+		static long[] counts = new long[PARALLELISM];
 
 		private long count;
 
@@ -374,7 +370,7 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 
 	private static class LeftIdentityCoRichFlatMapFunction extends RichCoFlatMapFunction<String, String, String> implements ListCheckpointed<Long> {
 
-		static final long[] counts = new long[PARALLELISM];
+		static long[] counts = new long[PARALLELISM];
 
 		private long count;
 
@@ -409,6 +405,9 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 		}
 	}
 
+	/**
+	 * POJO storing a prefix, value, and count.
+	 */
 	public static class PrefixCount implements Serializable {
 
 		public String prefix;

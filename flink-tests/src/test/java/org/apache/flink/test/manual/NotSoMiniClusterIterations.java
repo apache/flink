@@ -38,14 +38,14 @@ import static org.junit.Assert.fail;
  * with a parallelism of 100.
  */
 public class NotSoMiniClusterIterations {
-	
+
 	private static final int PARALLELISM = 100;
-	
+
 	public static void main(String[] args) {
 		if ((Runtime.getRuntime().maxMemory() >>> 20) < 5000) {
 			throw new RuntimeException("This test program needs to run with at least 5GB of heap space.");
 		}
-		
+
 		LocalFlinkMiniCluster cluster = null;
 
 		try {
@@ -55,7 +55,7 @@ public class NotSoMiniClusterIterations {
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
 			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 1000);
 			config.setInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE, 8 * 1024);
-			
+
 			config.setInteger("taskmanager.net.server.numThreads", 1);
 			config.setInteger("taskmanager.net.client.numThreads", 1);
 

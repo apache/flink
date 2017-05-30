@@ -27,10 +27,10 @@ import java.util.Set;
 /**
  * Generator that employs several (sub-) event generators to produce events for multiple sessions in parallel, i.e.
  * events are emitted in an interleaved way.
- * <p>
- * Even events that belong to different sessions for the same key can be generated in parallel.
- * <p>
- * The watermark is computed as the minimum of watermarks among all current sub-generators.
+ *
+ * <p>Even events that belong to different sessions for the same key can be generated in parallel.
+ *
+ * <p>The watermark is computed as the minimum of watermarks among all current sub-generators.
  *
  * @param <K> session key type
  * @param <E> session event type
@@ -107,7 +107,7 @@ public class ParallelSessionsEventGenerator<K, E> {
 					if (generatorFactory.getProducedGeneratorsCount() < sessionCountLimit) {
 						subGeneratorLists.set(index,
 								generatorFactory.newSessionGeneratorForKey(
-										randomGenerator.choseRandomElement(sessionKeys), getWatermark()));
+										randomGenerator.chooseRandomElement(sessionKeys), getWatermark()));
 					} else {
 						// otherwise removes the sub-generator and shrinks the list of open sessions permanently
 						subGeneratorLists.remove(index);
@@ -140,7 +140,7 @@ public class ParallelSessionsEventGenerator<K, E> {
 	private void initParallelSessionGenerators(int parallelSessions) {
 		for (int i = 0; i < parallelSessions && generatorFactory.getProducedGeneratorsCount() < sessionCountLimit; ++i) {
 			subGeneratorLists.add(generatorFactory.newSessionGeneratorForKey(
-					randomGenerator.choseRandomElement(sessionKeys), 0L));
+					randomGenerator.chooseRandomElement(sessionKeys), 0L));
 		}
 	}
 
