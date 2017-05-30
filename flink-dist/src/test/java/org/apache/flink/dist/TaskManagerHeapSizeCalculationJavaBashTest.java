@@ -23,6 +23,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
@@ -43,7 +44,7 @@ import static org.junit.Assert.assertThat;
  * <tt>taskmanager.sh</tt> returns the same values as the heap size calculation of
  * {@link TaskManagerServices#calculateHeapSizeMB(long, Configuration)}.
  *
- * NOTE: the shell script uses <tt>awk</tt> to perform floating-point arithmetic which uses
+ * <p>NOTE: the shell script uses <tt>awk</tt> to perform floating-point arithmetic which uses
  * <tt>double</tt> precision but our Java code restrains to <tt>float</tt> because we actually do
  * not need high precision.
  */
@@ -55,7 +56,7 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 	/**
 	 * Number of tests with random values.
 	 *
-	 * NOTE: calling the external test script is slow and thus low numbers are preferred for general
+	 * <p>NOTE: calling the external test script is slow and thus low numbers are preferred for general
 	 * testing.
 	 */
 	private static final int NUM_RANDOM_TESTS = 20;
