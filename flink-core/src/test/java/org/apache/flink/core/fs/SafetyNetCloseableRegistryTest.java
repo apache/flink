@@ -84,7 +84,7 @@ public class SafetyNetCloseableRegistryTest {
 
 					Path tmp = new Path(tmpFolder.newFolder().toURI().toString(), "test_file");
 
-					try (FSDataOutputStream stream = fs1.create(tmp, false)) {
+					try (FSDataOutputStream stream = fs1.create(tmp, FileSystem.WriteMode.NO_OVERWRITE)) {
 						CheckedThread t2 = new CheckedThread() {
 							@Override
 							public void go() {

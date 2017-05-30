@@ -199,7 +199,7 @@ public class HDFSTest {
 		byte[] data = "HDFSTest#testDeletePathIfEmpty".getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 		for (Path file: Arrays.asList(singleFile, directoryFile)) {
-			org.apache.flink.core.fs.FSDataOutputStream outputStream = fs.create(file, true);
+			org.apache.flink.core.fs.FSDataOutputStream outputStream = fs.create(file, FileSystem.WriteMode.OVERWRITE);
 			outputStream.write(data);
 			outputStream.close();
 		}
