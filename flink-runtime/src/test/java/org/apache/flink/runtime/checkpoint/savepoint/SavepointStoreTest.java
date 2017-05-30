@@ -104,7 +104,7 @@ public class SavepointStoreTest {
 	public void testUnexpectedSavepoint() throws Exception {
 		// Random file
 		Path filePath = new Path(tmp.getRoot().getPath(), UUID.randomUUID().toString());
-		FSDataOutputStream fdos = FileSystem.get(filePath.toUri()).create(filePath, false);
+		FSDataOutputStream fdos = FileSystem.get(filePath.toUri()).create(filePath, FileSystem.WriteMode.NO_OVERWRITE);
 		DataOutputStream dos = new DataOutputStream(fdos);
 		for (int i = 0; i < 10; i++) {
 			dos.writeLong(ThreadLocalRandom.current().nextLong());

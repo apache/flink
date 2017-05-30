@@ -74,7 +74,7 @@ public class FileSystemBlobStore implements BlobStoreService {
 	}
 
 	private void put(File fromFile, String toBlobPath) throws IOException {
-		try (OutputStream os = fileSystem.create(new Path(toBlobPath), true)) {
+		try (OutputStream os = fileSystem.create(new Path(toBlobPath), FileSystem.WriteMode.OVERWRITE)) {
 			LOG.debug("Copying from {} to {}.", fromFile, toBlobPath);
 			Files.copy(fromFile, os);
 		}
