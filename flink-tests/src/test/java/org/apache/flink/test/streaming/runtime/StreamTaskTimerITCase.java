@@ -54,7 +54,7 @@ import java.util.concurrent.Semaphore;
 public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 
 	private final TimeCharacteristic timeCharacteristic;
-	
+
 	public StreamTaskTimerITCase(TimeCharacteristic characteristic) {
 		timeCharacteristic = characteristic;
 	}
@@ -66,7 +66,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 	 */
 	@Test
 	public void testOperatorChainedToSource() throws Exception {
-		
+
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(timeCharacteristic);
 		env.setParallelism(1);
@@ -134,7 +134,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 		}
 		Assert.assertTrue(testSuccess);
 	}
-	
+
 	@Test
 	public void testTwoInputOperatorWithoutChaining() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -196,7 +196,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 				first = false;
 			}
 			numElements++;
-			
+
 			semaphore.release();
 		}
 
@@ -324,7 +324,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 			running = false;
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  parametrization
 	// ------------------------------------------------------------------------

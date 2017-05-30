@@ -58,21 +58,21 @@ import java.util.Arrays;
  */
 @SuppressWarnings("serial")
 public class RelationalQueryCompilerTest extends CompilerTestBase {
-	
+
 	private static final String ORDERS = "Orders";
 	private static final String LINEITEM = "LineItems";
 	private static final String MAPPER_NAME = "FilterO";
 	private static final String JOIN_NAME = "JoinLiO";
 	private static final String REDUCE_NAME = "AggLiO";
 	private static final String SINK = "Output";
-	
+
 	private final FieldList set0 = new FieldList(0);
 	private final FieldList set01 = new FieldList(0,1);
 	private final ExecutionConfig defaultExecutionConfig = new ExecutionConfig();
-	
+
 	// ------------------------------------------------------------------------
-	
-	
+
+
 	/**
 	 * Verifies that a robust repartitioning plan with a hash join is created in the absence of statistics.
 	 */
@@ -83,9 +83,9 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			p.setExecutionConfig(defaultExecutionConfig);
 			// compile
 			final OptimizedPlan plan = compileNoStats(p);
-			
+
 			final OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(plan);
-			
+
 			// get the nodes from the final plan
 			final SinkPlanNode sink = or.getNode(SINK);
 			final SingleInputPlanNode reducer = or.getNode(REDUCE_NAME);
@@ -93,7 +93,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 					(SingleInputPlanNode) reducer.getPredecessor() : null;
 			final DualInputPlanNode join = or.getNode(JOIN_NAME);
 			final SingleInputPlanNode filteringMapper = or.getNode(MAPPER_NAME);
-			
+
 			// verify the optimizer choices
 			checkStandardStrategies(filteringMapper, join, combiner, reducer, sink);
 			Assert.assertTrue(checkRepartitionShipStrategies(join, reducer, combiner));
@@ -103,7 +103,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			Assert.fail(e.getMessage());
 		}
 	}
-	
+
 	/**
 	 * Checks if any valid plan is produced. Hash joins are expected to build the orders side, as the statistics
 	 * indicate this to be the smaller one.
@@ -112,7 +112,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	public void testQueryAnyValidPlan() {
 		testQueryGeneric(1024*1024*1024L, 8*1024*1024*1024L, 0.05f, 0.05f, true, true, true, false, true);
 	}
-	
+
 	/**
 	 * Verifies that the plan compiles in the presence of empty size=0 estimates.
 	 */
@@ -120,7 +120,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	public void testQueryWithSizeZeroInputs() {
 		testQueryGeneric(0, 0, 0.1f, 0.5f, true, true, true, false, true);
 	}
-	
+
 	/**
 	 * Statistics that push towards a broadcast join.
 	 */
@@ -128,7 +128,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	public void testQueryWithStatsForBroadcastHash() {
 		testQueryGeneric(1024L*1024*1024*1024, 1024L*1024*1024*1024, 0.01f, 0.05f, true, false, true, false, false);
 	}
-	
+
 	/**
 	 * Statistics that push towards a broadcast join.
 	 */
@@ -136,7 +136,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	public void testQueryWithStatsForRepartitionAny() {
 		testQueryGeneric(100L*1024*1024*1024*1024, 100L*1024*1024*1024*1024, 0.1f, 0.5f, false, true, true, true, true);
 	}
-	
+
 	/**
 	 * Statistics that push towards a repartition merge join. If the join blows the data volume up significantly,
 	 * re-exploiting the sorted order is cheaper.
@@ -149,12 +149,12 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		OperatorResolver cr = getContractResolver(p);
 		DualInputOperator<?,?,?,?> match = cr.getNode(JOIN_NAME);
 		match.getCompilerHints().setFilterFactor(100f);
-		
+
 		testQueryGeneric(100L*1024*1024*1024*1024, 100L*1024*1024*1024*1024, 0.01f, 100f, false, true, false, false, true);
 	}
-	
+
 	// ------------------------------------------------------------------------
-	private void testQueryGeneric(long orderSize, long lineItemSize, 
+	private void testQueryGeneric(long orderSize, long lineItemSize,
 			float ordersFilterFactor, float joinFilterFactor,
 			boolean broadcastOkay, boolean partitionedOkay,
 			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay)
@@ -163,9 +163,9 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		p.setExecutionConfig(defaultExecutionConfig);
 		testQueryGeneric(p, orderSize, lineItemSize, ordersFilterFactor, joinFilterFactor, broadcastOkay, partitionedOkay, hashJoinFirstOkay, hashJoinSecondOkay, mergeJoinOkay);
 	}
-		
-	private void testQueryGeneric(Plan p, long orderSize, long lineitemSize, 
-			float orderSelectivity, float joinSelectivity, 
+
+	private void testQueryGeneric(Plan p, long orderSize, long lineitemSize,
+			float orderSelectivity, float joinSelectivity,
 			boolean broadcastOkay, boolean partitionedOkay,
 			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay)
 	{
@@ -181,11 +181,11 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			mapper.getCompilerHints().setAvgOutputRecordSize(16f);
 			mapper.getCompilerHints().setFilterFactor(orderSelectivity);
 			joiner.getCompilerHints().setFilterFactor(joinSelectivity);
-			
+
 			// compile
 			final OptimizedPlan plan = compileWithStats(p);
 			final OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(plan);
-			
+
 			// get the nodes from the final plan
 			final SinkPlanNode sink = or.getNode(SINK);
 			final SingleInputPlanNode reducer = or.getNode(REDUCE_NAME);
@@ -193,13 +193,13 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 					(SingleInputPlanNode) reducer.getPredecessor() : null;
 			final DualInputPlanNode join = or.getNode(JOIN_NAME);
 			final SingleInputPlanNode filteringMapper = or.getNode(MAPPER_NAME);
-			
+
 			checkStandardStrategies(filteringMapper, join, combiner, reducer, sink);
-			
+
 			// check the possible variants and that the variant ia allowed in this specific setting
 			if (checkBroadcastShipStrategies(join, reducer, combiner)) {
 				Assert.assertTrue("Broadcast join incorrectly chosen.", broadcastOkay);
-				
+
 				if (checkHashJoinStrategies(join, reducer, true)) {
 					Assert.assertTrue("Hash join (build orders) incorrectly chosen", hashJoinFirstOkay);
 				} else if (checkHashJoinStrategies(join, reducer, false)) {
@@ -212,7 +212,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			}
 			else if (checkRepartitionShipStrategies(join, reducer, combiner)) {
 				Assert.assertTrue("Partitioned join incorrectly chosen.", partitionedOkay);
-				
+
 				if (checkHashJoinStrategies(join, reducer, true)) {
 					Assert.assertTrue("Hash join (build orders) incorrectly chosen", hashJoinFirstOkay);
 				} else if (checkHashJoinStrategies(join, reducer, false)) {
@@ -241,7 +241,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		// check ship strategies that are always fix
 		Assert.assertEquals(ShipStrategyType.FORWARD, map.getInput().getShipStrategy());
 		Assert.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-		
+
 		// check the driver strategies that are always fix
 		Assert.assertEquals(DriverStrategy.FLAT_MAP, map.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reducer.getDriverStrategy());
@@ -251,7 +251,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			Assert.assertEquals(LocalStrategy.NONE, combiner.getInput().getLocalStrategy());
 		}
 	}
-	
+
 	private boolean checkBroadcastShipStrategies(DualInputPlanNode join, SingleInputPlanNode reducer,
 			SingleInputPlanNode combiner)
 	{
@@ -267,7 +267,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			return false;
 		}
 	}
-	
+
 	private boolean checkRepartitionShipStrategies(DualInputPlanNode join, SingleInputPlanNode reducer,
 			SingleInputPlanNode combiner)
 	{
@@ -282,20 +282,20 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			return false;
 		}
 	}
-	
+
 	private boolean checkHashJoinStrategies(DualInputPlanNode join, SingleInputPlanNode reducer, boolean buildFirst) {
 		if ( (buildFirst && DriverStrategy.HYBRIDHASH_BUILD_FIRST == join.getDriverStrategy()) ||
-			 (!buildFirst && DriverStrategy.HYBRIDHASH_BUILD_SECOND == join.getDriverStrategy()) ) 
+			 (!buildFirst && DriverStrategy.HYBRIDHASH_BUILD_SECOND == join.getDriverStrategy()) )
 		{
 			// driver keys
 			Assert.assertEquals(set0, join.getKeysForInput1());
 			Assert.assertEquals(set0, join.getKeysForInput2());
-			
+
 			// local strategies
 			Assert.assertEquals(LocalStrategy.NONE, join.getInput1().getLocalStrategy());
 			Assert.assertEquals(LocalStrategy.NONE, join.getInput2().getLocalStrategy());
 			Assert.assertEquals(LocalStrategy.COMBININGSORT, reducer.getInput().getLocalStrategy());
-			
+
 			// local strategy keys
 			Assert.assertEquals(set01, reducer.getInput().getLocalStrategyKeys());
 			Assert.assertEquals(set01, reducer.getKeys(0));
@@ -305,18 +305,18 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			return false;
 		}
 	}
-	
+
 	private boolean checkBroadcastMergeJoin(DualInputPlanNode join, SingleInputPlanNode reducer) {
 		if (DriverStrategy.INNER_MERGE == join.getDriverStrategy()) {
 			// driver keys
 			Assert.assertEquals(set0, join.getKeysForInput1());
 			Assert.assertEquals(set0, join.getKeysForInput2());
-			
+
 			// local strategies
 			Assert.assertEquals(LocalStrategy.SORT, join.getInput1().getLocalStrategy());
 			Assert.assertEquals(LocalStrategy.SORT, join.getInput2().getLocalStrategy());
 			Assert.assertEquals(LocalStrategy.COMBININGSORT, reducer.getInput().getLocalStrategy());
-			
+
 			// local strategy keys
 			Assert.assertEquals(set0, join.getInput1().getLocalStrategyKeys());
 			Assert.assertEquals(set0, join.getInput2().getLocalStrategyKeys());
@@ -329,18 +329,18 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			return false;
 		}
 	}
-	
+
 	private boolean checkRepartitionMergeJoin(DualInputPlanNode join, SingleInputPlanNode reducer) {
 		if (DriverStrategy.INNER_MERGE == join.getDriverStrategy()) {
 			// driver keys
 			Assert.assertEquals(set0, join.getKeysForInput1());
 			Assert.assertEquals(set0, join.getKeysForInput2());
-			
+
 			// local strategies
 			Assert.assertEquals(LocalStrategy.SORT, join.getInput1().getLocalStrategy());
 			Assert.assertEquals(LocalStrategy.SORT, join.getInput2().getLocalStrategy());
 			Assert.assertEquals(LocalStrategy.NONE, reducer.getInput().getLocalStrategy());
-			
+
 			// local strategy keys
 			Assert.assertEquals(set01, join.getInput1().getLocalStrategyKeys());
 			Assert.assertEquals(set0, join.getInput2().getLocalStrategyKeys());

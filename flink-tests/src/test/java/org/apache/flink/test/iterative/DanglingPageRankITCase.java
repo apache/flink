@@ -52,8 +52,8 @@ import static org.junit.Assert.fail;
 public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 
 	private static final String AGGREGATOR_NAME = "pagerank.aggregator";
-	
-	
+
+
 	public DanglingPageRankITCase(TestExecutionMode mode) {
 		super(mode);
 	}
@@ -63,7 +63,7 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 		try {
 			final int NUM_ITERATIONS = 25;
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
+
 			DataSet<Tuple2<Long, Boolean>> vertices = env.fromElements(
 					new Tuple2<>(1L, false),
 					new Tuple2<>(2L, false),
@@ -78,8 +78,8 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 					new PageWithLinks(4L, new long[] { 3, 2 }),
 					new PageWithLinks(1L, new long[] { 4, 2, 3 })
 			);
-			
-			
+
+
 			final long numVertices = vertices.count();
 			final long numDanglingVertices = vertices
 					.filter(
@@ -90,32 +90,32 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 								}
 							})
 					.count();
-			
-			
+
+
 			DataSet<PageWithRankAndDangling> verticesWithInitialRank = vertices
 					.map(new MapFunction<Tuple2<Long, Boolean>, PageWithRankAndDangling>() {
-						
+
 						@Override
 						public PageWithRankAndDangling map(Tuple2<Long, Boolean> value) {
 							return new PageWithRankAndDangling(value.f0, 1.0 / numVertices, value.f1);
 						}
 					});
-			
+
 			IterativeDataSet<PageWithRankAndDangling> iteration = verticesWithInitialRank.iterate(NUM_ITERATIONS);
 
 			iteration.getAggregators().registerAggregationConvergenceCriterion(
 					AGGREGATOR_NAME,
 					new PageRankStatsAggregator(),
 					new DiffL1NormConvergenceCriterion());
-			
+
 			DataSet<PageWithRank> partialRanks = iteration.join(edges).where("pageId").equalTo("pageId").with(
 					new FlatJoinFunction<PageWithRankAndDangling, PageWithLinks, PageWithRank>() {
-						
+
 						@Override
 						public void join(PageWithRankAndDangling page,
 											PageWithLinks links,
 											Collector<PageWithRank> out)  {
-							
+
 							double rankToDistribute = page.rank / (double) links.targets.length;
 							PageWithRank output = new PageWithRank(0L, rankToDistribute);
 
@@ -126,8 +126,8 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 						}
 					}
 			);
-			
-			DataSet<PageWithRankAndDangling> newRanks = 
+
+			DataSet<PageWithRankAndDangling> newRanks =
 				iteration.coGroup(partialRanks).where("pageId").equalTo("pageId").with(
 					new RichCoGroupFunction<PageWithRankAndDangling, PageWithRank, PageWithRankAndDangling>() {
 
@@ -136,15 +136,15 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 						private final double randomJump = (1.0 - BETA) / numVertices;
 						private PageRankStatsAggregator aggregator;
 						private double danglingRankFactor;
-						
+
 						@Override
 						public void open(Configuration parameters) throws Exception {
 							int currentIteration = getIterationRuntimeContext().getSuperstepNumber();
-							
+
 							aggregator = getIterationRuntimeContext().getIterationAggregator(AGGREGATOR_NAME);
 
 							if (currentIteration == 1) {
-								danglingRankFactor = BETA * (double) numDanglingVertices / 
+								danglingRankFactor = BETA * (double) numDanglingVertices /
 										((double) numVertices * (double) numVertices);
 							} else {
 								PageRankStats previousAggregate = getIterationRuntimeContext()
@@ -152,12 +152,12 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 								danglingRankFactor = BETA * previousAggregate.danglingRank() / (double) numVertices;
 							}
 						}
-						
+
 						@Override
 						public void coGroup(Iterable<PageWithRankAndDangling> currentPages,
 											Iterable<PageWithRank> partialRanks,
 											Collector<PageWithRankAndDangling> out) {
-							
+
 							// compute the next rank
 							long edges = 0;
 							double summedRank = 0;
@@ -166,7 +166,7 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 								edges++;
 							}
 							double rank = BETA * summedRank + randomJump + danglingRankFactor;
-							
+
 							// current rank, for stats and convergence
 							PageWithRankAndDangling currentPage = currentPages.iterator().next();
 							double currentRank = currentPage.rank;
@@ -182,16 +182,16 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 							out.collect(currentPage);
 						}
 					});
-			
+
 			List<PageWithRankAndDangling> result = iteration.closeWith(newRanks).collect();
-			
+
 			double totalRank = 0.0;
 			for (PageWithRankAndDangling r : result) {
 				totalRank += r.rank;
 				assertTrue(r.pageId >= 1 && r.pageId <= 5);
 				assertTrue(r.pageId != 3 || r.dangling);
 			}
-			
+
 			assertEquals(1.0, totalRank, 0.001);
 		}
 		catch (Exception e) {
@@ -203,14 +203,14 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 	// ------------------------------------------------------------------------
 	//  custom types
 	// ------------------------------------------------------------------------
-	
+
 	public static class PageWithRank {
-		
+
 		public long pageId;
 		public double rank;
 
 		public PageWithRank() {}
-		
+
 		public PageWithRank(long pageId, double rank) {
 			this.pageId = pageId;
 			this.rank = rank;
@@ -221,7 +221,7 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 
 		public long pageId;
 		public double rank;
-		public boolean dangling; 
+		public boolean dangling;
 
 		public PageWithRankAndDangling() {}
 
@@ -253,7 +253,7 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 			this.targets = targets;
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  statistics
 	// ------------------------------------------------------------------------
@@ -272,7 +272,7 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 		public PageRankStats(
 					double diff, double rank, double danglingRank,
 					long numDanglingVertices, long numVertices, long edges) {
-			
+
 			this.diff = diff;
 			this.rank = rank;
 			this.danglingRank = danglingRank;
@@ -332,7 +332,7 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 					"]";
 		}
 	}
-	
+
 	public static class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 
 		private double diff;

@@ -38,7 +38,7 @@ import java.util.List;
 
 @SuppressWarnings("serial")
 public class CustomInputSplitProgram {
-	
+
 	public static void main(String[] args) throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -58,7 +58,7 @@ public class CustomInputSplitProgram {
 		env.execute();
 	}
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static final class CustomInputFormat implements InputFormat<Integer, CustomInputSplit>, ResultTypeQueryable<Integer> {
 
 		private static final long serialVersionUID = 1L;

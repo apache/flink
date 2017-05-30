@@ -53,7 +53,7 @@ public class WordCountCompilerTest extends CompilerTestBase {
 		checkWordCount(true);
 		checkWordCount(false);
 	}
-	
+
 	private void checkWordCount(boolean estimates) {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -112,7 +112,7 @@ public class WordCountCompilerTest extends CompilerTestBase {
 		Assert.assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
 		Assert.assertEquals(l, combiner.getKeys(0));
 		Assert.assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
-			
+
 	}
-	
+
 }

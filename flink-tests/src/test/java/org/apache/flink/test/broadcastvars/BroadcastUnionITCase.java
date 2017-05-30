@@ -45,7 +45,7 @@ public class BroadcastUnionITCase extends JavaProgramTestBase {
 				.withBroadcastSet(bc1.union(bc2), BC_NAME)
 				.reduce(new Reducer())
 				.collect();
-		
+
 		Assert.assertEquals(Long.valueOf(3025), result.get(0));
 	}
 

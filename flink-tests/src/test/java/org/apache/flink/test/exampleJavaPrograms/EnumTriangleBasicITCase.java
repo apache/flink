@@ -23,10 +23,10 @@ import org.apache.flink.test.testdata.EnumTriangleData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 public class EnumTriangleBasicITCase extends JavaProgramTestBase {
-	
+
 	protected String edgePath;
 	protected String resultPath;
-	
+
 	@Override
 	protected void preSubmit() throws Exception {
 		edgePath = createTempFile("edges", EnumTriangleData.EDGES);
@@ -37,7 +37,7 @@ public class EnumTriangleBasicITCase extends JavaProgramTestBase {
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(EnumTriangleData.TRIANGLES_BY_ID, resultPath);
 	}
-	
+
 	@Override
 	protected void testProgram() throws Exception {
 		EnumTriangles.main(new String[] {

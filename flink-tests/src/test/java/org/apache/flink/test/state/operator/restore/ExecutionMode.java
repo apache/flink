@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.state.operator.restore;
 
 /**
  * Enum to control function behavior for the different test stages.
- * 
+ *
  * {@link ExecutionMode#GENERATE} should be used when creating the savepoint.
  * {@link ExecutionMode#MIGRATE} should be used when migrating the savepoint to a newer version.
  * {@link ExecutionMode#RESTORE} should be used when restoring from the migrated newer version savepoint.

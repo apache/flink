@@ -181,7 +181,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
 			@Override
 			public void cancel() {}
-			
+
 		}).assignTimestampsAndWatermarks(new Tuple3TimestampExtractor());
 
 		DataStream<Tuple3<String, String, Integer>> source2 = env.addSource(new SourceFunction<Tuple3<String, String, Integer>>() {
@@ -202,7 +202,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
 			@Override
 			public void cancel() {}
-			
+
 		}).assignTimestampsAndWatermarks(new Tuple3TimestampExtractor());
 
 
@@ -373,7 +373,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 	private static class Tuple2TimestampExtractor implements AssignerWithPunctuatedWatermarks<Tuple2<String, Integer>> {
-		
+
 		@Override
 		public long extractTimestamp(Tuple2<String, Integer> element, long previousTimestamp) {
 			return element.f1;

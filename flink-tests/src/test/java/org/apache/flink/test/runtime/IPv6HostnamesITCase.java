@@ -52,7 +52,7 @@ import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class IPv6HostnamesITCase extends TestLogger {
-	
+
 	@Test
 	public void testClusterWithIPv6host() {
 
@@ -62,27 +62,27 @@ public class IPv6HostnamesITCase extends TestLogger {
 			return;
 		}
 
-		
-		
+
+
 		LocalFlinkMiniCluster flink = null;
 		try {
 			final String addressString = ipv6address.getHostAddress();
 			log.info("Test will use IPv6 address " + addressString + " for connection tests");
-			
+
 			Configuration conf = new Configuration();
 			conf.setString(JobManagerOptions.ADDRESS, addressString);
 			conf.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, addressString);
 			conf.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			conf.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
 			conf.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
-			
+
 			flink = new LocalFlinkMiniCluster(conf, false);
 			flink.start();
 
 			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(addressString, flink.getLeaderRPCPort());
 			env.setParallelism(4);
 			env.getConfig().disableSysoutLogging();
-			
+
 			// get input data
 			DataSet<String> text = env.fromElements(WordCountData.TEXT.split("\n"));
 
@@ -113,8 +113,8 @@ public class IPv6HostnamesITCase extends TestLogger {
 			}
 		}
 	}
-	
-	
+
+
 	private Inet6Address getLocalIPv6Address() {
 		try {
 			Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
@@ -125,15 +125,15 @@ public class IPv6HostnamesITCase extends TestLogger {
 				Enumeration<InetAddress> ee = netInterface.getInetAddresses();
 				while (ee.hasMoreElements()) {
 					InetAddress addr = ee.nextElement();
-					
-					
+
+
 					if (addr instanceof Inet6Address && (!addr.isLoopbackAddress()) && (!addr.isAnyLocalAddress())) {
 						// see if it is possible to bind to the address
 						InetSocketAddress socketAddress = new InetSocketAddress(addr, 0);
-						
+
 						try {
 							log.info("Considering address " + addr);
-							
+
 							// test whether we can bind a socket to that address
 							log.info("Testing whether sockets can bind to " + addr);
 							ServerSocket sock = new ServerSocket();
@@ -157,7 +157,7 @@ public class IPv6HostnamesITCase extends TestLogger {
 					}
 				}
 			}
-			
+
 			return null;
 		}
 		catch (Exception e) {

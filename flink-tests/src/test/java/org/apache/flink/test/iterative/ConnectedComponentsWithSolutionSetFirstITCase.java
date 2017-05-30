@@ -38,14 +38,14 @@ import java.io.BufferedReader;
  * Tests a bug that prevented that the solution set can be on both sides of the match/cogroup function.
  */
 public class ConnectedComponentsWithSolutionSetFirstITCase extends JavaProgramTestBase {
-	
+
 	private static final long SEED = 0xBADC0FFEEBEEFL;
-	
+
 	private static final int NUM_VERTICES = 1000;
-	
+
 	private static final int NUM_EDGES = 10000;
 
-	
+
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
@@ -56,7 +56,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends JavaProgramTe
 		edgesPath = createTempFile("edges.txt", ConnectedComponentsData.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED));
 		resultPath = getTempFilePath("results");
 	}
-	
+
 	@Override
 	protected void testProgram() throws Exception {
 		// set up execution environment

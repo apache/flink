@@ -85,7 +85,7 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 
 			@Override
 			public void cancel() {}
-			
+
 		}).assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
 
 		source1

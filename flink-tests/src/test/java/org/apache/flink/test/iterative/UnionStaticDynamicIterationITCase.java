@@ -29,25 +29,25 @@ import java.util.ArrayList;
 import static org.junit.Assert.assertEquals;
 
 public class UnionStaticDynamicIterationITCase  extends JavaProgramTestBase {
-	
+
 	private final ArrayList<Long> result = new ArrayList<Long>();
-	
+
 	@Override
 	protected void testProgram() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		DataSet<Long> inputStatic = env.generateSequence(1, 4);
 		DataSet<Long> inputIteration = env.generateSequence(1, 4);
-		
+
 		IterativeDataSet<Long> iteration = inputIteration.iterate(3);
-		
+
 		DataSet<Long> result = iteration.closeWith(inputStatic.union(inputStatic).union(iteration.union(iteration)));
-			
+
 		result.output(new LocalCollectionOutputFormat<Long>(this.result));
-		
+
 		env.execute();
 	}
-	
+
 	@Override
 	protected void postSubmit() throws Exception {
 		assertEquals(88, result.size());

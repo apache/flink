@@ -55,18 +55,18 @@ import static org.junit.Assert.assertTrue;
 
 @SuppressWarnings("serial")
 public class KMeansSingleStepTest extends CompilerTestBase {
-	
+
 	private static final String DATAPOINTS = "Data Points";
 	private static final String CENTERS = "Centers";
-	
+
 	private static final String MAPPER_NAME = "Find Nearest Centers";
 	private static final String REDUCER_NAME = "Recompute Center Positions";
-	
+
 	private static final String SINK = "New Center Positions";
-	
+
 	private final FieldList set0 = new FieldList(0);
-	
-	
+
+
 	@Test
 	public void testCompileKMeansSingleStepWithStats() {
 
@@ -78,7 +78,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		GenericDataSourceBase<?,?> centersSource = cr.getNode(CENTERS);
 		setSourceStatistics(pointsSource, 100L * 1024 * 1024 * 1024, 32f);
 		setSourceStatistics(centersSource, 1024 * 1024, 32f);
-		
+
 		OptimizedPlan plan = compileWithStats(p);
 		checkPlan(plan);
 	}
@@ -91,33 +91,33 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		OptimizedPlan plan = compileNoStats(p);
 		checkPlan(plan);
 	}
-	
-	
+
+
 	private void checkPlan(OptimizedPlan plan) {
-		
+
 		OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(plan);
-		
+
 		final SinkPlanNode sink = or.getNode(SINK);
 		final SingleInputPlanNode reducer = or.getNode(REDUCER_NAME);
 		final SingleInputPlanNode combiner = (SingleInputPlanNode) reducer.getPredecessor();
 		final SingleInputPlanNode mapper = or.getNode(MAPPER_NAME);
-		
+
 		// check the mapper
 		assertEquals(1, mapper.getBroadcastInputs().size());
 		assertEquals(ShipStrategyType.FORWARD, mapper.getInput().getShipStrategy());
 		assertEquals(ShipStrategyType.BROADCAST, mapper.getBroadcastInputs().get(0).getShipStrategy());
-		
+
 		assertEquals(LocalStrategy.NONE, mapper.getInput().getLocalStrategy());
 		assertEquals(LocalStrategy.NONE, mapper.getBroadcastInputs().get(0).getLocalStrategy());
-		
+
 		assertEquals(DriverStrategy.MAP, mapper.getDriverStrategy());
-		
+
 		assertNull(mapper.getInput().getLocalStrategyKeys());
 		assertNull(mapper.getInput().getLocalStrategySortOrder());
 		assertNull(mapper.getBroadcastInputs().get(0).getLocalStrategyKeys());
 		assertNull(mapper.getBroadcastInputs().get(0).getLocalStrategySortOrder());
-		
-		
+
+
 		// check the combiner
 		Assert.assertNotNull(combiner);
 		assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
@@ -127,7 +127,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		assertNull(combiner.getInput().getLocalStrategySortOrder());
 		assertEquals(set0, combiner.getKeys(0));
 		assertEquals(set0, combiner.getKeys(1));
-		
+
 		// check the reducer
 		assertEquals(ShipStrategyType.PARTITION_HASH, reducer.getInput().getShipStrategy());
 		assertEquals(LocalStrategy.COMBININGSORT, reducer.getInput().getLocalStrategy());
@@ -135,7 +135,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		assertEquals(set0, reducer.getKeys(0));
 		assertEquals(set0, reducer.getInput().getLocalStrategyKeys());
 		assertTrue(Arrays.equals(reducer.getInput().getLocalStrategySortOrder(), reducer.getSortOrders(0)));
-		
+
 		// check the sink
 		assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
 		assertEquals(LocalStrategy.NONE, sink.getInput().getLocalStrategy());

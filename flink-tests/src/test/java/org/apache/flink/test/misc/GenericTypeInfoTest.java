@@ -31,10 +31,10 @@ public class GenericTypeInfoTest {
 	@Test
 	public void testSerializerTree() {
 		@SuppressWarnings("unchecked")
-		TypeInformation<CollectionDataSets.PojoWithCollectionGeneric> ti = 
-				(TypeInformation<CollectionDataSets.PojoWithCollectionGeneric>) 
+		TypeInformation<CollectionDataSets.PojoWithCollectionGeneric> ti =
+				(TypeInformation<CollectionDataSets.PojoWithCollectionGeneric>)
 						TypeExtractor.createTypeInfo(CollectionDataSets.PojoWithCollectionGeneric.class);
-		
+
 		String serTree = Utils.getSerializerTree(ti);
 		// We can not test against the entire output because the fields of 'String' differ
 		// between java versions

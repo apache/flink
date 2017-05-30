@@ -185,7 +185,7 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 	 * Mapper that causes one failure between seeing 40% to 70% of the records.
 	 */
 	private static class OnceFailingIdentityMapFunction
-			extends RichMapFunction<Tuple2<Integer, Long>, Tuple2<Integer, Long>> 
+			extends RichMapFunction<Tuple2<Integer, Long>, Tuple2<Integer, Long>>
 			implements ListCheckpointed<Long> {
 
 		private static volatile boolean hasFailed = false;

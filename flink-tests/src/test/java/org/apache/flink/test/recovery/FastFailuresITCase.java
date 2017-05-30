@@ -41,7 +41,7 @@ public class FastFailuresITCase extends TestLogger {
 
 	static final AtomicInteger FAILURES_SO_FAR = new AtomicInteger();
 	static final int NUM_FAILURES = 200;
-	
+
 	@Test
 	public void testThis() {
 		final int parallelism = 4;
@@ -49,17 +49,17 @@ public class FastFailuresITCase extends TestLogger {
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-		
+
 		LocalFlinkMiniCluster cluster = new LocalFlinkMiniCluster(config, false);
 		cluster.start();
 
 		TestStreamEnvironment env = new TestStreamEnvironment(cluster, parallelism);
-		
+
 		env.getConfig().disableSysoutLogging();
 		env.setParallelism(parallelism);
 		env.enableCheckpointing(1000);
 		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(210, 0));
-		
+
 		DataStream<Tuple2<Integer, Integer>> input = env.addSource(new RichSourceFunction<Tuple2<Integer, Integer>>() {
 
 			@Override

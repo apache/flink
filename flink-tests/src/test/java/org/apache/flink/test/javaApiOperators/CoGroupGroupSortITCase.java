@@ -36,8 +36,8 @@ public class CoGroupGroupSortITCase extends JavaProgramTestBase {
 	@Override
 	protected void testProgram() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
-		
+
+
 		DataSet<Tuple2<Long, Long>> input1 = env.fromElements(
 				new Tuple2<Long, Long>(0L, 5L),
 				new Tuple2<Long, Long>(0L, 4L),
@@ -48,7 +48,7 @@ public class CoGroupGroupSortITCase extends JavaProgramTestBase {
 				new Tuple2<Long, Long>(1L, 8L),
 				new Tuple2<Long, Long>(1L, 9L),
 				new Tuple2<Long, Long>(1L, 7L));
-		
+
 		DataSet<TestPojo> input2 = env.fromElements(
 				new TestPojo(0L, 10L, 3L),
 				new TestPojo(0L, 8L, 3L),
@@ -62,19 +62,19 @@ public class CoGroupGroupSortITCase extends JavaProgramTestBase {
 				new TestPojo(1L, 9L, 0L),
 				new TestPojo(1L, 8L, 2L),
 				new TestPojo(1L, 8L, 4L));
-		
+
 		input1.coGroup(input2)
 		.where(1).equalTo("b")
 		.sortFirstGroup(0, Order.DESCENDING)
 		.sortSecondGroup("c", Order.ASCENDING).sortSecondGroup("a", Order.DESCENDING)
-		
+
 		.with(new ValidatingCoGroup())
 		.output(new DiscardingOutputFormat<NullValue>());
-		
+
 		env.execute();
 	}
-	
-	
+
+
 	private static class ValidatingCoGroup implements CoGroupFunction<Tuple2<Long, Long>, TestPojo, NullValue> {
 
 		@Override
@@ -82,38 +82,38 @@ public class CoGroupGroupSortITCase extends JavaProgramTestBase {
 			// validate the tuple input, field 1, descending
 			{
 				long lastValue = Long.MAX_VALUE;
-				
+
 				for (Tuple2<Long, Long> t : first) {
 					long current = t.f1;
 					Assert.assertTrue(current <= lastValue);
 					lastValue = current;
 				}
 			}
-			
-			
+
+
 			// validate the pojo input
 			{
 				TestPojo lastValue = new TestPojo(Long.MAX_VALUE, 0, Long.MIN_VALUE);
-				
+
 				for (TestPojo current : second) {
 					Assert.assertTrue(current.c >= lastValue.c);
 					Assert.assertTrue(current.c != lastValue.c || current.a <= lastValue.a);
-					
+
 					lastValue = current;
 				}
 			}
-			
+
 		}
 	}
-	
+
 	public static class TestPojo implements Cloneable {
 		public long a;
 		public long b;
 		public long c;
-		
-		
+
+
 		public TestPojo() {}
-		
+
 		public TestPojo(long a, long b, long c) {
 			this.a = a;
 			this.b = b;

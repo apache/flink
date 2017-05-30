@@ -62,9 +62,9 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 	private String sequenceFileInPathNull;
 
 	public HadoopIOFormatsITCase(Configuration config) {
-		super(config);	
+		super(config);
 	}
-	
+
 	@Before
 	public void checkOperatingSystem() {
 		// FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
@@ -132,14 +132,14 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 	protected void testProgram() throws Exception {
 		expectedResult = HadoopIOFormatPrograms.runProgram(curProgId, resultPath, sequenceFileInPath, sequenceFileInPathNull);
 	}
-	
+
 	@Override
 	protected void postSubmit() throws Exception {
 		for(int i = 0; i < resultPath.length; i++) {
 			compareResultsByLinesInMemory(expectedResult[i], resultPath[i]);
 		}
 	}
-	
+
 	@Parameters
 	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
 
@@ -150,14 +150,14 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 			config.setInteger("ProgramId", i);
 			tConfigs.add(config);
 		}
-		
+
 		return TestBaseUtils.toParameterList(tConfigs);
 	}
-	
+
 	public static class HadoopIOFormatPrograms {
-		
+
 		public static String[] runProgram(int progId, String resultPath[], String sequenceFileInPath, String sequenceFileInPathNull) throws Exception {
-			
+
 			switch(progId) {
 			case 1: {
 				/**
@@ -185,7 +185,7 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 				});
 				res.writeAsText(resultPath[1]);
 				env.execute();
-				
+
 				// return expected result
 				return 	new String [] {"(21,3 - somestring)", "0 - somestring - 0\n" +
 						"1 - somestring - 1\n" +
@@ -225,8 +225,8 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 			default:
 				throw new IllegalArgumentException("Invalid program id");
 			}
-			
+
 		}
-	
+
 	}
 }

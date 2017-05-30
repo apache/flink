@@ -256,7 +256,7 @@ public class ReduceWithCombinerITCase extends MultipleProgramsTestBase {
 			String key = null;
 			int sum = 0;
 			boolean flag = true;
-			
+
 			for(Tuple3<String, Integer, Boolean> tuple : values) {
 				key = (key == null) ? tuple.f0 : key;
 				sum += tuple.f1;

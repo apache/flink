@@ -31,22 +31,22 @@ import static org.junit.Assert.assertEquals;
 public class IdentityIterationITCase extends JavaProgramTestBase {
 
 	private List<Long> result = new ArrayList<Long>();
-	
+
 	@Override
 	protected void testProgram() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		IterativeDataSet<Long> iteration = env.generateSequence(1, 10).iterate(100);
 		iteration.closeWith(iteration)
 			.output(new LocalCollectionOutputFormat<Long>(result));
-		
+
 		env.execute();
 	}
-	
+
 	@Override
 	protected void postSubmit()  {
 		assertEquals(10, result.size());
-		
+
 		long sum = 0;
 		for (Long l : result) {
 			sum += l;

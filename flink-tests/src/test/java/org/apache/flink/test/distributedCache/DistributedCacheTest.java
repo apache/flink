@@ -76,7 +76,7 @@ public class DistributedCacheTest extends AbstractTestBase {
 	public DistributedCacheTest() {
 		super(new Configuration());
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	@Test

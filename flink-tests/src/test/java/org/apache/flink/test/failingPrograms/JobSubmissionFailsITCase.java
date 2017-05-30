@@ -46,9 +46,9 @@ import static org.junit.Assert.fail;
 
 @RunWith(Parameterized.class)
 public class JobSubmissionFailsITCase extends TestLogger {
-	
+
 	private static final int NUM_SLOTS = 20;
-	
+
 	private static LocalFlinkMiniCluster cluster;
 	private static JobGraph workingJobGraph;
 
@@ -59,11 +59,11 @@ public class JobSubmissionFailsITCase extends TestLogger {
 			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_SLOTS / 2);
-			
+
 			cluster = new LocalFlinkMiniCluster(config);
 
 			cluster.start();
-			
+
 			final JobVertex jobVertex = new JobVertex("Working job vertex.");
 			jobVertex.setInvokableClass(NoOpInvokable.class);
 			workingJobGraph = new JobGraph("Working testing job", jobVertex);
@@ -84,7 +84,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	private boolean detached;
@@ -100,7 +100,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	private JobExecutionResult submitJob(JobGraph jobGraph) throws Exception {
 		if (detached) {
 			cluster.submitJobDetached(jobGraph);
@@ -143,7 +143,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 	public void testSubmitEmptyJobGraph() {
 		try {
 			final JobGraph jobGraph = new JobGraph("Testing job");
-	
+
 			try {
 				submitJob(jobGraph);
 				fail("Expected JobSubmissionException.");
@@ -155,7 +155,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 				t.printStackTrace();
 				fail("Caught wrong exception of type " + t.getClass() + ".");
 			}
-	
+
 			cluster.submitJobAndWait(workingJobGraph, false);
 		}
 		catch (Exception e) {
@@ -163,7 +163,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testSubmitNullJobGraph() {
 		try {
@@ -188,7 +188,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static class FailingJobVertex extends JobVertex {
 		private static final long serialVersionUID = -6365291240199412135L;
 

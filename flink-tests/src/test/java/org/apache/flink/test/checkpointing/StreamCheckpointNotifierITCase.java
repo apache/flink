@@ -94,32 +94,32 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
 
 			final int numElements = 10000;
-			final int numTaskTotal = PARALLELISM * 5; 
+			final int numTaskTotal = PARALLELISM * 5;
 
 			DataStream<Long> stream = env.addSource(new GeneratingSourceFunction(numElements, numTaskTotal));
 
 			stream
 					// -------------- first vertex, chained to the src ----------------
 					.filter(new LongRichFilterFunction())
-	
+
 					// -------------- second vertex, applying the co-map ----------------
 					.connect(stream).flatMap(new LeftIdentityCoRichFlatMapFunction())
-	
+
 					// -------------- third vertex - the stateful one that also fails ----------------
 					.map(new IdentityMapFunction())
 					.startNewChain()
-	
+
 					// -------------- fourth vertex - reducer and the sink ----------------
 					.keyBy(0)
 					.reduce(new OnceFailingReducer(numElements))
-				
+
 					.addSink(new DiscardingSink<Tuple1<Long>>());
-			
+
 			env.execute();
 
 			final long failureCheckpointID = OnceFailingReducer.failureCheckpointID;
 			assertNotEquals(0L, failureCheckpointID);
-			
+
 			List<List<Long>[]> allLists = Arrays.asList(
 				GeneratingSourceFunction.completedCheckpoints,
 				LongRichFilterFunction.completedCheckpoints,
@@ -130,16 +130,16 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 
 			for (List<Long>[] parallelNotifications : allLists) {
 				for (List<Long> notifications : parallelNotifications) {
-					
-					assertTrue("No checkpoint notification was received.", 
+
+					assertTrue("No checkpoint notification was received.",
 						notifications.size() > 0);
-					
+
 					assertFalse("Failure checkpoint was marked as completed.",
 						notifications.contains(failureCheckpointID));
-					
+
 					assertFalse("No checkpoint received after failure.",
 						notifications.get(notifications.size() - 1) == failureCheckpointID);
-					
+
 					assertTrue("Checkpoint notification was received multiple times",
 						notifications.size() == new HashSet<Long>(notifications).size());
 				}
@@ -159,7 +159,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 		}
 		return lists;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Custom Functions
 	// --------------------------------------------------------------------------------------------
@@ -170,21 +170,21 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 	 */
 	private static class GeneratingSourceFunction extends RichSourceFunction<Long>
 			implements ParallelSourceFunction<Long>, CheckpointListener, ListCheckpointed<Integer> {
-		
+
 		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
-		
+
 		static AtomicLong numPostFailureNotifications = new AtomicLong();
 
 		// operator behaviour
 		private final long numElements;
-		
+
 		private final int notificationsToWaitFor;
 
 		private int index;
 		private int step;
 
 		private volatile boolean notificationAlready;
-		
+
 		private volatile boolean isRunning = true;
 
 		GeneratingSourceFunction(long numElements, int notificationsToWaitFor) {
@@ -213,7 +213,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 					ctx.collect(result);
 				}
 			}
-			
+
 			// if the program goes fast and no notifications come through, we
 			// wait until all tasks had a chance to see a notification
 			while (isRunning && numPostFailureNotifications.get() < notificationsToWaitFor) {
@@ -293,9 +293,9 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 	private static class LongRichFilterFunction extends RichFilterFunction<Long> implements CheckpointListener {
 
 		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
-		
+
 		private volatile boolean notificationAlready;
-		
+
 		@Override
 		public boolean filter(Long value) {
 			return value < 100;
@@ -306,7 +306,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 			// record the ID of the completed checkpoint
 			int partition = getRuntimeContext().getIndexOfThisSubtask();
 			completedCheckpoints[partition].add(checkpointId);
-			
+
 			// if this is the first time we get a notification since the failure,
 			// tell the source function
 			if (OnceFailingReducer.hasFailed && !notificationAlready) {
@@ -327,7 +327,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
 
 		private volatile boolean notificationAlready;
-		
+
 		@Override
 		public void flatMap1(Long value, Collector<Long> out) {
 			out.collect(value);
@@ -356,16 +356,16 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 	/**
 	 * Reducer that causes one failure between seeing 40% to 70% of the records.
 	 */
-	private static class OnceFailingReducer extends RichReduceFunction<Tuple1<Long>> 
+	private static class OnceFailingReducer extends RichReduceFunction<Tuple1<Long>>
 		implements ListCheckpointed<Long>, CheckpointListener
 	{
 		static volatile boolean hasFailed = false;
 		static volatile long failureCheckpointID;
 
 		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
-		
+
 		private final long failurePos;
-		
+
 		private volatile long count;
 
 		private volatile boolean notificationAlready;
@@ -380,7 +380,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 			if (count >= failurePos && getRuntimeContext().getIndexOfThisSubtask() == 0) {
 				LOG.info(">>>>>>>>>>>>>>>>> Reached failing position <<<<<<<<<<<<<<<<<<<<<");
 			}
-			
+
 			value1.f0 += value2.f0;
 			return value1;
 		}

@@ -275,7 +275,7 @@ public class CustomDistributionITCase extends TestLogger {
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 		DataSetUtils.partitionByRange(input, dist, 0, 1, 2);
 	}
-	
+
 	/**
 	 * The class is used to do the tests of range partition with one key.
 	 */
@@ -334,7 +334,7 @@ public class CustomDistributionITCase extends TestLogger {
 		public int getParallelism() {
 			return boundaries.length;
 		}
-		
+
 		@Override
 		public Object[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
 			return boundaries[bucketNum];

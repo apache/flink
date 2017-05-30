@@ -62,7 +62,7 @@ public class TaskFailureITCase extends JavaProgramTestBase {
 		//test correct version
 		executeTask(new TestMapper(), 0);
 	}
-	
+
 
 	private void executeTask(MapFunction<Long, Long> mapper, int retries) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -85,7 +85,7 @@ public class TaskFailureITCase extends JavaProgramTestBase {
 			return value;
 		}
 	}
-	
+
 	/**
 	 * failing map function
 	 */

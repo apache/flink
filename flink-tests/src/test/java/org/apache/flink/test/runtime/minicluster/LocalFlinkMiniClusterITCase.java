@@ -50,7 +50,7 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 
 	@Test
 	public void testLocalFlinkMiniClusterWithMultipleTaskManagers() {
-		
+
 		final ActorSystem system = ActorSystem.create("Testkit", AkkaUtils.getDefaultAkkaConfig());
 		LocalFlinkMiniCluster miniCluster = null;
 
@@ -64,8 +64,8 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 			Thread.enumerate(allThreads);
 			threadsBefore.addAll(Arrays.asList(allThreads));
 		}
-		
-		
+
+
 		try {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs);
@@ -113,7 +113,7 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 		try {
 			Field f = ExecutionContextImpl.class.getDeclaredField("executor");
 			f.setAccessible(true);
-			
+
 			Object exec = ExecutionContext$.MODULE$.global();
 			ForkJoinPool executor = (ForkJoinPool) f.get(exec);
 			executor.shutdownNow();
@@ -122,14 +122,14 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 			System.err.println("Cannot test proper thread shutdown for local execution.");
 			return;
 		}
-		
+
 		// check for remaining threads
 		// we need to check repeatedly for a while, because some threads shut down slowly
-		
+
 		long deadline = System.currentTimeMillis() + 30000;
 		boolean foundThreads = true;
 		String threadName = "";
-		
+
 		while (System.currentTimeMillis() < deadline) {
 			// check that no additional threads remain
 			final Thread[] threadsAfter = new Thread[Thread.activeCount()];
@@ -146,7 +146,7 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 							break;
 						}
 					}
-					
+
 					if (!allowed) {
 						foundThreads = true;
 						threadName = t.toString();
@@ -154,7 +154,7 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 					}
 				}
 			}
-			
+
 			if (foundThreads) {
 				try {
 					Thread.sleep(500);
@@ -163,7 +163,7 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 				break;
 			}
 		}
-		
+
 		if (foundThreads) {
 			fail("Thread " + threadName + " was started by the mini cluster, but not shut down");
 		}

@@ -33,7 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 
+ *
  * Iterative Connected Components test case which recomputes only the elements
  * of the solution set whose at least one dependency (in-neighbor) has changed since the last iteration.
  * Requires two joins with the solution set.
@@ -41,7 +41,7 @@ import java.util.List;
  */
 @SuppressWarnings("serial")
 public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
-	
+
 	private static final int MAX_ITERATIONS = 20;
 	private static final int parallelism = 1;
 
@@ -53,8 +53,8 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 	public DependencyConnectedComponentsITCase(){
 		setTaskManagerNumSlots(parallelism);
 	}
-	
-	
+
+
 	@Override
 	protected void preSubmit() throws Exception {
 		verticesInput.clear();
@@ -70,7 +70,7 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		verticesInput.add(new Tuple2<Long, Long>(7l,7l));
 		verticesInput.add(new Tuple2<Long, Long>(8l,8l));
 		verticesInput.add(new Tuple2<Long, Long>(9l,9l));
-		
+
 		// vertices input
 		edgesInput.add(new Tuple2<Long, Long>(1l,2l));
 		edgesInput.add(new Tuple2<Long, Long>(1l,3l));
@@ -90,9 +90,9 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		edgesInput.add(new Tuple2<Long, Long>(8l,9l));
 		edgesInput.add(new Tuple2<Long, Long>(9l,7l));
 		edgesInput.add(new Tuple2<Long, Long>(9l,8l));
-		
+
 		resultPath = getTempDirPath("result");
-		
+
 		expectedResult = "(1,1)\n" + "(2,1)\n" + "(3,1)\n" + "(4,1)\n" +
 						"(5,1)\n" + "(6,1)\n" + "(7,7)\n" + "(8,7)\n" + "(9,7)\n";
 	}
@@ -101,63 +101,63 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 	protected void testProgram() throws Exception {
 		DependencyConnectedComponentsProgram.runProgram(resultPath);
 	}
-	
+
 	@Override
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(expectedResult, resultPath);
 	}
 
-	
+
 	private static class DependencyConnectedComponentsProgram {
-		
+
 		public static String runProgram(String resultPath) throws Exception {
-			
+
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(parallelism);
-			
+
 			DataSet<Tuple2<Long, Long>> initialSolutionSet = env.fromCollection(verticesInput);
 			DataSet<Tuple2<Long, Long>> edges = env.fromCollection(edgesInput);
 			int keyPosition = 0;
-			
+
 			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
 					initialSolutionSet.iterateDelta(initialSolutionSet, MAX_ITERATIONS, keyPosition);
-			
+
 			DataSet<Long> candidates = iteration.getWorkset().join(edges).where(0).equalTo(0)
 					.with(new FindCandidatesJoin())
-					.groupBy(new KeySelector<Long, Long>() { 
-                        public Long getKey(Long id) { return id; } 
+					.groupBy(new KeySelector<Long, Long>() {
+                        public Long getKey(Long id) { return id; }
                       }).reduceGroup(new RemoveDuplicatesReduce());
-			
-			DataSet<Tuple2<Long, Long>> candidatesDependencies = 
+
+			DataSet<Tuple2<Long, Long>> candidatesDependencies =
 					candidates.join(edges)
-					.where(new KeySelector<Long, Long>() { 
-                        public Long getKey(Long id) { return id; } 
-                      }).equalTo(new KeySelector<Tuple2<Long, Long>, Long>() { 
-                        public Long getKey(Tuple2<Long, Long> vertexWithId) 
-                        { return vertexWithId.f1; } 
+					.where(new KeySelector<Long, Long>() {
+                        public Long getKey(Long id) { return id; }
+                      }).equalTo(new KeySelector<Tuple2<Long, Long>, Long>() {
+                        public Long getKey(Tuple2<Long, Long> vertexWithId)
+                        { return vertexWithId.f1; }
                       }).with(new FindCandidatesDependenciesJoin());
-			
-			DataSet<Tuple2<Long, Long>> verticesWithNewComponents = 
+
+			DataSet<Tuple2<Long, Long>> verticesWithNewComponents =
 					candidatesDependencies.join(iteration.getSolutionSet()).where(0).equalTo(0)
 					.with(new NeighborWithComponentIDJoin())
 					.groupBy(0).reduceGroup(new MinimumReduce());
-			
-			DataSet<Tuple2<Long, Long>> updatedComponentId = 
+
+			DataSet<Tuple2<Long, Long>> updatedComponentId =
 					verticesWithNewComponents.join(iteration.getSolutionSet()).where(0).equalTo(0)
 					.flatMap(new MinimumIdFilter());
-			
+
 			iteration.closeWith(updatedComponentId, updatedComponentId).writeAsText(resultPath);
-			
+
 			env.execute();
-			
+
 			return resultPath;
 		}
 	}
-	
+
 	public static final class FindCandidatesJoin extends RichJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Long> {
-		
+
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public Long join(Tuple2<Long, Long> vertexWithCompId,
 				Tuple2<Long, Long> edge) throws Exception {
@@ -165,9 +165,9 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 			return edge.f1;
 		}
 	}
-	
+
 	public static final class RemoveDuplicatesReduce extends RichGroupReduceFunction<Long, Long> {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -175,35 +175,35 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 				out.collect(values.iterator().next());
 		}
 	}
-	
+
 	public static final class FindCandidatesDependenciesJoin extends RichJoinFunction<Long, Tuple2<Long, Long>,Tuple2<Long, Long>> {
-	
+
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public Tuple2<Long, Long> join(Long candidateId, Tuple2<Long, Long> edge) throws Exception {
 			return edge;
 		}
 	}
-	
+
 	public static final class NeighborWithComponentIDJoin extends RichJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
-	
+
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public Tuple2<Long, Long> join(Tuple2<Long, Long> edge,
 				Tuple2<Long, Long> vertexWithCompId) throws Exception {
-			
+
 			vertexWithCompId.setField(edge.f1, 0);
 			return vertexWithCompId;
 		}
 	}
-	
+
 	public static final class MinimumReduce extends RichGroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
-		
+
 		private static final long serialVersionUID = 1L;
 		final Tuple2<Long, Long> resultVertex = new Tuple2<Long, Long>();
-		
+
 		@Override
 		public void reduce(Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long>> out) {
 			Long vertexId = 0L;
@@ -224,9 +224,9 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 	}
 
 	public static final class MinimumIdFilter extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
-	
+
 		private static final long serialVersionUID = 1L;
-	
+
 		@Override
 		public void flatMap(
 				Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>> vertexWithNewAndOldId,

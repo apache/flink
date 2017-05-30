@@ -45,7 +45,7 @@ public class IterationWithUnionITCase extends JavaProgramTestBase {
 		dataPath = createTempFile("datapoints.txt", DATAPOINTS);
 		resultPath = getTempDirPath("union_iter_result");
 	}
-	
+
 	@Override
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(DATAPOINTS + DATAPOINTS + DATAPOINTS + DATAPOINTS, resultPath);
@@ -54,18 +54,18 @@ public class IterationWithUnionITCase extends JavaProgramTestBase {
 	@Override
 	protected void testProgram() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		DataSet<Tuple2<Integer, CoordVector>> initialInput = env.readFile(new PointInFormat(), this.dataPath).setParallelism(1);
-		
+
 		IterativeDataSet<Tuple2<Integer, CoordVector>> iteration = initialInput.iterate(2);
-		
+
 		DataSet<Tuple2<Integer, CoordVector>> result = iteration.union(iteration).map(new IdentityMapper());
-		
+
 		iteration.closeWith(result).writeAsFormattedText(this.resultPath, new PointFormatter());
-		
+
 		env.execute();
 	}
-	
+
 	static final class IdentityMapper implements MapFunction<Tuple2<Integer, CoordVector>, Tuple2<Integer, CoordVector>>, Serializable {
 		private static final long serialVersionUID = 1L;
 

@@ -40,7 +40,7 @@ import java.util.List;
 
 @SuppressWarnings("serial")
 public class StreamingCustomInputSplitProgram {
-	
+
 	public static void main(String[] args) throws Exception {
 				Configuration config = new Configuration();
 
@@ -62,7 +62,7 @@ public class StreamingCustomInputSplitProgram {
 		env.execute();
 	}
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static final class CustomInputFormat implements InputFormat<Integer, CustomInputSplit>, ResultTypeQueryable<Integer> {
 
 		private static final long serialVersionUID = 1L;

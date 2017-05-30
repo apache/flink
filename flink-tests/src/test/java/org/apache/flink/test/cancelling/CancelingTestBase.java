@@ -54,14 +54,14 @@ import static org.apache.flink.runtime.messages.JobManagerMessages.CancellationF
 import static org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
 
 /**
- * 
+ *
  */
 public abstract class CancelingTestBase extends TestLogger {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(CancelingTestBase.class);
 
 	private static final int MINIMUM_HEAP_SIZE_MB = 192;
-	
+
 	/**
 	 * Defines the number of seconds after which an issued cancel request is expected to have taken effect (i.e. the job
 	 * is canceled), starting from the point in time when the cancel request is issued.
@@ -71,13 +71,13 @@ public abstract class CancelingTestBase extends TestLogger {
 	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	protected LocalFlinkMiniCluster executor;
 
 	protected int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	private void verifyJvmOptions() {
 		final long heap = Runtime.getRuntime().maxMemory() >> 20;
 		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
@@ -114,7 +114,7 @@ public abstract class CancelingTestBase extends TestLogger {
 	public void runAndCancelJob(Plan plan, int msecsTillCanceling) throws Exception {
 		runAndCancelJob(plan, msecsTillCanceling, DEFAULT_CANCEL_FINISHED_INTERVAL);
 	}
-		
+
 	public void runAndCancelJob(Plan plan, final int msecsTillCanceling, int maxTimeTillCanceled) throws Exception {
 		try {
 			// submit job

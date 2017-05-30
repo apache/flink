@@ -174,7 +174,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		final int WINDOW_SIZE = windowSize();
 		final int NUM_KEYS = numKeys();
 		FailingSource.reset();
-		
+
 		try {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);

@@ -36,7 +36,7 @@ public class WordCountNestedPOJOITCase extends JavaProgramTestBase implements Se
 	protected String textPath;
 	protected String resultPath;
 
-	
+
 	@Override
 	protected void preSubmit() throws Exception {
 		textPath = createTempFile("text.txt", WordCountData.TEXT);
@@ -47,7 +47,7 @@ public class WordCountNestedPOJOITCase extends JavaProgramTestBase implements Se
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
 	}
-	
+
 	@Override
 	protected void testProgram() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -104,7 +104,7 @@ public class WordCountNestedPOJOITCase extends JavaProgramTestBase implements Se
 			return this.complex.someTest+" "+count;
 		}
 	}
-	
+
 	public static class ComplexNestedClass { // pojo
 		public static int ignoreStaticField;
 		public transient int ignoreTransientField;
@@ -114,5 +114,5 @@ public class WordCountNestedPOJOITCase extends JavaProgramTestBase implements Se
 		public Tuple3<Long, Long, String> word; //Tuple Type with three basic types
 		public String someTest;
 	}
-	
+
 }

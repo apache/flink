@@ -105,7 +105,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 	public void testTumblingProcessingTimeWindow() {
 		final int NUM_ELEMENTS = 3000;
 		FailingSource.reset();
-		
+
 		try {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(timeCharacteristic);

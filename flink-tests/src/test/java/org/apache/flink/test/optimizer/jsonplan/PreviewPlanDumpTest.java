@@ -43,7 +43,7 @@ import java.util.List;
  * The tests in this class simply invokes the JSON dump code for the original plan.
  */
 public class PreviewPlanDumpTest extends CompilerTestBase {
-	
+
 	@Test
 	public void dumpWordCount() {
 		// prepare the test environment
@@ -61,7 +61,7 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	@Test
 	public void dumpTPCH3() {
 		// prepare the test environment
@@ -81,7 +81,7 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	@Test
 	public void dumpIterativeKMeans() {
 		// prepare the test environment
@@ -101,7 +101,7 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	@Test
 	public void dumpWebLogAnalysis() {
 		// prepare the test environment
@@ -141,7 +141,7 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	@Test
 	public void dumpPageRank() {
 		// prepare the test environment
@@ -163,7 +163,7 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	private void dump(Plan p) {
 		try {
 			List<DataSinkNode> sinks = Optimizer.createPreOptimizedPlan(p);

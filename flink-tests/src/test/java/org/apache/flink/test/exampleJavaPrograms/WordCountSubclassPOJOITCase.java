@@ -35,7 +35,7 @@ public class WordCountSubclassPOJOITCase extends JavaProgramTestBase implements 
 	protected String textPath;
 	protected String resultPath;
 
-	
+
 	@Override
 	protected void preSubmit() throws Exception {
 		textPath = createTempFile("text.txt", WordCountData.TEXT);
@@ -46,7 +46,7 @@ public class WordCountSubclassPOJOITCase extends JavaProgramTestBase implements 
 	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
 	}
-	
+
 	@Override
 	protected void testProgram() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -119,5 +119,5 @@ public class WordCountSubclassPOJOITCase extends JavaProgramTestBase implements 
 			this.secretCount = c;
 		}
 	}
-	
+
 }

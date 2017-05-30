@@ -38,7 +38,7 @@ import java.util.List;
 public class CheckpointedStreamingProgram {
 
 	private static final int CHECKPOINT_INTERVALL = 100;
-	
+
 	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -46,7 +46,7 @@ public class CheckpointedStreamingProgram {
 		env.enableCheckpointing(CHECKPOINT_INTERVALL);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 100L));
 		env.disableOperatorChaining();
-		
+
 		DataStream<String> text = env.addSource(new SimpleStringGenerator());
 		text.map(new StatefulMapper()).addSink(new NoOpSink());
 		env.setParallelism(1);

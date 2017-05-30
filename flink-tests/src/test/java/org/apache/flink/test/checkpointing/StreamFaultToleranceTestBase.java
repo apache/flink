@@ -55,7 +55,7 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_TASK_SLOTS);
 			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 12L);
-			
+
 			cluster = new LocalFlinkMiniCluster(config, false);
 
 			cluster.start();

@@ -126,7 +126,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 
 		KvStateRequestSerializerTest.testListSerialization(key, listState);
 	}
-	
+
 	/**
 	 * Tests map serialization and deserialization match.
 	 *
@@ -157,10 +157,10 @@ public final class KVStateRequestSerializerRocksDBTest {
 		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalMapState<VoidNamespace, Long, String> mapState = (InternalMapState<VoidNamespace, Long, String>) 
+		final InternalMapState<VoidNamespace, Long, String> mapState = (InternalMapState<VoidNamespace, Long, String>)
 				longHeapKeyedStateBackend.getPartitionedState(
 						VoidNamespace.INSTANCE,
-						VoidNamespaceSerializer.INSTANCE, 
+						VoidNamespaceSerializer.INSTANCE,
 						new MapStateDescriptor<>("test", LongSerializer.INSTANCE, StringSerializer.INSTANCE));
 
 		KvStateRequestSerializerTest.testMapSerialization(key, mapState);

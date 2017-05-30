@@ -42,19 +42,19 @@ import java.util.Collection;
 
 @RunWith(Parameterized.class)
 public class ConnectedComponentsWithDeferredUpdateITCase extends JavaProgramTestBase {
-	
+
 	private static final long SEED = 0xBADC0FFEEBEEFL;
-	
+
 	private static final int NUM_VERTICES = 1000;
-	
+
 	private static final int NUM_EDGES = 10000;
 
-	
+
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
-	
-	
+
+
 	public ConnectedComponentsWithDeferredUpdateITCase(Configuration config) {
 		super(config);
 	}
@@ -128,10 +128,10 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends JavaProgramTest
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
 		config1.setBoolean("ExtraMapper", false);
-		
+
 		Configuration config2 = new Configuration();
 		config2.setBoolean("ExtraMapper", true);
-		
+
 		return toParameterList(config1, config2);
 	}
 

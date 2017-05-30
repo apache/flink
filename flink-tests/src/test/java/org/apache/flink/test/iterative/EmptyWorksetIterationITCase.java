@@ -31,20 +31,20 @@ import java.util.List;
 
 @SuppressWarnings("serial")
 public class EmptyWorksetIterationITCase extends JavaProgramTestBase {
-	
+
 	private List<Tuple2<Long, Long>> result = new ArrayList<Tuple2<Long, Long>>();
-	
+
 	@Override
 	protected void testProgram() throws Exception {
-		
+
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		DataSet<Tuple2<Long, Long>> input = env.generateSequence(1, 20).map(new Dupl());
-				
+
 		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iter = input.iterateDelta(input, 20, 0);
 		iter.closeWith(iter.getWorkset(), iter.getWorkset())
 			.output(new LocalCollectionOutputFormat<Tuple2<Long, Long>>(result));
-		
+
 		env.execute();
 	}
 
@@ -54,6 +54,6 @@ public class EmptyWorksetIterationITCase extends JavaProgramTestBase {
 		public Tuple2<Long, Long> map(Long value) {
 			return new Tuple2<Long, Long>(value, value);
 		}
-		
+
 	}
 }

@@ -45,7 +45,7 @@ import static org.junit.Assert.fail;
 public class CustomSerializationITCase extends TestLogger {
 
 	private static final int PARLLELISM = 5;
-	
+
 	private static LocalFlinkMiniCluster cluster;
 
 	private static TestEnvironment env;
@@ -66,13 +66,13 @@ public class CustomSerializationITCase extends TestLogger {
 		cluster.shutdown();
 		cluster = null;
 	}
-	
+
 	@Test
 	public void testIncorrectSerializer1() {
 		try {
 			env.setParallelism(PARLLELISM);
 			env.getConfig().disableSysoutLogging();
-			
+
 			env
 				.generateSequence(1, 10 * PARLLELISM)
 				.map(new MapFunction<Long, ConsumesTooMuch>() {
@@ -83,7 +83,7 @@ public class CustomSerializationITCase extends TestLogger {
 				})
 				.rebalance()
 				.output(new DiscardingOutputFormat<ConsumesTooMuch>());
-			
+
 			env.execute();
 		}
 		catch (JobExecutionException e) {
@@ -186,11 +186,11 @@ public class CustomSerializationITCase extends TestLogger {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Custom Data Types with broken Serialization Logic
 	// ------------------------------------------------------------------------
-	
+
 	public static class ConsumesTooMuch implements Value {
 
 		@Override

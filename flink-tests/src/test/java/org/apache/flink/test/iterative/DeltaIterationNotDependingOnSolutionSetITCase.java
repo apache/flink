@@ -76,7 +76,7 @@ public class DeltaIterationNotDependingOnSolutionSetITCase extends JavaProgramTe
 			return new Tuple2<T, T>(value, value);
 		}
 	}
-	
+
 	private static final class TestMapper extends RichMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		@Override
 		public Tuple2<Long, Long> map(Tuple2<Long, Long> value) {

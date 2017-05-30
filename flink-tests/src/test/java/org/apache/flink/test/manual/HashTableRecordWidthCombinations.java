@@ -45,18 +45,18 @@ public class HashTableRecordWidthCombinations {
 	public static void main(String[] args) throws Exception {
 
 		@SuppressWarnings("unchecked")
-		final TypeSerializer<Tuple2<Long, byte[]>> buildSerializer = 
+		final TypeSerializer<Tuple2<Long, byte[]>> buildSerializer =
 				new TupleSerializer<Tuple2<Long, byte[]>>(
 						(Class<Tuple2<Long, byte[]>>) (Class<?>) Tuple2.class,
 						new TypeSerializer<?>[] { LongSerializer.INSTANCE, BytePrimitiveArraySerializer.INSTANCE });
-		
+
 		final TypeSerializer<Long> probeSerializer = LongSerializer.INSTANCE;
 
 		final TypeComparator<Tuple2<Long, byte[]>> buildComparator = new TupleComparator<Tuple2<Long, byte[]>>(
 				new int[] {0},
 				new TypeComparator<?>[] { new LongComparator(true) },
 				new TypeSerializer<?>[] { LongSerializer.INSTANCE });
-		
+
 		final TypeComparator<Long> probeComparator = new LongComparator(true);
 
 		final TypePairComparator<Long, Tuple2<Long, byte[]>> pairComparator = new TypePairComparator<Long, Tuple2<Long, byte[]>>() {
@@ -176,11 +176,11 @@ public class HashTableRecordWidthCombinations {
 			ioMan.shutdown();
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	private static List<MemorySegment> getMemory(int numSegments, int segmentSize) {
 		ArrayList<MemorySegment> list = new ArrayList<MemorySegment>(numSegments);
 		for (int i = 0; i < numSegments; i++) {
@@ -188,7 +188,7 @@ public class HashTableRecordWidthCombinations {
 		}
 		return list;
 	}
-	
+
 	private static void checkNoTempFilesRemain(IOManager ioManager) {
 		for (File dir : ioManager.getSpillingDirectories()) {
 			for (String file : dir.list()) {

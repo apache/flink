@@ -42,7 +42,7 @@ import org.junit.Test;
  * The tests in this class simply invokes the JSON dump code for the optimized plan.
  */
 public class DumpCompiledPlanTest extends CompilerTestBase {
-	
+
 	@Test
 	public void dumpWordCount() {
 		// prepare the test environment
@@ -60,7 +60,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	@Test
 	public void dumpTPCH3() {
 		// prepare the test environment
@@ -80,7 +80,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	@Test
 	public void dumpIterativeKMeans() {
 		// prepare the test environment
@@ -100,7 +100,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	@Test
 	public void dumpWebLogAnalysis() {
 		// prepare the test environment
@@ -140,7 +140,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	@Test
 	public void dumpPageRank() {
 		// prepare the test environment
@@ -161,7 +161,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		}
 		dump(env.getPlan());
 	}
-	
+
 	private void dump(Plan p) {
 		p.setExecutionConfig(new ExecutionConfig());
 		try {

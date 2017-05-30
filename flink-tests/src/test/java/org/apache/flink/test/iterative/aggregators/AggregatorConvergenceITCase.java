@@ -129,7 +129,7 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 
 			List<Tuple2<Long, Long>> result = iteration.closeWith(updatedComponentId).collect();
 			Collections.sort(result, new TestBaseUtils.TupleComparator<Tuple2<Long, Long>>());
-			
+
 			assertEquals(expectedResult, result);
 	}
 
@@ -167,7 +167,7 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 
 			assertEquals(expectedResult, result);
 	}
-	
+
 	@Test
 	public void testParameterizableAggregator() throws Exception {
 
@@ -224,7 +224,7 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 			assertEquals(5, aggr_values[2]);
 			assertEquals(6, aggr_values[3]);
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Test Functions
 	// ------------------------------------------------------------------------
@@ -239,7 +239,7 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 			return vertexWithCompId;
 		}
 	}
-	
+
 	public static class MinimumIdFilter extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
 
 		private final String aggName;
@@ -269,24 +269,24 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 		}
 	}
 
-	public static final class MinimumIdFilterCounting 
+	public static final class MinimumIdFilterCounting
 			extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
-		
+
 		private static final long[] aggr_value = new long[5];
-		
+
 		private final String aggName;
 		private LongSumAggregatorWithParameter aggr;
 
 		public MinimumIdFilterCounting(String aggName) {
 			this.aggName = aggName;
 		}
-		
+
 		@Override
 		public void open(Configuration conf) {
 			final int superstep = getIterationRuntimeContext().getSuperstepNumber();
-			
+
 			aggr = getIterationRuntimeContext().getIterationAggregator(aggName);
-			
+
 			if (superstep > 1 && getIterationRuntimeContext().getIndexOfThisSubtask() == 0) {
 				LongValue val = getIterationRuntimeContext().getPreviousIterationAggregate(aggName);
 				aggr_value[superstep - 2] = val.getValue();

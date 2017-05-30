@@ -33,22 +33,22 @@ public class MapCancelingITCase extends CancelingTestBase {
 	public MapCancelingITCase() {
 		setTaskManagerNumSlots(parallelism);
 	}
-	
+
 	@Test
 	public void testMapCancelling() throws Exception {
 		executeTask(new IdentityMapper<Integer>());
 	}
-	
+
 	@Test
 	public void testSlowMapCancelling() throws Exception {
 		executeTask(new DelayingIdentityMapper<Integer>());
 	}
-	
+
 	@Test
 	public void testMapWithLongCancellingResponse() throws Exception {
 		executeTask(new LongCancelTimeIdentityMapper<Integer>());
 	}
-	
+
 	@Test
 	public void testMapPriorToFirstRecordReading() throws Exception {
 		executeTask(new StuckInOpenIdentityMapper<Integer>());
@@ -68,7 +68,7 @@ public class MapCancelingITCase extends CancelingTestBase {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static final class IdentityMapper<IN> implements MapFunction<IN, IN> {
 		private static final long serialVersionUID = 1L;
 
@@ -77,7 +77,7 @@ public class MapCancelingITCase extends CancelingTestBase {
 			return value;
 		}
 	}
-	
+
 	public static final class DelayingIdentityMapper<IN> implements MapFunction<IN, IN> {
 		private static final long serialVersionUID = 1L;
 
@@ -89,7 +89,7 @@ public class MapCancelingITCase extends CancelingTestBase {
 			return value;
 		}
 	}
-	
+
 	public static final class LongCancelTimeIdentityMapper<IN> implements MapFunction<IN, IN> {
 		private static final long serialVersionUID = 1L;
 
@@ -109,7 +109,7 @@ public class MapCancelingITCase extends CancelingTestBase {
 			return value;
 		}
 	}
-	
+
 	public static final class StuckInOpenIdentityMapper<IN> extends RichMapFunction<IN, IN> {
 		private static final long serialVersionUID = 1L;
 

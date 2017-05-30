@@ -101,7 +101,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 		final int WINDOW_SIZE = 100;
 		final int NUM_KEYS = 1;
 		FailingSource.reset();
-		
+
 		try {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);

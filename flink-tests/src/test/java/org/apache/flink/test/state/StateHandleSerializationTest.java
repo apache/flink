@@ -56,7 +56,7 @@ public class StateHandleSerializationTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	private static void validataSerialVersionUID(Class<?> clazz) {
 		// all non-interface types must have a serial version UID
 		if (!clazz.isInterface()) {
@@ -66,7 +66,7 @@ public class StateHandleSerializationTest {
 			try {
 				Field versionUidField = clazz.getDeclaredField("serialVersionUID");
 
-				// check conditions first via "if" to prevent always constructing expensive error messages 
+				// check conditions first via "if" to prevent always constructing expensive error messages
 				if (!(Modifier.isPrivate(versionUidField.getModifiers()) &&
 						Modifier.isStatic(versionUidField.getModifiers()) &&
 						Modifier.isFinal(versionUidField.getModifiers())))

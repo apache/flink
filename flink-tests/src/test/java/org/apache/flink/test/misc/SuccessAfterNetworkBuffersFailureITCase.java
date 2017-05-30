@@ -48,20 +48,20 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 	@Test
 	public void testSuccessfulProgramAfterFailure() {
 		LocalFlinkMiniCluster cluster = null;
-		
+
 		try {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 80L);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
 			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 800);
-			
+
 			cluster = new LocalFlinkMiniCluster(config, false);
 
 			cluster.start();
 
 			TestEnvironment env = new TestEnvironment(cluster, PARALLELISM, false);
-			
+
 			try {
 				runConnectedComponents(env);
 			}
@@ -69,7 +69,7 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 				e.printStackTrace();
 				fail("Program Execution should have succeeded.");
 			}
-	
+
 			try {
 				runKMeans(env);
 				fail("This program execution should have failed.");
@@ -77,7 +77,7 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 			catch (JobExecutionException e) {
 				assertTrue(e.getCause().getMessage().contains("Insufficient number of network buffers"));
 			}
-	
+
 			try {
 				runConnectedComponents(env);
 			}
@@ -96,9 +96,9 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 			}
 		}
 	}
-	
+
 	private static void runConnectedComponents(ExecutionEnvironment env) throws Exception {
-		
+
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
@@ -167,7 +167,7 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 				.map(new KMeans.SelectNearestCenter()).withBroadcastSet(finalCentroids, "centroids");
 
 		clusteredPoints.output(new DiscardingOutputFormat<Tuple2<Integer, KMeans.Point>>());
-		
+
 		env.execute("KMeans Example");
 	}
 }

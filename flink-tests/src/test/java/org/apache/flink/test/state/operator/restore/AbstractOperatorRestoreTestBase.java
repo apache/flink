@@ -69,7 +69,7 @@ import scala.concurrent.duration.FiniteDuration;
 /**
  * Abstract class to verify that it is possible to migrate a savepoint across upgraded Flink versions and that the
  * topology can be modified from that point on.
- * 
+ *
  * The verification is done in 2 Steps:
  * Step 1: Migrate the job to the newer version by submitting the same job used for the old version savepoint, and create a new savepoint.
  * Step 2: Modify the job topology, and restore from the savepoint created in step 1.

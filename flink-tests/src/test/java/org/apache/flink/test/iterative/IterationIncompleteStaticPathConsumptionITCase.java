@@ -28,14 +28,14 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 @SuppressWarnings("serial")
 public class IterationIncompleteStaticPathConsumptionITCase extends JavaProgramTestBase {
-	
+
 	@Override
 	protected void testProgram() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-	
+
 		// the test data is constructed such that the merge join zig zag
 		// has an early out, leaving elements on the static path input unconsumed
-		
+
 		DataSet<Path> edges = env.fromElements(
 				new Path(2, 1),
 				new Path(4, 1),
@@ -47,23 +47,23 @@ public class IterationIncompleteStaticPathConsumptionITCase extends JavaProgramT
 				new Path(16, 3),
 				new Path(18, 1),
 				new Path(20, 1) );
-		
+
 		IterativeDataSet<Path> currentPaths = edges.iterate(10);
-		
+
 		DataSet<Path> newPaths = currentPaths
 				.join(edges, JoinHint.REPARTITION_SORT_MERGE).where("to").equalTo("from")
 					.with(new PathConnector())
 				.union(currentPaths).distinct("from", "to");
-		
+
 		DataSet<Path> result = currentPaths.closeWith(newPaths);
-		
+
 		result.output(new DiscardingOutputFormat<Path>());
-		
+
 		env.execute();
 	}
-	
+
 	private static class PathConnector implements JoinFunction<Path, Path, Path> {
-		
+
 		@Override
 		public Path join(Path path, Path edge)  {
 			return new Path(path.from, edge.to);
@@ -71,19 +71,19 @@ public class IterationIncompleteStaticPathConsumptionITCase extends JavaProgramT
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static class Path {
-		
+
 		public long from;
 		public long to;
-		
+
 		public Path() {}
-		
+
 		public Path(long from, long to) {
 			this.from = from;
 			this.to = to;
 		}
-		
+
 		@Override
 		public String toString() {
 			return "(" + from + "," + to + ")";

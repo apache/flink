@@ -90,7 +90,7 @@ public class PointInFormat extends DelimitedInputFormat<Tuple2<Integer, CoordVec
 		for (int i = 0; i < this.pointValues.length; i++) {
 			this.pointValues[i] = this.dimensionValues.get(i);
 		}
-		
+
 		reuse.f1 = new CoordVector(this.pointValues);
 		return reuse;
 	}

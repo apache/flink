@@ -64,7 +64,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 	 */
 	@Test
 	public void testCoGroupTuplesWithKeyFieldSelector() throws Exception {
-		
+
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -79,7 +79,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 				"3,24\n" +
 				"4,60\n" +
 				"5,120\n";
-		
+
 		compareResultAsTuples(result, expected);
 	}
 
@@ -104,7 +104,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 				"4,60,test\n" +
 				"5,120,test\n" +
 				"6,210,test\n";
-		
+
 		compareResultAsText(result, expected);
 	}
 
@@ -143,7 +143,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 				"3,2,Hello world\n" +
 				"4,3,Hello world, how are you?\n" +
 				"5,3,I am fine.\n";
-		
+
 		compareResultAsTuples(result, expected);
 	}
 
@@ -158,7 +158,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> coGroupDs = ds.coGroup(ds2).where(0).equalTo(0).with(new Tuple5ReturnRight());
-		
+
 		List<Tuple5<Integer, Long, Integer, String, Long>> result = coGroupDs.collect();
 
 		String expected = "1,1,0,Hallo,1\n" +
@@ -297,7 +297,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 				where(0, 4).equalTo(0, 1).with(new Tuple5Tuple3CoGroup());
 
 		List<Tuple3<Integer, Long, String>> result = coGrouped.collect();
-		
+
 		String expected = "1,1,Hallo\n" +
 				"2,2,Hallo Welt\n" +
 				"3,2,Hallo Welt wie gehts?\n" +
@@ -324,7 +324,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 				equalTo(new KeySelector8()).with(new Tuple5Tuple3CoGroup());
 
 		List<Tuple3<Integer, Long, String>> result = coGrouped.collect();
-		
+
 		String expected = "1,1,Hallo\n" +
 				"2,2,Hallo Welt\n" +
 				"3,2,Hallo Welt wie gehts?\n" +
@@ -479,7 +479,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 		DataSet<CustomType> coGroupDs = ds.coGroup(ds2).where("myInt").equalTo("myInt").with(new CustomTypeCoGroup());
 
 		List<CustomType> result = coGroupDs.collect();
-		
+
 		String expected = "1,0,test\n" +
 				"2,6,test\n" +
 				"3,24,test\n" +
@@ -505,7 +505,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 				.where("nestedPojo.longNumber").equalTo(6).with(new CoGroup1());
 
 		List<CustomType> result = coGroupDs.collect();
-		
+
 		String expected = 	"-1,20000,Flink\n" +
 				"-1,10000,Flink\n" +
 				"-1,30000,Flink\n";
@@ -545,7 +545,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 				.where(new KeySelector6()).equalTo(6).with(new CoGroup3());
 
 		List<CustomType> result = coGroupDs.collect();
-		
+
 		String expected = 	"-1,20000,Flink\n" +
 				"-1,10000,Flink\n" +
 				"-1,30000,Flink\n";
@@ -596,7 +596,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 				.where(new KeySelector1()).equalTo(6).with(new CoGroup2());
 
 		List<CustomType> result = coGroupDs.collect();
-		
+
 		String expected = "-1,20000,Flink\n" +
 				"-1,10000,Flink\n" +
 				"-1,30000,Flink\n";
@@ -613,7 +613,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds1.coGroup(ds2).where(0).equalTo("*").with(new CoGroupAtomic1());
 
 		List<Tuple3<Integer, Long, String>> result = coGroupDs.collect();
-		
+
 		String expected = "(1,1,Hi)\n" +
 			"(2,2,Hello)";
 
@@ -627,9 +627,9 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
 
 		DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds1.coGroup(ds2).where("*").equalTo(0).with(new CoGroupAtomic2());
-		
+
 		List<Tuple3<Integer, Long, String>> result = coGroupDs.collect();
-		
+
 		String expected = "(1,1,Hi)\n" +
 			"(2,2,Hello)";
 
@@ -672,7 +672,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 	// --------------------------------------------------------------------------------------------
 	//  UDF classes
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static class KeySelector1 implements KeySelector<POJO, Long> {
 		private static final long serialVersionUID = 1L;
 
@@ -713,44 +713,44 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 		{
 			int sum = 0;
 			int id = 0;
-			
+
 			for ( Tuple5<Integer, Long, Integer, String, Long> element : first ) {
 				sum += element.f2;
 				id = element.f0;
 			}
-			
+
 			for ( Tuple5<Integer, Long, Integer, String, Long> element : second ) {
 				sum += element.f2;
 				id = element.f0;
 			}
-			
+
 			out.collect(new Tuple2<Integer, Integer>(id, sum));
 		}
 	}
-	
+
 	public static class CustomTypeCoGroup implements CoGroupFunction<CustomType, CustomType, CustomType> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void coGroup(Iterable<CustomType> first, Iterable<CustomType> second, Collector<CustomType> out) {
-			
+
 			CustomType o = new CustomType(0,0,"test");
-			
+
 			for ( CustomType element : first ) {
 				o.myInt = element.myInt;
 				o.myLong += element.myLong;
 			}
-			
+
 			for ( CustomType element : second ) {
 				o.myInt = element.myInt;
 				o.myLong += element.myLong;
 			}
-			
+
 			out.collect(o);
 		}
 	}
-	
+
 	public static class MixedCoGroup implements CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, CustomType, Tuple3<Integer, Long, String>> {
 
 		private static final long serialVersionUID = 1L;
@@ -760,25 +760,25 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 				Iterable<Tuple5<Integer, Long, Integer, String, Long>> first,
 				Iterable<CustomType> second,
 				Collector<Tuple3<Integer, Long, String>> out) throws Exception {
-			
+
 			long sum = 0;
 			int id = 0;
-			
+
 			for ( Tuple5<Integer, Long, Integer, String, Long> element : first ) {
 				sum += element.f0;
 				id = element.f2;
 			}
-			
+
 			for (CustomType element : second) {
 				id = element.myInt;
 				sum += element.myLong;
 			}
-			
+
 			out.collect(new Tuple3<Integer, Long, String>(id, sum, "test"));
 		}
-		
+
 	}
-	
+
 	public static class MixedCoGroup2 implements CoGroupFunction<CustomType, Tuple5<Integer, Long, Integer, String, Long>, CustomType> {
 
 		private static final long serialVersionUID = 1L;
@@ -789,25 +789,25 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 				Collector<CustomType> out)
 		{
 			CustomType o = new CustomType(0,0,"test");
-			
+
 			for (CustomType element : first) {
 				o.myInt = element.myInt;
 				o.myLong += element.myLong;
 			}
-			
+
 			for (Tuple5<Integer, Long, Integer, String, Long> element : second) {
 				o.myInt = element.f2;
 				o.myLong += element.f0;
 			}
-			
+
 			out.collect(o);
-			
+
 		}
-		
+
 	}
-	
+
 	public static class Tuple3ReturnLeft implements CoGroupFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -822,9 +822,9 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 			}
 		}
 	}
-	
+
 	public static class Tuple5ReturnRight implements CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -840,23 +840,23 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 			}
 		}
 	}
-	
+
 	public static class Tuple5CoGroupBC extends RichCoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Integer, Integer>> {
 
 		private static final long serialVersionUID = 1L;
-		
+
 		private int broadcast = 42;
-		
+
 		@Override
 		public void open(Configuration config) {
-			
+
 			Collection<Integer> ints = this.getRuntimeContext().getBroadcastVariable("ints");
 			int sum = 0;
 			for(Integer i : ints) {
 				sum += i;
 			}
 			broadcast = sum;
-			
+
 		}
 
 		@Override
@@ -867,23 +867,23 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 		{
 			int sum = 0;
 			int id = 0;
-			
+
 			for (Tuple5<Integer, Long, Integer, String, Long> element : first) {
 				sum += element.f2;
 				id = element.f0;
 			}
-			
+
 			for (Tuple5<Integer, Long, Integer, String, Long> element : second) {
 				sum += element.f2;
 				id = element.f0;
 			}
-			
+
 			out.collect(new Tuple3<Integer, Integer, Integer>(id, sum, broadcast));
 		}
 	}
-	
+
 	public static class Tuple5Tuple3CoGroup implements CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -892,11 +892,11 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 				Collector<Tuple3<Integer, Long, String>> out)
 		{
 			List<String> strs = new ArrayList<String>();
-			
+
 			for (Tuple5<Integer, Long, Integer, String, Long> t : first) {
 				strs.add(t.f3);
 			}
-			
+
 			for(Tuple3<Integer, Long, String> t : second) {
 				for(String s : strs) {
 					out.collect(new Tuple3<Integer, Long, String>(t.f0, t.f1, s));
@@ -986,7 +986,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public boolean equals(Object obj) {
-			return obj instanceof TestDistribution; 
+			return obj instanceof TestDistribution;
 		}
 	}
 }

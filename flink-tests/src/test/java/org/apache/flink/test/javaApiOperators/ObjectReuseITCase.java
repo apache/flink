@@ -56,10 +56,10 @@ public class ObjectReuseITCase extends MultipleProgramsTestBase {
 			new Tuple2<>("a", 1), new Tuple2<>("a", 2),
 			new Tuple2<>("a", 3), new Tuple2<>("a", 4),
 			new Tuple2<>("a", 5));
-	
-	
+
+
 	private final boolean objectReuse;
-	
+
 	public ObjectReuseITCase(boolean objectReuse) {
 		super(TestExecutionMode.CLUSTER);
 		this.objectReuse = objectReuse;
@@ -67,7 +67,7 @@ public class ObjectReuseITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testKeyedReduce() throws Exception {
-		
+
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		if (objectReuse) {
 			env.getConfig().enableObjectReuse();
@@ -76,7 +76,7 @@ public class ObjectReuseITCase extends MultipleProgramsTestBase {
 		}
 
 		DataSet<Tuple2<String, Integer>> input = env.fromCollection(REDUCE_DATA);
-		
+
 		DataSet<Tuple2<String, Integer>> result = input
 			.groupBy(0)
 			.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
@@ -111,7 +111,7 @@ public class ObjectReuseITCase extends MultipleProgramsTestBase {
 				public Tuple2<String, Integer> reduce(
 						Tuple2<String, Integer> value1,
 						Tuple2<String, Integer> value2) {
-					
+
 					if (value1.f1 % 3 == 0) {
 						value1.f1 += value2.f1;
 						return value1;
@@ -166,7 +166,7 @@ public class ObjectReuseITCase extends MultipleProgramsTestBase {
 
 		assertEquals(expected, is);
 	}
-	
+
 	@Test
 	public void testGlobalGroupReduce() throws Exception {
 
@@ -178,7 +178,7 @@ public class ObjectReuseITCase extends MultipleProgramsTestBase {
 		}
 
 		DataSet<Tuple2<String, Integer>> input = env.fromCollection(GROUP_REDUCE_DATA);
-		
+
 		DataSet<Tuple2<String, Integer>> result = input.reduceGroup(
 			new GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>() {
 
@@ -188,7 +188,7 @@ public class ObjectReuseITCase extends MultipleProgramsTestBase {
 					for (Tuple2<String, Integer> val : values) {
 						list.add(val);
 					}
-	
+
 					for (Tuple2<String, Integer> val : list) {
 						out.collect(val);
 					}
@@ -203,7 +203,7 @@ public class ObjectReuseITCase extends MultipleProgramsTestBase {
 				new Tuple2<>("a", 5), new Tuple2<>("a", 5), new Tuple2<>("a", 5)) :
 			Arrays.asList(new Tuple2<>("a", 1), new Tuple2<>("a", 2),
 				new Tuple2<>("a", 3), new Tuple2<>("a", 4), new Tuple2<>("a", 5));
-		
+
 		assertEquals(expected, is);
 	}
 

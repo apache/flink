@@ -74,7 +74,7 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		env.getConfig().disableSysoutLogging();
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
 		env.enableCheckpointing(200);
-		
+
 		env.setStateBackend(new FsStateBackend(tempCheckpointDir.getAbsoluteFile().toURI()));
 
 		DataStream<Long> result = env.addSource(new SleepyDurableGenerateSequence(coordinateDir, DATA_COUNT))
@@ -107,7 +107,7 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		}
 	}
 
-	public static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long> 
+	public static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long>
 			implements ListCheckpointed<Long> {
 
 		private static final long SLEEP_TIME = 50;

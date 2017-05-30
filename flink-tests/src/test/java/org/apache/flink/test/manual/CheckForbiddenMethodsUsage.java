@@ -39,7 +39,7 @@ import static org.junit.Assert.assertEquals;
 
 /**
  * Tests via reflection that certain methods are not called in Flink.
- * 
+ *
  * <p>Forbidden calls include:
  *   - Byte / String conversions that do not specify an explicit charset
  *     because they produce different results in different locales

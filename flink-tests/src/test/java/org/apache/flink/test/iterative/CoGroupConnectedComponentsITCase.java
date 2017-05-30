@@ -38,21 +38,21 @@ import java.io.BufferedReader;
 import java.util.Iterator;
 
 public class CoGroupConnectedComponentsITCase extends JavaProgramTestBase {
-	
+
 	private static final long SEED = 0xBADC0FFEEBEEFL;
-	
+
 	private static final int NUM_VERTICES = 1000;
-	
+
 	private static final int NUM_EDGES = 10000;
 
-	
+
 	private static final int MAX_ITERATIONS = 100;
 
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
-	
-	
+
+
 	@Override
 	protected void preSubmit() throws Exception {
 		verticesPath = createTempFile("vertices.txt", ConnectedComponentsData.getEnumeratingVertices(NUM_VERTICES));
@@ -66,11 +66,11 @@ public class CoGroupConnectedComponentsITCase extends JavaProgramTestBase {
 			ConnectedComponentsData.checkOddEvenResult(reader);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  The test program
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	protected void testProgram() throws Exception {
 

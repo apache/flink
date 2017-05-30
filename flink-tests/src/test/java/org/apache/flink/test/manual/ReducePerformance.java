@@ -36,7 +36,7 @@ import java.util.Random;
  * (See also http://peel-framework.org/2016/04/07/hash-aggregations-in-flink.html)
  */
 public class ReducePerformance {
-	
+
 	public static void main(String[] args) throws Exception {
 
 		final int numElements = 40_000_000;

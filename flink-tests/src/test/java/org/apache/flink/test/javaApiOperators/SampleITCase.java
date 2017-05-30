@@ -140,7 +140,7 @@ public class SampleITCase extends MultipleProgramsTestBase {
 				}
 			});
 	}
-	
+
 	private String getSourceStrings() {
 		return "Hi\n" +
 			"Hello\n" +

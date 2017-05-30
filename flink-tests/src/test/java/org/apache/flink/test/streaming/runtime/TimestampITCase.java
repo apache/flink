@@ -126,7 +126,7 @@ public class TimestampITCase extends TestLogger {
 		long initialTime = 0L;
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		
+
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
@@ -156,7 +156,7 @@ public class TimestampITCase extends TestLogger {
 					fail("Wrong watermark.");
 				}
 			}
-			
+
 			assertEquals(Watermark.MAX_WATERMARK,
 					CustomOperator.finalWatermarks[i].get(CustomOperator.finalWatermarks[i].size()-1));
 		}
@@ -164,12 +164,12 @@ public class TimestampITCase extends TestLogger {
 
 	@Test
 	public void testWatermarkPropagationNoFinalWatermarkOnStop() throws Exception {
-		
+
 		// for this test to work, we need to be sure that no other jobs are being executed
 		while (!cluster.getCurrentlyRunningJobsJava().isEmpty()) {
 			Thread.sleep(100);
 		}
-		
+
 		final int NUM_WATERMARKS = 10;
 
 		long initialTime = 0L;
@@ -200,7 +200,7 @@ public class TimestampITCase extends TestLogger {
 					}
 
 					JobID id = running.get(0);
-					
+
 					// send stop until the job is stopped
 					do {
 						try {
@@ -210,7 +210,7 @@ public class TimestampITCase extends TestLogger {
 							if (e.getCause() instanceof IllegalStateException) {
 								// this means the job is not yet ready to be stopped,
 								// for example because it is still in CREATED state
-								// we ignore the exception 
+								// we ignore the exception
 							} else {
 								// other problem
 								throw e;
@@ -225,12 +225,12 @@ public class TimestampITCase extends TestLogger {
 				}
 			}
 		}.start();
-		
+
 		env.execute();
 
 		// verify that all the watermarks arrived at the final custom operator
 		for (List<Watermark> subtaskWatermarks : CustomOperator.finalWatermarks) {
-			
+
 			// we are only guaranteed to see NUM_WATERMARKS / 2 watermarks because the
 			// other source stops emitting after that
 			for (int j = 0; j < subtaskWatermarks.size(); j++) {
@@ -243,7 +243,7 @@ public class TimestampITCase extends TestLogger {
 					fail("Wrong watermark.");
 				}
 			}
-			
+
 			// if there are watermarks, the final one must not be the MAX watermark
 			if (subtaskWatermarks.size() > 0) {
 				assertNotEquals(Watermark.MAX_WATERMARK,
@@ -286,13 +286,13 @@ public class TimestampITCase extends TestLogger {
 	@Test
 	public void testDisabledTimestamps() throws Exception {
 		final int NUM_ELEMENTS = 10;
-		
+
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		
+
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
-		
+
 		DataStream<Integer> source1 = env.addSource(new MyNonWatermarkingSource(NUM_ELEMENTS));
 		DataStream<Integer> source2 = env.addSource(new MyNonWatermarkingSource(NUM_ELEMENTS));
 
@@ -301,7 +301,7 @@ public class TimestampITCase extends TestLogger {
 				.connect(source2).map(new IdentityCoMap())
 				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new DisabledTimestampCheckingOperator())
 				.addSink(new DiscardingSink<Integer>());
-		
+
 		env.execute();
 	}
 
@@ -363,9 +363,9 @@ public class TimestampITCase extends TestLogger {
 				Assert.fail("Wrong watermark. Expected: " + j + " Found: " + wm + " All: " + CustomOperator.finalWatermarks[0]);
 			}
 		}
-		
+
 		// the input is finite, so it should have a MAX Watermark
-		assertEquals(Watermark.MAX_WATERMARK, 
+		assertEquals(Watermark.MAX_WATERMARK,
 				CustomOperator.finalWatermarks[0].get(CustomOperator.finalWatermarks[0].size() - 1));
 	}
 
@@ -403,7 +403,7 @@ public class TimestampITCase extends TestLogger {
 
 		source1
 				.assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Integer>() {
-					
+
 					@Override
 					public long extractTimestamp(Integer element, long currentTimestamp) {
 						return element;
@@ -555,7 +555,7 @@ public class TimestampITCase extends TestLogger {
 
 	/**
 	 * This test verifies that the timestamp extractor forwards Long.MAX_VALUE watermarks.
-	 * 
+	 *
 	 * Same test as before, but using a different timestamp extractor
 	 */
 	@Test
@@ -605,7 +605,7 @@ public class TimestampITCase extends TestLogger {
 					}
 				})
 				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true));
-		
+
 		env.execute();
 
 		Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 1);
@@ -618,9 +618,9 @@ public class TimestampITCase extends TestLogger {
 	 */
 	@Test
 	public void testEventTimeSourceWithProcessingTime() throws Exception {
-		StreamExecutionEnvironment env = 
+		StreamExecutionEnvironment env =
 				StreamExecutionEnvironment.getExecutionEnvironment();
-		
+
 		env.setParallelism(2);
 		env.getConfig().disableSysoutLogging();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
@@ -637,7 +637,7 @@ public class TimestampITCase extends TestLogger {
 		// other tests, so it normally emits watermarks
 		Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 0);
 	}
-	
+
 	@Test
 	public void testErrorOnEventTimeOverProcessingTime() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -646,7 +646,7 @@ public class TimestampITCase extends TestLogger {
 		env.getConfig().disableSysoutLogging();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
-		DataStream<Tuple2<String, Integer>> source1 = 
+		DataStream<Tuple2<String, Integer>> source1 =
 				env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
 
 		source1
@@ -701,7 +701,7 @@ public class TimestampITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 	//  Custom Operators and Functions
 	// ------------------------------------------------------------------------
-	
+
 	@SuppressWarnings("unchecked")
 	public static class CustomOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
 
@@ -822,7 +822,7 @@ public class TimestampITCase extends TestLogger {
 		private final int numWatermarks;
 
 		private volatile boolean running = true;
-		
+
 		public MyTimestampSourceInfinite(long initialTime, int numWatermarks) {
 			this.initialTime = initialTime;
 			this.numWatermarks = numWatermarks;
@@ -834,7 +834,7 @@ public class TimestampITCase extends TestLogger {
 				ctx.collectWithTimestamp(i, initialTime + i);
 				ctx.emitWatermark(new Watermark(initialTime + i));
 			}
-			
+
 			while (running) {
 				Thread.sleep(20);
 			}

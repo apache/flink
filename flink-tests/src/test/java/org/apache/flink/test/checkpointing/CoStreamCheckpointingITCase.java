@@ -243,11 +243,11 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 		}
 	}
 
-	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount> 
+	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount>
 			implements ListCheckpointed<Long> {
 
 		static final long[] counts = new long[PARALLELISM];
-		
+
 		private long count;
 
 		@Override
@@ -342,7 +342,7 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 	}
 
 	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount> implements ListCheckpointed<Long> {
-		
+
 		static final long[] counts = new long[PARALLELISM];
 
 		private long count;

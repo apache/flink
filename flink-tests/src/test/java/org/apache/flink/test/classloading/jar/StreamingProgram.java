@@ -29,11 +29,11 @@ import java.util.StringTokenizer;
 
 @SuppressWarnings("serial")
 public class StreamingProgram {
-	
+
 	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
-		
+
 		DataStream<String> text = env.fromElements(WordCountData.TEXT).rebalance();
 
 		DataStream<Word> counts =

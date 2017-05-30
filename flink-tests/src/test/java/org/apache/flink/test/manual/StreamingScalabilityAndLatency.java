@@ -32,12 +32,12 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import static org.junit.Assert.fail;
 
 public class StreamingScalabilityAndLatency {
-	
+
 	public static void main(String[] args) throws Exception {
 		if ((Runtime.getRuntime().maxMemory() >>> 20) < 5000) {
 			throw new RuntimeException("This test program needs to run with at least 5GB of heap space.");
 		}
-		
+
 		final int TASK_MANAGERS = 1;
 		final int SLOTS_PER_TASK_MANAGER = 80;
 		final int PARALLELISM = TASK_MANAGERS * SLOTS_PER_TASK_MANAGER;
@@ -56,7 +56,7 @@ public class StreamingScalabilityAndLatency {
 
 			cluster = new LocalFlinkMiniCluster(config, false);
 			cluster.start();
-			
+
 			runPartitioningProgram(cluster.getLeaderRPCPort(), PARALLELISM);
 		}
 		catch (Exception e) {
@@ -69,7 +69,7 @@ public class StreamingScalabilityAndLatency {
 			}
 		}
 	}
-	
+
 	private static void runPartitioningProgram(int jobManagerPort, int parallelism) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", jobManagerPort);
 		env.setParallelism(parallelism);
@@ -83,23 +83,23 @@ public class StreamingScalabilityAndLatency {
 			.map(new IdMapper<Tuple2<Long, Long>>())
 			.keyBy(0)
 			.addSink(new TimestampingSink());
-		
+
 		env.execute("Partitioning Program");
 	}
-	
+
 	public static class TimeStampingSource implements ParallelSourceFunction<Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = -151782334777482511L;
 
 		private volatile boolean running = true;
-		
-		
+
+
 		@Override
 		public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
-			
+
 			long num = 100;
 			long counter = (long) (Math.random() * 4096);
-			
+
 			while (running) {
 				if (num < 100) {
 					num++;
@@ -119,14 +119,14 @@ public class StreamingScalabilityAndLatency {
 			running = false;
 		}
 	}
-	
+
 	public static class TimestampingSink implements SinkFunction<Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1876986644706201196L;
 
 		private long maxLatency;
-		private long count; 
-		
+		private long count;
+
 		@Override
 		public void invoke(Tuple2<Long, Long> value) {
 			long ts = value.f1;
@@ -134,7 +134,7 @@ public class StreamingScalabilityAndLatency {
 				long diff = System.currentTimeMillis() - ts;
 				maxLatency = Math.max(diff, maxLatency);
 			}
-			
+
 			count++;
 			if (count == 5000) {
 				System.out.println("Max latency: " + maxLatency);

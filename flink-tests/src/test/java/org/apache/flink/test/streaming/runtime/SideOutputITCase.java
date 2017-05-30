@@ -452,7 +452,7 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 
 	private static class TestKeySelector implements KeySelector<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public Integer getKey(Integer value) throws Exception {
 			return value;
@@ -480,7 +480,7 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 				.sideOutputLateData(lateDataTag)
 				.apply(new AllWindowFunction<Integer, Integer, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
-					
+
 					@Override
 					public void apply(TimeWindow window, Iterable<Integer> values, Collector<Integer> out) throws Exception {
 							for(Integer val : values) {

@@ -816,7 +816,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		private static final long serialVersionUID = 1L;
 		private int field;
 
-		
+
 		public LongFieldExtractor() { }
 
 		public LongFieldExtractor(int field) {
@@ -1000,14 +1000,14 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 	}
 
 	public static class GroupReducer7 implements GroupReduceFunction<CollectionDataSets.PojoWithCollection, String> {
-		
+
 		@Override
 		public void reduce(Iterable<CollectionDataSets.PojoWithCollection> values, Collector<String> out) {
 			StringBuilder concat = new StringBuilder();
 			concat.append("call");
 			for (CollectionDataSets.PojoWithCollection value : values) {
 				concat.append("For key ").append(value.key).append(" we got: ");
-				
+
 				for (CollectionDataSets.Pojo1 p :value.pojos) {
 					concat.append("pojo.a=").append(p.a);
 				}

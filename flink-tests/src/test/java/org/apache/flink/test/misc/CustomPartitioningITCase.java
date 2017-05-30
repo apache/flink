@@ -37,17 +37,17 @@ public class CustomPartitioningITCase extends JavaProgramTestBase {
 		if (!isCollectionExecution()) {
 			Assert.assertTrue(env.getParallelism() > 1);
 		}
-		
+
 		env.generateSequence(1, 1000)
 			.partitionCustom(new AllZeroPartitioner(), new IdKeySelector<Long>())
 			.map(new FailExceptInPartitionZeroMapper())
 			.output(new DiscardingOutputFormat<Long>());
-		
+
 		env.execute();
 	}
-	
+
 	public static class FailExceptInPartitionZeroMapper extends RichMapFunction<Long, Long> {
-		
+
 		@Override
 		public Long map(Long value) throws Exception {
 			if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
@@ -57,14 +57,14 @@ public class CustomPartitioningITCase extends JavaProgramTestBase {
 			}
 		}
 	}
-	
+
 	public static class AllZeroPartitioner implements Partitioner<Long> {
 		@Override
 		public int partition(Long key, int numPartitions) {
 			return 0;
 		}
 	}
-	
+
 	public static class IdKeySelector<T> implements KeySelector<T, T> {
 		@Override
 		public T getKey(T value) {

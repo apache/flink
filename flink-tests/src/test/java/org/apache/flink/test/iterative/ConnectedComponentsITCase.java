@@ -34,14 +34,14 @@ import java.io.BufferedReader;
 
 
 public class ConnectedComponentsITCase extends JavaProgramTestBase {
-	
+
 	private static final long SEED = 0xBADC0FFEEBEEFL;
-	
+
 	private static final int NUM_VERTICES = 1000;
-	
+
 	private static final int NUM_EDGES = 10000;
 
-	
+
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
