@@ -18,15 +18,13 @@
 
 package org.apache.flink.api.scala.operators;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -36,13 +34,15 @@ import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.AggregationFunctionFactory;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.operators.Grouping;
-import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.java.operators.SingleInputOperator;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import scala.Product;
 
@@ -62,8 +62,7 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 	private final Grouping<IN> grouping;
 
 	/**
-	 * <p>
-	 * Non grouped aggregation
+	 * Non grouped aggregation.
 	 */
 	public ScalaAggregateOperator(org.apache.flink.api.java.DataSet<IN> input, Aggregations function, int field) {
 		super(Preconditions.checkNotNull(input), input.getType());
@@ -90,8 +89,7 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 	}
 
 	/**
-	 *
-	 * Grouped aggregation
+	 * Grouped aggregation.
 	 *
 	 * @param input
 	 * @param function
@@ -121,7 +119,6 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 		this.grouping = input;
 	}
 
-
 	public ScalaAggregateOperator<IN> and(Aggregations function, int field) {
 		Preconditions.checkNotNull(function);
 
@@ -130,7 +127,6 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 		if (field < 0 || field >= inType.getArity()) {
 			throw new IllegalArgumentException("Aggregation field position is out of range.");
 		}
-
 
 		AggregationFunctionFactory factory = function.getFactory();
 		AggregationFunction<?> aggFunct = factory.createAggregationFunction(inType.getTypeAt(field).getTypeClass());
@@ -150,7 +146,6 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 			throw new IllegalStateException();
 		}
 
-
 		// construct the aggregation function
 		AggregationFunction<Object>[] aggFunctions = new AggregationFunction[this.aggregationFunctions.size()];
 		int[] fields = new int[this.fields.size()];
@@ -162,11 +157,10 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 
 			genName.append(aggFunctions[i].toString()).append('(').append(fields[i]).append(')').append(',');
 		}
-		genName.setLength(genName.length()-1);
+		genName.setLength(genName.length() - 1);
 
 		@SuppressWarnings("rawtypes")
 		RichGroupReduceFunction<IN, IN> function = new AggregatingUdf(getInputType(), aggFunctions, fields);
-
 
 		String name = getName() != null ? getName() : genName.toString();
 
@@ -234,10 +228,10 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 	// --------------------------------------------------------------------------------------------
 
 	@Internal
-	public static final class AggregatingUdf<T extends Product>
+	private static final class AggregatingUdf<T extends Product>
 		extends RichGroupReduceFunction<T, T>
-		implements GroupCombineFunction<T, T>
-	{
+		implements GroupCombineFunction<T, T> {
+
 		private static final long serialVersionUID = 1L;
 
 		private final int[] fieldPositions;
@@ -257,7 +251,6 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 			this.aggFunctions = aggFunctions;
 			this.fieldPositions = fieldPositions;
 		}
-
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
