@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
 
 import org.apache.flink.api.common.functions.MapFunction;
@@ -32,7 +31,9 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.io.BufferedReader;
 
-
+/**
+ * Delta iteration test implementing the connected components algorithm with a join.
+ */
 public class ConnectedComponentsITCase extends JavaProgramTestBase {
 
 	private static final long SEED = 0xBADC0FFEEBEEFL;
@@ -40,7 +41,6 @@ public class ConnectedComponentsITCase extends JavaProgramTestBase {
 	private static final int NUM_VERTICES = 1000;
 
 	private static final int NUM_EDGES = 10000;
-
 
 	protected String verticesPath;
 	protected String edgesPath;
@@ -93,6 +93,11 @@ public class ConnectedComponentsITCase extends JavaProgramTestBase {
 		}
 	}
 
+	/**
+	 * Duplicate the vertex ID into both fields of a {@link Tuple2}.
+	 *
+	 * @param <T> key type
+	 */
 	public static final class DuplicateValue<T> implements MapFunction<Tuple1<T>, Tuple2<T, T>> {
 
 		@Override

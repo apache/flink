@@ -43,6 +43,9 @@ import java.io.File;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Tests for {@link ExecutionEnvironment#readCsvFile}.
+ */
 @RunWith(Parameterized.class)
 public class CsvReaderITCase extends MultipleProgramsTestBase {
 	private String expected;
@@ -123,6 +126,9 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 		compareResultAsTuples(result, expected);
 	}
 
+	/**
+	 * POJO.
+	 */
 	public static class POJOItem {
 		public String f1;
 		private int f2;

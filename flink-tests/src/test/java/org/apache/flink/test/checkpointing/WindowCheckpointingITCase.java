@@ -78,7 +78,6 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 	private static TestStreamEnvironment env;
 
-
 	@BeforeClass
 	public static void startTestCluster() {
 		Configuration config = new Configuration();
@@ -103,7 +102,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 	@Test
 	public void testTumblingProcessingTimeWindow() {
-		final int NUM_ELEMENTS = 3000;
+		final int numElements = 3000;
 		FailingSource.reset();
 
 		try {
@@ -115,7 +114,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().disableSysoutLogging();
 
 			env
-					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
+					.addSource(new FailingSource(numElements, numElements / 3))
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(100, MILLISECONDS))
@@ -145,8 +144,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 							}
 						}
 					})
-					.addSink(new ValidatingSink(NUM_ELEMENTS, 1)).setParallelism(1);
-
+					.addSink(new ValidatingSink(numElements, 1)).setParallelism(1);
 
 			tryExecute(env, "Tumbling Window Test");
 		}
@@ -158,7 +156,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 	@Test
 	public void testSlidingProcessingTimeWindow() {
-		final int NUM_ELEMENTS = 3000;
+		final int numElements = 3000;
 		FailingSource.reset();
 
 		try {
@@ -170,7 +168,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().disableSysoutLogging();
 
 			env
-					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
+					.addSource(new FailingSource(numElements, numElements / 3))
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(150, MILLISECONDS), Time.of(50, MILLISECONDS))
@@ -200,8 +198,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 							}
 						}
 					})
-					.addSink(new ValidatingSink(NUM_ELEMENTS, 3)).setParallelism(1);
-
+					.addSink(new ValidatingSink(numElements, 3)).setParallelism(1);
 
 			tryExecute(env, "Tumbling Window Test");
 		}
@@ -213,7 +210,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 	@Test
 	public void testAggregatingTumblingProcessingTimeWindow() {
-		final int NUM_ELEMENTS = 3000;
+		final int numElements = 3000;
 		FailingSource.reset();
 
 		try {
@@ -225,8 +222,8 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().disableSysoutLogging();
 
 			env
-					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
-					.map(new MapFunction<Tuple2<Long,IntType>, Tuple2<Long,IntType>>() {
+					.addSource(new FailingSource(numElements, numElements / 3))
+					.map(new MapFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>>() {
 						@Override
 						public Tuple2<Long, IntType> map(Tuple2<Long, IntType> value) {
 							value.f1.value = 1;
@@ -245,8 +242,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 							return new Tuple2<>(a.f0, new IntType(1));
 						}
 					})
-					.addSink(new ValidatingSink(NUM_ELEMENTS, 1)).setParallelism(1);
-
+					.addSink(new ValidatingSink(numElements, 1)).setParallelism(1);
 
 			tryExecute(env, "Tumbling Window Test");
 		}
@@ -258,7 +254,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 	@Test
 	public void testAggregatingSlidingProcessingTimeWindow() {
-		final int NUM_ELEMENTS = 3000;
+		final int numElements = 3000;
 		FailingSource.reset();
 
 		try {
@@ -270,8 +266,8 @@ public class WindowCheckpointingITCase extends TestLogger {
 			env.getConfig().disableSysoutLogging();
 
 			env
-					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
-					.map(new MapFunction<Tuple2<Long,IntType>, Tuple2<Long,IntType>>() {
+					.addSource(new FailingSource(numElements, numElements / 3))
+					.map(new MapFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>>() {
 						@Override
 						public Tuple2<Long, IntType> map(Tuple2<Long, IntType> value) {
 							value.f1.value = 1;
@@ -289,8 +285,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 							return new Tuple2<>(a.f0, new IntType(1));
 						}
 					})
-					.addSink(new ValidatingSink(NUM_ELEMENTS, 3)).setParallelism(1);
-
+					.addSink(new ValidatingSink(numElements, 3)).setParallelism(1);
 
 			tryExecute(env, "Tumbling Window Test");
 		}
@@ -305,8 +300,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private static class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
-			implements ListCheckpointed<Integer>, CheckpointListener
-	{
+			implements ListCheckpointed<Integer>, CheckpointListener {
 		private static volatile boolean failedBefore = false;
 
 		private final int numElementsToEmit;
@@ -470,12 +464,17 @@ public class WindowCheckpointingITCase extends TestLogger {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
+	/**
+	 * POJO with int value.
+	 */
 	public static class IntType {
 
 		public int value;
 
 		public IntType() {}
 
-		public IntType(int value) { this.value = value; }
+		public IntType(int value) {
+			this.value = value;
+		}
 	}
 }

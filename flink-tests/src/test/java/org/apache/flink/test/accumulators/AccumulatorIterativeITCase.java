@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.accumulators;
 
 import org.apache.flink.api.common.accumulators.IntCounter;
@@ -30,6 +29,9 @@ import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
 
+/**
+ *
+ */
 public class AccumulatorIterativeITCase extends JavaProgramTestBase {
 	private static final int NUM_ITERATIONS = 3;
 	private static final int NUM_SUBTASKS = 1;

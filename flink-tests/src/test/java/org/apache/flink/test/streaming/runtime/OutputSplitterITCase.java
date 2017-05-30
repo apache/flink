@@ -31,6 +31,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Integration tests for a streaming {@link OutputSelector}.
+ */
 public class OutputSplitterITCase extends StreamingMultipleProgramsTestBase {
 
 	private static ArrayList<Integer> expectedSplitterResult = new ArrayList<Integer>();

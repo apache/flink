@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.cancelling;
 
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -31,6 +30,9 @@ import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.test.util.InfiniteIntegerTupleInputFormat;
 import org.apache.flink.test.util.UniformIntTupleGeneratorInputFormat;
 
+/**
+ * Test job cancellation from within a JoinFunction.
+ */
 public class JoinCancelingITCase extends CancelingTestBase {
 	private static final int parallelism = 4;
 
@@ -119,7 +121,7 @@ public class JoinCancelingITCase extends CancelingTestBase {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static final class SimpleMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
+	private static final class SimpleMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -128,7 +130,7 @@ public class JoinCancelingITCase extends CancelingTestBase {
 		}
 	}
 
-	public static final class DelayingMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
+	private static final class DelayingMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
 		private static final long serialVersionUID = 1L;
 
 		private static final int WAIT_TIME_PER_RECORD = 10 * 1000; // 10 sec.
@@ -140,7 +142,7 @@ public class JoinCancelingITCase extends CancelingTestBase {
 		}
 	}
 
-	public static final class LongCancelTimeMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
+	private static final class LongCancelTimeMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
 		private static final long serialVersionUID = 1L;
 
 		private static final int WAIT_TIME_PER_RECORD = 5 * 1000; // 5 sec.
@@ -158,7 +160,7 @@ public class JoinCancelingITCase extends CancelingTestBase {
 		}
 	}
 
-	public static final class StuckInOpenMatcher<IN> extends RichJoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
+	private static final class StuckInOpenMatcher<IN> extends RichJoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

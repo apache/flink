@@ -26,6 +26,10 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+/**
+ * Test where the test data is constructed such that the merge join zig zag
+ * has an early out, leaving elements on the dynamic path input unconsumed.
+ */
 @SuppressWarnings("serial")
 public class IterationIncompleteDynamicPathConsumptionITCase extends JavaProgramTestBase {
 
@@ -46,7 +50,7 @@ public class IterationIncompleteDynamicPathConsumptionITCase extends JavaProgram
 				new Path(3, 14),
 				new Path(3, 16),
 				new Path(1, 18),
-				new Path(1, 20) );
+				new Path(1, 20));
 
 		IterativeDataSet<Path> currentPaths = edges.iterate(10);
 
@@ -72,6 +76,9 @@ public class IterationIncompleteDynamicPathConsumptionITCase extends JavaProgram
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Simple POJO.
+	 */
 	public static class Path {
 
 		public long from;

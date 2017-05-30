@@ -42,6 +42,11 @@ import org.junit.Test;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Test that runs an iterative job after a failure in another iterative job.
+ * This test validates that task slots in co-location constraints are properly
+ * freed in the presence of failures.
+ */
 public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
 	private static final int PARALLELISM = 16;
@@ -147,7 +152,7 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 		DataSet<KMeans.Point> points =  KMeansData.getDefaultPointDataSet(env).rebalance();
 		DataSet<KMeans.Centroid> centroids =  KMeansData.getDefaultCentroidDataSet(env).rebalance();
 
-		// set number of bulk iterations for KMeans algorithm
+		// set number of bulk iterations for kmeans algorithm
 		IterativeDataSet<KMeans.Centroid> loop = centroids.iterate(20);
 
 		DataSet<KMeans.Centroid> newCentroids = points
@@ -168,6 +173,6 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
 		clusteredPoints.output(new DiscardingOutputFormat<Tuple2<Integer, KMeans.Point>>());
 
-		env.execute("KMeans Example");
+		env.execute("kmeans Example");
 	}
 }

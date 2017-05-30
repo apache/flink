@@ -38,7 +38,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import org.junit.Assert;
 import org.junit.Test;
 
-/*
+/**
  * The tests in this class simply invokes the JSON dump code for the optimized plan.
  */
 public class DumpCompiledPlanTest extends CompilerTestBase {
@@ -52,7 +52,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 			WordCount.main(new String[] {
 					"--input", IN_FILE,
 					"--output", OUT_FILE});
-		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -72,7 +72,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 					"--customer", IN_FILE,
 					"--orders", OUT_FILE,
 					"--output", "123"});
-		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -92,11 +92,11 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 				"--centroids ", IN_FILE,
 				"--output ", OUT_FILE,
 				"--iterations", "123"});
-		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail("KMeans failed with an exception");
+			Assert.fail("kmeans failed with an exception");
 		}
 		dump(env.getPlan());
 	}
@@ -112,7 +112,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 					"--ranks", IN_FILE,
 					"--visits", OUT_FILE,
 					"--output", "123"});
-		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -132,7 +132,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 					"--edges", IN_FILE,
 					"--output", OUT_FILE,
 					"--iterations", "123"});
-		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -153,7 +153,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 					"--output", OUT_FILE,
 					"--numPages", "10",
 					"--iterations", "123"});
-		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -169,7 +169,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
 			String json = dumper.getOptimizerPlanAsJSON(op);
 			JsonParser parser = new JsonFactory().createJsonParser(json);
-			while (parser.nextToken() != null);
+			while (parser.nextToken() != null) {}
 		} catch (JsonParseException e) {
 			e.printStackTrace();
 			Assert.fail("JSON Generator produced malformatted output: " + e.getMessage());

@@ -27,6 +27,9 @@ import org.apache.flink.test.util.InfiniteIntegerInputFormat;
 
 import org.junit.Test;
 
+/**
+ * Test job cancellation from within a MapFunction.
+ */
 public class MapCancelingITCase extends CancelingTestBase {
 	private static final int parallelism = 4;
 
@@ -69,7 +72,7 @@ public class MapCancelingITCase extends CancelingTestBase {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static final class IdentityMapper<IN> implements MapFunction<IN, IN> {
+	private static final class IdentityMapper<IN> implements MapFunction<IN, IN> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -78,7 +81,7 @@ public class MapCancelingITCase extends CancelingTestBase {
 		}
 	}
 
-	public static final class DelayingIdentityMapper<IN> implements MapFunction<IN, IN> {
+	private static final class DelayingIdentityMapper<IN> implements MapFunction<IN, IN> {
 		private static final long serialVersionUID = 1L;
 
 		private static final int WAIT_TIME_PER_VALUE = 10 * 1000; // 10 sec.
@@ -90,7 +93,7 @@ public class MapCancelingITCase extends CancelingTestBase {
 		}
 	}
 
-	public static final class LongCancelTimeIdentityMapper<IN> implements MapFunction<IN, IN> {
+	private static final class LongCancelTimeIdentityMapper<IN> implements MapFunction<IN, IN> {
 		private static final long serialVersionUID = 1L;
 
 		private static final int WAIT_TIME_PER_VALUE = 5 * 1000; // 5 sec.
@@ -110,7 +113,7 @@ public class MapCancelingITCase extends CancelingTestBase {
 		}
 	}
 
-	public static final class StuckInOpenIdentityMapper<IN> extends RichMapFunction<IN, IN> {
+	private static final class StuckInOpenIdentityMapper<IN> extends RichMapFunction<IN, IN> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

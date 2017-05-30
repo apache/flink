@@ -70,7 +70,6 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 
 	private final FieldList set0 = new FieldList(0);
 
-
 	@Test
 	public void testWorksetConnectedComponents() {
 		Plan plan = getConnectedComponentsCoGroupPlan();
@@ -151,17 +150,17 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 		env.setAsContext();
 		try {
-			ConnectedComponentsWithCoGroup(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE, "100"});
+			connectedComponentsWithCoGroup(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE, "100"});
 		} catch (ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail("ConnectedComponentsWithCoGroup failed with an exception");
+			Assert.fail("connectedComponentsWithCoGroup failed with an exception");
 		}
 		return env.getPlan();
 	}
 
-	public static void ConnectedComponentsWithCoGroup(String[] args) throws Exception {
+	public static void connectedComponentsWithCoGroup(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(Integer.parseInt(args[0]));
 
@@ -171,8 +170,8 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithId = initialVertices.flatMap(new DummyMapFunction());
 
-		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration
-				= verticesWithId.iterateDelta(verticesWithId, Integer.parseInt(args[4]), 0).name(ITERATION_NAME);
+		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
+				verticesWithId.iterateDelta(verticesWithId, Integer.parseInt(args[4]), 0).name(ITERATION_NAME);
 
 		DataSet<Tuple2<Long, Long>> joinWithNeighbors = iteration.getWorkset().join(edges)
 				.where(0).equalTo(0)
@@ -187,14 +186,14 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 		env.execute();
 	}
 
-	public static class DummyMapFunction implements FlatMapFunction<Tuple1<Long>, Tuple2<Long, Long>> {
+	private static class DummyMapFunction implements FlatMapFunction<Tuple1<Long>, Tuple2<Long, Long>> {
 		@Override
 		public void flatMap(Tuple1<Long> value, Collector<Tuple2<Long, Long>> out) throws Exception {
 			// won't be executed
 		}
 	}
 
-	public static class DummyJoinFunction implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	private static class DummyJoinFunction implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		@Override
 		public void join(Tuple2<Long, Long> first, Tuple2<Long, Long> second, Collector<Tuple2<Long, Long>> out) throws Exception {
 			// won't be executed
@@ -203,7 +202,7 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
 
 	@ForwardedFieldsFirst("f0->f0")
 	@ForwardedFieldsSecond("f0->f0")
-	public static class DummyCoGroupFunction implements CoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	private static class DummyCoGroupFunction implements CoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		@Override
 		public void coGroup(Iterable<Tuple2<Long, Long>> first, Iterable<Tuple2<Long, Long>> second, Collector<Tuple2<Long, Long>> out) throws Exception {
 			// won't be executed

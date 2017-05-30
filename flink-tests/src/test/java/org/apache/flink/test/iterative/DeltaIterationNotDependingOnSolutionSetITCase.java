@@ -33,9 +33,12 @@ import java.util.List;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Test delta iterations that do not join with the solution set.
+ */
 @SuppressWarnings("serial")
 public class DeltaIterationNotDependingOnSolutionSetITCase extends JavaProgramTestBase {
-	private final List<Tuple2<Long, Long>> result = new ArrayList<Tuple2<Long,Long>>();
+	private final List<Tuple2<Long, Long>> result = new ArrayList<>();
 
 	@Override
 	protected void testProgram() throws Exception {
@@ -48,7 +51,7 @@ public class DeltaIterationNotDependingOnSolutionSetITCase extends JavaProgramTe
 			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration = input.iterateDelta(input, 5, 1);
 
 			iteration.closeWith(iteration.getWorkset(), iteration.getWorkset().map(new TestMapper()))
-					.output(new LocalCollectionOutputFormat<Tuple2<Long,Long>>(result));
+					.output(new LocalCollectionOutputFormat<Tuple2<Long, Long>>(result));
 
 			env.execute();
 		}
@@ -80,7 +83,7 @@ public class DeltaIterationNotDependingOnSolutionSetITCase extends JavaProgramTe
 	private static final class TestMapper extends RichMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		@Override
 		public Tuple2<Long, Long> map(Tuple2<Long, Long> value) {
-			return new Tuple2<Long, Long>(value.f0+10, value.f1+10);
+			return new Tuple2<>(value.f0 + 10, value.f1 + 10);
 		}
 	}
 }

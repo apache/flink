@@ -57,6 +57,9 @@ import java.util.Set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+/**
+ * Test checkpointing while sourcing a continuous file processor.
+ */
 public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleranceTestBase {
 
 	private static final int NO_OF_FILES = 5;
@@ -69,7 +72,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 	private static String localFsURI;
 	private FileCreator fc;
 
-	private static  Map<Integer, Set<String>> actualCollectedContent = new HashMap<>();
+	private static Map<Integer, Set<String>> actualCollectedContent = new HashMap<>();
 
 	@BeforeClass
 	public static void createHDFS() {
@@ -79,10 +82,10 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 
 			org.apache.hadoop.conf.Configuration hdConf = new org.apache.hadoop.conf.Configuration();
 
-			localFsURI = "file:///" + baseDir +"/";
+			localFsURI = "file:///" + baseDir + "/";
 			localFs = new org.apache.hadoop.fs.Path(localFsURI).getFileSystem(hdConf);
 
-		} catch(Throwable e) {
+		} catch (Throwable e) {
 			e.printStackTrace();
 			Assert.fail("Test failed " + e.getMessage());
 		}
@@ -280,7 +283,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 
 		public void run() {
 			try {
-				for(int i = 0; i < NO_OF_FILES; i++) {
+				for (int i = 0; i < NO_OF_FILES; i++) {
 					Tuple2<org.apache.hadoop.fs.Path, String> tmpFile;
 					long modTime;
 					do {
@@ -339,8 +342,8 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 
 		FSDataOutputStream stream = localFs.create(tmp);
 		StringBuilder str = new StringBuilder();
-		for(int i = 0; i < LINES_PER_FILE; i++) {
-			String line = fileIdx +": "+ sampleLine + " " + i +"\n";
+		for (int i = 0; i < LINES_PER_FILE; i++) {
+			String line = fileIdx + ": " + sampleLine + " " + i + "\n";
 			str.append(line);
 			stream.write(line.getBytes(ConfigConstants.DEFAULT_CHARSET));
 		}

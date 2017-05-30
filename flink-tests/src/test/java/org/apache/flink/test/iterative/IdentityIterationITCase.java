@@ -28,6 +28,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Test empty (identity) bulk iteration.
+ */
 public class IdentityIterationITCase extends JavaProgramTestBase {
 
 	private List<Long> result = new ArrayList<Long>();

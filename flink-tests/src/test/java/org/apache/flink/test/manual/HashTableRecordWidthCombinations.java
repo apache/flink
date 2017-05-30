@@ -40,6 +40,9 @@ import java.util.List;
 
 import static org.junit.Assert.fail;
 
+/**
+ * Manual test for growing hash tables.
+ */
 public class HashTableRecordWidthCombinations {
 
 	public static void main(String[] args) throws Exception {
@@ -85,7 +88,7 @@ public class HashTableRecordWidthCombinations {
 		final IOManager ioMan = new IOManagerAsync();
 
 		try {
-			final int pageSize = 32*1024;
+			final int pageSize = 32 * 1024;
 			final int numSegments = 34;
 
 			for (int num = 3400; num < 3550; num++) {
@@ -151,7 +154,7 @@ public class HashTableRecordWidthCombinations {
 					try {
 						while (table.nextRecord()) {
 							MutableObjectIterator<Tuple2<Long, byte[]>> matches = table.getBuildSideIterator();
-							while (matches.next() != null);
+							while (matches.next() != null) {}
 						}
 					}
 					catch (RuntimeException e) {

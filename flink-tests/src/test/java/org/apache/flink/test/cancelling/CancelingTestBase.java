@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.cancelling;
 
 import org.apache.flink.api.common.Plan;
@@ -54,7 +53,7 @@ import static org.apache.flink.runtime.messages.JobManagerMessages.CancellationF
 import static org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
 
 /**
- *
+ * Base class for testing job cancellation.
  */
 public abstract class CancelingTestBase extends TestLogger {
 

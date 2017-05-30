@@ -32,13 +32,15 @@ import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
+/**
+ * Test iteration with union.
+ */
 public class IterationWithUnionITCase extends JavaProgramTestBase {
 
 	private static final String DATAPOINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n";
 
 	protected String dataPath;
 	protected String resultPath;
-
 
 	@Override
 	protected void preSubmit() throws Exception {

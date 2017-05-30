@@ -63,6 +63,9 @@ import scala.concurrent.impl.Promise;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+/**
+ * Test the election of a new JobManager leader.
+ */
 public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 	private static final FiniteDuration timeout = TestingUtils.TESTING_DURATION();
@@ -252,7 +255,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		}
 	}
 
-	public static class JobSubmitterRunnable implements Runnable {
+	private static class JobSubmitterRunnable implements Runnable {
 		private static final Logger LOG = LoggerFactory.getLogger(JobSubmitterRunnable.class);
 		boolean finished = false;
 

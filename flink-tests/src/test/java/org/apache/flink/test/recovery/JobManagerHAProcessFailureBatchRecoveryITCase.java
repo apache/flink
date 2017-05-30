@@ -90,9 +90,9 @@ import static org.junit.Assert.fail;
 @RunWith(Parameterized.class)
 public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 
-	private final static ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
+	private static final ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
 
-	private final static FiniteDuration TestTimeOut = new FiniteDuration(5, TimeUnit.MINUTES);
+	private static final FiniteDuration TestTimeOut = new FiniteDuration(5, TimeUnit.MINUTES);
 
 	private static final File FileStateBackendBasePath;
 
@@ -166,8 +166,8 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 		env.getConfig().setExecutionMode(executionMode);
 		env.getConfig().disableSysoutLogging();
 
-		final long NUM_ELEMENTS = 100000L;
-		final DataSet<Long> result = env.generateSequence(1, NUM_ELEMENTS)
+		final long numElements = 100000L;
+		final DataSet<Long> result = env.generateSequence(1, numElements)
 				// make sure every mapper is involved (no one is skipped because of lazy split assignment)
 				.rebalance()
 				// the majority of the behavior is in the MapFunction
@@ -211,7 +211,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 				.flatMap(new RichFlatMapFunction<Long, Long>() {
 					@Override
 					public void flatMap(Long value, Collector<Long> out) throws Exception {
-						assertEquals(NUM_ELEMENTS * (NUM_ELEMENTS + 1L) / 2L, (long) value);
+						assertEquals(numElements * (numElements + 1L) / 2L, (long) value);
 
 						int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
 						AbstractTaskManagerProcessFailureRecoveryTest.touchFile(

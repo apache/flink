@@ -61,7 +61,7 @@ public class JoinDeadlockITCase extends JavaProgramTestBase {
 		env.execute();
 	}
 
-	public static class TupleWrapper implements MapFunction<Long, Tuple1<Long>> {
+	private static class TupleWrapper implements MapFunction<Long, Tuple1<Long>> {
 
 		@Override
 		public Tuple1<Long> map(Long l) throws Exception {

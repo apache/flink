@@ -46,13 +46,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-
+/**
+ * Implementation of PageRank accounting for "sink" vertices with 0 out-degree.
+ */
 @RunWith(Parameterized.class)
 @SuppressWarnings({"serial", "unchecked"})
 public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 
 	private static final String AGGREGATOR_NAME = "pagerank.aggregator";
-
 
 	public DanglingPageRankITCase(TestExecutionMode mode) {
 		super(mode);
@@ -61,7 +62,7 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testDanglingPageRank() {
 		try {
-			final int NUM_ITERATIONS = 25;
+			final int numIterations = 25;
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 			DataSet<Tuple2<Long, Boolean>> vertices = env.fromElements(
@@ -79,7 +80,6 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 					new PageWithLinks(1L, new long[] { 4, 2, 3 })
 			);
 
-
 			final long numVertices = vertices.count();
 			final long numDanglingVertices = vertices
 					.filter(
@@ -91,7 +91,6 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 							})
 					.count();
 
-
 			DataSet<PageWithRankAndDangling> verticesWithInitialRank = vertices
 					.map(new MapFunction<Tuple2<Long, Boolean>, PageWithRankAndDangling>() {
 
@@ -101,7 +100,7 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 						}
 					});
 
-			IterativeDataSet<PageWithRankAndDangling> iteration = verticesWithInitialRank.iterate(NUM_ITERATIONS);
+			IterativeDataSet<PageWithRankAndDangling> iteration = verticesWithInitialRank.iterate(numIterations);
 
 			iteration.getAggregators().registerAggregationConvergenceCriterion(
 					AGGREGATOR_NAME,
@@ -204,6 +203,9 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 	//  custom types
 	// ------------------------------------------------------------------------
 
+	/**
+	 * POJO for page ID and rank value.
+	 */
 	public static class PageWithRank {
 
 		public long pageId;
@@ -217,6 +219,9 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 		}
 	}
 
+	/**
+	 * POJO for page ID, rank value, and whether a "dangling" vertex with 0 out-degree.
+	 */
 	public static class PageWithRankAndDangling {
 
 		public long pageId;
@@ -241,6 +246,9 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 		}
 	}
 
+	/**
+	 * POJO for page ID and list of target IDs.
+	 */
 	public static class PageWithLinks {
 
 		public long pageId;
@@ -258,6 +266,9 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 	//  statistics
 	// ------------------------------------------------------------------------
 
+	/**
+	 * PageRank statistics.
+	 */
 	public static class PageRankStats implements Value {
 
 		private double diff;
@@ -333,7 +344,7 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 		}
 	}
 
-	public static class PageRankStatsAggregator implements Aggregator<PageRankStats> {
+	private static class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 
 		private double diff;
 		private double rank;
@@ -348,7 +359,7 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 		}
 
 		public void aggregate(double diffDelta, double rankDelta, double danglingRankDelta, long danglingVerticesDelta,
-							  long verticesDelta, long edgesDelta) {
+				long verticesDelta, long edgesDelta) {
 			diff += diffDelta;
 			rank += rankDelta;
 			danglingRank += danglingRankDelta;
@@ -378,7 +389,7 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
 		}
 	}
 
-	public static class DiffL1NormConvergenceCriterion implements ConvergenceCriterion<PageRankStats> {
+	private static class DiffL1NormConvergenceCriterion implements ConvergenceCriterion<PageRankStats> {
 
 		private static final double EPSILON = 0.00005;
 

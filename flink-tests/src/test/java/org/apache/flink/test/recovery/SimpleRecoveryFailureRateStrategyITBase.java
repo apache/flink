@@ -24,6 +24,9 @@ import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 import org.junit.BeforeClass;
 
+/**
+ * Test cluster configuration with failure-rate recovery.
+ */
 public class SimpleRecoveryFailureRateStrategyITBase extends SimpleRecoveryITCaseBase {
 	@BeforeClass
 	public static void setupCluster() {

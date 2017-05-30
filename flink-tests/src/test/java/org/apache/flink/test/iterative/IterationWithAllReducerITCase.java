@@ -26,6 +26,9 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.util.List;
 
+/**
+ * Test iterator with an all-reduce.
+ */
 public class IterationWithAllReducerITCase extends JavaProgramTestBase {
 	private static final String EXPECTED = "1\n";
 

@@ -47,11 +47,11 @@ import static org.junit.Assert.assertTrue;
 /**
  * A simple test that runs a streaming topology with checkpointing enabled.
  *
- * The test triggers a failure after a while and verifies that, after completion, the
+ * <p>The test triggers a failure after a while and verifies that, after completion, the
  * state defined with either the {@link ValueState} or the {@link ListCheckpointed}
  * interface reflects the "exactly once" semantics.
  *
- * The test throttles the input until at least two checkpoints are completed, to make sure that
+ * <p>The test throttles the input until at least two checkpoints are completed, to make sure that
  * the recovery does not fall back to "square one" (which would naturally lead to correct
  * results without testing the checkpointing).
  */
@@ -60,11 +60,10 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StateCheckpointedITCase.class);
 
-	final long NUM_STRINGS = 10_000_000L;
+	static final long NUM_STRINGS = 10_000_000L;
 
 	/**
-	 * Runs the following program:
-	 *
+	 * Runs the following program.
 	 * <pre>
 	 *     [ (source)->(filter)] -> [ (map) -> (map) ] -> [ (groupBy/reduce)->(sink) ]
 	 * </pre>
@@ -104,7 +103,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
 		//assertTrue("Test inconclusive: failure occurred before first checkpoint",
 		//		OnceFailingAggregator.wasCheckpointedBeforeFailure);
-		if(!OnceFailingAggregator.wasCheckpointedBeforeFailure) {
+		if (!OnceFailingAggregator.wasCheckpointedBeforeFailure) {
 			LOG.warn("Test inconclusive: failure occurred before first checkpoint");
 		}
 
@@ -140,8 +139,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 	// --------------------------------------------------------------------------------------------
 
 	private static class StringGeneratingSourceFunction extends RichParallelSourceFunction<String>
-			implements ListCheckpointed<Integer>
-	{
+			implements ListCheckpointed<Integer> {
 		private final long numElements;
 
 		private int index;
@@ -213,7 +211,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 	private static class StringRichFilterFunction extends RichFilterFunction<String>
 			implements ListCheckpointed<Long> {
 
-		static final long[] counts = new long[PARALLELISM];
+		static long[] counts = new long[PARALLELISM];
 
 		private long count;
 
@@ -245,7 +243,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount>
 			implements ListCheckpointed<Long> {
 
-		static final long[] counts = new long[PARALLELISM];
+		static long[] counts = new long[PARALLELISM];
 
 		private long count;
 
@@ -277,7 +275,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount>
 		implements ListCheckpointed<Long> {
 
-		static final long[] counts = new long[PARALLELISM];
+		static long[] counts = new long[PARALLELISM];
 
 		private long count;
 

@@ -42,17 +42,16 @@ import static org.junit.Assert.assertEquals;
 /**
  * A simple test that runs a streaming topology with checkpointing enabled.
  *
- * The test triggers a failure after a while and verifies that, after completion, the
+ * <p>The test triggers a failure after a while and verifies that, after completion, the
  * state defined with the {@link ListCheckpointed} interface reflects the "exactly once" semantics.
  */
 @SuppressWarnings("serial")
 public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
-	final long NUM_STRINGS = 10_000_000L;
+	static final long NUM_STRINGS = 10_000_000L;
 
 	/**
-	 * Runs the following program:
-	 *
+	 * Runs the following program.
 	 * <pre>
 	 *     [ (source)->(filter) ]-s->[ (map) ] -> [ (map) ] -> [ (groupBy/count)->(sink) ]
 	 * </pre>
@@ -101,7 +100,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 		}
 
 		long reduceInputCount = 0;
-		for(long l: OnceFailingPrefixCounter.counts){
+		for (long l: OnceFailingPrefixCounter.counts){
 			reduceInputCount += l;
 		}
 
@@ -132,13 +131,12 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
 		private volatile boolean isRunning = true;
 
-		static final long[] counts = new long[PARALLELISM];
+		static long[] counts = new long[PARALLELISM];
 
 		@Override
 		public void close() throws IOException {
 			counts[getRuntimeContext().getIndexOfThisSubtask()] = index;
 		}
-
 
 		StringGeneratingSourceFunction(long numElements) {
 			this.numElements = numElements;
@@ -204,7 +202,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount> implements ListCheckpointed<Long> {
 
 		private long count;
-		static final long[] counts = new long[PARALLELISM];
+		static long[] counts = new long[PARALLELISM];
 
 		@Override
 		public PrefixCount map(PrefixCount value) throws Exception {
@@ -238,7 +236,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 			implements ListCheckpointed<Long> {
 
 		private static Map<String, Long> prefixCounts = new ConcurrentHashMap<String, Long>();
-		static final long[] counts = new long[PARALLELISM];
+		static long[] counts = new long[PARALLELISM];
 
 		private static volatile boolean hasFailed = false;
 
@@ -302,7 +300,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
 	private static class StringRichFilterFunction extends RichFilterFunction<String> implements ListCheckpointed<Long> {
 
-		static final long[] counts = new long[PARALLELISM];
+		static long[] counts = new long[PARALLELISM];
 
 		private long count;
 
@@ -334,7 +332,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount>
 			implements ListCheckpointed<Long> {
 
-		static final long[] counts = new long[PARALLELISM];
+		static long[] counts = new long[PARALLELISM];
 
 		private long count;
 

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.optimizer.iterations;
 
 import org.apache.flink.api.common.Plan;
@@ -46,6 +45,9 @@ import org.junit.Test;
 import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
 import static org.junit.Assert.fail;
 
+/**
+ * Test compilation of PageRank implementation.
+ */
 public class PageRankCompilerTest extends CompilerTestBase{
 
 	@Test
@@ -54,9 +56,9 @@ public class PageRankCompilerTest extends CompilerTestBase{
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 			// get input data
-			DataSet<Long> pagesInput = env.fromElements(1l);
+			DataSet<Long> pagesInput = env.fromElements(1L);
 			@SuppressWarnings("unchecked")
-			DataSet<Tuple2<Long, Long>> linksInput =env.fromElements(new Tuple2<Long, Long>(1l, 2l));
+			DataSet<Tuple2<Long, Long>> linksInput = env.fromElements(new Tuple2<Long, Long>(1L, 2L));
 
 			// assign initial rank to pages
 			DataSet<Tuple2<Long, Double>> pagesWithRanks = pagesInput.

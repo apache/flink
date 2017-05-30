@@ -46,7 +46,7 @@ import static org.junit.Assert.assertTrue;
  * Test for streaming program behaviour in case of TaskManager failure
  * based on {@link AbstractTaskManagerProcessFailureRecoveryTest}.
  *
- * The logic in this test is as follows:
+ * <p>The logic in this test is as follows:
  *  - The source slowly emits records (every 10 msecs) until the test driver
  *    gives the "go" for regular execution
  *  - The "go" is given after the first taskmanager has been killed, so it can only
@@ -107,7 +107,7 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		}
 	}
 
-	public static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long>
+	private static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long>
 			implements ListCheckpointed<Long> {
 
 		private static final long SLEEP_TIME = 50;
@@ -175,7 +175,7 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase extends AbstractTa
 		}
 	}
 
-	public static class Mapper extends RichMapFunction<Long, Long> {
+	private static class Mapper extends RichMapFunction<Long, Long> {
 		private boolean markerCreated = false;
 		private File coordinateDir;
 

@@ -54,6 +54,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Test job graph generation in JSON format.
+ */
 public class JsonJobGraphGenerationTest {
 
 	private PrintStream out;
@@ -82,7 +85,6 @@ public class JsonJobGraphGenerationTest {
 			System.setOut(err);
 		}
 	}
-
 
 	@Test
 	public void testWordCountPlan() {
@@ -226,7 +228,7 @@ public class JsonJobGraphGenerationTest {
 
 	// ------------------------------------------------------------------------
 
-	private static interface JsonValidator {
+	private interface JsonValidator {
 
 		void validateJson(String json) throws Exception;
 	}
@@ -261,7 +263,8 @@ public class JsonJobGraphGenerationTest {
 			assertTrue(arrayField.isArray());
 
 			ArrayNode array = (ArrayNode) arrayField;
-			for (Iterator<JsonNode> iter = array.elements(); iter.hasNext(); ) {
+			Iterator<JsonNode> iter = array.elements();
+			while (iter.hasNext()) {
 				JsonNode vertex = iter.next();
 
 				JsonNode vertexIdField = vertex.get("id");
@@ -294,7 +297,8 @@ public class JsonJobGraphGenerationTest {
 			for (JsonNode node : idToNode.values()) {
 				JsonNode inputsField = node.get("inputs");
 				if (inputsField != null) {
-					for (Iterator<JsonNode> inputsIter = inputsField.elements(); inputsIter.hasNext(); ) {
+					Iterator<JsonNode> inputsIter = inputsField.elements();
+					while (inputsIter.hasNext()) {
 						JsonNode inputNode = inputsIter.next();
 						JsonNode inputIdField = inputNode.get("id");
 
@@ -343,7 +347,7 @@ public class JsonJobGraphGenerationTest {
 
 			// first check that the JSON is valid
 			JsonParser parser = new JsonFactory().createJsonParser(jsonPlan);
-			while (parser.nextToken() != null);
+			while (parser.nextToken() != null) {}
 
 			validator.validateJson(jsonPlan);
 

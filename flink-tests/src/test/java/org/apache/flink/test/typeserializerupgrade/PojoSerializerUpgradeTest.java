@@ -50,6 +50,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -58,6 +59,7 @@ import org.junit.runners.Parameterized;
 
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -73,6 +75,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests the state migration behaviour when the underlying POJO type changes
+ * and one tries to recover from old state.
+ */
 @RunWith(Parameterized.class)
 public class PojoSerializerUpgradeTest extends TestLogger {
 
@@ -168,7 +174,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 		"@Override public String toString() {return \"(\" + a + \")\";}}";
 
 	/**
-	 * We should be able to handle a changed field order of a POJO as keyed state
+	 * We should be able to handle a changed field order of a POJO as keyed state.
 	 */
 	@Test
 	public void testChangedFieldOrderWithKeyedState() throws Exception {
@@ -176,7 +182,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	}
 
 	/**
-	 * We should be able to handle a changed field order of a POJO as operator state
+	 * We should be able to handle a changed field order of a POJO as operator state.
 	 */
 	@Test
 	public void testChangedFieldOrderWithOperatorState() throws Exception {
@@ -184,7 +190,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	}
 
 	/**
-	 * Changing field types of a POJO as keyed state should require a state migration
+	 * Changing field types of a POJO as keyed state should require a state migration.
 	 */
 	@Test
 	public void testChangedFieldTypesWithKeyedState() throws Exception {
@@ -201,7 +207,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	}
 
 	/**
-	 * Changing field types of a POJO as operator state should require a state migration
+	 * Changing field types of a POJO as operator state should require a state migration.
 	 */
 	@Test
 	public void testChangedFieldTypesWithOperatorState() throws Exception {
@@ -218,7 +224,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	}
 
 	/**
-	 * Adding fields to a POJO as keyed state should require a state migration
+	 * Adding fields to a POJO as keyed state should require a state migration.
 	 */
 	@Test
 	public void testAdditionalFieldWithKeyedState() throws Exception {
@@ -235,7 +241,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	}
 
 	/**
-	 * Adding fields to a POJO as operator state should require a state migration
+	 * Adding fields to a POJO as operator state should require a state migration.
 	 */
 	@Test
 	public void testAdditionalFieldWithOperatorState() throws Exception {
@@ -252,7 +258,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	}
 
 	/**
-	 * Removing fields from a POJO as keyed state should require a state migration
+	 * Removing fields from a POJO as keyed state should require a state migration.
 	 */
 	@Test
 	public void testMissingFieldWithKeyedState() throws Exception {
@@ -269,7 +275,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	}
 
 	/**
-	 * Removing fields from a POJO as operator state should require a state migration
+	 * Removing fields from a POJO as operator state should require a state migration.
 	 */
 	@Test
 	public void testMissingFieldWithOperatorState() throws Exception {
@@ -379,7 +385,6 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 		for (Long value : input) {
 			harness.processElement(value, timestamp++);
 		}
-
 
 		long checkpointId = 1L;
 		long checkpointTimestamp = timestamp + 1L;

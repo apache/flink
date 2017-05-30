@@ -24,6 +24,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Thread-safe sink for collecting elements into an on-heap list.
+ *
+ * @param <T> element type
+ */
 public class TestListResultSink<T> extends RichSinkFunction<T> {
 
 	private static final long serialVersionUID = 1L;

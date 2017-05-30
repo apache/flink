@@ -56,7 +56,7 @@ import static org.junit.Assert.fail;
  * This test verifies the behavior of the recovery in the case when a TaskManager
  * fails (shut down) in the middle of a job execution.
  *
- * The test works with multiple in-process task managers. Initially, it starts a JobManager
+ * <p>The test works with multiple in-process task managers. Initially, it starts a JobManager
  * and two TaskManagers with 2 slots each. It submits a program with parallelism 4
  * and waits until all tasks are brought up (coordination between the test and the tasks
  * happens via shared blocking queues). It then starts another TaskManager, which is
@@ -69,7 +69,7 @@ public class TaskManagerFailureRecoveryITCase extends TestLogger {
 	@Test
 	public void testRestartWithFailingTaskManager() {
 
-		final int PARALLELISM = 4;
+		final int parallelism = 4;
 
 		LocalFlinkMiniCluster cluster = null;
 		ActorSystem additionalSystem = null;
@@ -77,7 +77,7 @@ public class TaskManagerFailureRecoveryITCase extends TestLogger {
 		try {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
 			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
 
 			config.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "500 ms");
@@ -91,9 +91,9 @@ public class TaskManagerFailureRecoveryITCase extends TestLogger {
 			// for the result
 			List<Long> resultCollection = new ArrayList<Long>();
 
-			final ExecutionEnvironment env = new TestEnvironment(cluster, PARALLELISM, false);
+			final ExecutionEnvironment env = new TestEnvironment(cluster, parallelism, false);
 
-			env.setParallelism(PARALLELISM);
+			env.setParallelism(parallelism);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
 			env.getConfig().disableSysoutLogging();
 
@@ -106,7 +106,6 @@ public class TaskManagerFailureRecoveryITCase extends TestLogger {
 						}
 					})
 					.output(new LocalCollectionOutputFormat<Long>(resultCollection));
-
 
 			// simple reference (atomic does not matter) to pass back an exception from the trigger thread
 			final AtomicReference<Throwable> ref = new AtomicReference<Throwable>();
@@ -129,7 +128,7 @@ public class TaskManagerFailureRecoveryITCase extends TestLogger {
 
 			// block until all the mappers are actually deployed
 			// the mappers in turn are waiting
-			for (int i = 0; i < PARALLELISM; i++) {
+			for (int i = 0; i < parallelism; i++) {
 				FailingMapper.TASK_TO_COORD_QUEUE.take();
 			}
 
@@ -154,12 +153,12 @@ public class TaskManagerFailureRecoveryITCase extends TestLogger {
 			}
 
 			// wait for the next set of mappers (the recovery ones) to come online
-			for (int i = 0; i < PARALLELISM; i++) {
+			for (int i = 0; i < parallelism; i++) {
 				FailingMapper.TASK_TO_COORD_QUEUE.take();
 			}
 
 			// tell the mappers that they may continue this time
-			for (int i = 0; i < PARALLELISM; i++) {
+			for (int i = 0; i < parallelism; i++) {
 				FailingMapper.COORD_TO_TASK_QUEUE.add(new Object());
 			}
 
@@ -191,7 +190,6 @@ public class TaskManagerFailureRecoveryITCase extends TestLogger {
 		private static final BlockingQueue<Object> TASK_TO_COORD_QUEUE = new LinkedBlockingQueue<Object>();
 
 		private static final BlockingQueue<Object> COORD_TO_TASK_QUEUE = new LinkedBlockingQueue<Object>();
-
 
 		@Override
 		public void open(Configuration parameters) throws Exception {

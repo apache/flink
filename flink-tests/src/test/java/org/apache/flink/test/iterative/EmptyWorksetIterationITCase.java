@@ -29,6 +29,9 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Test empty (identity) delta iteration.
+ */
 @SuppressWarnings("serial")
 public class EmptyWorksetIterationITCase extends JavaProgramTestBase {
 
@@ -48,7 +51,7 @@ public class EmptyWorksetIterationITCase extends JavaProgramTestBase {
 		env.execute();
 	}
 
-	public static final class Dupl implements MapFunction<Long, Tuple2<Long, Long>> {
+	private static final class Dupl implements MapFunction<Long, Tuple2<Long, Long>> {
 
 		@Override
 		public Tuple2<Long, Long> map(Long value) {

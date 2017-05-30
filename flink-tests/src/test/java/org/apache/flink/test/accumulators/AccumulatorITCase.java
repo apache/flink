@@ -47,7 +47,7 @@ import java.util.Set;
  * Test for the basic functionality of accumulators. We cannot test all different
  * kinds of plans here (iterative, etc.).
  *
- * TODO Test conflict when different UDFs write to accumulator with same name
+ * <p>TODO Test conflict when different UDFs write to accumulator with same name
  * but with different type. The conflict will occur in JobManager while merging.
  */
 @SuppressWarnings("serial")
@@ -76,9 +76,9 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		JobExecutionResult res = this.result;
 		System.out.println(AccumulatorHelper.getResultsFormatted(res.getAllAccumulatorResults()));
 
-		Assert.assertEquals(Integer.valueOf(3), (Integer) res.getAccumulatorResult("num-lines"));
+		Assert.assertEquals(Integer.valueOf(3), res.getAccumulatorResult("num-lines"));
 
-		Assert.assertEquals(Double.valueOf(getParallelism()), (Double)res.getAccumulatorResult("open-close-counter"));
+		Assert.assertEquals(Double.valueOf(getParallelism()), res.getAccumulatorResult("open-close-counter"));
 
 		// Test histogram (words per line distribution)
 		Map<Integer, Integer> dist = Maps.newHashMap();
@@ -107,7 +107,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		this.result = env.execute();
 	}
 
-	public static class TokenizeLine extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
+	private static class TokenizeLine extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
 
 		// Needs to be instantiated later since the runtime context is not yet
 		// initialized at this place
@@ -166,7 +166,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 			for (String token : value.toLowerCase().split("\\W+")) {
 				distinctWords.add(new StringValue(token));
 				out.collect(new Tuple2<>(token, 1));
-				++ wordsPerLine;
+				++wordsPerLine;
 			}
 			wordsPerLineDistribution.add(wordsPerLine);
 		}
@@ -179,11 +179,9 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		}
 	}
 
-
-	public static class CountWords
+	private static class CountWords
 		extends RichGroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>
-		implements GroupCombineFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>
-	{
+		implements GroupCombineFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
 
 		private IntCounter reduceCalls;
 		private IntCounter combineCalls;
@@ -219,7 +217,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 	}
 
 	/**
-	 * Custom accumulator
+	 * Custom accumulator.
 	 */
 	public static class SetAccumulator<T> implements Accumulator<T, HashSet<T>> {
 

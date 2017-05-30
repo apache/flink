@@ -28,6 +28,9 @@ import java.util.ArrayList;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Test union between static and dynamic path in an iteration.
+ */
 public class UnionStaticDynamicIterationITCase  extends JavaProgramTestBase {
 
 	private final ArrayList<Long> result = new ArrayList<Long>();

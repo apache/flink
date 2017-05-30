@@ -98,11 +98,10 @@ public final class CoordVector implements Value, Comparable<CoordVector> {
 		double quadSum = 0.0;
 		for (int i = 0; i < this.coordinates.length; i++) {
 			double diff = this.coordinates[i] - cv.coordinates[i];
-			quadSum += diff*diff;
+			quadSum += diff * diff;
 		}
 		return Math.sqrt(quadSum);
 	}
-
 
 	@Override
 	public void read(DataInputView in) throws IOException {
@@ -112,7 +111,6 @@ public final class CoordVector implements Value, Comparable<CoordVector> {
 			this.coordinates[i] = in.readDouble();
 		}
 	}
-
 
 	@Override
 	public void write(DataOutputView out) throws IOException {

@@ -49,6 +49,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Integration tests for windowed join / coGroup operators.
+ */
 @SuppressWarnings("serial")
 public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
@@ -109,12 +112,11 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			}
 		}).assignTimestampsAndWatermarks(new Tuple2TimestampExtractor());
 
-
 		source1.coGroup(source2)
 				.where(new Tuple2KeyExtractor())
 				.equalTo(new Tuple2KeyExtractor())
 				.window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
-				.apply(new CoGroupFunction<Tuple2<String,Integer>, Tuple2<String,Integer>, String>() {
+				.apply(new CoGroupFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
 					@Override
 					public void coGroup(Iterable<Tuple2<String, Integer>> first,
 							Iterable<Tuple2<String, Integer>> second,
@@ -204,7 +206,6 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			public void cancel() {}
 
 		}).assignTimestampsAndWatermarks(new Tuple3TimestampExtractor());
-
 
 		source1.join(source2)
 				.where(new Tuple3KeyExtractor())
@@ -352,7 +353,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			.where(new Tuple2KeyExtractor())
 			.equalTo(new Tuple2KeyExtractor())
 			.window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
-			.apply(new CoGroupFunction<Tuple2<String,Integer>, Tuple2<String,Integer>, String>() {
+			.apply(new CoGroupFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
 				@Override
 				public void coGroup(Iterable<Tuple2<String, Integer>> first,
 									Iterable<Tuple2<String, Integer>> second,
@@ -398,7 +399,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	private static class Tuple2KeyExtractor implements KeySelector<Tuple2<String,Integer>, String> {
+	private static class Tuple2KeyExtractor implements KeySelector<Tuple2<String, Integer>, String> {
 
 		@Override
 		public String getKey(Tuple2<String, Integer> value) throws Exception {

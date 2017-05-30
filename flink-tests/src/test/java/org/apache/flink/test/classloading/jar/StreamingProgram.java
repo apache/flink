@@ -27,6 +27,9 @@ import org.apache.flink.util.Collector;
 
 import java.util.StringTokenizer;
 
+/**
+ * Test class used by the {@link org.apache.flink.test.classloading.ClassLoaderITCase}.
+ */
 @SuppressWarnings("serial")
 public class StreamingProgram {
 
@@ -45,6 +48,9 @@ public class StreamingProgram {
 	}
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * POJO with word and count.
+	 */
 	public static class Word {
 
 		private String word;
@@ -80,7 +86,7 @@ public class StreamingProgram {
 		}
 	}
 
-	public static class Tokenizer implements FlatMapFunction<String, Word>{
+	private static class Tokenizer implements FlatMapFunction<String, Word>{
 		@Override
 		public void flatMap(String value, Collector<Word> out) throws Exception {
 			StringTokenizer tokenizer = new StringTokenizer(value);
@@ -90,7 +96,7 @@ public class StreamingProgram {
 		}
 	}
 
-	public static class NoOpSink implements SinkFunction<Word>{
+	private static class NoOpSink implements SinkFunction<Word>{
 		@Override
 		public void invoke(Word value) throws Exception {
 		}

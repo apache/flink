@@ -53,6 +53,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Validate the compilation and result of a single iteration of KMeans.
+ */
 @SuppressWarnings("serial")
 public class KMeansSingleStepTest extends CompilerTestBase {
 
@@ -66,7 +69,6 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 
 	private final FieldList set0 = new FieldList(0);
 
-
 	@Test
 	public void testCompileKMeansSingleStepWithStats() {
 
@@ -74,8 +76,8 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		p.setExecutionConfig(new ExecutionConfig());
 		// set the statistics
 		OperatorResolver cr = getContractResolver(p);
-		GenericDataSourceBase<?,?> pointsSource = cr.getNode(DATAPOINTS);
-		GenericDataSourceBase<?,?> centersSource = cr.getNode(CENTERS);
+		GenericDataSourceBase<?, ?> pointsSource = cr.getNode(DATAPOINTS);
+		GenericDataSourceBase<?, ?> centersSource = cr.getNode(CENTERS);
 		setSourceStatistics(pointsSource, 100L * 1024 * 1024 * 1024, 32f);
 		setSourceStatistics(centersSource, 1024 * 1024, 32f);
 
@@ -91,7 +93,6 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		OptimizedPlan plan = compileNoStats(p);
 		checkPlan(plan);
 	}
-
 
 	private void checkPlan(OptimizedPlan plan) {
 
@@ -116,7 +117,6 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		assertNull(mapper.getInput().getLocalStrategySortOrder());
 		assertNull(mapper.getBroadcastInputs().get(0).getLocalStrategyKeys());
 		assertNull(mapper.getBroadcastInputs().get(0).getLocalStrategySortOrder());
-
 
 		// check the combiner
 		Assert.assertNotNull(combiner);
@@ -146,17 +146,17 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 		env.setAsContext();
 		try {
-			KMeans(new String[]{IN_FILE, IN_FILE, OUT_FILE, "20"});
+			kmeans(new String[]{IN_FILE, IN_FILE, OUT_FILE, "20"});
 		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail("KMeans failed with an exception");
+			Assert.fail("kmeans failed with an exception");
 		}
 		return env.getPlan();
 	}
 
-	public static void KMeans(String[] args) throws Exception {
+	public static void kmeans(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Point> points = env.readCsvFile(args[0])
@@ -186,14 +186,17 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		DataSet<Tuple3<Integer, Point, Integer>> newCentroids = points
 				.map(new SelectNearestCenter()).name(MAPPER_NAME).withBroadcastSet(centroids, "centroids");
 
-		DataSet<Tuple3<Integer, Point, Integer>> recomputeClusterCenter
-				= newCentroids.groupBy(0).reduceGroup(new RecomputeClusterCenter()).name(REDUCER_NAME);
+		DataSet<Tuple3<Integer, Point, Integer>> recomputeClusterCenter =
+				newCentroids.groupBy(0).reduceGroup(new RecomputeClusterCenter()).name(REDUCER_NAME);
 
 		recomputeClusterCenter.project(0, 1).writeAsCsv(args[2], "\n", " ").name(SINK);
 
-		env.execute("KMeans Example");
+		env.execute("kmeans Example");
 	}
 
+	/**
+	 * Two-dimensional point.
+	 */
 	public static class Point extends Tuple2<Double, Double> {
 		public Point(double x, double y) {
 			this.f0 = x;
@@ -221,6 +224,9 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		}
 	}
 
+	/**
+	 * Center of a cluster.
+	 */
 	public static class Centroid extends Tuple2<Integer, Point> {
 
 		public Centroid(int id, double x, double y) {
@@ -237,7 +243,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 	/**
 	 * Determines the closest cluster center for a data point.
 	 */
-	public static final class SelectNearestCenter extends RichMapFunction<Point, Tuple3<Integer, Point, Integer>> {
+	private static final class SelectNearestCenter extends RichMapFunction<Point, Tuple3<Integer, Point, Integer>> {
 		private Collection<Centroid> centroids;
 
 		@Override
@@ -260,10 +266,9 @@ public class KMeansSingleStepTest extends CompilerTestBase {
 		}
 	}
 
-	public static final class RecomputeClusterCenter implements
+	private static final class RecomputeClusterCenter implements
 		GroupReduceFunction<Tuple3<Integer, Point, Integer>, Tuple3<Integer, Point, Integer>>,
-		GroupCombineFunction<Tuple3<Integer, Point, Integer>, Tuple3<Integer, Point, Integer>>
-	{
+		GroupCombineFunction<Tuple3<Integer, Point, Integer>, Tuple3<Integer, Point, Integer>> {
 
 		@Override
 		public void reduce(Iterable<Tuple3<Integer, Point, Integer>> values, Collector<Tuple3<Integer, Point, Integer>> out) throws Exception {

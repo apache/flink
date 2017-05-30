@@ -37,6 +37,9 @@ import org.apache.flink.util.Collector;
 import java.io.BufferedReader;
 import java.util.Iterator;
 
+/**
+ * Delta iteration test implementing the connected components algorithm with a cogroup.
+ */
 public class CoGroupConnectedComponentsITCase extends JavaProgramTestBase {
 
 	private static final long SEED = 0xBADC0FFEEBEEFL;
@@ -45,13 +48,11 @@ public class CoGroupConnectedComponentsITCase extends JavaProgramTestBase {
 
 	private static final int NUM_EDGES = 10000;
 
-
 	private static final int MAX_ITERATIONS = 100;
 
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
-
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -111,7 +112,7 @@ public class CoGroupConnectedComponentsITCase extends JavaProgramTestBase {
 
 	@ForwardedFieldsFirst("f1->f1")
 	@ForwardedFieldsSecond("f0->f0")
-	public static final class MinIdAndUpdate implements CoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	private static final class MinIdAndUpdate implements CoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

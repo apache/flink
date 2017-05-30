@@ -71,8 +71,8 @@ public class TaskManagerProcessFailureBatchRecoveryITCase extends AbstractTaskMa
 		env.getConfig().setExecutionMode(executionMode);
 		env.getConfig().disableSysoutLogging();
 
-		final long NUM_ELEMENTS = 100000L;
-		final DataSet<Long> result = env.generateSequence(1, NUM_ELEMENTS)
+		final long numElements = 100000L;
+		final DataSet<Long> result = env.generateSequence(1, numElements)
 
 				// make sure every mapper is involved (no one is skipped because of lazy split assignment)
 				.rebalance()
@@ -112,6 +112,6 @@ public class TaskManagerProcessFailureBatchRecoveryITCase extends AbstractTaskMa
 				});
 
 		long sum = result.collect().get(0);
-		assertEquals(NUM_ELEMENTS * (NUM_ELEMENTS + 1L) / 2L, sum);
+		assertEquals(numElements * (numElements + 1L) / 2L, sum);
 	}
 }

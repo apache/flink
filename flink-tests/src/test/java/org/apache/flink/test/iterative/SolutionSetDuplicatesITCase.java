@@ -38,6 +38,9 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+/**
+ * Test for duplicate elimination in the solution set.
+ */
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
 public class SolutionSetDuplicatesITCase extends MultipleProgramsTestBase {
@@ -67,7 +70,7 @@ public class SolutionSetDuplicatesITCase extends MultipleProgramsTestBase {
 
 			List<Integer> result = iter
 					.closeWith(iter.getWorkset(), iter.getWorkset())
-					.map(new MapFunction<Tuple2<Long,Long>, Integer>() {
+					.map(new MapFunction<Tuple2<Long, Long>, Integer>() {
 						@Override
 						public Integer map(Tuple2<Long, Long> value) {
 							return value.f0.intValue();

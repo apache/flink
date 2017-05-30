@@ -44,7 +44,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Connected Components test case that uses a parameterizable convergence criterion
+ * Connected Components test case that uses a parameterizable convergence criterion.
  */
 @RunWith(Parameterized.class)
 @SuppressWarnings("serial")
@@ -55,181 +55,181 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 	}
 
 	final List<Tuple2<Long, Long>> verticesInput = Arrays.asList(
-			new Tuple2<>(1l,1l),
-			new Tuple2<>(2l,2l),
-			new Tuple2<>(3l,3l),
-			new Tuple2<>(4l,4l),
-			new Tuple2<>(5l,5l),
-			new Tuple2<>(6l,6l),
-			new Tuple2<>(7l,7l),
-			new Tuple2<>(8l,8l),
-			new Tuple2<>(9l,9l)
+		new Tuple2<>(1L, 1L),
+		new Tuple2<>(2L, 2L),
+		new Tuple2<>(3L, 3L),
+		new Tuple2<>(4L, 4L),
+		new Tuple2<>(5L, 5L),
+		new Tuple2<>(6L, 6L),
+		new Tuple2<>(7L, 7L),
+		new Tuple2<>(8L, 8L),
+		new Tuple2<>(9L, 9L)
 	);
 
 	final List<Tuple2<Long, Long>> edgesInput = Arrays.asList(
-			new Tuple2<>(1l,2l),
-			new Tuple2<>(1l,3l),
-			new Tuple2<>(2l,3l),
-			new Tuple2<>(2l,4l),
-			new Tuple2<>(2l,1l),
-			new Tuple2<>(3l,1l),
-			new Tuple2<>(3l,2l),
-			new Tuple2<>(4l,2l),
-			new Tuple2<>(4l,6l),
-			new Tuple2<>(5l,6l),
-			new Tuple2<>(6l,4l),
-			new Tuple2<>(6l,5l),
-			new Tuple2<>(7l,8l),
-			new Tuple2<>(7l,9l),
-			new Tuple2<>(8l,7l),
-			new Tuple2<>(8l,9l),
-			new Tuple2<>(9l,7l),
-			new Tuple2<>(9l,8l)
+		new Tuple2<>(1L, 2L),
+		new Tuple2<>(1L, 3L),
+		new Tuple2<>(2L, 3L),
+		new Tuple2<>(2L, 4L),
+		new Tuple2<>(2L, 1L),
+		new Tuple2<>(3L, 1L),
+		new Tuple2<>(3L, 2L),
+		new Tuple2<>(4L, 2L),
+		new Tuple2<>(4L, 6L),
+		new Tuple2<>(5L, 6L),
+		new Tuple2<>(6L, 4L),
+		new Tuple2<>(6L, 5L),
+		new Tuple2<>(7L, 8L),
+		new Tuple2<>(7L, 9L),
+		new Tuple2<>(8L, 7L),
+		new Tuple2<>(8L, 9L),
+		new Tuple2<>(9L, 7L),
+		new Tuple2<>(9L, 8L)
 	);
 
 	final List<Tuple2<Long, Long>> expectedResult = Arrays.asList(
-			new Tuple2<>(1L,1L),
-			new Tuple2<>(2L,1L),
-			new Tuple2<>(3L,1L),
-			new Tuple2<>(4L,1L),
-			new Tuple2<>(5L,2L),
-			new Tuple2<>(6L,1L),
-			new Tuple2<>(7L,7L),
-			new Tuple2<>(8L,7L),
-			new Tuple2<>(9L,7L)
+		new Tuple2<>(1L, 1L),
+		new Tuple2<>(2L, 1L),
+		new Tuple2<>(3L, 1L),
+		new Tuple2<>(4L, 1L),
+		new Tuple2<>(5L, 2L),
+		new Tuple2<>(6L, 1L),
+		new Tuple2<>(7L, 7L),
+		new Tuple2<>(8L, 7L),
+		new Tuple2<>(9L, 7L)
 	);
 
 	@Test
 	public void testConnectedComponentsWithParametrizableConvergence() throws Exception {
 
-			// name of the aggregator that checks for convergence
-			final String UPDATED_ELEMENTS = "updated.elements.aggr";
+		// name of the aggregator that checks for convergence
+		final String updatedElements = "updated.elements.aggr";
 
-			// the iteration stops if less than this number of elements change value
-			final long convergence_threshold = 3;
+		// the iteration stops if less than this number of elements change value
+		final long convergenceThreshold = 3;
 
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			DataSet<Tuple2<Long, Long>> initialSolutionSet = env.fromCollection(verticesInput);
-			DataSet<Tuple2<Long, Long>> edges = env.fromCollection(edgesInput);
+		DataSet<Tuple2<Long, Long>> initialSolutionSet = env.fromCollection(verticesInput);
+		DataSet<Tuple2<Long, Long>> edges = env.fromCollection(edgesInput);
 
-			IterativeDataSet<Tuple2<Long, Long>> iteration = initialSolutionSet.iterate(10);
+		IterativeDataSet<Tuple2<Long, Long>> iteration = initialSolutionSet.iterate(10);
 
-			// register the convergence criterion
-			iteration.registerAggregationConvergenceCriterion(UPDATED_ELEMENTS,
-					new LongSumAggregator(), new UpdatedElementsConvergenceCriterion(convergence_threshold));
+		// register the convergence criterion
+		iteration.registerAggregationConvergenceCriterion(updatedElements,
+			new LongSumAggregator(), new UpdatedElementsConvergenceCriterion(convergenceThreshold));
 
-			DataSet<Tuple2<Long, Long>> verticesWithNewComponents = iteration.join(edges).where(0).equalTo(0)
-					.with(new NeighborWithComponentIDJoin())
-					.groupBy(0).min(1);
+		DataSet<Tuple2<Long, Long>> verticesWithNewComponents = iteration.join(edges).where(0).equalTo(0)
+			.with(new NeighborWithComponentIDJoin())
+			.groupBy(0).min(1);
 
-			DataSet<Tuple2<Long, Long>> updatedComponentId =
-					verticesWithNewComponents.join(iteration).where(0).equalTo(0)
-							.flatMap(new MinimumIdFilter(UPDATED_ELEMENTS));
+		DataSet<Tuple2<Long, Long>> updatedComponentId =
+			verticesWithNewComponents.join(iteration).where(0).equalTo(0)
+				.flatMap(new MinimumIdFilter(updatedElements));
 
-			List<Tuple2<Long, Long>> result = iteration.closeWith(updatedComponentId).collect();
-			Collections.sort(result, new TestBaseUtils.TupleComparator<Tuple2<Long, Long>>());
+		List<Tuple2<Long, Long>> result = iteration.closeWith(updatedComponentId).collect();
+		Collections.sort(result, new TestBaseUtils.TupleComparator<Tuple2<Long, Long>>());
 
-			assertEquals(expectedResult, result);
+		assertEquals(expectedResult, result);
 	}
 
 	@Test
 	public void testDeltaConnectedComponentsWithParametrizableConvergence() throws Exception {
 
-			// name of the aggregator that checks for convergence
-			final String UPDATED_ELEMENTS = "updated.elements.aggr";
+		// name of the aggregator that checks for convergence
+		final String updatedElements = "updated.elements.aggr";
 
-			// the iteration stops if less than this number of elements change value
-			final long convergence_threshold = 3;
+		// the iteration stops if less than this number of elements change value
+		final long convergenceThreshold = 3;
 
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			DataSet<Tuple2<Long, Long>> initialSolutionSet = env.fromCollection(verticesInput);
-			DataSet<Tuple2<Long, Long>> edges = env.fromCollection(edgesInput);
+		DataSet<Tuple2<Long, Long>> initialSolutionSet = env.fromCollection(verticesInput);
+		DataSet<Tuple2<Long, Long>> edges = env.fromCollection(edgesInput);
 
-			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
-					initialSolutionSet.iterateDelta(initialSolutionSet, 10, 0);
+		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
+			initialSolutionSet.iterateDelta(initialSolutionSet, 10, 0);
 
-			// register the convergence criterion
-			iteration.registerAggregationConvergenceCriterion(UPDATED_ELEMENTS,
-					new LongSumAggregator(), new UpdatedElementsConvergenceCriterion(convergence_threshold));
+		// register the convergence criterion
+		iteration.registerAggregationConvergenceCriterion(updatedElements,
+			new LongSumAggregator(), new UpdatedElementsConvergenceCriterion(convergenceThreshold));
 
-			DataSet<Tuple2<Long, Long>> verticesWithNewComponents = iteration.getWorkset().join(edges).where(0).equalTo(0)
-					.with(new NeighborWithComponentIDJoin())
-					.groupBy(0).min(1);
+		DataSet<Tuple2<Long, Long>> verticesWithNewComponents = iteration.getWorkset().join(edges).where(0).equalTo(0)
+			.with(new NeighborWithComponentIDJoin())
+			.groupBy(0).min(1);
 
-			DataSet<Tuple2<Long, Long>> updatedComponentId =
-					verticesWithNewComponents.join(iteration.getSolutionSet()).where(0).equalTo(0)
-							.flatMap(new MinimumIdFilter(UPDATED_ELEMENTS));
+		DataSet<Tuple2<Long, Long>> updatedComponentId =
+			verticesWithNewComponents.join(iteration.getSolutionSet()).where(0).equalTo(0)
+				.flatMap(new MinimumIdFilter(updatedElements));
 
-			List<Tuple2<Long, Long>> result = iteration.closeWith(updatedComponentId, updatedComponentId).collect();
-			Collections.sort(result, new TestBaseUtils.TupleComparator<Tuple2<Long, Long>>());
+		List<Tuple2<Long, Long>> result = iteration.closeWith(updatedComponentId, updatedComponentId).collect();
+		Collections.sort(result, new TestBaseUtils.TupleComparator<Tuple2<Long, Long>>());
 
-			assertEquals(expectedResult, result);
+		assertEquals(expectedResult, result);
 	}
 
 	@Test
 	public void testParameterizableAggregator() throws Exception {
 
-			final int MAX_ITERATIONS = 5;
-			final String AGGREGATOR_NAME = "elements.in.component.aggregator";
-			final long componentId = 1l;
+			final int maxIterations = 5;
+		final String aggregatorName = "elements.in.component.aggregator";
+		final long componentId = 1L;
 
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			DataSet<Tuple2<Long, Long>> initialSolutionSet = env.fromCollection(verticesInput);
-			DataSet<Tuple2<Long, Long>> edges = env.fromCollection(edgesInput);
+		DataSet<Tuple2<Long, Long>> initialSolutionSet = env.fromCollection(verticesInput);
+		DataSet<Tuple2<Long, Long>> edges = env.fromCollection(edgesInput);
 
-			IterativeDataSet<Tuple2<Long, Long>> iteration =
-					initialSolutionSet.iterate(MAX_ITERATIONS);
+		IterativeDataSet<Tuple2<Long, Long>> iteration =
+			initialSolutionSet.iterate(maxIterations);
 
-			// register the aggregator
-			iteration.registerAggregator(AGGREGATOR_NAME, new LongSumAggregatorWithParameter(componentId));
+		// register the aggregator
+		iteration.registerAggregator(aggregatorName, new LongSumAggregatorWithParameter(componentId));
 
-			DataSet<Tuple2<Long, Long>> verticesWithNewComponents = iteration.join(edges).where(0).equalTo(0)
-					.with(new NeighborWithComponentIDJoin())
-					.groupBy(0).min(1);
+		DataSet<Tuple2<Long, Long>> verticesWithNewComponents = iteration.join(edges).where(0).equalTo(0)
+			.with(new NeighborWithComponentIDJoin())
+			.groupBy(0).min(1);
 
-			DataSet<Tuple2<Long, Long>> updatedComponentId =
-					verticesWithNewComponents.join(iteration).where(0).equalTo(0)
-							.flatMap(new MinimumIdFilterCounting(AGGREGATOR_NAME));
+		DataSet<Tuple2<Long, Long>> updatedComponentId =
+			verticesWithNewComponents.join(iteration).where(0).equalTo(0)
+				.flatMap(new MinimumIdFilterCounting(aggregatorName));
 
-			List<Tuple2<Long, Long>> result = iteration.closeWith(updatedComponentId).collect();
+		List<Tuple2<Long, Long>> result = iteration.closeWith(updatedComponentId).collect();
 
-			Collections.sort(result, new TestBaseUtils.TupleComparator<Tuple2<Long, Long>>());
+		Collections.sort(result, new TestBaseUtils.TupleComparator<Tuple2<Long, Long>>());
 
-			List<Tuple2<Long, Long>> expectedResult = Arrays.asList(
-					new Tuple2<>(1L,1L),
-					new Tuple2<>(2L,1L),
-					new Tuple2<>(3L,1L),
-					new Tuple2<>(4L,1L),
-					new Tuple2<>(5L,1L),
-					new Tuple2<>(6L,1L),
-					new Tuple2<>(7L,7L),
-					new Tuple2<>(8L,7L),
-					new Tuple2<>(9L,7L)
-			);
+		List<Tuple2<Long, Long>> expectedResult = Arrays.asList(
+			new Tuple2<>(1L, 1L),
+			new Tuple2<>(2L, 1L),
+			new Tuple2<>(3L, 1L),
+			new Tuple2<>(4L, 1L),
+			new Tuple2<>(5L, 1L),
+			new Tuple2<>(6L, 1L),
+			new Tuple2<>(7L, 7L),
+			new Tuple2<>(8L, 7L),
+			new Tuple2<>(9L, 7L)
+		);
 
-			// check program result
-			assertEquals(expectedResult, result);
+		// check program result
+		assertEquals(expectedResult, result);
 
-			// check aggregators
-			long[] aggr_values = MinimumIdFilterCounting.aggr_value;
+		// check aggregators
+		long[] aggrValues = MinimumIdFilterCounting.aggr_value;
 
-			// note that position 0 has the end result from superstep 1, retrieved at the start of iteration 2
-			// position one as superstep 2, retrieved at the start of iteration 3.
-			// the result from iteration 5 is not available, because no iteration 6 happens
-			assertEquals(3, aggr_values[0]);
-			assertEquals(4, aggr_values[1]);
-			assertEquals(5, aggr_values[2]);
-			assertEquals(6, aggr_values[3]);
+		// note that position 0 has the end result from superstep 1, retrieved at the start of iteration 2
+		// position one as superstep 2, retrieved at the start of iteration 3.
+		// the result from iteration 5 is not available, because no iteration 6 happens
+		assertEquals(3, aggrValues[0]);
+		assertEquals(4, aggrValues[1]);
+		assertEquals(5, aggrValues[2]);
+		assertEquals(6, aggrValues[3]);
 	}
 
 	// ------------------------------------------------------------------------
 	//  Test Functions
 	// ------------------------------------------------------------------------
 
-	public static final class NeighborWithComponentIDJoin extends RichJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	private static final class NeighborWithComponentIDJoin extends RichJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -240,7 +240,7 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 		}
 	}
 
-	public static class MinimumIdFilter extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
+	private static class MinimumIdFilter extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
 
 		private final String aggName;
 		private LongSumAggregator aggr;
@@ -261,7 +261,7 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 
 			if (vertexWithNewAndOldId.f0.f1 < vertexWithNewAndOldId.f1.f1) {
 				out.collect(vertexWithNewAndOldId.f0);
-				aggr.aggregate(1l);
+				aggr.aggregate(1L);
 			}
 			else {
 				out.collect(vertexWithNewAndOldId.f1);
@@ -269,7 +269,7 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 		}
 	}
 
-	public static final class MinimumIdFilterCounting
+	private static final class MinimumIdFilterCounting
 			extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
 
 		private static final long[] aggr_value = new long[5];
@@ -301,24 +301,26 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 			if (vertexWithNewAndOldId.f0.f1 < vertexWithNewAndOldId.f1.f1) {
 				out.collect(vertexWithNewAndOldId.f0);
 				if (vertexWithNewAndOldId.f0.f1 == aggr.getComponentId()) {
-					aggr.aggregate(1l);
+					aggr.aggregate(1L);
 				}
 			} else {
 				out.collect(vertexWithNewAndOldId.f1);
 				if (vertexWithNewAndOldId.f1.f1 == aggr.getComponentId()) {
-					aggr.aggregate(1l);
+					aggr.aggregate(1L);
 				}
 			}
 		}
 	}
 
-	/** A Convergence Criterion with one parameter */
-	public static class UpdatedElementsConvergenceCriterion implements ConvergenceCriterion<LongValue> {
+	/**
+	 * A Convergence Criterion with one parameter.
+	 */
+	private static class UpdatedElementsConvergenceCriterion implements ConvergenceCriterion<LongValue> {
 
 		private final long threshold;
 
-		public UpdatedElementsConvergenceCriterion(long u_threshold) {
-			this.threshold = u_threshold;
+		public UpdatedElementsConvergenceCriterion(long uThreshold) {
+			this.threshold = uThreshold;
 		}
 
 		@Override
@@ -327,7 +329,7 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 		}
 	}
 
-	public static final class LongSumAggregatorWithParameter extends LongSumAggregator {
+	private static final class LongSumAggregatorWithParameter extends LongSumAggregator {
 
 		private long componentId;
 

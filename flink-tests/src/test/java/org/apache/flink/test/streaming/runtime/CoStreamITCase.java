@@ -36,6 +36,9 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Integration tests for co-streams.
+ */
 @SuppressWarnings("serial")
 public class CoStreamITCase extends StreamingMultipleProgramsTestBase {
 
@@ -104,7 +107,6 @@ public class CoStreamITCase extends StreamingMultipleProgramsTestBase {
 				});
 
 		connected.addSink(resultSink);
-
 
 		env.execute();
 

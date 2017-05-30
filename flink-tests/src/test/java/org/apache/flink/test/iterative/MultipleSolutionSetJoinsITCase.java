@@ -30,14 +30,16 @@ import org.junit.Assert;
 import java.util.ArrayList;
 import java.util.List;
 
-
+/**
+ * Test multiple joins with the solution set.
+ */
 public class MultipleSolutionSetJoinsITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
 
-		final int NUM_ITERS = 4;
-		final double expectedFactor = (int) Math.pow(7, NUM_ITERS);
+		final int numIters = 4;
+		final double expectedFactor = (int) Math.pow(7, numIters);
 
 		// this is an artificial program, it does not compute anything sensical
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -47,10 +49,10 @@ public class MultipleSolutionSetJoinsITCase extends JavaProgramTestBase {
 															new Tuple2<Long, Double>(3L, 3.0), new Tuple2<Long, Double>(4L, 4.0),
 															new Tuple2<Long, Double>(5L, 5.0), new Tuple2<Long, Double>(6L, 6.0));
 
-		DataSet<Tuple2<Long, Double>> result = MultipleJoinsWithSolutionSetCompilerTest.constructPlan(initialData, NUM_ITERS);
+		DataSet<Tuple2<Long, Double>> result = MultipleJoinsWithSolutionSetCompilerTest.constructPlan(initialData, numIters);
 
-		List<Tuple2<Long, Double>> resultCollector = new ArrayList<Tuple2<Long,Double>>();
-		result.output(new LocalCollectionOutputFormat<Tuple2<Long,Double>>(resultCollector));
+		List<Tuple2<Long, Double>> resultCollector = new ArrayList<Tuple2<Long, Double>>();
+		result.output(new LocalCollectionOutputFormat<>(resultCollector));
 
 		env.execute();
 

@@ -271,8 +271,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 	}
 
 	private void waitUntilNumTaskManagersAreRegistered(ActorRef jobManager, int numExpected, long maxDelay)
-			throws Exception
-	{
+			throws Exception {
 		final long deadline = System.currentTimeMillis() + maxDelay;
 		while (true) {
 			long remaining = deadline - System.currentTimeMillis();

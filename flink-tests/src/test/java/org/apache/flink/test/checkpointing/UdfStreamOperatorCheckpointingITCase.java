@@ -46,15 +46,14 @@ import java.util.Random;
  * of {@link AbstractUdfStreamOperator} is correctly restored in case of recovery from
  * a failure.
  *
- * <p>
- * The topology currently tests the proper behaviour of the {@link StreamGroupedReduce}
+ * <p>The topology currently tests the proper behaviour of the {@link StreamGroupedReduce}
  * and the {@link StreamGroupedFold} operators.
  */
 @SuppressWarnings("serial")
 public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTestBase {
 
-	final private static long NUM_INPUT = 500_000L;
-	final private static int NUM_OUTPUT = 1_000;
+	private static final long NUM_INPUT = 500_000L;
+	private static final int NUM_OUTPUT = 1_000;
 
 	/**
 	 * Assembles a stream of a grouping field and some long data. Applies reduce functions
@@ -66,7 +65,6 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 		// base stream
 		KeyedStream<Tuple2<Integer, Long>, Tuple> stream = env.addSource(new StatefulMultipleSequence())
 				.keyBy(0);
-
 
 		stream
 				// testing built-in aggregate
@@ -224,7 +222,7 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 
 		@Override
 		public void restoreState(List<Long> state) throws Exception {
-			if(!state.isEmpty()) {
+			if (!state.isEmpty()) {
 				count = state.get(0);
 			}
 		}

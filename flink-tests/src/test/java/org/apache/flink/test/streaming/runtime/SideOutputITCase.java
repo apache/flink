@@ -402,7 +402,6 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 		assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
 	}
 
-
 	/**
 	 * Test ProcessFunction side outputs with wrong {@code OutputTag}.
 	 */
@@ -460,7 +459,7 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 	}
 
 	/**
-	 * Test window late arriving events stream
+	 * Test window late arriving events stream.
 	 */
 	@Test
 	public void testAllWindowLateArrivingEvents() throws Exception {
@@ -483,7 +482,7 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 
 					@Override
 					public void apply(TimeWindow window, Iterable<Integer> values, Collector<Integer> out) throws Exception {
-							for(Integer val : values) {
+							for (Integer val : values) {
 								out.collect(val);
 							}
 					}
@@ -530,7 +529,7 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 
 					@Override
 					public void apply(Integer key, TimeWindow window, Iterable<Integer> input, Collector<String> out) throws Exception {
-						for(Integer val : input) {
+						for (Integer val : input) {
 							out.collect(String.valueOf(key) + "-" + String.valueOf(val));
 						}
 					}

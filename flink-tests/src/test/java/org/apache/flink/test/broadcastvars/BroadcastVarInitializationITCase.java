@@ -34,6 +34,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * Test {@link BroadcastVariableInitializer}.
+ */
 @SuppressWarnings("serial")
 public class BroadcastVarInitializationITCase extends JavaProgramTestBase {
 
@@ -57,8 +60,7 @@ public class BroadcastVarInitializationITCase extends JavaProgramTestBase {
 		Assert.assertEquals(8, resultList.get(0).intValue());
 	}
 
-
-	public static class PickOneAllReduce extends RichGroupReduceFunction<Integer, Integer> {
+	private static class PickOneAllReduce extends RichGroupReduceFunction<Integer, Integer> {
 
 		private Integer bcValue;
 
@@ -85,7 +87,7 @@ public class BroadcastVarInitializationITCase extends JavaProgramTestBase {
 		}
 	}
 
-	public static class PickFirstInitializer implements BroadcastVariableInitializer<Integer, Integer> {
+	private static class PickFirstInitializer implements BroadcastVariableInitializer<Integer, Integer> {
 
 		@Override
 		public Integer initializeBroadcastVariable(Iterable<Integer> data) {

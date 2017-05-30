@@ -63,7 +63,7 @@ public class SelfJoinDeadlockITCase extends JavaProgramTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	public static class Joiner implements FlatJoinFunction<Tuple3<Integer, Integer, String>, Tuple3<Integer, Integer, String>, Tuple5<Integer, Integer, Integer, String, String>> {
+	private static class Joiner implements FlatJoinFunction<Tuple3<Integer, Integer, String>, Tuple3<Integer, Integer, String>, Tuple5<Integer, Integer, Integer, String, String>> {
 
 		@Override
 		public void join(Tuple3<Integer, Integer, String> in1, Tuple3<Integer, Integer, String> in2, Collector<Tuple5<Integer, Integer, Integer, String, String>> out) throws Exception {

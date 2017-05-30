@@ -32,6 +32,9 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.io.BufferedReader;
 
+/**
+ * Delta iteration test implementing the connected components algorithm with an object map.
+ */
 @SuppressWarnings("serial")
 public class ConnectedComponentsWithObjectMapITCase extends JavaProgramTestBase {
 
@@ -41,12 +44,9 @@ public class ConnectedComponentsWithObjectMapITCase extends JavaProgramTestBase 
 
 	private static final int NUM_EDGES = 10000;
 
-
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
-
-
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -61,7 +61,6 @@ public class ConnectedComponentsWithObjectMapITCase extends JavaProgramTestBase 
 			ConnectedComponentsData.checkOddEvenResult(reader);
 		}
 	}
-
 
 	@Override
 	protected void testProgram() throws Exception {

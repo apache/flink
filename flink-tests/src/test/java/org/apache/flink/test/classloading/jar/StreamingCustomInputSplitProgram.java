@@ -38,6 +38,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Test class used by the {@link org.apache.flink.test.classloading.ClassLoaderITCase}.
+ */
 @SuppressWarnings("serial")
 public class StreamingCustomInputSplitProgram {
 
@@ -63,7 +66,7 @@ public class StreamingCustomInputSplitProgram {
 	}
 	// --------------------------------------------------------------------------------------------
 
-	public static final class CustomInputFormat implements InputFormat<Integer, CustomInputSplit>, ResultTypeQueryable<Integer> {
+	private static final class CustomInputFormat implements InputFormat<Integer, CustomInputSplit>, ResultTypeQueryable<Integer> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -119,7 +122,7 @@ public class StreamingCustomInputSplitProgram {
 		}
 	}
 
-	public static final class CustomInputSplit implements InputSplit {
+	private static final class CustomInputSplit implements InputSplit {
 
 		private static final long serialVersionUID = 1L;
 
@@ -135,7 +138,7 @@ public class StreamingCustomInputSplitProgram {
 		}
 	}
 
-	public static final class CustomSplitAssigner implements InputSplitAssigner, Serializable {
+	private static final class CustomSplitAssigner implements InputSplitAssigner, Serializable {
 
 		private final List<CustomInputSplit> remainingSplits;
 
@@ -156,7 +159,7 @@ public class StreamingCustomInputSplitProgram {
 		}
 	}
 
-	public static class NoOpSink implements SinkFunction<Tuple2<Integer, Double>> {
+	private static class NoOpSink implements SinkFunction<Tuple2<Integer, Double>> {
 		@Override
 		public void invoke(Tuple2<Integer, Double> value) throws Exception {
 		}

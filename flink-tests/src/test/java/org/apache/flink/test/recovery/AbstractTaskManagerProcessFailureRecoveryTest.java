@@ -68,7 +68,7 @@ import static org.junit.Assert.fail;
  * Abstract base for tests verifying the behavior of the recovery in the
  * case when a TaskManager fails (process is killed) in the middle of a job execution.
  *
- * The test works with multiple task managers processes by spawning JVMs.
+ * <p>The test works with multiple task managers processes by spawning JVMs.
  * Initially, it starts a JobManager in process and two TaskManagers JVMs with
  * 2 task slots each.
  * It submits a program with parallelism 4 and waits until all tasks are brought up.
@@ -78,8 +78,6 @@ import static org.junit.Assert.fail;
  * the original task managers. The recovery should restart the tasks on the new TaskManager.
  */
 public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends TestLogger {
-
-	protected final Logger LOG = LoggerFactory.getLogger(getClass());
 
 	protected static final String READY_MARKER_FILE_PREFIX = "ready_";
 	protected static final String PROCEED_MARKER_FILE = "proceed";
@@ -291,10 +289,8 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 	 */
 	public abstract void testTaskManagerFailure(int jobManagerPort, File coordinateDir) throws Exception;
 
-
 	protected void waitUntilNumTaskManagersAreRegistered(ActorRef jobManager, int numExpected, long maxDelayMillis)
-			throws Exception
-	{
+			throws Exception {
 		final long pollInterval = 10_000_000; // 10 ms = 10,000,000 nanos
 		final long deadline = System.nanoTime() + maxDelayMillis * 1_000_000;
 
@@ -357,7 +353,6 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 	protected static boolean waitForMarkerFiles(File basedir, String prefix, int num, long timeout) {
 		long now = System.currentTimeMillis();
 		final long deadline = now + timeout;
-
 
 		while (now < deadline) {
 			boolean allFound = true;

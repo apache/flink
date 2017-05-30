@@ -67,11 +67,10 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	private static final String SINK = "Output";
 
 	private final FieldList set0 = new FieldList(0);
-	private final FieldList set01 = new FieldList(0,1);
+	private final FieldList set01 = new FieldList(0, 1);
 	private final ExecutionConfig defaultExecutionConfig = new ExecutionConfig();
 
 	// ------------------------------------------------------------------------
-
 
 	/**
 	 * Verifies that a robust repartitioning plan with a hash join is created in the absence of statistics.
@@ -110,7 +109,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testQueryAnyValidPlan() {
-		testQueryGeneric(1024*1024*1024L, 8*1024*1024*1024L, 0.05f, 0.05f, true, true, true, false, true);
+		testQueryGeneric(1024 * 1024 * 1024L, 8 * 1024 * 1024 * 1024L, 0.05f, 0.05f, true, true, true, false, true);
 	}
 
 	/**
@@ -126,7 +125,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testQueryWithStatsForBroadcastHash() {
-		testQueryGeneric(1024L*1024*1024*1024, 1024L*1024*1024*1024, 0.01f, 0.05f, true, false, true, false, false);
+		testQueryGeneric(1024L * 1024 * 1024 * 1024, 1024L * 1024 * 1024 * 1024, 0.01f, 0.05f, true, false, true, false, false);
 	}
 
 	/**
@@ -134,7 +133,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testQueryWithStatsForRepartitionAny() {
-		testQueryGeneric(100L*1024*1024*1024*1024, 100L*1024*1024*1024*1024, 0.1f, 0.5f, false, true, true, true, true);
+		testQueryGeneric(100L * 1024 * 1024 * 1024 * 1024, 100L * 1024 * 1024 * 1024 * 1024, 0.1f, 0.5f, false, true, true, true, true);
 	}
 
 	/**
@@ -147,18 +146,17 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		p.setExecutionConfig(defaultExecutionConfig);
 		// set compiler hints
 		OperatorResolver cr = getContractResolver(p);
-		DualInputOperator<?,?,?,?> match = cr.getNode(JOIN_NAME);
+		DualInputOperator<?, ?, ?, ?> match = cr.getNode(JOIN_NAME);
 		match.getCompilerHints().setFilterFactor(100f);
 
-		testQueryGeneric(100L*1024*1024*1024*1024, 100L*1024*1024*1024*1024, 0.01f, 100f, false, true, false, false, true);
+		testQueryGeneric(100L * 1024 * 1024 * 1024 * 1024, 100L * 1024 * 1024 * 1024 * 1024, 0.01f, 100f, false, true, false, false, true);
 	}
 
 	// ------------------------------------------------------------------------
 	private void testQueryGeneric(long orderSize, long lineItemSize,
 			float ordersFilterFactor, float joinFilterFactor,
 			boolean broadcastOkay, boolean partitionedOkay,
-			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay)
-	{
+			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay) {
 		Plan p = getTPCH3Plan();
 		p.setExecutionConfig(defaultExecutionConfig);
 		testQueryGeneric(p, orderSize, lineItemSize, ordersFilterFactor, joinFilterFactor, broadcastOkay, partitionedOkay, hashJoinFirstOkay, hashJoinSecondOkay, mergeJoinOkay);
@@ -167,15 +165,14 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	private void testQueryGeneric(Plan p, long orderSize, long lineitemSize,
 			float orderSelectivity, float joinSelectivity,
 			boolean broadcastOkay, boolean partitionedOkay,
-			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay)
-	{
+			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay) {
 		try {
 			// set statistics
 			OperatorResolver cr = getContractResolver(p);
-			GenericDataSourceBase<?,?> ordersSource = cr.getNode(ORDERS);
-			GenericDataSourceBase<?,?> lineItemSource = cr.getNode(LINEITEM);
-			SingleInputOperator<?,?,?> mapper = cr.getNode(MAPPER_NAME);
-			DualInputOperator<?,?,?,?> joiner = cr.getNode(JOIN_NAME);
+			GenericDataSourceBase<?, ?> ordersSource = cr.getNode(ORDERS);
+			GenericDataSourceBase<?, ?> lineItemSource = cr.getNode(LINEITEM);
+			SingleInputOperator<?, ?, ?> mapper = cr.getNode(MAPPER_NAME);
+			DualInputOperator<?, ?, ?, ?> joiner = cr.getNode(JOIN_NAME);
 			setSourceStatistics(ordersSource, orderSize, 100f);
 			setSourceStatistics(lineItemSource, lineitemSize, 140f);
 			mapper.getCompilerHints().setAvgOutputRecordSize(16f);
@@ -236,8 +233,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	// ------------------------------------------------------------------------
 
 	private void checkStandardStrategies(SingleInputPlanNode map, DualInputPlanNode join, SingleInputPlanNode combiner,
-			SingleInputPlanNode reducer, SinkPlanNode sink)
-	{
+			SingleInputPlanNode reducer, SinkPlanNode sink) {
 		// check ship strategies that are always fix
 		Assert.assertEquals(ShipStrategyType.FORWARD, map.getInput().getShipStrategy());
 		Assert.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
@@ -253,12 +249,11 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	}
 
 	private boolean checkBroadcastShipStrategies(DualInputPlanNode join, SingleInputPlanNode reducer,
-			SingleInputPlanNode combiner)
-	{
+			SingleInputPlanNode combiner) {
 		if (ShipStrategyType.BROADCAST == join.getInput1().getShipStrategy() &&
 			ShipStrategyType.FORWARD == join.getInput2().getShipStrategy() &&
-			ShipStrategyType.PARTITION_HASH == reducer.getInput().getShipStrategy())
-		{
+			ShipStrategyType.PARTITION_HASH == reducer.getInput().getShipStrategy()) {
+
 			// check combiner
 			Assert.assertNotNull("Plan should have a combiner", combiner);
 			Assert.assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
@@ -269,12 +264,11 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	}
 
 	private boolean checkRepartitionShipStrategies(DualInputPlanNode join, SingleInputPlanNode reducer,
-			SingleInputPlanNode combiner)
-	{
+			SingleInputPlanNode combiner) {
 		if (ShipStrategyType.PARTITION_HASH == join.getInput1().getShipStrategy() &&
 			ShipStrategyType.PARTITION_HASH == join.getInput2().getShipStrategy() &&
-			ShipStrategyType.FORWARD == reducer.getInput().getShipStrategy())
-		{
+			ShipStrategyType.FORWARD == reducer.getInput().getShipStrategy()) {
+
 			// check combiner
 			Assert.assertNull("Plan should not have a combiner", combiner);
 			return true;
@@ -284,9 +278,9 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	}
 
 	private boolean checkHashJoinStrategies(DualInputPlanNode join, SingleInputPlanNode reducer, boolean buildFirst) {
-		if ( (buildFirst && DriverStrategy.HYBRIDHASH_BUILD_FIRST == join.getDriverStrategy()) ||
-			 (!buildFirst && DriverStrategy.HYBRIDHASH_BUILD_SECOND == join.getDriverStrategy()) )
-		{
+		if ((buildFirst && DriverStrategy.HYBRIDHASH_BUILD_FIRST == join.getDriverStrategy()) ||
+			(!buildFirst && DriverStrategy.HYBRIDHASH_BUILD_SECOND == join.getDriverStrategy())) {
+
 			// driver keys
 			Assert.assertEquals(set0, join.getKeysForInput1());
 			Assert.assertEquals(set0, join.getKeysForInput2());
@@ -358,30 +352,30 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 		env.setAsContext();
 		try {
-			TCPH3(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE});
+			tcph3(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE});
 		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
 			e.printStackTrace();
-			Assert.fail("TCPH3 failed with an exception");
+			Assert.fail("tcph3 failed with an exception");
 		}
 		return env.getPlan();
 	}
 
-	public static void TCPH3(String[] args) throws Exception {
+	public static void tcph3(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(Integer.parseInt(args[0]));
 
 		//order id, order status, order data, order prio, ship prio
-		DataSet<Tuple5<Long, String, String, String, Integer>> orders
-				= env.readCsvFile(args[1])
+		DataSet<Tuple5<Long, String, String, String, Integer>> orders =
+				env.readCsvFile(args[1])
 				.fieldDelimiter("|").lineDelimiter("\n")
 				.includeFields("101011001").types(Long.class, String.class, String.class, String.class, Integer.class)
 				.name(ORDERS);
 
 		//order id, extended price
-		DataSet<Tuple2<Long, Double>> lineItems
-				= env.readCsvFile(args[2])
+		DataSet<Tuple2<Long, Double>> lineItems =
+				env.readCsvFile(args[2])
 				.fieldDelimiter("|").lineDelimiter("\n")
 				.includeFields("100001").types(Long.class, Double.class)
 				.name(LINEITEM);
@@ -398,7 +392,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	}
 
 	@ForwardedFields("f0; f4->f1")
-	public static class FilterO implements FlatMapFunction<Tuple5<Long, String, String, String, Integer>, Tuple2<Long, Integer>> {
+	private static class FilterO implements FlatMapFunction<Tuple5<Long, String, String, String, Integer>, Tuple2<Long, Integer>> {
 		@Override
 		public void flatMap(Tuple5<Long, String, String, String, Integer> value, Collector<Tuple2<Long, Integer>> out) throws Exception {
 			// not going to be executed
@@ -406,7 +400,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	}
 
 	@ForwardedFieldsFirst("f0; f1")
-	public static class JoinLiO implements FlatJoinFunction<Tuple2<Long, Integer>, Tuple2<Long, Double>, Tuple3<Long, Integer, Double>> {
+	private static class JoinLiO implements FlatJoinFunction<Tuple2<Long, Integer>, Tuple2<Long, Double>, Tuple3<Long, Integer, Double>> {
 		@Override
 		public void join(Tuple2<Long, Integer> first, Tuple2<Long, Double> second, Collector<Tuple3<Long, Integer, Double>> out) throws Exception {
 			// not going to be executed
@@ -414,10 +408,9 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	}
 
 	@ForwardedFields("f0; f1")
-	public static class AggLiO implements
-		GroupReduceFunction<Tuple3<Long, Integer, Double>, Tuple3<Long, Integer, Double>>,
-		GroupCombineFunction<Tuple3<Long, Integer, Double>, Tuple3<Long, Integer, Double>>
-	{
+	private static class AggLiO implements
+			GroupReduceFunction<Tuple3<Long, Integer, Double>, Tuple3<Long, Integer, Double>>,
+			GroupCombineFunction<Tuple3<Long, Integer, Double>, Tuple3<Long, Integer, Double>> {
 		@Override
 		public void reduce(Iterable<Tuple3<Long, Integer, Double>> values, Collector<Tuple3<Long, Integer, Double>> out) throws Exception {
 			// not going to be executed

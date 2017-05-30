@@ -44,9 +44,12 @@ import scala.concurrent.impl.ExecutionContextImpl;
 
 import static org.junit.Assert.fail;
 
+/**
+ * Integration tests for {@link LocalFlinkMiniCluster}.
+ */
 public class LocalFlinkMiniClusterITCase extends TestLogger {
 
-	private static String[] ALLOWED_THREAD_PREFIXES = { };
+	private static final String[] ALLOWED_THREAD_PREFIXES = { };
 
 	@Test
 	public void testLocalFlinkMiniClusterWithMultipleTaskManagers() {
@@ -64,7 +67,6 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 			Thread.enumerate(allThreads);
 			threadsBefore.addAll(Arrays.asList(allThreads));
 		}
-
 
 		try {
 			Configuration config = new Configuration();
@@ -93,11 +95,10 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 								JobManagerMessages.getRequestTotalNumberOfSlots(),
 								selfGateway);
 
-						expectMsgEquals(TestingUtils.TESTING_DURATION(), numTMs*numSlots);
+						expectMsgEquals(TestingUtils.TESTING_DURATION(), numTMs * numSlots);
 					}
 				};
 			}};
-
 
 		} finally {
 			if (miniCluster != null) {

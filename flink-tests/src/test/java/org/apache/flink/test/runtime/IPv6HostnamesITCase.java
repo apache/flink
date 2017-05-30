@@ -50,6 +50,9 @@ import scala.Some;
 
 import static org.junit.Assert.fail;
 
+/**
+ * Test proper handling of IPv6 address literals in URLs.
+ */
 @SuppressWarnings("serial")
 public class IPv6HostnamesITCase extends TestLogger {
 
@@ -61,8 +64,6 @@ public class IPv6HostnamesITCase extends TestLogger {
 			System.err.println("--- Cannot find a non-loopback local IPv6 address that Akka/Netty can bind to; skipping IPv6HostnamesITCase");
 			return;
 		}
-
-
 
 		LocalFlinkMiniCluster flink = null;
 		try {
@@ -86,7 +87,7 @@ public class IPv6HostnamesITCase extends TestLogger {
 			// get input data
 			DataSet<String> text = env.fromElements(WordCountData.TEXT.split("\n"));
 
-			DataSet<Tuple2<String, Integer>> counts =text
+			DataSet<Tuple2<String, Integer>> counts = text
 					.flatMap(new FlatMapFunction<String, Tuple2<String, Integer>>() {
 						@Override
 						public void flatMap(String value, Collector<Tuple2<String, Integer>> out) throws Exception {
@@ -114,7 +115,6 @@ public class IPv6HostnamesITCase extends TestLogger {
 		}
 	}
 
-
 	private Inet6Address getLocalIPv6Address() {
 		try {
 			Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
@@ -125,7 +125,6 @@ public class IPv6HostnamesITCase extends TestLogger {
 				Enumeration<InetAddress> ee = netInterface.getInetAddresses();
 				while (ee.hasMoreElements()) {
 					InetAddress addr = ee.nextElement();
-
 
 					if (addr instanceof Inet6Address && (!addr.isLoopbackAddress()) && (!addr.isAnyLocalAddress())) {
 						// see if it is possible to bind to the address

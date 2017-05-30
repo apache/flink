@@ -64,6 +64,9 @@ import scala.concurrent.duration.FiniteDuration;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+/**
+ * Test job classloader.
+ */
 public class ClassLoaderITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClassLoaderITCase.class);
@@ -320,7 +323,7 @@ public class ClassLoaderITCase extends TestLogger {
 		// Trigger savepoint
 		String savepointPath = null;
 		for (int i = 0; i < 20; i++) {
-			LOG.info("Triggering savepoint (" + (i+1) + "/20).");
+			LOG.info("Triggering savepoint (" + (i + 1) + "/20).");
 			Future<Object> savepointFuture = jm.ask(new TriggerSavepoint(jobId, Option.<String>empty()), deadline.timeLeft());
 
 			Object savepointResponse = Await.result(savepointFuture, deadline.timeLeft());

@@ -61,12 +61,10 @@ import static org.junit.Assert.fail;
  * checkpoints, that it is called at most once for any checkpoint id and that it is not
  * called for a deliberately failed checkpoint.
  *
- * <p>
- * The topology tested here includes a number of {@link OneInputStreamOperator}s and a
+ * <p>The topology tested here includes a number of {@link OneInputStreamOperator}s and a
  * {@link TwoInputStreamOperator}.
  *
- * <p>
- * Note that as a result of doing the checks on the task level there is no way to verify
+ * <p>Note that as a result of doing the checks on the task level there is no way to verify
  * that the {@link CheckpointListener#notifyCheckpointComplete(long)} is called for every
  * successfully completed checkpoint.
  */
@@ -78,8 +76,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 	private static final int PARALLELISM = 4;
 
 	/**
-	 * Runs the following program:
-	 *
+	 * Runs the following program.
 	 * <pre>
 	 *     [ (source)->(filter) ] -> [ (co-map) ] -> [ (map) ] -> [ (groupBy/reduce)->(sink) ]
 	 * </pre>
@@ -171,7 +168,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 	private static class GeneratingSourceFunction extends RichSourceFunction<Long>
 			implements ParallelSourceFunction<Long>, CheckpointListener, ListCheckpointed<Integer> {
 
-		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
+		static List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
 
 		static AtomicLong numPostFailureNotifications = new AtomicLong();
 
@@ -197,8 +194,9 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 			step = getRuntimeContext().getNumberOfParallelSubtasks();
 
 			// if index has been restored, it is not 0 any more
-			if (index == 0)
+			if (index == 0) {
 				index = getRuntimeContext().getIndexOfThisSubtask();
+			}
 		}
 
 		@Override
@@ -261,7 +259,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 	private static class IdentityMapFunction extends RichMapFunction<Long, Tuple1<Long>>
 			implements CheckpointListener {
 
-		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
+		static List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
 
 		private volatile boolean notificationAlready;
 
@@ -292,7 +290,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 	 */
 	private static class LongRichFilterFunction extends RichFilterFunction<Long> implements CheckpointListener {
 
-		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
+		static List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
 
 		private volatile boolean notificationAlready;
 
@@ -324,7 +322,7 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 	private static class LeftIdentityCoRichFlatMapFunction extends RichCoFlatMapFunction<Long, Long, Long>
 			implements CheckpointListener {
 
-		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
+		static List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
 
 		private volatile boolean notificationAlready;
 
@@ -357,12 +355,11 @@ public class StreamCheckpointNotifierITCase extends StreamingMultipleProgramsTes
 	 * Reducer that causes one failure between seeing 40% to 70% of the records.
 	 */
 	private static class OnceFailingReducer extends RichReduceFunction<Tuple1<Long>>
-		implements ListCheckpointed<Long>, CheckpointListener
-	{
+		implements ListCheckpointed<Long>, CheckpointListener {
 		static volatile boolean hasFailed = false;
 		static volatile long failureCheckpointID;
 
-		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
+		static List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
 
 		private final long failurePos;
 

@@ -49,7 +49,7 @@ import static org.junit.Assert.fail;
  *   - when disjoint dataflows are executed
  *   - when accumulators are used chained after a non-udf operator.
  *
- * The tests are bundled into one class to reuse the same test cluster. This speeds
+ * <p>The tests are bundled into one class to reuse the same test cluster. This speeds
  * up test execution, as the majority of the test time goes usually into starting/stopping the
  * test cluster.
  */
@@ -131,7 +131,7 @@ public class MiscellaneousIssuesITCase extends TestLogger {
 	@Test
 	public void testAccumulatorsAfterNoOp() {
 
-		final String ACC_NAME = "test_accumulator";
+		final String accName = "test_accumulator";
 
 		try {
 			env.setParallelism(6);
@@ -145,7 +145,7 @@ public class MiscellaneousIssuesITCase extends TestLogger {
 
 						@Override
 						public void open(Configuration parameters) {
-							counter = getRuntimeContext().getLongCounter(ACC_NAME);
+							counter = getRuntimeContext().getLongCounter(accName);
 						}
 
 						@Override
@@ -157,7 +157,7 @@ public class MiscellaneousIssuesITCase extends TestLogger {
 
 			JobExecutionResult result = env.execute();
 
-			assertEquals(1000000L, result.getAllAccumulatorResults().get(ACC_NAME));
+			assertEquals(1000000L, result.getAllAccumulatorResults().get(accName));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

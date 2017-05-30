@@ -94,7 +94,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 	private static final FiniteDuration TEST_TIMEOUT = new FiniteDuration(100, TimeUnit.SECONDS);
 	private static final FiniteDuration QUERY_RETRY_DELAY = new FiniteDuration(100, TimeUnit.MILLISECONDS);
 
-	private static ActorSystem TEST_ACTOR_SYSTEM;
+	private static ActorSystem testActorSystem;
 
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 4;
@@ -125,7 +125,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			cluster = new TestingCluster(config, false);
 			cluster.start(true);
 
-			TEST_ACTOR_SYSTEM = AkkaUtils.createDefaultActorSystem();
+			testActorSystem = AkkaUtils.createDefaultActorSystem();
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
@@ -141,8 +141,8 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			fail(e.getMessage());
 		}
 
-		if (TEST_ACTOR_SYSTEM != null) {
-			TEST_ACTOR_SYSTEM.shutdown();
+		if (testActorSystem != null) {
+			testActorSystem.shutdown();
 		}
 	}
 
@@ -165,7 +165,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 	 * number of keys is in fixed in range 0...numKeys). The records are keyed and
 	 * a reducing queryable state instance is created, which sums up the records.
 	 *
-	 * After submitting the job in detached mode, the QueryableStateCLient is used
+	 * <p>After submitting the job in detached mode, the QueryableStateCLient is used
 	 * to query the counts of each key in rounds until all keys have non-zero counts.
 	 */
 	@Test
@@ -257,14 +257,14 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 							counts.set(key, result.f1);
 							assertEquals("Key mismatch", key, result.f0.intValue());
 						}
-					}, TEST_ACTOR_SYSTEM.dispatcher());
+					}, testActorSystem.dispatcher());
 
 					futures.add(result);
 				}
 
 				Future<Iterable<Tuple2<Integer, Long>>> futureSequence = Futures.sequence(
 						futures,
-						TEST_ACTOR_SYSTEM.dispatcher());
+						testActorSystem.dispatcher());
 
 				Await.ready(futureSequence, deadline.timeLeft());
 			}
@@ -654,7 +654,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 				new ValueStateDescriptor<>(
 					"any",
 					source.getType(),
-					Tuple2.of(0, 1337l));
+					Tuple2.of(0, 1337L));
 
 			// only expose key "1"
 			QueryableStateStream<Integer, Tuple2<Integer, Long>>
@@ -712,7 +712,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 	 * queried. The tests succeeds after each subtask index is queried with
 	 * value numElements (the latest element updated the state).
 	 *
-	 * This is the same as the simple value state test, but uses the API shortcut.
+	 * <p>This is the same as the simple value state test, but uses the API shortcut.
 	 */
 	@Test
 	public void testValueStateShortcut() throws Exception {
@@ -970,8 +970,8 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 							// fail this test.
 							return Patterns.after(
 									retryDelay,
-									TEST_ACTOR_SYSTEM.scheduler(),
-									TEST_ACTOR_SYSTEM.dispatcher(),
+									testActorSystem.scheduler(),
+									testActorSystem.dispatcher(),
 									new Callable<Future<V>>() {
 										@Override
 										public Future<V> call() throws Exception {
@@ -988,7 +988,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 									});
 						}
 					}
-				}, TEST_ACTOR_SYSTEM.dispatcher());
+				}, testActorSystem.dispatcher());
 
 	}
 
@@ -1017,8 +1017,8 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 							// fail this test.
 							return Patterns.after(
 									retryDelay,
-									TEST_ACTOR_SYSTEM.scheduler(),
-									TEST_ACTOR_SYSTEM.dispatcher(),
+									testActorSystem.scheduler(),
+									testActorSystem.dispatcher(),
 									new Callable<Future<V>>() {
 										@Override
 										public Future<V> call() throws Exception {
@@ -1035,7 +1035,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 									});
 						}
 					}
-				}, TEST_ACTOR_SYSTEM.dispatcher());
+				}, testActorSystem.dispatcher());
 	}
 
 	/**

@@ -42,13 +42,13 @@ import java.util.Random;
 
 import static org.hamcrest.Matchers.is;
 
-/*
+/**
  * These programs demonstrate the effects of user defined functions which modify input objects or return locally created
  * objects that are retained and reused on future calls. The programs do not retain and later modify input objects.
  */
 public class OverwriteObjects {
 
-	public final static Logger LOG = LoggerFactory.getLogger(OverwriteObjects.class);
+	public static final Logger LOG = LoggerFactory.getLogger(OverwriteObjects.class);
 
 	// DataSets are created with this number of elements
 	private static final int NUMBER_OF_ELEMENTS = 3_000_000;
@@ -72,7 +72,7 @@ public class OverwriteObjects {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 
-		for (int parallelism = MAX_PARALLELISM ; parallelism > 0 ; parallelism--) {
+		for (int parallelism = MAX_PARALLELISM; parallelism > 0; parallelism--) {
 			LOG.info("Parallelism = {}", parallelism);
 
 			env.setParallelism(parallelism);

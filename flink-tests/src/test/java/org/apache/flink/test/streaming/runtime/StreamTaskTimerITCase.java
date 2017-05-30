@@ -46,8 +46,7 @@ import java.util.concurrent.Semaphore;
 /**
  * Tests for the timer service of {@code StreamTask}.
  *
- * <p>
- * These tests ensure that exceptions are properly forwarded from the timer thread to
+ * <p>These tests ensure that exceptions are properly forwarded from the timer thread to
  * the task thread and that operator methods are not invoked concurrently.
  */
 @RunWith(Parameterized.class)
@@ -58,7 +57,6 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 	public StreamTaskTimerITCase(TimeCharacteristic characteristic) {
 		timeCharacteristic = characteristic;
 	}
-
 
 	/**
 	 * Note: this test fails if we don't check for exceptions in the source contexts and do not
@@ -171,7 +169,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 		Assert.assertTrue(testSuccess);
 	}
 
-	public static class TimerOperator extends AbstractStreamOperator<String> implements OneInputStreamOperator<String, String>, ProcessingTimeCallback {
+	private static class TimerOperator extends AbstractStreamOperator<String> implements OneInputStreamOperator<String, String>, ProcessingTimeCallback {
 		private static final long serialVersionUID = 1L;
 
 		int numTimers = 0;
@@ -230,7 +228,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	public static class TwoInputTimerOperator extends AbstractStreamOperator<String> implements TwoInputStreamOperator<String, String, String>, ProcessingTimeCallback {
+	private static class TwoInputTimerOperator extends AbstractStreamOperator<String> implements TwoInputStreamOperator<String, String, String>, ProcessingTimeCallback {
 		private static final long serialVersionUID = 1L;
 
 		int numTimers = 0;
@@ -274,7 +272,6 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 			semaphore.release();
 		}
 
-
 		@Override
 		public void onProcessingTime(long time) throws Exception {
 			if (!semaphore.tryAcquire()) {
@@ -306,7 +303,6 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 			//ignore
 		}
 	}
-
 
 	private static class InfiniteTestSource implements SourceFunction<String> {
 		private static final long serialVersionUID = 1L;

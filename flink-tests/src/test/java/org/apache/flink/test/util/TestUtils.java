@@ -25,6 +25,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import static org.junit.Assert.fail;
 
+/**
+ * Test utilities.
+ */
 public class TestUtils {
 
 	public static JobExecutionResult tryExecute(StreamExecutionEnvironment see, String name) throws Exception {

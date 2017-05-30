@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.manual;
 
 import org.apache.flink.types.parser.FieldParserTest;
@@ -115,11 +116,10 @@ public class CheckForbiddenMethodsUsage {
 			.addUrls(ClasspathHelper.forPackage("org.apache.flink"))
 			.addScanners(new MemberUsageScanner()));
 
-
 		for (ForbiddenCall forbiddenCall : forbiddenCalls) {
 			final Set<Member> methodUsages = forbiddenCall.getUsages(reflections);
 			methodUsages.removeAll(forbiddenCall.getExclusions());
-			assertEquals("Unexpected calls: " + methodUsages,0, methodUsages.size());
+			assertEquals("Unexpected calls: " + methodUsages, 0, methodUsages.size());
 		}
 	}
 }

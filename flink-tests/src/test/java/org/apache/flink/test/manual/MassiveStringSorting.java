@@ -44,10 +44,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Random;
 
+/**
+ * Test {@link UnilateralSortMerger} on a large set of {@code String}.
+ */
 public class MassiveStringSorting {
 
 	private static final long SEED = 347569784659278346L;
-
 
 	public void testStringSorting() {
 		File input = null;
@@ -60,7 +62,7 @@ public class MassiveStringSorting {
 			// the sorted file
 			sorted = File.createTempFile("sorted_strings", "txt");
 
-			String[] command = {"/bin/bash","-c","export LC_ALL=\"C\" && cat \"" + input.getAbsolutePath() + "\" | sort > \"" + sorted.getAbsolutePath() + "\""};
+			String[] command = {"/bin/bash", "-c", "export LC_ALL=\"C\" && cat \"" + input.getAbsolutePath() + "\" | sort > \"" + sorted.getAbsolutePath() + "\""};
 
 			Process p = null;
 			try {
@@ -139,19 +141,19 @@ public class MassiveStringSorting {
 
 	@SuppressWarnings("unchecked")
 	public void testStringTuplesSorting() {
-		final int NUM_STRINGS = 300000;
+		final int numStrings = 300000;
 
 		File input = null;
 		File sorted = null;
 
 		try {
 			// the source file
-			input = generateFileWithStringTuples(NUM_STRINGS, "http://some-uri.com/that/is/a/common/prefix/to/all");
+			input = generateFileWithStringTuples(numStrings, "http://some-uri.com/that/is/a/common/prefix/to/all");
 
 			// the sorted file
 			sorted = File.createTempFile("sorted_strings", "txt");
 
-			String[] command = {"/bin/bash","-c","export LC_ALL=\"C\" && cat \"" + input.getAbsolutePath() + "\" | sort > \"" + sorted.getAbsolutePath() + "\""};
+			String[] command = {"/bin/bash", "-c", "export LC_ALL=\"C\" && cat \"" + input.getAbsolutePath() + "\" | sort > \"" + sorted.getAbsolutePath() + "\""};
 
 			Process p = null;
 			try {
@@ -188,8 +190,6 @@ public class MassiveStringSorting {
 				sorter = new UnilateralSortMerger<Tuple2<String, String[]>>(mm, ioMan, inputIterator, new DummyInvokable(),
 						new RuntimeSerializerFactory<Tuple2<String, String[]>>(serializer, (Class<Tuple2<String, String[]>>) (Class<?>) Tuple2.class), comparator, 1.0, 4, 0.8f,
 						true /* use large record handler */, false);
-
-
 
 				// use this part to verify that all if good when sorting in memory
 
@@ -230,7 +230,7 @@ public class MassiveStringSorting {
 				}
 
 				Assert.assertNull(sortedData.next(nextFromStratoSort));
-				Assert.assertEquals(NUM_STRINGS, num);
+				Assert.assertEquals(numStrings, num);
 
 			}
 			finally {
@@ -323,7 +323,7 @@ public class MassiveStringSorting {
 		try {
 			wrt = new BufferedWriter(new FileWriter(f));
 
-			for (int i = 0 ; i < numStrings; i++) {
+			for (int i = 0; i < numStrings; i++) {
 				bld.setLength(resetValue);
 
 				int len = rnd.nextInt(20) + 300;
@@ -353,7 +353,7 @@ public class MassiveStringSorting {
 		try {
 			wrt = new BufferedWriter(new FileWriter(f));
 
-			for (int i = 0 ; i < numStrings; i++) {
+			for (int i = 0; i < numStrings; i++) {
 				bld.setLength(0);
 
 				int numComps = rnd.nextInt(5) + 1;

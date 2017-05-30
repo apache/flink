@@ -31,6 +31,9 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 
 import static org.junit.Assert.fail;
 
+/**
+ * Manual test to evaluate impact of checkpointing on latency.
+ */
 public class StreamingScalabilityAndLatency {
 
 	public static void main(String[] args) throws Exception {
@@ -38,17 +41,17 @@ public class StreamingScalabilityAndLatency {
 			throw new RuntimeException("This test program needs to run with at least 5GB of heap space.");
 		}
 
-		final int TASK_MANAGERS = 1;
-		final int SLOTS_PER_TASK_MANAGER = 80;
-		final int PARALLELISM = TASK_MANAGERS * SLOTS_PER_TASK_MANAGER;
+		final int taskManagers = 1;
+		final int slotsPerTaskManager = 80;
+		final int parallelism = taskManagers * slotsPerTaskManager;
 
 		LocalFlinkMiniCluster cluster = null;
 
 		try {
 			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, TASK_MANAGERS);
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, taskManagers);
 			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 80L);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, SLOTS_PER_TASK_MANAGER);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slotsPerTaskManager);
 			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 20000);
 
 			config.setInteger("taskmanager.net.server.numThreads", 1);
@@ -57,7 +60,7 @@ public class StreamingScalabilityAndLatency {
 			cluster = new LocalFlinkMiniCluster(config, false);
 			cluster.start();
 
-			runPartitioningProgram(cluster.getLeaderRPCPort(), PARALLELISM);
+			runPartitioningProgram(cluster.getLeaderRPCPort(), parallelism);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -87,12 +90,11 @@ public class StreamingScalabilityAndLatency {
 		env.execute("Partitioning Program");
 	}
 
-	public static class TimeStampingSource implements ParallelSourceFunction<Tuple2<Long, Long>> {
+	private static class TimeStampingSource implements ParallelSourceFunction<Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = -151782334777482511L;
 
 		private volatile boolean running = true;
-
 
 		@Override
 		public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
@@ -120,7 +122,7 @@ public class StreamingScalabilityAndLatency {
 		}
 	}
 
-	public static class TimestampingSink implements SinkFunction<Tuple2<Long, Long>> {
+	private static class TimestampingSink implements SinkFunction<Tuple2<Long, Long>> {
 
 		private static final long serialVersionUID = 1876986644706201196L;
 
@@ -144,7 +146,7 @@ public class StreamingScalabilityAndLatency {
 		}
 	}
 
-	public static class IdMapper<T> implements MapFunction<T, T> {
+	private static class IdMapper<T> implements MapFunction<T, T> {
 
 		private static final long serialVersionUID = -6543809409233225099L;
 

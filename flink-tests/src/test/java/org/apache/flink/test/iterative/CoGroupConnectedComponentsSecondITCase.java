@@ -38,6 +38,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * Delta iteration test implementing the connected components algorithm with a cogroup.
+ */
 @SuppressWarnings("serial")
 public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase {
 
@@ -46,7 +49,6 @@ public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase 
 	private static final int NUM_VERTICES = 1000;
 
 	private static final int NUM_EDGES = 10000;
-
 
 	@Override
 	protected void testProgram() throws Exception {
@@ -77,10 +79,9 @@ public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase 
 		// close the delta iteration (delta and new workset are identical)
 		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
 
-
 		// emit result
-		List<Tuple2<Long,Long>> resutTuples = new ArrayList<Tuple2<Long,Long>>();
-		result.output(new LocalCollectionOutputFormat<Tuple2<Long,Long>>(resutTuples));
+		List<Tuple2<Long, Long>> resutTuples = new ArrayList<>();
+		result.output(new LocalCollectionOutputFormat<>(resutTuples));
 
 		env.execute();
 	}
@@ -89,7 +90,7 @@ public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase 
 	//  The test program
 	// --------------------------------------------------------------------------------------------
 
-	public static final class VertexParser extends RichMapFunction<String, Long> {
+	private static final class VertexParser extends RichMapFunction<String, Long> {
 
 		@Override
 		public Long map(String value) throws Exception {
@@ -97,7 +98,7 @@ public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase 
 		}
 	}
 
-	public static final class EdgeParser extends RichFlatMapFunction<String, Tuple2<Long, Long>> {
+	private static final class EdgeParser extends RichFlatMapFunction<String, Tuple2<Long, Long>> {
 
 		@Override
 		public void flatMap(String value, Collector<Tuple2<Long, Long>> out) throws Exception {
@@ -112,7 +113,7 @@ public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase 
 
 	@ForwardedFieldsFirst("0")
 	@ForwardedFieldsSecond("0")
-	public static final class MinIdAndUpdate extends RichCoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	private static final class MinIdAndUpdate extends RichCoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		@Override
 		public void coGroup(Iterable<Tuple2<Long, Long>> candidates, Iterable<Tuple2<Long, Long>> current, Collector<Tuple2<Long, Long>> out) {

@@ -59,6 +59,9 @@ import scala.concurrent.duration.FiniteDuration;
 
 import static junit.framework.Assert.fail;
 
+/**
+ * Test savepoint migration.
+ */
 public class SavepointMigrationTestBase extends TestBaseUtils {
 
 	@Rule
@@ -121,7 +124,6 @@ public class SavepointMigrationTestBase extends TestBaseUtils {
 
 		// Submit the job
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-
 
 		JobSubmissionResult jobSubmissionResult = cluster.submitJobDetached(jobGraph);
 

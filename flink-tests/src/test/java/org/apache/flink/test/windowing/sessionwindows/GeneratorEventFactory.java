@@ -21,7 +21,7 @@ package org.apache.flink.test.windowing.sessionwindows;
 /**
  * Factory that produces events of keyed session generators
  *
- * If types of generated events diverge more, we can consider also specify the input parameters to createEvent(...) as
+ * <p>If types of generated events diverge more, we can consider also specify the input parameters to createEvent(...) as
  * a generic object type (containing all the data).
  *
  * @param <K> type of produced event key
@@ -39,9 +39,9 @@ public interface GeneratorEventFactory<K, E> {
 	 * @return event for an keyed event generator
 	 */
 	E createEvent(K key,
-	              int sessionId,
-	              int eventId,
-	              long eventTimestamp,
-	              long globalWatermark,
-	              SessionEventGeneratorImpl.Timing timing);
+		int sessionId,
+		int eventId,
+		long eventTimestamp,
+		long globalWatermark,
+		SessionEventGeneratorImpl.Timing timing);
 }

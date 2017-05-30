@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -44,7 +43,6 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends JavaProgramTe
 	private static final int NUM_VERTICES = 1000;
 
 	private static final int NUM_EDGES = 10000;
-
 
 	protected String verticesPath;
 	protected String edgesPath;
@@ -92,7 +90,6 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends JavaProgramTe
 		env.execute("Connected Components Example");
 	}
 
-
 	@Override
 	protected void postSubmit() throws Exception {
 		for (BufferedReader reader : getResultReader(resultPath)) {
@@ -105,7 +102,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends JavaProgramTe
 	// --------------------------------------------------------------------------------------------
 
 	@FunctionAnnotation.ForwardedFieldsSecond("*")
-	public static final class UpdateComponentIdMatchMirrored
+	private static final class UpdateComponentIdMatchMirrored
 			implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		private static final long serialVersionUID = 1L;
 
@@ -115,7 +112,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends JavaProgramTe
 				Tuple2<Long, Long> candidate,
 				Collector<Tuple2<Long, Long>> out) throws Exception {
 
-			if(candidate.f1 < current.f1) {
+			if (candidate.f1 < current.f1) {
 				out.collect(candidate);
 			}
 

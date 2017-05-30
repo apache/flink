@@ -43,6 +43,9 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+/**
+ * Test multiple joins with the solution set.
+ */
 @SuppressWarnings("serial")
 public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 
@@ -90,8 +93,6 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 		}
 	}
 
-
-
 	public static DataSet<Tuple2<Long, Double>> constructPlan(DataSet<Tuple2<Long, Double>> initialData, int numIterations) {
 
 		DeltaIteration<Tuple2<Long, Double>, Tuple2<Long, Double>> iteration = initialData.iterateDelta(initialData, numIterations, 0);
@@ -108,7 +109,7 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 		return result;
 	}
 
-	public static final class SummingJoin extends RichJoinFunction<Tuple2<Long, Double>, Tuple2<Long, Double>, Tuple2<Long, Double>> {
+	private static final class SummingJoin extends RichJoinFunction<Tuple2<Long, Double>, Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		@Override
 		public Tuple2<Long, Double> join(Tuple2<Long, Double> first, Tuple2<Long, Double> second) {
@@ -116,7 +117,7 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 		}
 	}
 
-	public static final class SummingJoinProject extends RichJoinFunction<Tuple3<Long, Double, Double>, Tuple2<Long, Double>, Tuple2<Long, Double>> {
+	private static final class SummingJoinProject extends RichJoinFunction<Tuple3<Long, Double, Double>, Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		@Override
 		public Tuple2<Long, Double> join(Tuple3<Long, Double, Double> first, Tuple2<Long, Double> second) {
@@ -124,7 +125,7 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 		}
 	}
 
-	public static final class Duplicator extends RichFlatMapFunction<Tuple2<Long, Double>, Tuple2<Long, Double>> {
+	private static final class Duplicator extends RichFlatMapFunction<Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		@Override
 		public void flatMap(Tuple2<Long, Double> value, Collector<Tuple2<Long, Double>> out) {
@@ -133,7 +134,7 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 		}
 	}
 
-	public static final class Expander extends RichMapFunction<Tuple2<Long, Double>, Tuple3<Long, Double, Double>> {
+	private static final class Expander extends RichMapFunction<Tuple2<Long, Double>, Tuple3<Long, Double, Double>> {
 
 		@Override
 		public Tuple3<Long, Double, Double> map(Tuple2<Long, Double> value) {

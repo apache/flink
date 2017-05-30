@@ -27,6 +27,9 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 import org.junit.Assert;
 
+/**
+ * Integration tests for custom {@link Partitioner}.
+ */
 @SuppressWarnings("serial")
 public class CustomPartitioningITCase extends JavaProgramTestBase {
 
@@ -46,7 +49,7 @@ public class CustomPartitioningITCase extends JavaProgramTestBase {
 		env.execute();
 	}
 
-	public static class FailExceptInPartitionZeroMapper extends RichMapFunction<Long, Long> {
+	private static class FailExceptInPartitionZeroMapper extends RichMapFunction<Long, Long> {
 
 		@Override
 		public Long map(Long value) throws Exception {
@@ -58,14 +61,14 @@ public class CustomPartitioningITCase extends JavaProgramTestBase {
 		}
 	}
 
-	public static class AllZeroPartitioner implements Partitioner<Long> {
+	private static class AllZeroPartitioner implements Partitioner<Long> {
 		@Override
 		public int partition(Long key, int numPartitions) {
 			return 0;
 		}
 	}
 
-	public static class IdKeySelector<T> implements KeySelector<T, T> {
+	private static class IdKeySelector<T> implements KeySelector<T, T> {
 		@Override
 		public T getKey(T value) {
 			return value;

@@ -41,6 +41,9 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
+/**
+ * Validate program compilation.
+ */
 public class WordCountCompilerTest extends CompilerTestBase {
 
 	private static final long serialVersionUID = 8988304231385358228L;
@@ -82,8 +85,8 @@ public class WordCountCompilerTest extends CompilerTestBase {
 
 		OptimizedPlan plan;
 		if (estimates) {
-			GenericDataSourceBase<?,?> source = getContractResolver(p).getNode("Input Lines");
-			setSourceStatistics(source, 1024*1024*1024*1024L, 24f);
+			GenericDataSourceBase<?, ?> source = getContractResolver(p).getNode("Input Lines");
+			setSourceStatistics(source, 1024 * 1024 * 1024 * 1024L, 24f);
 			plan = compileWithStats(p);
 		} else {
 			plan = compileNoStats(p);

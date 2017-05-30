@@ -134,14 +134,14 @@ public abstract class SimpleRecoveryITCaseBase {
 
 	private void executeAndRunAssertions(ExecutionEnvironment env) throws Exception {
 		try {
-            JobExecutionResult result = env.execute();
-            assertTrue(result.getNetRuntime() >= 0);
-            assertNotNull(result.getAllAccumulatorResults());
-            assertTrue(result.getAllAccumulatorResults().isEmpty());
-        }
-        catch (JobExecutionException e) {
-            fail("The program should have succeeded on the second run");
-        }
+			JobExecutionResult result = env.execute();
+			assertTrue(result.getNetRuntime() >= 0);
+			assertNotNull(result.getAllAccumulatorResults());
+			assertTrue(result.getAllAccumulatorResults().isEmpty());
+		}
+		catch (JobExecutionException e) {
+			fail("The program should have succeeded on the second run");
+		}
 	}
 
 	@Test

@@ -32,7 +32,9 @@ import org.junit.Assert;
 import java.util.ArrayList;
 import java.util.List;
 
-
+/**
+ * Integration test for a bulk iteration with an all reduce.
+ */
 @SuppressWarnings("serial")
 public class BulkIterationWithAllReducerITCase extends JavaProgramTestBase {
 
@@ -55,8 +57,7 @@ public class BulkIterationWithAllReducerITCase extends JavaProgramTestBase {
 		Assert.assertEquals(8, resultList.get(0).intValue());
 	}
 
-
-	public static class PickOneAllReduce extends RichGroupReduceFunction<Integer, Integer> {
+	private static class PickOneAllReduce extends RichGroupReduceFunction<Integer, Integer> {
 
 		private Integer bcValue;
 

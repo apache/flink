@@ -80,7 +80,6 @@ public class AutoParallelismITCase extends TestLogger {
 		}
 	}
 
-
 	@Test
 	public void testProgramWithAutoParallelism() {
 		try {

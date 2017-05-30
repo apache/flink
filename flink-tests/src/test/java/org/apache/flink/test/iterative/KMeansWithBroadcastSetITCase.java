@@ -31,6 +31,9 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Test KMeans clustering with a broadcast set.
+ */
 public class KMeansWithBroadcastSetITCase extends JavaProgramTestBase {
 
 	@SuppressWarnings("serial")
@@ -65,7 +68,7 @@ public class KMeansWithBroadcastSetITCase extends JavaProgramTestBase {
 					}
 				});
 
-		// set number of bulk iterations for KMeans algorithm
+		// set number of bulk iterations for kmeans algorithm
 		IterativeDataSet<Centroid> loop = centroidsSet.iterate(20);
 
 		DataSet<Centroid> newCentroids = pointsSet

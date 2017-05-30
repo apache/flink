@@ -36,6 +36,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * Test registering types with Kryo.
+ */
 @RunWith(Parameterized.class)
 public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBase {
 
@@ -74,7 +77,7 @@ public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBa
 		compareResultCollections(expected, mapped.collect(), new Comparator<TestClass>() {
 			@Override
 			public int compare(TestClass o1, TestClass o2) {
-				return (int)(o1.getValue() - o2.getValue());
+				return (int) (o1.getValue() - o2.getValue());
 			}
 		});
 	}
@@ -109,7 +112,7 @@ public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBa
 
 		@Override
 		public int hashCode() {
-			return (int)value;
+			return (int) value;
 		}
 	}
 

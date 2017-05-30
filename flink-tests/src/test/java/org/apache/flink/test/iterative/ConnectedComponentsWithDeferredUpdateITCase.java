@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -40,6 +39,10 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.BufferedReader;
 import java.util.Collection;
 
+/**
+ * Delta iteration test implementing the connected components algorithm with a
+ * cogroup and join on the solution set.
+ */
 @RunWith(Parameterized.class)
 public class ConnectedComponentsWithDeferredUpdateITCase extends JavaProgramTestBase {
 
@@ -49,11 +52,9 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends JavaProgramTest
 
 	private static final int NUM_EDGES = 10000;
 
-
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
-
 
 	public ConnectedComponentsWithDeferredUpdateITCase(Configuration config) {
 		super(config);
@@ -93,8 +94,8 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends JavaProgramTest
 				.join(iteration.getSolutionSet()).where(0).equalTo(0)
 				.with(new UpdateComponentIdMatchNonPreserving());
 
-		DataSet<Tuple2<Long,Long>> delta;
-		if(extraMapper) {
+		DataSet<Tuple2<Long, Long>> delta;
+		if (extraMapper) {
 			delta = changes.map(
 					// ID Mapper
 					new MapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>() {
@@ -135,7 +136,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends JavaProgramTest
 		return toParameterList(config1, config2);
 	}
 
-	public static final class UpdateComponentIdMatchNonPreserving
+	private static final class UpdateComponentIdMatchNonPreserving
 			implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		private static final long serialVersionUID = 1L;
 
@@ -145,7 +146,7 @@ public class ConnectedComponentsWithDeferredUpdateITCase extends JavaProgramTest
 				Tuple2<Long, Long> current,
 				Collector<Tuple2<Long, Long>> out) throws Exception {
 
-			if(candidate.f1 < current.f1) {
+			if (candidate.f1 < current.f1) {
 				out.collect(candidate);
 			}
 		}

@@ -481,7 +481,7 @@ public class SavepointITCase extends TestLogger {
 	/**
 	 * FLINK-5985
 	 *
-	 * This test ensures we can restore from a savepoint under modifications to the job graph that only concern
+	 * <p>This test ensures we can restore from a savepoint under modifications to the job graph that only concern
 	 * stateless operators.
 	 */
 	@Test
@@ -738,17 +738,17 @@ public class SavepointITCase extends TestLogger {
 	}
 
 	private static final int ITER_TEST_PARALLELISM = 1;
-	private static OneShotLatch[] ITER_TEST_SNAPSHOT_WAIT = new OneShotLatch[ITER_TEST_PARALLELISM];
-	private static OneShotLatch[] ITER_TEST_RESTORE_WAIT = new OneShotLatch[ITER_TEST_PARALLELISM];
-	private static int[] ITER_TEST_CHECKPOINT_VERIFY = new int[ITER_TEST_PARALLELISM];
+	private static OneShotLatch[] iterTestSnapshotWait = new OneShotLatch[ITER_TEST_PARALLELISM];
+	private static OneShotLatch[] iterTestRestoreWait = new OneShotLatch[ITER_TEST_PARALLELISM];
+	private static int[] iterTestCheckpointVerify = new int[ITER_TEST_PARALLELISM];
 
 	@Test
 	public void testSavepointForJobWithIteration() throws Exception {
 
 		for (int i = 0; i < ITER_TEST_PARALLELISM; ++i) {
-			ITER_TEST_SNAPSHOT_WAIT[i] = new OneShotLatch();
-			ITER_TEST_RESTORE_WAIT[i] = new OneShotLatch();
-			ITER_TEST_CHECKPOINT_VERIFY[i] = 0;
+			iterTestSnapshotWait[i] = new OneShotLatch();
+			iterTestRestoreWait[i] = new OneShotLatch();
+			iterTestCheckpointVerify[i] = 0;
 		}
 
 		TemporaryFolder folder = new TemporaryFolder();
@@ -823,7 +823,7 @@ public class SavepointITCase extends TestLogger {
 			cluster.start();
 
 			cluster.submitJobDetached(jobGraph);
-			for (OneShotLatch latch : ITER_TEST_SNAPSHOT_WAIT) {
+			for (OneShotLatch latch : iterTestSnapshotWait) {
 				latch.await();
 			}
 			savepointPath = cluster.triggerSavepoint(jobGraph.getJobID());
@@ -833,7 +833,7 @@ public class SavepointITCase extends TestLogger {
 			jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
 			cluster.submitJobDetached(jobGraph);
-			for (OneShotLatch latch : ITER_TEST_RESTORE_WAIT) {
+			for (OneShotLatch latch : iterTestRestoreWait) {
 				latch.await();
 			}
 			source.cancel();
@@ -885,7 +885,7 @@ public class SavepointITCase extends TestLogger {
 
 		@Override
 		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-			ITER_TEST_CHECKPOINT_VERIFY[getRuntimeContext().getIndexOfThisSubtask()] = emittedCount;
+			iterTestCheckpointVerify[getRuntimeContext().getIndexOfThisSubtask()] = emittedCount;
 			return Collections.singletonList(emittedCount);
 		}
 
@@ -894,20 +894,20 @@ public class SavepointITCase extends TestLogger {
 			if (!state.isEmpty()) {
 				this.emittedCount = state.get(0);
 			}
-			Assert.assertEquals(ITER_TEST_CHECKPOINT_VERIFY[getRuntimeContext().getIndexOfThisSubtask()], emittedCount);
-			ITER_TEST_RESTORE_WAIT[getRuntimeContext().getIndexOfThisSubtask()].trigger();
+			Assert.assertEquals(iterTestCheckpointVerify[getRuntimeContext().getIndexOfThisSubtask()], emittedCount);
+			iterTestRestoreWait[getRuntimeContext().getIndexOfThisSubtask()].trigger();
 		}
 	}
 
-	public static class DuplicateFilter extends RichFlatMapFunction<Integer, Integer> {
+	private static class DuplicateFilter extends RichFlatMapFunction<Integer, Integer> {
 
-		static final ValueStateDescriptor<Boolean> descriptor = new ValueStateDescriptor<>("seen", Boolean.class, false);
+		static final ValueStateDescriptor<Boolean> DESCRIPTOR = new ValueStateDescriptor<>("seen", Boolean.class, false);
 		private static final long serialVersionUID = 1L;
 		private ValueState<Boolean> operatorState;
 
 		@Override
 		public void open(Configuration configuration) {
-			operatorState = this.getRuntimeContext().getState(descriptor);
+			operatorState = this.getRuntimeContext().getState(DESCRIPTOR);
 		}
 
 		@Override
@@ -918,7 +918,7 @@ public class SavepointITCase extends TestLogger {
 			}
 
 			if (30 == value) {
-				ITER_TEST_SNAPSHOT_WAIT[getRuntimeContext().getIndexOfThisSubtask()].trigger();
+				iterTestSnapshotWait[getRuntimeContext().getIndexOfThisSubtask()].trigger();
 			}
 		}
 	}

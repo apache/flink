@@ -28,6 +28,9 @@ import org.apache.flink.util.Collector;
 
 import java.util.List;
 
+/**
+ * Test iteration with termination criterion.
+ */
 public class IterationTerminationWithTerminationTail extends JavaProgramTestBase {
 	private static final String EXPECTED = "22\n";
 
@@ -49,7 +52,7 @@ public class IterationTerminationWithTerminationTail extends JavaProgramTestBase
 		containsResultAsText(result, EXPECTED);
 	}
 
-	public static final class SumReducer implements GroupReduceFunction<String, String> {
+	private static final class SumReducer implements GroupReduceFunction<String, String> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -62,7 +65,7 @@ public class IterationTerminationWithTerminationTail extends JavaProgramTestBase
 		}
 	}
 
-	public static class TerminationFilter implements FilterFunction<String> {
+	private static class TerminationFilter implements FilterFunction<String> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

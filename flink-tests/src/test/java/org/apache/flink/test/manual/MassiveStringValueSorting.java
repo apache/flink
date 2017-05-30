@@ -45,6 +45,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Random;
 
+/**
+ * Test {@link UnilateralSortMerger} on a large set of {@link StringValue}.
+ */
 public class MassiveStringValueSorting {
 
 	private static final long SEED = 347569784659278346L;
@@ -60,7 +63,7 @@ public class MassiveStringValueSorting {
 			// the sorted file
 			sorted = File.createTempFile("sorted_strings", "txt");
 
-			String[] command = {"/bin/bash","-c","export LC_ALL=\"C\" && cat \"" + input.getAbsolutePath() + "\" | sort > \"" + sorted.getAbsolutePath() + "\""};
+			String[] command = {"/bin/bash", "-c", "export LC_ALL=\"C\" && cat \"" + input.getAbsolutePath() + "\" | sort > \"" + sorted.getAbsolutePath() + "\""};
 
 			Process p = null;
 			try {
@@ -142,19 +145,19 @@ public class MassiveStringValueSorting {
 
 	@SuppressWarnings("unchecked")
 	public void testStringValueTuplesSorting() {
-		final int NUM_STRINGS = 300000;
+		final int numStrings = 300000;
 
 		File input = null;
 		File sorted = null;
 
 		try {
 			// the source file
-			input = generateFileWithStringTuples(NUM_STRINGS, "http://some-uri.com/that/is/a/common/prefix/to/all");
+			input = generateFileWithStringTuples(numStrings, "http://some-uri.com/that/is/a/common/prefix/to/all");
 
 			// the sorted file
 			sorted = File.createTempFile("sorted_strings", "txt");
 
-			String[] command = {"/bin/bash","-c","export LC_ALL=\"C\" && cat \"" + input.getAbsolutePath() + "\" | sort > \"" + sorted.getAbsolutePath() + "\""};
+			String[] command = {"/bin/bash", "-c", "export LC_ALL=\"C\" && cat \"" + input.getAbsolutePath() + "\" | sort > \"" + sorted.getAbsolutePath() + "\""};
 
 			Process p = null;
 			try {
@@ -191,8 +194,6 @@ public class MassiveStringValueSorting {
 				sorter = new UnilateralSortMerger<Tuple2<StringValue, StringValue[]>>(mm, ioMan, inputIterator, new DummyInvokable(),
 						new RuntimeSerializerFactory<Tuple2<StringValue, StringValue[]>>(serializer, (Class<Tuple2<StringValue, StringValue[]>>) (Class<?>) Tuple2.class), comparator, 1.0, 4, 0.8f,
 						true /* use large record handler */, false);
-
-
 
 				// use this part to verify that all if good when sorting in memory
 
@@ -233,7 +234,7 @@ public class MassiveStringValueSorting {
 				}
 
 				Assert.assertNull(sortedData.next(nextFromFlinkSort));
-				Assert.assertEquals(NUM_STRINGS, num);
+				Assert.assertEquals(numStrings, num);
 
 			}
 			finally {
@@ -340,7 +341,7 @@ public class MassiveStringValueSorting {
 		try {
 			wrt = new BufferedWriter(new FileWriter(f));
 
-			for (int i = 0 ; i < numStrings; i++) {
+			for (int i = 0; i < numStrings; i++) {
 				bld.setLength(resetValue);
 
 				int len = rnd.nextInt(20) + 300;
@@ -372,7 +373,7 @@ public class MassiveStringValueSorting {
 		try {
 			wrt = new BufferedWriter(new FileWriter(f));
 
-			for (int i = 0 ; i < numStrings; i++) {
+			for (int i = 0; i < numStrings; i++) {
 				bld.setLength(0);
 
 				int numComps = rnd.nextInt(5) + 1;

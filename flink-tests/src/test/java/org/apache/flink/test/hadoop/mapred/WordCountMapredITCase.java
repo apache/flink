@@ -39,6 +39,9 @@ import org.junit.Before;
 
 import static org.apache.flink.hadoopcompatibility.HadoopInputs.readHadoopFile;
 
+/**
+ * Test WordCount with Hadoop input and output "mapred" (legacy) formats.
+ */
 public class WordCountMapredITCase extends JavaProgramTestBase {
 
 	protected String textPath;
@@ -89,7 +92,6 @@ public class WordCountMapredITCase extends JavaProgramTestBase {
 			}
 		});
 
-
 		DataSet<Tuple2<String, Integer>> counts =
 				// split up the lines in pairs (2-tuples) containing: (word,1)
 				text.flatMap(new Tokenizer())
@@ -98,7 +100,6 @@ public class WordCountMapredITCase extends JavaProgramTestBase {
 						.sum(1);
 
 		DataSet<Tuple2<Text, LongWritable>> words = counts.map(new MapFunction<Tuple2<String, Integer>, Tuple2<Text, LongWritable>>() {
-
 
 			@Override
 			public Tuple2<Text, LongWritable> map(Tuple2<String, Integer> value) throws Exception {

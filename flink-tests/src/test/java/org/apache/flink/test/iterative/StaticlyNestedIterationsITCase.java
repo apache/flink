@@ -27,8 +27,10 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+/**
+ * Test iterations referenced from the static path of other iterations.
+ */
 public class StaticlyNestedIterationsITCase extends JavaProgramTestBase {
-
 
 	@Override
 	protected void testProgram() throws Exception {
@@ -40,7 +42,6 @@ public class StaticlyNestedIterationsITCase extends JavaProgramTestBase {
 		IterativeDataSet<Long> firstIteration = data1.iterate(100);
 
 		DataSet<Long> firstResult = firstIteration.closeWith(firstIteration.map(new IdMapper()));
-
 
 		IterativeDataSet<Long> mainIteration = data2.map(new IdMapper()).iterate(100);
 

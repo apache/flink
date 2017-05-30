@@ -40,9 +40,9 @@ import org.junit.Test;
 import static org.junit.Assert.fail;
 
 /**
- * Tests cases where Accumulator are
+ * Tests cases where accumulators:
  *  a) throw errors during runtime
- *  b) is not compatible with existing accumulator
+ *  b) are not compatible with existing accumulator.
  */
 public class AccumulatorErrorITCase extends TestLogger {
 
@@ -89,7 +89,6 @@ public class AccumulatorErrorITCase extends TestLogger {
 					e.getCause() instanceof CustomException);
 		}
 	}
-
 
 	@Test
 	public void testInvalidTypeAccumulator() throws Exception {

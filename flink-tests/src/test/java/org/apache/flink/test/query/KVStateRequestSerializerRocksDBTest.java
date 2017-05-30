@@ -27,7 +27,6 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.contrib.streaming.state.PredefinedOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializerTest;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -47,7 +46,8 @@ import static org.mockito.Mockito.mock;
 
 /**
  * Additional tests for the serialization and deserialization of {@link
- * KvStateRequestSerializer} with a RocksDB state back-end.
+ * org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer}
+ * with a RocksDB state back-end.
  */
 public final class KVStateRequestSerializerRocksDBTest {
 
@@ -61,7 +61,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 	 *
 	 * @param <K> key type
 	 */
-	final static class RocksDBKeyedStateBackend2<K> extends RocksDBKeyedStateBackend<K> {
+	static final class RocksDBKeyedStateBackend2<K> extends RocksDBKeyedStateBackend<K> {
 
 		RocksDBKeyedStateBackend2(
 				final String operatorIdentifier,

@@ -41,6 +41,10 @@ import java.io.IOException;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Test for proper error messages in case user-defined serialization is broken
+ * and detected in the network stack.
+ */
 @SuppressWarnings("serial")
 public class CustomSerializationITCase extends TestLogger {
 
@@ -191,6 +195,9 @@ public class CustomSerializationITCase extends TestLogger {
 	//  Custom Data Types with broken Serialization Logic
 	// ------------------------------------------------------------------------
 
+	/**
+	 * {@link Value} reading more data than written.
+	 */
 	public static class ConsumesTooMuch implements Value {
 
 		@Override
@@ -206,6 +213,9 @@ public class CustomSerializationITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * {@link Value} reading more buffers than written.
+	 */
 	public static class ConsumesTooMuchSpanning implements Value {
 
 		@Override
@@ -221,6 +231,9 @@ public class CustomSerializationITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * {@link Value} reading less data than written.
+	 */
 	public static class ConsumesTooLittle implements Value {
 
 		@Override
@@ -236,6 +249,9 @@ public class CustomSerializationITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * {@link Value} reading fewer buffers than written.
+	 */
 	public static class ConsumesTooLittleSpanning implements Value {
 
 		@Override

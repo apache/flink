@@ -36,6 +36,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.fail;
 
+/**
+ * Test program with very fast failure rate.
+ */
 @SuppressWarnings("serial")
 public class FastFailuresITCase extends TestLogger {
 
