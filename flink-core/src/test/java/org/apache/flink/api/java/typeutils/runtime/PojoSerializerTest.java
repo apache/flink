@@ -531,7 +531,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 				TestUserClass.class,
 				mockOriginalFieldToSerializerConfigSnapshot, // this mocks the previous field order
 				new LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>>(), // empty; irrelevant for this test
-				new HashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>>()); // empty; irrelevant for this test
+				new HashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>>(), // empty; irrelevant for this test
+				false);
 
 		// reconfigure - check reconfiguration result and that fields are reordered to the previous order
 		CompatibilityResult<TestUserClass> compatResult = pojoSerializer.ensureCompatibility(mockPreviousConfigSnapshot);
@@ -545,7 +546,37 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
 	@SuppressWarnings("unchecked")
 	@Test
-	public void testSerializerSerializationFailureResilience() throws Exception{
+	public void testExcludeSerializerWithSerializationRoundtrip() throws Exception {
+		// TODO we're testing only POJOs that do not have nested POJO fields for now,
+		// TODO because excluding serializers from config snapshot isn't yet properly configurable
+		PojoSerializer<NestedTestUserClass> pojoSerializer = (PojoSerializer<NestedTestUserClass>)
+			TypeExtractor.getForClass(NestedTestUserClass.class).createSerializer(new ExecutionConfig());
+
+		// snapshot configuration and serialize to bytes
+		PojoSerializer.PojoSerializerConfigSnapshot<NestedTestUserClass> config = pojoSerializer.snapshotConfiguration();
+		config.setExcludeSerializers(true); // exclude serializers, so that only the config snapshots will be written
+		byte[] serializedConfig;
+		try (
+			ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), config);
+			serializedConfig = out.toByteArray();
+		}
+
+		// read configuration from bytes
+		PojoSerializer.PojoSerializerConfigSnapshot<TestUserClass> deserializedConfig;
+		try(ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
+			deserializedConfig = (PojoSerializer.PojoSerializerConfigSnapshot<TestUserClass>)
+				TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
+					new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
+		}
+
+		Assert.assertFalse(pojoSerializer.ensureCompatibility(deserializedConfig).isRequiresMigration());
+		verifyPojoSerializerConfigSnapshotWithEmptyNestedSerializers(config, deserializedConfig);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testSerializerSerializationFailureResilience() throws Exception {
 		PojoSerializer<TestUserClass> pojoSerializer = (PojoSerializer<TestUserClass>) type.createSerializer(new ExecutionConfig());
 
 		// snapshot configuration and serialize to bytes
@@ -572,10 +603,10 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		}
 
 		Assert.assertFalse(pojoSerializer.ensureCompatibility(deserializedConfig).isRequiresMigration());
-		verifyPojoSerializerConfigSnapshotWithSerializerSerializationFailure(config, deserializedConfig);
+		verifyPojoSerializerConfigSnapshotWithEmptyNestedSerializers(config, deserializedConfig);
 	}
 
-	private static void verifyPojoSerializerConfigSnapshotWithSerializerSerializationFailure(
+	private static void verifyPojoSerializerConfigSnapshotWithEmptyNestedSerializers(
 			PojoSerializer.PojoSerializerConfigSnapshot<?> original,
 			PojoSerializer.PojoSerializerConfigSnapshot<?> deserializedConfig) {
 
@@ -587,7 +618,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 			Assert.assertEquals(null, entry.getValue().f0);
 
 			if (entry.getValue().f1 instanceof PojoSerializer.PojoSerializerConfigSnapshot) {
-				verifyPojoSerializerConfigSnapshotWithSerializerSerializationFailure(
+				verifyPojoSerializerConfigSnapshotWithEmptyNestedSerializers(
 					(PojoSerializer.PojoSerializerConfigSnapshot<?>) originalFieldSerializersAndConfs.get(entry.getKey()).f1,
 					(PojoSerializer.PojoSerializerConfigSnapshot<?>) entry.getValue().f1);
 			} else {
@@ -604,7 +635,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 			Assert.assertEquals(null, entry.getValue().f0);
 
 			if (entry.getValue().f1 instanceof PojoSerializer.PojoSerializerConfigSnapshot) {
-				verifyPojoSerializerConfigSnapshotWithSerializerSerializationFailure(
+				verifyPojoSerializerConfigSnapshotWithEmptyNestedSerializers(
 					(PojoSerializer.PojoSerializerConfigSnapshot<?>) originalRegistrations.get(entry.getKey()).f1,
 					(PojoSerializer.PojoSerializerConfigSnapshot<?>) entry.getValue().f1);
 			} else {
