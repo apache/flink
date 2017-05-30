@@ -24,6 +24,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.InfiniteIntegerInputFormat;
+
 import org.junit.Test;
 
 public class MapCancelingITCase extends CancelingTestBase {

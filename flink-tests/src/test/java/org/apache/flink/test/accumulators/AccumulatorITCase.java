@@ -18,10 +18,6 @@
 
 package org.apache.flink.test.accumulators;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -38,10 +34,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
-import org.junit.Assert;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import org.junit.Assert;
+
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Test for the basic functionality of accumulators. We cannot test all different

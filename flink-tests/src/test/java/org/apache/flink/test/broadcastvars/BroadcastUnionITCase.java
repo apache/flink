@@ -17,14 +17,16 @@
  */
 package org.apache.flink.test.broadcastvars;
 
-import java.util.List;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
+
 import org.junit.Assert;
+
+import java.util.List;
 
 public class BroadcastUnionITCase extends JavaProgramTestBase {
 	private static final String BC_NAME = "bc";

@@ -18,11 +18,11 @@
 
 package org.apache.flink.test.util;
 
-import java.io.IOException;
-
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Value;
+
+import java.io.IOException;
 
 /**
  * Implements a feature vector as a multi-dimensional point. Coordinates of that point

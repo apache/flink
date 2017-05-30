@@ -21,12 +21,13 @@ package org.apache.flink.test.hadoop.mapred;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.OperatingSystem;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IOUtils;

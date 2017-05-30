@@ -18,9 +18,6 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-
-import java.util.List;
-
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.io.ReplicatingInputFormat;
@@ -34,9 +31,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.NumberSequenceIterator;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.List;
 
 /**
  * Tests for replicating DataSources

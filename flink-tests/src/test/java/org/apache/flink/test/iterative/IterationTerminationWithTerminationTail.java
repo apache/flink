@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.iterative;
 
-import java.util.List;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.java.DataSet;
@@ -26,6 +25,8 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
+
+import java.util.List;
 
 public class IterationTerminationWithTerminationTail extends JavaProgramTestBase {
 	private static final String EXPECTED = "22\n";

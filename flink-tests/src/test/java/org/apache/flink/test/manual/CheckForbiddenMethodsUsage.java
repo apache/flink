@@ -21,7 +21,6 @@ import org.apache.flink.types.parser.FieldParserTest;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 import org.reflections.Reflections;
 import org.reflections.scanners.MemberUsageScanner;
 import org.reflections.util.ClasspathHelper;

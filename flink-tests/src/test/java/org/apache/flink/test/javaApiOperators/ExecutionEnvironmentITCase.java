@@ -27,8 +27,8 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.util.Collector;
-
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.io.IOException;

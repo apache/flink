@@ -19,15 +19,16 @@
 package org.apache.flink.test.state;
 
 import org.apache.flink.runtime.state.StateObject;
-import org.junit.Test;
 
+import org.junit.Test;
 import org.reflections.Reflections;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Set;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 
 public class StateHandleSerializationTest {
 

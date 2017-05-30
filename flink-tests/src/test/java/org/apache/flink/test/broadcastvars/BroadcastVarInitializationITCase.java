@@ -18,10 +18,6 @@
 
 package org.apache.flink.test.broadcastvars;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.DataSet;
@@ -31,7 +27,12 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 @SuppressWarnings("serial")
 public class BroadcastVarInitializationITCase extends JavaProgramTestBase {

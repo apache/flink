@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.clients.examples;
 
-import java.io.File;
-import java.io.FileWriter;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -27,8 +25,12 @@ import org.apache.flink.client.LocalExecutor;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.io.File;
+import java.io.FileWriter;
 
 
 public class LocalExecutorITCase extends TestLogger {

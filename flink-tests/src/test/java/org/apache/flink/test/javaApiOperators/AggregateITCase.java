@@ -18,8 +18,8 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.util.List;
-
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -30,11 +30,12 @@ import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class AggregateITCase extends MultipleProgramsTestBase {

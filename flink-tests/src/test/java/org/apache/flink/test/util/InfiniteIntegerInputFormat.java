@@ -17,8 +17,9 @@
  */
 package org.apache.flink.test.util;
 
-import java.io.IOException;
 import org.apache.flink.api.common.io.GenericInputFormat;
+
+import java.io.IOException;
 
 public class InfiniteIntegerInputFormat extends GenericInputFormat<Integer> {
 	private static final long serialVersionUID = 1L;

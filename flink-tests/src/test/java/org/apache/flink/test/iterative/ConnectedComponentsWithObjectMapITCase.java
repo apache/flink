@@ -18,9 +18,6 @@
 
 package org.apache.flink.test.iterative;
 
-import java.io.BufferedReader;
-
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.aggregation.Aggregations;
@@ -32,6 +29,8 @@ import org.apache.flink.examples.java.graph.ConnectedComponents.NeighborWithComp
 import org.apache.flink.examples.java.graph.ConnectedComponents.UndirectEdge;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
 import org.apache.flink.test.util.JavaProgramTestBase;
+
+import java.io.BufferedReader;
 
 @SuppressWarnings("serial")
 public class ConnectedComponentsWithObjectMapITCase extends JavaProgramTestBase {

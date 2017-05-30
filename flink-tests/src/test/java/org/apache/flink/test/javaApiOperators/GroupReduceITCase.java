@@ -41,18 +41,19 @@ import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.PojoContainingTupleAndWritable;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import scala.math.BigInt;
-
 import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+
+import scala.math.BigInt;
 
 @SuppressWarnings({"serial", "unchecked", "UnusedDeclaration"})
 @RunWith(Parameterized.class)

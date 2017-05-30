@@ -18,9 +18,6 @@
 
 package org.apache.flink.test.iterative;
 
-import java.io.BufferedReader;
-import java.util.Iterator;
-
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -36,6 +33,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
+
+import java.io.BufferedReader;
+import java.util.Iterator;
 
 public class CoGroupConnectedComponentsITCase extends JavaProgramTestBase {
 	

@@ -17,11 +17,12 @@
  */
 package org.apache.flink.test.util;
 
-import java.io.IOException;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
+
+import java.io.IOException;
 
 public class UniformIntTupleGeneratorInputFormat extends GenericInputFormat<Tuple2<Integer, Integer>> {
 	private final int keyTotal;

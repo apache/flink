@@ -17,9 +17,10 @@
  */
 package org.apache.flink.test.util;
 
-import java.io.IOException;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+
+import java.io.IOException;
 
 public class InfiniteIntegerTupleInputFormat extends GenericInputFormat<Tuple2<Integer, Integer>> {
 	private static final long serialVersionUID = 1L;

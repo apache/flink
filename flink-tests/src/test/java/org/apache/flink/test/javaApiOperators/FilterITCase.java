@@ -18,21 +18,22 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.util.Collection;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.RichFilterFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+
+import java.util.Collection;
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class FilterITCase extends MultipleProgramsTestBase {

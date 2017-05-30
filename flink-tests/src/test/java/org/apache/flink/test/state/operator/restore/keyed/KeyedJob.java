@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 
 import java.util.Arrays;

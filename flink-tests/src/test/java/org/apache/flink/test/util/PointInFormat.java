@@ -17,11 +17,12 @@
  */
 package org.apache.flink.test.util;
 
+import org.apache.flink.api.common.io.DelimitedInputFormat;
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.flink.api.common.io.DelimitedInputFormat;
-import org.apache.flink.api.java.tuple.Tuple2;
 
 /**
  * Generates records with an id and a and CoordVector. The input format is line-based, i.e. one record is read from one

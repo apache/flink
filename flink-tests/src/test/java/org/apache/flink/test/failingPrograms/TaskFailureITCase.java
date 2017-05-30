@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.failingPrograms;
 
-import java.util.List;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -26,7 +25,10 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+
 import org.junit.Assert;
+
+import java.util.List;
 
 /**
  *

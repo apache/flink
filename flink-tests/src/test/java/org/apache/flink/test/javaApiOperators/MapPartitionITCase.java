@@ -18,9 +18,6 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -29,6 +26,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Collector;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @SuppressWarnings("serial")
 public class MapPartitionITCase extends JavaProgramTestBase {

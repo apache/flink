@@ -50,7 +50,6 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MathUtils;
 
 import org.junit.Test;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

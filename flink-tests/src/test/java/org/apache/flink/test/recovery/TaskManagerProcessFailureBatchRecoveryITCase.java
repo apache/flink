@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

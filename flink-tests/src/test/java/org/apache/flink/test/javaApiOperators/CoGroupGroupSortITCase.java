@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 
 @SuppressWarnings({"serial", "unchecked"})

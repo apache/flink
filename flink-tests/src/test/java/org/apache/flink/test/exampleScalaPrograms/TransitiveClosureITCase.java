@@ -19,13 +19,12 @@
 
 package org.apache.flink.test.exampleScalaPrograms;
 
-
-import java.io.BufferedReader;
-
 import org.apache.flink.examples.scala.graph.TransitiveClosureNaive;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
 import org.apache.flink.test.testdata.TransitiveClosureData;
 import org.apache.flink.test.util.JavaProgramTestBase;
+
+import java.io.BufferedReader;
 
 public class TransitiveClosureITCase extends JavaProgramTestBase {
 

@@ -18,18 +18,14 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -39,10 +35,15 @@ import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.PojoWithDateAndEnum;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.Collection;
+import java.util.Date;
+import java.util.List;
 
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)

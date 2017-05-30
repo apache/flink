@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.checkpointing.utils;
 
-import static org.junit.Assert.assertEquals;
-
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -53,8 +51,11 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
+
 import org.junit.Ignore;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * This verifies that we can restore a complete job from a Flink 1.2 savepoint.

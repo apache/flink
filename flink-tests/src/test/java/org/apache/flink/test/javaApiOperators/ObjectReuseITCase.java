@@ -36,7 +36,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * These check whether the object-reuse execution mode does really reuse objects.

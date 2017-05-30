@@ -18,11 +18,6 @@
 
 package org.apache.flink.test.optimizer.jsonplan;
 
-import java.util.List;
-
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PreviewPlanEnvironment;
@@ -35,8 +30,14 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.List;
 
 /*
  * The tests in this class simply invokes the JSON dump code for the original plan.

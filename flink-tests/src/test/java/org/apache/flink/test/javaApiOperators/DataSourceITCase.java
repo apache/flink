@@ -18,15 +18,16 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.util.List;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.test.util.JavaProgramTestBase;
+
 import org.junit.Assert;
+
+import java.util.List;
 
 /**
  * Tests for the DataSource

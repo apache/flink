@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.runtime;
 
-import akka.actor.ActorSystem;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -30,15 +29,13 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.testdata.WordCountData;
-
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
+import akka.actor.ActorSystem;
 import org.junit.Test;
-
-import scala.Some;
 
 import java.io.IOException;
 import java.net.Inet6Address;
@@ -49,7 +46,9 @@ import java.net.ServerSocket;
 import java.util.Enumeration;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import scala.Some;
+
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class IPv6HostnamesITCase extends TestLogger {

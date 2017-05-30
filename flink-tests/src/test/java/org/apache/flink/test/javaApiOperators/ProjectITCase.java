@@ -18,14 +18,14 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.util.List;
-
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.JavaProgramTestBase;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+
+import java.util.List;
 
 public class ProjectITCase extends JavaProgramTestBase {
 

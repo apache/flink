@@ -19,31 +19,32 @@
 
 package org.apache.flink.test.optimizer.iterations;
 
-import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
-import static org.junit.Assert.fail;
-
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
-import org.apache.flink.optimizer.plan.BulkPartialSolutionPlanNode;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.java.graph.PageRank.BuildOutgoingEdgeList;
 import org.apache.flink.examples.java.graph.PageRank.Dampener;
 import org.apache.flink.examples.java.graph.PageRank.EpsilonFilter;
 import org.apache.flink.examples.java.graph.PageRank.JoinVertexWithEdgesMatch;
 import org.apache.flink.examples.java.graph.PageRank.RankAssigner;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
+import org.apache.flink.optimizer.plan.BulkPartialSolutionPlanNode;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plan.SinkPlanNode;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.optimizer.util.CompilerTestBase;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.operators.IterativeDataSet;
+
+import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
+import static org.junit.Assert.fail;
 
 public class PageRankCompilerTest extends CompilerTestBase{
 	

@@ -17,14 +17,12 @@
 
 package org.apache.flink.test.streaming.runtime.util;
 
-import java.util.Collections;
-import java.util.Comparator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.TreeSet;
 
 public class TestListResultSink<T> extends RichSinkFunction<T> {
 

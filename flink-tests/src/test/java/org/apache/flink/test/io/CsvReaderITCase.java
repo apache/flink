@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.io;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple8;
@@ -32,6 +30,9 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
+
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;

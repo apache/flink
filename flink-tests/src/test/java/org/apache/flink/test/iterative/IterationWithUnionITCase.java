@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.iterative;
 
-import java.io.Serializable;
-
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -27,10 +25,12 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.CoordVector;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.test.util.PointFormatter;
 import org.apache.flink.test.util.PointInFormat;
-import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
 
 public class IterationWithUnionITCase extends JavaProgramTestBase {
 

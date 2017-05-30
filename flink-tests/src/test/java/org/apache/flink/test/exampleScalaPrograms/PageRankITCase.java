@@ -18,13 +18,12 @@
 
 package org.apache.flink.test.exampleScalaPrograms;
 
-import java.io.File;
-
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 import org.apache.flink.examples.scala.graph.PageRankBasic;
 import org.apache.flink.test.testdata.PageRankData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -32,6 +31,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.io.File;
 
 @RunWith(Parameterized.class)
 public class PageRankITCase extends MultipleProgramsTestBase {

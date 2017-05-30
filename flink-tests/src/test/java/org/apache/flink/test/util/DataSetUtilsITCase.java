@@ -31,6 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.types.DoubleValue;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;

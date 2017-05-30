@@ -27,6 +27,7 @@ import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,7 +37,6 @@ import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)

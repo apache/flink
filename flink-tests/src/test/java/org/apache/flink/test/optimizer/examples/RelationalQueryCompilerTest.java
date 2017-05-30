@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.optimizer.examples;
 
-import java.util.Arrays;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -43,14 +41,17 @@ import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
+import org.apache.flink.optimizer.util.CompilerTestBase;
+import org.apache.flink.optimizer.util.OperatorResolver;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.apache.flink.optimizer.util.OperatorResolver;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Arrays;
 
 /**
  * Tests TPCH Q3 (simplified) under various input conditions.

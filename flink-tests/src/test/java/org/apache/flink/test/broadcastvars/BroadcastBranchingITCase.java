@@ -18,9 +18,6 @@
 
 package org.apache.flink.test.broadcastvars;
 
-import java.util.Collection;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -34,6 +31,9 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
+
+import java.util.Collection;
+import java.util.List;
 
 public class BroadcastBranchingITCase extends JavaProgramTestBase {
 	private static final String RESULT = "(2,112)\n";

@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.checkpointing;
 
-import com.google.common.collect.EvictingQueue;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -33,6 +32,8 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
+
+import com.google.common.collect.EvictingQueue;
 import org.junit.Assert;
 
 import java.util.Collections;

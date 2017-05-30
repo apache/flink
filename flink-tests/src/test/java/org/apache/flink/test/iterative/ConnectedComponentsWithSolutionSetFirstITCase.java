@@ -19,8 +19,6 @@
 
 package org.apache.flink.test.iterative;
 
-import java.io.BufferedReader;
-
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -33,6 +31,8 @@ import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
+
+import java.io.BufferedReader;
 
 /**
  * Tests a bug that prevented that the solution set can be on both sides of the match/cogroup function.

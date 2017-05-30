@@ -19,6 +19,7 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
+
 import org.junit.Assert;
 import org.junit.Test;
 

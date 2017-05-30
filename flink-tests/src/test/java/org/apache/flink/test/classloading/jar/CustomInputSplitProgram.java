@@ -18,10 +18,6 @@
 
 package org.apache.flink.test.classloading.jar;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -35,6 +31,10 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 @SuppressWarnings("serial")
 public class CustomInputSplitProgram {
