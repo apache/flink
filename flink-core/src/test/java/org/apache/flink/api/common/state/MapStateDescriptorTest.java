@@ -29,11 +29,18 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class MapStateDescriptorTest {
 	
@@ -111,5 +118,46 @@ public class MapStateDescriptorTest {
 		assertEquals(StringSerializer.INSTANCE, copy.getKeySerializer());
 		assertNotNull(copy.getValueSerializer());
 		assertEquals(LongSerializer.INSTANCE, copy.getValueSerializer());
+	}
+
+	/**
+	 * FLINK-6775
+	 *
+	 * Tests that the returned serializer is duplicated. This allows to
+	 * share the state descriptor.
+	 */
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testSerializerDuplication() {
+		TypeSerializer<String> keySerializer = mock(TypeSerializer.class);
+		TypeSerializer<Long> valueSerializer = mock(TypeSerializer.class);
+		when(keySerializer.duplicate()).thenAnswer(new Answer<TypeSerializer<String>>() {
+			@Override
+			public TypeSerializer<String> answer(InvocationOnMock invocation) throws Throwable {
+				return mock(TypeSerializer.class);
+			}
+		});
+		when(valueSerializer.duplicate()).thenAnswer(new Answer<TypeSerializer<Long>>() {
+			@Override
+			public TypeSerializer<Long> answer(InvocationOnMock invocation) throws Throwable {
+				return mock(TypeSerializer.class);
+			}
+		});
+
+		MapStateDescriptor<String, Long> descr = new MapStateDescriptor<>("foobar", keySerializer, valueSerializer);
+
+		TypeSerializer<String> keySerializerA = descr.getKeySerializer();
+		TypeSerializer<String> keySerializerB = descr.getKeySerializer();
+		TypeSerializer<Long> valueSerializerA = descr.getValueSerializer();
+		TypeSerializer<Long> valueSerializerB = descr.getValueSerializer();
+
+		// check that we did not retrieve the same serializers
+		assertNotSame(keySerializerA, keySerializerB);
+		assertNotSame(valueSerializerA, valueSerializerB);
+
+		TypeSerializer<Map<String, Long>> serializerA = descr.getSerializer();
+		TypeSerializer<Map<String, Long>> serializerB = descr.getSerializer();
+
+		assertNotSame(serializerA, serializerB);
 	}
 }

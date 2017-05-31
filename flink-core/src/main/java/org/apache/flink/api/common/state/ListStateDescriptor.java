@@ -95,7 +95,7 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, List<T
 			throw new IllegalStateException();
 		}
 
-		return ((ListSerializer<T>)serializer).getElementSerializer();
+		return ((ListSerializer<T>) rawSerializer).getElementSerializer();
 	}
 
 	@Override
