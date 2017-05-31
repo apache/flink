@@ -144,7 +144,7 @@ $ bin/flink savepoint -d :savepointPath
 
 This disposes the savepoint stored in `:savepointPath`.
 
-Note that since savepoints always go to a file system it is possible to also manually delete the savepoint via a regular file system operation. Up to Flink 1.2, this way a more tedious task which was solved with this tool.
+Note that since savepoints always go to a file system it is possible to also manually delete the savepoint via a regular file system operation. Up to Flink 1.2, this way a more tedious task which was performed with the savepoint command above.
 
 ### Configuration
 
