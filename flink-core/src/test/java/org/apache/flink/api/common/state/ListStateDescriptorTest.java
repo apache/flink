@@ -28,11 +28,18 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class ListStateDescriptorTest {
 	
@@ -100,5 +107,36 @@ public class ListStateDescriptorTest {
 
 		assertNotNull(copy.getElementSerializer());
 		assertEquals(StringSerializer.INSTANCE, copy.getElementSerializer());
+	}
+
+	/**
+	 * FLINK-6775
+	 *
+	 * Tests that the returned serializer is duplicated. This allows to
+	 * share the state descriptor.
+	 */
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testSerializerDuplication() {
+		TypeSerializer<String> statefulSerializer = mock(TypeSerializer.class);
+		when(statefulSerializer.duplicate()).thenAnswer(new Answer<TypeSerializer<String>>() {
+			@Override
+			public TypeSerializer<String> answer(InvocationOnMock invocation) throws Throwable {
+				return mock(TypeSerializer.class);
+			}
+		});
+
+		ListStateDescriptor<String> descr = new ListStateDescriptor<>("foobar", statefulSerializer);
+
+		TypeSerializer<String> serializerA = descr.getElementSerializer();
+		TypeSerializer<String> serializerB = descr.getElementSerializer();
+
+		// check that the retrieved serializers are not the same
+		assertNotSame(serializerA, serializerB);
+
+		TypeSerializer<List<String>> listSerializerA = descr.getSerializer();
+		TypeSerializer<List<String>> listSerializerB = descr.getSerializer();
+
+		assertNotSame(listSerializerA, listSerializerB);
 	}
 }

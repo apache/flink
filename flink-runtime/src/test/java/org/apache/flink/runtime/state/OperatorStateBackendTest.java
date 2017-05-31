@@ -21,11 +21,15 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -33,12 +37,10 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackend.PartitionableL
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.util.FutureUtil;
+import org.apache.flink.util.Preconditions;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Matchers;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -55,6 +57,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -65,11 +68,10 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(TypeSerializerSerializationUtil.class)
+@PrepareForTest({TypeSerializerSerializationUtil.class, IntSerializer.class})
 public class OperatorStateBackendTest {
 
 	private final ClassLoader classLoader = getClass().getClassLoader();
@@ -222,21 +224,11 @@ public class OperatorStateBackendTest {
 		final Environment env = createMockEnvironment();
 		OperatorStateBackend operatorStateBackend = abstractStateBackend.createOperatorStateBackend(env, "test-op-name");
 
-		// mock serializer which tests that on copy, the correct classloader is used as the context classloader
-		TypeSerializer<Integer> mockSerializer = mock(TypeSerializer.class);
-		when(mockSerializer.copy(Matchers.any(Integer.class))).thenAnswer(new Answer<Object>() {
-			@Override
-			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				Assert.assertEquals(env.getUserClassLoader(), Thread.currentThread().getContextClassLoader());
-				return null;
-			}
-		});
-		// return actual serializers / config snapshots so that the snapshot proceeds properly
-		when(mockSerializer.duplicate()).thenReturn(IntSerializer.INSTANCE);
-		when(mockSerializer.snapshotConfiguration()).thenReturn(IntSerializer.INSTANCE.snapshotConfiguration());
+		AtomicInteger copyCounter = new AtomicInteger(0);
+		TypeSerializer<Integer> serializer = new VerifyingIntSerializer(env.getUserClassLoader(), copyCounter);
 
 		// write some state
-		ListStateDescriptor<Integer> stateDescriptor = new ListStateDescriptor<>("test", mockSerializer);
+		ListStateDescriptor<Integer> stateDescriptor = new ListStateDescriptor<>("test", serializer);
 		ListState<Integer> listState = operatorStateBackend.getListState(stateDescriptor);
 
 		listState.add(42);
@@ -246,8 +238,110 @@ public class OperatorStateBackendTest {
 			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forFullCheckpoint());
 		FutureUtil.runIfNotDoneAndGet(runnableFuture);
 
-		// make sure that the method of interest is called
-		verify(mockSerializer).copy(Matchers.any(Integer.class));
+		// make sure that the copy method has been called
+		assertTrue(copyCounter.get() > 0);
+	}
+
+	/**
+	 * Int serializer which verifies that the given classloader is set for the copy operation
+	 */
+	private static final class VerifyingIntSerializer extends TypeSerializer<Integer> {
+
+		private static final long serialVersionUID = -5344563614550163898L;
+
+		private transient ClassLoader classLoader;
+		private transient AtomicInteger atomicInteger;
+
+		private VerifyingIntSerializer(ClassLoader classLoader, AtomicInteger atomicInteger) {
+			this.classLoader = Preconditions.checkNotNull(classLoader);
+			this.atomicInteger = Preconditions.checkNotNull(atomicInteger);
+		}
+
+		@Override
+		public boolean isImmutableType() {
+			// otherwise the copy method won't be called for the deepCopy operation
+			return false;
+		}
+
+		@Override
+		public TypeSerializer<Integer> duplicate() {
+			return this;
+		}
+
+		@Override
+		public Integer createInstance() {
+			return 0;
+		}
+
+		@Override
+		public Integer copy(Integer from) {
+			assertEquals(classLoader, Thread.currentThread().getContextClassLoader());
+			atomicInteger.incrementAndGet();
+			return IntSerializer.INSTANCE.copy(from);
+		}
+
+		@Override
+		public Integer copy(Integer from, Integer reuse) {
+			assertEquals(classLoader, Thread.currentThread().getContextClassLoader());
+			atomicInteger.incrementAndGet();
+			return IntSerializer.INSTANCE.copy(from, reuse);
+		}
+
+		@Override
+		public int getLength() {
+			return IntSerializer.INSTANCE.getLength();
+		}
+
+		@Override
+		public void serialize(Integer record, DataOutputView target) throws IOException {
+			IntSerializer.INSTANCE.serialize(record, target);
+		}
+
+		@Override
+		public Integer deserialize(DataInputView source) throws IOException {
+			return IntSerializer.INSTANCE.deserialize(source);
+		}
+
+		@Override
+		public Integer deserialize(Integer reuse, DataInputView source) throws IOException {
+			return IntSerializer.INSTANCE.deserialize(reuse, source);
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			assertEquals(classLoader, Thread.currentThread().getContextClassLoader());
+			atomicInteger.incrementAndGet();
+			IntSerializer.INSTANCE.copy(source, target);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj instanceof VerifyingIntSerializer) {
+				return ((VerifyingIntSerializer)obj).canEqual(this);
+			} else {
+				return false;
+			}
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return obj instanceof VerifyingIntSerializer;
+		}
+
+		@Override
+		public int hashCode() {
+			return getClass().hashCode();
+		}
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			return IntSerializer.INSTANCE.snapshotConfiguration();
+		}
+
+		@Override
+		public CompatibilityResult<Integer> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+			return IntSerializer.INSTANCE.ensureCompatibility(configSnapshot);
+		}
 	}
 
 	@Test
