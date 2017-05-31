@@ -28,9 +28,10 @@ under the License.
 
 ## Overview
 
-Checkpoints make state in Flink fault tolerant by allowing to recover state
-and positions in the streams to give the application the same semantics as
-a failure-free execution.
+Checkpoints make state in Flink fault tolerant by allowing state and the
+corresponding stream positions to be recovered, thereby giving the application
+the same semantics as a failure-free execution.
+
 See [Checkpointing](../dev/stream/checkpointing.html) for how to enable and
 configure checkpoints for your program.
 
@@ -65,7 +66,7 @@ This directory will then contain the checkpoint meta data required to restore th
 
 ### Difference to Savepoints
 
-Externalized checkpoints have a few differences to [savepoints](savepoints.html). They
+Externalized checkpoints have a few differences from [savepoints](savepoints.html). They
 - use a state backend specific (low-level) data format,
 - may be incremental,
 - do not support Flink specific features like rescaling.
