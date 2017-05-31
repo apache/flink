@@ -64,7 +64,6 @@ public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<
 		return -1;
 	}
 
-
 	@Override
 	public void serialize(long[] record, DataOutputView target) throws IOException {
 		if (record == null) {

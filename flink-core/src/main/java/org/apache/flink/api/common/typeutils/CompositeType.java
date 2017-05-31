@@ -191,7 +191,6 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 			this.type = type;
 		}
 
-
 		public int getPosition() {
 			return keyPosition;
 		}

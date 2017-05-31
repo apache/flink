@@ -58,7 +58,6 @@ public class LongValueSequenceIterator extends SplittableIterator<LongValue> {
 		this.to = to;
 	}
 
-
 	/**
 	 * Internal constructor to allow for empty iterators.
 	 *
@@ -179,7 +178,6 @@ public class LongValueSequenceIterator extends SplittableIterator<LongValue> {
 			};
 		}
 	}
-
 
 	@Override
 	public int getMaximumNumberOfSplits() {

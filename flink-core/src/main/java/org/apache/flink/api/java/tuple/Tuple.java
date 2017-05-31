@@ -21,7 +21,6 @@ package org.apache.flink.api.java.tuple;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.types.NullFieldException;
 
-
 /**
  * The base class of all tuples. Tuples have a fix length and contain a set of fields,
  * which may all be of different types. Because Tuples are strongly typed, each distinct

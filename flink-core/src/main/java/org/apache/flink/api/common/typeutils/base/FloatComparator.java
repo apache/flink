@@ -42,7 +42,6 @@ public final class FloatComparator extends BasicTypeComparator<Float> {
 		return ascendingComparison ? comp : -comp; 
 	}
 
-
 	@Override
 	public boolean supportsNormalizedKey() {
 		return false;

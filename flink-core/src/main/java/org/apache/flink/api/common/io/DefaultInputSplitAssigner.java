@@ -43,7 +43,6 @@ public class DefaultInputSplitAssigner implements InputSplitAssigner {
 	/** The list of all splits */
 	private final List<InputSplit> splits = new ArrayList<InputSplit>();
 
-
 	public DefaultInputSplitAssigner(InputSplit[] splits) {
 		Collections.addAll(this.splits, splits);
 	}

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
@@ -30,11 +29,9 @@ public final class RuntimeComparatorFactory<T> implements TypeComparatorFactory<
 
 	private static final long serialVersionUID = 1L;
 
-
 	private static final String CONFIG_KEY = "SER_DATA";
 
 	private TypeComparator<T> comparator;
-
 
 	public RuntimeComparatorFactory() {}
 

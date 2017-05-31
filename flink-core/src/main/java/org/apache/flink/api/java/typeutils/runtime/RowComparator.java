@@ -85,7 +85,6 @@ public class RowComparator extends CompositeTypeComparator<Row> {
 		this(arity, keyPositions, makeNullAware(comparators, orders), serializers);
 	}
 
-
 	/**
 	 * Intermediate constructor for creating auxiliary fields.
 	 */
@@ -408,7 +407,6 @@ public class RowComparator extends CompositeTypeComparator<Row> {
 		}
 		return localIndex - index;
 	}
-
 
 	private Object[] instantiateDeserializationFields() {
 		Object[] newFields = new Object[serializers.length];

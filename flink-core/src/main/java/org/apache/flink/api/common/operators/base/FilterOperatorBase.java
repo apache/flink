@@ -33,7 +33,6 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import java.util.ArrayList;
 import java.util.List;
 
-
 /**
  * @see org.apache.flink.api.common.functions.FlatMapFunction
  */

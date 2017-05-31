@@ -57,7 +57,6 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(Configuration.class);
 
-
 	/** Stores the concrete key/value pairs of this configuration object. */
 	protected final HashMap<String, Object> confData;
 
@@ -638,7 +637,6 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			return ret;
 		}
 	}
-
 
 	// --------------------------------------------------------------------------------------------
 	

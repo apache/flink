@@ -107,7 +107,6 @@ public final class SqlTimeSerializer extends TypeSerializerSingleton<Time> {
 	// Serializer configuration snapshotting & reconfiguring
 	// --------------------------------------------------------------------------------------------
 
-
 	@Override
 	protected boolean isCompatibleSerializationFormatIdentifier(String identifier) {
 		return super.isCompatibleSerializationFormatIdentifier(identifier)

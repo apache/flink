@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.common.io;
 
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;

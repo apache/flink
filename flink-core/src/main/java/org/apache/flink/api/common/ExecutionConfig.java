@@ -785,7 +785,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		return registeredTypesWithKryoSerializerClasses;
 	}
 
-
 	/**
 	 * Returns the registered default Kryo Serializers.
 	 */
@@ -826,7 +825,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	public LinkedHashSet<Class<?>> getRegisteredPojoTypes() {
 		return registeredPojoTypes;
 	}
-
 
 	public boolean isAutoTypeRegistrationDisabled() {
 		return !autoTypeRegistrationEnabled;
@@ -904,7 +902,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	public ArchivedExecutionConfig archive() {
 		return new ArchivedExecutionConfig(this);
 	}
-
 
 	// ------------------------------ Utilities  ----------------------------------
 

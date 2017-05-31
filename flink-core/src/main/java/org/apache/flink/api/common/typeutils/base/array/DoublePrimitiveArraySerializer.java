@@ -64,7 +64,6 @@ public final class DoublePrimitiveArraySerializer extends TypeSerializerSingleto
 		return -1;
 	}
 
-
 	@Override
 	public void serialize(double[] record, DataOutputView target) throws IOException {
 		if (record == null) {

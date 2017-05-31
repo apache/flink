@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators;
 
 import org.apache.flink.annotation.Internal;
@@ -47,7 +46,6 @@ public class OperatorInformation<OUT> {
 	public TypeInformation<OUT> getOutputType() {
 		return outputType;
 	}
-
 
 	@Override
 	public String toString() {

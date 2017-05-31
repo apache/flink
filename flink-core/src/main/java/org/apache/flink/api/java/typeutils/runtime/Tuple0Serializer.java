@@ -95,7 +95,6 @@ public class Tuple0Serializer extends TupleSerializer<Tuple0> {
 
 	// ------------------------------------------------------------------------
 
-
 	@Override
 	public int hashCode() {
 		return Tuple0Serializer.class.hashCode();

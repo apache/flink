@@ -120,7 +120,6 @@ public class JobExecutionResult extends JobSubmissionResult {
 		return (Integer) result;
 	}
 
-
 	/**
 	 * Returns a dummy object for wrapping a JobSubmissionResult
 	 * @param result The SubmissionResult

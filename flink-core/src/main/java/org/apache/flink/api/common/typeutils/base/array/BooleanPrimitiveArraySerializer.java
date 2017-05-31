@@ -64,7 +64,6 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 		return -1;
 	}
 
-
 	@Override
 	public void serialize(boolean[] record, DataOutputView target) throws IOException {
 		if (record == null) {
@@ -77,7 +76,6 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 			target.writeBoolean(record[i]);
 		}
 	}
-
 
 	@Override
 	public boolean[] deserialize(DataInputView source) throws IOException {

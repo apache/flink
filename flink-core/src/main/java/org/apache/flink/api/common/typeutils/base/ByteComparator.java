@@ -42,7 +42,6 @@ public final class ByteComparator extends BasicTypeComparator<Byte> {
 		return ascendingComparison ? comp : -comp; 
 	}
 
-
 	@Override
 	public boolean supportsNormalizedKey() {
 		return true;

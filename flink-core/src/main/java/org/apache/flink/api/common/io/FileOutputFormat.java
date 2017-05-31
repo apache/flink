@@ -171,7 +171,6 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implemen
 		return this.outputDirectoryMode;
 	}
 
-
 	// ----------------------------------------------------------------
 
 	@Override
@@ -243,7 +242,6 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implemen
 				}
 			}
 		}
-
 
 
 		// Suffix the path with the parallel instance index, if needed

@@ -64,7 +64,6 @@ public final class FloatPrimitiveArraySerializer extends TypeSerializerSingleton
 		return -1;
 	}
 
-
 	@Override
 	public void serialize(float[] record, DataOutputView target) throws IOException {
 		if (record == null) {

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
@@ -53,7 +52,6 @@ public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<
 		this.clazz = clazz;
 		this.serializer = serializer;
 	}
-
 
 	@Override
 	public void writeParametersToConfig(Configuration config) {

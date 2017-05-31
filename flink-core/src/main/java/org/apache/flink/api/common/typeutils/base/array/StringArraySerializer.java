@@ -26,7 +26,6 @@ import org.apache.flink.types.StringValue;
 
 import java.io.IOException;
 
-
 /**
  * A serializer for String arrays. Specialized for efficiency.
  */

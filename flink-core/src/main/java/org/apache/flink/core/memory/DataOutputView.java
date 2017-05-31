@@ -16,15 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.core.memory;
-
 
 import org.apache.flink.annotation.Public;
 
 import java.io.DataOutput;
 import java.io.IOException;
-
 
 /**
  * This interface defines a view over some memory that can be used to sequentially write contents to the memory.

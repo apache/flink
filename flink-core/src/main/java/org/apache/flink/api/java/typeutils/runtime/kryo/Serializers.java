@@ -46,7 +46,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-
 /**
  * Class containing utilities for the serializers of the Flink Runtime.
  *

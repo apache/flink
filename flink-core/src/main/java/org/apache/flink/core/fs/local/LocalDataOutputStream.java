@@ -62,7 +62,6 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 		fos.close();
 	}
 
-
 	@Override
 	public void flush() throws IOException {
 		fos.flush();

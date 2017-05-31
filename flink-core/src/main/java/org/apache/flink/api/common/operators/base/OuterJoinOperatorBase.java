@@ -138,7 +138,6 @@ public class OuterJoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN
 
 	private static class OuterJoinListIterator<IN1, IN2> {
 
-
 		private static enum MatchStatus {
 			NONE_REMAINED, FIRST_REMAINED, SECOND_REMAINED, FIRST_EMPTY, SECOND_EMPTY
 		}

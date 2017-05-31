@@ -21,7 +21,6 @@ package org.apache.flink.api.common.aggregators;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.DoubleValue;
 
-
 /**
  * An {@link Aggregator} that sums up {@link DoubleValue} values.
  */

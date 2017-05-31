@@ -382,7 +382,6 @@ public class CollectionExecutor {
 			throw new InvalidProgramException("The iteration " + iteration.getName() + " has no workset defined (is not closed).");
 		}
 
-
 		List<T> solutionInputData = (List<T>) execute(solutionInput);
 		List<T> worksetInputData = (List<T>) execute(worksetInput);
 

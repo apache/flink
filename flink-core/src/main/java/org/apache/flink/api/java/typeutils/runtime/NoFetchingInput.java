@@ -139,6 +139,5 @@ public class NoFetchingInput extends Input {
 		}
 	}
 
-
 }
 

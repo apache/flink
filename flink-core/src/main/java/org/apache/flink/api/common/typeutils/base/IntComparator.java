@@ -42,7 +42,6 @@ public final class IntComparator extends BasicTypeComparator<Integer> {
 		return ascendingComparison ? comp : -comp; 
 	}
 
-
 	@Override
 	public boolean supportsNormalizedKey() {
 		return true;

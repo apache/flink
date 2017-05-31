@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators;
 
 import org.apache.flink.annotation.Internal;
@@ -251,7 +250,6 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 	public String toString() {
 		return this.name;
 	}
-
 
 	public static interface SplitDataProperties<T> {
 

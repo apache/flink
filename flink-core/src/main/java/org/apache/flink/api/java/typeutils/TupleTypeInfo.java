@@ -267,7 +267,6 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 			infos[i] = info;
 		}
 
-
 		return (TupleTypeInfo<X>) new TupleTypeInfo<>(infos);
 	}
 	

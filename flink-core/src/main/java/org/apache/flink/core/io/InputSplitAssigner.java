@@ -18,7 +18,6 @@
 
 package org.apache.flink.core.io;
 
-
 import org.apache.flink.annotation.PublicEvolving;
 
 /**

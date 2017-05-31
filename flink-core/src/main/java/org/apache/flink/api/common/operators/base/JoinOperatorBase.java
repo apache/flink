@@ -81,7 +81,6 @@ public abstract class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunctio
 	private JoinHint joinHint = JoinHint.OPTIMIZER_CHOOSES;
 	private Partitioner<?> partitioner;
 
-
 	public JoinOperatorBase(UserCodeWrapper<FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(udf, operatorInfo, keyPositions1, keyPositions2, name);
 	}
@@ -93,7 +92,6 @@ public abstract class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunctio
 	public JoinOperatorBase(Class<? extends FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(new UserCodeClassWrapper<>(udf), operatorInfo, keyPositions1, keyPositions2, name);
 	}
-
 
 	public void setJoinHint(JoinHint joinHint) {
 		if (joinHint == null) {

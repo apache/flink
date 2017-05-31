@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.MemorySegment;
-
 
 /**
  * The base interface for normalizable keys. Normalizable keys can create a binary representation

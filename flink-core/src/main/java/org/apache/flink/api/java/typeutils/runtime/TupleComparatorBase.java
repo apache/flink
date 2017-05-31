@@ -50,7 +50,6 @@ public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> 
 
 	protected boolean invertNormKey;
 
-
 	/** serializers to deserialize the first n fields for comparison */
 	@SuppressWarnings("rawtypes")
 	protected TypeSerializer[] serializers;
@@ -58,7 +57,6 @@ public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> 
 	// cache for the deserialized field objects
 	protected transient Object[] deserializedFields1;
 	protected transient Object[] deserializedFields2;
-
 
 	@SuppressWarnings("unchecked")
 	public TupleComparatorBase(int[] keyPositions, TypeComparator<?>[] comparators, TypeSerializer<?>[] serializers) {
@@ -158,7 +156,6 @@ public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> 
 	// --------------------------------------------------------------------------------------------
 	//  Comparator Methods
 	// --------------------------------------------------------------------------------------------
-
 
 	@Override
 	public int compareToReference(TypeComparator<T> referencedComparator) {

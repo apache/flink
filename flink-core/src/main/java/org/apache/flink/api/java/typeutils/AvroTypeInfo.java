@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.annotation.Public;

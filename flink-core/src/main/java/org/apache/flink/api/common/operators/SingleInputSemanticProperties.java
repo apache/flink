@@ -127,7 +127,6 @@ public class SingleInputSemanticProperties implements SemanticProperties {
 		return "SISP(" + this.fieldMapping + ")";
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 
 	public static class AllFieldsForwardedProperties extends SingleInputSemanticProperties {

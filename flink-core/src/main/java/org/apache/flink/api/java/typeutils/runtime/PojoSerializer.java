@@ -300,7 +300,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		return -1;
 	}
 
-
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public void serialize(T value, DataOutputView target) throws IOException {
@@ -876,7 +875,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 				fieldSerializerOffsets[i * 2] = in.readInt();
 				fieldSerializerOffsets[i * 2 + 1] = in.readInt();
 			}
-
 
 			int numRegisteredSubclasses = in.readInt();
 			int[] registeredSerializerOffsets = new int[numRegisteredSubclasses * 2];

@@ -64,7 +64,6 @@ public final class CharPrimitiveArraySerializer extends TypeSerializerSingleton<
 		return -1;
 	}
 
-
 	@Override
 	public void serialize(char[] record, DataOutputView target) throws IOException {
 		if (record == null) {

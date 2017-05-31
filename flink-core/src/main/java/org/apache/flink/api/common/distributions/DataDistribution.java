@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.distributions;
 
 import org.apache.flink.annotation.PublicEvolving;

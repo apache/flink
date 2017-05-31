@@ -123,7 +123,6 @@ public class ConfigOptionsDocGenerator {
 		}
 	}
 
-
 	/**
 	 * Transforms this configuration group into HTML formatted table.
 	 * Options are sorted alphabetically by key.

@@ -42,7 +42,6 @@ public final class LongComparator extends BasicTypeComparator<Long> {
 		return ascendingComparison ? comp : -comp;
 	}
 
-
 	@Override
 	public boolean supportsNormalizedKey() {
 		return true;

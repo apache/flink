@@ -64,7 +64,6 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 		return -1;
 	}
 
-
 	@Override
 	public void serialize(byte[] record, DataOutputView target) throws IOException {
 		if (record == null) {

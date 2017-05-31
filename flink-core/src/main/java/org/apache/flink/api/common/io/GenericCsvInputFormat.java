@@ -94,7 +94,6 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	protected byte[] commentPrefix = null;
 	private String commentPrefixString = null;
 
-
 	// --------------------------------------------------------------------------------------------
 	//  Constructors and getters/setters for the configurable parameters
 	// --------------------------------------------------------------------------------------------

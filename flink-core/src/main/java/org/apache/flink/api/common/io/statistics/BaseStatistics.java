@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io.statistics;
 
 import org.apache.flink.annotation.Public;

@@ -156,7 +156,6 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		}
 	}
 
-
 	@Override
 	public Row deserialize(DataInputView source) throws IOException {
 		int len = fieldSerializers.length;

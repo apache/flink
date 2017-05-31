@@ -42,7 +42,6 @@ public final class DoubleComparator extends BasicTypeComparator<Double> {
 		return ascendingComparison ? comp : -comp; 
 	}
 
-
 	@Override
 	public boolean supportsNormalizedKey() {
 		return false;

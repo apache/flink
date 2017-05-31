@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 
-
 /**
  * An {@link OutputTag} is a typed and named tag to use for tagging side outputs
  * of an operator.

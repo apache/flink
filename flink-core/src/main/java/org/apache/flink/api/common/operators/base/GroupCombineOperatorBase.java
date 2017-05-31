@@ -53,7 +53,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @Internal
 public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 
-
 	/** The ordering for the order inside a reduce group. */
 	private Ordering groupOrder;
 

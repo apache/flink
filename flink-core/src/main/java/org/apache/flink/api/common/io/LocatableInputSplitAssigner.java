@@ -149,7 +149,6 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 			}
 		}
 
-
 		// at this point, we have a list of local splits (possibly empty)
 		// we need to make sure no one else operates in the current list (that protects against
 		// list creation races) and that the unassigned set is consistent

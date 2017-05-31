@@ -106,7 +106,6 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		return false;
 	}
 
-
 	@Override
 	@PublicEvolving
 	public boolean isTupleType() {
@@ -367,7 +366,6 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 			fieldComparators = new ArrayList<TypeComparator>();
 			keyFields = new ArrayList<Field>();
 		}
-
 
 		@Override
 		public void initializeTypeComparatorBuilder(int size) {

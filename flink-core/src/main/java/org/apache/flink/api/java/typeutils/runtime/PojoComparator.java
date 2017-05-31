@@ -301,7 +301,6 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 		return this.invertNormKey;
 	}
 
-
 	@Override
 	public boolean supportsSerializationWithKeyNormalization() {
 		return false;

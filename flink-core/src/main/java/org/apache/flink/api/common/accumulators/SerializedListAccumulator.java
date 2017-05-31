@@ -44,7 +44,6 @@ public class SerializedListAccumulator<T> implements Accumulator<T, ArrayList<by
 
 	private ArrayList<byte[]> localValue = new ArrayList<>();
 
-
 	@Override
 	public void add(T value) {
 		throw new UnsupportedOperationException();

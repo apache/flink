@@ -381,7 +381,6 @@ public class Path implements IOReadableWritable, Serializable {
 		return buffer.toString();
 	}
 
-
 	@Override
 	public boolean equals(Object o) {
 		if (!(o instanceof Path)) {
@@ -390,7 +389,6 @@ public class Path implements IOReadableWritable, Serializable {
 		Path that = (Path) o;
 		return this.uri.equals(that.uri);
 	}
-
 
 	@Override
 	public int hashCode() {
@@ -478,7 +476,6 @@ public class Path implements IOReadableWritable, Serializable {
 			}
 		}
 	}
-
 
 	@Override
 	public void write(DataOutputView out) throws IOException {

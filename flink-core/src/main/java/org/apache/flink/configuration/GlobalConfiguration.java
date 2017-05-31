@@ -40,7 +40,6 @@ public final class GlobalConfiguration {
 
 	public static final String FLINK_CONF_FILENAME = "flink-conf.yaml";
 
-
 	// --------------------------------------------------------------------------------------------
 
 	private GlobalConfiguration() {}

@@ -138,7 +138,6 @@ public final class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 		return Objects.hash(arrayClass, componentInfo);
 	}
 
-
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof BasicArrayTypeInfo;

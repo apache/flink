@@ -39,7 +39,6 @@ public final class DataOutputEncoder extends Encoder implements java.io.Serializ
 		this.out = out;
 	}
 
-
 	@Override
 	public void flush() throws IOException {}
 
