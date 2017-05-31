@@ -585,7 +585,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			boolean requiresMigration = false;
 
 			if (clazz.equals(config.getTypeClass())) {
-				if (this.numFields == config.getFieldToSerializerConfigSnapshot().size()) {
+				if (this.numFields == config.getFieldsToSerializersAndConfigSnapshots().size()) {
 
 					CompatibilityResult<?> compatResult;
 
@@ -599,7 +599,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 					int i = 0;
 					for (Map.Entry<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToConfigSnapshotEntry
-							: config.getFieldToSerializerConfigSnapshot().entrySet()) {
+							: config.getFieldsToSerializersAndConfigSnapshots().entrySet()) {
 
 						int fieldIndex = findField(fieldToConfigSnapshotEntry.getKey());
 						if (fieldIndex != -1) {
@@ -637,7 +637,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					final TypeSerializer<?>[] reorderedRegisteredSubclassSerializers;
 
 					final LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousRegistrations =
-						config.getRegisteredSubclassesToSerializerConfigSnapshots();
+						config.getRegisteredSubclassesToSerializersAndConfigSnapshots();
 
 					// the reconfigured list of registered subclasses will be the previous registered
 					// subclasses in the original order with new subclasses appended at the end
@@ -678,7 +678,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					HashMap<Class<?>, TypeSerializer<?>> rebuiltCache = new HashMap<>();
 
 					for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousCachedEntry
-							: config.getNonRegisteredSubclassesToSerializerConfigSnapshots().entrySet()) {
+							: config.getNonRegisteredSubclassesToSerializersAndConfigSnapshots().entrySet()) {
 
 						TypeSerializer<?> cachedSerializer = createSubclassSerializer(previousCachedEntry.getKey());
 
@@ -743,7 +743,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		 * may reorder the fields in case they are different. The order of the fields need to
 		 * stay the same for binary compatibility, as the field order is part of the serialization format.
 		 */
-		private LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToSerializerConfigSnapshot;
+		private LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldsToSerializersAndConfigSnapshots;
 
 		/**
 		 * Ordered map of registered subclasses to their corresponding serializers and its configuration snapshots.
@@ -752,7 +752,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		 * may retain the same class tag used for registered subclasses. Newly registered subclasses that
 		 * weren't present before should be appended with the next available class tag.
 		 */
-		private LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> registeredSubclassesToSerializerConfigSnapshots;
+		private LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> registeredSubclassesToSerializersAndConfigSnapshots;
 
 		/**
 		 * Previously cached non-registered subclass serializers and its configuration snapshots.
@@ -760,7 +760,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		 * <p>This is kept so that new Pojo serializers may eagerly repopulate their
 		 * cache with reconfigured subclass serializers.
 		 */
-		private HashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> nonRegisteredSubclassesToSerializerConfigSnapshots;
+		private Map<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> nonRegisteredSubclassesToSerializersAndConfigSnapshots;
 
 		private boolean excludeSerializers;
 
@@ -769,19 +769,19 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 		public PojoSerializerConfigSnapshot(
 				Class<T> pojoType,
-				LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToSerializerConfigSnapshot,
-				LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> registeredSubclassesToSerializerConfigSnapshots,
-				HashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> nonRegisteredSubclassesToSerializerConfigSnapshots,
+				LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldsToSerializersAndConfigSnapshots,
+				LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> registeredSubclassesToSerializersAndConfigSnapshots,
+				HashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> nonRegisteredSubclassesToSerializersAndConfigSnapshots,
 				boolean excludeSerializers) {
 
 			super(pojoType);
 
-			this.fieldToSerializerConfigSnapshot =
-					Preconditions.checkNotNull(fieldToSerializerConfigSnapshot);
-			this.registeredSubclassesToSerializerConfigSnapshots =
-					Preconditions.checkNotNull(registeredSubclassesToSerializerConfigSnapshots);
-			this.nonRegisteredSubclassesToSerializerConfigSnapshots =
-					Preconditions.checkNotNull(nonRegisteredSubclassesToSerializerConfigSnapshots);
+			this.fieldsToSerializersAndConfigSnapshots =
+					Preconditions.checkNotNull(fieldsToSerializersAndConfigSnapshots);
+			this.registeredSubclassesToSerializersAndConfigSnapshots =
+					Preconditions.checkNotNull(registeredSubclassesToSerializersAndConfigSnapshots);
+			this.nonRegisteredSubclassesToSerializersAndConfigSnapshots =
+					Preconditions.checkNotNull(nonRegisteredSubclassesToSerializersAndConfigSnapshots);
 
 			this.excludeSerializers = excludeSerializers;
 		}
@@ -798,50 +798,14 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 				TypeSerializerSerializationUtil.writeSerializerIndices(out, serializerIndices);
 			}
 
-			// --- write fields and their serializers, in order
+			// write fields and their serializers, in order
+			writeFieldToSerializerAndConfigSnapshotMap(out, fieldsToSerializersAndConfigSnapshots, serializerIndices);
 
-			out.writeInt(fieldToSerializerConfigSnapshot.size());
-			for (Map.Entry<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
-				: fieldToSerializerConfigSnapshot.entrySet()) {
+			// write registered subclasses and their serializers, in registration order
+			writeClassToSerializerAndConfigSnapshotMap(out, registeredSubclassesToSerializersAndConfigSnapshots, serializerIndices);
 
-				out.writeUTF(entry.getKey().getName());
-
-				if (serializerIndices != null) {
-					out.writeInt(serializerIndices.get(entry.getValue().f0));
-				}
-
-				TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(out, entry.getValue().f1);
-			}
-
-			// --- write registered subclasses and their serializers, in registration order
-
-			out.writeInt(registeredSubclassesToSerializerConfigSnapshots.size());
-			for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
-				: registeredSubclassesToSerializerConfigSnapshots.entrySet()) {
-
-				out.writeUTF(entry.getKey().getName());
-
-				if (serializerIndices != null) {
-					out.writeInt(serializerIndices.get(entry.getValue().f0));
-				}
-
-				TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(out, entry.getValue().f1);
-			}
-
-			// --- write snapshot of non-registered subclass serializer cache
-
-			out.writeInt(nonRegisteredSubclassesToSerializerConfigSnapshots.size());
-			for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
-				: nonRegisteredSubclassesToSerializerConfigSnapshots.entrySet()) {
-
-				out.writeUTF(entry.getKey().getName());
-
-				if (serializerIndices != null) {
-					out.writeInt(serializerIndices.get(entry.getValue().f0));
-				}
-
-				TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(out, entry.getValue().f1);
-			}
+			// write serializers and config snapshots of non-registered subclass serializer cache
+			writeClassToSerializerAndConfigSnapshotMap(out, nonRegisteredSubclassesToSerializersAndConfigSnapshots, serializerIndices);
 		}
 
 		@Override
@@ -855,20 +819,119 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 				serializerIndex = TypeSerializerSerializationUtil.readSerializerIndex(in, getUserCodeClassLoader());
 			}
 
-			// --- read fields and their serializers, in order
+			// read fields and their serializers, in order
+			this.fieldsToSerializersAndConfigSnapshots =
+					readFieldToSerializerAndConfigSnapshotMap(in, getTypeClass(), getUserCodeClassLoader(), serializerIndex);
 
-			int numFields = in.readInt();
+			// read registered subclasses and their serializers, in registration order
+			this.registeredSubclassesToSerializersAndConfigSnapshots =
+					readClassToSerializerAndConfigSnapshotMap(in, getUserCodeClassLoader(), serializerIndex);
 
-			this.fieldToSerializerConfigSnapshot = new LinkedHashMap<>(numFields);
+			// read serializers and config snapshots of non-registered subclass serializer cache
+			this.nonRegisteredSubclassesToSerializersAndConfigSnapshots =
+					readClassToSerializerAndConfigSnapshotMap(in, getUserCodeClassLoader(), serializerIndex);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
+
+		public LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getFieldsToSerializersAndConfigSnapshots() {
+			return fieldsToSerializersAndConfigSnapshots;
+		}
+
+		public LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getRegisteredSubclassesToSerializersAndConfigSnapshots() {
+			return registeredSubclassesToSerializersAndConfigSnapshots;
+		}
+
+		public Map<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getNonRegisteredSubclassesToSerializersAndConfigSnapshots() {
+			return nonRegisteredSubclassesToSerializersAndConfigSnapshots;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return super.equals(obj)
+					&& (obj instanceof PojoSerializerConfigSnapshot)
+					&& fieldsToSerializersAndConfigSnapshots.equals(((PojoSerializerConfigSnapshot) obj).getFieldsToSerializersAndConfigSnapshots())
+					&& registeredSubclassesToSerializersAndConfigSnapshots.equals(((PojoSerializerConfigSnapshot) obj).getRegisteredSubclassesToSerializersAndConfigSnapshots())
+					&& nonRegisteredSubclassesToSerializersAndConfigSnapshots.equals(((PojoSerializerConfigSnapshot) obj).nonRegisteredSubclassesToSerializersAndConfigSnapshots);
+		}
+
+		@Override
+		public int hashCode() {
+			return super.hashCode()
+				+ Objects.hash(
+					fieldsToSerializersAndConfigSnapshots,
+					registeredSubclassesToSerializersAndConfigSnapshots,
+					nonRegisteredSubclassesToSerializersAndConfigSnapshots);
+		}
+
+		private Map<TypeSerializer<?>, Integer> buildSerializerIndices() {
+			int nextAvailableIndex = 0;
+
+			// using reference equality for keys so that stateless
+			// serializers are a single entry in the index
+			final Map<TypeSerializer<?>, Integer> indices = new IdentityHashMap<>();
+
+			for (Map.Entry<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
+					: fieldsToSerializersAndConfigSnapshots.entrySet()) {
+
+				if (!indices.containsKey(entry.getValue().f0)) {
+					indices.put(entry.getValue().f0, nextAvailableIndex++);
+				}
+			}
+
+			for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
+					: registeredSubclassesToSerializersAndConfigSnapshots.entrySet()) {
+
+				if (!indices.containsKey(entry.getValue().f0)) {
+					indices.put(entry.getValue().f0, nextAvailableIndex++);
+				}
+			}
+
+			for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
+					: nonRegisteredSubclassesToSerializersAndConfigSnapshots.entrySet()) {
+
+				if (!indices.containsKey(entry.getValue().f0)) {
+					indices.put(entry.getValue().f0, nextAvailableIndex++);
+				}
+			}
+
+			return indices;
+		}
+
+		private static void writeFieldToSerializerAndConfigSnapshotMap(
+				DataOutputView out,
+				Map<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToSerializerAndConfigSnapshotMap,
+				Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException {
+
+			out.writeInt(fieldToSerializerAndConfigSnapshotMap.size());
+			for (Map.Entry<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
+					: fieldToSerializerAndConfigSnapshotMap.entrySet()) {
+				writeSerializerAndConfigSnapshotEntry(
+					out, entry.getKey().getName(), entry.getValue().f0, entry.getValue().f1, serializerIndices);
+			}
+		}
+
+		private static LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> readFieldToSerializerAndConfigSnapshotMap(
+				DataInputView in,
+				Class<?> typeClass,
+				ClassLoader userCodeClassLoader,
+				Map<Integer, TypeSerializer<?>> serializerIndex) throws IOException {
+
+			int numEntries = in.readInt();
+
+			LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> result = new LinkedHashMap<>(numEntries);
 			String fieldName;
 			Field field;
-			TypeSerializer<?> fieldSerializer;
-			TypeSerializerConfigSnapshot fieldSerializerConfigSnapshot;
-			for (int i = 0; i < numFields; i++) {
+			TypeSerializer<?> serializer;
+			TypeSerializerConfigSnapshot serializerConfigSnapshot;
+			for (int i = 0; i < numEntries; i++) {
 				fieldName = in.readUTF();
 
 				// search all superclasses for the field
-				Class<?> clazz = getTypeClass();
+				Class<?> clazz = typeClass;
 				field = null;
 				while (clazz != null) {
 					try {
@@ -882,153 +945,89 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 				if (field == null) {
 					// the field no longer exists in the POJO
-					throw new IOException("Can't find field " + fieldName + " in POJO class " + getTypeClass().getName());
+					throw new IOException("Can't find field " + fieldName + " in POJO class " + typeClass.getName());
 				} else {
-					fieldSerializer = (serializerIndex == null)
+					serializer = (serializerIndex == null)
 						? null
 						: serializerIndex.get(in.readInt());
 
-					fieldSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
-						in, getUserCodeClassLoader());
+					serializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
+						in, userCodeClassLoader);
 
-					fieldToSerializerConfigSnapshot.put(
+					result.put(
 						field,
 						new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
-							fieldSerializer,
-							fieldSerializerConfigSnapshot));
+							serializer,
+							serializerConfigSnapshot));
 				}
 			}
 
-			// --- read registered subclasses and their serializers, in registration order
+			return result;
+		}
 
-			int numRegisteredSubclasses = in.readInt();
+		private static void writeClassToSerializerAndConfigSnapshotMap(
+				DataOutputView out,
+				Map<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> classToSerializerAndConfigSnapshotMap,
+				Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException {
 
-			this.registeredSubclassesToSerializerConfigSnapshots = new LinkedHashMap<>(numRegisteredSubclasses);
-			String registeredSubclassname;
-			Class<?> registeredSubclass;
-			TypeSerializer<?> registeredSubclassSerializer;
-			TypeSerializerConfigSnapshot registeredSubclassSerializerConfigSnapshot;
-			for (int i = 0; i < numRegisteredSubclasses; i++) {
-				registeredSubclassname = in.readUTF();
+			out.writeInt(classToSerializerAndConfigSnapshotMap.size());
+			for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
+				: classToSerializerAndConfigSnapshotMap.entrySet()) {
+				writeSerializerAndConfigSnapshotEntry(
+					out, entry.getKey().getName(), entry.getValue().f0, entry.getValue().f1, serializerIndices);
+			}
+		}
+
+		private static LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> readClassToSerializerAndConfigSnapshotMap(
+				DataInputView in,
+				ClassLoader userCodeClassLoader,
+				Map<Integer, TypeSerializer<?>> serializerIndex) throws IOException {
+
+			int numEntries = in.readInt();
+
+			LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> result = new LinkedHashMap<>(numEntries);
+			String classname;
+			Class<?> clazz;
+			TypeSerializer<?> serializer;
+			TypeSerializerConfigSnapshot serializerConfigSnapshot;
+			for (int i = 0; i < numEntries; i++) {
+				classname = in.readUTF();
 				try {
-					registeredSubclass = Class.forName(registeredSubclassname, true, getUserCodeClassLoader());
+					clazz = Class.forName(classname, true, userCodeClassLoader);
 				} catch (ClassNotFoundException e) {
-					throw new IOException("Cannot find requested class " + registeredSubclassname + " in classpath.", e);
+					throw new IOException("Cannot find requested class " + classname + " in classpath.", e);
 				}
 
-				registeredSubclassSerializer = (serializerIndex == null)
+				serializer = (serializerIndex == null)
 					? null
 					: serializerIndex.get(in.readInt());
 
-				registeredSubclassSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
-					in, getUserCodeClassLoader());
+				serializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
+					in, userCodeClassLoader);
 
-				this.registeredSubclassesToSerializerConfigSnapshots.put(
-					registeredSubclass,
+				result.put(
+					clazz,
 					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
-						registeredSubclassSerializer,
-						registeredSubclassSerializerConfigSnapshot));
+						serializer,
+						serializerConfigSnapshot));
 			}
 
-			// --- read snapshot of non-registered subclass serializer cache
-
-			int numCachedSubclassSerializers = in.readInt();
-
-			this.nonRegisteredSubclassesToSerializerConfigSnapshots = new HashMap<>(numCachedSubclassSerializers);
-			String cachedSubclassname;
-			Class<?> cachedSubclass;
-			TypeSerializer<?> cachedSubclassSerializer;
-			TypeSerializerConfigSnapshot cachedSubclassSerializerConfigSnapshot;
-			for (int i = 0; i < numCachedSubclassSerializers; i++) {
-				cachedSubclassname = in.readUTF();
-				try {
-					cachedSubclass = Class.forName(cachedSubclassname, true, getUserCodeClassLoader());
-				} catch (ClassNotFoundException e) {
-					throw new IOException("Cannot find requested class " + cachedSubclassname + " in classpath.", e);
-				}
-
-				cachedSubclassSerializer = (serializerIndex == null)
-					? null
-					: serializerIndex.get(in.readInt());
-
-				cachedSubclassSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
-					in, getUserCodeClassLoader());
-
-				this.nonRegisteredSubclassesToSerializerConfigSnapshots.put(
-					cachedSubclass,
-					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
-						cachedSubclassSerializer,
-						cachedSubclassSerializerConfigSnapshot));
-			}
+			return result;
 		}
 
-		@Override
-		public int getVersion() {
-			return VERSION;
-		}
+		private static void writeSerializerAndConfigSnapshotEntry(
+				DataOutputView out,
+				String entryKey,
+				TypeSerializer<?> serializer,
+				TypeSerializerConfigSnapshot serializerConfigSnapshot,
+				Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException {
+			out.writeUTF(entryKey);
 
-		public LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getFieldToSerializerConfigSnapshot() {
-			return fieldToSerializerConfigSnapshot;
-		}
-
-		public LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getRegisteredSubclassesToSerializerConfigSnapshots() {
-			return registeredSubclassesToSerializerConfigSnapshots;
-		}
-
-		public HashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getNonRegisteredSubclassesToSerializerConfigSnapshots() {
-			return nonRegisteredSubclassesToSerializerConfigSnapshots;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			return super.equals(obj)
-					&& (obj instanceof PojoSerializerConfigSnapshot)
-					&& fieldToSerializerConfigSnapshot.equals(((PojoSerializerConfigSnapshot) obj).getFieldToSerializerConfigSnapshot())
-					&& registeredSubclassesToSerializerConfigSnapshots.equals(((PojoSerializerConfigSnapshot) obj).getRegisteredSubclassesToSerializerConfigSnapshots())
-					&& nonRegisteredSubclassesToSerializerConfigSnapshots.equals(((PojoSerializerConfigSnapshot) obj).nonRegisteredSubclassesToSerializerConfigSnapshots);
-		}
-
-		@Override
-		public int hashCode() {
-			return super.hashCode()
-				+ Objects.hash(
-					fieldToSerializerConfigSnapshot,
-					registeredSubclassesToSerializerConfigSnapshots,
-					nonRegisteredSubclassesToSerializerConfigSnapshots);
-		}
-
-		private Map<TypeSerializer<?>, Integer> buildSerializerIndices() {
-			int nextAvailableIndex = 0;
-
-			// using reference equality for keys so that stateless
-			// serializers are a single entry in the index
-			final Map<TypeSerializer<?>, Integer> indices = new IdentityHashMap<>();
-
-			for (Map.Entry<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
-					: fieldToSerializerConfigSnapshot.entrySet()) {
-
-				if (!indices.containsKey(entry.getValue().f0)) {
-					indices.put(entry.getValue().f0, nextAvailableIndex++);
-				}
+			if (serializerIndices != null) {
+				out.writeInt(serializerIndices.get(serializer));
 			}
 
-			for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
-					: registeredSubclassesToSerializerConfigSnapshots.entrySet()) {
-
-				if (!indices.containsKey(entry.getValue().f0)) {
-					indices.put(entry.getValue().f0, nextAvailableIndex++);
-				}
-			}
-
-			for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
-					: nonRegisteredSubclassesToSerializerConfigSnapshots.entrySet()) {
-
-				if (!indices.containsKey(entry.getValue().f0)) {
-					indices.put(entry.getValue().f0, nextAvailableIndex++);
-				}
-			}
-
-			return indices;
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(out, serializerConfigSnapshot);
 		}
 
 		// TODO this should be removed once excludeSerializers is externally configurable

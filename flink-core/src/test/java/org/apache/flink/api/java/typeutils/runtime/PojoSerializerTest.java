@@ -709,9 +709,9 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 			PojoSerializer.PojoSerializerConfigSnapshot<?> deserializedConfig) {
 
 		LinkedHashMap<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> originalFieldSerializersAndConfs =
-				original.getFieldToSerializerConfigSnapshot();
+				original.getFieldsToSerializersAndConfigSnapshots();
 		for (Map.Entry<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
-				: deserializedConfig.getFieldToSerializerConfigSnapshot().entrySet()) {
+				: deserializedConfig.getFieldsToSerializersAndConfigSnapshots().entrySet()) {
 
 			Assert.assertEquals(null, entry.getValue().f0);
 
@@ -725,10 +725,10 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		}
 
 		LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> originalRegistrations =
-				original.getRegisteredSubclassesToSerializerConfigSnapshots();
+				original.getRegisteredSubclassesToSerializersAndConfigSnapshots();
 
 		for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
-				: deserializedConfig.getRegisteredSubclassesToSerializerConfigSnapshots().entrySet()) {
+				: deserializedConfig.getRegisteredSubclassesToSerializersAndConfigSnapshots().entrySet()) {
 
 			Assert.assertEquals(null, entry.getValue().f0);
 
