@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
 import org.apache.flink.util.StringUtils;
+
 import org.junit.Test;
+
+import java.util.Random;
 
 import static org.junit.Assert.assertFalse;
 

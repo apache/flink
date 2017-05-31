@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import java.io.IOException;
-
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
@@ -32,7 +30,11 @@ import org.apache.flink.core.io.InputSplit;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import java.io.IOException;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class TypeExtractorInputFormatsTest {

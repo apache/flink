@@ -18,6 +18,7 @@
 package org.apache.flink.types;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

@@ -18,10 +18,11 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.sql.Timestamp;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+
+import java.sql.Timestamp;
 
 public class SqlTimestampComparatorTest extends ComparatorTestBase<Timestamp> {
 

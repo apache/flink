@@ -18,17 +18,17 @@
 
 package org.apache.flink.testutils;
 
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.net.URI;
-import java.util.Map;
-
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileStatus;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.net.URI;
+import java.util.Map;
 
 public class TestFileSystem extends LocalFileSystem {
 	

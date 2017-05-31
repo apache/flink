@@ -18,11 +18,10 @@
 
 package org.apache.flink.util;
 
+import org.junit.Test;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-
-import org.apache.flink.util.StringUtils;
-import org.junit.Test;
 
 public class StringUtilsTest extends TestLogger {
 

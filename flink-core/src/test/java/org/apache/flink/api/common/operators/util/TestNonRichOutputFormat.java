@@ -19,11 +19,11 @@
 
 package org.apache.flink.api.common.operators.util;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
+
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Non rich test output format which stores everything in a list.

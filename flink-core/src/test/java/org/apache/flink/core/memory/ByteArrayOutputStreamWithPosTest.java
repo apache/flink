@@ -19,6 +19,7 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.configuration.ConfigConstants;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;

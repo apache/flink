@@ -26,6 +26,7 @@ import org.apache.flink.testutils.TestConfigUtils;
 import org.apache.flink.testutils.TestFileSystem;
 import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.types.IntValue;
+
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;

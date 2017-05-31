@@ -19,11 +19,11 @@
 
 package org.apache.flink.api.common.operators.util;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.configuration.Configuration;
+
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Same as the non rich test output format, except it provide access to runtime context.

@@ -20,6 +20,7 @@ package org.apache.flink.types;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.math.BigDecimal;

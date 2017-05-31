@@ -19,10 +19,10 @@
 
 package org.apache.flink.api.common.operators.util;
 
-import java.io.IOException;
-
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
+
+import java.io.IOException;
 
 /**
  * Same as the non rich test input format, except it provide access to runtime context.

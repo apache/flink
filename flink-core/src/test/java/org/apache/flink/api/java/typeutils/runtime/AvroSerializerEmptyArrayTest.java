@@ -18,14 +18,15 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import static org.junit.Assert.*;
+import org.apache.flink.api.common.typeutils.SerializerTestInstance;
+
+import org.apache.avro.reflect.Nullable;
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.avro.reflect.Nullable;
-import org.apache.flink.api.common.typeutils.SerializerTestInstance;
-import org.junit.Test;
+import static org.junit.Assert.fail;
 
 public class AvroSerializerEmptyArrayTest {
 

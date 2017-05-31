@@ -20,6 +20,7 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.util.ExceptionUtils;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Rule;

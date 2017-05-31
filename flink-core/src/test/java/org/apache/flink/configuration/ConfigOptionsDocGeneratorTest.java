@@ -17,12 +17,14 @@
  */
 package org.apache.flink.configuration;
 
-import java.util.HashMap;
-import java.util.List;
 import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import java.util.HashMap;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
 
 public class ConfigOptionsDocGeneratorTest {
 

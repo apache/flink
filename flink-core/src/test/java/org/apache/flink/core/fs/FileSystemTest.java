@@ -19,6 +19,7 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.util.WrappingProxyUtil;
+
 import org.junit.Test;
 
 import java.io.IOException;

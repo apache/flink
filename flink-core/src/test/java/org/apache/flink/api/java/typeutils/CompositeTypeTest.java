@@ -18,13 +18,14 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 public class CompositeTypeTest {
 

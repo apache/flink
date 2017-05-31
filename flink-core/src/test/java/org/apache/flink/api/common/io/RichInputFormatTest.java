@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.common.io;
 
-import java.util.HashMap;
-import java.util.concurrent.Future;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -30,6 +27,9 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.types.Value;
 
 import org.junit.Test;
+
+import java.util.HashMap;
+import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
 

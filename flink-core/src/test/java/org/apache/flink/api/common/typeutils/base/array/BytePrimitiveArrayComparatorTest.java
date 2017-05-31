@@ -18,6 +18,7 @@
 package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+
 import org.junit.Assert;
 
 public class BytePrimitiveArrayComparatorTest extends PrimitiveArrayComparatorTestBase<byte[]> {

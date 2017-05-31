@@ -18,10 +18,10 @@
 
 package org.apache.flink.util;
 
+import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-
-import org.junit.Test;
 
 
 public class LongValueSequenceIteratorTest extends TestLogger {
