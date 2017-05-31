@@ -458,7 +458,6 @@ under the License.
 						**/runtime/testutils/**,
 						**/runtime/util/**,
 						**/runtime/zookeeper/**,
-						**/runtime/*
 					</excludes>
 				</configuration>
 				<executions>
