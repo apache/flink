@@ -18,11 +18,11 @@
 
 package org.apache.flink.core.io;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
 
 /**
  * This interface must be implemented by every class whose objects have to be serialized to their binary representation

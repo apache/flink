@@ -18,10 +18,10 @@
 
 package org.apache.flink.api.common.functions;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
 
 /**
  * The interface for group reduce functions. GroupReduceFunctions process groups of elements.

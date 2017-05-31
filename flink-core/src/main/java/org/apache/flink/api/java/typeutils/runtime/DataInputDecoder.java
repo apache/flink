@@ -18,13 +18,14 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.DataInput;
-import java.io.IOException;
-import java.nio.ByteBuffer;
+import org.apache.flink.annotation.Internal;
 
 import org.apache.avro.io.Decoder;
 import org.apache.avro.util.Utf8;
-import org.apache.flink.annotation.Internal;
+
+import java.io.DataInput;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 @Internal
 public class DataInputDecoder extends Decoder implements java.io.Serializable {

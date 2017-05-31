@@ -17,6 +17,9 @@
  */
 package org.apache.flink.api.common.cache;
 
+import org.apache.flink.annotation.Public;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 
 import java.io.File;
 import java.util.Collections;
@@ -26,10 +29,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-
-import org.apache.flink.annotation.Public;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
 
 /**
  * DistributedCache provides static methods to write the registered cache files into job configuration or decode

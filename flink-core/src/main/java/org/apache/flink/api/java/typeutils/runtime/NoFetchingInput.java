@@ -18,9 +18,10 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
+
 import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.Input;
-import org.apache.flink.annotation.Internal;
 
 import java.io.EOFException;
 import java.io.IOException;

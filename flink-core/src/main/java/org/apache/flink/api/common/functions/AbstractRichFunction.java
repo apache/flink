@@ -18,10 +18,10 @@ c * Licensed to the Apache Software Foundation (ASF) under one
 
 package org.apache.flink.api.common.functions;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.Configuration;
+
+import java.io.Serializable;
 
 /**
  * An abstract stub implementation for rich user-defined functions.

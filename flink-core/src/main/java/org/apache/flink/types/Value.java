@@ -19,10 +19,10 @@
 
 package org.apache.flink.types;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.IOReadableWritable;
+
+import java.io.Serializable;
 
 /**
  * Basic value interface for types that act as serializable values.

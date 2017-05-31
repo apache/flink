@@ -19,16 +19,16 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.annotation.Public;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.ReflectionUtil;
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
-import org.apache.flink.annotation.Public;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.ReflectionUtil;
 
 /**
  * Generic map base type for PACT programs that implements the Value and Map interfaces.

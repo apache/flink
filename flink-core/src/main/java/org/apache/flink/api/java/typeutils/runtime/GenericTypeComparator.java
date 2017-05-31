@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -29,6 +26,8 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.types.NormalizableKey;
 import org.apache.flink.util.InstantiationUtil;
+
+import java.io.IOException;
 
 /**
  * TypeComparator for all types that extend Comparable.

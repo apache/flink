@@ -18,10 +18,10 @@
 
 package org.apache.flink.util;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.StringValue;
+
+import java.io.Serializable;
 
 /**
  * Utility class for efficient operations on {@link StringValue}.

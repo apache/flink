@@ -19,12 +19,12 @@ package org.apache.flink.api.common.io.compression;
 
 import org.apache.flink.annotation.Internal;
 
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.Collections;
-
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 
 @Internal
 public class Bzip2InputStreamFactory implements InflaterInputStreamFactory<BZip2CompressorInputStream> {

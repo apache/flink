@@ -18,10 +18,6 @@
 
 package org.apache.flink.util;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Random;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -29,6 +25,10 @@ import org.apache.flink.types.StringValue;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Random;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

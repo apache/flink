@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
@@ -29,6 +27,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.util.InstantiationUtil;
+
+import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

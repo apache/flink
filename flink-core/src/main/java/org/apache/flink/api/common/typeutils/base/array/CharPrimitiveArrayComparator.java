@@ -17,11 +17,11 @@
  */
 package org.apache.flink.api.common.typeutils.base.array;
 
-import static java.lang.Math.min;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.CharComparator;
+
+import static java.lang.Math.min;
 
 @Internal
 public class CharPrimitiveArrayComparator extends PrimitiveArrayComparator<char[], CharComparator> {

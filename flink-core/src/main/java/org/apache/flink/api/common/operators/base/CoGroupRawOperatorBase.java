@@ -18,6 +18,7 @@
 package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -42,7 +43,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.flink.api.common.ExecutionConfig;
 
 /**
  * @see org.apache.flink.api.common.functions.CoGroupFunction

@@ -27,6 +27,7 @@ package org.apache.flink.util;
 import org.apache.flink.annotation.Internal;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;

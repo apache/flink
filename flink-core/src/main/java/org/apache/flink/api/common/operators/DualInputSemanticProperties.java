@@ -19,11 +19,11 @@
 
 package org.apache.flink.api.common.operators;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.util.FieldSet;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Container for the semantic properties associated to a dual input operator.

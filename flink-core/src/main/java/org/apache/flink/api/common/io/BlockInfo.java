@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
 
 /**
  * A block of 24 bytes written at the <i>end</i> of a block in a binary file, and containing

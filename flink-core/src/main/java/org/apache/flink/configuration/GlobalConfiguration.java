@@ -18,15 +18,16 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-
-import org.apache.flink.annotation.Internal;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Global configuration object for Flink. Similar to Java properties configuration

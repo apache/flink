@@ -18,12 +18,12 @@
 
 package org.apache.flink.core.fs.local;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.FSDataOutputStream;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.fs.FSDataOutputStream;
 
 /**
  * The <code>LocalDataOutputStream</code> class is a wrapper class for a data

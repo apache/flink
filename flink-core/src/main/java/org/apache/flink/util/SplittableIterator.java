@@ -18,9 +18,10 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.Serializable;
 import java.util.Iterator;
-import org.apache.flink.annotation.Public;
 
 /**
  * Abstract base class for iterators that can split themselves into multiple disjoint

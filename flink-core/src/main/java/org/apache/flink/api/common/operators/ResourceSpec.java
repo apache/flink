@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators;
 import org.apache.flink.annotation.Internal;
 
 import javax.annotation.Nonnull;
+
 import java.io.Serializable;
 
 /**

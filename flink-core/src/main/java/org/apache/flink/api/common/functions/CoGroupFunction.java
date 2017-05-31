@@ -18,10 +18,10 @@
 
 package org.apache.flink.api.common.functions;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
 
 /**
  * The interface for CoGroup functions. CoGroup functions combine two data sets by first grouping each data set

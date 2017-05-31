@@ -18,13 +18,14 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.DataOutput;
-import java.io.IOException;
-import java.nio.ByteBuffer;
+import org.apache.flink.annotation.Internal;
 
 import org.apache.avro.io.Encoder;
 import org.apache.avro.util.Utf8;
-import org.apache.flink.annotation.Internal;
+
+import java.io.DataOutput;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 @Internal
 public final class DataOutputEncoder extends Encoder implements java.io.Serializable {

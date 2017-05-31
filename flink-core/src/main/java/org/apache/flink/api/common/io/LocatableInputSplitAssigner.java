@@ -18,19 +18,20 @@
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.Public;
+import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.core.io.LocatableInputSplit;
+import org.apache.flink.util.NetUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
-import org.apache.flink.annotation.Public;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.core.io.LocatableInputSplit;
-import org.apache.flink.util.NetUtils;
 
 /**
  * The locatable input split assigner assigns to each host splits that are local, before assigning

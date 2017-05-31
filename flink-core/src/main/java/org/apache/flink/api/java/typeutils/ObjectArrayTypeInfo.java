@@ -18,17 +18,17 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import java.lang.reflect.Array;
-
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.lang.reflect.Array;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Public
 public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {

@@ -19,11 +19,11 @@
 
 package org.apache.flink.api.common.operators;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.util.FieldSet;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * A class encapsulating compiler hints describing the behavior of the user function.

@@ -12,13 +12,13 @@
  */
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
 
 @Internal
 public class Tuple0Serializer extends TupleSerializer<Tuple0> {

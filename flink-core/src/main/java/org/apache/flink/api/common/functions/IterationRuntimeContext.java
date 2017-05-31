@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.common.functions;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.types.Value;
 

@@ -18,9 +18,9 @@
 
 package org.apache.flink.util;
 
-import java.util.Random;
-
 import org.apache.flink.annotation.PublicEvolving;
+
+import java.util.Random;
 
 /**
  * A statistically unique identification number.

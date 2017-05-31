@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.IOException;
-import java.io.Serializable;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.Configuration;
+
+import java.io.IOException;
+import java.io.Serializable;
 
 /**
  * The base interface for outputs that consumes records. The output format

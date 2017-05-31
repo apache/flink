@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import java.util.List;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.distributions.DataDistribution;
@@ -31,6 +29,8 @@ import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
+
+import java.util.List;
 
 /**
  * @param <IN> The input and result type.

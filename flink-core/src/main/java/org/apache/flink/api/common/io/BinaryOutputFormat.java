@@ -18,14 +18,14 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.FilterOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
+import java.io.FilterOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 
 
 @Public

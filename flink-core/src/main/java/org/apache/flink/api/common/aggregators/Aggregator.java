@@ -19,10 +19,10 @@
 
 package org.apache.flink.api.common.aggregators;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.Value;
+
+import java.io.Serializable;
 
 /**
  * Aggregators are a means of aggregating values across parallel instances of a function. Aggregators  

@@ -17,8 +17,9 @@
  */
 package org.apache.flink.configuration;
 
-import java.lang.annotation.Target;
 import org.apache.flink.annotation.Internal;
+
+import java.lang.annotation.Target;
 
 /**
  * A class that specifies a group of {@link ConfigOption}. The name of the group will be used as the basis for the

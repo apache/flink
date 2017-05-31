@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.operators.base;
 
-import org.apache.commons.collections.ResettableIterator;
-import org.apache.commons.collections.iterators.ListIteratorWrapper;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -38,6 +36,9 @@ import org.apache.flink.api.common.typeutils.GenericPairComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.Collector;
+
+import org.apache.commons.collections.ResettableIterator;
+import org.apache.commons.collections.iterators.ListIteratorWrapper;
 
 import java.io.IOException;
 import java.util.ArrayList;
