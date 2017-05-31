@@ -135,7 +135,13 @@ final Configuration config = new Configuration();
 config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, queryAddress);
 config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, queryPort);
 
-QueryableStateClient client = new QueryableStateClient(config);
+final HighAvailabilityServices highAvailabilityServices =
+      HighAvailabilityServicesUtils.createHighAvailabilityServices(
+           config,
+           Executors.newSingleThreadScheduledExecutor(),
+           HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
+
+QueryableStateClient client = new QueryableStateClient(config, highAvailabilityServices);
 {% endhighlight %}
 
 The query method is this:
@@ -214,7 +220,7 @@ config.setInteger(JobManagerOptions.PORT, queryPort);
 final HighAvailabilityServices highAvailabilityServices =
       HighAvailabilityServicesUtils.createHighAvailabilityServices(
            config,
-           TestingUtils.defaultExecutor(),
+           Executors.newSingleThreadScheduledExecutor(),
            HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
 
 QueryableStateClient client = new QueryableStateClient(config, highAvailabilityServices);
