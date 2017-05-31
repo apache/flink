@@ -18,13 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import akka.actor.ActorSystem;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-
-import java.net.URI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.fs.Path;
@@ -39,6 +32,10 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
+import akka.actor.ActorSystem;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +43,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -60,7 +58,7 @@ public final class WebMonitorUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(WebMonitorUtils.class);
 
 	/**
-	 * Singleton to hold the log and stdout file
+	 * Singleton to hold the log and stdout file.
 	 */
 	public static class LogFileLocation {
 
@@ -71,7 +69,6 @@ public final class WebMonitorUtils {
 			this.logFile = logFile;
 			this.stdOutFile = stdOutFile;
 		}
-		
 
 		/**
 		 * Finds the Flink log directory using log.file Java property that is set during startup.
@@ -79,12 +76,12 @@ public final class WebMonitorUtils {
 		public static LogFileLocation find(Configuration config) {
 			final String logEnv = "log.file";
 			String logFilePath = System.getProperty(logEnv);
-			
+
 			if (logFilePath == null) {
 				LOG.warn("Log file environment variable '{}' is not set.", logEnv);
 				logFilePath = config.getString(JobManagerOptions.WEB_LOG_PATH);
 			}
-			
+
 			// not configured, cannot serve log files
 			if (logFilePath == null || logFilePath.length() < 4) {
 				LOG.warn("JobManager log files are unavailable in the web dashboard. " +
@@ -92,17 +89,18 @@ public final class WebMonitorUtils {
 					logEnv, JobManagerOptions.WEB_LOG_PATH.key());
 				return new LogFileLocation(null, null);
 			}
-			
+
 			String outFilePath = logFilePath.substring(0, logFilePath.length() - 3).concat("out");
 
 			LOG.info("Determined location of JobManager log file: {}", logFilePath);
 			LOG.info("Determined location of JobManager stdout file: {}", outFilePath);
-			
+
 			return new LogFileLocation(resolveFileLocation(logFilePath), resolveFileLocation(outFilePath));
 		}
 
 		/**
-		 * Verify log file location
+		 * Verify log file location.
+		 *
 		 * @param logFilePath Path to log file
 		 * @return File or null if not a valid log file
 		 */
@@ -115,8 +113,8 @@ public final class WebMonitorUtils {
 	/**
 	 * Starts the web runtime monitor. Because the actual implementation of the runtime monitor is
 	 * in another project, we load the runtime monitor dynamically.
-	 * <p>
-	 * Because failure to start the web runtime monitor is not considered fatal, this method does
+	 *
+	 * <p>Because failure to start the web runtime monitor is not considered fatal, this method does
 	 * not throw any exceptions, but only logs them.
 	 *
 	 * @param config The configuration for the runtime monitor.
@@ -132,7 +130,7 @@ public final class WebMonitorUtils {
 		try {
 			String classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor";
 			Class<? extends WebMonitor> clazz = Class.forName(classname).asSubclass(WebMonitor.class);
-			
+
 			Constructor<? extends WebMonitor> constructor = clazz.getConstructor(Configuration.class,
 				LeaderRetrievalService.class,
 				BlobView.class,
@@ -179,7 +177,7 @@ public final class WebMonitorUtils {
 			Map<String, String> map = new HashMap<>();
 			ObjectMapper m = new ObjectMapper();
 			ArrayNode array = (ArrayNode) m.readTree(jsonString);
-			
+
 			Iterator<JsonNode> elements = array.elements();
 			while (elements.hasNext()) {
 				JsonNode node = elements.next();
@@ -187,7 +185,7 @@ public final class WebMonitorUtils {
 				String value = node.get("value").asText();
 				map.put(key, value);
 			}
-			
+
 			return map;
 		}
 		catch (Exception e) {
@@ -230,7 +228,7 @@ public final class WebMonitorUtils {
 	 * @param archiveDirUri The URI to check and normalize.
 	 * @return A normalized URI as a Path.
 	 *
-	 * @throws IllegalArgumentException Thrown, if the URI misses scheme or path. 
+	 * @throws IllegalArgumentException Thrown, if the URI misses scheme or path.
 	 */
 	public static Path validateAndNormalizeUri(URI archiveDirUri) {
 		final String scheme = archiveDirUri.getScheme();

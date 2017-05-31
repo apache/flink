@@ -460,7 +460,6 @@ under the License.
 						**/runtime/taskmanager/**,
 						**/runtime/testutils/**,
 						**/runtime/util/**,
-						**/runtime/webmonitor/**,
 						**/runtime/zookeeper/**,
 						**/runtime/*
 					</excludes>
