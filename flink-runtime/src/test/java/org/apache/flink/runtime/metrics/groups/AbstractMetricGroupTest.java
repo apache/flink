@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.configuration.ConfigConstants;
@@ -28,11 +29,15 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.TestReporter;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the {@link AbstractMetricGroup}.
+ */
 public class AbstractMetricGroupTest {
 	/**
 	 * Verifies that no {@link NullPointerException} is thrown when {@link AbstractMetricGroup#getAllVariables()} is
@@ -54,7 +59,7 @@ public class AbstractMetricGroupTest {
 			}
 		};
 		assertTrue(group.getAllVariables().isEmpty());
-		
+
 		registry.shutdown();
 	}
 
@@ -119,11 +124,15 @@ public class AbstractMetricGroupTest {
 
 	}
 
+	/**
+	 * Reporter that verifies the scope caching behavior.
+	 */
 	public static class TestReporter1 extends ScopeCheckingTestReporter {
 		@Override
 		public String filterCharacters(String input) {
 			return FILTER_B.filterCharacters(input);
 		}
+
 		@Override
 		public void checkScopes(Metric metric, String metricName, MetricGroup group) {
 			// the first call determines which filter is applied to all future calls; in this case no filter is used at all
@@ -141,6 +150,9 @@ public class AbstractMetricGroupTest {
 		}
 	}
 
+	/**
+	 * Reporter that verifies the scope caching behavior.
+	 */
 	public static class TestReporter2 extends ScopeCheckingTestReporter {
 		@Override
 		public String filterCharacters(String input) {
@@ -173,7 +185,7 @@ public class AbstractMetricGroupTest {
 		try {
 			TaskManagerMetricGroup group = new TaskManagerMetricGroup(testRegistry, "host", "id");
 			assertEquals("MetricReporters list should be empty", 0, testRegistry.getReporters().size());
-			
+
 			// default delimiter should be used
 			assertEquals("A.B.X.D.1", group.getMetricIdentifier("1", FILTER_C));
 			// no caching should occur

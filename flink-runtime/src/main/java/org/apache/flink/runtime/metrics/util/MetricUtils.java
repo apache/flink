@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.util;
 
-import org.apache.commons.lang3.text.WordUtils;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+
+import org.apache.commons.lang3.text.WordUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +37,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
+/**
+ * Utility class to register pre-defined metric sets.
+ */
 public class MetricUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtils.class);
 	private static final String METRIC_GROUP_STATUS_NAME = "Status";

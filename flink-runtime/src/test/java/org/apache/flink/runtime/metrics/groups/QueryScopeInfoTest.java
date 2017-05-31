@@ -15,20 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for the {@link QueryScopeInfo} classes.
+ */
 public class QueryScopeInfoTest {
 	@Test
 	public void testJobManagerQueryScopeInfo() {
 		QueryScopeInfo.JobManagerQueryScopeInfo info = new QueryScopeInfo.JobManagerQueryScopeInfo();
 		assertEquals(QueryScopeInfo.INFO_CATEGORY_JM, info.getCategory());
 		assertEquals("", info.scope);
-		
+
 		info = info.copy("world");
 		assertEquals(QueryScopeInfo.INFO_CATEGORY_JM, info.getCategory());
 		assertEquals("world", info.scope);
@@ -53,7 +58,7 @@ public class QueryScopeInfoTest {
 		assertEquals(QueryScopeInfo.INFO_CATEGORY_TM, info.getCategory());
 		assertEquals("world", info.scope);
 		assertEquals("tmid", info.taskManagerID);
-		
+
 		info = new QueryScopeInfo.TaskManagerQueryScopeInfo("tmid", "hello");
 		assertEquals(QueryScopeInfo.INFO_CATEGORY_TM, info.getCategory());
 		assertEquals("hello", info.scope);

@@ -67,8 +67,7 @@ public class ScopeFormats {
 			String taskManagerFormat,
 			String taskManagerJobFormat,
 			String taskFormat,
-			String operatorFormat)
-	{
+			String operatorFormat) {
 		this.jobManagerFormat = new JobManagerScopeFormat(jobManagerFormat);
 		this.jobManagerJobFormat = new JobManagerJobScopeFormat(jobManagerJobFormat, this.jobManagerFormat);
 		this.taskManagerFormat = new TaskManagerScopeFormat(taskManagerFormat);
@@ -86,8 +85,7 @@ public class ScopeFormats {
 			TaskManagerScopeFormat taskManagerFormat,
 			TaskManagerJobScopeFormat taskManagerJobFormat,
 			TaskScopeFormat taskFormat,
-			OperatorScopeFormat operatorFormat)
-	{
+			OperatorScopeFormat operatorFormat) {
 		this.jobManagerFormat = checkNotNull(jobManagerFormat);
 		this.jobManagerJobFormat = checkNotNull(jobManagerJobFormat);
 		this.taskManagerFormat = checkNotNull(taskManagerFormat);
@@ -129,8 +127,8 @@ public class ScopeFormats {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates the scope formats as defined in the given configuration
-	 * 
+	 * Creates the scope formats as defined in the given configuration.
+	 *
 	 * @param config The configuration that defines the formats
 	 * @return The ScopeFormats parsed from the configuration
 	 */

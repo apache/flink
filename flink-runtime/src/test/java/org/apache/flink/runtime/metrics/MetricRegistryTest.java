@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.metrics;
 
-import akka.actor.ActorNotFound;
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
@@ -34,20 +31,27 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestReporter;
-
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorNotFound;
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
 import org.junit.Assert;
 import org.junit.Test;
-import scala.concurrent.Await;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import scala.concurrent.Await;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link MetricRegistry}.
+ */
 public class MetricRegistryTest extends TestLogger {
 
 	private static final char GLOBAL_DEFAULT_DELIMITER = '.';
@@ -55,14 +59,14 @@ public class MetricRegistryTest extends TestLogger {
 	@Test
 	public void testIsShutdown() {
 		MetricRegistry metricRegistry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
-		
+
 		Assert.assertFalse(metricRegistry.isShutdown());
-		
+
 		metricRegistry.shutdown();
-		
+
 		Assert.assertTrue(metricRegistry.isShutdown());
 	}
-	
+
 	/**
 	 * Verifies that the reporter class argument is correctly used to instantiate and open the reporter.
 	 */
@@ -82,6 +86,9 @@ public class MetricRegistryTest extends TestLogger {
 		metricRegistry.shutdown();
 	}
 
+	/**
+	 * Reporter that exposes whether open() was called.
+	 */
 	protected static class TestReporter1 extends TestReporter {
 		public static boolean wasOpened = false;
 
@@ -114,6 +121,9 @@ public class MetricRegistryTest extends TestLogger {
 		metricRegistry.shutdown();
 	}
 
+	/**
+	 * Reporter that exposes whether open() was called.
+	 */
 	protected static class TestReporter11 extends TestReporter {
 		public static boolean wasOpened = false;
 
@@ -123,6 +133,9 @@ public class MetricRegistryTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Reporter that exposes whether open() was called.
+	 */
 	protected static class TestReporter12 extends TestReporter {
 		public static boolean wasOpened = false;
 
@@ -132,6 +145,9 @@ public class MetricRegistryTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Reporter that exposes whether open() was called.
+	 */
 	protected static class TestReporter13 extends TestReporter {
 		public static boolean wasOpened = false;
 
@@ -156,6 +172,9 @@ public class MetricRegistryTest extends TestLogger {
 		new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config)).shutdown();
 	}
 
+	/**
+	 * Reporter that verifies whether configured arguments were properly passed.
+	 */
 	protected static class TestReporter2 extends TestReporter {
 		@Override
 		public void open(MetricConfig config) {
@@ -186,9 +205,9 @@ public class MetricRegistryTest extends TestLogger {
 			int reportCount = TestReporter3.reportCount;
 			long curT = System.currentTimeMillis();
 			/**
-			 * Within a given time-frame T only T/500 reports may be triggered due to the interval between reports. 
-			 * This value however does not not take the first triggered report into account (=> +1). 
-			 * Furthermore we have to account for the mis-alignment between reports being triggered and our time 
+			 * Within a given time-frame T only T/500 reports may be triggered due to the interval between reports.
+			 * This value however does not not take the first triggered report into account (=> +1).
+			 * Furthermore we have to account for the mis-alignment between reports being triggered and our time
 			 * measurement (=> +1); for T=200 a total of 4-6 reports may have been
 			 * triggered depending on whether the end of the interval for the first reports ends before
 			 * or after T=50.
@@ -201,6 +220,9 @@ public class MetricRegistryTest extends TestLogger {
 		registry.shutdown();
 	}
 
+	/**
+	 * Reporter that exposes how often report() was called.
+	 */
 	protected static class TestReporter3 extends TestReporter implements Scheduled {
 		public static int reportCount = 0;
 
@@ -234,6 +256,9 @@ public class MetricRegistryTest extends TestLogger {
 		registry.shutdown();
 	}
 
+	/**
+	 * Reporter that exposes whether it was notified of added or removed metrics.
+	 */
 	protected static class TestReporter6 extends TestReporter {
 		public static boolean addCalled = false;
 		public static boolean removeCalled = false;
@@ -253,6 +278,9 @@ public class MetricRegistryTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Reporter that exposes whether it was notified of added or removed metrics.
+	 */
 	protected static class TestReporter7 extends TestReporter {
 		public static boolean addCalled = false;
 		public static boolean removeCalled = false;
@@ -344,10 +372,10 @@ public class MetricRegistryTest extends TestLogger {
 
 		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 		List<MetricReporter> reporters = registry.getReporters();
-		((TestReporter8)reporters.get(0)).expectedDelimiter = '_'; //test1  reporter
-		((TestReporter8)reporters.get(1)).expectedDelimiter = '-'; //test2 reporter
-		((TestReporter8)reporters.get(2)).expectedDelimiter = GLOBAL_DEFAULT_DELIMITER; //test3 reporter, because 'AA' - not correct delimiter
-		((TestReporter8)reporters.get(3)).expectedDelimiter = GLOBAL_DEFAULT_DELIMITER; //for test4 reporter use global delimiter
+		((TestReporter8) reporters.get(0)).expectedDelimiter = '_'; //test1  reporter
+		((TestReporter8) reporters.get(1)).expectedDelimiter = '-'; //test2 reporter
+		((TestReporter8) reporters.get(2)).expectedDelimiter = GLOBAL_DEFAULT_DELIMITER; //test3 reporter, because 'AA' - not correct delimiter
+		((TestReporter8) reporters.get(3)).expectedDelimiter = GLOBAL_DEFAULT_DELIMITER; //for test4 reporter use global delimiter
 
 		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "host", "id");
 		group.counter("C");
@@ -383,6 +411,9 @@ public class MetricRegistryTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Reporter that verifies that the configured delimiter is applied correctly when generating the metric identifier.
+	 */
 	public static class TestReporter8 extends TestReporter {
 		char expectedDelimiter;
 		public static int numCorrectDelimitersForRegister = 0;
