@@ -11,7 +11,7 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WIVHOUV WARRANVIES OR CONDIVIONS OF ANY KIND, either express or implied.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
@@ -34,8 +34,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.ByteArrayInputStream;
@@ -217,14 +215,14 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 * @param version Version of the previous relation which shall be extracted
 	 * @return Collection of previous relations starting with the given value
 	 */
-	public Collection<ListMultimap<K, V>> extractPatterns(
+	public List<Map<K, List<V>>> extractPatterns(
 			final K key,
 			final V value,
 			final long timestamp,
 			final int counter,
 			final DeweyNumber version) {
 
-		Collection<ListMultimap<K, V>> result = new ArrayList<>();
+		List<Map<K, List<V>>> result = new ArrayList<>();
 
 		// stack to remember the current extraction states
 		Stack<ExtractionState<K, V>> extractionStates = new Stack<>();
@@ -244,12 +242,18 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 				// termination criterion
 				if (currentEntry == null) {
-					final ListMultimap<K, V> completePath = ArrayListMultimap.create();
+					final Map<K, List<V>> completePath = new HashMap<>();
 
 					while (!currentPath.isEmpty()) {
 						final SharedBufferEntry<K, V> currentPathEntry = currentPath.pop();
 
-						completePath.put(currentPathEntry.getKey(), currentPathEntry.getValueTime().getValue());
+						K k = currentPathEntry.getKey();
+						List<V> values = completePath.get(k);
+						if (values == null) {
+							values = new ArrayList<>();
+							completePath.put(k, values);
+						}
+						values.add(currentPathEntry.getValueTime().getValue());
 					}
 
 					result.add(completePath);
@@ -777,12 +781,6 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 		ExtractionState(
 				final SharedBufferEntry<K, V> entry,
-				final DeweyNumber version) {
-			this(entry, version, null);
-		}
-
-		ExtractionState(
-				final SharedBufferEntry<K, V> entry,
 				final DeweyNumber version,
 				final Stack<SharedBufferEntry<K, V>> path) {
 			this.entry = entry;
@@ -942,7 +940,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 					ValueTimeWrapper<V> valueTimeWrapper = sharedBuffer.getValueTime();
 
-					valueSerializer.serialize(valueTimeWrapper.value, target);
+					valueSerializer.serialize(valueTimeWrapper.getValue(), target);
 					target.writeLong(valueTimeWrapper.getTimestamp());
 					target.writeInt(valueTimeWrapper.getCounter());
 

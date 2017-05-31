@@ -32,7 +32,6 @@ import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.NotCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.util.Preconditions;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
@@ -44,10 +43,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Compiler class containing methods to compile a {@link Pattern} into a {@link NFA} or a
@@ -56,8 +53,6 @@ import java.util.Set;
 public class NFACompiler {
 
 	protected static final String ENDING_STATE_NAME = "$endState$";
-
-	protected static final String STATE_NAME_DELIM = ":";
 
 	/**
 	 * Compiles the given pattern into a {@link NFA}.
@@ -75,11 +70,6 @@ public class NFACompiler {
 		NFAFactory<T> factory = compileFactory(pattern, inputTypeSerializer, timeoutHandling);
 
 		return factory.createNFA();
-	}
-
-	public static String getOriginalStateNameFromInternal(String internalName) {
-		Preconditions.checkNotNull(internalName);
-		return internalName.split(STATE_NAME_DELIM)[0];
 	}
 
 	/**
@@ -115,7 +105,7 @@ public class NFACompiler {
 	 */
 	static class NFAFactoryCompiler<T> {
 
-		private final Set<String> usedNames = new HashSet<>();
+		private final NFAStateNameHandler stateNameHandler = new NFAStateNameHandler();
 		private final Map<String, State<T>> stopStates = new HashMap<>();
 		private final List<State<T>> states = new ArrayList<>();
 
@@ -207,7 +197,8 @@ public class NFACompiler {
 				if (currentPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
 					//skip notFollow patterns, they are converted into edge conditions
 				} else if (currentPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_NEXT) {
-					checkPatternNameUniqueness(currentPattern.getName());
+					stateNameHandler.checkNameUniqueness(currentPattern.getName());
+
 					final State<T> notNext = createState(currentPattern.getName(), State.StateType.Normal);
 					final IterativeCondition<T> notCondition = (IterativeCondition<T>) currentPattern.getCondition();
 					final State<T> stopState = createStopState(notCondition, currentPattern.getName());
@@ -221,7 +212,7 @@ public class NFACompiler {
 					notNext.addProceed(stopState, notCondition);
 					lastSink = notNext;
 				} else {
-					checkPatternNameUniqueness(currentPattern.getName());
+					stateNameHandler.checkNameUniqueness(currentPattern.getName());
 					lastSink = convertPattern(lastSink);
 				}
 
@@ -246,7 +237,7 @@ public class NFACompiler {
 		 */
 		@SuppressWarnings("unchecked")
 		private State<T> createStartState(State<T> sinkState) {
-			checkPatternNameUniqueness(currentPattern.getName());
+			stateNameHandler.checkNameUniqueness(currentPattern.getName());
 			final State<T> beginningState = convertPattern(sinkState);
 			beginningState.makeStart();
 			return beginningState;
@@ -284,34 +275,10 @@ public class NFACompiler {
 		 * @return the created state
 		 */
 		private State<T> createState(String name, State.StateType stateType) {
-			String stateName = getUniqueInternalStateName(name);
-			usedNames.add(stateName);
+			String stateName = stateNameHandler.getUniqueInternalName(name);
 			State<T> state = new State<>(stateName, stateType);
 			states.add(state);
 			return state;
-		}
-
-		/**
-		 * Used to give a unique name to states created
-		 * during the translation process.
-		 *
-		 * @param baseName The base of the name.
-		 */
-		private String getUniqueInternalStateName(String baseName) {
-			int counter = 0;
-			String candidate = baseName;
-			while (usedNames.contains(candidate)) {
-				candidate = baseName + STATE_NAME_DELIM + counter++;
-			}
-			return candidate;
-		}
-
-		private void checkPatternNameUniqueness(String patternName) {
-			if (usedNames.contains(patternName)) {
-				throw new MalformedPatternException(
-						"Duplicate pattern name: " + patternName + ". " +
-								"Pattern names must be unique.");
-			}
 		}
 
 		private State<T> createStopState(final IterativeCondition<T> notCondition, final String name) {
