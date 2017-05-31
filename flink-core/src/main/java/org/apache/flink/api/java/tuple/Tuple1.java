@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 // --------------------------------------------------------------
 //  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!
 //  GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 // --------------------------------------------------------------
-
 
 package org.apache.flink.api.java.tuple;
 
@@ -100,7 +98,6 @@ public class Tuple1<T0> extends Tuple {
 	public void setFields(T0 value0) {
 		this.f0 = value0;
 	}
-
 
 	// -------------------------------------------------------------------------------------------------
 	// standard utilities

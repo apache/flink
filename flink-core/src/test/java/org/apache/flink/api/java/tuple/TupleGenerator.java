@@ -289,10 +289,10 @@ class TupleGenerator {
 			w.println("\t\tthis.f" + i + " = value" + i + ';');
 		}
 		w.println("\t}");
-		w.println();
 
 		// swap method only for Tuple2
 		if (numFields == 2) {
+			w.println();
 			w.println("\t/**");
 			w.println("\t* Returns a shallow copy of the tuple with swapped values.");
 			w.println("\t*");
@@ -520,12 +520,11 @@ class TupleGenerator {
 		+ " * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n"
 		+ " * See the License for the specific language governing permissions and\n"
 		+ " * limitations under the License.\n"
-		+ " */" +
-		"\n" +
-		"\n" +
+		+ " */\n" +
 		"\n" +
 		"// --------------------------------------------------------------\n" +
 		"//  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!\n" +
 		"//  GENERATED FROM " + TupleGenerator.class.getName() + ".\n" +
-		"// --------------------------------------------------------------\n\n\n";
+		"// --------------------------------------------------------------\n" +
+		"\n";
 }

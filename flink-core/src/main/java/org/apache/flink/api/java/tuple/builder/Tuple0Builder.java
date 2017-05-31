@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 // --------------------------------------------------------------
 //  THIS IS _NOT_ A GENERATED SOURCE FILE, BUT HAS TO BE KEPT IN SYNC WITH OTHER BUILDERS THAT ARE
 //  GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 // --------------------------------------------------------------
-
 
 package org.apache.flink.api.java.tuple.builder;
 
