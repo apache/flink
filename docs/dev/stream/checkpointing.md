@@ -72,6 +72,8 @@ Other parameters for checkpointing include:
 
     This option cannot be used when a minimum time between checkpoints is defined.
 
+  - *externalized checkpoints*: You can configure periodic checkpoints to be persisted externally. Externalized checkpoints write their meta data out to persistent storage and are *not* automatically cleaned up when the job fails. This way, you will have a checkpoint around to resume from if your job fails. There are more details in the [deployment notes on externalized checkpoints](../../setup/checkpoints.html#externalized-checkpoints).
+
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
@@ -93,6 +95,9 @@ env.getCheckpointConfig().setCheckpointTimeout(60000);
 
 // allow only one checkpoint to be in progress at the same time
 env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
+
+// enable externalized checkpoints which are retained after job cancellation
+env.getCheckpointConfig().enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">

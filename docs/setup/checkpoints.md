@@ -28,12 +28,21 @@ under the License.
 
 ## Overview
 
-TBD
-
+Checkpoints make state in Flink fault tolerant by allowing to recover state
+and positions in the streams to give the application the same semantics as
+a failure-free execution.
+See [Checkpointing](../dev/stream/checkpointing.html) for how to enable and
+configure checkpoints for your program.
 
 ## Externalized Checkpoints
 
-You can configure periodic checkpoints to be persisted externally. Externalized checkpoints write their meta data out to persistent storage and are *not* automatically cleaned up when the job fails. This way, you will have a checkpoint around to resume from if your job fails.
+Checkpoints are by default not persisted externally and are only used to
+resume a job from failures. They are deleted when a program is cancelled.
+You can configure periodic checkpoints to be persisted externally similarly
+to [savepoints](savepoints.html).
+Externalized checkpoints write their data and meta data out to persistent
+storage and are *not* automatically cleaned up when the job fails. This way,
+you will have a checkpoint around to resume from if your job fails.
 
 ```java
 CheckpointConfig config = env.getCheckpointConfig();
@@ -54,4 +63,17 @@ state.checkpoints.dir: hdfs:///checkpoints/
 
 This directory will then contain the checkpoint meta data required to restore the checkpoint. The actual checkpoint files will still be available in their configured directory. You currently can only set this via the configuration files.
 
-Follow the [savepoint guide]({{ site.baseurl }}/setup/cli.html#savepoints) when you want to resume from a specific checkpoint.
+### Difference to Savepoints
+
+Externalized checkpoints have a few differences to [savepoints](savepoints.html). They
+- use a state backend specific (low-level) data format,
+- may be incremental,
+- do not support Flink specific features like rescaling.
+
+### Resuming from an externalized checkpoint
+
+A job may be resumed from an externalized checkpoint just as from a savepoint (see the [savepoint restore guide](cli.html#restore-a-savepoint)):
+
+```sh
+$ bin/flink run -s :checkpointPath [:runArgs]
+```
