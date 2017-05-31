@@ -435,7 +435,6 @@ under the License.
 						**/runtime/fs/**,
 						**/runtime/heartbeat/**,
 						**/runtime/highavailability/**,
-						**/runtime/history/**,
 						**/runtime/instance/**,
 						**/runtime/io/**,
 						**/runtime/iterative/**,
