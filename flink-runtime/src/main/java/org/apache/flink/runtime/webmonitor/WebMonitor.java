@@ -25,18 +25,18 @@ public interface WebMonitor {
 
 	/**
 	 * Starts the web monitor.
-	 * 
+	 *
 	 * @throws Exception This method may forward exceptions, if it cannot bring up the web monitor.
 	 */
 	void start(String jobManagerAkkaUrl) throws Exception;
 
 	/**
 	 * Stops the web server.
-	 * 
+	 *
 	 * @throws Exception This method may forward exceptions, if it cannot properly stop the web monitor.
 	 */
 	void stop() throws Exception;
-	
+
 	/**
 	 * Gets the port that the web server actually binds to. If port 0 was given in
 	 * the configuration, then a random free port will be picked. This method can
