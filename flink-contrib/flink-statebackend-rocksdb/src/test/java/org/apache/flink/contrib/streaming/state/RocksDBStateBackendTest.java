@@ -96,7 +96,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	private ValueState<Integer> testState1;
 	private ValueState<String> testState2;
 
-	@Parameterized.Parameters
+	@Parameterized.Parameters(name = "Incremental checkpointing: {0}")
 	public static Collection<Boolean> parameters() {
 		return Arrays.asList(false, true);
 	}

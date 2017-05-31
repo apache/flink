@@ -68,6 +68,7 @@ import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -1804,53 +1805,44 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	}
 
 	@Test
-	public void testRestoreWithWrongKeySerializer() {
+	public void testRestoreWithWrongKeySerializer() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+
+		// use an IntSerializer at first
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
+
+		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// write some state
+		backend.setCurrentKey(1);
+		state.update("1");
+		backend.setCurrentKey(2);
+		state.update("2");
+
+		// draw a snapshot
+		KeyedStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
+
+		backend.dispose();
+
+		// restore with the wrong key serializer
 		try {
-			CheckpointStreamFactory streamFactory = createStreamFactory();
+			restoreKeyedBackend(DoubleSerializer.INSTANCE, snapshot1);
 
-			// use an IntSerializer at first
-			AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
-
-			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
-
-			ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-
-			// write some state
-			backend.setCurrentKey(1);
-			state.update("1");
-			backend.setCurrentKey(2);
-			state.update("2");
-
-			// draw a snapshot
-			KeyedStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
-
-			backend.dispose();
-
-			// restore with the wrong key serializer
-			try {
-				restoreKeyedBackend(DoubleSerializer.INSTANCE, snapshot1);
-
-				fail("should recognize wrong key serializer");
-			} catch (RuntimeException e) {
-				if (!e.getMessage().contains("The new key serializer is not compatible")) {
-					fail("wrong exception " + e);
-				}
-				// expected
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+			fail("should recognize wrong key serializer");
+		} catch (StateMigrationException ignored) {
+			// expected
 		}
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testValueStateRestoreWithWrongSerializers() {
-		try {
-			CheckpointStreamFactory streamFactory = createStreamFactory();
-			AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+	public void testValueStateRestoreWithWrongSerializers() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
+		try {
 			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 
 			ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
@@ -1880,29 +1872,21 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				state.value();
 
 				fail("should recognize wrong serializers");
-			} catch (RuntimeException e) {
-				if (!e.getMessage().contains("State migration currently isn't supported")) {
-					fail("wrong exception " + e);
-				}
+			} catch (StateMigrationException ignored) {
 				// expected
-			} catch (Exception e) {
-				fail("wrong exception " + e);
 			}
+		} finally {
 			backend.dispose();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testListStateRestoreWithWrongSerializers() {
-		try {
-			CheckpointStreamFactory streamFactory = createStreamFactory();
-			AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+	public void testListStateRestoreWithWrongSerializers() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
+		try {
 			ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 			ListState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
@@ -1931,29 +1915,21 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				state.get();
 
 				fail("should recognize wrong serializers");
-			} catch (RuntimeException e) {
-				if (!e.getMessage().contains("State migration currently isn't supported")) {
-					fail("wrong exception " + e);
-				}
+			} catch (StateMigrationException ignored) {
 				// expected
-			} catch (Exception e) {
-				fail("wrong exception " + e);
 			}
+		} finally {
 			backend.dispose();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testReducingStateRestoreWithWrongSerializers() {
-		try {
-			CheckpointStreamFactory streamFactory = createStreamFactory();
-			AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+	public void testReducingStateRestoreWithWrongSerializers() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
+		try {
 			ReducingStateDescriptor<String> kvId = new ReducingStateDescriptor<>("id",
 					new AppendingReduce(),
 					StringSerializer.INSTANCE);
@@ -1984,29 +1960,21 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				state.get();
 
 				fail("should recognize wrong serializers");
-			} catch (RuntimeException e) {
-				if (!e.getMessage().contains("State migration currently isn't supported")) {
-					fail("wrong exception " + e);
-				}
+			} catch (StateMigrationException ignored) {
 				// expected
-			} catch (Exception e) {
-				fail("wrong exception " + e);
 			}
+		} finally {
 			backend.dispose();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testMapStateRestoreWithWrongSerializers() {
-		try {
-			CheckpointStreamFactory streamFactory = createStreamFactory();
-			AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+	public void testMapStateRestoreWithWrongSerializers() throws Exception {
+		CheckpointStreamFactory streamFactory = createStreamFactory();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
+		try {
 			MapStateDescriptor<String, String> kvId = new MapStateDescriptor<>("id", StringSerializer.INSTANCE, StringSerializer.INSTANCE);
 			MapState<String, String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
@@ -2025,7 +1993,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			@SuppressWarnings("unchecked")
 			TypeSerializer<String> fakeStringSerializer =
-					(TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
+				(TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
 
 			try {
 				kvId = new MapStateDescriptor<>("id", fakeStringSerializer, StringSerializer.INSTANCE);
@@ -2035,19 +2003,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				state.entries();
 
 				fail("should recognize wrong serializers");
-			} catch (RuntimeException e) {
-				if (!e.getMessage().contains("State migration currently isn't supported")) {
-					fail("wrong exception " + e);
-				}
+			} catch (StateMigrationException ignored) {
 				// expected
-			} catch (Exception e) {
-				fail("wrong exception " + e);
 			}
 			backend.dispose();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+		} finally {
+			backend.dispose();
 		}
 	}
 
