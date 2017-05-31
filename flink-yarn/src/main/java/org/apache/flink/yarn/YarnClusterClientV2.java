@@ -146,7 +146,9 @@ public class YarnClusterClientV2 extends ClusterClient {
 
 	@Override
 	public void finalizeCluster() {
-		// Do nothing
+		LOG.info("YARN Client is shutting down");
+		yarnClient.stop();
+		yarnClient = null; // set null to clearly see if somebody wants to access it afterwards.
 	}
 
 	@Override
