@@ -448,11 +448,11 @@ class TupleGenerator {
 		// package and imports
 		w.println("package " + PACKAGE + "." + BUILDER_SUFFIX + ';');
 		w.println();
-		w.println("import java.util.ArrayList;");
-		w.println("import java.util.List;");
-		w.println();
 		w.println("import org.apache.flink.annotation.Public;");
 		w.println("import " + PACKAGE + ".Tuple" + numFields + ";");
+		w.println();
+		w.println("import java.util.ArrayList;");
+		w.println("import java.util.List;");
 		w.println();
 
 		// class declaration
