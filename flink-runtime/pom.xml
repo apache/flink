@@ -462,7 +462,6 @@ under the License.
 						**/runtime/util/**,
 						**/runtime/webmonitor/**,
 						**/runtime/zookeeper/**,
-						**/runtime/*
 					</excludes>
 				</configuration>
 				<executions>
