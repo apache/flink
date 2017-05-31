@@ -158,7 +158,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 */
 	public TypeSerializer<T> getSerializer() {
 		if (serializer != null) {
-			return serializer;
+			return serializer.duplicate();
 		} else {
 			throw new IllegalStateException("Serializer not yet initialized.");
 		}
