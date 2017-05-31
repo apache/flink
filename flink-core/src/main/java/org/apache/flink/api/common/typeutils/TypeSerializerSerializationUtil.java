@@ -32,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InvalidClassException;
 import java.util.ArrayList;
@@ -115,13 +114,13 @@ public class TypeSerializerSerializationUtil {
 	 */
 	public static <T> void writeSerializerWithResilience(DataOutputView out, TypeSerializer<T> serializer) throws IOException {
 		try (
-			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+			ByteArrayOutputStreamWithPos buffer = new ByteArrayOutputStreamWithPos();
 			DataOutputViewStreamWrapper bufferWrapper = new DataOutputViewStreamWrapper(buffer)) {
 
 			writeSerializer(bufferWrapper, serializer);
 
-			out.writeInt(buffer.size());
-			out.write(buffer.toByteArray(), 0, buffer.size());
+			out.writeInt(buffer.getPosition());
+			out.write(buffer.getBuf(), 0, buffer.getPosition());
 		}
 	}
 
