@@ -31,6 +31,10 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.Serializable;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsEqual.equalTo;
 
 /**
  * Tests for the {@link JDBCInputFormat}.
@@ -98,6 +102,33 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.setQuery(SELECT_ALL_BOOKS)
 				.setRowTypeInfo(ROW_TYPE_INFO)
 				.finish();
+	}
+
+	@Test
+	public void defaultFetchSizeIsUsedIfNotConfiguredOtherwise() throws SQLException {
+		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(SELECT_ALL_BOOKS)
+			.setRowTypeInfo(ROW_TYPE_INFO)
+			.finish();
+		jdbcInputFormat.openInputFormat();
+		assertThat(jdbcInputFormat.getStatement().getFetchSize(), equalTo(1));
+
+	}
+
+	@Test
+	public void fetchSizeCanBeConfigured() throws SQLException {
+		final int desiredFetchSize = 10_000;
+		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(SELECT_ALL_BOOKS)
+			.setRowTypeInfo(ROW_TYPE_INFO)
+			.setFetchSize(desiredFetchSize)
+			.finish();
+		jdbcInputFormat.openInputFormat();
+		assertThat(jdbcInputFormat.getStatement().getFetchSize(), equalTo(desiredFetchSize));
 	}
 
 	@Test

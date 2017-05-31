@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
@@ -113,6 +114,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 	private transient Connection dbConn;
 	private transient PreparedStatement statement;
 	private transient ResultSet resultSet;
+	private int fetchSize;
 
 	private boolean hasNext;
 	private Object[][] parameterValues;
@@ -141,6 +143,9 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 				dbConn = DriverManager.getConnection(dbURL, username, password);
 			}
 			statement = dbConn.prepareStatement(queryTemplate, resultSetType, resultSetConcurrency);
+			if (fetchSize > 0) {
+				statement.setFetchSize(fetchSize);
+			}
 		} catch (SQLException se) {
 			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
 		} catch (ClassNotFoundException cnfe) {
@@ -312,6 +317,11 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 		return new DefaultInputSplitAssigner(inputSplits);
 	}
 
+	@VisibleForTesting
+	PreparedStatement getStatement() {
+		return statement;
+	}
+
 	/**
 	 * A builder used to set parameters to the output format's configuration in a fluent way.
 	 * @return builder
@@ -375,6 +385,11 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 
 		public JDBCInputFormatBuilder setRowTypeInfo(RowTypeInfo rowTypeInfo) {
 			format.rowTypeInfo = rowTypeInfo;
+			return this;
+		}
+
+		public JDBCInputFormatBuilder setFetchSize(int fetchSize) {
+			format.fetchSize = fetchSize;
 			return this;
 		}
 
