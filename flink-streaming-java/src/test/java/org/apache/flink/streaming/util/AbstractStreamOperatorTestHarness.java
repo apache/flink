@@ -44,6 +44,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -109,7 +110,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	CloseableRegistry closableRegistry;
 
 	// use this as default for tests
-	protected AbstractStateBackend stateBackend = new MemoryStateBackend();
+	protected StateBackend stateBackend = new MemoryStateBackend();
 
 	private final Object checkpointLock;
 
@@ -132,9 +133,6 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 		this(
 			operator,
-			maxParallelism,
-			numSubtasks,
-			subtaskIndex,
 			new MockEnvironment(
 				"MockTask",
 				3 * 1024 * 1024,
@@ -149,9 +147,6 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 	public AbstractStreamOperatorTestHarness(
 			StreamOperator<OUT> operator,
-			int maxParallelism,
-			int numSubtasks,
-			int subtaskIndex,
 			final Environment environment) throws Exception {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<>();
@@ -192,7 +187,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		when(mockTask.getTaskConfiguration()).thenReturn(underlyingConfig);
 		when(mockTask.getEnvironment()).thenReturn(environment);
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
-		when(mockTask.getUserCodeClassLoader()).thenReturn(this.getClass().getClassLoader());
+		when(mockTask.getUserCodeClassLoader()).thenReturn(environment.getUserClassLoader());
 		when(mockTask.getCancelables()).thenReturn(this.closableRegistry);
 		when(mockTask.getStreamStatusMaintainer()).thenReturn(mockStreamStatusMaintainer);
 
@@ -226,8 +221,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 					OperatorStateBackend osb;
 
 					osb = stateBackend.createOperatorStateBackend(
-							environment,
-							operator.getClass().getSimpleName());
+						environment,
+						operator.getClass().getSimpleName());
 
 					mockTask.getCancelables().registerClosable(osb);
 
@@ -248,9 +243,10 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 				return processingTimeService;
 			}
 		}).when(mockTask).getProcessingTimeService();
+
 	}
 
-	public void setStateBackend(AbstractStateBackend stateBackend) {
+	public void setStateBackend(StateBackend stateBackend) {
 		this.stateBackend = stateBackend;
 	}
 
