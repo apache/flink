@@ -25,16 +25,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Apache Flink features two relational APIs - the Table API and SQL - for unified stream and batch processing. The Table API is a language-integrated query API for Scala and Java that allows to compose queries from relational operators such as selection, filter, and join in a very intuitive way. Flink's SQL support is based on [Apache Calcite](https://calcite.apache.org) which implements the SQL standard. Queries specified in either interface have the same semantics and specify the same result regardless whether the input is a batch input (DataSet) or a stream input (DataStream).
+Apache Flink features two relational APIs - the Table API and SQL - for unified stream and batch processing. The Table API is a language-integrated query API for Scala and Java that allows the composition of queries from relational operators such as selection, filter, and join in a very intuitive way. Flink's SQL support is based on [Apache Calcite](https://calcite.apache.org) which implements the SQL standard. Queries specified in either interface have the same semantics and specify the same result regardless whether the input is a batch input (DataSet) or a stream input (DataStream).
 
-The Table API and the SQL interfaces are tightly integrated with each other as well as Flink's DataStream and DataSet APIs. You can easily switch between all APIs and libraries which build upon the APIs. For instance, you can extract patterns from a DataStream using the [CEP library]({{ site.baseurl }}/dev/libs/cep.html) and later use the Table API to analyze the patterns or you scan, filter, and aggregate a batch table using a SQL query before running a [Gelly graph algorithm]({{ site.baseurl }}/dev/libs/gelly) on the preprocessed data.
+The Table API and the SQL interfaces are tightly integrated with each other as well as Flink's DataStream and DataSet APIs. You can easily switch between all APIs and libraries which build upon the APIs. For instance, you can extract patterns from a DataStream using the [CEP library]({{ site.baseurl }}/dev/libs/cep.html) and later use the Table API to analyze the patterns, or you scan, filter, and aggregate a batch table using a SQL query before running a [Gelly graph algorithm]({{ site.baseurl }}/dev/libs/gelly) on the preprocessed data.
 
-**Please note that the Table API and SQL are not feature complete yet and being active developed. Not all operations are supported by each combination of \[Table API, SQL\] and \[stream, batch\] input.**
+**Please note that the Table API and SQL are not yet feature complete and are being active developed. Not all operations are supported by every combination of \[Table API, SQL\] and \[stream, batch\] input.**
 
 Setup
 -----
 
-The Table API and SQL are bundled the `flink-table` Maven artifact. 
+The Table API and SQL are bundled in the `flink-table` Maven artifact. 
 The following dependency must be added to your project in order to use the Table API and SQL:
 
 {% highlight xml %}
@@ -65,7 +65,7 @@ For a streaming query you need to add:
 </dependency>
 {% endhighlight %}
 
-**Note:** Due to an issue in Apache Calcite, which prevents the user classloaders from being garbage-collected, we do *not* recommend to build a fat-jar the includes the `flink-table` dependency. Instead, we recommend to configure Flink to include the `flink-table` dependency in the system classloader. This can be done by copying the `flink-table.jar` file from the `./opt` folder to the `./lib` folder. See [these instructions]({{ site.baseurl }}/dev/linking.html) for further details.
+**Note:** Due to an issue in Apache Calcite, which prevents the user classloaders from being garbage-collected, we do *not* recommend building a fat-jar that includes the `flink-table` dependency. Instead, we recommend configuring Flink to include the `flink-table` dependency in the system classloader. This can be done by copying the `flink-table.jar` file from the `./opt` folder to the `./lib` folder. See [these instructions]({{ site.baseurl }}/dev/linking.html) for further details.
 
 {% top %}
 
@@ -76,7 +76,7 @@ Where to go next?
 * [Streaming Table API & SQL]({{ site.baseurl }}/dev/table/streaming.html): Streaming-specific documentation for the Table API or SQL such as configuration of time attributes and handling of updating results.
 * [Table API]({{ site.baseurl }}/dev/table/tableapi.html): Supported operations and API for the Table API.
 * [SQL]({{ site.baseurl }}/dev/table/sql.html): Supported operations and syntax for SQL
-* [Table Sources & Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html): Reading table from and emitting tables to external storage systems.
+* [Table Sources & Sinks]({{ site.baseurl }}/dev/table/sourceSinks.html): Reading tables from and emitting tables to external storage systems.
 * [User-Defined Functions]({{ site.baseurl }}/dev/table/udfs.html): Defintion and usage of user-defined functions.
 
 {% top %}
