@@ -26,6 +26,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -90,6 +91,21 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 			final KeySelector<IN, K> keySelector,
 			TypeInformation<K> keyType) throws Exception {
 		this(operator, keySelector, keyType, 1, 1, 0);
+	}
+
+	public KeyedOneInputStreamOperatorTestHarness(
+			final OneInputStreamOperator<IN, OUT> operator,
+			final  KeySelector<IN, K> keySelector,
+			final TypeInformation<K> keyType,
+			final Environment environment) throws Exception {
+
+		super(operator, environment);
+
+		ClosureCleaner.clean(keySelector, false);
+		config.setStatePartitioner(0, keySelector);
+		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+
+		setupMockTaskCreateKeyedBackend();
 	}
 
 	private void setupMockTaskCreateKeyedBackend() {
