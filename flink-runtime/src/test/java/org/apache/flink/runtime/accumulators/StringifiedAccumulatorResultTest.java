@@ -22,6 +22,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.SimpleAccumulator;
 import org.apache.flink.core.testutils.CommonTestUtils;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -31,6 +32,9 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for the {@link StringifiedAccumulatorResult}.
+ */
 public class StringifiedAccumulatorResultTest {
 
 	@Test
@@ -61,7 +65,6 @@ public class StringifiedAccumulatorResultTest {
 		acc.add(targetValue);
 		final Map<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
 		accumulatorMap.put(name, acc);
-
 
 		final StringifiedAccumulatorResult[] results = StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 

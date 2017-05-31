@@ -50,13 +50,13 @@ public class StringifiedAccumulatorResult implements java.io.Serializable{
 	public String getValue() {
 		return value;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Flatten a map of accumulator names to Accumulator instances into an array of StringifiedAccumulatorResult values
+	 * Flatten a map of accumulator names to Accumulator instances into an array of StringifiedAccumulatorResult values.
      */
 	public static StringifiedAccumulatorResult[] stringifyAccumulatorResults(Map<String, Accumulator<?, ?>> accs) {
 		if (accs == null || accs.isEmpty()) {
@@ -64,7 +64,7 @@ public class StringifiedAccumulatorResult implements java.io.Serializable{
 		}
 		else {
 			StringifiedAccumulatorResult[] results = new StringifiedAccumulatorResult[accs.size()];
-			
+
 			int i = 0;
 			for (Map.Entry<String, Accumulator<?, ?>> entry : accs.entrySet()) {
 				StringifiedAccumulatorResult result;
@@ -79,7 +79,7 @@ public class StringifiedAccumulatorResult implements java.io.Serializable{
 				} else {
 					result = new StringifiedAccumulatorResult(entry.getKey(), "null", "null");
 				}
-	
+
 				results[i++] = result;
 			}
 			return results;
