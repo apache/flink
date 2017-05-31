@@ -425,7 +425,6 @@ under the License.
 						**/migration/state/**,
 						**/migration/streaming/**,
 						**/migration/*,
-						**/runtime/accumulators/**,
 						**/runtime/akka/**,
 						**/runtime/blob/**,
 						**/runtime/broadcast/**,
