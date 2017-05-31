@@ -206,7 +206,8 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 		// read the partitions that belong to the listed topics
 		final List<KafkaTopicPartition> partitions = new ArrayList<>();
 
-		try (KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(this.properties)) {
+		KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(this.properties);
+		try {
 			for (final String topic: topics) {
 				// get partitions for each topic
 				List<PartitionInfo> partitionsForTopic = consumer.partitionsFor(topic);
@@ -218,6 +219,8 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 					LOG.info("Unable to retrieve any partitions for the requested topic: {}", topic);
 				}
 			}
+		} finally {
+			consumer.close();
 		}
 
 		if (partitions.isEmpty()) {
