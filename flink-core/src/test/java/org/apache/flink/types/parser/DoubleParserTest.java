@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
-
 
 public class DoubleParserTest extends ParserTestBase<Double> {
 

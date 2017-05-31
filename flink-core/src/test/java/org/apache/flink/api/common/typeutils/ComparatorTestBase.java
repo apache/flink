@@ -308,7 +308,6 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
 		}
 	}
 
-
 	@Test
 	public void testNormalizedKeysGreatSmallFullLength() {
 		// ascending/descending in comparator doesn't matter for normalized keys

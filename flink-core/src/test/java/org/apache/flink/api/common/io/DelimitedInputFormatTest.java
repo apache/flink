@@ -381,7 +381,6 @@ public class DelimitedInputFormatTest {
 		String next;
 		List<String> result = new ArrayList<String>();
 
-
 		format.open(split1);
 		while ((next = format.nextRecord(null)) != null) {
 			result.add(next);

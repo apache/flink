@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.configuration.Configuration;
@@ -42,7 +41,6 @@ public class BinaryInputFormatTest {
 			return record;
 		}
 	}
-
 
 	@Test
 	public void testCreateInputSplitsWithOneFile() throws IOException {

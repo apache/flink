@@ -108,7 +108,6 @@ public class RowTypeInfoTest extends TypeInformationTestBase<RowTypeInfo> {
 	public void testGetTypeAt() {
 		RowTypeInfo typeInfo = new RowTypeInfo(typeList);
 
-
 		assertArrayEquals(new String[]{"f0", "f1", "f2"}, typeInfo.getFieldNames());
 
 		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, typeInfo.getTypeAt("f2"));

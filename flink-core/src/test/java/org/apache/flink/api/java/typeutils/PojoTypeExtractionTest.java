@@ -166,7 +166,6 @@ public class PojoTypeExtractionTest {
 		Assert.assertTrue(typeForClass instanceof PojoTypeInfo<?>);
 	}
 
-
 	// in this test, the location of the getters and setters is mixed across the type hierarchy.
 	public static class TypedPojoGetterSetterCheck extends GenericPojoGetterSetterCheck<String> {
 		public void setPackageProtected(String in) {
@@ -535,7 +534,6 @@ public class PojoTypeExtractionTest {
 			}
 		}
 	}
-
 
 	@Test
 	public void testPojoWithComplexHierarchy() {

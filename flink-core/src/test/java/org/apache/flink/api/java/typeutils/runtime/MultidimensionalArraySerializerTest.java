@@ -26,7 +26,6 @@ import org.apache.flink.api.java.typeutils.TypeInfoParser;
 
 import org.junit.Test;
 
-
 /**
  * A serialization test for multidimensional arrays.
  */

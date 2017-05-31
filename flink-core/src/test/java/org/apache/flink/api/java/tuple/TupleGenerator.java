@@ -242,7 +242,6 @@ class TupleGenerator {
 		w.println("\t}");
 		w.println();
 
-
 		// arity accessor
 		w.println("\t@Override");
 		w.println("\tpublic int getArity() { return " + numFields + "; }");
@@ -358,7 +357,6 @@ class TupleGenerator {
 		}
 		w.println("\t\treturn result;");
 		w.println("\t}");
-
 
 		String tupleTypes = "<";
 		for (int i = 0; i < numFields; i++) {

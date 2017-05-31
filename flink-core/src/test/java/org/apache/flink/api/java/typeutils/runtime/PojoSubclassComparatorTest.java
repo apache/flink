@@ -31,7 +31,6 @@ import org.junit.Assert;
 
 import java.util.Arrays;
 
-
 public class PojoSubclassComparatorTest extends ComparatorTestBase<PojoContainingTuple> {
 	TypeInformation<PojoContainingTuple> type = TypeExtractor.getForClass(PojoContainingTuple.class);
 	

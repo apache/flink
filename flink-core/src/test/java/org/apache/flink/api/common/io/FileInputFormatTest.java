@@ -264,7 +264,6 @@ public class FileInputFormatTest {
 
 			// create some accepted, some ignored files
 
-
 			File child1 = temporaryFolder.newFile("dataFile1.txt");
 			File child2 = temporaryFolder.newFile("another_file.bin");
 			File luigiFile = temporaryFolder.newFile("_luigi");

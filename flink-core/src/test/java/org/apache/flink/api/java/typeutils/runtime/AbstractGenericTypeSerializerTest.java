@@ -158,7 +158,6 @@ abstract public class AbstractGenericTypeSerializerTest {
 
 	abstract protected <T> TypeSerializer<T> createSerializer(Class<T> type);
 
-
 	// --------------------------------------------------------------------------------------------
 	//  Test Objects
 	// --------------------------------------------------------------------------------------------
@@ -171,7 +170,6 @@ abstract public class AbstractGenericTypeSerializerTest {
 			map1 = new HashMap<String, Integer>();
 			list = new ArrayList<String>();
 		}
-
 
 		public SimpleWithNestedInterfaces(String str, Integer i) {
 			map1 = new HashMap<String, Integer>();
@@ -209,7 +207,6 @@ abstract public class AbstractGenericTypeSerializerTest {
 		private final String sVal;
 		private final short rVal;
 		private final double dVal;
-
 
 		public SimpleTypes() {
 			this(0, 0, (byte) 0, "", (short) 0, 0);

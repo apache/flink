@@ -61,7 +61,6 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 	}
 
 
-
 	@Test
 	public void testJavaDequeue(){
 		Collection<Integer> c = new LinkedList<>();

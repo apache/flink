@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -30,7 +29,6 @@ import org.apache.flink.types.IntValue;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 
 public class DelimitedInputFormatSamplingTest {
 	
@@ -88,7 +86,6 @@ public class DelimitedInputFormatSamplingTest {
 				new String[] { ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
 								ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY },
 				new String[] { "4", "4" });
-
 
 		} catch (Throwable t) {
 			Assert.fail("Could not load the global configuration.");

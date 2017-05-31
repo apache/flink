@@ -28,7 +28,6 @@ import java.util.Random;
 
 import static org.junit.Assert.assertFalse;
 
-
 /**
  * A test for the {@link StringArraySerializer}.
  */

@@ -235,7 +235,6 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 	}
 
-
 	@Test
 	public void testSerializeIndividuallyReusingValues() {
 		try {

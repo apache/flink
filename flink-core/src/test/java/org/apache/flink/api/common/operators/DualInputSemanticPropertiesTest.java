@@ -252,5 +252,4 @@ public class DualInputSemanticPropertiesTest {
 		sp.addForwardedField(1, 1, 2);
 	}
 
-
 }

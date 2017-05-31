@@ -121,7 +121,6 @@ public class InnerJoinOperatorBaseTest implements Serializable {
 		final List<String> inputData2 = new ArrayList<String>(Arrays.asList("foobar", "foo"));
 		final List<Integer> expected = new ArrayList<Integer>(Arrays.asList(3, 3, 6, 6));
 
-
 		try {
 			final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
 			final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<String, Accumulator<?, ?>>();

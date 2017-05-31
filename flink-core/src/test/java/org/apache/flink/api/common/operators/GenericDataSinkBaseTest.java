@@ -51,7 +51,6 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
 			new GenericDataSourceBase<String, TestNonRichInputFormat>(
 					in, new OperatorInformation<String>(BasicTypeInfo.STRING_TYPE_INFO), "testSource");
 
-
 	@Test
 	public void testDataSourcePlain() {
 		try {

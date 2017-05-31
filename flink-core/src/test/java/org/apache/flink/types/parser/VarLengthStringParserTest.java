@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
 
 import org.apache.flink.configuration.ConfigConstants;
@@ -180,7 +179,6 @@ public class VarLengthStringParserTest {
 		assertTrue(s.getValue().equals("tuv"));
 
 	}
-
 
 	@Test
 	public void testParseInvalidQuotedStrings() {

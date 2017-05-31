@@ -108,7 +108,6 @@ public class MemorySegmentUndersizedTest {
 		}
 	}
 
-
 	private static void testZeroSizeBuffer(MemorySegment segment) {
 		// ------ bytes ------
 

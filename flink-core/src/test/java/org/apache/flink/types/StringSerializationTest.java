@@ -32,7 +32,6 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-
 /**
  * Test for the serialization of Strings through the StringValue class.
  */

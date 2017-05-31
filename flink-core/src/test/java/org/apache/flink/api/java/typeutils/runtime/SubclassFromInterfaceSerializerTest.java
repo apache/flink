@@ -80,7 +80,6 @@ public class SubclassFromInterfaceSerializerTest extends SerializerTestBase<Subc
 		public int dumm1;
 		public String dumm2;
 
-
 		public TestUserClassBase() {
 		}
 

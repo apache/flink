@@ -90,7 +90,6 @@ public class FlatMapOperatorCollectionTest implements Serializable {
 		Assert.assertEquals(input, result);
 	}
 
-
 	public class IdRichFlatMap<IN> extends RichFlatMapFunction<IN, IN> {
 
 		private boolean isOpened = false;

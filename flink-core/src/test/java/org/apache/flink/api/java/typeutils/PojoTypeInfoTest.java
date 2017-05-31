@@ -61,7 +61,6 @@ public class PojoTypeInfoTest extends TypeInformationTestBase<PojoTypeInfo<?>>{
 
 		public Double[] doubleArray;
 
-
 		public void setaString(String aString) {
 			this.aString = aString;
 		}
