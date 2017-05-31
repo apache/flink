@@ -15,17 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+/**
+ * Tests for the {@link TaskIOMetricGroup}.
+ */
 public class TaskIOMetricGroupTest {
 	@Test
 	public void testTaskIOMetricGroup() {
@@ -50,7 +55,7 @@ public class TaskIOMetricGroupTest {
 		taskIO.getNumBytesInLocalCounter().inc(100L);
 		taskIO.getNumBytesInRemoteCounter().inc(150L);
 		taskIO.getNumBytesOutCounter().inc(250L);
-		
+
 		IOMetrics io = taskIO.createSnapshot();
 		assertEquals(32L, io.getNumRecordsIn());
 		assertEquals(64L, io.getNumRecordsOut());

@@ -29,7 +29,7 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
  */
 @Internal
 public class GenericMetricGroup extends AbstractMetricGroup<AbstractMetricGroup<?>> {
-	/** The name of this group */
+	/** The name of this group. */
 	private String name;
 
 	public GenericMetricGroup(MetricRegistry registry, AbstractMetricGroup parent, String name) {

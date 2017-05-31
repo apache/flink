@@ -28,12 +28,16 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the {@link TaskMetricGroup}.
+ */
 public class TaskMetricGroupTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
@@ -51,7 +55,7 @@ public class TaskMetricGroupTest extends TestLogger {
 		TaskMetricGroup taskGroup = new TaskMetricGroup(registry, jmGroup, vertexId, executionId, "aTaskName", 13, 2);
 
 		assertArrayEquals(
-				new String[] { "theHostName", "taskmanager", "test-tm-id", "myJobName", "aTaskName", "13"},
+				new String[]{"theHostName", "taskmanager", "test-tm-id", "myJobName", "aTaskName", "13"},
 				taskGroup.getScopeComponents());
 
 		assertEquals(
@@ -78,7 +82,7 @@ public class TaskMetricGroupTest extends TestLogger {
 				registry, jmGroup, vertexId, executionId, "aTaskName", 13, 2);
 
 		assertArrayEquals(
-				new String[] { "test-tm-id", jid.toString(), vertexId.toString(), executionId.toString() },
+				new String[]{"test-tm-id", jid.toString(), vertexId.toString(), executionId.toString()},
 				taskGroup.getScopeComponents());
 
 		assertEquals(
@@ -102,7 +106,7 @@ public class TaskMetricGroupTest extends TestLogger {
 				registry, jmGroup, new AbstractID(), executionId, "aTaskName", 13, 1);
 
 		assertArrayEquals(
-				new String[] { "theHostName", "taskmanager", "test-tm-id", "myJobName", executionId.toString(), "13" },
+				new String[]{"theHostName", "taskmanager", "test-tm-id", "myJobName", executionId.toString(), "13"},
 				taskGroup.getScopeComponents());
 
 		assertEquals(

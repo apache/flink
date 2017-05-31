@@ -30,6 +30,7 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,9 +42,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Abstract {@link MetricGroup} that contains key functionality for adding metrics and groups.
- * 
+ *
  * <p><b>IMPORTANT IMPLEMENTATION NOTE</b>
- * 
+ *
  * <p>This class uses locks for adding and removing metrics objects. This is done to
  * prevent resource leaks in the presence of concurrently closing a group and adding
  * metrics and subgroups.
@@ -56,30 +57,29 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * from any metrics reporter and any internal maps. Note that even closed metrics groups
  * return Counters, Gauges, etc to the code, to prevent exceptions in the monitored code.
  * These metrics simply do not get reported any more, when created on a closed group.
- * 
+ *
  * @param <A> The type of the parent MetricGroup
  */
 @Internal
 public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> implements MetricGroup {
 
-	/** shared logger */
 	private static final Logger LOG = LoggerFactory.getLogger(MetricGroup.class);
 
 	// ------------------------------------------------------------------------
 
-	/** The parent group containing this group */
+	/** The parent group containing this group. */
 	protected final A parent;
 
 	/** The map containing all variables and their associated values, lazily computed. */
 	protected volatile Map<String, String> variables;
-	
-	/** The registry that this metrics group belongs to */
+
+	/** The registry that this metrics group belongs to. */
 	protected final MetricRegistry registry;
 
-	/** All metrics that are directly contained in this group */
+	/** All metrics that are directly contained in this group. */
 	private final Map<String, Metric> metrics = new HashMap<>();
 
-	/** All metric subgroups of this group */
+	/** All metric subgroups of this group. */
 	private final Map<String, AbstractMetricGroup> groups = new HashMap<>();
 
 	/** The metrics scope represented by this group.
@@ -97,7 +97,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	/** The metrics query service scope represented by this group, lazily computed. */
 	protected QueryScopeInfo queryServiceScopeInfo;
 
-	/** Flag indicating whether this group has been closed */
+	/** Flag indicating whether this group has been closed. */
 	private volatile boolean closed;
 
 	// ------------------------------------------------------------------------
@@ -111,7 +111,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
 	public Map<String, String> getAllVariables() {
 		if (variables == null) { // avoid synchronization for common case
-			synchronized(this) {
+			synchronized (this) {
 				if (variables == null) {
 					if (parent != null) {
 						variables = parent.getAllVariables();
@@ -126,7 +126,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
 	/**
 	 * Returns the logical scope of this group, for example
-	 * {@code "taskmanager.job.task"}
+	 * {@code "taskmanager.job.task"}.
 	 *
 	 * @param filter character filter which is applied to the scope components
 	 * @return logical scope
@@ -137,7 +137,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
 	/**
 	 * Returns the logical scope of this group, for example
-	 * {@code "taskmanager.job.task"}
+	 * {@code "taskmanager.job.task"}.
 	 *
 	 * @param filter character filter which is applied to the scope components
 	 * @return logical scope
@@ -155,7 +155,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
 	/**
 	 * Returns the name for this group, meaning what kind of entity it represents, for example "taskmanager".
-	 * 
+	 *
 	 * @param filter character filter which is applied to the name
 	 * @return logical name for this group
 	 */
@@ -163,9 +163,9 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
 	/**
 	 * Gets the scope as an array of the scope components, for example
-	 * {@code ["host-7", "taskmanager-2", "window_word_count", "my-mapper"]}
-	 * 
-	 * @see #getMetricIdentifier(String) 
+	 * {@code ["host-7", "taskmanager-2", "window_word_count", "my-mapper"]}.
+	 *
+	 * @see #getMetricIdentifier(String)
 	 */
 	public String[] getScopeComponents() {
 		return scopeComponents;
@@ -173,7 +173,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
 	/**
 	 * Returns the metric query service scope for this group.
-	 * 
+	 *
 	 * @param filter character filter
 	 * @return query service scope
      */
@@ -194,8 +194,8 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
 	/**
 	 * Returns the fully qualified metric name, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
-	 * 
+	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}.
+	 *
 	 * @param metricName metric name
 	 * @return fully qualified metric name
 	 */
@@ -205,7 +205,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
 	/**
 	 * Returns the fully qualified metric name, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
+	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}.
 	 *
 	 * @param metricName metric name
 	 * @param filter character filter which is applied to the scope components if not null.
@@ -217,7 +217,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
 	/**
 	 * Returns the fully qualified metric name using the configured delimiter for the reporter with the given index, for example
-	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}
+	 * {@code "host-7.taskmanager-2.window_word_count.my-mapper.metricName"}.
 	 *
 	 * @param metricName metric name
 	 * @param filter character filter which is applied to the scope components if not null.
@@ -250,7 +250,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 			return scopeStrings[reporterIndex] + delimiter + metricName;
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Closing
 	// ------------------------------------------------------------------------
@@ -292,7 +292,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	public Counter counter(String name) {
 		return counter(name, new SimpleCounter());
 	}
-	
+
 	@Override
 	public <C extends Counter> C counter(int name, C counter) {
 		return counter(String.valueOf(name), counter);
@@ -340,7 +340,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	/**
 	 * Adds the given metric to the group and registers it at the registry, if the group
 	 * is not yet closed, and if no metric with the same name has been registered before.
-	 * 
+	 *
 	 * @param name the name to register the metric under
 	 * @param metric the metric to register
 	 */
@@ -372,7 +372,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 				else {
 					// we had a collision. put back the original value
 					metrics.put(name, prior);
-					
+
 					// we warn here, rather than failing, because metrics are tools that should not fail the
 					// program when used incorrectly
 					LOG.warn("Name collision: Group already contains a Metric with the name '" +

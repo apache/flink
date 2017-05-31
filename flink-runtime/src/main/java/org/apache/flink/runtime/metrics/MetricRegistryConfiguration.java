@@ -25,6 +25,7 @@ import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +41,7 @@ public class MetricRegistryConfiguration {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MetricRegistryConfiguration.class);
 
-	private static volatile MetricRegistryConfiguration DEFAULT_CONFIGURATION;
+	private static volatile MetricRegistryConfiguration defaultConfiguration;
 
 	// regex pattern to split the defined reporters
 	private static final Pattern splitPattern = Pattern.compile("\\s*,\\s*");
@@ -148,15 +149,15 @@ public class MetricRegistryConfiguration {
 
 	public static MetricRegistryConfiguration defaultMetricRegistryConfiguration() {
 		// create the default metric registry configuration only once
-		if (DEFAULT_CONFIGURATION == null) {
+		if (defaultConfiguration == null) {
 			synchronized (MetricRegistryConfiguration.class) {
-				if (DEFAULT_CONFIGURATION == null) {
-					DEFAULT_CONFIGURATION = fromConfiguration(new Configuration());
+				if (defaultConfiguration == null) {
+					defaultConfiguration = fromConfiguration(new Configuration());
 				}
 			}
 		}
 
-		return DEFAULT_CONFIGURATION;
+		return defaultConfiguration;
 	}
 
 }
