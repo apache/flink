@@ -39,11 +39,11 @@ configure checkpoints for your program.
 
 Checkpoints are by default not persisted externally and are only used to
 resume a job from failures. They are deleted when a program is cancelled.
-You can configure periodic checkpoints to be persisted externally similarly
-to [savepoints](savepoints.html).
-Externalized checkpoints write their data and meta data out to persistent
-storage and are *not* automatically cleaned up when the job fails. This way,
-you will have a checkpoint around to resume from if your job fails.
+You can, however, configure periodic checkpoints to be persisted externally
+similarly to [savepoints](savepoints.html). These *externalized checkpoints*
+write their meta data out to persistent storage and are *not* automatically
+cleaned up when the job fails. This way, you will have a checkpoint around
+to resume from if your job fails.
 
 ```java
 CheckpointConfig config = env.getCheckpointConfig();
@@ -56,13 +56,29 @@ The `ExternalizedCheckpointCleanup` mode configures what happens with externaliz
 
 - **`ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION`**: Delete the externalized checkpoint when the job is cancelled. The checkpoint state will only be available if the job fails.
 
-The **target directory** for the checkpoint is determined from the default checkpoint directory configuration. This is configured via the configuration key `state.checkpoints.dir`, which should point to the desired target directory:
+### Directory Structure
+
+Similarly to [savepoints](savepoints.html), an externalized checkpoint consists
+of a meta data file and, depending on the state back-end, some additional data
+files. The **target directory** for the externalized checkpoint's meta data is
+determined from the configuration key `state.checkpoints.dir` which, currently,
+can only be set via the configuration files.
 
 ```
 state.checkpoints.dir: hdfs:///checkpoints/
 ```
 
-This directory will then contain the checkpoint meta data required to restore the checkpoint. The actual checkpoint files will still be available in their configured directory. You currently can only set this via the configuration files.
+This directory will then contain the checkpoint meta data required to restore
+the checkpoint. For the `MemoryStateBackend`, this meta data file will be
+self-contained and no further files are needed.
+
+`FsStateBackend` and `RocksDBStateBackend` write separate data files
+and only write the paths to these files into the meta data file. These data
+files are stored at the path given to the state back-end during construction.
+
+```java
+env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/");
+```
 
 ### Difference to Savepoints
 
@@ -73,8 +89,13 @@ Externalized checkpoints have a few differences from [savepoints](savepoints.htm
 
 ### Resuming from an externalized checkpoint
 
-A job may be resumed from an externalized checkpoint just as from a savepoint (see the [savepoint restore guide](cli.html#restore-a-savepoint)):
+A job may be resumed from an externalized checkpoint just as from a savepoint
+by using the checkpoint's meta data file instead (see the
+[savepoint restore guide](cli.html#restore-a-savepoint)). Note that if the
+meta data file is not self-contained, the jobmanager needs to have access to
+the data files it refers to (see [Directory Structure](#directory-structure)
+above).
 
 ```sh
-$ bin/flink run -s :checkpointPath [:runArgs]
+$ bin/flink run -s :checkpointMetaDataPath [:runArgs]
 ```
