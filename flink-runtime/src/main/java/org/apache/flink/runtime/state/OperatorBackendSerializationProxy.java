@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -25,7 +27,9 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Serialization proxy for all meta data in operator state backends. In the future we might also requiresMigration the actual state
@@ -71,11 +75,17 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 
 		out.writeBoolean(excludeSerializers);
 
+		Map<TypeSerializer<?>, Integer> serializerIndices = null;
+		if (!excludeSerializers) {
+			serializerIndices = buildSerializerIndices();
+			TypeSerializerSerializationUtil.writeSerializerIndices(out, serializerIndices);
+		}
+
 		out.writeShort(stateMetaInfoSnapshots.size());
 		for (RegisteredOperatorBackendStateMetaInfo.Snapshot<?> kvState : stateMetaInfoSnapshots) {
 			OperatorBackendStateMetaInfoSnapshotReaderWriters
 				.getWriterForVersion(VERSION, kvState)
-				.writeStateMetaInfo(out, excludeSerializers);
+				.writeStateMetaInfo(out, serializerIndices);
 		}
 	}
 
@@ -84,8 +94,13 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 		super.read(in);
 
 		// the excludeSerializers flag was introduced only after version >= 2 (since Flink 1.3.x)
+		Map<Integer, TypeSerializer<?>> serializerIndices = null;
 		if (getReadVersion() >= 2) {
 			excludeSerializers = in.readBoolean();
+
+			if (!excludeSerializers) {
+				serializerIndices = TypeSerializerSerializationUtil.readSerializerIndex(in, userCodeClassLoader);
+			}
 		} else {
 			excludeSerializers = false;
 		}
@@ -96,11 +111,27 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 			stateMetaInfoSnapshots.add(
 				OperatorBackendStateMetaInfoSnapshotReaderWriters
 					.getReaderForVersion(getReadVersion(), userCodeClassLoader)
-					.readStateMetaInfo(in, excludeSerializers));
+					.readStateMetaInfo(in, serializerIndices));
 		}
 	}
 
 	public List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> getStateMetaInfoSnapshots() {
 		return stateMetaInfoSnapshots;
+	}
+
+	private Map<TypeSerializer<?>, Integer> buildSerializerIndices() {
+		int nextAvailableIndex = 0;
+
+		// using reference equality for keys so that stateless
+		// serializers are a single entry in the index
+		final Map<TypeSerializer<?>, Integer> indices = new IdentityHashMap<>();
+
+		for (RegisteredOperatorBackendStateMetaInfo.Snapshot<?> stateMetaInfoSnapshot : stateMetaInfoSnapshots) {
+			if (!indices.containsKey(stateMetaInfoSnapshot.getPartitionStateSerializer())) {
+				indices.put(stateMetaInfoSnapshot.getPartitionStateSerializer(), nextAvailableIndex++);
+			}
+		}
+
+		return indices;
 	}
 }

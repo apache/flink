@@ -25,6 +25,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -791,6 +792,12 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 			out.writeBoolean(excludeSerializers);
 
+			Map<TypeSerializer<?>, Integer> serializerIndices = null;
+			if (!excludeSerializers) {
+				serializerIndices = buildSerializerIndices();
+				TypeSerializerSerializationUtil.writeSerializerIndices(out, serializerIndices);
+			}
+
 			// --- write fields and their serializers, in order
 
 			out.writeInt(fieldToSerializerConfigSnapshot.size());
@@ -799,8 +806,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 				out.writeUTF(entry.getKey().getName());
 
-				if (!excludeSerializers) {
-					TypeSerializerSerializationUtil.writeSerializerWithResilience(out, entry.getValue().f0);
+				if (serializerIndices != null) {
+					out.writeInt(serializerIndices.get(entry.getValue().f0));
 				}
 
 				TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(out, entry.getValue().f1);
@@ -814,8 +821,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 				out.writeUTF(entry.getKey().getName());
 
-				if (!excludeSerializers) {
-					TypeSerializerSerializationUtil.writeSerializerWithResilience(out, entry.getValue().f0);
+				if (serializerIndices != null) {
+					out.writeInt(serializerIndices.get(entry.getValue().f0));
 				}
 
 				TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(out, entry.getValue().f1);
@@ -829,8 +836,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 				out.writeUTF(entry.getKey().getName());
 
-				if (!excludeSerializers) {
-					TypeSerializerSerializationUtil.writeSerializerWithResilience(out, entry.getValue().f0);
+				if (serializerIndices != null) {
+					out.writeInt(serializerIndices.get(entry.getValue().f0));
 				}
 
 				TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(out, entry.getValue().f1);
@@ -842,6 +849,11 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			super.read(in);
 
 			excludeSerializers = in.readBoolean();
+
+			Map<Integer, TypeSerializer<?>> serializerIndex = null;
+			if (!excludeSerializers) {
+				serializerIndex = TypeSerializerSerializationUtil.readSerializerIndex(in, getUserCodeClassLoader());
+			}
 
 			// --- read fields and their serializers, in order
 
@@ -872,9 +884,9 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					// the field no longer exists in the POJO
 					throw new IOException("Can't find field " + fieldName + " in POJO class " + getTypeClass().getName());
 				} else {
-					fieldSerializer = excludeSerializers
+					fieldSerializer = (serializerIndex == null)
 						? null
-						: TypeSerializerSerializationUtil.tryReadSerializerWithResilience(in, getUserCodeClassLoader());
+						: serializerIndex.get(in.readInt());
 
 					fieldSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
 						in, getUserCodeClassLoader());
@@ -904,9 +916,9 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					throw new IOException("Cannot find requested class " + registeredSubclassname + " in classpath.", e);
 				}
 
-				registeredSubclassSerializer = excludeSerializers
+				registeredSubclassSerializer = (serializerIndex == null)
 					? null
-					: TypeSerializerSerializationUtil.tryReadSerializerWithResilience(in, getUserCodeClassLoader());
+					: serializerIndex.get(in.readInt());
 
 				registeredSubclassSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
 					in, getUserCodeClassLoader());
@@ -935,9 +947,9 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					throw new IOException("Cannot find requested class " + cachedSubclassname + " in classpath.", e);
 				}
 
-				cachedSubclassSerializer = excludeSerializers
+				cachedSubclassSerializer = (serializerIndex == null)
 					? null
-					: TypeSerializerSerializationUtil.tryReadSerializerWithResilience(in, getUserCodeClassLoader());
+					: serializerIndex.get(in.readInt());
 
 				cachedSubclassSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
 					in, getUserCodeClassLoader());
@@ -983,6 +995,40 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					fieldToSerializerConfigSnapshot,
 					registeredSubclassesToSerializerConfigSnapshots,
 					nonRegisteredSubclassesToSerializerConfigSnapshots);
+		}
+
+		private Map<TypeSerializer<?>, Integer> buildSerializerIndices() {
+			int nextAvailableIndex = 0;
+
+			// using reference equality for keys so that stateless
+			// serializers are a single entry in the index
+			final Map<TypeSerializer<?>, Integer> indices = new IdentityHashMap<>();
+
+			for (Map.Entry<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
+					: fieldToSerializerConfigSnapshot.entrySet()) {
+
+				if (!indices.containsKey(entry.getValue().f0)) {
+					indices.put(entry.getValue().f0, nextAvailableIndex++);
+				}
+			}
+
+			for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
+					: registeredSubclassesToSerializerConfigSnapshots.entrySet()) {
+
+				if (!indices.containsKey(entry.getValue().f0)) {
+					indices.put(entry.getValue().f0, nextAvailableIndex++);
+				}
+			}
+
+			for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
+					: nonRegisteredSubclassesToSerializerConfigSnapshots.entrySet()) {
+
+				if (!indices.containsKey(entry.getValue().f0)) {
+					indices.put(entry.getValue().f0, nextAvailableIndex++);
+				}
+			}
+
+			return indices;
 		}
 
 		// TODO this should be removed once excludeSerializers is externally configurable

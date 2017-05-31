@@ -36,7 +36,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InvalidClassException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Utility methods for serialization of {@link TypeSerializer} and {@link TypeSerializerConfigSnapshot}.
@@ -45,6 +47,53 @@ import java.util.List;
 public class TypeSerializerSerializationUtil {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TypeSerializerSerializationUtil.class);
+
+	/**
+	 * Writes to the data output view a map of serializers to their indices.
+	 * The inverse index can be read again using {@link #readSerializerIndex(DataInputView, ClassLoader)}.
+	 *
+	 * @param out the data output view.
+	 * @param indices map of serializers to their indices.
+	 *
+	 * @throws IOException
+	 */
+	public static void writeSerializerIndices(
+			DataOutputView out,
+			Map<TypeSerializer<?>, Integer> indices) throws IOException {
+
+		out.writeInt(indices.size());
+		for (Map.Entry<TypeSerializer<?>, Integer> indexEntry : indices.entrySet()) {
+			// first write the value, then the key, so that on
+			// read we can more easily build the inverse map
+			out.writeInt(indexEntry.getValue());
+			writeSerializerWithResilience(out, indexEntry.getKey());
+		}
+	}
+
+	/**
+	 * Reads from the data input view a map of serializer indices, written
+	 * using {@link #writeSerializerIndices(DataOutputView, Map)}.
+	 *
+	 * @param in the data input view.
+	 * @param userCodeClassLoader the user code class loader to use.
+	 *
+	 * @return the serializer index.
+	 *
+	 * @throws IOException
+	 */
+	public static Map<Integer, TypeSerializer<?>> readSerializerIndex(
+			DataInputView in,
+			ClassLoader userCodeClassLoader) throws IOException {
+
+		int numIndices = in.readInt();
+
+		Map<Integer, TypeSerializer<?>> indices = new HashMap<>(numIndices);
+		for (int i = 0; i < numIndices; i++) {
+			indices.put(in.readInt(), tryReadSerializerWithResilience(in, userCodeClassLoader));
+		}
+
+		return indices;
+	}
 
 	/**
 	 * Writes a {@link TypeSerializer} to the provided data output view.
@@ -216,7 +265,7 @@ public class TypeSerializerSerializationUtil {
 	/**
 	 * Write a list of serializers and their corresponding config snapshots to the provided
 	 * data output view. This method writes in a fault tolerant way, so that when read again
-	 * using {@link #readSerializersAndConfigsWithResilience(DataInputView, ClassLoader, boolean)}, if
+	 * using {@link #readSerializersAndConfigsWithResilience(DataInputView, ClassLoader, Map)}, if
 	 * deserialization of the serializer fails, its configuration snapshot will remain intact.
 	 *
 	 * <p>Specifically, all written serializers and their config snapshots are indexed by their
@@ -235,20 +284,27 @@ public class TypeSerializerSerializationUtil {
 	public static void writeSerializersAndConfigsWithResilience(
 			DataOutputView out,
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs,
-			boolean excludeSerializers) throws IOException {
+			Map<TypeSerializer<?>, Integer> serializerIndexMapping) throws IOException {
 
 		out.writeInt(serializersAndConfigs.size());
 		for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> serAndConfSnapshot : serializersAndConfigs) {
-			if (!excludeSerializers) {
-				writeSerializerWithResilience(out, serAndConfSnapshot.f0);
+
+			if (serializerIndexMapping != null) {
+				if (serializerIndexMapping.containsKey(serAndConfSnapshot.f0)) {
+					out.writeInt(serializerIndexMapping.get(serAndConfSnapshot.f0));
+				} else {
+					throw new IllegalArgumentException(
+						"Provided serializer index mapping does not contain entry for " + serAndConfSnapshot.f0);
+				}
 			}
+
 			writeSerializerConfigSnapshot(out, serAndConfSnapshot.f1);
 		}
 	}
 
 	/**
 	 * Reads from a data input view a list of serializers and their corresponding config snapshots
-	 * written using {@link #writeSerializersAndConfigsWithResilience(DataOutputView, List, boolean)}.
+	 * written using {@link #writeSerializersAndConfigsWithResilience(DataOutputView, List, Map)}.
 	 * This is fault tolerant to any failures when deserializing the serializers. Serializers which
 	 * were not successfully deserialized will be replaced by {@code null}.
 	 *
@@ -262,7 +318,7 @@ public class TypeSerializerSerializationUtil {
 	public static List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> readSerializersAndConfigsWithResilience(
 			DataInputView in,
 			ClassLoader userCodeClassLoader,
-			boolean excludeSerializers) throws IOException {
+			Map<Integer, TypeSerializer<?>> serializerIndices) throws IOException {
 
 		int numSerializersAndConfigSnapshots = in.readInt();
 
@@ -272,9 +328,9 @@ public class TypeSerializerSerializationUtil {
 		TypeSerializer<?> serializer;
 		TypeSerializerConfigSnapshot serializerConfigSnapshot;
 		for (int i = 0; i < numSerializersAndConfigSnapshots; i++) {
-			serializer = excludeSerializers
+			serializer = (serializerIndices == null)
 				? null
-				: tryReadSerializerWithResilience(in, userCodeClassLoader);
+				: serializerIndices.get(in.readInt());
 
 			serializerConfigSnapshot = readSerializerConfigSnapshot(in, userCodeClassLoader);
 

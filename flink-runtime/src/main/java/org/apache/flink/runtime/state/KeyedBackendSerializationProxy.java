@@ -30,7 +30,9 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Serialization proxy for all meta data in keyed state backends. In the future we might also requiresMigration the actual state
@@ -97,19 +99,25 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
 		out.writeBoolean(excludeSerializers);
 
+		Map<TypeSerializer<?>, Integer> serializerIndices = null;
+		if (!excludeSerializers) {
+			serializerIndices = buildSerializerIndices();
+			TypeSerializerSerializationUtil.writeSerializerIndices(out, serializerIndices);
+		}
+
 		// write in a way to be fault tolerant of read failures when deserializing the key serializer
 		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
 				out,
 				Collections.singletonList(
 					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(keySerializer, keySerializerConfigSnapshot)),
-				excludeSerializers);
+				serializerIndices);
 
 		// write individual registered keyed state metainfos
 		out.writeShort(stateMetaInfoSnapshots.size());
 		for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> metaInfo : stateMetaInfoSnapshots) {
 			KeyedBackendStateMetaInfoSnapshotReaderWriters
 				.getWriterForVersion(VERSION, metaInfo)
-				.writeStateMetaInfo(out, excludeSerializers);
+				.writeStateMetaInfo(out, serializerIndices);
 		}
 	}
 
@@ -118,13 +126,18 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
+		Map<Integer, TypeSerializer<?>> serializerIndex = null;
 		// only starting from version 3, we have the key serializer and its config snapshot written
 		if (getReadVersion() >= 3) {
 			excludeSerializers = in.readBoolean();
 
+			if (!excludeSerializers) {
+				serializerIndex = TypeSerializerSerializationUtil.readSerializerIndex(in, userCodeClassLoader);
+			}
+
 			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndConfig =
 					TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
-						in, userCodeClassLoader, excludeSerializers).get(0);
+						in, userCodeClassLoader, serializerIndex).get(0);
 
 			this.keySerializer = (TypeSerializer<K>) keySerializerAndConfig.f0;
 			this.keySerializerConfigSnapshot = keySerializerAndConfig.f1;
@@ -141,7 +154,29 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 			stateMetaInfoSnapshots.add(
 				KeyedBackendStateMetaInfoSnapshotReaderWriters
 					.getReaderForVersion(getReadVersion(), userCodeClassLoader)
-					.readStateMetaInfo(in, excludeSerializers));
+					.readStateMetaInfo(in, serializerIndex));
 		}
+	}
+
+	private Map<TypeSerializer<?>, Integer> buildSerializerIndices() {
+		int nextAvailableIndex = 0;
+
+		// using reference equality for keys so that stateless
+		// serializers are a single entry in the index
+		final Map<TypeSerializer<?>, Integer> indices = new IdentityHashMap<>();
+
+		indices.put(keySerializer, nextAvailableIndex++);
+
+		for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> stateMetaInfoSnapshot : stateMetaInfoSnapshots) {
+			if (!indices.containsKey(stateMetaInfoSnapshot.getNamespaceSerializer())) {
+				indices.put(stateMetaInfoSnapshot.getNamespaceSerializer(), nextAvailableIndex++);
+			}
+
+			if (!indices.containsKey(stateMetaInfoSnapshot.getStateSerializer())) {
+				indices.put(stateMetaInfoSnapshot.getStateSerializer(), nextAvailableIndex++);
+			}
+		}
+
+		return indices;
 	}
 }

@@ -30,6 +30,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Map;
 
 /**
  * Readers and writers for different versions of the {@link RegisteredOperatorBackendStateMetaInfo.Snapshot}.
@@ -62,7 +63,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 	}
 
 	public interface OperatorBackendStateMetaInfoWriter {
-		void writeStateMetaInfo(DataOutputView out, boolean excludeSerializers) throws IOException;
+		void writeStateMetaInfo(DataOutputView out, Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException;
 	}
 
 	public static abstract class AbstractOperatorBackendStateMetaInfoWriter<S>
@@ -82,11 +83,11 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out, boolean excludeSerializers) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException {
 			out.writeUTF(stateMetaInfo.getName());
 			out.writeByte(stateMetaInfo.getAssignmentMode().ordinal());
 
-			// V1 does not respect the exclude serializer flag
+			// V1 does not respect the serializer indices
 			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getPartitionStateSerializer());
 		}
 	}
@@ -98,7 +99,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out, boolean excludeSerializers) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException {
 			out.writeUTF(stateMetaInfo.getName());
 			out.writeByte(stateMetaInfo.getAssignmentMode().ordinal());
 
@@ -108,7 +109,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 				Collections.singletonList(new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
 					stateMetaInfo.getPartitionStateSerializer(),
 					stateMetaInfo.getPartitionStateSerializerConfigSnapshot())),
-				excludeSerializers);
+				serializerIndices);
 		}
 	}
 
@@ -138,7 +139,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 
 	public interface OperatorBackendStateMetaInfoReader<S> {
 		RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(
-			DataInputView in, boolean excludeSerializers) throws IOException;
+			DataInputView in, Map<Integer, TypeSerializer<?>> serializerIndex) throws IOException;
 	}
 
 	public static abstract class AbstractOperatorBackendStateMetaInfoReader<S>
@@ -159,7 +160,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 
 		@Override
 		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(
-				DataInputView in, boolean excludeSerializers) throws IOException {
+				DataInputView in, Map<Integer, TypeSerializer<?>> serializerIndex) throws IOException {
 
 			RegisteredOperatorBackendStateMetaInfo.Snapshot<S> stateMetaInfo =
 				new RegisteredOperatorBackendStateMetaInfo.Snapshot<>();
@@ -167,7 +168,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			stateMetaInfo.setName(in.readUTF());
 			stateMetaInfo.setAssignmentMode(OperatorStateHandle.Mode.values()[in.readByte()]);
 
-			// V1 does not respect the exclude serializer flag
+			// V1 does not respect the serializer index
 			DataInputViewStream dis = new DataInputViewStream(in);
 			try {
 				TypeSerializer<S> stateSerializer = InstantiationUtil.deserializeObject(dis, userCodeClassLoader);
@@ -192,7 +193,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 
 		@Override
 		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(
-				DataInputView in, boolean excludeSerializers) throws IOException {
+				DataInputView in, Map<Integer, TypeSerializer<?>> serializerIndex) throws IOException {
 
 			RegisteredOperatorBackendStateMetaInfo.Snapshot<S> stateMetaInfo =
 				new RegisteredOperatorBackendStateMetaInfo.Snapshot<>();
@@ -202,7 +203,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 
 			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> stateSerializerAndConfig =
 				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
-					in, userCodeClassLoader, excludeSerializers).get(0);
+					in, userCodeClassLoader, serializerIndex).get(0);
 
 			stateMetaInfo.setPartitionStateSerializer((TypeSerializer<S>) stateSerializerAndConfig.f0);
 			stateMetaInfo.setPartitionStateSerializerConfigSnapshot(stateSerializerAndConfig.f1);

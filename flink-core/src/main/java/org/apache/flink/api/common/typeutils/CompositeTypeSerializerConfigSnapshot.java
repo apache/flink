@@ -26,7 +26,9 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A {@link TypeSerializerConfigSnapshot} for serializers that has multiple nested serializers.
@@ -71,7 +73,13 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 
 		out.writeBoolean(excludeSerializers);
 
-		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(out, nestedSerializersAndConfigs, excludeSerializers);
+		Map<TypeSerializer<?>, Integer> serializerIndices = null;
+		if (!excludeSerializers) {
+			serializerIndices = buildSerializerIndices();
+			TypeSerializerSerializationUtil.writeSerializerIndices(out, serializerIndices);
+		}
+
+		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(out, nestedSerializersAndConfigs, serializerIndices);
 	}
 
 	@Override
@@ -80,8 +88,13 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 
 		excludeSerializers = in.readBoolean();
 
+		Map<Integer, TypeSerializer<?>> serializerIndex = null;
+		if (!excludeSerializers) {
+			serializerIndex = TypeSerializerSerializationUtil.readSerializerIndex(in, getUserCodeClassLoader());
+		}
+
 		this.nestedSerializersAndConfigs =
-			TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, getUserCodeClassLoader(), excludeSerializers);
+			TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, getUserCodeClassLoader(), serializerIndex);
 	}
 
 	public List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getNestedSerializersAndConfigs() {
@@ -109,5 +122,21 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 	@Override
 	public int hashCode() {
 		return nestedSerializersAndConfigs.hashCode();
+	}
+
+	private Map<TypeSerializer<?>, Integer> buildSerializerIndices() {
+		int nextAvailableIndex = 0;
+
+		// using reference equality for keys so that stateless
+		// serializers are a single entry in the index
+		final Map<TypeSerializer<?>, Integer> indices = new IdentityHashMap<>();
+
+		for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> serializerAndConfig : nestedSerializersAndConfigs) {
+			if (!indices.containsKey(serializerAndConfig.f0)) {
+				indices.put(serializerAndConfig.f0, nextAvailableIndex++);
+			}
+		}
+
+		return indices;
 	}
 }
