@@ -36,42 +36,42 @@ abstract class RichAggregateFunction[T, ACC] extends AggregateFunction[T, ACC] {
     this.aggContext = context
   }
 
-  def registerValue[K](name: String, typeClass: Class[K]): Unit = {
+  def registerValueState[K](name: String, typeClass: Class[K]): Unit = {
     descriptorMapping.put(name, new ValueStateDescriptor[K](name, typeClass))
   }
 
-  def registerValue[K](name: String, typeInfo: TypeInformation[K]): Unit = {
+  def registerValueState[K](name: String, typeInfo: TypeInformation[K]): Unit = {
     descriptorMapping.put(name, new ValueStateDescriptor[K](name, typeInfo))
   }
 
-  def registerValue[K](name: String, typeSerializer: TypeSerializer[K]): Unit = {
+  def registerValueState[K](name: String, typeSerializer: TypeSerializer[K]): Unit = {
     descriptorMapping.put(name, new ValueStateDescriptor[K](name, typeSerializer))
   }
 
-  def registerList[K](name: String, elementTypeClass: Class[K]): Unit = {
+  def registerListState[K](name: String, elementTypeClass: Class[K]): Unit = {
     descriptorMapping.put(name, new ListStateDescriptor[K](name, elementTypeClass))
   }
 
-  def registerList[K](name: String, elementTypeInfo: TypeInformation[K]): Unit = {
+  def registerListState[K](name: String, elementTypeInfo: TypeInformation[K]): Unit = {
     descriptorMapping.put(name, new ListStateDescriptor[K](name, elementTypeInfo))
   }
 
-  def registerList[K](name: String, typeSerializer: TypeSerializer[K]): Unit = {
+  def registerListState[K](name: String, typeSerializer: TypeSerializer[K]): Unit = {
     descriptorMapping.put(name, new ListStateDescriptor[K](name, typeSerializer))
   }
 
-  def registerMap[UK, UV](name: String, keySerializer: TypeSerializer[UK],
+  def registerMapState[UK, UV](name: String, keySerializer: TypeSerializer[UK],
   valueSerializer: TypeSerializer[UV]): Unit = {
     descriptorMapping.put(name, new MapStateDescriptor[UK, UV](name, keySerializer,
       valueSerializer))
   }
 
-  def registerMap[UK, UV](name: String, keyTypeInfo: TypeInformation[UK],
+  def registerMapState[UK, UV](name: String, keyTypeInfo: TypeInformation[UK],
   valueTypeInfo: TypeInformation[UV]): Unit = {
     descriptorMapping.put(name, new MapStateDescriptor[UK, UV](name, keyTypeInfo, valueTypeInfo))
   }
 
-  def registerMap[UK, UV](name: String, keyClass: Class[UK], valueClass: Class[UV]): Unit = {
+  def registerMapState[UK, UV](name: String, keyClass: Class[UK], valueClass: Class[UV]): Unit = {
     descriptorMapping.put(name, new MapStateDescriptor[UK, UV](name, keyClass, valueClass))
   }
 

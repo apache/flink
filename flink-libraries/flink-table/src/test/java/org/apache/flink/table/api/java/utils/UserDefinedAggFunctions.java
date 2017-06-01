@@ -141,7 +141,7 @@ public class UserDefinedAggFunctions {
 		@Override
 		public WeightedStateAvgAccum createAccumulator() {
 			WeightedStateAvgAccum accum = new WeightedStateAvgAccum();
-			registerValue(accum.valueName, new TupleTypeInfo<>(Types.LONG, Types.INT));
+			registerValueState(accum.valueName, new TupleTypeInfo<>(Types.LONG, Types.INT));
 
 			try {
 				getValueByStateName(accum.valueName).update(new Tuple2<>(0L, 0));
