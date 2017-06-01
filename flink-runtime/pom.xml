@@ -442,7 +442,6 @@ under the License.
 						**/runtime/jobmanager/**,
 						**/runtime/jobmaster/**,
 						**/runtime/leaderelection/**,
-						**/runtime/leaderretrieval/**,
 						**/runtime/memory/**,
 						**/runtime/messages/**,
 						**/runtime/minicluster/**,
