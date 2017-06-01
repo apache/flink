@@ -20,19 +20,18 @@ package org.apache.flink.table.runtime.join
 import java.math.{BigDecimal => JBigDecimal}
 import java.util
 
-import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.{SqlFloorFunction, SqlStdOperatorTable}
-import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.sql.{SqlIntervalQualifier, SqlKind}
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer}
+import org.apache.flink.table.functions.TimeMaterializationSqlFunction
 import org.apache.flink.table.plan.schema.{RowSchema, TimeIndicatorRelDataType}
 import org.apache.flink.types.Row
 
@@ -226,24 +225,27 @@ object JoinUtil {
       config: TableConfig) = {
 
     val timeCall: RexCall = timeTerm.asInstanceOf[RexCall]
+    val leftLiteral =
+      reduceTimeExpression(
+        timeCall.operands.get(0),
+        rexBuilder,
+        config)
+
+    val rightLiteral =
+      reduceTimeExpression(
+        timeCall.operands.get(1),
+        rexBuilder,
+        config)
 
     val (tmpTimeOffset: Long, isLeftTableTimeOffset: Boolean) =
       timeTerm.getKind match {
         // e.g a.proctime > b.proctime - 5 sec, we need to store stream a.
         // the left expr(a) belong to left table, so the offset belong to left table
         case kind @ (SqlKind.GREATER_THAN | SqlKind.GREATER_THAN_OR_EQUAL) =>
-          (reduceTimeExpression(
-            timeCall.operands.get(1),
-            timeCall.operands.get(0),
-            rexBuilder,
-            config), isLeftExprBelongLeftTable)
+          (rightLiteral - leftLiteral, isLeftExprBelongLeftTable)
         // e.g a.proctime < b.proctime + 5 sec, we need to store stream b.
         case kind @ (SqlKind.LESS_THAN | SqlKind.LESS_THAN_OR_EQUAL) =>
-          (reduceTimeExpression(
-            timeCall.operands.get(0),
-            timeCall.operands.get(1),
-            rexBuilder,
-            config), !isLeftExprBelongLeftTable)
+          (leftLiteral - rightLiteral, !isLeftExprBelongLeftTable)
         case _ => 0
       }
 
@@ -270,8 +272,7 @@ object JoinUtil {
     *  ((0 - 1000) - 2000) - (0 - 1000) = -2000(-preceding, +following)
     */
   private def reduceTimeExpression(
-      leftNode: RexNode,
-      rightNode: RexNode,
+      rexNode: RexNode,
       rexBuilder: RexBuilder,
       config: TableConfig): Long = {
 
@@ -281,37 +282,25 @@ object JoinUtil {
       * so such as b.proctime + interval '1' hour - a.proctime
       * will be translate into TIMESTAMP(0) + interval '1' hour - interval '0' second
       */
-    def replaceTimeFieldWithLiteral(
-      expr: RexNode,
-      isTimeStamp: Boolean): RexNode = {
-
+    def replaceTimeFieldWithLiteral(expr: RexNode): RexNode = {
       expr match {
-        case c: RexCall =>
-          // replace in call operands
-          val newOps = c.operands.map(o => replaceTimeFieldWithLiteral(o, isTimeStamp))
-          rexBuilder.makeCall(c.getType, c.getOperator, newOps)
-        case i: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(i.getType) && isTimeStamp =>
+        case c: RexCall if c.getOperator == TimeMaterializationSqlFunction =>
           // replace with timestamp
           rexBuilder.makeZeroLiteral(expr.getType)
-        case i: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(i.getType) && !isTimeStamp =>
-          // replace with time interval
-          val sqlQualifier =
-            new SqlIntervalQualifier(
-              TimeUnit.SECOND,
-              0,
-              null,
-              0,
-              SqlParserPos.ZERO)
-          rexBuilder.makeIntervalLiteral(JBigDecimal.ZERO, sqlQualifier)
+        case c: RexCall =>
+          // replace in call operands
+          val newOps = c.operands.map(replaceTimeFieldWithLiteral(_))
+          rexBuilder.makeCall(c.getType, c.getOperator, newOps)
+        case i: RexInputRef if FlinkTypeFactory.isTimeIndicatorType(i.getType) =>
+          // replace with timestamp
+          rexBuilder.makeZeroLiteral(expr.getType)
         case _: RexInputRef =>
           throw new TableException("Time join condition may only reference time indicator fields.")
         case _ => expr
       }
     }
 
-    val replLeft = replaceTimeFieldWithLiteral(leftNode, true)
-    val replRight = replaceTimeFieldWithLiteral(rightNode, false)
-    val literalRex = rexBuilder.makeCall(SqlStdOperatorTable.MINUS, replLeft, replRight)
+    val literalRex = replaceTimeFieldWithLiteral(rexNode)
 
     val exprReducer = new ExpressionReducer(config)
     val originList = new util.ArrayList[RexNode]()

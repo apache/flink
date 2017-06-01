@@ -54,8 +54,8 @@ class JoinTest extends TableTestBase {
             term("select", "a", "b", "proctime")
           ),
           term("condition",
-            "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
-              "<=(proctime, DATETIME_PLUS(proctime0, 3600000)))"),
+            "AND(=(a, a0), >=(TIME_MATERIALIZATION(proctime), -(TIME_MATERIALIZATION(proctime0), 3600000)), " +
+              "<=(TIME_MATERIALIZATION(proctime), DATETIME_PLUS(TIME_MATERIALIZATION(proctime0), 3600000)))"),
           term("select", "a, proctime, a0, b, proctime0"),
           term("joinType", "InnerJoin")
         ),
