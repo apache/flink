@@ -31,6 +31,7 @@ import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -389,6 +390,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 		}
 
 		public JDBCInputFormatBuilder setFetchSize(int fetchSize) {
+			Preconditions.checkArgument(fetchSize > 0, "Illegal value %s for fetchSize, has to be positive.", fetchSize);
 			format.fetchSize = fetchSize;
 			return this;
 		}

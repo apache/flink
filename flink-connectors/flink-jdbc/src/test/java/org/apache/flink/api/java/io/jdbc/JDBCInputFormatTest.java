@@ -30,11 +30,9 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.IsEqual.equalTo;
 
 /**
  * Tests for the {@link JDBCInputFormat}.
@@ -104,8 +102,19 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 				.finish();
 	}
 
+	@Test(expected = IllegalArgumentException.class)
+	public void testInvalidFetchSize() {
+		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(SELECT_ALL_BOOKS)
+			.setRowTypeInfo(ROW_TYPE_INFO)
+			.setFetchSize(-7)
+			.finish();
+	}
+
 	@Test
-	public void defaultFetchSizeIsUsedIfNotConfiguredOtherwise() throws SQLException {
+	public void testDefaultFetchSizeIsUsedIfNotConfiguredOtherwise() throws SQLException, ClassNotFoundException {
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 			.setDrivername(DRIVER_CLASS)
 			.setDBUrl(DB_URL)
@@ -113,12 +122,15 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 			.setRowTypeInfo(ROW_TYPE_INFO)
 			.finish();
 		jdbcInputFormat.openInputFormat();
-		assertThat(jdbcInputFormat.getStatement().getFetchSize(), equalTo(1));
 
+		Class.forName(DRIVER_CLASS);
+		final int defaultFetchSize = DriverManager.getConnection(DB_URL).createStatement().getFetchSize();
+
+		Assert.assertEquals(defaultFetchSize, jdbcInputFormat.getStatement().getFetchSize());
 	}
 
 	@Test
-	public void fetchSizeCanBeConfigured() throws SQLException {
+	public void testFetchSizeCanBeConfigured() throws SQLException {
 		final int desiredFetchSize = 10_000;
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 			.setDrivername(DRIVER_CLASS)
@@ -128,7 +140,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 			.setFetchSize(desiredFetchSize)
 			.finish();
 		jdbcInputFormat.openInputFormat();
-		assertThat(jdbcInputFormat.getStatement().getFetchSize(), equalTo(desiredFetchSize));
+		Assert.assertEquals(desiredFetchSize, jdbcInputFormat.getStatement().getFetchSize());
 	}
 
 	@Test
