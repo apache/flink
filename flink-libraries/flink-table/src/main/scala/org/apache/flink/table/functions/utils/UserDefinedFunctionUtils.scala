@@ -291,7 +291,8 @@ object UserDefinedFunctionUtils {
     //check if a qualified accumulate method exists before create Sql function
     checkAndExtractMethods(aggFunction, "accumulate")
     val resultType: TypeInformation[_] = getResultTypeOfAggregateFunction(aggFunction, typeInfo)
-    AggSqlFunction(name, aggFunction, resultType, typeFactory, aggFunction.requiresOver)
+    val requiresOver = getRequiresOverConfig(aggFunction)
+    AggSqlFunction(name, aggFunction, resultType, typeFactory, requiresOver)
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -325,6 +326,21 @@ object UserDefinedFunctionUtils {
                         aggregateFunction.getClass,
                         0)
         .asInstanceOf[TypeInformation[_]]
+    }
+  }
+
+  /**
+    * Returns the value (boolean) of AggregateFunction#requiresOver() that indicates if this
+    * AggregateFunction can only be used for over window aggregate. If method requiresOver is not
+    * provided, return false as default value.
+    */
+  def getRequiresOverConfig(aggregateFunction: AggregateFunction[_, _]): Boolean = {
+    try {
+      val method: Method = aggregateFunction.getClass.getMethod("requiresOver")
+      method.invoke(aggregateFunction).asInstanceOf[Boolean]
+    } catch {
+      case _: NoSuchMethodException => false
+      case ite: Throwable => throw new TableException("Unexpected exception:", ite)
     }
   }
 

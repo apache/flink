@@ -29,12 +29,17 @@ package org.apache.flink.table.functions
   *  There are a few other methods that can be optional to have:
   *  - retract,
   *  - merge,
-  *  - resetAccumulator, and
-  *  - getAccumulatorType.
+  *  - resetAccumulator,
+  *  - getAccumulatorType,
+  *  - getResultType, and
+  *  - requiresOver.
   *
   * All these methods muse be declared publicly, not static and named exactly as the names
   * mentioned above. The methods createAccumulator and getValue are defined in the
-  * [[AggregateFunction]] functions, while other methods are explained below.
+  * [[AggregateFunction]] functions, while other methods are explained below. It should be
+  * also noted that the optional methods merge, resetAccumulator, getAccumulatorType,
+  * getResultType, and requiresOver cannot be overloaded. If provided, their inputs and outputs must
+  * be defined exactly same as the below.
   *
   *
   * {{{
@@ -72,7 +77,7 @@ package org.apache.flink.table.functions
   *                     custom merge method.
   * @param its          an [[java.lang.Iterable]] pointed to a group of accumulators that will be
   *                     merged.
-
+  *
   * def merge(accumulator: ACC, its: java.lang.Iterable[ACC]): Unit
   * }}}
   *
@@ -82,7 +87,7 @@ package org.apache.flink.table.functions
   * dataset grouping aggregate.
   *
   * @param accumulator  the accumulator which needs to be reset
-
+  *
   * def resetAccumulator(accumulator: ACC): Unit
   * }}}
   *
@@ -93,7 +98,7 @@ package org.apache.flink.table.functions
   * inferred from the instance returned by createAccumulator method.
   *
   * @return  the type information for the accumulator.
-
+  *
   * def getAccumulatorType: TypeInformation[_]
   * }}}
   *
@@ -107,6 +112,17 @@ package org.apache.flink.table.functions
   * @return  the type information for the return value.
   *
   * def getResultType: TypeInformation[_]
+  * }}}
+  *
+  *
+  * {{{
+  * Returns a boolean flag indicates if this aggregate can only be used in OVER clause. If this
+  * method is not provided, by default, Flink assumes the User Defined Aggregate can be used in
+  * grouping aggregate as well.
+  *
+  * @return  the value indicates if this aggregate can only be used in OVER clause.
+  *
+  * def requiresOver: Boolean
   * }}}
   *
   *
@@ -135,9 +151,4 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
     * @return the aggregation result
     */
   def getValue(accumulator: ACC): T
-
-  /**
-    * whether this aggregate only used in OVER clause
-    */
-  def requiresOver: Boolean = false
 }

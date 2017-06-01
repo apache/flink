@@ -258,11 +258,12 @@ case class AggFunctionCall(
 
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    val requiresOver = getRequiresOverConfig(aggregateFunction)
     val sqlAgg = AggSqlFunction(aggregateFunction.getClass.getSimpleName,
                    aggregateFunction,
                    resultType,
                    typeFactory,
-                   aggregateFunction.requiresOver)
+                   requiresOver)
     sqlAgg
   }
 
