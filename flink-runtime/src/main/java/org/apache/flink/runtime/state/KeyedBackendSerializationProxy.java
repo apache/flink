@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.typeutils.IdentitySerializerIndex;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
@@ -30,9 +31,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Serialization proxy for all meta data in keyed state backends. In the future we might also requiresMigration the actual state
@@ -99,10 +98,10 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
 		out.writeBoolean(excludeSerializers);
 
-		Map<TypeSerializer<?>, Integer> serializerIndices = null;
+		IdentitySerializerIndex serializerIndex = null;
 		if (!excludeSerializers) {
-			serializerIndices = buildSerializerIndices();
-			TypeSerializerSerializationUtil.writeSerializerIndices(out, serializerIndices);
+			serializerIndex = buildSerializerIndex();
+			serializerIndex.write(out);
 		}
 
 		// write in a way to be fault tolerant of read failures when deserializing the key serializer
@@ -110,14 +109,14 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 				out,
 				Collections.singletonList(
 					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(keySerializer, keySerializerConfigSnapshot)),
-				serializerIndices);
+				serializerIndex);
 
 		// write individual registered keyed state metainfos
 		out.writeShort(stateMetaInfoSnapshots.size());
 		for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> metaInfo : stateMetaInfoSnapshots) {
 			KeyedBackendStateMetaInfoSnapshotReaderWriters
 				.getWriterForVersion(VERSION, metaInfo)
-				.writeStateMetaInfo(out, serializerIndices);
+				.writeStateMetaInfo(out, serializerIndex);
 		}
 	}
 
@@ -126,13 +125,16 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
-		Map<Integer, TypeSerializer<?>> serializerIndex = null;
-		// only starting from version 3, we have the key serializer and its config snapshot written
+		IdentitySerializerIndex serializerIndex = null;
+
+		// only starting from version 3, we have the excludeSerializers flag,
+		// serializer index, and key serializer config snapshot written
 		if (getReadVersion() >= 3) {
 			excludeSerializers = in.readBoolean();
 
 			if (!excludeSerializers) {
-				serializerIndex = TypeSerializerSerializationUtil.readSerializerIndex(in, userCodeClassLoader);
+				serializerIndex = new IdentitySerializerIndex(userCodeClassLoader);
+				serializerIndex.read(in);
 			}
 
 			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndConfig =
@@ -158,25 +160,16 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 		}
 	}
 
-	private Map<TypeSerializer<?>, Integer> buildSerializerIndices() {
-		int nextAvailableIndex = 0;
+	private IdentitySerializerIndex buildSerializerIndex() {
+		final IdentitySerializerIndex serializerIndex = new IdentitySerializerIndex();
 
-		// using reference equality for keys so that stateless
-		// serializers are a single entry in the index
-		final Map<TypeSerializer<?>, Integer> indices = new IdentityHashMap<>();
-
-		indices.put(keySerializer, nextAvailableIndex++);
+		serializerIndex.index(keySerializer);
 
 		for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> stateMetaInfoSnapshot : stateMetaInfoSnapshots) {
-			if (!indices.containsKey(stateMetaInfoSnapshot.getNamespaceSerializer())) {
-				indices.put(stateMetaInfoSnapshot.getNamespaceSerializer(), nextAvailableIndex++);
-			}
-
-			if (!indices.containsKey(stateMetaInfoSnapshot.getStateSerializer())) {
-				indices.put(stateMetaInfoSnapshot.getStateSerializer(), nextAvailableIndex++);
-			}
+			serializerIndex.index(stateMetaInfoSnapshot.getNamespaceSerializer());
+			serializerIndex.index(stateMetaInfoSnapshot.getStateSerializer());
 		}
 
-		return indices;
+		return serializerIndex;
 	}
 }

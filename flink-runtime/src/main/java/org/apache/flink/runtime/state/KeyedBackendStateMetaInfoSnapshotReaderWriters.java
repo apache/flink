@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeutils.IdentitySerializerIndex;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
@@ -30,7 +31,6 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Readers and writers for different versions of the {@link RegisteredKeyedBackendStateMetaInfo.Snapshot}.
@@ -64,7 +64,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 	}
 
 	public interface KeyedBackendStateMetaInfoWriter {
-		void writeStateMetaInfo(DataOutputView out, Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException;
+		void writeStateMetaInfo(DataOutputView out, IdentitySerializerIndex serializerIndex) throws IOException;
 	}
 
 	static abstract class AbstractKeyedBackendStateMetaInfoWriter<N, S> implements KeyedBackendStateMetaInfoWriter {
@@ -84,11 +84,11 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out, Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, IdentitySerializerIndex serializerIndex) throws IOException {
 			out.writeInt(stateMetaInfo.getStateType().ordinal());
 			out.writeUTF(stateMetaInfo.getName());
 
-			// V1 / V2 does not respect the serializer indices
+			// V1 / V2 does not respect the serializer index
 			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getNamespaceSerializer());
 			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getStateSerializer());
 		}
@@ -101,7 +101,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out, Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, IdentitySerializerIndex serializerIndex) throws IOException {
 			out.writeInt(stateMetaInfo.getStateType().ordinal());
 			out.writeUTF(stateMetaInfo.getName());
 
@@ -113,7 +113,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 						stateMetaInfo.getNamespaceSerializer(), stateMetaInfo.getNamespaceSerializerConfigSnapshot()),
 					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
 						stateMetaInfo.getStateSerializer(), stateMetaInfo.getStateSerializerConfigSnapshot())),
-				serializerIndices);
+				serializerIndex);
 		}
 	}
 
@@ -145,7 +145,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 
 	public interface KeyedBackendStateMetaInfoReader<N, S> {
 		RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(
-				DataInputView in, Map<Integer, TypeSerializer<?>> serializerIndex) throws IOException;
+				DataInputView in, IdentitySerializerIndex serializerIndex) throws IOException;
 	}
 
 	static abstract class AbstractKeyedBackendStateMetaInfoReader<N, S> implements KeyedBackendStateMetaInfoReader<N, S> {
@@ -166,7 +166,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 
 		@Override
 		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(
-				DataInputView in, Map<Integer, TypeSerializer<?>> serializerIndex) throws IOException {
+				DataInputView in, IdentitySerializerIndex serializerIndex) throws IOException {
 			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> metaInfo =
 				new RegisteredKeyedBackendStateMetaInfo.Snapshot<>();
 
@@ -194,7 +194,7 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 
 		@Override
 		public RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> readStateMetaInfo(
-				DataInputView in, Map<Integer, TypeSerializer<?>> serializerIndex) throws IOException {
+				DataInputView in, IdentitySerializerIndex serializerIndex) throws IOException {
 			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> metaInfo =
 				new RegisteredKeyedBackendStateMetaInfo.Snapshot<>();
 

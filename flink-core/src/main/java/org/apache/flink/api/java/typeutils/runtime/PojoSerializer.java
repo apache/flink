@@ -25,7 +25,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -37,6 +36,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.IdentitySerializerIndex;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
@@ -792,20 +792,20 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 			out.writeBoolean(excludeSerializers);
 
-			Map<TypeSerializer<?>, Integer> serializerIndices = null;
+			IdentitySerializerIndex serializerIndex = null;
 			if (!excludeSerializers) {
-				serializerIndices = buildSerializerIndices();
-				TypeSerializerSerializationUtil.writeSerializerIndices(out, serializerIndices);
+				serializerIndex = buildSerializerIndex();
+				serializerIndex.write(out);
 			}
 
 			// write fields and their serializers, in order
-			writeFieldToSerializerAndConfigSnapshotMap(out, fieldsToSerializersAndConfigSnapshots, serializerIndices);
+			writeFieldToSerializerAndConfigSnapshotMap(out, fieldsToSerializersAndConfigSnapshots, serializerIndex);
 
 			// write registered subclasses and their serializers, in registration order
-			writeClassToSerializerAndConfigSnapshotMap(out, registeredSubclassesToSerializersAndConfigSnapshots, serializerIndices);
+			writeClassToSerializerAndConfigSnapshotMap(out, registeredSubclassesToSerializersAndConfigSnapshots, serializerIndex);
 
 			// write serializers and config snapshots of non-registered subclass serializer cache
-			writeClassToSerializerAndConfigSnapshotMap(out, nonRegisteredSubclassesToSerializersAndConfigSnapshots, serializerIndices);
+			writeClassToSerializerAndConfigSnapshotMap(out, nonRegisteredSubclassesToSerializersAndConfigSnapshots, serializerIndex);
 		}
 
 		@Override
@@ -814,9 +814,10 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 			excludeSerializers = in.readBoolean();
 
-			Map<Integer, TypeSerializer<?>> serializerIndex = null;
+			IdentitySerializerIndex serializerIndex = null;
 			if (!excludeSerializers) {
-				serializerIndex = TypeSerializerSerializationUtil.readSerializerIndex(in, getUserCodeClassLoader());
+				serializerIndex = new IdentitySerializerIndex(getUserCodeClassLoader());
+				serializerIndex.read(in);
 			}
 
 			// read fields and their serializers, in order
@@ -867,50 +868,37 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					nonRegisteredSubclassesToSerializersAndConfigSnapshots);
 		}
 
-		private Map<TypeSerializer<?>, Integer> buildSerializerIndices() {
-			int nextAvailableIndex = 0;
-
-			// using reference equality for keys so that stateless
-			// serializers are a single entry in the index
-			final Map<TypeSerializer<?>, Integer> indices = new IdentityHashMap<>();
+		private IdentitySerializerIndex buildSerializerIndex() {
+			final IdentitySerializerIndex serializerIndex = new IdentitySerializerIndex();
 
 			for (Map.Entry<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
 					: fieldsToSerializersAndConfigSnapshots.entrySet()) {
-
-				if (!indices.containsKey(entry.getValue().f0)) {
-					indices.put(entry.getValue().f0, nextAvailableIndex++);
-				}
+				serializerIndex.index(entry.getValue().f0);
 			}
 
 			for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
 					: registeredSubclassesToSerializersAndConfigSnapshots.entrySet()) {
-
-				if (!indices.containsKey(entry.getValue().f0)) {
-					indices.put(entry.getValue().f0, nextAvailableIndex++);
-				}
+				serializerIndex.index(entry.getValue().f0);
 			}
 
 			for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
 					: nonRegisteredSubclassesToSerializersAndConfigSnapshots.entrySet()) {
-
-				if (!indices.containsKey(entry.getValue().f0)) {
-					indices.put(entry.getValue().f0, nextAvailableIndex++);
-				}
+				serializerIndex.index(entry.getValue().f0);
 			}
 
-			return indices;
+			return serializerIndex;
 		}
 
 		private static void writeFieldToSerializerAndConfigSnapshotMap(
 				DataOutputView out,
 				Map<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> fieldToSerializerAndConfigSnapshotMap,
-				Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException {
+				IdentitySerializerIndex serializerIndex) throws IOException {
 
 			out.writeInt(fieldToSerializerAndConfigSnapshotMap.size());
 			for (Map.Entry<Field, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
 					: fieldToSerializerAndConfigSnapshotMap.entrySet()) {
 				writeSerializerAndConfigSnapshotEntry(
-					out, entry.getKey().getName(), entry.getValue().f0, entry.getValue().f1, serializerIndices);
+					out, entry.getKey().getName(), entry.getValue().f0, entry.getValue().f1, serializerIndex);
 			}
 		}
 
@@ -918,7 +906,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 				DataInputView in,
 				Class<?> typeClass,
 				ClassLoader userCodeClassLoader,
-				Map<Integer, TypeSerializer<?>> serializerIndex) throws IOException {
+				IdentitySerializerIndex serializerIndex) throws IOException {
 
 			int numEntries = in.readInt();
 
@@ -949,7 +937,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 				} else {
 					serializer = (serializerIndex == null)
 						? null
-						: serializerIndex.get(in.readInt());
+						: serializerIndex.getSerializer(in.readInt());
 
 					serializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
 						in, userCodeClassLoader);
@@ -968,20 +956,20 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		private static void writeClassToSerializerAndConfigSnapshotMap(
 				DataOutputView out,
 				Map<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> classToSerializerAndConfigSnapshotMap,
-				Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException {
+				IdentitySerializerIndex serializerIndex) throws IOException {
 
 			out.writeInt(classToSerializerAndConfigSnapshotMap.size());
 			for (Map.Entry<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> entry
 				: classToSerializerAndConfigSnapshotMap.entrySet()) {
 				writeSerializerAndConfigSnapshotEntry(
-					out, entry.getKey().getName(), entry.getValue().f0, entry.getValue().f1, serializerIndices);
+					out, entry.getKey().getName(), entry.getValue().f0, entry.getValue().f1, serializerIndex);
 			}
 		}
 
 		private static LinkedHashMap<Class<?>, Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> readClassToSerializerAndConfigSnapshotMap(
 				DataInputView in,
 				ClassLoader userCodeClassLoader,
-				Map<Integer, TypeSerializer<?>> serializerIndex) throws IOException {
+				IdentitySerializerIndex serializerIndex) throws IOException {
 
 			int numEntries = in.readInt();
 
@@ -1000,7 +988,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 				serializer = (serializerIndex == null)
 					? null
-					: serializerIndex.get(in.readInt());
+					: serializerIndex.getSerializer(in.readInt());
 
 				serializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
 					in, userCodeClassLoader);
@@ -1020,11 +1008,11 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 				String entryKey,
 				TypeSerializer<?> serializer,
 				TypeSerializerConfigSnapshot serializerConfigSnapshot,
-				Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException {
+				IdentitySerializerIndex serializerIndex) throws IOException {
 			out.writeUTF(entryKey);
 
-			if (serializerIndices != null) {
-				out.writeInt(serializerIndices.get(serializer));
+			if (serializerIndex != null) {
+				out.writeInt(serializerIndex.getIndexOf(serializer));
 			}
 
 			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(out, serializerConfigSnapshot);

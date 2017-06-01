@@ -26,9 +26,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * A {@link TypeSerializerConfigSnapshot} for serializers that has multiple nested serializers.
@@ -73,13 +71,13 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 
 		out.writeBoolean(excludeSerializers);
 
-		Map<TypeSerializer<?>, Integer> serializerIndices = null;
+		IdentitySerializerIndex serializerIndex = null;
 		if (!excludeSerializers) {
-			serializerIndices = buildSerializerIndices();
-			TypeSerializerSerializationUtil.writeSerializerIndices(out, serializerIndices);
+			serializerIndex = buildSerializerIndex();
+			serializerIndex.write(out);
 		}
 
-		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(out, nestedSerializersAndConfigs, serializerIndices);
+		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(out, nestedSerializersAndConfigs, serializerIndex);
 	}
 
 	@Override
@@ -88,9 +86,10 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 
 		excludeSerializers = in.readBoolean();
 
-		Map<Integer, TypeSerializer<?>> serializerIndex = null;
+		IdentitySerializerIndex serializerIndex = null;
 		if (!excludeSerializers) {
-			serializerIndex = TypeSerializerSerializationUtil.readSerializerIndex(in, getUserCodeClassLoader());
+			serializerIndex = new IdentitySerializerIndex(getUserCodeClassLoader());
+			serializerIndex.read(in);
 		}
 
 		this.nestedSerializersAndConfigs =
@@ -124,19 +123,13 @@ public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializ
 		return nestedSerializersAndConfigs.hashCode();
 	}
 
-	private Map<TypeSerializer<?>, Integer> buildSerializerIndices() {
-		int nextAvailableIndex = 0;
-
-		// using reference equality for keys so that stateless
-		// serializers are a single entry in the index
-		final Map<TypeSerializer<?>, Integer> indices = new IdentityHashMap<>();
+	private IdentitySerializerIndex buildSerializerIndex() {
+		final IdentitySerializerIndex serializerIndex = new IdentitySerializerIndex();
 
 		for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> serializerAndConfig : nestedSerializersAndConfigs) {
-			if (!indices.containsKey(serializerAndConfig.f0)) {
-				indices.put(serializerAndConfig.f0, nextAvailableIndex++);
-			}
+			serializerIndex.index(serializerAndConfig.f0);
 		}
 
-		return indices;
+		return serializerIndex;
 	}
 }

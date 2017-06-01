@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.typeutils.IdentitySerializerIndex;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
@@ -30,7 +31,6 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.Map;
 
 /**
  * Readers and writers for different versions of the {@link RegisteredOperatorBackendStateMetaInfo.Snapshot}.
@@ -63,7 +63,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 	}
 
 	public interface OperatorBackendStateMetaInfoWriter {
-		void writeStateMetaInfo(DataOutputView out, Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException;
+		void writeStateMetaInfo(DataOutputView out, IdentitySerializerIndex serializerIndex) throws IOException;
 	}
 
 	public static abstract class AbstractOperatorBackendStateMetaInfoWriter<S>
@@ -83,11 +83,11 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out, Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, IdentitySerializerIndex serializerIndex) throws IOException {
 			out.writeUTF(stateMetaInfo.getName());
 			out.writeByte(stateMetaInfo.getAssignmentMode().ordinal());
 
-			// V1 does not respect the serializer indices
+			// V1 does not respect the serializer index
 			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getPartitionStateSerializer());
 		}
 	}
@@ -99,7 +99,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		}
 
 		@Override
-		public void writeStateMetaInfo(DataOutputView out, Map<TypeSerializer<?>, Integer> serializerIndices) throws IOException {
+		public void writeStateMetaInfo(DataOutputView out, IdentitySerializerIndex serializerIndex) throws IOException {
 			out.writeUTF(stateMetaInfo.getName());
 			out.writeByte(stateMetaInfo.getAssignmentMode().ordinal());
 
@@ -109,7 +109,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 				Collections.singletonList(new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
 					stateMetaInfo.getPartitionStateSerializer(),
 					stateMetaInfo.getPartitionStateSerializerConfigSnapshot())),
-				serializerIndices);
+				serializerIndex);
 		}
 	}
 
@@ -139,7 +139,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 
 	public interface OperatorBackendStateMetaInfoReader<S> {
 		RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(
-			DataInputView in, Map<Integer, TypeSerializer<?>> serializerIndex) throws IOException;
+			DataInputView in, IdentitySerializerIndex serializerIndex) throws IOException;
 	}
 
 	public static abstract class AbstractOperatorBackendStateMetaInfoReader<S>
@@ -160,7 +160,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 
 		@Override
 		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(
-				DataInputView in, Map<Integer, TypeSerializer<?>> serializerIndex) throws IOException {
+				DataInputView in, IdentitySerializerIndex serializerIndex) throws IOException {
 
 			RegisteredOperatorBackendStateMetaInfo.Snapshot<S> stateMetaInfo =
 				new RegisteredOperatorBackendStateMetaInfo.Snapshot<>();
@@ -193,7 +193,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 
 		@Override
 		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readStateMetaInfo(
-				DataInputView in, Map<Integer, TypeSerializer<?>> serializerIndex) throws IOException {
+				DataInputView in, IdentitySerializerIndex serializerIndex) throws IOException {
 
 			RegisteredOperatorBackendStateMetaInfo.Snapshot<S> stateMetaInfo =
 				new RegisteredOperatorBackendStateMetaInfo.Snapshot<>();
