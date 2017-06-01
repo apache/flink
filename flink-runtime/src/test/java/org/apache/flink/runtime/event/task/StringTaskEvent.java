@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.event.task;
 
-import java.io.IOException;
-
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.util.StringUtils;
+
+import java.io.IOException;
 
 /**
  * This class provides a simple implementation of an event that holds a string value.
@@ -42,7 +42,7 @@ public class StringTaskEvent extends TaskEvent {
 
 	/**
 	 * Constructs a new string task event with the given string message.
-	 * 
+	 *
 	 * @param message
 	 *        the string message that shall be stored in this event
 	 */
@@ -52,13 +52,12 @@ public class StringTaskEvent extends TaskEvent {
 
 	/**
 	 * Returns the stored string.
-	 * 
+	 *
 	 * @return the stored string or <code>null</code> if no string is set
 	 */
 	public String getString() {
 		return this.message;
 	}
-
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
@@ -70,7 +69,6 @@ public class StringTaskEvent extends TaskEvent {
 		this.message = StringUtils.readNullableString(in);
 	}
 
-
 	@Override
 	public int hashCode() {
 		if (this.message == null) {
@@ -79,7 +77,6 @@ public class StringTaskEvent extends TaskEvent {
 
 		return this.message.hashCode();
 	}
-
 
 	@Override
 	public boolean equals(final Object obj) {
