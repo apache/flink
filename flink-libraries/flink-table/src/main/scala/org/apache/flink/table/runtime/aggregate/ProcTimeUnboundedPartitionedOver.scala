@@ -27,6 +27,7 @@ import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.functions.AggregateContext
 import org.slf4j.LoggerFactory
 
 /**
@@ -56,6 +57,7 @@ class ProcTimeUnboundedPartitionedOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.setAggregateContext(new AggregateContext(getRuntimeContext))
 
     output = new CRow(function.createOutputRow(), true)
     val stateDescriptor: ValueStateDescriptor[Row] =

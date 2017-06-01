@@ -174,6 +174,10 @@ class HarnessTestBase {
       |    return new org.apache.flink.types.Row(7);
       |  }
       |
+      |  public final void setAggregateContext(
+      |    org.apache.flink.table.functions.AggregateContext aggregateContext) {
+      |  }
+      |
       |/*******  This test does not use the following methods  *******/
       |  public org.apache.flink.types.Row mergeAccumulatorsPair(
       |    org.apache.flink.types.Row a,
@@ -285,6 +289,10 @@ class HarnessTestBase {
       |
       |  public final void resetAccumulator(
       |    org.apache.flink.types.Row accs) {
+      |  }
+      |
+      |  public final void setAggregateContext(
+      |    org.apache.flink.table.functions.AggregateContext aggregateContext) {
       |  }
       |}
       |""".stripMargin

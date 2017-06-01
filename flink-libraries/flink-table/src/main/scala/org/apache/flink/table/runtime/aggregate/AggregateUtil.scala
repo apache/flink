@@ -43,6 +43,7 @@ import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction => TableAggregateFunction}
+import org.apache.flink.table.functions.{RichAggregateFunction => TableRichAggregateFunction}
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
@@ -335,6 +336,8 @@ object AggregateUtil {
       inputType,
       needRetract)
 
+    validateRichAggregate(aggregates)
+
     val mapReturnType: RowTypeInfo =
       createRowTypeForKeysAndAggregates(
         groupings,
@@ -439,6 +442,8 @@ object AggregateUtil {
       namedAggregates.map(_.getKey),
       physicalInputRowType,
       needRetract)
+
+    validateRichAggregate(aggregates)
 
     val returnType: RowTypeInfo = createRowTypeForKeysAndAggregates(
       groupings,
@@ -552,6 +557,8 @@ object AggregateUtil {
       namedAggregates.map(_.getKey),
       physicalInputRowType,
       needRetract)
+
+    validateRichAggregate(aggregates)
 
     val aggMapping = aggregates.indices.toArray.map(_ + groupings.length)
 
@@ -700,6 +707,8 @@ object AggregateUtil {
       physicalInputRowType,
       needRetract)
 
+    validateRichAggregate(aggregates)
+
     val aggMapping = aggregates.indices.map(_ + groupings.length).toArray
 
     val keysAndAggregatesArity = groupings.length + namedAggregates.length
@@ -773,6 +782,8 @@ object AggregateUtil {
       physicalInputRowType,
       needRetract)
 
+    validateRichAggregate(aggregates)
+
     val aggMapping = aggregates.indices.map(_ + groupings.length).toArray
 
     val keysAndAggregatesArity = groupings.length + namedAggregates.length
@@ -838,6 +849,8 @@ object AggregateUtil {
       namedAggregates.map(_.getKey),
       inputType,
       needRetract)
+
+    validateRichAggregate(aggregates)
 
     val (gkeyOutMapping, aggOutMapping) = getOutputMappings(
       namedAggregates,
@@ -1012,6 +1025,8 @@ object AggregateUtil {
         inputType,
         needRetract)
 
+    validateRichAggregate(aggregates)
+
     val aggMapping = aggregates.indices.toArray
     val outputArity = aggregates.length
 
@@ -1039,6 +1054,14 @@ object AggregateUtil {
     val aggFunction = new AggregateAggFunction(genFunction)
 
     (aggFunction, accumulatorRowType, aggResultRowType)
+  }
+
+  private def validateRichAggregate(aggregates: Array[TableAggregateFunction[_, _]]): Unit = {
+    aggregates.foreach {
+      case agg: TableRichAggregateFunction[_, _] =>
+        throw new TableException("RichAggregate is currently not supported")
+      case _ => // ok
+    }
   }
 
   /**
@@ -1420,9 +1443,9 @@ object AggregateUtil {
           if (accType != null) {
             accType
           } else {
-            val accumulator = agg.createAccumulator()
             try {
-              TypeInformation.of(accumulator.getClass)
+              val method = agg.getClass.getMethod("createAccumulator")
+              TypeInformation.of(method.getReturnType)
             } catch {
               case ite: InvalidTypesException =>
                 throw new TableException(

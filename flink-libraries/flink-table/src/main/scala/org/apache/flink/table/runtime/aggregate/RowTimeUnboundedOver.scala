@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.table.functions.AggregateContext
 import org.slf4j.LoggerFactory
 
 
@@ -69,6 +70,7 @@ abstract class RowTimeUnboundedOver(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.setAggregateContext(new AggregateContext(getRuntimeContext))
 
     output = new CRow(function.createOutputRow(), true)
     sortedTimestamps = new util.LinkedList[Long]()
