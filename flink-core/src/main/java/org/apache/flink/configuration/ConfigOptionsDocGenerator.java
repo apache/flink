@@ -132,15 +132,21 @@ public class ConfigOptionsDocGenerator {
 	 */
 	private static String toHtmlTable(final List<ConfigOption> options) {
 		StringBuilder htmlTable = new StringBuilder(
-			"<table class=\"table table-bordered\"><thead><tr><th class=\"text-left\" style=\"width: 20%\">Key</th>" +
-			"<th class=\"text-left\" style=\"width: 15%\">Default Value</th><th class=\"text-left\" " +
-			"style=\"width: 65%\">Description</th></tr></thead><tbody>");
+			"<table class=\"table table-bordered\">\n" +
+			"<thead>\n" +
+			"<tr>\n" +
+			"<th class=\"text-left\" style=\"width: 20%\">Key</th>\n" +
+			"<th class=\"text-left\" style=\"width: 15%\">Default Value</th>\n" +
+			"<th class=\"text-left\" style=\"width: 65%\">Description</th>\n" +
+			"</tr>\n" +
+			"</thead>\n" +
+			"<tbody>\n");
 
 		for (ConfigOption option : options) {
 			htmlTable.append(toHtmlString(option));
 		}
 
-		htmlTable.append("</tbody></table>");
+		htmlTable.append("</tbody>\n</table>\n");
 
 		return htmlTable.toString();
 	}
@@ -159,11 +165,11 @@ public class ConfigOptionsDocGenerator {
 		if (option == JobManagerOptions.WEB_TMP_DIR || option.key().equals("python.dc.tmp.dir")) {
 			defaultValue = null;
 		}
-		return "<tr>" +
-			"<td><h5>" + escapeCharacters(option.key()) + "</h5></td>" +
-			"<td>" + escapeCharacters(defaultValueToHtml(defaultValue)) + "</td>" +
-			"<td>" + escapeCharacters(option.description()) + "</td>" +
-			"</tr>";
+		return "<tr>\n" +
+			"<td><h5>" + escapeCharacters(option.key()) + "</h5></td>\n" +
+			"<td>" + escapeCharacters(defaultValueToHtml(defaultValue)) + "</td>\n" +
+			"<td>" + escapeCharacters(option.description()) + "</td>\n" +
+			"</tr>\n";
 	}
 
 	private static String defaultValueToHtml(Object value) {
