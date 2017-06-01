@@ -295,8 +295,7 @@ public class WindowedStream<T, K, W extends Window> {
 			LegacyWindowOperatorType legacyWindowOpType) {
 
 		TypeInformation<T> inType = input.getType();
-		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
-			function, WindowFunction.class, true, true, inType, null, false);
+		TypeInformation<R> resultType = getWindowFunctionReturnType(function, inType);
 
 		return reduce(reduceFunction, function, resultType, legacyWindowOpType);
 	}
@@ -396,8 +395,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 */
 	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> reduce(ReduceFunction<T> reduceFunction, ProcessWindowFunction<T, R, K, W> function) {
-		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
-				function, ProcessWindowFunction.class, true, true, input.getType(), null, false);
+		TypeInformation<R> resultType = getProcessWindowFunctionReturnType(function, input.getType(), null);
 
 		return reduce(reduceFunction, function, resultType);
 	}
@@ -544,8 +542,7 @@ public class WindowedStream<T, K, W extends Window> {
 		TypeInformation<ACC> foldAccumulatorType = TypeExtractor.getFoldReturnTypes(foldFunction, input.getType(),
 			Utils.getCallLocationName(), true);
 
-		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
-			function, WindowFunction.class, true, true, foldAccumulatorType, null, false);
+		TypeInformation<R> resultType = getWindowFunctionReturnType(function, foldAccumulatorType);
 
 		return fold(initialValue, foldFunction, function, foldAccumulatorType, resultType);
 	}
@@ -663,8 +660,7 @@ public class WindowedStream<T, K, W extends Window> {
 		TypeInformation<ACC> foldResultType = TypeExtractor.getFoldReturnTypes(foldFunction, input.getType(),
 				Utils.getCallLocationName(), true);
 
-		TypeInformation<R> windowResultType = TypeExtractor.getUnaryOperatorReturnType(
-				windowFunction, ProcessWindowFunction.class, true, true, foldResultType, Utils.getCallLocationName(), false);
+		TypeInformation<R> windowResultType = getProcessWindowFunctionReturnType(windowFunction, foldResultType, Utils.getCallLocationName());
 
 		return fold(initialValue, foldFunction, windowFunction, foldResultType, windowResultType);
 	}
@@ -852,8 +848,7 @@ public class WindowedStream<T, K, W extends Window> {
 		TypeInformation<V> aggResultType = TypeExtractor.getAggregateFunctionReturnType(
 				aggFunction, input.getType(), null, false);
 
-		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
-				windowFunction, WindowFunction.class, true, true, aggResultType, null, false);
+		TypeInformation<R> resultType = getWindowFunctionReturnType(windowFunction, aggResultType);
 
 		return aggregate(aggFunction, windowFunction, accumulatorType, aggResultType, resultType);
 	}
@@ -981,10 +976,40 @@ public class WindowedStream<T, K, W extends Window> {
 		TypeInformation<V> aggResultType = TypeExtractor.getAggregateFunctionReturnType(
 				aggFunction, input.getType(), null, false);
 
-		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
-				windowFunction, ProcessWindowFunction.class, true, true, aggResultType, null, false);
+		TypeInformation<R> resultType = getProcessWindowFunctionReturnType(windowFunction, aggResultType, null);
 
 		return aggregate(aggFunction, windowFunction, accumulatorType, aggResultType, resultType);
+	}
+
+	private static <IN, OUT, KEY> TypeInformation<OUT> getWindowFunctionReturnType(
+		WindowFunction<IN, OUT, KEY, ?> function,
+		TypeInformation<IN> inType) {
+		return TypeExtractor.getUnaryOperatorReturnType(
+			function,
+			WindowFunction.class,
+			0,
+			1,
+			new int[]{2, 0},
+			new int[]{3, 0},
+			inType,
+			null,
+			false);
+	}
+
+	private static <IN, OUT, KEY> TypeInformation<OUT> getProcessWindowFunctionReturnType(
+			ProcessWindowFunction<IN, OUT, KEY, ?> function,
+			TypeInformation<IN> inType,
+			String functionName) {
+		return TypeExtractor.getUnaryOperatorReturnType(
+			function,
+			ProcessWindowFunction.class,
+			0,
+			1,
+			new int[]{2, 0},
+			new int[]{3, 0},
+			inType,
+			functionName,
+			false);
 	}
 
 	/**
@@ -1094,8 +1119,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
 	public <R> SingleOutputStreamOperator<R> apply(WindowFunction<T, R, K, W> function) {
-		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
-				function, WindowFunction.class, true, true, getInputType(), null, false);
+		TypeInformation<R> resultType = getWindowFunctionReturnType(function, getInputType());
 
 		return apply(function, resultType);
 	}
@@ -1131,8 +1155,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 */
 	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> process(ProcessWindowFunction<T, R, K, W> function) {
-		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
-			function, ProcessWindowFunction.class, true, true, getInputType(), null, false);
+		TypeInformation<R> resultType = getProcessWindowFunctionReturnType(function, getInputType(), null);
 
 		return process(function, resultType);
 	}
@@ -1231,8 +1254,7 @@ public class WindowedStream<T, K, W extends Window> {
 	@Deprecated
 	public <R> SingleOutputStreamOperator<R> apply(ReduceFunction<T> reduceFunction, WindowFunction<T, R, K, W> function) {
 		TypeInformation<T> inType = input.getType();
-		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
-				function, WindowFunction.class, true, true, inType, null, false);
+		TypeInformation<R> resultType = getWindowFunctionReturnType(function, inType);
 
 		return apply(reduceFunction, function, resultType);
 	}

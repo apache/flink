@@ -44,7 +44,6 @@ public class CEPLambdaTest extends TestLogger {
 	 * Tests that a Java8 lambda can be passed as a CEP select function
 	 */
 	@Test
-	@Ignore
 	public void testLambdaSelectFunction() {
 		TypeInformation<EventA> eventTypeInformation = TypeExtractor.getForClass(EventA.class);
 		TypeInformation<EventB> outputTypeInformation = TypeExtractor.getForClass(EventB.class);
@@ -73,7 +72,6 @@ public class CEPLambdaTest extends TestLogger {
 	 * Tests that a Java8 lambda can be passed as a CEP flat select function
 	 */
 	@Test
-	@Ignore
 	public void testLambdaFlatSelectFunction() {
 		TypeInformation<EventA> eventTypeInformation = TypeExtractor.getForClass(EventA.class);
 		TypeInformation<EventB> outputTypeInformation = TypeExtractor.getForClass(EventB.class);

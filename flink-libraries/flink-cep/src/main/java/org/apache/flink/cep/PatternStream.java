@@ -83,8 +83,10 @@ public class PatternStream<T> {
 		TypeInformation<R> returnType = TypeExtractor.getUnaryOperatorReturnType(
 			patternSelectFunction,
 			PatternSelectFunction.class,
+			0,
 			1,
-			-1,
+			new int[]{0, 1, 0},
+			new int[]{},
 			inputStream.getType(),
 			null,
 			false);
@@ -142,8 +144,10 @@ public class PatternStream<T> {
 		TypeInformation<L> leftTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternTimeoutFunction,
 			PatternTimeoutFunction.class,
+			0,
 			1,
-			-1,
+			new int[]{0, 1, 0},
+			new int[]{},
 			inputStream.getType(),
 			null,
 			false);
@@ -151,8 +155,10 @@ public class PatternStream<T> {
 		TypeInformation<R> rightTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternSelectFunction,
 			PatternSelectFunction.class,
+			0,
 			1,
-			-1,
+			new int[]{0, 1, 0},
+			new int[]{},
 			inputStream.getType(),
 			null,
 			false);
@@ -184,8 +190,10 @@ public class PatternStream<T> {
 		TypeInformation<R> outTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternFlatSelectFunction,
 			PatternFlatSelectFunction.class,
-			1,
 			0,
+			1,
+			new int[] {0, 1, 0},
+			new int[] {1, 0},
 			inputStream.getType(),
 			null,
 			false);
@@ -244,8 +252,10 @@ public class PatternStream<T> {
 		TypeInformation<L> leftTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternFlatTimeoutFunction,
 			PatternFlatTimeoutFunction.class,
+			0,
 			1,
-			-1,
+			new int[]{0, 1, 0},
+			new int[]{2, 0},
 			inputStream.getType(),
 			null,
 			false);
@@ -253,8 +263,10 @@ public class PatternStream<T> {
 		TypeInformation<R> rightTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternFlatSelectFunction,
 			PatternFlatSelectFunction.class,
+			0,
 			1,
-			-1,
+			new int[]{0, 1, 0},
+			new int[]{1, 0},
 			inputStream.getType(),
 			null,
 			false);
