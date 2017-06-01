@@ -22,19 +22,21 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-SQL queries are specified using the `sql()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table` which can be converted into a `DataSet` or `DataStream`, used in subsequent Table API queries, or written to a `TableSink` (see [Writing Tables to External Sinks](#writing-tables-to-external-sinks)). SQL and Table API queries can seamlessly mixed and are holistically optimized and translated into a single DataStream or DataSet program.
+SQL queries are specified with the `sql()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can seamlessly mixed and are holistically optimized and translated into a single program.
 
-A `Table`, `DataSet`, `DataStream`, or external `TableSource` must be registered in the `TableEnvironment` in order to be accessible by a SQL query (see [Registering Tables](#registering-tables)). For convenience `Table.toString()` will automatically register an unique table name under the `Table`'s `TableEnvironment` and return the table name. So it allows to call SQL directly on tables in a string concatenation (see examples below).
+In order to access a table in a SQL query, it must be [registered in the TableEnvironment](common.html#register-a-table-in-the-catalog). A table can be registered from a [TableSource](common.html#register-a-tablesource), [Table](common.html#register-a-table), [DataStream, or DataSet](common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register external catalogs in a TableEnvironment](common.html#register-an-external-catalog) to specify the location of the data sources.
 
-*Note: Flink's SQL support is not feature complete, yet. Queries that include unsupported SQL features will cause a `TableException`. The limitations of SQL on batch and streaming tables are listed in the following sections.*
+For convenience `Table.toString()` automatically registers the table under a unique name in its `TableEnvironment` and returns the name. Hence, `Table` objects can be directly inlined into SQL queries (by string concatenation) as shown in the examples below.
 
-**TODO: Rework intro. Move some parts below. **
+**Note:** Flink's SQL support is not yet feature complete. Queries that include unsupported SQL features cause a `TableException`. The supported features of SQL on batch and streaming tables are listed in the following sections.
 
 * This will be replaced by the TOC
 {:toc}
 
 Specifying a Query
----------------
+------------------
+
+The following examples show how to specify a SQL queries on registered and inlined tables.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -45,12 +47,12 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 
-// call SQL on unregistered tables
+// SQL query with an inlined (unregistered) table
 Table table = tableEnv.toTable(ds, "user, product, amount");
 Table result = tableEnv.sql(
   "SELECT SUM(amount) FROM " + table + " WHERE product LIKE '%Rubber%'");
 
-// call SQL on registered tables
+// SQL query with a registered table
 // register the DataStream as table "Orders"
 tableEnv.registerDataStream("Orders", ds, "user, product, amount");
 // run a SQL query on the Table and retrieve the result as a new Table
@@ -67,12 +69,12 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // read a DataStream from an external source
 val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
 
-// call SQL on unregistered tables
+// SQL query with an inlined (unregistered) table
 val table = ds.toTable(tableEnv, 'user, 'product, 'amount)
 val result = tableEnv.sql(
   s"SELECT SUM(amount) FROM $table WHERE product LIKE '%Rubber%'")
 
-// call SQL on registered tables
+// SQL query with a registered table
 // register the DataStream under the name "Orders"
 tableEnv.registerDataStream("Orders", ds, 'user, 'product, 'amount)
 // run a SQL query on the Table and retrieve the result as a new Table
@@ -82,14 +84,14 @@ val result2 = tableEnv.sql(
 </div>
 </div>
 
-**TODO: Add some intro.**
-
 {% top %}
 
 Supported Syntax
 ----------------
 
-Flink uses [Apache Calcite](https://calcite.apache.org/docs/reference.html) for SQL parsing. Currently, Flink SQL only supports query-related SQL syntax and only a subset of the comprehensive SQL standard. The following BNF-grammar describes the supported SQL features:
+Flink parses SQL using [Apache Calcite](https://calcite.apache.org/docs/reference.html), which supports standard ANSI SQL. DML and DDL statements are not supported by Flink.
+
+The following BNF-grammar describes the superset of supported SQL features in batch and streaming queries. The [Operations](#operations) section shows examples for the supported features and indicates which features are only supported for batch or streaming queries.
 
 ```
 
@@ -153,9 +155,10 @@ groupItem:
   | CUBE '(' expression [, expression ]* ')'
   | ROLLUP '(' expression [, expression ]* ')'
   | GROUPING SETS '(' groupItem [, groupItem ]* ')'
+
 ```
 
-For a better definition of SQL queries within a Java String, Flink SQL uses a lexical policy similar to Java:
+Flink SQL uses a lexical policy for identifier (table, attribute, function names) similar to Java:
 
 - The case of identifiers is preserved whether or not they are quoted.
 - After which, identifiers are matched case-sensitively.
@@ -163,31 +166,355 @@ For a better definition of SQL queries within a Java String, Flink SQL uses a le
 
 {% top %}
 
-Example Queries
----------------
+Operations
+--------------------
 
-**TODO: Add a examples for different operations with similar structure as for the Table API. Add highlighted tags if an operation is not supported by stream / batch.**
+### Scan, Projection, and Filter
 
-* Scan & Values
-* Selection & Projection
-* Aggregations (distinct only Batch)
-  * GroupBy
-  * GroupBy Windows (TUMBLE, HOP, SESSION)
-  * OVER windows (Only Stream)
-  * Grouping sets, rollup, cube (only batch)
-  * Having (only batch?)
-* Joins
-  * Inner equi joins (only batch)
-  * Outer equi joins (only batch)
-  * TableFunction
-* Set operations (only batch, except Union ALL)
-* OrderBy + Limit + Offset
+<div markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+  	<tr>
+  		<td>
+        <strong>Scan / Select / As</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+  		<td>
+{% highlight sql %}
+SELECT * FROM Orders
+
+SELECT a, c AS d FROM Orders
+{% endhighlight %}
+      </td>
+  	</tr>
+    <tr>
+      <td>
+        <strong>Where / Filter</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+{% highlight sql %}
+SELECT * FROM Orders WHERE b = 'red'
+
+SELECT * FROM Orders WHERE a % 2 = 0
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>User-defined Scalar Functions (Scalar UDF)</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+      <p>UDFs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register scalar UDFs.</p>
+{% highlight sql %}
+SELECT PRETTY_PRINT(user) FROM Orders
+{% endhighlight %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+</div>
 
 {% top %}
 
-### GroupBy Windows
+### Aggregations
 
-**TODO: Integrate this with the examples**
+<div markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <strong>GroupBy Aggregation</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span><br>
+        <span class="label label-info">Result Updating</span>
+      </td>
+      <td>
+        <p><b>Note:</b> GroupBy on a streaming table produces an updating result. See the <a href="streaming.html">Streaming Concepts</a> page for details.
+        </p>
+{% highlight sql %}
+SELECT a, SUM(b) as d 
+FROM Orders 
+GROUP BY a
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+    	<td>
+        <strong>GroupBy Window Aggregation</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+    	<td>
+        <p>Use a group window to compute a single result row per group. See <a href="#group-windows">Group Windows</a> section for more details.</p>
+{% highlight sql %}
+SELECT user, SUM(amount) 
+FROM Orders 
+GROUP BY TUMBLE(rowtime, INTERVAL '1' DAY), user
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+    	<td>
+        <strong>Over Window aggregation</strong><br>
+        <span class="label label-primary">Streaming</span>
+      </td>
+    	<td>
+        <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming.html#time-attributes">time attribute</a></p>
+{% highlight sql %}
+SELECT COUNT(amount) OVER (
+  PARTITION BY user 
+  ORDER BY proctime 
+  ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+FROM Orders
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>Distinct</strong><br>
+        <span class="label label-primary">Batch</span>
+      </td>
+      <td>
+{% highlight sql %}
+SELECT DISTINCT users FROM Orders
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>Grouping sets, Rollup, Cube</strong><br>
+        <span class="label label-primary">Batch</span>
+      </td>
+      <td>
+{% highlight sql %}
+SELECT SUM(amount) 
+FROM Orders 
+GROUP BY GROUPING SETS ((user), (product))
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>Having</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+{% highlight sql %}
+SELECT SUM(amount) 
+FROM Orders 
+GROUP BY users 
+HAVING SUM(amount) > 50
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>User-defined Aggregate Functions (UDAGG)</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>UDAGGs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDAGGs.</p>
+{% highlight sql %}
+SELECT MyAggregate(amount) 
+FROM Orders 
+GROUP BY users
+{% endhighlight %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+{% top %}
+
+### Joins
+
+<div markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+  	<tr>
+      <td><strong>Inner Equi-join / Outer Equi-join</strong><br>
+        <span class="label label-primary">Batch</span>
+      </td>
+      <td>
+        <p>Currently, only equi-joins are supported, i.e., joins that have at least one conjunctive condition with an equality predicate. Arbitrary cross or theta joins are not supported.</p>
+        <p><b>Note:</b> The order of joins is not optimized. Tables are joined in the order in which they are specified in the FROM clause. Make sure to specify tables in an order that does not yield a cross join (Cartesian product) which are not supported and would cause a query to fail.</p>
+{% highlight sql %}
+SELECT * 
+FROM Orders INNER JOIN Product ON Orders.productId = Product.id
+
+SELECT * 
+FROM Orders LEFT JOIN Product ON Orders.productId = Product.id
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+    	<td>
+        <strong>Expanding arrays into a relation</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+    	<td>
+        <p>Unnesting WITH ORDINALITY is not supported yet.</p>
+{% highlight sql %}
+SELECT users, tag 
+FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+    	<td>
+        <strong>User Defined Table Functions (UDTF)</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+    	<td>
+      <p>UDTFs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDTFs. </p>
+{% highlight sql %}
+SELECT users, tag 
+FROM Orders LATERAL VIEW UNNEST_UDTF(tags) t AS tag
+{% endhighlight %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+{% top %}
+
+### Set Operations
+
+<div markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+  	<tr>
+      <td>
+        <strong>Union</strong><br>
+        <span class="label label-primary">Batch</span>
+      </td>
+      <td>
+{% highlight sql %}
+SELECT * 
+FROM (
+    (SELECT user FROM Orders WHERE a % 2 = 0)
+  UNION
+    (SELECT user FROM Orders WHERE b = 0)
+)
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>UnionAll</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+{% highlight sql %}
+SELECT * 
+FROM (
+    (SELECT user FROM Orders WHERE a % 2 = 0)
+  UNION ALL
+    (SELECT user FROM Orders WHERE b = 0)
+)
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>Intersect / Except</strong><br>
+        <span class="label label-primary">Batch</span>
+      </td>
+      <td>
+{% highlight sql %}
+SELECT * 
+FROM (
+    (SELECT user FROM Orders WHERE a % 2 = 0)
+  INTERSECT
+    (SELECT user FROM Orders WHERE b = 0)
+)
+{% endhighlight %}
+{% highlight sql %}
+SELECT * 
+FROM (
+    (SELECT user FROM Orders WHERE a % 2 = 0)
+  EXCEPT
+    (SELECT user FROM Orders WHERE b = 0)
+)
+{% endhighlight %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+{% top %}
+
+### OrderBy & Limit
+
+<div markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+  	<tr>
+      <td>
+        <strong>Order By</strong><br>
+        <span class="label label-primary">Batch</span>
+      </td>
+      <td>
+{% highlight sql %}
+SELECT * 
+FROM Orders 
+ORDER BY users
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Limit</strong><br>
+        <span class="label label-primary">Batch</span>
+      </td>
+      <td>
+{% highlight sql %}
+SELECT * 
+FROM Orders 
+LIMIT 3
+{% endhighlight %}
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+</div>
+
+{% top %}
 
 ### Group Windows
 
@@ -217,7 +544,12 @@ Group windows are defined in the `GROUP BY` clause of a SQL query. Just like que
   </tbody>
 </table>
 
-For SQL queries on streaming tables, the `time_attr` argument of the group window function must be one of the `rowtime()` or `proctime()` time-indicators, which distinguish between event or processing time, respectively. For SQL on batch tables, the `time_attr` argument of the group window function must be an attribute of type `TIMESTAMP`. 
+
+#### Time Attributes
+
+For SQL queries on streaming tables, the `time_attr` argument of the group window function must refer to a valid time attribute that specifies the processing time or event time of rows. See the [documentation of time attributes](streaming.html#time-attributes) to learn how to define time attributes. 
+
+For SQL on batch tables, the `time_attr` argument of the group window function must be an attribute of type `TIMESTAMP`.
 
 #### Selecting Group Window Start and End Timestamps
 
@@ -251,9 +583,9 @@ The start and end timestamps of group windows can be selected with the following
   </tbody>
 </table>
 
-Note that the auxiliary functions must be called with exactly same arguments as the group window function in the `GROUP BY` clause.
+*Note:* Auxiliary functions must be called with exactly same arguments as the group window function in the `GROUP BY` clause.
 
-The following examples show how to specify SQL queries with group windows on streaming tables. 
+The following examples show how to specify SQL queries with group windows on streaming tables.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -264,31 +596,31 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 // register the DataStream as table "Orders"
-tableEnv.registerDataStream("Orders", ds, "user, product, amount");
+tableEnv.registerDataStream("Orders", ds, "user, product, amount, proctime.proctime, rowtime.rowtime");
 
 // compute SUM(amount) per day (in event-time)
 Table result1 = tableEnv.sql(
   "SELECT user, " +
-  "  TUMBLE_START(rowtime(), INTERVAL '1' DAY) as wStart,  " +
-  "  SUM(amount) FROM Orders " + 
-  "GROUP BY TUMBLE(rowtime(), INTERVAL '1' DAY), user");
+  "  TUMBLE_START(rowtime, INTERVAL '1' DAY) as wStart,  " +
+  "  SUM(amount) FROM Orders " +
+  "GROUP BY TUMBLE(rowtime, INTERVAL '1' DAY), user");
 
 // compute SUM(amount) per day (in processing-time)
 Table result2 = tableEnv.sql(
-  "SELECT user, SUM(amount) FROM Orders GROUP BY TUMBLE(proctime(), INTERVAL '1' DAY), user");
+  "SELECT user, SUM(amount) FROM Orders GROUP BY TUMBLE(proctime, INTERVAL '1' DAY), user");
 
 // compute every hour the SUM(amount) of the last 24 hours in event-time
 Table result3 = tableEnv.sql(
-  "SELECT product, SUM(amount) FROM Orders GROUP BY HOP(rowtime(), INTERVAL '1' HOUR, INTERVAL '1' DAY), product");
+  "SELECT product, SUM(amount) FROM Orders GROUP BY HOP(rowtime, INTERVAL '1' HOUR, INTERVAL '1' DAY), product");
 
 // compute SUM(amount) per session with 12 hour inactivity gap (in event-time)
 Table result4 = tableEnv.sql(
   "SELECT user, " +
-  "  SESSION_START(rowtime(), INTERVAL '12' HOUR) AS sStart, " +
-  "  SESSION_END(rowtime(), INTERVAL '12' HOUR) AS snd, " + 
-  "  SUM(amount) " + 
-  "FROM Orders " + 
-  "GROUP BY SESSION(rowtime(), INTERVAL '12' HOUR), user");
+  "  SESSION_START(rowtime, INTERVAL '12' HOUR) AS sStart, " +
+  "  SESSION_END(rowtime, INTERVAL '12' HOUR) AS snd, " +
+  "  SUM(amount) " +
+  "FROM Orders " +
+  "GROUP BY SESSION(rowtime, INTERVAL '12' HOUR), user");
 
 {% endhighlight %}
 </div>
@@ -301,34 +633,34 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // read a DataStream from an external source
 val ds: DataStream[(Long, String, Int)] = env.addSource(...)
 // register the DataStream under the name "Orders"
-tableEnv.registerDataStream("Orders", ds, 'user, 'product, 'amount)
+tableEnv.registerDataStream("Orders", ds, 'user, 'product, 'amount, 'proctime.proctime, 'rowtime.rowtime)
 
 // compute SUM(amount) per day (in event-time)
 val result1 = tableEnv.sql(
     """
       |SELECT
-      |  user, 
-      |  TUMBLE_START(rowtime(), INTERVAL '1' DAY) as wStart,
+      |  user,
+      |  TUMBLE_START(rowtime, INTERVAL '1' DAY) as wStart,
       |  SUM(amount)
       | FROM Orders
-      | GROUP BY TUMBLE(rowtime(), INTERVAL '1' DAY), user
+      | GROUP BY TUMBLE(rowtime, INTERVAL '1' DAY), user
     """.stripMargin)
 
 // compute SUM(amount) per day (in processing-time)
 val result2 = tableEnv.sql(
-  "SELECT user, SUM(amount) FROM Orders GROUP BY TUMBLE(proctime(), INTERVAL '1' DAY), user")
+  "SELECT user, SUM(amount) FROM Orders GROUP BY TUMBLE(proctime, INTERVAL '1' DAY), user")
 
 // compute every hour the SUM(amount) of the last 24 hours in event-time
 val result3 = tableEnv.sql(
-  "SELECT product, SUM(amount) FROM Orders GROUP BY HOP(rowtime(), INTERVAL '1' HOUR, INTERVAL '1' DAY), product")
+  "SELECT product, SUM(amount) FROM Orders GROUP BY HOP(rowtime, INTERVAL '1' HOUR, INTERVAL '1' DAY), product")
 
 // compute SUM(amount) per session with 12 hour inactivity gap (in event-time)
 val result4 = tableEnv.sql(
     """
       |SELECT
-      |  user, 
-      |  SESSION_START(rowtime(), INTERVAL '12' HOUR) AS sStart,
-      |  SESSION_END(rowtime(), INTERVAL '12' HOUR) AS sEnd,
+      |  user,
+      |  SESSION_START(rowtime, INTERVAL '12' HOUR) AS sStart,
+      |  SESSION_END(rowtime, INTERVAL '12' HOUR) AS sEnd,
       |  SUM(amount)
       | FROM Orders
       | GROUP BY SESSION(rowtime(), INTERVAL '12' HOUR), user
@@ -339,28 +671,6 @@ val result4 = tableEnv.sql(
 </div>
 
 {% top %}
-
-### Limitations
-
-**TODO: Integrate this with the examples**
-
-#### Batch
-
-The current version supports selection (filter), projection, inner equi-joins, grouping, aggregates, and sorting on batch tables.
-
-Among others, the following SQL features are not supported, yet:
-
-- Timestamps and intervals are limited to milliseconds precision
-- Interval arithmetic is currenly limited
-- Non-equi joins and Cartesian products
-- Efficient grouping sets
-
-*Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products.*
-
-#### Streaming
-
-Joins, set operations, and non-windowed aggregations are not supported yet.
-`UNNEST` supports only arrays and does not support `WITH ORDINALITY` yet.
 
 Data Types
 ----------
@@ -388,7 +698,7 @@ The SQL runtime is built on top of Flink's DataSet and DataStream APIs. Internal
 | `Types.MAP`            | `MAP`                       | `java.util.HashMap`    |
 
 
-Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and array types (object or primitive arrays) can be fields of a row. 
+Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and array types (object or primitive arrays) can be fields of a row.
 
 Generic types are treated as a black box within Table API and SQL yet.
 
@@ -799,7 +1109,7 @@ boolean IS NOT UNKNOWN
         <p>Returns negative <i>numeric</i>.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight text %}
@@ -1562,7 +1872,7 @@ AVG(numeric)
         <p>Returns the average (arithmetic mean) of <i>numeric</i> across all input values.</p>
       </td>
     </tr>
-    
+
     <tr>
       <td>
         {% highlight text %}
@@ -1605,7 +1915,7 @@ STDDEV_POP(value)
         <p>Returns the population standard deviation of the numeric field across all input values.</p>
       </td>
     </tr>
-    
+
 <tr>
       <td>
         {% highlight text %}
@@ -1751,14 +2061,13 @@ ELEMENT(ARRAY)
   </tbody>
 </table>
 
-### Limitations
+### Unsupported Functions
 
-The following operations are not supported yet:
+The following functions are not supported yet:
 
 - Binary string operators and functions
 - System functions
 - Collection functions
-- Aggregate functions like STDDEV_xxx, VAR_xxx, and REGR_xxx
 - Distinct aggregate functions like COUNT DISTINCT
 
 {% top %}
@@ -1775,4 +2084,3 @@ A, ABS, ABSOLUTE, ACTION, ADA, ADD, ADMIN, AFTER, ALL, ALLOCATE, ALLOW, ALTER, A
 {% endhighlight %}
 
 {% top %}
-
