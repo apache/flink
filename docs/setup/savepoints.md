@@ -144,7 +144,7 @@ $ bin/flink savepoint -d :savepointPath
 
 This disposes the savepoint stored in `:savepointPath`.
 
-Note that it is possible to also manually delete a savepoint via regular file system operations without affecting other savepoints or checkpoints (recall that each savepoint is self-contained). Up to Flink 1.2, this way a more tedious task which was performed with the savepoint command above.
+Note that it is possible to also manually delete a savepoint via regular file system operations without affecting other savepoints or checkpoints (recall that each savepoint is self-contained). Up to Flink 1.2, this was a more tedious task which was performed with the savepoint command above.
 
 ### Configuration
 
