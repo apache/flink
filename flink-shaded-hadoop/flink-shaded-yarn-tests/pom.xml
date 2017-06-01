@@ -29,8 +29,8 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-shaded-include-yarn-tests</artifactId>
-	<name>flink-shaded-include-yarn-tests</name>
+	<artifactId>flink-shaded-yarn-tests</artifactId>
+	<name>flink-shaded-yarn-tests</name>
 
 	<packaging>jar</packaging>
 
