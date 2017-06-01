@@ -35,7 +35,7 @@ public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 
 	private static final long serialVersionUID = 1L;
 
-	/** The states for all operator */
+	/** The states for all operator. */
 	private final StreamTaskState[] states;
 
 	public StreamTaskStateList(StreamTaskState[] states) throws Exception {

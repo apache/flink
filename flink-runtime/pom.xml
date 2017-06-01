@@ -420,11 +420,6 @@ under the License.
 					<logViolationsToConsole>true</logViolationsToConsole>
 					<failOnViolation>true</failOnViolation>
 					<excludes>
-						**/migration/api/**,
-						**/migration/runtime/**,
-						**/migration/state/**,
-						**/migration/streaming/**,
-						**/migration/*,
 						**/runtime/akka/**,
 						**/runtime/blob/**,
 						**/runtime/broadcast/**,
