@@ -203,9 +203,19 @@ public class ConnectedStreams<IN1, IN2> {
 	 */
 	public <R> SingleOutputStreamOperator<R> map(CoMapFunction<IN1, IN2, R> coMapper) {
 
-		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coMapper,
-				CoMapFunction.class, false, true, getType1(), getType2(),
-				Utils.getCallLocationName(), true);
+		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(
+			coMapper,
+			CoMapFunction.class,
+			0,
+			1,
+			2,
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
+			getType1(),
+			getType2(),
+			Utils.getCallLocationName(),
+			true);
 
 		return transform("Co-Map", outTypeInfo, new CoStreamMap<>(inputStream1.clean(coMapper)));
 
@@ -227,9 +237,19 @@ public class ConnectedStreams<IN1, IN2> {
 	public <R> SingleOutputStreamOperator<R> flatMap(
 			CoFlatMapFunction<IN1, IN2, R> coFlatMapper) {
 
-		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coFlatMapper,
-				CoFlatMapFunction.class, false, true, getType1(), getType2(),
-				Utils.getCallLocationName(), true);
+		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(
+			coFlatMapper,
+			CoFlatMapFunction.class,
+			0,
+			1,
+			2,
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
+			getType1(),
+			getType2(),
+			Utils.getCallLocationName(),
+			true);
 
 		return transform("Co-Flat Map", outTypeInfo, new CoStreamFlatMap<>(inputStream1.clean(coFlatMapper)));
 	}
@@ -254,9 +274,19 @@ public class ConnectedStreams<IN1, IN2> {
 	public <R> SingleOutputStreamOperator<R> process(
 			CoProcessFunction<IN1, IN2, R> coProcessFunction) {
 
-		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coProcessFunction,
-				CoProcessFunction.class, false, true, getType1(), getType2(),
-				Utils.getCallLocationName(), true);
+		TypeInformation<R> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(
+			coProcessFunction,
+			CoProcessFunction.class,
+			0,
+			1,
+			2,
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
+			TypeExtractor.NO_INDEX,
+			getType1(),
+			getType2(),
+			Utils.getCallLocationName(),
+			true);
 
 		return process(coProcessFunction, outTypeInfo);
 	}
