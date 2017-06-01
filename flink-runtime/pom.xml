@@ -450,7 +450,6 @@ under the License.
 						**/runtime/net/**,
 						**/runtime/operators/**,
 						**/runtime/plugable/**,
-						**/runtime/process/**,
 						**/runtime/query/**,
 						**/runtime/registration/**,
 						**/runtime/resourcemanager/**,
